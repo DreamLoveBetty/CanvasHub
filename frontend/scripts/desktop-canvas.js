@@ -70,12 +70,23 @@
   const IMAGE_EDIT_ZOOM_STEP = 1.2;
   const WORKFLOW_SCHEMA = 'tg-mini-app-img-gen.desktop-workflow';
   const WORKFLOW_VERSION = 1;
-  const IS_MAC_PLATFORM = (() => {
+  const PLATFORM_INFO = (() => {
     const nav = window.navigator || {};
-    const platform = String(nav.platform || nav.userAgentData?.platform || '').toLowerCase();
-    const ua = String(nav.userAgent || '').toLowerCase();
-    return platform.includes('mac') || ua.includes('macintosh') || ua.includes('mac os x');
+    return {
+      platform: String(nav.platform || '').toLowerCase(),
+      userAgentPlatform: String(nav.userAgentData?.platform || '').toLowerCase(),
+      userAgent: String(nav.userAgent || '').toLowerCase()
+    };
   })();
+  const IS_WINDOWS_PLATFORM = PLATFORM_INFO.platform.includes('win')
+    || PLATFORM_INFO.userAgentPlatform.includes('windows')
+    || PLATFORM_INFO.userAgent.includes('windows');
+  const IS_MAC_PLATFORM = !IS_WINDOWS_PLATFORM && (
+    PLATFORM_INFO.platform.includes('mac')
+    || PLATFORM_INFO.userAgentPlatform.includes('mac')
+    || PLATFORM_INFO.userAgent.includes('macintosh')
+    || PLATFORM_INFO.userAgent.includes('mac os x')
+  );
   let textPolishState = null;
   const TEXT_POLISH_VARIANTS = [
     { id: 'full', title: '完整提示', hint: '结构完整，适合直接投喂模型' },
@@ -2454,6 +2465,43 @@
       els.deskCanvasViewport?.setPointerCapture?.(event.pointerId);
     } catch {}
     els.deskCanvasViewport.classList.add('is-panning');
+  }
+
+  function startRightMousePanFallback(event) {
+    if (event.button !== 2 || activeInteraction) return;
+    const target = event.target;
+    if (
+      target.closest(CANVAS_RIGHT_PAN_BLOCK_SELECTOR)
+      || target.closest(CANVAS_RIGHT_PAN_CONTROL_SELECTOR)
+    ) {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    hideContextMenu();
+    const canvas = DesktopState.state.canvas;
+    activeInteraction = {
+      type: 'pan',
+      pointerButton: 'right',
+      mouseFallback: true,
+      startedOnNode: !!target.closest('.desk-node'),
+      startX: event.clientX,
+      startY: event.clientY,
+      canvasX: canvas.x,
+      canvasY: canvas.y,
+      moved: false
+    };
+    els.deskCanvasViewport?.classList.add('is-panning');
+  }
+
+  function moveMouseInteractionFallback(event) {
+    if (!activeInteraction?.mouseFallback) return;
+    moveInteraction(event);
+  }
+
+  function endMouseInteractionFallback(event) {
+    if (!activeInteraction?.mouseFallback) return;
+    endInteraction(event);
   }
 
   function isTextNodeDragEdge(event, node) {
@@ -7646,6 +7694,7 @@
     });
 
     els.deskCanvasViewport?.addEventListener('pointerdown', startPan);
+    els.deskCanvasViewport?.addEventListener('mousedown', startRightMousePanFallback, true);
     els.deskCanvasViewport?.addEventListener('contextmenu', event => {
       if (Date.now() < suppressCanvasContextMenuUntil || (activeInteraction?.type === 'pan' && activeInteraction.pointerButton === 'right')) {
         event.preventDefault();
@@ -7777,6 +7826,8 @@
     window.addEventListener('pointermove', moveInteraction);
     window.addEventListener('pointerup', endInteraction);
     window.addEventListener('pointercancel', endInteraction);
+    window.addEventListener('mousemove', moveMouseInteractionFallback, true);
+    window.addEventListener('mouseup', endMouseInteractionFallback, true);
     window.addEventListener('resize', renderMiniMap);
     document.addEventListener('keydown', handleCanvasDeleteKeydown, true);
 

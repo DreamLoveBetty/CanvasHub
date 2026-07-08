@@ -22,8 +22,30 @@ SIDECAR_PORT = int(os.environ.get("CHATGPT_POOL_PORT") or "18080")
 PYTHON = Path(os.environ.get("CANVASHUB_PY") or sys.executable)
 CREATE_NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 CREATE_NEW_PROCESS_GROUP = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
-DETACHED_PROCESS = getattr(subprocess, "DETACHED_PROCESS", 0)
-START_FLAGS = CREATE_NO_WINDOW | CREATE_NEW_PROCESS_GROUP | DETACHED_PROCESS
+STARTF_USESHOWWINDOW = getattr(subprocess, "STARTF_USESHOWWINDOW", 0)
+SW_HIDE = 0
+START_FLAGS = CREATE_NO_WINDOW | CREATE_NEW_PROCESS_GROUP
+
+
+def _service_python() -> Path:
+    """Use pythonw.exe for background services on Windows to avoid extra consoles."""
+    override = os.environ.get("CANVASHUB_SERVICE_PY")
+    if override:
+        return Path(override)
+    if os.name == "nt" and PYTHON.name.lower() == "python.exe":
+        pythonw = PYTHON.with_name("pythonw.exe")
+        if pythonw.exists():
+            return pythonw
+    return PYTHON
+
+
+def _startupinfo():
+    if os.name != "nt":
+        return None
+    startupinfo = subprocess.STARTUPINFO()
+    startupinfo.dwFlags |= STARTF_USESHOWWINDOW
+    startupinfo.wShowWindow = SW_HIDE
+    return startupinfo
 
 
 def _env() -> dict[str, str]:
@@ -124,6 +146,7 @@ def _spawn(name: str, args: list[str], log_name: str) -> int:
             stderr=subprocess.STDOUT,
             stdin=subprocess.DEVNULL,
             creationflags=START_FLAGS if os.name == "nt" else 0,
+            startupinfo=_startupinfo(),
             close_fds=False if os.name == "nt" else True,
         )
     except Exception as exc:
@@ -163,7 +186,7 @@ def start(open_browser: bool = True) -> int:
     sidecar_ok = _start_service(
         "sidecar",
         SIDECAR_PORT,
-        [str(PYTHON), "-u", "-X", "utf8", "-m", "uvicorn", "sidecars.chatgpt_pool.app:app", "--host", SIDECAR_HOST, "--port", str(SIDECAR_PORT)],
+        [str(_service_python()), "-u", "-X", "utf8", "-m", "uvicorn", "sidecars.chatgpt_pool.app:app", "--host", SIDECAR_HOST, "--port", str(SIDECAR_PORT)],
         f"http://{SIDECAR_HOST}:{SIDECAR_PORT}/health",
         "sidecar.combined.log",
         wait_seconds=45,
@@ -171,7 +194,7 @@ def start(open_browser: bool = True) -> int:
     server_ok = _start_service(
         "server",
         MAIN_PORT,
-        [str(PYTHON), "-u", "-X", "utf8", "server.py"],
+        [str(_service_python()), "-u", "-X", "utf8", "server.py"],
         f"http://127.0.0.1:{MAIN_PORT}/desktop.html",
         "server.combined.log",
         wait_seconds=120,
