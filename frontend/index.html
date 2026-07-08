@@ -1,0 +1,1307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Image Studio Pro</title>
+  <script>
+    (function () {
+      function showBootError(message) {
+        try {
+          var box = document.getElementById('bootErrorBox');
+          if (!box) {
+            box = document.createElement('div');
+            box.id = 'bootErrorBox';
+            box.style.cssText = 'position:fixed;left:12px;right:12px;bottom:12px;z-index:9999;padding:12px 14px;border-radius:12px;background:#3a1111;color:#fff;font:12px/1.45 -apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;box-shadow:0 12px 28px rgba(0,0,0,.28);white-space:pre-wrap;word-break:break-word;';
+            document.addEventListener('DOMContentLoaded', function () {
+              document.body.appendChild(box);
+            }, { once: true });
+          }
+          box.textContent = '启动错误：' + message;
+        } catch (_) {}
+      }
+      window.addEventListener('error', function (event) {
+        showBootError(event.message || 'Unknown script error');
+      });
+      window.addEventListener('unhandledrejection', function (event) {
+        var reason = event.reason;
+        showBootError((reason && (reason.message || reason.stack)) || String(reason || 'Unhandled promise rejection'));
+      });
+    })();
+  </script>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script>
+    (function () {
+      const defaultSkin = 'skeuo-tech';
+      const defaultLayoutMode = 'classic';
+      const legacyDefaultSkin = 'cassette-light';
+      const themeSchemaVersion = 2;
+      const validSkins = ['skeuo-tech', 'cassette-light', 'garden', 'midnight', 'paper'];
+      const validLayoutModes = ['classic', 'cinematic'];
+      try {
+        const raw = localStorage.getItem('miniapp_ui_settings_v1');
+        if (!raw) {
+          document.documentElement.dataset.skin = defaultSkin;
+          document.documentElement.dataset.layout = defaultLayoutMode;
+          return;
+        }
+        const parsed = JSON.parse(raw);
+        let nextSkin = defaultSkin;
+        let nextLayoutMode = defaultLayoutMode;
+        if (parsed && typeof parsed.theme === 'string' && parsed.theme) {
+          nextSkin = parsed.theme;
+          if ((parsed.themeVersion == null || parsed.themeVersion < themeSchemaVersion) && nextSkin === legacyDefaultSkin) {
+            nextSkin = defaultSkin;
+          }
+        }
+        if (parsed && typeof parsed.layoutMode === 'string' && parsed.layoutMode) {
+          nextLayoutMode = parsed.layoutMode;
+        }
+        document.documentElement.dataset.skin = validSkins.includes(nextSkin) ? nextSkin : defaultSkin;
+        document.documentElement.dataset.layout = validLayoutModes.includes(nextLayoutMode) ? nextLayoutMode : defaultLayoutMode;
+      } catch (e) {
+        document.documentElement.dataset.skin = defaultSkin;
+        document.documentElement.dataset.layout = defaultLayoutMode;
+      }
+    })();
+  </script>
+  <link rel="stylesheet" href="styles/base.css?v=20260617-thirdparty2">
+  <link rel="stylesheet" href="styles/theme-tokens.css?v=20260522-welib-remove-2">
+  <link rel="stylesheet" href="styles/cinematic-shell-stream.css?v=20260426-4">
+  <link rel="stylesheet" href="styles/cinematic-discover.css">
+  <link rel="stylesheet" href="styles/cinematic-composer.css?v=20260425-1">
+  <link rel="stylesheet" href="styles/cinematic-responsive.css?v=20260424-1">
+  <link rel="stylesheet" href="styles/theme-overrides.css?v=20260522-welib-remove-2">
+</head>
+<body>
+
+  <div id="authOverlay" class="auth-overlay">
+    <div class="auth-card">
+      <div class="auth-title">需要身份验证</div>
+      <div id="authMessage" class="auth-message">请在 Telegram 中打开，或输入访问密码。</div>
+      <div id="authInputRow" style="margin-top:16px; display:none; flex-direction:column; gap:10px;">
+        <input type="password" id="authPassword" class="auth-password-input" placeholder="输入访问密码">
+        <button type="button" class="auth-submit-btn" onclick="handleManualAuth()">验证并登录</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="settingsOverlay" class="settings-overlay" onclick="closeSettings()"></div>
+
+  <!-- Main Menu -->
+  <div class="sidebar-overlay" id="mainMenuOverlay" onclick="toggleMainMenu()"></div>
+  <div class="sidebar" id="mainMenu">
+    <div class="sidebar-header">
+      <div class="sidebar-title">🏠 主菜单</div>
+      <div class="sidebar-header-actions">
+        <div class="sidebar-close" onclick="toggleMainMenu()">×</div>
+      </div>
+    </div>
+    <div class="menu-stack">
+      <button class="menu-card" onclick="openWorkspace('google')">
+        <span class="menu-icon">✨</span>
+        <div class="menu-copy">
+          <strong>AI 图像生成</strong>
+          <span>Google Antigravity</span>
+        </div>
+      </button>
+      <button class="menu-card" onclick="openWorkspace('comfy')">
+        <span class="menu-icon">🎨</span>
+        <div class="menu-copy">
+          <strong>ComfyUI 生成</strong>
+          <span>本地工作流</span>
+        </div>
+      </button>
+      <button class="menu-card" onclick="openWorkspace('gpt')">
+        <span class="menu-icon">🧠</span>
+        <div class="menu-copy">
+          <strong>GPT 图像生成</strong>
+          <span>DALL-E 3</span>
+        </div>
+      </button>
+      <button class="menu-card" onclick="openHistoryFromMenu()">
+        <span class="menu-icon">🗂️</span>
+        <div class="menu-copy">
+          <strong>历史记录</strong>
+          <span>查看生成历史</span>
+        </div>
+      </button>
+      <div class="menu-divider"></div>
+      <div class="menu-section">
+        <div class="menu-section-label">布局模式</div>
+        <div class="layout-mode-row">
+          <span class="layout-mode-icon" aria-hidden="true">◫</span>
+          <div class="layout-mode-copy">
+            <strong>界面架构</strong>
+            <span>Classic 工作台 / Cinematic 创作流</span>
+          </div>
+          <div class="layout-mode-select-wrap">
+            <select id="layoutModeSelect" class="style-select layout-mode-select" onchange="setLayoutMode(this.value)" aria-label="选择布局模式">
+              <option value="classic">Classic</option>
+              <option value="cinematic">Cinematic</option>
+            </select>
+            <div class="select-arrow">▼</div>
+          </div>
+        </div>
+        <div class="menu-section-label">界面风格</div>
+        <div class="menu-skin-row">
+          <span class="menu-skin-icon" aria-hidden="true">✦</span>
+          <div class="menu-skin-copy">
+            <strong>风格皮肤</strong>
+            <span>切换整套视觉质感</span>
+          </div>
+          <div class="menu-skin-select-wrap">
+            <select id="skinSelect" class="style-select menu-skin-select" onchange="setSkin(this.value)" aria-label="选择界面风格">
+              <option value="skeuo-tech">Skeuo Tech</option>
+              <option value="cassette-light">Cassette Light</option>
+              <option value="garden">Garden</option>
+              <option value="midnight">Midnight</option>
+              <option value="paper">Paper</option>
+            </select>
+            <div class="select-arrow">▼</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sidebar -->
+  <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+  <div class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-title">历史记录</div>
+      <div class="sidebar-header-actions">
+        <button class="btn-danger-mini" onclick="deleteFailedHistory()">删失败</button>
+        <div class="sidebar-close" onclick="toggleSidebar()">×</div>
+      </div>
+    </div>
+
+    <div class="history-filters">
+      <div class="history-filter-row">
+        <select id="historyTypeFilter" class="history-filter-control" onchange="onHistoryFilterChange()">
+          <option value="all">类型: 全部</option>
+          <option value="google-gen">Generate</option>
+          <option value="google-edit">Edit</option>
+          <option value="gpt">GPT</option>
+          <option value="comfy">Comfy</option>
+        </select>
+        <select id="historyStatusFilter" class="history-filter-control" onchange="onHistoryFilterChange()">
+          <option value="all">状态: 全部</option>
+          <option value="success">成功</option>
+          <option value="failed">失败</option>
+        </select>
+        <select id="historyTimeFilter" class="history-filter-control" onchange="onHistoryFilterChange()">
+          <option value="all">时间: 全部</option>
+          <option value="today">今天</option>
+          <option value="7d">近7天</option>
+          <option value="30d">本月</option>
+        </select>
+      </div>
+
+      <input id="historySearchInput" class="history-search" placeholder="搜索提示词关键词..." oninput="onHistoryFilterChange()" />
+
+      <div class="history-filter-footer">
+        <button class="btn-mini" type="button" onclick="toggleHistoryAdvanced()">高级筛选</button>
+        <span id="historyCount" class="history-count">0 / 0</span>
+        <button class="btn-mini" type="button" onclick="resetHistoryFilters()">清空</button>
+      </div>
+
+      <div class="history-filter-row two history-advanced" id="historyAdvancedFilters">
+        <select id="historyRatioFilter" class="history-filter-control" onchange="onHistoryFilterChange()">
+          <option value="all">比例: 全部</option>
+        </select>
+        <select id="historyStyleFilter" class="history-filter-control" onchange="onHistoryFilterChange()">
+          <option value="all">风格: 全部</option>
+        </select>
+        <select id="historyResolutionFilter" class="history-filter-control" onchange="onHistoryFilterChange()">
+          <option value="all">分辨率: 全部</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="sidebar-content" id="sidebarHistoryList">
+      <div style="text-align:center;color:#999;margin-top:20px">加载中...</div>
+    </div>
+  </div>
+
+  <!-- Detail Modal -->
+  <div class="modal-overlay" id="detailModal">
+    <div class="modal">
+      <div class="modal-header">
+        <div id="modalTitle">任务详情</div>
+        <div class="modal-close" onclick="closeModal()">×</div>
+      </div>
+      <div class="modal-body">
+        <div id="modalStage" class="modal-stage">
+          <div id="modalImageHint" class="modal-image-hint" style="display:none">预览图 · 点击查看原图</div>
+          <img id="modalImg" class="modal-img" style="display:none">
+          <div id="modalImgEmpty" class="modal-empty">这条记录暂时没有可预览的图片。</div>
+          <div id="modalImgLoading" class="modal-loading-pill" style="display:none">正在加载原图...</div>
+          <div id="modalCinematicActions" class="modal-cinematic-actions">
+            <button id="modalDownloadBtn" class="btn-modal btn-secondary" type="button" onclick="downloadModalImage()">下载图片</button>
+            <button id="modalCinematicEditBtn" class="btn-modal btn-submit" type="button" onclick="continueEditFromModal()">继续编辑</button>
+          </div>
+        </div>
+        <div class="modal-meta-grid">
+          <div class="modal-info-row">
+            <span>类型</span>
+            <span id="modalType" style="font-weight:600">--</span>
+          </div>
+          <div class="modal-info-row">
+            <span>时间</span>
+            <span id="modalTime">--</span>
+          </div>
+          <div class="modal-info-row">
+            <span>耗时</span>
+            <span id="modalDuration">--</span>
+          </div>
+          <div class="modal-info-row">
+            <span>状态</span>
+            <span id="modalStatus">--</span>
+          </div>
+          <div class="modal-info-row" id="modalModelRow" style="display:none">
+            <span>模型</span>
+            <span id="modalModel">--</span>
+          </div>
+          <div class="modal-info-row" id="modalStyleRow" style="display:none">
+            <span>风格</span>
+            <span id="modalStyle">--</span>
+          </div>
+        </div>
+        <div class="modal-prompt-header">
+          <span>提示词</span>
+          <button id="copyPromptBtn" class="btn-copy" type="button" onclick="copyModalPrompt()">复制</button>
+        </div>
+        <div id="modalPrompt" class="modal-prompt">--</div>
+        <div id="modalError" style="color:red;font-size:0.85rem;display:none;margin-bottom:12px"></div>
+        <div class="modal-quick-actions">
+          <button id="modalReuseBtn" class="btn-modal btn-secondary" type="button" onclick="reusePromptFromModal()">复用提示词</button>
+          <button id="modalEditBtn" class="btn-modal btn-secondary" type="button" onclick="continueEditFromModal()">继续编辑</button>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-modal btn-danger" onclick="deleteHistoryItem()">删除</button>
+        <button id="modalRetryBtn" class="btn-modal btn-submit" style="margin:0" onclick="retryFromModal()">回填重试</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <div id="tabsIndicator" class="tabs-indicator"></div>
+    <div id="tab-google" class="tab active" onclick="toggleGoogleDrawer()"><span class="tab-label">Google <span class="tab-caret">▾</span></span></div>
+    <div id="tab-comfy" class="tab" onclick="switchTab('comfy')">Comfy</div>
+    <div id="tab-gpt" class="tab" onclick="switchTab('gpt')">GPT</div>
+  </div>
+
+  <!-- Google Drawer (slide-out sub-selection) -->
+  <div class="google-drawer" id="googleDrawer">
+    <div class="drawer-option active" onclick="selectGoogleOption('gen', event)">Generate</div>
+    <div class="drawer-option" onclick="selectGoogleOption('edit', event)">Edit</div>
+  </div>
+
+  <!-- ── VIEW: GENERATE (Reuse new UI style) ────── -->
+  <div id="view-gen" class="view active">
+    <!-- Prompt -->
+    <div class="prompt-box">
+      <div class="prompt-wrapper">
+        <textarea id="genPrompt" class="prompt-area prompt-area-plain" placeholder="在此描述你想生成的画面内容... (Prompt)"></textarea>
+      </div>
+      <div class="prompt-footer prompt-footer-inline">
+        <div class="prompt-footer-main">
+          <div class="prompt-tips">
+            <span onclick="insertExample('portrait')">👤 人像</span>
+            <span onclick="insertExample('landscape')">🏔️ 风景</span>
+            <span onclick="insertExample('cyberpunk')">🌃 赛博</span>
+          </div>
+          <button type="button" class="prompt-action-btn prompt-clear-inline" title="清空" onclick="clearPrompt()">✕</button>
+        </div>
+        <div class="char-count"><span id="genCharCount">0</span>/10000</div>
+      </div>
+    </div>
+
+    <button type="button" class="settings-trigger" data-settings-key="gen" onclick="openSettings('gen')">
+      <span class="settings-trigger-icon">⚙️</span>
+      <span class="settings-trigger-copy">
+        <strong>高级设置</strong>
+        <span>模型、画质、风格与比例</span>
+      </span>
+      <span class="settings-trigger-arrow">›</span>
+    </button>
+
+    <div id="settingsPanel-gen" class="settings-panel">
+      <div class="settings-panel-header">
+        <div>
+          <div class="settings-panel-title">生成设置</div>
+          <div class="settings-panel-subtitle">挑模型、画面风格和比例，再回到主画布开始生成。</div>
+        </div>
+        <button type="button" class="settings-close" onclick="closeSettings()">✕</button>
+      </div>
+      <div class="settings-panel-body">
+        <!-- Model + Quality (Dropdown, side-by-side) -->
+        <div class="two-up-grid" style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:24px">
+          <div>
+            <div class="section-header" style="margin-bottom:8px"><div class="section-title" style="font-size:0.8rem">生成模型</div></div>
+            <div class="style-select-wrap" style="margin-bottom:0">
+              <select id="genModelSelect" class="style-select" onchange="pickModel('gen', this.value)" style="padding:6px 14px;font-size:0.8rem">
+                <option value="gemini-3-pro-image">🚀 Pro（质量优先）</option>
+                <option value="gemini-3.1-flash-image" selected>⚡ Flash（云端 API）</option>
+              </select>
+            </div>
+          </div>
+          <div>
+            <div class="section-header" style="margin-bottom:8px"><div class="section-title" style="font-size:0.8rem">生成画质</div></div>
+            <div class="style-select-wrap" style="margin-bottom:0">
+              <select id="genQuality" class="style-select" onchange="pickGenQuality(this.value)" style="padding:6px 14px;font-size:0.8rem">
+                <option value="1k">⚡ 1K（更快）</option>
+                <option value="2k" selected>✨ 2K（平衡）</option>
+                <option value="4k">🖼️ 4K（最清晰）</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Style Dropdown -->
+        <div class="section-header">
+          <div class="section-title">画面风格</div>
+        </div>
+        <div id="genStyleChipsWrap" class="style-chip-wrap has-right">
+          <div id="genStyleChips" class="style-chip-scroll" aria-label="画面风格">
+            <button type="button" class="style-chip selected" data-style="raw" onclick="pickStyle('raw')">🌿 Raw</button>
+            <button type="button" class="style-chip" data-style="real" onclick="pickStyle('real')">✨ 超写实</button>
+            <button type="button" class="style-chip" data-style="king_hu" onclick="pickStyle('king_hu')">🎋 胡金铨</button>
+            <button type="button" class="style-chip" data-style="shadow" onclick="pickStyle('shadow')">📽️ 影</button>
+            <button type="button" class="style-chip" data-style="dunhuang" onclick="pickStyle('dunhuang')">🪷 敦煌</button>
+            <button type="button" class="style-chip" data-style="candlelight" onclick="pickStyle('candlelight')">🕯️ 烛光肖像</button>
+            <button type="button" class="style-chip" data-style="3d_info" onclick="pickStyle('3d_info')">📊 3D 信息图</button>
+            <button type="button" class="style-chip" data-style="sketchnote" onclick="pickStyle('sketchnote')">📝 知识卡片</button>
+          </div>
+        </div>
+
+        <!-- Ratio -->
+        <div class="section-header"><div class="section-title">画面比例</div></div>
+        <div class="ratio-section">
+          <div class="ratio-row">
+            <div class="ratio-cat">智能</div>
+            <div class="ratio-opts">
+              <button class="btn-auto outline" onclick="pickRatioGen('1:1')">自动 Auto</button>
+            </div>
+          </div>
+          <div class="ratio-row">
+            <div class="ratio-cat">正方</div>
+            <div class="ratio-opts">
+              <div class="r-btn selected" onclick="pickRatioGen('1:1')">1:1</div>
+              <div class="r-btn" onclick="pickRatioGen('5:4')">5:4</div>
+            </div>
+          </div>
+          <div class="ratio-row">
+            <div class="ratio-cat">竖屏</div>
+            <div class="ratio-opts">
+              <div class="r-btn" onclick="pickRatioGen('9:16')">9:16</div>
+              <div class="r-btn" onclick="pickRatioGen('9:21')">9:21</div>
+              <div class="r-btn" onclick="pickRatioGen('3:4')">3:4</div>
+              <div class="r-btn" onclick="pickRatioGen('2:3')">2:3</div>
+              <div class="r-btn" onclick="pickRatioGen('4:5')">4:5</div>
+            </div>
+          </div>
+          <div class="ratio-row">
+            <div class="ratio-cat">横屏</div>
+            <div class="ratio-opts">
+              <div class="r-btn" onclick="pickRatioGen('16:9')">16:9</div>
+              <div class="r-btn" onclick="pickRatioGen('4:3')">4:3</div>
+              <div class="r-btn" onclick="pickRatioGen('3:2')">3:2</div>
+              <div class="r-btn" onclick="pickRatioGen('21:9')">21:9</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="genResult" class="result-stage" data-state="idle">
+      <div class="result-stage-head">
+        <div>
+          <div class="result-stage-title">结果舞台</div>
+          <div id="genStageHint" class="result-stage-sub">提交任务后，生成进度会在这里同步显示。</div>
+        </div>
+      </div>
+      <div id="genStatus" class="result-status">等待中...</div>
+      <div id="genEmptyState" class="result-empty">当前还没有进行中的任务。开始生成后，这里会展示排队、处理中和完成状态。</div>
+      <div class="result-stage-actions">
+        <button id="genStageAction" class="result-stage-action" type="button" onclick="openRecentStageResult('gen')">查看最近任务</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── VIEW: COMFY (New ComfyUI Interface) ────── -->
+  <div id="view-comfy" class="view">
+    <div class="prompt-box">
+      <div class="prompt-wrapper">
+        <textarea id="comfyPrompt" class="prompt-area prompt-area-plain" placeholder="输入提示词 ({{PROMPT}})..."></textarea>
+      </div>
+      <div class="prompt-footer prompt-footer-inline">
+        <div class="prompt-footer-main">
+          <div class="prompt-tips">
+            <span onclick="insertExample('portrait', 'comfyPrompt')">👤 人像</span>
+            <span onclick="insertExample('landscape', 'comfyPrompt')">🏔️ 风景</span>
+            <span onclick="insertExample('cyberpunk', 'comfyPrompt')">🌃 赛博</span>
+          </div>
+          <button type="button" class="prompt-action-btn prompt-clear-inline" title="清空" onclick="clearPrompt('comfyPrompt')">✕</button>
+        </div>
+        <div class="char-count"><span id="comfyCharCount">0</span>/10000</div>
+      </div>
+    </div>
+
+    <!-- Image Upload Area -->
+    <div class="section-header">
+      <div class="section-title">参考图片 (可选)</div>
+      <div class="section-sub" onclick="document.getElementById('comfyInput').click()" style="color:var(--primary);cursor:pointer">上传</div>
+    </div>
+    <div id="comfyUploadArea" class="upload-panel" style="background:#fff;border:2px dashed #e2e8f0;border-radius:12px;padding:12px;text-align:center;margin-bottom:20px;cursor:pointer" onclick="document.getElementById('comfyInput').click()">
+      <input type="file" id="comfyInput" style="display:none" accept="image/*" onchange="handleComfyUpload(this)">
+      <div id="comfyUploadPlaceholder" style="color:#64748b;font-size:14px">点击上传图片 ({{IMAGE}})</div>
+      <img id="comfyPreview" style="max-width:100%;max-height:200px;border-radius:8px;display:none;margin:0 auto">
+      <div id="comfyRemoveImg" style="color:#ef4444;font-size:12px;margin-top:8px;display:none" onclick="clearComfyImage(event)">清除图片</div>
+    </div>
+
+    <button type="button" class="settings-trigger" data-settings-key="comfy" onclick="openSettings('comfy')">
+      <span class="settings-trigger-icon">🧩</span>
+      <span class="settings-trigger-copy">
+        <strong>工作流设置</strong>
+        <span>工作流选择与画面比例</span>
+      </span>
+      <span class="settings-trigger-arrow">›</span>
+    </button>
+
+    <div id="settingsPanel-comfy" class="settings-panel">
+      <div class="settings-panel-header">
+        <div>
+          <div class="settings-panel-title">Comfy 参数</div>
+          <div class="settings-panel-subtitle">选好工作流和输出比例，再回到舞台区等待出图。</div>
+        </div>
+        <button type="button" class="settings-close" onclick="closeSettings()">✕</button>
+      </div>
+      <div class="settings-panel-body">
+        <div class="section-header">
+          <div class="section-title">选择工作流</div>
+        </div>
+        <div class="style-select-wrap">
+          <select id="comfyWorkflow" class="style-select" onchange="pickComfyWorkflow(this.value)">
+            <option value="" disabled selected>-- 加载中 --</option>
+          </select>
+          <div class="select-arrow">▼</div>
+        </div>
+
+        <!-- Ratio -->
+        <div class="section-header"><div class="section-title">画面比例</div></div>
+        <div class="ratio-section" id="comfyRatioSection">
+          <div class="ratio-row">
+            <div class="ratio-cat">竖屏</div>
+            <div class="ratio-opts">
+              <div class="r-btn" onclick="pickRatioComfy('9:16')">9:16</div>
+              <div class="r-btn" onclick="pickRatioComfy('9:21')">9:21</div>
+              <div class="r-btn" onclick="pickRatioComfy('3:4')">3:4</div>
+              <div class="r-btn" onclick="pickRatioComfy('2:3')">2:3</div>
+              <div class="r-btn" onclick="pickRatioComfy('4:5')">4:5</div>
+            </div>
+          </div>
+          <div class="ratio-row">
+            <div class="ratio-cat">横屏</div>
+            <div class="ratio-opts">
+              <div class="r-btn" onclick="pickRatioComfy('16:9')">16:9</div>
+              <div class="r-btn" onclick="pickRatioComfy('21:9')">21:9</div>
+              <div class="r-btn" onclick="pickRatioComfy('4:3')">4:3</div>
+              <div class="r-btn" onclick="pickRatioComfy('3:2')">3:2</div>
+            </div>
+          </div>
+          <div class="ratio-row">
+            <div class="ratio-cat">正方</div>
+            <div class="ratio-opts">
+              <div class="r-btn selected" onclick="pickRatioComfy('1:1')">1:1</div>
+              <div class="r-btn" onclick="pickRatioComfy('5:4')">5:4</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="comfyResult" class="result-stage" style="margin-top: 20px; text-align: center;">
+      <div class="result-stage-head">
+        <div>
+          <div class="result-stage-title">结果舞台</div>
+          <div id="comfyStageHint" class="result-stage-sub">提交任务后，作品会在这里出现。</div>
+        </div>
+      </div>
+      <div id="comfyStatus" class="result-status" style="color: #64748b; font-size: 14px; display: none;">等待中...</div>
+      <div id="comfyEmptyState" class="result-empty">提交任务后，图片会显示在这里，完成后你可以直接在这里预览。</div>
+      <div class="result-stage-actions">
+        <button id="comfyStageAction" class="result-stage-action" type="button" onclick="openRecentStageResult('comfy')">查看最近任务</button>
+      </div>
+      <img id="comfyImage" class="result-image" style="max-width: 100%; border-radius: 12px; display: none; margin-top: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);" />
+    </div>
+  </div>
+
+  <!-- ── VIEW: GPT (Background Browser Worker) ───── -->
+  <div id="view-gpt" class="view">
+    <div class="prompt-box">
+      <div class="prompt-wrapper">
+        <textarea id="gptPrompt" class="prompt-area prompt-area-plain" placeholder="输入 GPT 网页生成提示词..."></textarea>
+      </div>
+      <div class="prompt-footer prompt-footer-inline">
+        <div class="prompt-footer-main">
+          <div class="prompt-tips">
+            <span onclick="insertExample('portrait', 'gptPrompt')">👤 人像</span>
+            <span onclick="insertExample('landscape', 'gptPrompt')">🏔️ 风景</span>
+            <span onclick="insertExample('cyberpunk', 'gptPrompt')">🌃 赛博</span>
+          </div>
+          <button type="button" class="prompt-action-btn prompt-clear-inline" title="清空" onclick="clearPrompt('gptPrompt')">✕</button>
+        </div>
+        <div class="char-count"><span id="gptCharCount">0</span>/10000</div>
+      </div>
+    </div>
+
+    <div class="note-box">
+      使用后台 GPT 浏览器 Worker（持久登录态）生成，并自动下载原图后以无损文件发送到 Telegram。
+    </div>
+
+    <button type="button" class="settings-trigger" data-settings-key="gpt" onclick="openSettings('gpt')">
+      <span class="settings-trigger-icon">🧠</span>
+      <span class="settings-trigger-copy">
+        <strong>输出设置</strong>
+        <span>比例、清晰度与后台生成参数</span>
+      </span>
+      <span class="settings-trigger-arrow">›</span>
+    </button>
+
+    <div id="settingsPanel-gpt" class="settings-panel">
+      <div class="settings-panel-header">
+        <div>
+          <div class="settings-panel-title">GPT 输出设置</div>
+          <div class="settings-panel-subtitle">调整画幅与分辨率，后台完成后会自动发送到 Telegram。</div>
+        </div>
+        <button type="button" class="settings-close" onclick="closeSettings()">✕</button>
+      </div>
+      <div class="settings-panel-body">
+        <div class="section-header"><div class="section-title">画面比例</div></div>
+        <div class="ratio-section" id="gptRatioSection">
+          <div class="ratio-row">
+            <div class="ratio-cat">竖屏</div>
+            <div class="ratio-opts">
+              <div class="r-btn selected" data-ratio-value="9:16" onclick="pickRatioGpt('9:16')">9:16</div>
+              <div class="r-btn" data-ratio-value="9:21" onclick="pickRatioGpt('9:21')">9:21</div>
+              <div class="r-btn" data-ratio-value="3:4" onclick="pickRatioGpt('3:4')">3:4</div>
+              <div class="r-btn" data-ratio-value="2:3" onclick="pickRatioGpt('2:3')">2:3</div>
+            </div>
+          </div>
+          <div class="ratio-row">
+            <div class="ratio-cat">横屏</div>
+            <div class="ratio-opts">
+              <div class="r-btn" data-ratio-value="16:9" onclick="pickRatioGpt('16:9')">16:9</div>
+              <div class="r-btn" data-ratio-value="21:9" onclick="pickRatioGpt('21:9')">21:9</div>
+              <div class="r-btn" data-ratio-value="4:3" onclick="pickRatioGpt('4:3')">4:3</div>
+              <div class="r-btn" data-ratio-value="3:2" onclick="pickRatioGpt('3:2')">3:2</div>
+            </div>
+          </div>
+          <div class="ratio-row">
+            <div class="ratio-cat">正方</div>
+            <div class="ratio-opts">
+              <div class="r-btn" data-ratio-value="1:1" onclick="pickRatioGpt('1:1')">1:1</div>
+              <div class="r-btn" data-ratio-value="4:5" onclick="pickRatioGpt('4:5')">4:5</div>
+              <div class="r-btn" data-ratio-value="5:4" onclick="pickRatioGpt('5:4')">5:4</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="section-header"><div class="section-title">输出分辨率</div></div>
+        <div class="quality-group" id="gptResolutionGroup">
+          <button class="q-btn selected" onclick="pickResolutionGpt('1k')">1K</button>
+          <button class="q-btn" onclick="pickResolutionGpt('2k')">2K</button>
+          <button class="q-btn" onclick="pickResolutionGpt('4k')">4K</button>
+        </div>
+
+        <div class="section-header"><div class="section-title">生成质量</div></div>
+        <div class="quality-group" id="gptQualityGroup">
+          <button class="q-btn selected" data-gpt-quality="auto" onclick="pickQualityGpt('auto')">Auto</button>
+          <button class="q-btn" data-gpt-quality="low" onclick="pickQualityGpt('low')">Low</button>
+          <button class="q-btn" data-gpt-quality="medium" onclick="pickQualityGpt('medium')">Medium</button>
+          <button class="q-btn" data-gpt-quality="high" onclick="pickQualityGpt('high')">High</button>
+        </div>
+
+        <div class="section-header"><div class="section-title">图片数量</div></div>
+        <div class="quality-group" id="gptImageCountGroup">
+          <button class="q-btn selected" data-gpt-count="1" onclick="pickImageCountGpt(1)">1</button>
+          <button class="q-btn" data-gpt-count="2" onclick="pickImageCountGpt(2)">2</button>
+          <button class="q-btn" data-gpt-count="4" onclick="pickImageCountGpt(4)">4</button>
+          <button class="q-btn" data-gpt-count="6" onclick="pickImageCountGpt(6)">6</button>
+          <button class="q-btn" data-gpt-count="8" onclick="pickImageCountGpt(8)">8</button>
+          <button class="q-btn" data-gpt-count="10" onclick="pickImageCountGpt(10)">10</button>
+        </div>
+
+        <div class="section-header"><div class="section-title">审核</div></div>
+        <div class="quality-group" id="gptModerationGroup">
+          <button class="q-btn selected" data-gpt-moderation="auto" onclick="pickModerationGpt('auto')">Auto</button>
+          <button class="q-btn" data-gpt-moderation="low" onclick="pickModerationGpt('low')">Low</button>
+        </div>
+
+        <div class="section-header"><div class="section-title">线路</div></div>
+        <div class="style-select-wrap">
+          <select id="gptProviderRouteSelect" class="style-select" onchange="pickProviderRouteGpt(this.value)">
+            <option value="codex" selected>本地 Codex</option>
+            <option value="chatgpt_pool">账号池 API</option>
+            <option value="third_party_image_api">第三方 API</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div id="gptResult" class="result-stage" data-state="idle">
+      <div class="result-stage-head">
+        <div>
+          <div class="result-stage-title">结果舞台</div>
+          <div id="gptStageHint" class="result-stage-sub">提交后台任务后，这里会给出状态反馈。</div>
+        </div>
+      </div>
+      <div id="gptStatus" class="result-status">等待中...</div>
+      <div id="gptEmptyState" class="result-empty">GPT 任务提交后，会在这里提示是否进入后台处理。生成完成后图片会自动发送到 Telegram。</div>
+      <div class="result-stage-actions">
+        <button id="gptStageAction" class="result-stage-action" type="button" onclick="openRecentStageResult('gpt')">查看最近任务</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── VIEW: EDIT (The Target UI) ─────────────── -->
+  <div id="view-edit" class="view">
+    
+    <!-- Prompt -->
+    <div class="prompt-box">
+      <div class="prompt-wrapper">
+        <textarea id="editPrompt" class="prompt-area prompt-area-plain" placeholder="在此添加具体的画面细节... (Edit Instructions)"></textarea>
+      </div>
+      <div class="prompt-footer prompt-footer-inline">
+        <div class="prompt-footer-main">
+          <div class="prompt-tips">
+            <span onclick="insertExample('portrait', 'editPrompt')">👤 人像</span>
+            <span onclick="insertExample('landscape', 'editPrompt')">🏔️ 风景</span>
+            <span onclick="insertExample('cyberpunk', 'editPrompt')">🌃 赛博</span>
+          </div>
+          <button type="button" class="prompt-action-btn prompt-clear-inline" title="清空" onclick="clearPrompt('editPrompt')">✕</button>
+        </div>
+        <div class="char-count"><span id="editCharCount">0</span>/10000</div>
+      </div>
+    </div>
+
+    <!-- Reference Grid -->
+    <div class="section-header">
+      <div class="section-title">参考文件 (拖拽排序)</div>
+      <div class="section-sub" id="imgCount">0/8 张</div>
+    </div>
+    
+    <div class="ref-grid" id="refGrid">
+      <!-- Slots will be injected by JS -->
+    </div>
+    <input type="file" id="fileInput" multiple accept="image/*" onchange="handleFiles(this.files)">
+
+    <button type="button" class="settings-trigger" data-settings-key="edit" onclick="openSettings('edit')">
+      <span class="settings-trigger-icon">✏️</span>
+      <span class="settings-trigger-copy">
+        <strong>编辑设置</strong>
+        <span>模型、功能、清晰度与输出比例</span>
+      </span>
+      <span class="settings-trigger-arrow">›</span>
+    </button>
+
+    <div id="settingsPanel-edit" class="settings-panel">
+      <div class="settings-panel-header">
+        <div>
+          <div class="settings-panel-title">编辑参数</div>
+          <div class="settings-panel-subtitle">参考图保持在首屏，复杂参数收进这里，移动端会更轻松。</div>
+        </div>
+        <button type="button" class="settings-close" onclick="closeSettings()">✕</button>
+      </div>
+      <div class="settings-panel-body">
+        <!-- Model Selection -->
+        <div class="section-header">
+          <div class="section-title">生成模型</div>
+        </div>
+        <div class="model-selector">
+          <label class="model-option active">
+            <input type="radio" name="editModel" value="gemini-3-pro-image" onchange="pickModel('edit', this.value)">
+            <span class="model-label">Pro</span>
+            <span class="model-desc">高质量，细节丰富</span>
+          </label>
+          <label class="model-option">
+            <input type="radio" name="editModel" value="gemini-3.1-flash-image" checked onchange="pickModel('edit', this.value)">
+            <span class="model-label">Flash</span>
+            <span class="model-desc">快速生成，性价比高</span>
+          </label>
+        </div>
+
+        <!-- Quality & Feature Dropdowns -->
+        <div class="two-up-grid" style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:24px">
+          <div>
+            <div class="section-header" style="margin-bottom:8px"><div class="section-title" style="font-size:0.8rem">生成画质</div></div>
+            <div class="style-select-wrap" style="margin-bottom:0">
+              <select id="editQuality" class="style-select" onchange="pickQuality(this.value, this)" style="padding:6px 14px;font-size:0.8rem">
+                <option value="standard">⚡ 1K (快速预览)</option>
+                <option value="hd" selected>🌟 2K (标准高清)</option>
+                <option value="hd">💎 4K (极致超清)</option>
+              </select>
+              <div class="select-arrow">▼</div>
+            </div>
+          </div>
+          <div>
+            <div class="section-header" style="margin-bottom:8px"><div class="section-title" style="font-size:0.8rem">功能选择</div></div>
+            <div class="style-select-wrap" style="margin-bottom:0">
+              <select class="style-select" id="editFeature" onchange="pickFeature(this.value)" style="padding:6px 14px;font-size:0.8rem">
+                <option value="edit" selected>✏️ 基础编辑</option>
+                <option value="remove_bg">🪄 智能抠图</option>
+                <option value="upscale">🔍 无损放大</option>
+                <option value="face_fix">👤 面部修复</option>
+                <option value="style_transfer">🎨 风格迁移</option>
+              </select>
+              <div class="select-arrow">▼</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Ratio -->
+        <div class="section-header"><div class="section-title">画面比例</div></div>
+        <div class="ratio-section">
+          <div class="ratio-row">
+            <div class="ratio-cat">智能</div>
+            <div class="ratio-opts">
+              <button class="btn-auto" id="r-auto" onclick="pickRatioEdit('auto')">自动 Auto</button>
+            </div>
+          </div>
+          <div class="ratio-row">
+            <div class="ratio-cat">正方</div>
+            <div class="ratio-opts">
+              <div class="r-btn" onclick="pickRatioEdit('1:1')">1:1</div>
+              <div class="r-btn" onclick="pickRatioEdit('5:4')">5:4</div>
+            </div>
+          </div>
+          <div class="ratio-row">
+            <div class="ratio-cat">竖屏</div>
+            <div class="ratio-opts">
+              <div class="r-btn" onclick="pickRatioEdit('9:16')">9:16</div>
+              <div class="r-btn" onclick="pickRatioEdit('9:21')">9:21</div>
+              <div class="r-btn" onclick="pickRatioEdit('3:4')">3:4</div>
+              <div class="r-btn" onclick="pickRatioEdit('2:3')">2:3</div>
+              <div class="r-btn" onclick="pickRatioEdit('4:5')">4:5</div>
+            </div>
+          </div>
+          <div class="ratio-row">
+            <div class="ratio-cat">横屏</div>
+            <div class="ratio-opts">
+              <div class="r-btn" onclick="pickRatioEdit('16:9')">16:9</div>
+              <div class="r-btn" onclick="pickRatioEdit('4:3')">4:3</div>
+              <div class="r-btn" onclick="pickRatioEdit('3:2')">3:2</div>
+              <div class="r-btn" onclick="pickRatioEdit('21:9')">21:9</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="editResult" class="result-stage" data-state="idle">
+      <div class="result-stage-head">
+        <div>
+          <div class="result-stage-title">结果舞台</div>
+          <div id="editStageHint" class="result-stage-sub">提交编辑任务后，这里会显示当前状态。</div>
+        </div>
+      </div>
+      <div id="editStatus" class="result-status">等待中...</div>
+      <div id="editEmptyState" class="result-empty">上传参考图并提交后，这里会承接编辑任务的提交结果和完成提示。</div>
+      <div class="result-stage-actions">
+        <button id="editStageAction" class="result-stage-action" type="button" onclick="openRecentStageResult('edit')">查看最近任务</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="cinematicShell" class="cinematic-shell" aria-hidden="true">
+    <div class="cinematic-shell-inner">
+      <header class="cinematic-header">
+        <div class="cinematic-brand">
+          <div class="cinematic-brand-title">Cinematic Canvas</div>
+        </div>
+        <nav class="cinematic-top-nav" aria-label="Cinematic 顶部导航">
+          <button id="cinematicTopRecords" type="button" class="cinematic-top-link is-active" onclick="switchCinematicSection('records')">创作</button>
+          <button id="cinematicTopDiscover" type="button" class="cinematic-top-link" onclick="switchCinematicSection('discover')">发现</button>
+          <button id="cinematicTopSpell" type="button" class="cinematic-top-link" onclick="switchCinematicSection('spell')">咒术</button>
+        </nav>
+      </header>
+
+      <main class="cinematic-main">
+        <section id="cinematicRecordsSection" class="cinematic-section is-active">
+          <div id="cinematicHistoryList" class="cinematic-history-stream"></div>
+        </section>
+
+        <section id="cinematicDiscoverSection" class="cinematic-section">
+          <div class="cinematic-discover">
+            <div class="cinematic-discover-hero">
+              <strong>把光影存起来，等灵感来取。</strong>
+              <p>这里收藏你常用的风格语气。轻点一张，创作便继续流动。</p>
+            </div>
+            <div class="cinematic-style-vault">
+              <div class="cinematic-style-toolbar">
+                <input id="cinematicStyleSearch" class="cinematic-style-search" type="search" placeholder="搜索风格..." oninput="handleCinematicStyleSearch(this.value)">
+                <button type="button" class="cinematic-style-create" onclick="createCinematicDiscoverStyle()">创建风格</button>
+              </div>
+              <div class="cinematic-style-vault-head">
+                <strong>存储风格空间</strong>
+                <span>8 个常用风格片，点一下就带回当前创作流。</span>
+              </div>
+              <div id="cinematicStyleGrid" class="cinematic-style-grid"></div>
+              <div id="cinematicStyleEmpty" class="cinematic-style-empty" hidden>没有找到匹配的风格，试试换个关键词，或者新建一张风格卡。</div>
+            </div>
+          </div>
+        </section>
+
+        <section id="cinematicSpellSection" class="cinematic-section">
+          <div class="cinematic-spell-page">
+            <div class="cinematic-spell-hero">
+              <strong>把一句想法，炼成可直接出图的结构化提示词。</strong>
+              <p>输入一句简短主题、几个关键词，或者一个模糊概念。咒术会按完整模块展开成可用于 `gemini-3-image-pro` 的结构化提示词。</p>
+            </div>
+
+            <div class="cinematic-spell-grid">
+              <section class="cinematic-spell-panel">
+                <div class="cinematic-spell-panel-head">
+                  <strong>提示词生成</strong>
+                  <span>第一个功能先做完整：从短句到结构化 JSON。</span>
+                </div>
+                <label class="cinematic-spell-label" for="cinematicSpellSeed">主题种子</label>
+                <textarea id="cinematicSpellSeed" class="cinematic-spell-input" placeholder="例如：地铁里低头看手机的东亚女偶像肖像；或者：冷白皮、马尾、制服、电影感地铁车厢。"></textarea>
+                <div class="cinematic-spell-toolbar">
+                  <button id="cinematicSpellGenerateBtn" type="button" class="cinematic-spell-primary" onclick="generateCinematicSpellPrompt()">生成结构化提示词</button>
+                  <button type="button" class="cinematic-spell-secondary" onclick="clearCinematicSpellWorkspace()">清空</button>
+                </div>
+              </section>
+
+              <section class="cinematic-spell-panel">
+                <div class="cinematic-spell-panel-head">
+                  <strong>结构化结果</strong>
+                  <span>优先展示完整 JSON，同时提供正向与负向块的快速复制。</span>
+                </div>
+                <div class="cinematic-spell-output-actions">
+                  <button type="button" class="cinematic-spell-copy" onclick="copyCinematicSpellJson()">复制 JSON</button>
+                  <button type="button" class="cinematic-spell-copy" onclick="copyCinematicSpellPositivePrompt()">复制正向</button>
+                  <button type="button" class="cinematic-spell-copy" onclick="copyCinematicSpellNegativePrompt()">复制负向</button>
+                </div>
+                <div class="cinematic-spell-result-stack">
+                  <div class="cinematic-spell-result-block">
+                    <div class="cinematic-spell-result-title">正向提示</div>
+                    <pre id="cinematicSpellPositiveOutput" class="cinematic-spell-result">等待施法...</pre>
+                  </div>
+                  <div class="cinematic-spell-result-block">
+                    <div class="cinematic-spell-result-title">负向约束</div>
+                    <pre id="cinematicSpellNegativeOutput" class="cinematic-spell-result">等待施法...</pre>
+                  </div>
+                  <div class="cinematic-spell-result-block">
+                    <div class="cinematic-spell-result-title">完整 JSON</div>
+                    <pre id="cinematicSpellJsonOutput" class="cinematic-spell-json">等待施法...</pre>
+                  </div>
+                </div>
+              </section>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <div class="cinematic-composer-dock">
+        <div id="cinematicGptCountSlider" class="cinematic-gpt-count-slider" hidden>
+          <span class="cinematic-gpt-count-label">张数</span>
+          <input
+            id="cinematicGptCountRange"
+            class="cinematic-gpt-count-range"
+            type="range"
+            min="1"
+            max="10"
+            step="1"
+            value="1"
+            aria-label="GPT 图片张数"
+            oninput="setCinematicGptCountFromSlider(this.value)"
+            onchange="setCinematicGptCountFromSlider(this.value, true)"
+          >
+          <strong id="cinematicGptCountValue" class="cinematic-gpt-count-value">1 张</strong>
+        </div>
+        <div class="cinematic-composer">
+          <div class="cinematic-composer-top">
+            <button id="cinematicRefUpload" type="button" class="cinematic-ref-upload" onclick="openCinematicReferencePicker()" aria-label="上传参考图" title="上传参考图">
+              <strong>＋</strong>
+              <span>参考图</span>
+            </button>
+            <div id="cinematicRefStrip" class="cinematic-ref-strip"></div>
+            <button
+              id="cinematicRefClearBtn"
+              type="button"
+              class="cinematic-ref-clear"
+              aria-label="删除参考图"
+              title="单击删除最近一张，长按 3 秒清空全部参考图"
+              onclick="handleCinematicRefClearClick(event)"
+              onpointerdown="startCinematicRefClearHold(event)"
+              onpointerup="cancelCinematicRefClearHold()"
+              onpointerleave="cancelCinematicRefClearHold()"
+              onpointercancel="cancelCinematicRefClearHold()"
+              oncontextmenu="event.preventDefault()"
+            >
+              ✕
+            </button>
+          </div>
+          <div class="cinematic-composer-mid">
+            <div class="cinematic-composer-text">
+              <textarea id="cinematicPrompt" class="cinematic-prompt" placeholder="默认文生图模式，上传图片自动转为图像编辑，请开始你的创意：" oninput="syncCinematicPromptState()"></textarea>
+            </div>
+          </div>
+          <div class="cinematic-composer-bottom">
+            <div class="cinematic-pill-row">
+              <div id="cinematicProviderWrap" class="cinematic-menu-wrap">
+                <button id="cinematicProviderBtn" type="button" class="cinematic-pill" onclick="toggleCinematicMenu('provider', event)">
+                  <span class="cinematic-pill-value">Google</span>
+                  <span class="cinematic-pill-caret">⌃</span>
+                </button>
+                <div id="cinematicProviderMenu" class="cinematic-pop-menu" hidden>
+                  <button type="button" class="cinematic-pop-option" data-provider="google" onclick="selectCinematicProvider('google', event)">Google</button>
+                  <button type="button" class="cinematic-pop-option" data-provider="comfyui" onclick="selectCinematicProvider('comfyui', event)">ComfyUI</button>
+                  <button type="button" class="cinematic-pop-option" data-provider="gpt" onclick="selectCinematicProvider('gpt', event)">GPT</button>
+                </div>
+              </div>
+
+              <div id="cinematicModelWrap" class="cinematic-menu-wrap">
+                <button id="cinematicModelBtn" type="button" class="cinematic-pill" onclick="toggleCinematicMenu('model', event)">
+                  <span class="cinematic-pill-value">Pro</span>
+                  <span class="cinematic-pill-caret">⌃</span>
+                </button>
+                <div id="cinematicModelMenu" class="cinematic-pop-menu" hidden>
+                  <button type="button" class="cinematic-pop-option" data-model="pro" onclick="selectCinematicGoogleModel('pro', event)">Pro</button>
+                  <button type="button" class="cinematic-pop-option" data-model="flash" onclick="selectCinematicGoogleModel('flash', event)">Flash</button>
+                </div>
+              </div>
+
+              <div id="cinematicQualityWrap" class="cinematic-menu-wrap">
+                <button id="cinematicQualityBtn" type="button" class="cinematic-pill" onclick="toggleCinematicMenu('quality', event)">
+                  <span class="cinematic-pill-value">2K</span>
+                  <span class="cinematic-pill-caret">⌃</span>
+                </button>
+                <div id="cinematicQualityMenu" class="cinematic-pop-menu" hidden>
+                  <button type="button" class="cinematic-pop-option" data-quality="1k" onclick="selectCinematicQuality('1k', event)">1K</button>
+                  <button type="button" class="cinematic-pop-option" data-quality="2k" onclick="selectCinematicQuality('2k', event)">2K</button>
+                  <button type="button" class="cinematic-pop-option" data-quality="4k" onclick="selectCinematicQuality('4k', event)">4K</button>
+                </div>
+              </div>
+
+              <div id="cinematicRatioWrap" class="cinematic-menu-wrap">
+                <button id="cinematicRatioBtn" type="button" class="cinematic-pill" onclick="toggleCinematicMenu('ratio', event)">
+                  <span class="cinematic-pill-value">1:1</span>
+                  <span class="cinematic-pill-caret">⌃</span>
+                </button>
+                <div id="cinematicRatioMenu" class="cinematic-pop-menu is-ratio-grid" hidden>
+                  <button type="button" class="cinematic-pop-option" data-ratio="1:1" onclick="selectCinematicRatio('1:1', event)">1:1</button>
+                  <button type="button" class="cinematic-pop-option" data-ratio="2:3" onclick="selectCinematicRatio('2:3', event)">2:3</button>
+                  <button type="button" class="cinematic-pop-option" data-ratio="3:2" onclick="selectCinematicRatio('3:2', event)">3:2</button>
+                  <button type="button" class="cinematic-pop-option" data-ratio="3:4" onclick="selectCinematicRatio('3:4', event)">3:4</button>
+                  <button type="button" class="cinematic-pop-option" data-ratio="4:3" onclick="selectCinematicRatio('4:3', event)">4:3</button>
+                  <button type="button" class="cinematic-pop-option" data-ratio="4:5" onclick="selectCinematicRatio('4:5', event)">4:5</button>
+                  <button type="button" class="cinematic-pop-option" data-ratio="5:4" onclick="selectCinematicRatio('5:4', event)">5:4</button>
+                  <button type="button" class="cinematic-pop-option" data-ratio="9:16" onclick="selectCinematicRatio('9:16', event)">9:16</button>
+                  <button type="button" class="cinematic-pop-option" data-ratio="16:9" onclick="selectCinematicRatio('16:9', event)">16:9</button>
+                  <button type="button" class="cinematic-pop-option" data-ratio="9:21" onclick="selectCinematicRatio('9:21', event)">9:21</button>
+                  <button type="button" class="cinematic-pop-option" data-ratio="21:9" onclick="selectCinematicRatio('21:9', event)">21:9</button>
+                </div>
+              </div>
+
+              <div id="cinematicGptQualityWrap" class="cinematic-menu-wrap" hidden>
+                <button id="cinematicGptQualityBtn" type="button" class="cinematic-pill" onclick="toggleCinematicMenu('gptQuality', event)">
+                  <span class="cinematic-pill-value">Auto</span>
+                  <span class="cinematic-pill-caret">⌃</span>
+                </button>
+                <div id="cinematicGptQualityMenu" class="cinematic-pop-menu" hidden>
+                  <button type="button" class="cinematic-pop-option" data-gpt-quality="auto" onclick="selectCinematicGptQuality('auto', event)">Auto</button>
+                  <button type="button" class="cinematic-pop-option" data-gpt-quality="low" onclick="selectCinematicGptQuality('low', event)">Low</button>
+                  <button type="button" class="cinematic-pop-option" data-gpt-quality="medium" onclick="selectCinematicGptQuality('medium', event)">Medium</button>
+                  <button type="button" class="cinematic-pop-option" data-gpt-quality="high" onclick="selectCinematicGptQuality('high', event)">High</button>
+                </div>
+              </div>
+
+              <div id="cinematicGptCountWrap" class="cinematic-menu-wrap" hidden>
+                <button id="cinematicGptCountBtn" type="button" class="cinematic-pill" onclick="toggleCinematicMenu('gptCount', event)">
+                  <span class="cinematic-pill-value">1 张</span>
+                  <span class="cinematic-pill-caret">⌃</span>
+                </button>
+                <div id="cinematicGptCountMenu" class="cinematic-pop-menu" hidden>
+                  <button type="button" class="cinematic-pop-option" data-gpt-count="1" onclick="selectCinematicGptCount(1, event)">1 张</button>
+                  <button type="button" class="cinematic-pop-option" data-gpt-count="2" onclick="selectCinematicGptCount(2, event)">2 张</button>
+                  <button type="button" class="cinematic-pop-option" data-gpt-count="4" onclick="selectCinematicGptCount(4, event)">4 张</button>
+                  <button type="button" class="cinematic-pop-option" data-gpt-count="6" onclick="selectCinematicGptCount(6, event)">6 张</button>
+                  <button type="button" class="cinematic-pop-option" data-gpt-count="8" onclick="selectCinematicGptCount(8, event)">8 张</button>
+                  <button type="button" class="cinematic-pop-option" data-gpt-count="10" onclick="selectCinematicGptCount(10, event)">10 张</button>
+                </div>
+              </div>
+
+              <div id="cinematicGptModerationWrap" class="cinematic-menu-wrap" hidden>
+                <button id="cinematicGptModerationBtn" type="button" class="cinematic-pill" onclick="toggleCinematicMenu('gptModeration', event)">
+                  <span class="cinematic-pill-value">审核 Auto</span>
+                  <span class="cinematic-pill-caret">⌃</span>
+                </button>
+                <div id="cinematicGptModerationMenu" class="cinematic-pop-menu" hidden>
+                  <button type="button" class="cinematic-pop-option" data-gpt-moderation="auto" onclick="selectCinematicGptModeration('auto', event)">Auto</button>
+                  <button type="button" class="cinematic-pop-option" data-gpt-moderation="low" onclick="selectCinematicGptModeration('low', event)">Low</button>
+                </div>
+              </div>
+            </div>
+            <div class="cinematic-submit-side">
+              <button id="cinematicClearPromptChip" type="button" class="cinematic-utility-chip is-clear" hidden onclick="clearCurrentCinematicPrompt()">清空</button>
+              <button id="cinematicStyleChip" type="button" class="cinematic-style-chip" hidden onclick="clearPinnedCinematicStyle()">Real</button>
+              <button id="cinematicSubmitBtn" type="button" class="cinematic-submit-btn" onclick="submitCinematicComposer()" aria-label="提交生成">✎</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <nav class="cinematic-bottom-nav" aria-label="Cinematic 底部导航">
+        <button id="cinematicBottomDiscover" type="button" class="cinematic-bottom-action" onclick="switchCinematicSection('discover')">
+          <strong>✦</strong>
+          <span>发现</span>
+        </button>
+        <button id="cinematicBottomRecords" type="button" class="cinematic-bottom-action is-active" onclick="switchCinematicSection('records')">
+          <strong>◉</strong>
+          <span>创作</span>
+        </button>
+        <button id="cinematicBottomSpell" type="button" class="cinematic-bottom-action" onclick="switchCinematicSection('spell')">
+          <strong>✺</strong>
+          <span>咒术</span>
+        </button>
+        <button id="cinematicBottomMenu" type="button" class="cinematic-bottom-action" data-cinematic-menu-trigger="cinematic" onclick="toggleCinematicQuickMenu()">
+          <strong>⛭</strong>
+          <span>菜单</span>
+        </button>
+      </nav>
+    </div>
+  </div>
+
+  <div id="cinematicMenuOverlay" class="sidebar-overlay" onclick="toggleCinematicQuickMenu()"></div>
+  <div id="cinematicMenu" class="main-start-menu" role="dialog" aria-modal="true" aria-label="Cinematic 菜单">
+    <div class="main-menu-panel">
+      <div class="main-menu-hero">
+        <div class="main-menu-kicker">Cinematic Menu</div>
+        <div class="main-menu-hero-row">
+          <div class="main-menu-hero-copy">
+            <div class="main-menu-title">菜单</div>
+            <p class="main-menu-subtitle">只服务于 Cinematic 布局的快速控制。</p>
+          </div>
+          <button type="button" class="main-menu-close" onclick="toggleCinematicQuickMenu()" aria-label="关闭 Cinematic 菜单">✕</button>
+        </div>
+      </div>
+
+      <div class="main-menu-stack" aria-label="Cinematic 菜单操作">
+        <button class="menu-card main-menu-row main-menu-primary" onclick="switchToClassicFromCinematicMenu()">
+          <span class="menu-icon">◫</span>
+          <div class="menu-copy">
+            <strong>切回 Classic</strong>
+            <span>返回原有工作台布局</span>
+          </div>
+        </button>
+      </div>
+
+      <div class="main-menu-section" aria-label="Cinematic 配色系统">
+        <div class="main-menu-section-head">
+          <strong>配色系统</strong>
+          <span id="cinematicColorSystemCurrent">琥珀片场</span>
+        </div>
+        <div class="main-menu-section-note">只作用于 Cinematic，不影响 Classic 工作台。</div>
+
+        <div class="cinematic-color-list">
+          <button
+            type="button"
+            class="cinematic-color-option"
+            data-cinematic-color-scheme-option="aether-gold"
+            onclick="setCinematicColorScheme('aether-gold')"
+            aria-pressed="false"
+          >
+            <span class="cinematic-color-swatch cinematic-color-swatch--aether-gold" aria-hidden="true"></span>
+            <span class="menu-copy">
+              <strong>琥珀片场</strong>
+              <span>默认金色</span>
+            </span>
+            <span class="cinematic-color-badge">当前</span>
+          </button>
+
+          <button
+            type="button"
+            class="cinematic-color-option"
+            data-cinematic-color-scheme-option="production-suite"
+            onclick="setCinematicColorScheme('production-suite')"
+            aria-pressed="false"
+          >
+            <span class="cinematic-color-swatch cinematic-color-swatch--production-suite" aria-hidden="true"></span>
+            <span class="menu-copy">
+              <strong>Production Suite</strong>
+              <span>工业橙</span>
+            </span>
+            <span class="cinematic-color-badge">当前</span>
+          </button>
+
+          <button
+            type="button"
+            class="cinematic-color-option"
+            data-cinematic-color-scheme-option="cinematic-lens"
+            onclick="setCinematicColorScheme('cinematic-lens')"
+            aria-pressed="false"
+          >
+            <span class="cinematic-color-swatch cinematic-color-swatch--cinematic-lens" aria-hidden="true"></span>
+            <span class="menu-copy">
+              <strong>Cinematic Lens</strong>
+              <span>暗夜绿</span>
+            </span>
+            <span class="cinematic-color-badge">当前</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="cinematicStyleEditorOverlay" class="cinematic-style-editor-overlay" onclick="handleCinematicStyleEditorOverlay(event)">
+    <div class="cinematic-style-editor">
+      <div class="cinematic-style-editor-header">
+        <div>
+          <div id="cinematicStyleEditorTitle" class="cinematic-style-editor-title">创建风格</div>
+          <div class="cinematic-style-editor-subtitle">保存一张属于你的风格卡，随时回到创作区调用。</div>
+        </div>
+        <button type="button" class="cinematic-style-editor-close" onclick="closeCinematicStyleEditor()">✕</button>
+      </div>
+      <div class="cinematic-style-editor-body">
+        <label class="cinematic-style-field">
+          <span>风格名称</span>
+          <input id="cinematicStyleEditorName" class="cinematic-style-input" type="text" placeholder="例如：夜色肖像">
+        </label>
+        <label class="cinematic-style-field">
+          <span>风格描述</span>
+          <textarea id="cinematicStyleEditorDesc" class="cinematic-style-textarea" placeholder="写一句这张风格卡的画面气质。"></textarea>
+        </label>
+        <label class="cinematic-style-field">
+          <span>风格提示词模板</span>
+          <textarea id="cinematicStyleEditorPrompt" class="cinematic-style-textarea is-tall" placeholder="这张风格卡默认想带回创作区的提示词语气。"></textarea>
+        </label>
+        <div class="cinematic-style-editor-grid">
+          <label class="cinematic-style-field">
+            <span>底层风格</span>
+            <div class="cinematic-style-select-wrap">
+              <select id="cinematicStyleEditorEngine" class="cinematic-style-select">
+                <option value="raw">Raw</option>
+                <option value="real">超写实</option>
+                <option value="king_hu">胡金铨</option>
+                <option value="shadow">皮影戏风格</option>
+                <option value="dunhuang">敦煌</option>
+                <option value="candlelight">烛光肖像</option>
+                <option value="3d_info">3D 信息图</option>
+                <option value="sketchnote">知识卡片</option>
+              </select>
+              <span class="cinematic-style-select-arrow">⌄</span>
+            </div>
+          </label>
+          <label class="cinematic-style-field">
+            <span>默认模型</span>
+            <div class="cinematic-style-select-wrap">
+              <select id="cinematicStyleEditorModel" class="cinematic-style-select">
+                <option value="gemini-3-pro-image">Pro</option>
+                <option value="gemini-3.1-flash-image" selected>Flash</option>
+              </select>
+              <span class="cinematic-style-select-arrow">⌄</span>
+            </div>
+          </label>
+          <label class="cinematic-style-field">
+            <span>默认清晰度</span>
+            <div class="cinematic-style-select-wrap">
+              <select id="cinematicStyleEditorQuality" class="cinematic-style-select">
+                <option value="1k">1K</option>
+                <option value="2k">2K</option>
+                <option value="4k">4K</option>
+              </select>
+              <span class="cinematic-style-select-arrow">⌄</span>
+            </div>
+          </label>
+          <label class="cinematic-style-field">
+            <span>默认比例</span>
+            <div class="cinematic-style-select-wrap">
+              <select id="cinematicStyleEditorRatio" class="cinematic-style-select">
+                <option value="1:1">1:1</option>
+                <option value="9:16">9:16</option>
+                <option value="16:9">16:9</option>
+                <option value="4:5">4:5</option>
+                <option value="3:4">3:4</option>
+              </select>
+              <span class="cinematic-style-select-arrow">⌄</span>
+            </div>
+          </label>
+        </div>
+      </div>
+      <div class="cinematic-style-editor-actions">
+        <button type="button" class="cinematic-style-editor-btn is-ghost" onclick="closeCinematicStyleEditor()">取消</button>
+        <button id="cinematicStyleEditorSaveBtn" type="button" class="cinematic-style-editor-btn is-primary" onclick="saveCinematicStyleEditor()">保存风格</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="cinematicViewerPage" class="cinematic-viewer-page" aria-hidden="true">
+    <div class="cinematic-viewer-shell">
+      <div class="cinematic-viewer-chrome">
+        <div class="cinematic-viewer-corner" aria-hidden="true"></div>
+        <button type="button" class="cinematic-viewer-close" onclick="closeCinematicViewer()" aria-label="关闭查看页" title="关闭查看页">✕</button>
+      </div>
+      <section class="cinematic-viewer-stage" aria-live="polite">
+        <div id="cinematicViewerCanvas" class="cinematic-viewer-canvas">
+          <img id="cinematicViewerImg" class="cinematic-viewer-img" alt="作品预览" hidden>
+          <div id="cinematicViewerEmpty" class="cinematic-viewer-empty">这条记录暂时没有可查看的图片。</div>
+          <div id="cinematicViewerLoading" class="cinematic-viewer-loading" hidden>正在加载原图...</div>
+        </div>
+      </section>
+
+      <nav class="cinematic-viewer-actions" aria-label="查看页操作">
+        <button id="cinematicViewerDownloadBtn" type="button" class="cinematic-viewer-action" onclick="downloadCinematicViewerImage()" aria-label="导出图片" title="导出图片">
+          <span class="cinematic-viewer-action-icon">⇪</span>
+          <span class="cinematic-viewer-action-label">EXPORT</span>
+        </button>
+        <button id="cinematicViewerEditBtn" type="button" class="cinematic-viewer-action is-primary" onclick="continueEditFromCinematicViewer()" aria-label="继续编辑" title="继续编辑">
+          <span class="cinematic-viewer-action-icon">✦</span>
+          <span class="cinematic-viewer-action-label">EDIT &amp; REMIX</span>
+        </button>
+        <button id="cinematicViewerOptionsBtn" type="button" class="cinematic-viewer-action" onclick="openCinematicViewerOptions()" aria-label="更多选项" title="更多选项">
+          <span class="cinematic-viewer-action-icon">•••</span>
+          <span class="cinematic-viewer-action-label">OPTIONS</span>
+        </button>
+      </nav>
+    </div>
+  </div>
+
+  <div id="globalSubmitBar" class="submit-bar">
+    <button id="globalMenuBtn" class="history-gear-btn" type="button" onclick="toggleMainMenu()" title="主菜单">🏠</button>
+    <button id="btnGen" class="btn-submit submit-action" onclick="submitGen()">✨ 立即生成</button>
+    <button id="btnComfy" class="btn-submit submit-action" onclick="runComfy()">🧩 立即生成</button>
+    <button id="btnGpt" class="btn-submit submit-action" onclick="submitGpt()">🤖 后台生成并发送</button>
+    <button id="btnEdit" class="btn-submit submit-action" onclick="submitEdit()">✏️ 立即生成</button>
+  </div>
+
+  <script src="scripts/auth-api.js?v=20260427-5"></script>
+  <script src="scripts/state.js?v=20260626-google-model-rename1"></script>
+  <script src="scripts/preferences.js?v=20260626-mobile-bootfix1"></script>
+  <script src="scripts/ui-shell.js?v=20260522-welib-remove-2"></script>
+  <script src="scripts/stage-runtime.js?v=20260427-fallback2"></script>
+  <script src="scripts/input-helpers.js"></script>
+  <script src="scripts/cinematic-composer.js?v=20260626-google-model-rename1"></script>
+  <script src="scripts/cinematic-history-stream.js?v=20260426-4"></script>
+  <script src="scripts/cinematic-detail.js?v=20260426-6"></script>
+  <script src="scripts/cinematic-style-vault.js?v=20260624-google-flash1"></script>
+  <script src="scripts/history.js?v=20260427-1"></script>
+  <script src="scripts/history-routing.js?v=20260425-2"></script>
+  <script src="scripts/history-mutations.js"></script>
+  <script src="scripts/modal-actions.js?v=20260425-2"></script>
+  <script src="scripts/modal-view.js?v=20260501-1"></script>
+  <script src="scripts/provider-comfy.js?v=20260426-2"></script>
+  <script src="scripts/provider-gpt.js?v=20260623-codex-auto-auth1"></script>
+  <script src="scripts/provider-google-shared.js?v=20260626-google-model-rename1"></script>
+  <script src="scripts/provider-google-generate.js?v=20260626-google-model-rename1"></script>
+  <script src="scripts/provider-google-edit.js?v=20260427-fallback2"></script>
+  <script src="scripts/cinematic-spell.js"></script>
+  <script src="scripts/bootstrap.js"></script>
+
+</body>
+</html>

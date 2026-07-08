@@ -1,0 +1,481 @@
+/* Cinematic mobile responsive adjustments */
+    @media (max-width: 768px) {
+      .cinematic-header {
+        padding: 8px 14px 6px;
+      }
+
+      .cinematic-brand-title {
+        font-size: 20px;
+      }
+
+      .cinematic-top-nav {
+        gap: 14px;
+      }
+
+      .cinematic-main {
+        padding: 10px 12px var(--cinematic-records-bottom-gap, 232px);
+      }
+
+      .cinematic-spell-hero {
+        padding: 14px;
+        border-radius: 20px;
+      }
+
+      .cinematic-spell-hero strong {
+        font-size: 22px;
+      }
+
+      .cinematic-spell-hero p {
+        font-size: 11px;
+      }
+
+      .cinematic-spell-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .cinematic-spell-panel {
+        border-radius: 18px;
+        padding: 13px;
+      }
+
+      .cinematic-spell-input {
+        min-height: 148px;
+        border-radius: 14px;
+        font-size: 13px;
+        padding: 12px 13px;
+      }
+
+      .cinematic-spell-primary,
+      .cinematic-spell-secondary,
+      .cinematic-spell-copy {
+        min-height: 32px;
+        border-radius: 11px;
+        font-size: 10px;
+      }
+
+      .cinematic-spell-result,
+      .cinematic-spell-json {
+        border-radius: 14px;
+        font-size: 10px;
+        min-height: 64px;
+      }
+
+      .cinematic-record-card {
+        grid-template-columns: 82px minmax(0, 1fr);
+        gap: 6px;
+      }
+
+      .cinematic-record-media,
+      .cinematic-record-body {
+        min-height: 114px;
+      }
+
+      .cinematic-record-media {
+        width: 82px;
+        height: 114px;
+        border-radius: 18px;
+      }
+
+      .cinematic-viewer-shell {
+        grid-template-rows: 92px minmax(0, 1fr) 116px;
+      }
+
+      .cinematic-viewer-chrome {
+        padding: 16px 20px 0;
+      }
+
+      .cinematic-viewer-close {
+        width: 48px;
+        height: 48px;
+        font-size: 26px;
+      }
+
+      .cinematic-viewer-corner {
+        width: 28px;
+        height: 28px;
+      }
+
+      .cinematic-viewer-corner::before {
+        top: 6px;
+        width: 14px;
+        height: 14px;
+      }
+
+      .cinematic-viewer-empty,
+      .cinematic-viewer-loading {
+        min-width: min(78vw, 300px);
+        min-height: 56px;
+        padding: 12px 14px;
+        border-radius: 18px;
+        font-size: 12px;
+      }
+
+      .cinematic-viewer-actions {
+        gap: 8px;
+        padding: 8px 12px calc(14px + env(safe-area-inset-bottom));
+      }
+
+      .cinematic-viewer-action {
+        gap: 5px;
+      }
+
+      .cinematic-viewer-action-icon {
+        width: 44px;
+        height: 44px;
+        font-size: 19px;
+      }
+
+      .cinematic-viewer-action-label {
+        font-size: 8px;
+        letter-spacing: 0.1em;
+      }
+
+      .cinematic-record-body {
+        padding: 10px 10px 8px;
+        margin-top: 8px;
+        border-radius: 18px;
+      }
+
+      .cinematic-record-title {
+        font-size: 13px;
+      }
+
+      .cinematic-record-prompt {
+        font-size: 10px;
+        min-height: 28px;
+      }
+
+      .cinematic-record-source {
+        max-width: 92px;
+      }
+
+      .cinematic-record-source-thumb {
+        width: 24px;
+        height: 24px;
+        border-radius: 7px;
+      }
+
+      .cinematic-record-action {
+        width: 32px;
+        height: 32px;
+        font-size: 13px;
+      }
+
+      .cinematic-style-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .cinematic-style-toolbar {
+        gap: 6px;
+        margin-bottom: 10px;
+      }
+
+      .cinematic-style-search,
+      .cinematic-style-create {
+        height: 32px;
+        border-radius: 12px;
+        font-size: 10px;
+      }
+
+      .cinematic-style-editor-overlay {
+        padding: 10px;
+        align-items: flex-end;
+      }
+
+      .cinematic-style-editor {
+        width: 100%;
+        max-height: min(88svh, 780px);
+        border-radius: 26px 26px 18px 18px;
+      }
+
+      .cinematic-style-editor-header {
+        padding: 16px 14px 12px;
+      }
+
+      .cinematic-style-editor-title {
+        font-size: 24px;
+      }
+
+      .cinematic-style-editor-body {
+        padding: 14px 14px 8px;
+      }
+
+      .cinematic-style-editor-grid {
+        grid-template-columns: 1fr;
+        gap: 10px;
+      }
+
+      .cinematic-style-input,
+      .cinematic-style-select {
+        height: 36px;
+        font-size: 12px;
+      }
+
+      .cinematic-style-textarea {
+        min-height: 78px;
+        font-size: 12px;
+      }
+
+      .cinematic-style-textarea.is-tall {
+        min-height: 108px;
+      }
+
+      .cinematic-style-editor-actions {
+        padding: 10px 14px calc(14px + env(safe-area-inset-bottom));
+      }
+
+      .cinematic-discover-hero {
+        padding: 14px 14px;
+      }
+
+      .cinematic-discover-hero strong {
+        font-size: 22px;
+        margin-bottom: 5px;
+      }
+
+      .cinematic-discover-hero p {
+        font-size: 11px;
+        line-height: 1.45;
+      }
+
+      .cinematic-composer-dock {
+        bottom: 66px;
+        padding: 0 9px;
+      }
+
+      .cinematic-bottom-nav {
+        gap: 5px;
+        padding: 6px 10px 8px;
+      }
+
+      .cinematic-spell-sheet {
+        bottom: 70px;
+        width: min(calc(100% - 18px), 520px);
+        border-radius: 18px;
+      }
+
+      .cinematic-spell-head {
+        padding: 12px 13px 9px;
+      }
+
+      .cinematic-spell-head strong {
+        font-size: 14px;
+      }
+
+      .cinematic-spell-head span {
+        font-size: 10px;
+      }
+
+      .cinematic-spell-actions {
+        grid-template-columns: 1fr;
+        gap: 6px;
+        padding: 10px;
+      }
+
+      .cinematic-spell-action {
+        min-height: 82px;
+        border-radius: 14px;
+        padding: 10px 11px;
+      }
+
+      .cinematic-spell-action strong {
+        font-size: 13px;
+      }
+
+      .cinematic-spell-action span {
+        font-size: 9px;
+      }
+
+      .cinematic-bottom-action {
+        min-height: 40px;
+        border-radius: 12px;
+        padding: 4px 0 3px;
+        font-size: 9px;
+      }
+
+      .cinematic-bottom-action strong {
+        font-size: 15px;
+      }
+
+      html[data-layout="cinematic"] #cinematicMenu {
+        bottom: calc(var(--cinematic-bottom-nav-offset, 66px) + 4px);
+        right: 8px;
+        width: min(248px, calc(50vw - 12px));
+        min-width: 188px;
+        max-height: min(52vh, 420px);
+      }
+
+      html[data-layout="cinematic"] #cinematicMenu .main-menu-panel {
+        padding: 9px;
+        gap: 7px;
+        border-radius: 16px;
+      }
+
+      html[data-layout="cinematic"] #cinematicMenu .main-menu-title {
+        font-size: 22px;
+      }
+
+      html[data-layout="cinematic"] #cinematicMenu .main-menu-subtitle {
+        font-size: 10px;
+      }
+
+      html[data-layout="cinematic"] #cinematicMenu .main-menu-row {
+        min-height: 48px;
+        padding: 9px 10px;
+        border-radius: 12px;
+      }
+
+      html[data-layout="cinematic"] #cinematicMenu .main-menu-section {
+        gap: 7px;
+      }
+
+      html[data-layout="cinematic"] #cinematicMenu .main-menu-section-head strong,
+      html[data-layout="cinematic"] #cinematicMenu .main-menu-section-head span,
+      html[data-layout="cinematic"] #cinematicMenu .main-menu-section-note {
+        font-size: 9px;
+      }
+
+      html[data-layout="cinematic"] #cinematicMenu .cinematic-color-option {
+        min-height: 46px;
+        padding: 8px 9px;
+        grid-template-columns: 24px minmax(0, 1fr) auto;
+        gap: 8px;
+      }
+
+      html[data-layout="cinematic"] #cinematicMenu .cinematic-color-swatch {
+        width: 24px;
+        height: 24px;
+        border-radius: 8px;
+      }
+
+      html[data-layout="cinematic"] #cinematicMenu .cinematic-color-badge {
+        font-size: 7px;
+        padding: 4px 5px;
+      }
+
+      html[data-layout="cinematic"] #cinematicMenu .menu-icon {
+        width: 24px;
+        height: 24px;
+        border-radius: 8px;
+        font-size: 13px;
+      }
+
+      html[data-layout="cinematic"] #cinematicMenu .main-menu-pill {
+        right: 10px;
+        top: 10px;
+        font-size: 8px;
+        padding: 4px 6px;
+      }
+
+      .cinematic-composer-top {
+        gap: 6px;
+        padding: 8px 9px 6px;
+      }
+
+      .cinematic-ref-upload {
+        width: 30px;
+        min-height: 30px;
+        flex-basis: 30px;
+        border-radius: 10px;
+      }
+
+      .cinematic-ref-thumb {
+        width: 30px;
+        height: 30px;
+        border-radius: 9px;
+      }
+
+      .cinematic-ref-strip {
+        gap: 4px;
+        min-height: 30px;
+      }
+
+      .cinematic-ref-clear {
+        width: 30px;
+        min-height: 30px;
+        flex-basis: 30px;
+        border-radius: 10px;
+        font-size: 13px;
+      }
+
+      .cinematic-ref-empty {
+        min-height: 30px;
+        padding: 0 10px;
+        border-radius: 12px;
+        font-size: 9px;
+      }
+
+      .cinematic-composer-mid {
+        padding: 8px 10px 6px;
+      }
+
+      .cinematic-prompt {
+        min-height: 108px;
+        font-size: 16px;
+      }
+
+      .cinematic-composer-bottom {
+        gap: 6px;
+        padding: 1px 9px 5px;
+      }
+
+      .cinematic-pill-row {
+        gap: 4px;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+
+      .cinematic-submit-side {
+        gap: 4px;
+      }
+
+      .cinematic-utility-chip,
+      .cinematic-style-chip {
+        min-height: 24px;
+        padding: 0 8px;
+        font-size: 9px;
+      }
+
+      .cinematic-style-edit {
+        width: 24px;
+        height: 24px;
+        border-radius: 8px;
+        font-size: 11px;
+      }
+
+      .cinematic-pill {
+        min-height: 28px;
+        padding: 0 8px 0 9px;
+        border-radius: 10px;
+        font-size: 9px;
+        gap: 5px;
+      }
+
+      .cinematic-pill-caret {
+        font-size: 8px;
+      }
+
+      .cinematic-pop-menu {
+        bottom: calc(100% + 6px);
+        padding: 4px;
+        border-radius: 12px;
+      }
+
+      .cinematic-pop-option {
+        min-height: 28px;
+        padding: 0 9px;
+        border-radius: 8px;
+        font-size: 10px;
+      }
+
+      .cinematic-submit-btn {
+        width: 58px;
+        height: 32px;
+        border-radius: 12px;
+        font-size: 15px;
+      }
+
+      .cinematic-submit-btn.is-letter {
+        font-size: 18px;
+      }
+    }

@@ -1,0 +1,5 @@
+torch
+torchvision
+Pillow>=10.0
+numpy
+spandrel

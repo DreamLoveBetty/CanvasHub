@@ -1,0 +1,151 @@
+.desk-node--file-output {
+  min-width: 380px;
+}
+
+.desk-file-result {
+  display: grid;
+  gap: 8px;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.desk-file-result-empty,
+.desk-file-card {
+  display: grid;
+  gap: 7px;
+  min-height: 0;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.48);
+  border: 1px solid rgba(255, 255, 255, 0.58);
+  border-radius: 8px;
+}
+
+.desk-file-result-empty {
+  place-items: center;
+  text-align: center;
+  color: var(--desk-muted);
+}
+
+.desk-file-result-empty strong,
+.desk-file-card__title strong {
+  color: var(--desk-ink);
+}
+
+.desk-file-preview {
+  position: relative;
+  width: 100%;
+  min-height: 0;
+  max-height: 178px;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  background: rgba(245, 248, 252, 0.72);
+  border: 1px solid rgba(100, 116, 139, 0.12);
+  border-radius: 8px;
+}
+
+.desk-file-preview img,
+.desk-file-preview iframe {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  object-fit: contain;
+  border: 0;
+}
+
+.desk-file-preview__fallback {
+  display: grid;
+  min-height: 120px;
+  place-items: center;
+  color: var(--desk-muted);
+  font-size: 13px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.desk-file-card__title {
+  display: grid;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+}
+
+.desk-file-card__main {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.desk-file-card__title strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.desk-file-card__title span,
+.desk-file-card__meta,
+.desk-file-card__note {
+  color: var(--desk-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.desk-file-card__actions,
+.desk-file-layer-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.desk-file-card__actions a,
+.desk-file-card__actions button {
+  height: 25px;
+  padding: 0 9px;
+  color: var(--desk-ink);
+  font-size: 12px;
+  font-weight: 800;
+  text-decoration: none;
+  background: rgba(255, 255, 255, 0.62);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  border-radius: 7px;
+}
+
+.desk-file-layer {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  width: calc(50% - 4px);
+  min-width: 130px;
+  padding: 6px;
+  background: rgba(255, 255, 255, 0.52);
+  border-radius: 7px;
+}
+
+.desk-file-card__note {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.desk-file-layer-list {
+  max-height: 76px;
+  overflow: auto;
+}
+
+.desk-file-layer img {
+  width: 42px;
+  height: 42px;
+  object-fit: cover;
+  border-radius: 5px;
+}
+
+.desk-file-layer span {
+  overflow: hidden;
+  color: var(--desk-ink);
+  font-size: 11px;
+  font-weight: 750;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

@@ -1,0 +1,23 @@
+<!-- Tabler icon: shape. Source: https://github.com/tabler/tabler-icons. License: MIT. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <g stroke="#fff" stroke-width="5">
+    <path d="M3 5a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" />
+    <path d="M17 5a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" />
+    <path d="M3 19a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" />
+    <path d="M17 19a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" />
+    <path d="M5 7l0 10" />
+    <path d="M7 5l10 0" />
+    <path d="M7 19l10 0" />
+    <path d="M19 7l0 10" />
+  </g>
+  <g stroke="#111827" stroke-width="2.25">
+    <path d="M3 5a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" />
+    <path d="M17 5a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" />
+    <path d="M3 19a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" />
+    <path d="M17 19a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" />
+    <path d="M5 7l0 10" />
+    <path d="M7 5l10 0" />
+    <path d="M7 19l10 0" />
+    <path d="M19 7l0 10" />
+  </g>
+</svg>

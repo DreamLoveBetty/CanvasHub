@@ -1,0 +1,1255 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="canvashub-version" content="V26.0.0.1">
+  <title>图像画布</title>
+  <link rel="stylesheet" href="styles/desktop-liquid.css?v=20260708-settings-title1">
+  <link rel="stylesheet" href="styles/desktop-layout.css?v=20260629-desk-select1">
+  <link rel="stylesheet" href="styles/desktop-pose.css?v=20260703-pose-reference1">
+  <link rel="stylesheet" href="styles/desktop-file-results.css?v=20260622-jewel-buttons2">
+</head>
+<body class="desk-app" data-app-version="V26.0.0.1">
+  <div id="authOverlay" class="auth-overlay">
+    <div class="auth-card desk-glass">
+      <div class="auth-title" data-i18n="authTitle">需要身份验证</div>
+      <div id="authMessage" class="auth-message" data-i18n="authMessage">请输入访问密码后继续。</div>
+      <div id="authInputRow" class="auth-input-row">
+        <input type="password" id="authPassword" class="auth-password-input" placeholder="输入访问密码" data-i18n-placeholder="authPasswordPlaceholder">
+        <button type="button" class="auth-submit-btn" onclick="handleManualAuth()" data-i18n="authSubmit">验证并登录</button>
+      </div>
+    </div>
+  </div>
+
+  <main class="desk-shell" aria-label="桌面图像画布">
+    <header class="desk-titlebar desk-glass">
+      <div class="desk-titlebar-logo" aria-label="CanvasHub">
+        <img class="desk-titlebar-logo__image" src="assets/animated.webp?v=20260621-ui3" width="450" height="96" alt="Canvas Hub">
+      </div>
+      <button type="button" class="desk-workflow-dock-toggle" id="deskWorkflowDockToggle" aria-label="工作流保存与加载" title="工作流保存与加载" aria-expanded="false" aria-controls="deskWorkflowDockPanel">
+        <span aria-hidden="true"></span>
+      </button>
+      <div class="desk-workflow-dock-panel" id="deskWorkflowDockPanel" aria-hidden="true">
+        <button type="button" id="deskWorkflowSaveBtn" title="保存工作流文件" aria-label="保存工作流文件">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v10"></path><path d="M8 10l4 4 4-4"></path><path d="M5 19h14"></path></svg>
+          <span>保存</span>
+        </button>
+        <button type="button" id="deskWorkflowLoadBtn" title="加载工作流文件" aria-label="加载工作流文件">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20V10"></path><path d="M8 14l4-4 4 4"></path><path d="M5 5h14"></path></svg>
+          <span>加载</span>
+        </button>
+      </div>
+      <div class="desk-titlebar-actions" aria-label="显示与语言" data-i18n-aria="displayLanguage">
+        <button type="button" class="desk-theme-toggle" id="deskThemeToggle" aria-label="切换明暗配色" title="切换明暗配色" data-i18n-aria="themeToggleTitle" data-i18n-title="themeToggleTitle">
+          <span class="desk-theme-toggle__icon desk-theme-toggle__icon--sun" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"></circle><path d="M12 3v2.2M12 18.8V21M3 12h2.2M18.8 12H21M5.6 5.6l1.6 1.6M16.8 16.8l1.6 1.6M18.4 5.6l-1.6 1.6M7.2 16.8l-1.6 1.6"></path></svg>
+          </span>
+          <span class="desk-theme-toggle__icon desk-theme-toggle__icon--moon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M19.2 14.2A7.4 7.4 0 0 1 9.8 4.8 7.7 7.7 0 1 0 19.2 14.2z"></path></svg>
+          </span>
+          <span class="desk-theme-toggle__text" id="deskThemeToggleText" data-i18n="themeLight">浅色</span>
+        </button>
+        <label class="desk-language-picker">
+          <span class="desk-language-picker__label" data-i18n="languageLabel">语言</span>
+          <select id="deskLanguageSelect" class="desk-language-picker__select" aria-label="语言" data-i18n-aria="languageLabel">
+            <option value="zh" data-i18n="languageZh">中文</option>
+            <option value="en" data-i18n="languageEn">English</option>
+          </select>
+        </label>
+      </div>
+    </header>
+
+    <aside class="desk-rail desk-glass" aria-label="画布工具">
+      <button type="button" class="desk-rail__item is-active" data-tool="select" title="选择">
+        <span class="desk-rail__glyph desk-rail__glyph--select" aria-hidden="true">
+          <svg class="desk-rail-icon desk-rail-icon--select" viewBox="0 0 24 24">
+            <path class="desk-rail-icon__cursor" d="M12.034 12.681a.498.498 0 0 1 .647-.647l9 3.5a.5.5 0 0 1-.033.943l-3.444 1.068a1 1 0 0 0-.66.66l-1.067 3.443a.5.5 0 0 1-.943.033z"></path>
+            <g class="desk-rail-icon__frame">
+              <path d="M5 3a2 2 0 0 0-2 2"></path>
+              <path d="M19 3a2 2 0 0 1 2 2"></path>
+              <path d="M5 21a2 2 0 0 1-2-2"></path>
+              <path d="M9 3h1"></path>
+              <path d="M9 21h2"></path>
+              <path d="M14 3h1"></path>
+              <path d="M3 9v1"></path>
+              <path d="M21 9v2"></path>
+              <path d="M3 14v1"></path>
+            </g>
+          </svg>
+        </span>
+        <span>选择</span>
+      </button>
+      <button type="button" class="desk-rail__item" data-tool="node" id="deskNodeToolBtn" title="节点" aria-expanded="false" aria-controls="deskNodePalette">
+        <span class="desk-rail__glyph desk-rail__glyph--node" aria-hidden="true">
+          <svg class="desk-rail-icon desk-rail-icon--node" viewBox="0 0 24 24">
+            <rect class="desk-rail-icon__node" width="8" height="8" x="3" y="3" rx="2"></rect>
+            <path class="desk-rail-icon__flow" d="M7 11v4a2 2 0 0 0 2 2h4"></path>
+            <rect class="desk-rail-icon__node" width="8" height="8" x="13" y="13" rx="2"></rect>
+          </svg>
+        </span>
+        <span>节点</span>
+      </button>
+      <div class="desk-node-palette desk-glass" id="deskNodePalette" aria-label="添加节点">
+        <button type="button" data-add-node="input">
+          <span class="desk-node-palette__icon" aria-hidden="true">
+            <svg class="desk-node-icon desk-node-icon--input" viewBox="0 0 24 24">
+              <g class="desk-node-icon__frame">
+                <path d="M3 8V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-3"></path>
+              </g>
+              <g class="desk-node-icon__enter">
+                <path d="m10 16 4-4-4-4"></path>
+                <path d="M3 12h11"></path>
+              </g>
+            </svg>
+          </span>
+          <span>
+            <strong>模型输入</strong>
+            <em>模型与提示词</em>
+          </span>
+        </button>
+        <button type="button" data-add-node="file_output">
+          <span class="desk-node-palette__icon" aria-hidden="true">
+            <svg class="desk-node-icon desk-node-icon--files" viewBox="0 0 24 24">
+              <path class="desk-node-icon__file-front" d="M15 2h-4a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V8"></path>
+              <path class="desk-node-icon__file-front" d="M16.706 2.706A2.4 2.4 0 0 0 15 2v5a1 1 0 0 0 1 1h5a2.4 2.4 0 0 0-.706-1.706z"></path>
+              <path class="desk-node-icon__file-back" d="M5 7a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h8a2 2 0 0 0 1.732-1"></path>
+            </svg>
+          </span>
+          <span>
+            <strong>文件结果</strong>
+            <em>PPT / PSD</em>
+          </span>
+        </button>
+        <button type="button" data-add-node="image">
+          <span class="desk-node-palette__icon" aria-hidden="true">
+            <svg class="desk-node-icon desk-node-icon--image" viewBox="0 0 24 24">
+              <g class="desk-node-icon__image-body">
+                <path d="M21 11.5V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7.5"></path>
+                <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"></path>
+                <circle cx="9" cy="9" r="2"></circle>
+              </g>
+              <g class="desk-node-icon__plus">
+                <path d="M16 5h6"></path>
+                <path d="M19 2v6"></path>
+              </g>
+            </svg>
+          </span>
+          <span>
+            <strong>图片节点</strong>
+            <em>参考图输入</em>
+          </span>
+        </button>
+        <button type="button" data-add-node="upscale">
+          <span class="desk-node-palette__icon" aria-hidden="true">
+            <svg class="desk-node-icon desk-node-icon--upscale" viewBox="0 0 24 24">
+              <g class="desk-node-icon__upscale-arrow">
+                <path d="M16 3h5v5"></path>
+                <path d="m21 3-5 5"></path>
+              </g>
+              <g class="desk-node-icon__upscale-frame">
+                <path d="M17 21h2a2 2 0 0 0 2-2"></path>
+                <path d="M21 12v3"></path>
+                <path d="M3 7V5a2 2 0 0 1 2-2"></path>
+                <path d="m5 21 4.144-4.144a1.21 1.21 0 0 1 1.712 0L13 19"></path>
+                <path d="M9 3h3"></path>
+                <rect x="3" y="11" width="10" height="10" rx="1"></rect>
+              </g>
+            </svg>
+          </span>
+          <span>
+            <strong>高清放大</strong>
+            <em>4x 本地超分</em>
+          </span>
+        </button>
+        <button type="button" data-add-node="pose">
+          <span class="desk-node-palette__icon" aria-hidden="true">
+            <svg class="desk-node-icon desk-node-icon--pose" viewBox="0 0 24 24">
+              <g class="desk-node-icon__pose-body">
+                <circle cx="12" cy="5" r="1"></circle>
+                <path d="m9 20 3-6 3 6"></path>
+                <path d="m6 8 6 2 6-2"></path>
+                <path d="M12 10v4"></path>
+              </g>
+            </svg>
+          </span>
+          <span>
+            <strong>姿态参考</strong>
+            <em>多角色机位参考</em>
+          </span>
+        </button>
+        <button type="button" data-add-node="text">
+          <span class="desk-node-palette__icon" aria-hidden="true">
+            <svg class="desk-node-icon desk-node-icon--text" viewBox="0 0 24 24">
+              <g class="desk-node-icon__scan-frame">
+                <path d="M3 7V5a2 2 0 0 1 2-2h2"></path>
+                <path d="M17 3h2a2 2 0 0 1 2 2v2"></path>
+                <path d="M21 17v2a2 2 0 0 1-2 2h-2"></path>
+                <path d="M7 21H5a2 2 0 0 1-2-2v-2"></path>
+              </g>
+              <g class="desk-node-icon__text-lines">
+                <path d="M7 8h8"></path>
+                <path d="M7 12h10"></path>
+                <path d="M7 16h6"></path>
+              </g>
+            </svg>
+          </span>
+          <span>
+            <strong>文本节点</strong>
+            <em>提示词处理</em>
+          </span>
+        </button>
+        <button type="button" data-add-node="layout">
+          <span class="desk-node-palette__icon" aria-hidden="true">
+            <svg class="desk-node-icon desk-node-icon--layout" viewBox="0 0 24 24">
+              <rect class="desk-node-icon__layout-frame" width="18" height="18" x="3" y="3" rx="2"></rect>
+              <g class="desk-node-icon__layout-panels">
+                <path d="M3 9h18"></path>
+                <path d="M9 21V9"></path>
+              </g>
+            </svg>
+          </span>
+          <span>
+            <strong>排版节点</strong>
+            <em>图文版面</em>
+          </span>
+        </button>
+      </div>
+      <button type="button" class="desk-rail__item" data-tool="gallery" title="图库">
+        <span class="desk-rail__glyph desk-rail__glyph--gallery" aria-hidden="true">
+          <svg class="desk-rail-icon desk-rail-icon--gallery" viewBox="0 0 24 24">
+            <g class="desk-rail-icon__image">
+              <path d="M21 12.17V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h6"></path>
+              <path d="m6 21 5-5"></path>
+              <circle cx="9" cy="9" r="2"></circle>
+            </g>
+            <path class="desk-rail-icon__play" d="M15 15.003a1 1 0 0 1 1.517-.859l4.997 2.997a1 1 0 0 1 0 1.718l-4.997 2.997a1 1 0 0 1-1.517-.86z"></path>
+          </svg>
+        </span>
+        <span>图库</span>
+      </button>
+      <button type="button" class="desk-rail__item" data-tool="settings" title="设置" onclick="window.openDesktopSettingsPanel?.()">
+        <span class="desk-rail__glyph desk-rail__glyph--settings" aria-hidden="true">
+          <svg class="desk-rail-icon desk-rail-icon--settings" viewBox="0 0 24 24">
+            <g class="desk-rail-icon__monitor">
+              <path d="M12 17v4"></path>
+              <path d="M22 13v2a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7"></path>
+              <path d="M8 21h8"></path>
+            </g>
+            <g class="desk-rail-icon__cog">
+              <path d="m14.305 7.53.923-.382"></path>
+              <path d="m15.228 4.852-.923-.383"></path>
+              <path d="m16.852 3.228-.383-.924"></path>
+              <path d="m16.852 8.772-.383.923"></path>
+              <path d="m19.148 3.228.383-.924"></path>
+              <path d="m19.53 9.696-.382-.924"></path>
+              <path d="m20.772 4.852.924-.383"></path>
+              <path d="m20.772 7.148.924.383"></path>
+              <circle cx="18" cy="6" r="3"></circle>
+            </g>
+          </svg>
+        </span>
+        <span>设置</span>
+      </button>
+    </aside>
+
+    <section class="desk-canvas" id="deskCanvasViewport" aria-label="图像生成画布" tabindex="-1">
+      <div class="desk-selection-marquee" id="deskSelectionMarquee" aria-hidden="true"></div>
+      <div class="desk-smart-guides" id="deskSmartGuides" aria-hidden="true">
+        <span class="desk-smart-guide desk-smart-guide--x" id="deskSmartGuideX"></span>
+        <span class="desk-smart-guide desk-smart-guide--y" id="deskSmartGuideY"></span>
+      </div>
+      <div class="desk-selection-bounds" id="deskSelectionBounds" aria-hidden="true">
+        <span id="deskSelectionCount">0 个节点</span>
+      </div>
+      <div class="desk-selection-toolbar desk-glass" id="deskSelectionToolbar" aria-label="节点对齐工具">
+        <button type="button" data-align="left" title="左对齐" aria-label="左对齐">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4v16"></path><path d="M10 7h8"></path><path d="M10 12h6"></path><path d="M10 17h10"></path></svg>
+        </button>
+        <button type="button" data-align="hcenter" title="水平居中" aria-label="水平居中">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v16"></path><path d="M7 7h10"></path><path d="M9 12h6"></path><path d="M6 17h12"></path></svg>
+        </button>
+        <button type="button" data-align="right" title="右对齐" aria-label="右对齐">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 4v16"></path><path d="M6 7h8"></path><path d="M8 12h6"></path><path d="M4 17h10"></path></svg>
+        </button>
+        <span></span>
+        <button type="button" data-align="top" title="顶对齐" aria-label="顶对齐">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16"></path><path d="M7 10v8"></path><path d="M12 10v6"></path><path d="M17 10v10"></path></svg>
+        </button>
+        <button type="button" data-align="vcenter" title="垂直居中" aria-label="垂直居中">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h16"></path><path d="M7 7v10"></path><path d="M12 9v6"></path><path d="M17 6v12"></path></svg>
+        </button>
+        <button type="button" data-align="bottom" title="底对齐" aria-label="底对齐">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 18h16"></path><path d="M7 6v8"></path><path d="M12 8v6"></path><path d="M17 4v10"></path></svg>
+        </button>
+        <span></span>
+        <button type="button" data-align="distribute-x" title="水平平均分布" aria-label="水平平均分布">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5v14"></path><path d="M19 5v14"></path><rect x="8" y="9" width="3" height="6" rx="1"></rect><rect x="13" y="9" width="3" height="6" rx="1"></rect></svg>
+        </button>
+        <button type="button" data-align="distribute-y" title="垂直平均分布" aria-label="垂直平均分布">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5h14"></path><path d="M5 19h14"></path><rect x="9" y="8" width="6" height="3" rx="1"></rect><rect x="9" y="13" width="6" height="3" rx="1"></rect></svg>
+        </button>
+      </div>
+      <div class="desk-zoom-controls desk-glass" aria-label="画布导航">
+        <div class="desk-minimap" id="deskMiniMap" aria-hidden="true">
+          <div class="desk-minimap__world" id="deskMiniMapWorld"></div>
+          <div class="desk-minimap__viewport" id="deskMiniMapViewport"></div>
+        </div>
+        <div class="desk-zoom-row">
+          <button type="button" id="deskZoomOutBtn" title="缩小画布" aria-label="缩小画布">-</button>
+          <button type="button" class="desk-zoom-label" id="deskZoomLabel" aria-haspopup="menu" aria-expanded="false" aria-controls="deskZoomPresetMenu" title="选择固定缩放比">100%</button>
+          <button type="button" id="deskZoomInBtn" title="放大画布" aria-label="放大画布">+</button>
+          <button type="button" id="deskMiniMapPinBtn" title="固定小地图" aria-label="固定小地图" aria-pressed="false">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="6" width="14" height="12" rx="2"></rect><path d="M9 10h6M9 14h4"></path></svg>
+          </button>
+          <button type="button" id="deskZoomResetBtn" title="重置画布" aria-label="重置画布">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12a7 7 0 1 0 2.1-5"></path><path d="M5 5v5h5"></path></svg>
+          </button>
+        </div>
+        <div class="desk-zoom-presets" id="deskZoomPresetMenu" role="menu" aria-label="固定缩放比" hidden>
+          <button type="button" role="menuitemradio" aria-checked="false" data-zoom-preset="0.3">30%</button>
+          <button type="button" role="menuitemradio" aria-checked="false" data-zoom-preset="0.5">50%</button>
+          <button type="button" role="menuitemradio" aria-checked="false" data-zoom-preset="0.75">75%</button>
+        </div>
+      </div>
+
+      <div class="desk-canvas-world" id="deskCanvasWorld">
+        <svg class="desk-link-layer" viewBox="0 0 1440 820" preserveAspectRatio="none" aria-hidden="true">
+          <path class="desk-link-path" id="deskLinkPath" d=""></path>
+        </svg>
+        <section class="desk-node desk-node--input desk-glass" id="deskInputNode" data-node-id="input" aria-label="模型输入节点">
+        <div class="desk-node__header" data-node-drag-handle>
+          <div>
+            <p class="desk-node__eyebrow">模型输入</p>
+            <h1>选择模型并组织提示词</h1>
+          </div>
+          <div class="desk-node-tools">
+            <span class="desk-status-pill" id="deskInputOutputStatus" data-output-status>空闲</span>
+            <button type="button" class="desk-node-delete" data-node-delete title="删除节点" aria-label="删除节点">删</button>
+          </div>
+        </div>
+        <button type="button" class="desk-port desk-port--out" data-port="out" data-node-id="input" title="连接到图片节点" aria-label="连接输出"></button>
+        <button type="button" class="desk-port desk-port--in desk-port--image-in" data-port="in" data-node-id="input" title="连接图片或文本节点到这里" aria-label="连接图片或文本输入"></button>
+
+        <div class="desk-segment" id="deskProviderSegment" role="tablist" aria-label="选择模型提供方">
+          <button type="button" class="is-active" data-provider="gpt">GPT</button>
+          <button type="button" data-provider="google">Google</button>
+          <button type="button" data-provider="comfy">Comfy</button>
+        </div>
+
+        <div class="desk-param-grid" aria-label="模型参数">
+          <label data-provider-param="gpt google comfy">
+            <span>画幅</span>
+            <select id="deskRatioSelect" class="desk-select">
+              <option>1:1</option>
+              <option>2:3</option>
+              <option>3:2</option>
+              <option>3:4</option>
+              <option>4:3</option>
+              <option>4:5</option>
+              <option>5:4</option>
+              <option selected>9:16</option>
+              <option>16:9</option>
+              <option>9:21</option>
+              <option>21:9</option>
+            </select>
+          </label>
+          <label data-provider-param="gpt google">
+            <span>分辨率</span>
+            <select id="deskResolutionSelect" class="desk-select">
+              <option>1k</option>
+              <option selected>2k</option>
+              <option>4k</option>
+            </select>
+          </label>
+          <label data-provider-param="google" hidden>
+            <span>模型</span>
+            <select id="deskModelSelect" class="desk-select">
+              <option value="gemini-3-pro-image">Pro</option>
+              <option value="gemini-3.1-flash-image" selected>Flash</option>
+            </select>
+          </label>
+          <label data-provider-param="gpt">
+            <span>质量</span>
+            <select id="deskQualitySelect" class="desk-select">
+              <option selected>auto</option>
+              <option>low</option>
+              <option>medium</option>
+              <option>high</option>
+            </select>
+          </label>
+          <label data-provider-param="gpt">
+            <span>数量</span>
+            <select id="deskCountInput" class="desk-select">
+              <option value="1">1张</option>
+              <option value="2" selected>2张</option>
+              <option value="3">3张</option>
+              <option value="4">4张</option>
+              <option value="5">5张</option>
+              <option value="6">6张</option>
+              <option value="7">7张</option>
+              <option value="8">8张</option>
+            </select>
+          </label>
+          <label data-provider-param="gpt">
+            <span>审核</span>
+            <select id="deskModerationSelect" class="desk-select">
+              <option selected>auto</option>
+              <option>low</option>
+            </select>
+          </label>
+        </div>
+        <div class="desk-prompt-mode" data-provider-param="gpt" aria-label="提示词理解方式">
+          <label>
+            <span>类型</span>
+            <select id="deskGptTaskTypeSelect" class="desk-select">
+              <option value="image" selected>图片</option>
+              <option value="ppt">PPT</option>
+              <option value="psd">PSD</option>
+            </select>
+          </label>
+          <label>
+            <span>线路</span>
+            <select id="deskGptProviderRouteSelect" class="desk-select">
+              <option value="codex" selected>本地 Codex</option>
+              <option value="chatgpt_pool">账号池 API</option>
+              <option value="third_party_image_api">第三方 API</option>
+            </select>
+          </label>
+          <label>
+            <span>推理模型</span>
+            <select id="deskGptMainModelSelect" class="desk-select">
+              <option value="gpt-5.5" selected>GPT-5.5</option>
+              <option value="gpt-5.4">GPT-5.4</option>
+              <option value="gpt-5.4-mini">GPT-5.4 Mini</option>
+              <option value="gpt-5.3-codex">GPT-5.3 Codex</option>
+              <option value="gpt-5.2">GPT-5.2</option>
+            </select>
+          </label>
+          <label>
+            <span>推理强度</span>
+            <select id="deskReasoningEffortSelect" class="desk-select">
+              <option value="none">关闭</option>
+              <option value="low">低</option>
+              <option value="medium" selected>中</option>
+              <option value="high">高</option>
+              <option value="xhigh">超高</option>
+            </select>
+          </label>
+          <label>
+            <span>理解方式</span>
+            <select id="deskPromptModeSelect" class="desk-select">
+              <option value="smart" selected>智能理解</option>
+              <option value="web_search">联网检索</option>
+              <option value="faithful">忠实原文</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="desk-node__drawer" id="deskInputDrawer">
+          <div class="desk-prompt-panel desk-prompt-panel--references">
+            <span class="desk-panel-title">输入参考</span>
+            <div class="desk-reference-strip">
+              <button type="button" class="desk-upload desk-upload--square" id="deskUploadDrop" title="上传参考图">
+                <span>+</span>
+                <small>参考图</small>
+              </button>
+              <div class="desk-thumb-row" id="deskReferenceThumbs" aria-label="参考图缩略图"></div>
+            </div>
+            <div class="desk-node-hint">连接文本节点作为提示词，手动上传图片或连接[图片,姿态,排版节点]作为参考图。</div>
+          </div>
+        </div>
+
+        <div class="desk-input-footer">
+          <div class="desk-pill-row" id="deskOutputPills" data-output-pills>
+            <span>等待输出图片节点</span>
+          </div>
+          <div class="desk-output-controls desk-output-controls--input">
+            <label class="desk-switch">
+              <input type="checkbox" id="deskArchiveToggle" data-output-archive checked>
+              <span></span>
+              <em>自动归档</em>
+            </label>
+            <label class="desk-switch">
+              <input type="checkbox" id="deskTelegramToggle" data-output-telegram checked>
+              <span></span>
+              <em>发送到 Telegram</em>
+            </label>
+            <label class="desk-switch">
+              <input type="checkbox" id="deskBatchMode">
+              <span></span>
+              <em>批量</em>
+            </label>
+          </div>
+          <button type="button" class="desk-button desk-button--primary desk-manual-send" id="deskSendOriginalBtn" data-send-original disabled>手动发送</button>
+          <div class="desk-action-row">
+            <button type="button" class="desk-button desk-button--generate" data-result-run id="deskNodeGenerateBtn" title="生成" aria-label="生成">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M13 3 5 14h6l-1 7 8-11h-6l1-7Z"></path>
+              </svg>
+            </button>
+          </div>
+        </div>
+        <span class="desk-resize-handle desk-resize-handle--locked" aria-hidden="true"></span>
+        </section>
+        <div class="desk-progress-float" id="deskProgressFloat" aria-hidden="true">
+          <div class="desk-progress-float__panel">
+            <div class="desk-progress-float__bar">
+              <span id="deskInputProgressBar" data-progress-bar></span>
+              <strong id="deskInputProgressPercent" class="desk-progress-float__percent" data-progress-percent>
+                <span data-progress-percent-value>0%</span>
+                <span id="deskInputProgressTimer" class="desk-progress-float__timer" data-progress-timer>00:00</span>
+              </strong>
+            </div>
+            <span id="deskInputProgressStage" class="desk-progress-float__stage" data-progress-stage>等待生成</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <aside class="desk-history desk-glass" id="deskHistoryPanel" aria-label="历史记录">
+      <div class="desk-history__header">
+        <strong>最近记录</strong>
+        <div class="desk-history__actions">
+          <button type="button" id="deskHistoryCollapseBtn" class="desk-history__collapse desk-history-windchime-button desk-history-windchime-button--dock" title="收回历史" aria-label="收回历史" aria-expanded="true">
+            <span class="desk-history-windchime" aria-hidden="true">
+              <span class="desk-history-windchime__cord"></span>
+              <span class="desk-history-windchime__body">
+                <span class="desk-history-windchime__cap"></span>
+                <span class="desk-history-windchime__bell"></span>
+                <span class="desk-history-windchime__clapper"></span>
+                <span class="desk-history-windchime__sail"></span>
+              </span>
+            </span>
+          </button>
+        </div>
+      </div>
+      <div class="desk-history__list" id="deskHistoryList">
+        <div class="desk-history-empty">登录后同步历史记录</div>
+      </div>
+      <button type="button" class="desk-history__rail desk-history-windchime-button desk-history-windchime-button--hang" id="deskHistoryExpandBtn" aria-label="展开最近记录" aria-expanded="false">
+        <span class="desk-history-windchime" aria-hidden="true">
+          <span class="desk-history-windchime__cord"></span>
+          <span class="desk-history-windchime__body">
+            <span class="desk-history-windchime__cap"></span>
+            <span class="desk-history-windchime__bell"></span>
+            <span class="desk-history-windchime__clapper"></span>
+            <span class="desk-history-windchime__sail"></span>
+          </span>
+        </span>
+      </button>
+    </aside>
+    <canvas class="desk-history-genie-canvas" id="deskHistoryGenieCanvas" aria-hidden="true"></canvas>
+
+    <section class="desk-gallery desk-glass" id="deskGalleryPanel" aria-label="图库工作台" aria-hidden="true">
+      <div class="desk-gallery__header">
+        <div>
+          <h2>图库工作台</h2>
+        </div>
+        <div class="desk-gallery__actions">
+          <button type="button" id="deskGalleryRefreshBtn" title="刷新图库" aria-label="刷新图库">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 0 1 15.4-6.4"></path><path d="M18.4 5.6H14"></path><path d="M18.4 5.6V1.2"></path><path d="M21 12A9 9 0 0 1 5.6 18.4"></path><path d="M5.6 18.4H10"></path><path d="M5.6 18.4v4.4"></path></svg>
+          </button>
+          <button type="button" id="deskGalleryHealthBtn" title="图库体检" aria-label="图库体检">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 19 6v5c0 4.4-2.8 8.4-7 10-4.2-1.6-7-5.6-7-10V6l7-3Z"></path><path d="m8.6 12.2 2.2 2.2 4.8-5"></path></svg>
+          </button>
+          <button type="button" id="deskGalleryCloseBtn" title="关闭图库" aria-label="关闭图库">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7 17 17"></path><path d="M17 7 7 17"></path></svg>
+          </button>
+        </div>
+      </div>
+      <div class="desk-gallery__toolbar">
+        <div class="desk-gallery-tabs" role="tablist" aria-label="图库视图">
+          <button type="button" class="is-active" data-gallery-view="images">图片</button>
+          <button type="button" data-gallery-view="files">文件</button>
+          <button type="button" data-gallery-view="sources">远程源</button>
+          <button type="button" data-gallery-view="sets">候选集</button>
+        </div>
+        <label class="desk-gallery-search">
+          <span aria-hidden="true">
+            <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6"></circle><path d="m16 16 4 4"></path></svg>
+          </span>
+          <input id="deskGallerySearchInput" type="search" placeholder="搜索提示词 / 文件名 / 16:9 / PNG">
+        </label>
+        <select id="deskGalleryFilterSelect" class="desk-gallery-filter" aria-label="图库筛选">
+          <option value="all">全部资产</option>
+          <option value="today">今天</option>
+          <option value="ppt">PPT 文件</option>
+          <option value="psd">PSD 文件</option>
+          <option value="gpt">GPT</option>
+          <option value="google">Google</option>
+          <option value="comfy">Comfy</option>
+          <option value="layout">排版导出</option>
+          <option value="linked">有任务记录</option>
+          <option value="orphan">仅归档文件</option>
+          <option value="missing_history">记录缺图</option>
+          <option value="landscape">横图</option>
+          <option value="portrait">竖图</option>
+          <option value="square">方图</option>
+          <option value="1k">1K</option>
+          <option value="2k">2K</option>
+          <option value="4k">4K</option>
+          <option value="png">PNG</option>
+          <option value="jpg">JPG</option>
+          <option value="webp">WEBP</option>
+          <option value="favorite">已收藏</option>
+          <option value="hidden">已隐藏</option>
+          <option value="selected">已选择</option>
+        </select>
+        <label class="desk-gallery-tag-filter" title="按标签筛选">
+          <span aria-hidden="true">#</span>
+          <input id="deskGalleryTagInput" type="search" placeholder="标签">
+        </label>
+      </div>
+      <div class="desk-gallery-stats" id="deskGalleryStats" aria-live="polite">
+        <span>Obsidian --</span>
+        <span>图库 --</span>
+        <span>有记录 --</span>
+        <span>孤儿 --</span>
+        <span>有尺寸 --</span>
+      </div>
+      <div class="desk-gallery__body">
+        <div class="desk-gallery-grid" id="deskGalleryGrid" aria-label="图库资产列表">
+          <div class="desk-gallery-empty">打开图库后会同步最近图片资产</div>
+        </div>
+        <aside class="desk-gallery-inspector" id="deskGalleryInspector" aria-label="图库选择篮">
+          <div class="desk-gallery-inspector__head">
+            <strong>选择篮</strong>
+            <span id="deskGallerySelectedCount">0 张</span>
+          </div>
+          <div class="desk-gallery-selected" id="deskGallerySelectedList">
+            <div class="desk-gallery-empty">选择图片后可对比、发送到画布或整理候选集。</div>
+          </div>
+          <div class="desk-gallery-inspector__actions">
+            <button type="button" class="desk-button desk-button--primary" id="deskGalleryCompareBtn" disabled>对比</button>
+            <button type="button" class="desk-button" id="deskGalleryCanvasBtn" disabled>到画布</button>
+            <button type="button" class="desk-button" id="deskGallerySaveSetBtn" disabled>存候选集</button>
+            <button type="button" class="desk-button" id="deskGalleryRefreshMetaBtn">刷元数据</button>
+            <button type="button" class="desk-button" id="deskGalleryTagBtn" disabled>标签</button>
+            <button type="button" class="desk-button" id="deskGalleryHideBtn" disabled>隐藏</button>
+            <button type="button" class="desk-button desk-button--danger" id="deskGalleryDeleteBtn" disabled>删除文件</button>
+            <button type="button" class="desk-button" id="deskGalleryUndoDeleteBtn" disabled>撤销删除</button>
+            <button type="button" class="desk-button" id="deskGalleryClearBtn" disabled>清空</button>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <section class="desk-settings desk-glass" id="deskSettingsPanel" aria-label="设置中心" aria-hidden="true">
+      <div class="desk-settings__header">
+        <div class="desk-settings__title">
+          <h2>设置中心</h2>
+          <span class="desk-settings__version" aria-label="版本 V26.0.0.1">V26.0.0.1</span>
+        </div>
+        <div class="desk-settings__actions">
+          <button type="button" id="deskSettingsInfoBtn" class="desk-settings-info-trigger" title="查看当前页说明" aria-label="查看当前页说明" aria-haspopup="dialog" aria-expanded="false" aria-controls="deskSettingsInfoTip" hidden>
+            <span aria-hidden="true">!</span>
+          </button>
+          <button type="button" id="deskSettingsRefreshBtn" title="刷新诊断" aria-label="刷新诊断">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12a7 7 0 1 0 2.1-5"></path><path d="M5 5v5h5"></path></svg>
+          </button>
+          <button type="button" id="deskSettingsCloseBtn" title="关闭设置" aria-label="关闭设置">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg>
+          </button>
+        </div>
+      </div>
+      <div class="desk-settings-tabs" id="deskSettingsTabs" role="tablist" aria-label="设置分类">
+        <button type="button" class="is-active" data-settings-tab="status">状态</button>
+        <button type="button" data-settings-tab="system">系统</button>
+        <button type="button" data-settings-tab="telegram">Telegram</button>
+        <button type="button" data-settings-tab="provider">Provider</button>
+        <button type="button" data-settings-tab="third-party">第三方</button>
+        <button type="button" data-settings-tab="chatgpt-pool">账号池</button>
+        <button type="button" data-settings-tab="prompt">润色</button>
+        <button type="button" data-settings-tab="paths">路径</button>
+      </div>
+      <div class="desk-settings__summary" id="deskSettingsSummary">
+        <span>等待诊断</span>
+      </div>
+      <div class="desk-settings__body" id="deskSettingsBody">
+        <div class="desk-settings-empty">打开后会读取当前服务状态。</div>
+      </div>
+    </section>
+    <section class="desk-status-tip desk-settings-info-tip" id="deskSettingsInfoTip" role="dialog" aria-label="设置页说明" hidden>
+      <header class="desk-status-tip__head">
+        <div>
+          <strong id="deskSettingsInfoTipTitle">配置说明</strong>
+          <span id="deskSettingsInfoTipSubtitle">当前页</span>
+        </div>
+        <button type="button" id="deskSettingsInfoTipClose" aria-label="关闭设置说明" title="关闭">
+          <span aria-hidden="true">×</span>
+        </button>
+      </header>
+      <div class="desk-status-tip__summary">
+        <span>用途</span>
+        <strong id="deskSettingsInfoTipSummary">选择一个设置页查看说明。</strong>
+      </div>
+      <div class="desk-settings-info-tip__content" id="deskSettingsInfoTipContent"></div>
+    </section>
+
+    <div class="desk-gallery-preview" id="deskGalleryPreviewModal" aria-hidden="true">
+      <div class="desk-gallery-preview__panel" role="dialog" aria-modal="true" aria-label="原图预览">
+        <div class="desk-gallery-preview__backdrop" aria-hidden="true">
+          <img id="deskGalleryPreviewBackdropImg" alt="" aria-hidden="true">
+        </div>
+        <div class="desk-gallery-preview__stage" id="deskGalleryPreviewStage">
+          <img id="deskGalleryPreviewImg" alt="原图预览">
+        </div>
+        <aside class="desk-gallery-preview__info" aria-label="图片提示词和参数">
+          <div class="desk-gallery-preview__prompt-grid">
+            <section class="desk-gallery-preview__section">
+              <p class="desk-gallery-preview__section-title">
+                <span>Prompt</span>
+                <button type="button" class="desk-gallery-preview__mini-btn" id="deskGalleryPreviewPromptCompareBtn" title="对比 revised_prompt" aria-label="对比 revised_prompt">对比</button>
+              </p>
+              <pre id="deskGalleryPreviewPrompt">无提示词</pre>
+            </section>
+            <section class="desk-gallery-preview__section desk-gallery-preview__section--revised" id="deskGalleryPreviewRevisedBlock" hidden>
+              <p class="desk-gallery-preview__section-title">
+                <span>Revised Prompt</span>
+                <button type="button" class="desk-gallery-preview__mini-btn" id="deskGalleryPreviewCopyRevisedBtn" title="复制 revised_prompt" aria-label="复制 revised_prompt">复制</button>
+              </p>
+              <pre id="deskGalleryPreviewRevisedPrompt">无 revised_prompt</pre>
+            </section>
+          </div>
+          <div class="desk-gallery-preview__divider" id="deskGalleryPreviewNegativeDivider" hidden></div>
+          <section class="desk-gallery-preview__section" id="deskGalleryPreviewNegativeBlock" hidden>
+            <p>Negative Prompt</p>
+            <pre id="deskGalleryPreviewNegativePrompt">无</pre>
+          </section>
+          <div class="desk-gallery-preview__divider"></div>
+          <section class="desk-gallery-preview__section desk-gallery-preview__section--params">
+            <p>参数</p>
+            <h2 id="deskGalleryPreviewTitle">图片资产</h2>
+            <div class="desk-gallery-preview__meta" id="deskGalleryPreviewMeta"></div>
+          </section>
+          <div class="desk-gallery-preview__divider" id="deskGalleryPreviewLineageDivider" hidden></div>
+          <section class="desk-gallery-preview__section" id="deskGalleryPreviewLineageBlock" hidden>
+            <p>溯源</p>
+            <div class="desk-gallery-preview__lineage" id="deskGalleryPreviewLineage"></div>
+          </section>
+        </aside>
+        <button type="button" class="desk-gallery-preview__corner-close" id="deskGalleryPreviewCloseBtn" title="关闭原图看板" aria-label="关闭原图看板">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg>
+        </button>
+        <div class="desk-gallery-preview__toolbar" aria-label="原图查看工具">
+          <button type="button" id="deskGalleryPreviewPrevBtn" title="上一张" aria-label="上一张">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path><path d="M21 12H9"></path></svg>
+          </button>
+          <span class="desk-gallery-preview__counter" id="deskGalleryPreviewCounter">1 / 1</span>
+          <button type="button" id="deskGalleryPreviewNextBtn" title="下一张" aria-label="下一张">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18l6-6-6-6"></path><path d="M3 12h12"></path></svg>
+          </button>
+          <span class="desk-gallery-preview__toolbar-separator"></span>
+          <button type="button" id="deskGalleryPreviewZoomOutBtn" title="缩小" aria-label="缩小">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M8 11h6M16.5 16.5 21 21"></path></svg>
+          </button>
+          <button type="button" id="deskGalleryPreviewZoomInBtn" title="放大" aria-label="放大">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M11 8v6M8 11h6M16.5 16.5 21 21"></path></svg>
+          </button>
+          <button type="button" id="deskGalleryPreviewOpenBtn" title="打开原图" aria-label="打开原图">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12"></path><path d="m7 10 5 5 5-5"></path><path d="M5 21h14"></path></svg>
+          </button>
+          <button type="button" id="deskGalleryPreviewCopyBtn" title="复制提示词" aria-label="复制提示词">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="11" height="11" rx="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v1"></path></svg>
+          </button>
+          <button type="button" id="deskGalleryPreviewApplyBtn" title="套用到模型节点" aria-label="套用到模型节点">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 21v-7"></path><path d="M4 10V3"></path><path d="M12 21v-9"></path><path d="M12 8V3"></path><path d="M20 21v-5"></path><path d="M20 12V3"></path><path d="M2 14h4"></path><path d="M10 8h4"></path><path d="M18 16h4"></path></svg>
+          </button>
+          <button type="button" id="deskGalleryPreviewCanvasBtn" title="发送到画布" aria-label="发送到画布">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="13" height="13" rx="2"></rect><path d="M8 15l2.3-2.3a1 1 0 0 1 1.4 0L14 15"></path><path d="M14 9h6"></path><path d="M17 6v6"></path></svg>
+          </button>
+          <button type="button" id="deskGalleryPreviewEditBtn" title="继续编辑" aria-label="继续编辑">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4l10-10a2.8 2.8 0 0 0-4-4L4 16v4Z"></path><path d="M13 7l4 4"></path></svg>
+          </button>
+          <span class="desk-gallery-preview__toolbar-separator"></span>
+          <button type="button" id="deskGalleryPreviewFavoriteBtn" title="收藏" aria-label="收藏" aria-pressed="false">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5 14.7 9l6 .9-4.3 4.2 1 5.9-5.4-2.8L6.6 20l1-5.9L3.3 9.9l6-.9L12 3.5Z"></path></svg>
+          </button>
+          <button type="button" id="deskGalleryPreviewTagBtn" title="标签" aria-label="标签">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8Z"></path><circle cx="8" cy="8" r="1.5"></circle></svg>
+          </button>
+          <button type="button" id="deskGalleryPreviewHideBtn" title="隐藏" aria-label="隐藏" aria-pressed="false">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3l18 18"></path><path d="M10.6 10.6a2 2 0 0 0 2.8 2.8"></path><path d="M9.9 5.2A9.5 9.5 0 0 1 12 5c5 0 8.5 4.4 9.6 6.3a1.5 1.5 0 0 1 0 1.4 15.2 15.2 0 0 1-2.1 2.8"></path><path d="M6.4 6.8A15.5 15.5 0 0 0 2.4 11.3a1.5 1.5 0 0 0 0 1.4C3.5 14.6 7 19 12 19a9.6 9.6 0 0 0 4.1-.9"></path></svg>
+          </button>
+          <button type="button" id="deskGalleryPreviewDeleteBtn" title="删除原图和提示词" aria-label="删除原图和提示词">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16"></path><path d="M10 11v6"></path><path d="M14 11v6"></path><path d="m6 7 1 14h10l1-14"></path><path d="M9 7V4h6v3"></path></svg>
+          </button>
+          <button type="button" id="deskGalleryPreviewCompareBtn" title="加入对比" aria-label="加入对比">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v16"></path><path d="M5 6h5v12H5z"></path><path d="M14 6h5v12h-5z"></path></svg>
+          </button>
+          <button type="button" id="deskGalleryPreviewLayoutBtn" title="接入排版" aria-label="接入排版">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"></rect><path d="M4 10h16M10 10v10"></path></svg>
+          </button>
+          <button type="button" id="deskGalleryPreviewSendBtn" title="发送原图" aria-label="发送原图">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m22 2-7 20-4-9-9-4 20-7Z"></path><path d="M22 2 11 13"></path></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="desk-file-preview-modal" id="deskFilePreviewModal" aria-hidden="true">
+      <div class="desk-file-preview-modal__panel desk-glass" role="dialog" aria-modal="true" aria-label="文件预览">
+        <div class="desk-file-preview-modal__stage" id="deskFilePreviewStage"></div>
+        <aside class="desk-file-preview-modal__info">
+          <p id="deskFilePreviewKind">文件</p>
+          <h2 id="deskFilePreviewTitle">文件预览</h2>
+          <div class="desk-file-preview-modal__meta" id="deskFilePreviewMeta"></div>
+          <section>
+            <strong>Prompt</strong>
+            <pre id="deskFilePreviewPrompt">无提示词</pre>
+          </section>
+          <section id="deskFilePreviewLayersBlock" hidden>
+            <strong>图层</strong>
+            <div class="desk-file-preview-modal__layers" id="deskFilePreviewLayers"></div>
+          </section>
+          <div class="desk-file-preview-modal__actions">
+            <a id="deskFilePreviewOpenBtn" href="#" target="_blank" rel="noopener">打开主文件</a>
+            <a id="deskFilePreviewZipBtn" href="#" target="_blank" rel="noopener">下载 ZIP</a>
+            <a id="deskFilePreviewManifestBtn" href="#" target="_blank" rel="noopener">Manifest</a>
+            <button type="button" id="deskFilePreviewSendBtn">发送</button>
+            <button type="button" class="is-danger" id="deskFilePreviewDeleteBtn">删除</button>
+          </div>
+        </aside>
+        <button type="button" class="desk-file-preview-modal__close" id="deskFilePreviewCloseBtn" title="关闭文件预览" aria-label="关闭文件预览">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="desk-compare" id="deskCompareModal" aria-hidden="true">
+      <div class="desk-compare__panel desk-glass" role="dialog" aria-modal="true" aria-label="图片对比">
+        <div class="desk-compare__header">
+          <div class="desk-compare__actions">
+            <button type="button" id="deskCompareSwapBtn" title="交换对比图" aria-label="交换对比图">
+              <span class="desk-compare__icon desk-compare__icon--swap" aria-hidden="true"></span>
+            </button>
+            <button type="button" id="deskCompareCloseBtn" title="关闭对比" aria-label="关闭对比">
+              <span class="desk-compare__icon desk-compare__icon--close" aria-hidden="true"></span>
+            </button>
+          </div>
+        </div>
+        <div class="desk-compare__body">
+          <div class="desk-compare__stage" id="deskCompareStage">
+            <img id="deskCompareBaseImg" alt="对比图片 A">
+            <div class="desk-compare__overlay" id="deskCompareOverlay">
+              <img id="deskCompareTopImg" alt="对比图片 B">
+            </div>
+            <span class="desk-compare__label desk-compare__label--left" id="deskCompareLeftLabel">A</span>
+            <span class="desk-compare__label desk-compare__label--right" id="deskCompareRightLabel">B</span>
+            <span class="desk-compare__divider" id="deskCompareDivider"></span>
+            <input id="deskCompareRange" type="range" min="0" max="100" value="50" aria-label="对比滑杆">
+          </div>
+          <aside class="desk-compare__info" aria-label="对比差异">
+            <section class="desk-compare__section">
+              <p>参数差异</p>
+              <div class="desk-compare__diff" id="deskCompareMetaDiff"></div>
+            </section>
+            <section class="desk-compare__section">
+              <p>Prompt A</p>
+              <pre id="deskComparePromptLeft"></pre>
+            </section>
+            <section class="desk-compare__section">
+              <p>Prompt B</p>
+              <pre id="deskComparePromptRight"></pre>
+            </section>
+          </aside>
+        </div>
+      </div>
+    </div>
+
+    <section class="desk-prompt-drawer desk-glass" id="deskPromptDrawer" aria-label="提示词助手" aria-expanded="false">
+      <button type="button" class="desk-prompt-drawer__handle" id="deskPromptDrawerToggle" aria-label="展开或收起提示词助手" title="提示词助手">
+        <span>提示词助手</span>
+        <em id="deskPromptDrawerTarget">未选择目标</em>
+        <span class="desk-prompt-drawer__handle-eye desk-prompt-drawer__handle-eye--left" aria-hidden="true"></span>
+        <span class="desk-prompt-drawer__handle-eye desk-prompt-drawer__handle-eye--right" aria-hidden="true"></span>
+      </button>
+      <div class="desk-prompt-drawer__body">
+        <div class="desk-prompt-drawer__header">
+          <div class="desk-prompt-drawer__title">
+            <strong>提示词助手</strong>
+            <div class="desk-prompt-drawer__control-row">
+              <label class="desk-prompt-node-picker">
+                <span id="deskPromptDrawerMeta">选择文本节点</span>
+                <select id="deskPromptNodeSelect" aria-label="选择文本节点">
+                  <option value="">请选择文本节点</option>
+                </select>
+              </label>
+              <button type="button" id="deskPromptDrawerClear" aria-label="清空提示词助手" title="清空">清空</button>
+            </div>
+          </div>
+        </div>
+        <div class="desk-prompt-drawer__grid">
+          <div class="desk-prompt-chat">
+            <div class="desk-prompt-chat__head">
+              <button type="button" class="desk-prompt-expand-btn" id="deskPromptChatExpand" aria-label="展开讨论区" title="展开讨论区">
+                <span class="desk-icon desk-icon--expand" aria-hidden="true"></span>
+              </button>
+            </div>
+            <div class="desk-prompt-chat__messages" id="deskPromptChatMessages"></div>
+            <div class="desk-prompt-chat__input">
+              <div class="desk-prompt-chat__textwrap" id="deskPromptChatTextWrap">
+                <div id="deskPromptChatInput" class="desk-prompt-editor" contenteditable="true" role="textbox" aria-multiline="true" data-placeholder="输入讨论内容，或输入 @ 选择画布图片节点。"></div>
+                <div class="desk-prompt-image-menu" id="deskPromptImageMenu" hidden></div>
+              </div>
+              <div class="desk-prompt-chat__actions">
+                <label class="desk-prompt-image-switch">
+                  <input id="deskPromptImageAnalysisToggle" type="checkbox">
+                  <span></span>
+                  <em>图片分析</em>
+                </label>
+                <button type="button" id="deskPromptChatSend">发送</button>
+                <button type="button" id="deskPromptGenerateVersions">生成版本</button>
+              </div>
+            </div>
+          </div>
+          <div class="desk-prompt-candidates">
+            <div class="desk-prompt-candidates__head">
+              <strong>分析结果</strong>
+              <div class="desk-prompt-candidates__actions">
+                <button type="button" class="desk-prompt-expand-btn" id="deskPromptVersionsExpand" aria-label="展开分析结果" title="展开分析结果">
+                  <span class="desk-icon desk-icon--expand" aria-hidden="true"></span>
+                </button>
+                <button type="button" id="deskPromptChatRefresh">刷新</button>
+              </div>
+            </div>
+            <div class="desk-prompt-candidates__list" id="deskPromptCandidateList"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="desk-prompt-modal" id="deskPromptModal" hidden>
+      <div class="desk-prompt-modal__backdrop" aria-hidden="true"></div>
+      <section class="desk-prompt-modal__panel" role="dialog" aria-modal="true" aria-labelledby="deskPromptModalTitle">
+        <header class="desk-prompt-modal__head" data-prompt-modal-drag-handle>
+          <strong id="deskPromptModalTitle">提示词助手</strong>
+          <button type="button" id="deskPromptModalClose" data-prompt-modal-close aria-label="关闭展开视图" title="关闭">
+            <span class="desk-icon desk-icon--close" aria-hidden="true"></span>
+          </button>
+        </header>
+        <div class="desk-prompt-modal__content" id="deskPromptModalContent"></div>
+      </section>
+    </div>
+
+    <footer class="desk-bottombar desk-glass">
+      <div class="desk-bottombar__status">
+        <div class="desk-status-group desk-status-group--run">
+          <span class="desk-status-chip desk-status-chip--ok desk-status-chip--service"><i class="desk-live-dot"></i>服务 18463 在线</span>
+          <span class="desk-status-chip desk-status-chip--checking" id="deskSidecarStatus">账号池 检查中</span>
+          <span class="desk-status-chip desk-status-chip--ok" id="deskFallbackStatus">GPT fallback 可用</span>
+        </div>
+        <div class="desk-status-group desk-status-group--task">
+          <span class="desk-status-chip desk-status-chip--ok" id="deskTodayCount">今日任务 --</span>
+          <span class="desk-status-chip desk-status-chip--ok" id="deskQueueCount">队列 --</span>
+        </div>
+        <div class="desk-status-group desk-status-group--output">
+          <span class="desk-status-chip desk-status-chip--ok" id="deskArchiveStatus">归档开启</span>
+          <span class="desk-status-chip desk-status-chip--ok" id="deskTelegramStatus">Telegram 开启</span>
+        </div>
+        <div class="desk-status-group desk-status-group--feedback" aria-live="polite">
+          <button type="button" class="desk-status-feedback-trigger" id="deskStatusMessage" data-tone="info" aria-haspopup="dialog" aria-expanded="false" aria-controls="deskStatusTip">就绪</button>
+        </div>
+      </div>
+      <button type="button" class="desk-status-stop" id="deskStopBtn" title="取消正在生成的任务" aria-label="取消正在生成的任务">
+        <span class="desk-status-stop__icon" aria-hidden="true"></span>
+        <span class="desk-status-stop__text">停止</span>
+      </button>
+    </footer>
+    <section class="desk-status-tip" id="deskStatusTip" role="dialog" aria-label="任务状态详情" hidden>
+      <header class="desk-status-tip__head">
+        <div>
+          <strong id="deskStatusTipTitle">任务状态</strong>
+          <span id="deskStatusTipSubtitle">当前任务</span>
+        </div>
+        <button type="button" id="deskStatusTipClose" aria-label="关闭任务状态详情" title="关闭">
+          <span aria-hidden="true">×</span>
+        </button>
+      </header>
+      <div class="desk-status-tip__summary">
+        <span>简要信息</span>
+        <strong id="deskStatusTipDisplay">就绪</strong>
+      </div>
+      <dl class="desk-status-tip__meta" id="deskStatusTipMeta"></dl>
+      <div class="desk-status-tip__raw-head">
+        <span>原始返回信息</span>
+        <button type="button" id="deskStatusTipCopy">复制</button>
+      </div>
+      <pre class="desk-status-tip__raw" id="deskStatusTipRaw">暂无原始返回信息</pre>
+    </section>
+  </main>
+
+  <input id="deskFileInput" type="file" accept="image/*" multiple hidden>
+  <input id="deskWorkflowFileInput" type="file" accept=".tcflow.json,.json,application/json" hidden>
+  <div class="desk-layout-editor" id="deskLayoutEditor" aria-hidden="true">
+    <div class="desk-layout-topbar">
+      <div class="desk-layout-brand">
+        <strong id="deskLayoutTitle">排版工作区</strong>
+        <span id="deskLayoutMeta">竖版画布</span>
+      </div>
+      <div class="desk-layout-actions" aria-label="排版工具">
+        <div class="desk-layout-action-group desk-layout-action-group--draft">
+          <span class="desk-layout-status" id="deskLayoutStatus">未保存</span>
+          <select id="deskLayoutDraftSelect" aria-label="选择排版草稿">
+            <option value="">最近草稿</option>
+          </select>
+          <button type="button" id="deskLayoutLoadBtn">加载</button>
+        </div>
+        <div class="desk-layout-action-group">
+          <button type="button" id="deskLayoutTemplateBtn">模板</button>
+          <button type="button" id="deskLayoutFitBtn">适配</button>
+          <button type="button" id="deskLayoutSafeAreaBtn" title="显示/隐藏安全边距">安全区</button>
+          <button type="button" id="deskLayoutSnapBtn" title="开启/关闭吸附参考线">吸附</button>
+          <select id="deskLayoutZoomSelect" aria-label="排版画布缩放">
+            <option value="fit">适配</option>
+            <option value="0.25">25%</option>
+            <option value="0.5">50%</option>
+            <option value="0.75">75%</option>
+            <option value="1">100%</option>
+          </select>
+        </div>
+        <div class="desk-layout-action-group desk-layout-action-group--history" aria-label="历史操作">
+          <button type="button" id="deskLayoutUndoBtn" class="desk-layout-icon-btn" title="撤销 (Cmd/Ctrl+Z)" aria-label="撤销" disabled>↶</button>
+          <button type="button" id="deskLayoutRedoBtn" class="desk-layout-icon-btn" title="重做 (Cmd/Ctrl+Shift+Z)" aria-label="重做" disabled>↷</button>
+        </div>
+        <div class="desk-layout-action-group">
+          <button type="button" id="deskLayoutAddTextBtn">文本</button>
+          <button type="button" id="deskLayoutAddImageBtn">插图</button>
+        </div>
+        <div class="desk-layout-action-group desk-layout-action-group--commit">
+          <button type="button" id="deskLayoutSaveBtn" class="is-primary">保存</button>
+          <button type="button" id="deskLayoutExportBtn">导出到历史</button>
+          <button type="button" id="deskLayoutCloseBtn" class="is-quiet">关闭</button>
+        </div>
+      </div>
+    </div>
+    <aside class="desk-layout-layers" id="deskLayoutLayersPanel">
+      <div class="desk-layout-layers__header">
+        <strong>页面与图层</strong>
+        <button type="button" id="deskLayoutLayersCollapseBtn" title="折叠页面与图层" aria-label="折叠页面与图层" aria-expanded="true">‹</button>
+      </div>
+      <div class="desk-layout-isolation-bar" id="deskLayoutIsolationBar" hidden>
+        <span>
+          <strong id="deskLayoutIsolationTitle">组合隔离</strong>
+          <em id="deskLayoutIsolationMeta">只编辑当前组合</em>
+        </span>
+        <button type="button" id="deskLayoutIsolationExitBtn">退出</button>
+      </div>
+      <div class="desk-layout-tree">
+        <div id="deskLayoutPageList"></div>
+        <div id="deskLayoutLayerList"></div>
+      </div>
+    </aside>
+    <section class="desk-layout-stage" id="deskLayoutStage">
+      <div class="desk-layout-object-toolbar" id="deskLayoutObjectToolbar" hidden>
+        <span id="deskLayoutToolbarMeta">未选中</span>
+        <button type="button" id="deskLayoutBoldBtn" title="加粗">B</button>
+        <button type="button" data-layout-font-step="-4" title="减小字号">A-</button>
+        <button type="button" data-layout-font-step="4" title="增大字号">A+</button>
+        <button type="button" data-layout-align="left" title="左对齐">左</button>
+        <button type="button" data-layout-align="center" title="居中">中</button>
+        <button type="button" data-layout-align="right" title="右对齐">右</button>
+      </div>
+      <div class="desk-layout-page-shell" id="deskLayoutPageShell">
+        <div class="desk-layout-page" id="deskLayoutPage" data-size="1080 x 1440">
+          <canvas id="deskLayoutCanvas" width="1080" height="1440"></canvas>
+          <div class="desk-layout-assist" id="deskLayoutAssistOverlay" aria-hidden="true">
+            <span class="desk-layout-safe-area" id="deskLayoutSafeAreaGuide"></span>
+            <span class="desk-layout-group-selection" id="deskLayoutGroupSelectionBox" hidden></span>
+            <span class="desk-layout-guide desk-layout-guide--v" id="deskLayoutGuideV" hidden></span>
+            <span class="desk-layout-guide desk-layout-guide--h" id="deskLayoutGuideH" hidden></span>
+          </div>
+        </div>
+      </div>
+    </section>
+    <aside class="desk-layout-inspector">
+      <strong>属性</strong>
+      <div class="desk-layout-empty-state" id="deskLayoutInspectorEmpty">
+        <strong>未选中图层</strong>
+        <span>选择文字或图片后，在这里调整内容和层级。</span>
+      </div>
+      <div class="desk-layout-selection-meta" id="deskLayoutSelectionMeta" hidden>
+        <span id="deskLayoutSelectionMetaText"></span>
+        <button type="button" id="deskLayoutReturnGroupBtn" hidden>返回组合</button>
+      </div>
+      <div class="desk-layout-template-controls" id="deskLayoutTemplateControls" hidden>
+        <div class="desk-layout-inspector-heading">
+          <strong>模板字段</strong>
+          <span>当前页</span>
+        </div>
+        <div class="desk-layout-template-fields" id="deskLayoutTemplateFields"></div>
+      </div>
+      <div class="desk-layout-inspector-fields" id="deskLayoutTextControls" hidden>
+        <label>
+          <span>文字</span>
+          <textarea id="deskLayoutTextInput" rows="4"></textarea>
+        </label>
+        <label>
+          <span>字体</span>
+          <select id="deskLayoutFontFamilySelect"></select>
+        </label>
+        <div class="desk-layout-text-metrics">
+          <label>
+            <span>字重</span>
+            <select id="deskLayoutFontWeightSelect"></select>
+          </label>
+          <label>
+            <span>字号</span>
+            <input id="deskLayoutFontSizeInput" type="number" min="8" max="220" value="48">
+          </label>
+          <label>
+            <span>行高</span>
+            <input id="deskLayoutLineHeightInput" type="number" min="0.6" max="3" step="0.05" value="1.16">
+          </label>
+          <label>
+            <span>字距</span>
+            <input id="deskLayoutCharSpacingInput" type="number" min="-200" max="800" step="10" value="0">
+          </label>
+        </div>
+        <label>
+          <span>颜色</span>
+          <input id="deskLayoutColorInput" type="color" value="#111827">
+        </label>
+        <div class="desk-layout-inline-actions" aria-label="文字对齐">
+          <button type="button" data-layout-align="left">左</button>
+          <button type="button" data-layout-align="center">中</button>
+          <button type="button" data-layout-align="right">右</button>
+        </div>
+      </div>
+      <div class="desk-layout-inspector-fields desk-layout-image-controls" id="deskLayoutImageControls" hidden>
+        <label>
+          <span>图片适配</span>
+          <select id="deskLayoutImageFitSelect">
+            <option value="cover">填充裁切</option>
+            <option value="contain">完整显示</option>
+            <option value="stretch">拉伸铺满</option>
+            <option value="original">原始居中</option>
+          </select>
+        </label>
+        <div class="desk-layout-crop-controls" aria-label="图片裁剪焦点">
+          <div class="desk-layout-inspector-heading">
+            <strong>裁剪焦点</strong>
+            <span>填充裁切</span>
+          </div>
+          <label>
+            <span>水平焦点</span>
+            <input id="deskLayoutImageFocalXInput" type="range" min="0" max="100" step="1" value="50">
+          </label>
+          <label>
+            <span>垂直焦点</span>
+            <input id="deskLayoutImageFocalYInput" type="range" min="0" max="100" step="1" value="50">
+          </label>
+          <label>
+            <span>裁剪缩放</span>
+            <input id="deskLayoutImageCropZoomInput" type="range" min="100" max="400" step="5" value="100">
+          </label>
+          <button type="button" id="deskLayoutImageCropResetBtn">重置裁剪</button>
+        </div>
+        <button type="button" id="deskLayoutReplaceImageBtn">替换当前图片</button>
+      </div>
+      <div class="desk-layout-inspector-fields" id="deskLayoutObjectControls" hidden>
+        <div class="desk-layout-object-metrics">
+          <label>
+            <span>X</span>
+            <input id="deskLayoutObjectXInput" type="number" step="1" value="0">
+          </label>
+          <label>
+            <span>Y</span>
+            <input id="deskLayoutObjectYInput" type="number" step="1" value="0">
+          </label>
+          <label>
+            <span>W</span>
+            <input id="deskLayoutObjectWInput" type="number" min="1" step="1" value="0">
+          </label>
+          <label>
+            <span>H</span>
+            <input id="deskLayoutObjectHInput" type="number" min="1" step="1" value="0">
+          </label>
+          <label>
+            <span>旋转</span>
+            <input id="deskLayoutObjectAngleInput" type="number" min="-360" max="360" step="1" value="0">
+          </label>
+          <label>
+            <span>透明</span>
+            <input id="deskLayoutObjectOpacityInput" type="number" min="0" max="100" step="1" value="100">
+          </label>
+        </div>
+        <div class="desk-layout-align-controls" aria-label="图层对齐">
+          <label>
+            <span>对齐范围</span>
+            <select id="deskLayoutAlignScopeSelect">
+              <option value="canvas">画布</option>
+              <option value="safe">安全区</option>
+            </select>
+          </label>
+          <div class="desk-layout-align-grid" aria-label="对齐方式">
+            <button type="button" data-layout-object-align="left">左</button>
+            <button type="button" data-layout-object-align="hcenter">水平中</button>
+            <button type="button" data-layout-object-align="right">右</button>
+            <button type="button" data-layout-object-align="top">上</button>
+            <button type="button" data-layout-object-align="vcenter">垂直中</button>
+            <button type="button" data-layout-object-align="bottom">下</button>
+          </div>
+          <div class="desk-layout-distribute-grid" aria-label="等距分布">
+            <button type="button" data-layout-object-distribute="horizontal">横向等距</button>
+            <button type="button" data-layout-object-distribute="vertical">纵向等距</button>
+          </div>
+        </div>
+        <div class="desk-layout-inline-actions" aria-label="图层层级">
+          <button type="button" id="deskLayoutCopyBtn">复制</button>
+          <button type="button" id="deskLayoutPasteBtn">粘贴</button>
+          <button type="button" id="deskLayoutDuplicateBtn">副本</button>
+          <button type="button" id="deskLayoutGroupBtn">组合</button>
+          <button type="button" id="deskLayoutUngroupBtn">解组</button>
+          <button type="button" id="deskLayoutForwardBtn">上移</button>
+          <button type="button" id="deskLayoutBackwardBtn">下移</button>
+          <button type="button" id="deskLayoutDeleteBtn" class="is-danger">删除</button>
+        </div>
+      </div>
+    </aside>
+    <div class="desk-layout-create" id="deskLayoutCreate" hidden>
+      <div class="desk-layout-create__panel">
+        <div class="desk-layout-create__header">
+          <span>创建画布</span>
+          <strong>选择发布场景和模板</strong>
+        </div>
+        <div class="desk-layout-create__body">
+          <section>
+            <div class="desk-layout-create__label">尺寸</div>
+            <div class="desk-layout-preset-list" id="deskLayoutPresetList"></div>
+          </section>
+          <section>
+            <div class="desk-layout-create__label">模板</div>
+            <div class="desk-layout-template-list" id="deskLayoutTemplateList"></div>
+          </section>
+        </div>
+        <div class="desk-layout-create__footer">
+          <span id="deskLayoutCreateHint">默认使用小红书 3:4 封面尺寸。</span>
+          <button type="button" id="deskLayoutCreateBtn" class="is-primary">创建画布</button>
+        </div>
+      </div>
+    </div>
+    <input id="deskLayoutImageInput" type="file" accept="image/*" hidden>
+  </div>
+
+  <script src="scripts/desktop-i18n.js?v=20260706-pool-refresh-lock1"></script>
+  <script src="scripts/auth-api.js?v=20260630-thumb-auth1"></script>
+  <script src="vendor/fabric.min.js?v=5.3.0"></script>
+  <script src="vendor/fabric-eraser.mixin.js?v=20260628-image-editor-pin16"></script>
+  <script src="scripts/desktop-state.js?v=20260702-upscale-flow12"></script>
+  <script src="scripts/desktop-preferences.js?v=20260707-theme-circle-reveal7"></script>
+  <script src="scripts/desktop-select.js?v=20260702-upscale-flow12"></script>
+  <script src="scripts/desktop-api.js?v=20260706-pool-refresh-lock1"></script>
+  <script src="scripts/desktop-canvas.js?v=20260705-pose-legacy-skeleton1"></script>
+  <script type="module" src="scripts/desktop-pose-studio.js?v=20260705-pose-legacy-skeleton1"></script>
+  <script src="scripts/desktop-layout-editor.js?v=20260621-websearch1"></script>
+  <script src="scripts/desktop-file-results.js?v=20260701-model-pills-toggle1"></script>
+  <script src="scripts/desktop-results.js?v=20260707-active-task-restore1"></script>
+  <script src="scripts/desktop-history.js?v=20260705-gallery-preview-counter1"></script>
+  <script src="scripts/desktop-settings.js?v=20260707-provider-auth-state1"></script>
+  <script src="scripts/desktop-prompt-editor.js?v=20260704-prompt-clear-position1"></script>
+  <script src="scripts/desktop-prompt-drawer.js?v=20260706-prompt-drawer-session1"></script>
+  <script src="scripts/desktop-bootstrap.js?v=20260629-desk-select1"></script>
+</body>
+</html>
