@@ -68,7 +68,6 @@ export MINIAPP_AUTH_MAX_AGE=604800
 - Telegram initData / 访问密码鉴权状态
 - Nano Banana / Google 兼容 API key 是否存在
 - GPT local provider 的 Codex 登录态候选
-- GPT browser fallback profile / user-data dir / CDP port
 - 图片归档、远程源素材、`tasks.db` 路径可用性
 
 ## 说明

@@ -64,12 +64,6 @@
     "reasoning_effort": "medium",
     "default_output": "full_prompt"
   },
-  "gpt_browser": {
-    "profile": "tg-mini-app-img-gen",
-    "user_data_dir": "",
-    "cdp_port": 19333,
-    "chrome_path": ""
-  },
   "prompt_model_providers": {},
   "proxy_enabled": false,
   "proxy_url": "",
