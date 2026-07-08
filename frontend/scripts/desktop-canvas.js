@@ -45,6 +45,26 @@
     '.desk-workflow-dock-toggle',
     '.desk-workflow-dock-panel'
   ].join(', ');
+  const CANVAS_RIGHT_PAN_BLOCK_SELECTOR = [
+    '.desk-node-palette',
+    '.desk-gallery-panel',
+    '.desk-settings',
+    '.desk-selection-toolbar',
+    '.desk-zoom-controls',
+    '.desk-workflow-dock-toggle',
+    '.desk-workflow-dock-panel'
+  ].join(', ');
+  const CANVAS_RIGHT_PAN_CONTROL_SELECTOR = [
+    'button',
+    'input',
+    'textarea',
+    'select',
+    'a',
+    '[contenteditable="true"]',
+    '.desk-port',
+    '[data-node-resize-handle]',
+    '[data-upload-drop]'
+  ].join(', ');
   const IMAGE_EDIT_MIN_ZOOM = 0.02;
   const IMAGE_EDIT_MAX_ZOOM = 4;
   const IMAGE_EDIT_ZOOM_STEP = 1.2;
@@ -2391,7 +2411,15 @@
     const isLeftButton = event.button === 0;
     const isRightButton = event.button === 2;
     if (!isLeftButton && !isRightButton) return;
-    if (event.target.closest(CANVAS_INTERACTION_BLOCK_SELECTOR)) return;
+    const startedOnNode = !!event.target.closest('.desk-node');
+    if (isLeftButton) {
+      if (event.target.closest(CANVAS_INTERACTION_BLOCK_SELECTOR)) return;
+    } else if (
+      event.target.closest(CANVAS_RIGHT_PAN_BLOCK_SELECTOR)
+      || event.target.closest(CANVAS_RIGHT_PAN_CONTROL_SELECTOR)
+    ) {
+      return;
+    }
     event.preventDefault();
     event.stopPropagation();
     hideContextMenu();
@@ -2414,12 +2442,17 @@
     activeInteraction = {
       type: 'pan',
       pointerButton: isRightButton ? 'right' : 'left',
+      pointerId: event.pointerId,
+      startedOnNode,
       startX: event.clientX,
       startY: event.clientY,
       canvasX: canvas.x,
       canvasY: canvas.y,
       moved: false
     };
+    try {
+      els.deskCanvasViewport?.setPointerCapture?.(event.pointerId);
+    } catch {}
     els.deskCanvasViewport.classList.add('is-panning');
   }
 
@@ -2596,12 +2629,17 @@
     const interaction = activeInteraction;
     getNodeElement(interaction.nodeId)?.classList.remove('is-dragging', 'is-resizing');
     els.deskCanvasViewport?.classList.remove('is-panning');
+    try {
+      if (interaction.pointerId != null) {
+        els.deskCanvasViewport?.releasePointerCapture?.(interaction.pointerId);
+      }
+    } catch {}
     hideSmartGuides();
     activeInteraction = null;
     DesktopState.saveSettings();
     if (interaction.type === 'pan' && interaction.pointerButton === 'right') {
       suppressCanvasContextMenuUntil = Date.now() + CANVAS_CONTEXTMENU_SUPPRESS_MS;
-      if (!interaction.moved && event?.type === 'pointerup') {
+      if (!interaction.moved && !interaction.startedOnNode && event?.type === 'pointerup') {
         openContextMenu(event);
       }
     }
