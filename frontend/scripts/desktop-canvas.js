@@ -33,6 +33,18 @@
   const LINK_VIEWBOX = '-3000 -3000 8000 8000';
   const SNAP_THRESHOLD_PX = 9;
   const PORT_RADIUS = 7;
+  const CANVAS_PAN_DRAG_THRESHOLD_PX = 3;
+  const CANVAS_CONTEXTMENU_SUPPRESS_MS = 450;
+  const CANVAS_INTERACTION_BLOCK_SELECTOR = [
+    '.desk-node',
+    '.desk-node-palette',
+    '.desk-gallery-panel',
+    '.desk-settings',
+    '.desk-selection-toolbar',
+    '.desk-zoom-controls',
+    '.desk-workflow-dock-toggle',
+    '.desk-workflow-dock-panel'
+  ].join(', ');
   const IMAGE_EDIT_MIN_ZOOM = 0.02;
   const IMAGE_EDIT_MAX_ZOOM = 4;
   const IMAGE_EDIT_ZOOM_STEP = 1.2;
@@ -146,6 +158,7 @@
   let contextMenuPoint = null;
   let contextMenuEl = null;
   let contextMenuConnectionSourceId = '';
+  let suppressCanvasContextMenuUntil = 0;
   let imageEditorEl = null;
   let imageEditorCanvas = null;
   let activeImageEdit = null;
@@ -2369,10 +2382,14 @@
   }
 
   function startPan(event) {
-    if (event.button !== 0) return;
-    if (event.target.closest('.desk-node, .desk-zoom-controls, .desk-selection-toolbar, .desk-workflow-dock-toggle, .desk-workflow-dock-panel')) return;
+    const isLeftButton = event.button === 0;
+    const isRightButton = event.button === 2;
+    if (!isLeftButton && !isRightButton) return;
+    if (event.target.closest(CANVAS_INTERACTION_BLOCK_SELECTOR)) return;
     event.preventDefault();
-    if (isSelectToolActive() && !event.altKey && !event.metaKey && !event.ctrlKey && !event.shiftKey) {
+    event.stopPropagation();
+    hideContextMenu();
+    if (isLeftButton && isSelectToolActive() && !event.altKey && !event.metaKey && !event.ctrlKey && !event.shiftKey) {
       const pointer = screenToWorld(event.clientX, event.clientY);
       activeInteraction = {
         type: 'marquee',
@@ -2386,14 +2403,16 @@
       renderMarquee({ x: pointer.x, y: pointer.y, width: 0, height: 0 });
       return;
     }
-    selectNode('');
+    if (isLeftButton) selectNode('');
     const canvas = DesktopState.state.canvas;
     activeInteraction = {
       type: 'pan',
+      pointerButton: isRightButton ? 'right' : 'left',
       startX: event.clientX,
       startY: event.clientY,
       canvasX: canvas.x,
-      canvasY: canvas.y
+      canvasY: canvas.y,
+      moved: false
     };
     els.deskCanvasViewport.classList.add('is-panning');
   }
@@ -2469,8 +2488,13 @@
 
     if (activeInteraction.type === 'pan') {
       const canvas = DesktopState.state.canvas;
-      canvas.x = activeInteraction.canvasX + event.clientX - activeInteraction.startX;
-      canvas.y = activeInteraction.canvasY + event.clientY - activeInteraction.startY;
+      const dx = event.clientX - activeInteraction.startX;
+      const dy = event.clientY - activeInteraction.startY;
+      if (Math.hypot(dx, dy) > CANVAS_PAN_DRAG_THRESHOLD_PX) {
+        activeInteraction.moved = true;
+      }
+      canvas.x = activeInteraction.canvasX + dx;
+      canvas.y = activeInteraction.canvasY + dy;
       applyCanvasTransform();
       return;
     }
@@ -2563,11 +2587,18 @@
       activeInteraction = null;
       return;
     }
-    getNodeElement(activeInteraction.nodeId)?.classList.remove('is-dragging', 'is-resizing');
+    const interaction = activeInteraction;
+    getNodeElement(interaction.nodeId)?.classList.remove('is-dragging', 'is-resizing');
     els.deskCanvasViewport?.classList.remove('is-panning');
     hideSmartGuides();
     activeInteraction = null;
     DesktopState.saveSettings();
+    if (interaction.type === 'pan' && interaction.pointerButton === 'right') {
+      suppressCanvasContextMenuUntil = Date.now() + CANVAS_CONTEXTMENU_SUPPRESS_MS;
+      if (!interaction.moved && event?.type === 'pointerup') {
+        openContextMenu(event);
+      }
+    }
   }
 
   function handleCanvasWheel(event) {
@@ -2576,14 +2607,15 @@
     event.preventDefault();
 
     const canvas = DesktopState.state.canvas;
-    if (event.metaKey || event.ctrlKey || event.altKey) {
-      const factor = event.deltaY > 0 ? 0.92 : 1.08;
+    if (event.metaKey || event.ctrlKey || event.altKey || !event.shiftKey) {
+      const primaryDelta = Math.abs(event.deltaY || 0) >= Math.abs(event.deltaX || 0) ? event.deltaY : event.deltaX;
+      const factor = primaryDelta > 0 ? 0.92 : 1.08;
       setCanvasScale(canvas.scale * factor, event.clientX, event.clientY);
       return;
     }
 
-    canvas.x -= event.deltaX;
-    canvas.y -= event.deltaY;
+    const panX = event.deltaX || event.deltaY;
+    canvas.x -= panX;
     applyCanvasTransform();
     DesktopState.saveSettings();
   }
@@ -7563,7 +7595,12 @@
 
     els.deskCanvasViewport?.addEventListener('pointerdown', startPan);
     els.deskCanvasViewport?.addEventListener('contextmenu', event => {
-      if (event.target.closest('.desk-node, .desk-zoom-controls, .desk-selection-toolbar, .desk-gallery-panel, .desk-settings')) return;
+      if (Date.now() < suppressCanvasContextMenuUntil || (activeInteraction?.type === 'pan' && activeInteraction.pointerButton === 'right')) {
+        event.preventDefault();
+        event.stopPropagation();
+        return;
+      }
+      if (event.target.closest(CANVAS_INTERACTION_BLOCK_SELECTOR)) return;
       event.preventDefault();
       event.stopPropagation();
       setNodePaletteOpen(false);
