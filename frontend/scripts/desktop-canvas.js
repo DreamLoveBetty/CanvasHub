@@ -50,6 +50,12 @@
   const IMAGE_EDIT_ZOOM_STEP = 1.2;
   const WORKFLOW_SCHEMA = 'tg-mini-app-img-gen.desktop-workflow';
   const WORKFLOW_VERSION = 1;
+  const IS_MAC_PLATFORM = (() => {
+    const nav = window.navigator || {};
+    const platform = String(nav.platform || nav.userAgentData?.platform || '').toLowerCase();
+    const ua = String(nav.userAgent || '').toLowerCase();
+    return platform.includes('mac') || ua.includes('macintosh') || ua.includes('mac os x');
+  })();
   let textPolishState = null;
   const TEXT_POLISH_VARIANTS = [
     { id: 'full', title: '完整提示', hint: '结构完整，适合直接投喂模型' },
@@ -2607,15 +2613,23 @@
     event.preventDefault();
 
     const canvas = DesktopState.state.canvas;
-    if (event.metaKey || event.ctrlKey || event.altKey || !event.shiftKey) {
+    const shouldZoom = event.metaKey || event.ctrlKey || event.altKey || (!IS_MAC_PLATFORM && !event.shiftKey);
+    if (shouldZoom) {
       const primaryDelta = Math.abs(event.deltaY || 0) >= Math.abs(event.deltaX || 0) ? event.deltaY : event.deltaX;
+      if (!primaryDelta) return;
       const factor = primaryDelta > 0 ? 0.92 : 1.08;
       setCanvasScale(canvas.scale * factor, event.clientX, event.clientY);
       return;
     }
 
-    const panX = event.deltaX || event.deltaY;
-    canvas.x -= panX;
+    if (IS_MAC_PLATFORM) {
+      canvas.x -= event.deltaX;
+      canvas.y -= event.deltaY;
+    } else {
+      const panX = event.deltaX || event.deltaY;
+      canvas.x -= panX;
+      if (event.deltaX && event.deltaY) canvas.y -= event.deltaY;
+    }
     applyCanvasTransform();
     DesktopState.saveSettings();
   }
