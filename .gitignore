@@ -2,9 +2,8 @@
 .venv/
 .venv-sam3d/
 
-# Local operator / agent context. Keep these on the maintainer machine, not in
-# the public release.
-AGENTS.md
+# Local operator / memory context. AGENTS.md is tracked for project rules;
+# keep the maintainer-specific docs below out of the public release.
 SOUL.md
 USER.md
 MEMORY.md
@@ -45,8 +44,6 @@ sidecars/chatgpt_pool/.venv-runtime/
 sidecars/chatgpt_pool/launchd/*.plist
 launchd/*.plist
 .nested-git-backups/
-tests/
-backend/codex_image_runtime/tests/
 scripts/
 test_node.js
 apply_neumorphic.py
