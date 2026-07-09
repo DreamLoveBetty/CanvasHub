@@ -1,0 +1,72 @@
+{
+  "miniapp_access_password": "docker",
+  "nano_banana_api": {
+    "api_key": "",
+    "base_url": ""
+  },
+  "max_concurrent_tasks": 3,
+  "server": {
+    "public_mode": true,
+    "host": "0.0.0.0",
+    "port": 18463
+  },
+  "cors_allowed_origins": [
+    "http://127.0.0.1:18463",
+    "http://localhost:18463"
+  ],
+  "telegram": {
+    "bot_token": "",
+    "chat_id": "",
+    "allowed_user_ids": [],
+    "proxy_url": ""
+  },
+  "paths": {
+    "image_archive_dir": "data/archive",
+    "source_image_dir": "data/source_images",
+    "tasks_db": "tasks.db"
+  },
+  "gpt_provider": {
+    "auth_file": "",
+    "auth_dir": "",
+    "api_base": "",
+    "image_main_model": "gpt-5.5",
+    "reasoning_effort": "medium",
+    "transport_mode": "stream_then_nonstream",
+    "total_timeout_seconds": 600
+  },
+  "managed_codex_oauth": {
+    "enabled": true,
+    "auth_file": "data/managed_codex_oauth/auth.json",
+    "api_base": "https://chatgpt.com/backend-api/codex",
+    "redirect_uri": "http://localhost:1455/auth/callback"
+  },
+  "chatgpt_pool": {
+    "enabled": true,
+    "base_url": "http://sidecar:18080",
+    "auth_key": "",
+    "generation_model": "gpt-image-2",
+    "timeout_seconds": 900,
+    "db_path": "data/chatgpt_pool/accounts.db"
+  },
+  "third_party_image_api": {
+    "api_key": "",
+    "base_url": "",
+    "generate_path": "/v1/images/generations",
+    "edit_path": "/v1/images/edits",
+    "model": "gpt-image-2",
+    "format": "png",
+    "timeout_seconds": 900
+  },
+  "prompt_skill": {
+    "provider": "gpt_oauth",
+    "skill": "image_prompt_v7",
+    "model": "",
+    "reasoning_effort": "medium",
+    "default_output": "full_prompt"
+  },
+  "prompt_model_providers": {},
+  "proxy_enabled": false,
+  "proxy_url": "",
+  "prompt_source_proxy_enabled": false,
+  "prompt_source_proxy_url": ""
+}
