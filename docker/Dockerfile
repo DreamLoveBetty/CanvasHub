@@ -31,6 +31,7 @@ COPY workflows/ workflows/
 COPY server.py ./
 COPY docker/settings.docker.json ./
 COPY docker/docker-entrypoint.sh /usr/local/bin/
-RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+COPY docker/sidecar-entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh /usr/local/bin/sidecar-entrypoint.sh
 
 ENTRYPOINT ["docker-entrypoint.sh"]

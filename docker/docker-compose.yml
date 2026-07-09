@@ -7,11 +7,12 @@ services:
       dockerfile: docker/Dockerfile
     image: canvashub:latest
     container_name: canvashub-sidecar
+    entrypoint: ["sidecar-entrypoint.sh"]
     ports:
       - "18080:18080"
     environment:
       - CHATGPT_POOL_HOST=0.0.0.0
-      - CHATGPT_POOL_AUTH_KEY=${CHATGPT_POOL_AUTH_KEY:-sk-docker-default-key}
+      - CHATGPT_POOL_AUTH_KEY=${CHATGPT_POOL_AUTH_KEY:-}
     volumes:
       - canvashub_data:/app/data
     command: >
@@ -30,8 +31,8 @@ services:
     environment:
       # settings.json 写入 volume 以持久化
       - APP_SETTINGS_PATH=/app/data/settings.json
-      # 容器内需要统一 CHATGPT_POOL_AUTH_KEY
-      - CHATGPT_POOL_AUTH_KEY=${CHATGPT_POOL_AUTH_KEY:-sk-docker-default-key}
+      # auth_key 由 entrypoint 生成写入 settings.json，env 可覆盖
+      - CHATGPT_POOL_AUTH_KEY=${CHATGPT_POOL_AUTH_KEY:-}
       # 访问密码
       - MINIAPP_ACCESS_PASSWORD=${MINIAPP_ACCESS_PASSWORD:-}
       # Telegram（后端读取 CHAT_ID 而非 TELEGRAM_CHAT_ID）
