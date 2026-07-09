@@ -43,8 +43,13 @@ sidecars/chatgpt_pool/.venv/
 sidecars/chatgpt_pool/.venv-runtime/
 sidecars/chatgpt_pool/launchd/*.plist
 launchd/*.plist
+<<<<<<< HEAD
 tests/
 .nested-git-backups/
+=======
+.nested-git-backups/
+backend/codex_image_runtime/tests/
+>>>>>>> db75db1 (fix: ComfyUI workflow selection, image archiving, and KSampler parameters)
 scripts/
 test_node.js
 apply_neumorphic.py

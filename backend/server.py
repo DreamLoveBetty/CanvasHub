@@ -3009,6 +3009,14 @@ def _send_comfy_result(task_id, prompt, workflow, ratio, comfy_image, params):
     try:
         image_bytes, _ = _fetch_comfy_binary(filename, subfolder, file_type)
         suffix = Path(filename).suffix or '.png'
+        now = datetime.now()
+        download_dir = daily_output_dir(now)
+        download_dir.mkdir(parents=True, exist_ok=True)
+        filepath = str(download_dir / filename)
+        local_name = save_image(image_bytes, filepath)
+        save_thumbnail(filepath, local_name)
+        filename = local_name
+
         with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
             tmp.write(image_bytes)
             temp_path = tmp.name
