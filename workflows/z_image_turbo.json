@@ -3,10 +3,7 @@
     "class_type": "SaveImage",
     "inputs": {
       "filename_prefix": "z-image-turbo",
-      "images": [
-        "65",
-        0
-      ]
+      "images": ["65", 0]
     }
   },
   "62": {
@@ -25,23 +22,14 @@
   "64": {
     "class_type": "ConditioningZeroOut",
     "inputs": {
-      "conditioning": [
-        "67",
-        0
-      ]
+      "conditioning": ["67", 0]
     }
   },
   "65": {
     "class_type": "VAEDecode",
     "inputs": {
-      "samples": [
-        "70",
-        0
-      ],
-      "vae": [
-        "63",
-        0
-      ]
+      "samples": ["70", 0],
+      "vae": ["63", 0]
     }
   },
   "66": {
@@ -55,10 +43,7 @@
     "class_type": "CLIPTextEncode",
     "inputs": {
       "text": "{{PROMPT}}",
-      "clip": [
-        "62",
-        0
-      ]
+      "clip": ["62", 0]
     }
   },
   "68": {
@@ -73,10 +58,7 @@
     "class_type": "ModelSamplingAuraFlow",
     "inputs": {
       "shift": 3,
-      "model": [
-        "66",
-        0
-      ]
+      "model": ["66", 0]
     }
   },
   "70": {
@@ -88,22 +70,10 @@
       "sampler_name": "euler",
       "scheduler": "normal",
       "denoise": 1.0,
-      "model": [
-        "69",
-        0
-      ],
-      "positive": [
-        "67",
-        0
-      ],
-      "negative": [
-        "64",
-        0
-      ],
-      "latent_image": [
-        "68",
-        0
-      ]
+      "model": ["69", 0],
+      "positive": ["67", 0],
+      "negative": ["64", 0],
+      "latent_image": ["68", 0]
     }
   }
 }

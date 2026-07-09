@@ -437,7 +437,27 @@
         ? DesktopState.state.provider
         : getProviderFromNode(node);
       updateProviderParamVisibility(node, provider);
+      if (provider === 'comfy') loadComfyWorkflowsForNode(node);
     });
+  }
+
+  function loadComfyWorkflowsForNode(node) {
+    const sel = node?.querySelector('[data-field="workflow"]');
+    if (!sel || sel.dataset.loaded) return;
+    sel.dataset.loaded = '1';
+    (typeof api !== 'undefined' ? api.json('/api/comfy/workflows') : Promise.reject())
+      .then(data => {
+        sel.innerHTML = '<option value="" disabled selected>-- 选择工作流 --</option>';
+        (data.workflows || []).forEach(wf => {
+          const opt = document.createElement('option');
+          opt.value = wf;
+          opt.textContent = wf.replace('.json', '');
+          sel.appendChild(opt);
+        });
+      })
+      .catch(() => {
+        sel.innerHTML = '<option value="" disabled>加载失败</option>';
+      });
   }
 
   function collectElements() {
@@ -1668,6 +1688,7 @@
         </div>
         <div class="desk-param-grid" aria-label="模型参数">
           <label data-provider-param="gpt google comfy"><span>画幅</span><select class="desk-select" data-field="ratio">${ratioOptionsHtml(defaults.ratio || '9:16')}</select></label>
+          <label data-provider-param="comfy"><span>工作流</span><select class="desk-select" data-field="workflow"></select></label>
           <label data-provider-param="gpt google"><span>分辨率</span><select class="desk-select" data-field="resolution">${optionListHtml([{ value: '1k', label: '1k' }, { value: '2k', label: '2k' }, { value: '4k', label: '4k' }], defaults.resolution || '2k')}</select></label>
           <label data-provider-param="google" hidden><span>模型</span><select class="desk-select" data-field="model">${googleModelOptionsHtml(defaults.model || DEFAULT_GOOGLE_MODEL)}</select></label>
           <label data-provider-param="gpt"><span>质量</span><select class="desk-select" data-field="quality">${optionListHtml([{ value: 'auto', label: 'auto' }, { value: 'low', label: 'low' }, { value: 'medium', label: 'medium' }, { value: 'high', label: 'high' }], defaults.quality || 'auto')}</select></label>
@@ -2278,6 +2299,7 @@
     upgradeGptRouteControls(els.deskInputNode);
     const routeSelect = els.deskGptProviderRouteSelect || els.deskInputNode?.querySelector('[data-field="gptProviderRoute"], #deskGptProviderRouteSelect');
     const outputControls = readOutputControlsFromNode(els.deskInputNode, state.output);
+    state.params.workflow = els.deskInputNode?.querySelector('[data-field="workflow"]')?.value || '';
     state.params.ratio = DesktopState.normalizeRatio(els.deskRatioSelect?.value, '9:16');
     state.params.resolution = DesktopState.normalizeResolution(els.deskResolutionSelect?.value, '2k');
     state.params.model = typeof DesktopState.normalizeGoogleModel === 'function'
@@ -3430,6 +3452,7 @@
       provider: getProviderFromNode(node),
       batchMode: !!node.querySelector('[data-field="batchMode"]')?.checked,
       params: {
+        workflow: node.querySelector('[data-field="workflow"]')?.value || '',
         ratio: node.querySelector('[data-field="ratio"]')?.value || '9:16',
         resolution: node.querySelector('[data-field="resolution"]')?.value || '2k',
         model: typeof DesktopState.normalizeGoogleModel === 'function'
@@ -7516,6 +7539,7 @@
       const segment = providerButton.closest('.desk-segment');
       segment?.querySelectorAll('button[data-provider]').forEach(item => item.classList.toggle('is-active', item === providerButton));
       updateProviderParamVisibility(node, providerButton.dataset.provider);
+      if (providerButton.dataset.provider === 'comfy') loadComfyWorkflowsForNode(node);
       if (node?.dataset.nodeId === 'input') {
         DesktopState.state.provider = providerButton.dataset.provider;
         DesktopResults.renderIdleProviderHint();
