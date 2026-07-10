@@ -3008,13 +3008,24 @@ def _send_comfy_result(task_id, prompt, workflow, ratio, comfy_image, params):
 
     try:
         image_bytes, _ = _fetch_comfy_binary(filename, subfolder, file_type)
-        suffix = Path(filename).suffix or '.png'
+        # 文件名安全：basename + 时间戳防覆盖
+        safe_name = safe_basename(filename)
+        suffix = Path(safe_name).suffix or '.png'
         now = datetime.now()
+        timestamp = now.strftime('%Y%m%d_%H%M%S')
         download_dir = daily_output_dir(now)
         download_dir.mkdir(parents=True, exist_ok=True)
-        filepath = str(download_dir / filename)
+        unique_name = f'comfy_{timestamp}_{safe_name}'
+        filepath = str(download_dir / unique_name)
         local_name = save_image(image_bytes, filepath)
         save_thumbnail(filepath, local_name)
+        # 写入 prompt sidecar（.txt + Obsidian .md）
+        txt_path = download_dir / f'{Path(local_name).stem}.txt'
+        txt_path.write_text(prompt or '', encoding='utf-8')
+        try:
+            write_obsidian_prompt_sidecar(Path(filepath), prompt or '', txt_path=txt_path)
+        except Exception as exc:
+            print(f'⚠️ 写入 ComfyUI sidecar 失败: {exc}')
         filename = local_name
 
         with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
