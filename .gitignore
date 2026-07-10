@@ -43,6 +43,7 @@ sidecars/chatgpt_pool/.venv/
 sidecars/chatgpt_pool/.venv-runtime/
 sidecars/chatgpt_pool/launchd/*.plist
 launchd/*.plist
+tests/
 .nested-git-backups/
 scripts/
 test_node.js
