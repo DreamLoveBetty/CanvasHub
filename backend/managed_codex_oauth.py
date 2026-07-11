@@ -35,6 +35,7 @@ SESSION_TTL_SECONDS = 15 * 60
 
 _LOCK = threading.RLock()
 _PENDING: dict[str, dict[str, Any]] = {}
+_COMPLETED: dict[str, dict[str, Any]] = {}
 _CALLBACK_SERVER: socketserver.TCPServer | None = None
 _CALLBACK_THREAD: threading.Thread | None = None
 _LAST_CALLBACK_RESULT: dict[str, Any] = {}
@@ -363,6 +364,55 @@ def _cleanup_pending_locked() -> None:
     expired_states = [state for state, item in _PENDING.items() if float(item.get("expires_at") or 0) < now]
     for state in expired_states:
         _PENDING.pop(state, None)
+    expired_completed = [
+        state
+        for state, item in _COMPLETED.items()
+        if float(item.get("_expires_at_ts") or 0) < now
+    ]
+    for state in expired_completed:
+        _COMPLETED.pop(state, None)
+
+
+def _public_session_result(result: dict[str, Any]) -> dict[str, Any]:
+    return {key: value for key, value in result.items() if not str(key).startswith("_")}
+
+
+def _completed_result_locked(state: str) -> dict[str, Any] | None:
+    result = _COMPLETED.get(state)
+    return _public_session_result(result) if result else None
+
+
+def _store_completed_locked(state: str, result: dict[str, Any]) -> dict[str, Any]:
+    completed = {
+        **result,
+        "session_id": state,
+        "pending": False,
+        "status": str(result.get("status") or ("completed" if result.get("ok") else "failed")),
+        "completed_at": _now_iso(),
+        "_expires_at_ts": time.time() + SESSION_TTL_SECONDS,
+    }
+    _COMPLETED[state] = completed
+    return _public_session_result(completed)
+
+
+def _pending_result_locked(state: str, session: dict[str, Any]) -> dict[str, Any]:
+    last_error = str(session.get("last_error") or "").strip()
+    if last_error:
+        return {
+            "ok": False,
+            "pending": False,
+            "session_id": state,
+            "status": "exchange_failed",
+            "error": last_error,
+        }
+    exchanging = bool(session.get("exchanging"))
+    return {
+        "ok": True,
+        "pending": True,
+        "session_id": state,
+        "status": "exchanging" if exchanging else "waiting_callback",
+        "message": "正在换取 Codex OAuth token" if exchanging else "等待浏览器完成 Codex OAuth 回调",
+    }
 
 
 class _CallbackHandler(http.server.BaseHTTPRequestHandler):
@@ -381,7 +431,12 @@ class _CallbackHandler(http.server.BaseHTTPRequestHandler):
         try:
             result = finish_oauth_callback(callback_url)
             _LAST_CALLBACK_RESULT = result
-            self._send_html("Codex OAuth 已完成", "授权已写入项目托管账号，可以关闭这个页面。")
+            if result.get("pending"):
+                self._send_html("Codex OAuth 正在完成", "正在写入项目托管账号，请稍候。", status=202)
+            elif not result.get("ok"):
+                self._send_html("Codex OAuth 失败", str(result.get("error") or "授权失败"), status=400)
+            else:
+                self._send_html("Codex OAuth 已完成", "授权已写入项目托管账号，可以关闭这个页面。")
         except Exception as exc:
             _LAST_CALLBACK_RESULT = {"ok": False, "error": str(exc)}
             self._send_html("Codex OAuth 失败", str(exc), status=400)
@@ -476,26 +531,65 @@ def start_oauth_login(open_browser: bool = True, force_reauth: bool = False, ema
 
 
 def finish_oauth_callback(callback_url: str = "", code: str = "", state: str = "", session_id: str = "") -> dict[str, Any]:
+    global _LAST_CALLBACK_RESULT
     callback = str(callback_url or "").strip()
     parsed_query: dict[str, list[str]] = {}
     if callback:
         parsed = urllib.parse.urlparse(callback)
         parsed_query = urllib.parse.parse_qs(parsed.query)
+    callback_state = str((parsed_query.get("state") or [""])[0]).strip()
+    state_value = str(state or callback_state or session_id or "").strip()
     error = (parsed_query.get("error") or [""])[0]
-    if error:
-        raise RuntimeError(f"Codex OAuth 授权失败：{error}")
     code_value = str(code or (parsed_query.get("code") or [""])[0]).strip()
-    state_value = str(state or session_id or (parsed_query.get("state") or [""])[0]).strip()
-    if not code_value:
-        raise RuntimeError("缺少 OAuth code")
     if not state_value:
         raise RuntimeError("缺少 OAuth state/session_id")
     with _LOCK:
         _cleanup_pending_locked()
-        session = _PENDING.pop(state_value, None)
-    if not session:
-        raise RuntimeError("Codex OAuth 会话已过期或不存在，请重新生成授权")
-    return _exchange_code(session, code_value)
+        completed = _completed_result_locked(state_value)
+        if completed:
+            return completed
+        session = _PENDING.get(state_value)
+        if not session:
+            raise RuntimeError("Codex OAuth 会话已过期或不存在，请重新生成授权")
+        if error:
+            result = _store_completed_locked(state_value, {
+                "ok": False,
+                "error": f"Codex OAuth 授权失败：{error}",
+                "status": "authorization_failed",
+            })
+            _PENDING.pop(state_value, None)
+            _LAST_CALLBACK_RESULT = result
+            return result
+        if not code_value:
+            return _pending_result_locked(state_value, session)
+        if session.get("exchanging"):
+            return _pending_result_locked(state_value, session)
+        session["exchanging"] = True
+        session.pop("last_error", None)
+        exchange_session = dict(session)
+
+    try:
+        result = _exchange_code(exchange_session, code_value)
+    except Exception as exc:
+        with _LOCK:
+            current = _PENDING.get(state_value)
+            if current:
+                current["exchanging"] = False
+                current["last_error"] = str(exc)
+            _LAST_CALLBACK_RESULT = {
+                "ok": False,
+                "pending": False,
+                "session_id": state_value,
+                "status": "exchange_failed",
+                "error": str(exc),
+            }
+        raise
+
+    with _LOCK:
+        _PENDING.pop(state_value, None)
+        completed = _store_completed_locked(state_value, result)
+        _LAST_CALLBACK_RESULT = completed
+    return completed
 
 
 def _account_summary(account_id: str, path: Path, raw: dict[str, Any], selected_id: str = "", legacy: bool = False) -> dict[str, Any]:

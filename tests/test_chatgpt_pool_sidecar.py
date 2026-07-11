@@ -340,7 +340,7 @@ class ChatgptPoolSidecarTest(unittest.TestCase):
                 "id_token": fake_jwt({"email": "oauth@example.com"}),
             }
 
-        service = OAuthService(store, token_exchange=exchange)
+        service = OAuthService(store, token_exchange=exchange, profile_fetcher=lambda _token: {})
         started = service.start("oauth@example.com")
         callback = f"https://platform.openai.com/auth/callback?code=oauth-code&state={started['state']}"
 
@@ -352,6 +352,156 @@ class ChatgptPoolSidecarTest(unittest.TestCase):
         self.assertEqual(finished["account"]["email"], "oauth@example.com")
         self.assertEqual(len(accounts), 1)
         self.assertTrue(accounts[0]["has_refresh_token"])
+
+    def test_oauth_finish_is_idempotent_and_exchanges_code_once(self):
+        from sidecars.chatgpt_pool.oauth_flow import OAuthService
+
+        store = self.make_store()
+        exchange_calls = []
+
+        def exchange(code, _code_verifier, _redirect_uri):
+            exchange_calls.append(code)
+            return {
+                "access_token": fake_jwt({"exp": int(time.time()) + 3600, "email": "replay@example.com"}),
+                "refresh_token": "refresh-replay",
+                "id_token": fake_jwt({"email": "replay@example.com"}),
+            }
+
+        service = OAuthService(store, token_exchange=exchange, profile_fetcher=lambda _token: {})
+        started = service.start()
+        callback = f"https://platform.openai.com/auth/callback?code=replay-code&state={started['state']}"
+
+        first = service.finish(started["session_id"], callback)
+        replay = service.finish(started["session_id"], callback)
+
+        self.assertEqual(exchange_calls, ["replay-code"])
+        self.assertEqual(replay, first)
+        self.assertFalse(replay["pending"])
+        self.assertEqual(replay["status"], "completed")
+
+    def test_oauth_callback_state_selects_the_matching_parallel_session(self):
+        from sidecars.chatgpt_pool.oauth_flow import OAuthService
+
+        store = self.make_store()
+
+        def exchange(code, _code_verifier, _redirect_uri):
+            email = f"{code}@example.com"
+            return {
+                "access_token": fake_jwt({"exp": int(time.time()) + 3600, "email": email}),
+                "refresh_token": f"refresh-{code}",
+                "id_token": fake_jwt({"email": email}),
+            }
+
+        service = OAuthService(store, token_exchange=exchange, profile_fetcher=lambda _token: {})
+        first = service.start("first@example.com")
+        second = service.start("second@example.com")
+        first_callback = f"https://platform.openai.com/auth/callback?code=first&state={first['state']}"
+        second_callback = f"https://platform.openai.com/auth/callback?code=second&state={second['state']}"
+
+        first_result = service.finish(second["session_id"], first_callback)
+        second_result = service.finish(second["session_id"], second_callback)
+
+        self.assertEqual(first_result["session_id"], first["session_id"])
+        self.assertEqual(first_result["account"]["email"], "first@example.com")
+        self.assertEqual(second_result["session_id"], second["session_id"])
+        self.assertEqual(second_result["account"]["email"], "second@example.com")
+        self.assertEqual(len(store.list_public_accounts()), 2)
+
+    def test_oauth_concurrent_finish_reports_exchanging_without_double_exchange(self):
+        from sidecars.chatgpt_pool.oauth_flow import OAuthService
+
+        store = self.make_store()
+        entered = threading.Event()
+        release = threading.Event()
+        exchange_calls = []
+        worker_results = []
+        worker_errors = []
+
+        def exchange(code, _code_verifier, _redirect_uri):
+            exchange_calls.append(code)
+            entered.set()
+            if not release.wait(2):
+                raise RuntimeError("test exchange was not released")
+            return {
+                "access_token": fake_jwt({"exp": int(time.time()) + 3600, "email": "parallel@example.com"}),
+                "refresh_token": "refresh-parallel",
+                "id_token": fake_jwt({"email": "parallel@example.com"}),
+            }
+
+        service = OAuthService(store, token_exchange=exchange, profile_fetcher=lambda _token: {})
+        started = service.start()
+        callback = f"https://platform.openai.com/auth/callback?code=parallel&state={started['state']}"
+
+        def finish_in_worker():
+            try:
+                worker_results.append(service.finish(started["session_id"], callback))
+            except Exception as exc:  # pragma: no cover - assertion reports the captured error
+                worker_errors.append(exc)
+
+        worker = threading.Thread(target=finish_in_worker)
+        worker.start()
+        try:
+            self.assertTrue(entered.wait(1))
+            pending = service.finish(started["session_id"], callback)
+            self.assertTrue(pending["pending"])
+            self.assertEqual(pending["status"], "exchanging")
+        finally:
+            release.set()
+            worker.join(3)
+
+        self.assertFalse(worker.is_alive())
+        self.assertEqual(worker_errors, [])
+        self.assertEqual(len(worker_results), 1)
+        self.assertEqual(exchange_calls, ["parallel"])
+        self.assertEqual(service.finish(started["session_id"], callback), worker_results[0])
+
+    def test_oauth_expired_session_is_removed_before_exchange(self):
+        from sidecars.chatgpt_pool.oauth_flow import OAuthError, OAuthService
+
+        store = self.make_store()
+        service = OAuthService(store, token_exchange=lambda *_args: {}, profile_fetcher=lambda _token: {})
+        started = service.start()
+        with service._lock:
+            service._sessions[started["session_id"]]["expires_at"] = time.time() - 1
+
+        callback = f"https://platform.openai.com/auth/callback?code=expired&state={started['state']}"
+        with self.assertRaisesRegex(OAuthError, "expired or not found"):
+            service.finish(started["session_id"], callback)
+
+    def test_oauth_token_exchange_falls_back_after_curl_tls_runtime_error(self):
+        from sidecars.chatgpt_pool.oauth_flow import OAuthService
+
+        closed = []
+
+        class FakeCurlSession:
+            def post(self, *_args, **_kwargs):
+                raise RuntimeError("curl: (35) TLS connect error: OPENSSL_internal:invalid library")
+
+            def close(self):
+                closed.append(True)
+
+        class FakeCurlRequests:
+            @staticmethod
+            def Session(**_kwargs):
+                return FakeCurlSession()
+
+        class FakeResponse:
+            status_code = 200
+            text = '{"access_token":"access","refresh_token":"refresh","id_token":"id"}'
+
+            @staticmethod
+            def json():
+                return {"access_token": "access", "refresh_token": "refresh", "id_token": "id"}
+
+        with patch("sidecars.chatgpt_pool.oauth_flow.curl_requests", FakeCurlRequests), patch(
+            "sidecars.chatgpt_pool.oauth_flow.std_requests.post",
+            return_value=FakeResponse(),
+        ) as std_post:
+            result = OAuthService._exchange_code("code", "verifier", "https://platform.openai.com/auth/callback")
+
+        self.assertEqual(result["access_token"], "access")
+        self.assertEqual(closed, [True])
+        std_post.assert_called_once()
 
     def test_refresh_service_rotates_access_token_without_leaking_secret(self):
         from sidecars.chatgpt_pool.token_refresh import TokenRefresher
@@ -1467,7 +1617,7 @@ class ChatgptPoolSidecarTest(unittest.TestCase):
         payload = captured["json"]
         message = payload["messages"][0]
         self.assertIs(response.status_code, 200)
-        self.assertEqual(payload["model"], "gpt-5-3")
+        self.assertEqual(payload["model"], "gpt-5-5")
         self.assertEqual(payload["system_hints"], ["picture_v2"])
         self.assertTrue(payload["enable_message_followups"])
         self.assertEqual(payload["paragen_cot_summary_display_override"], "allow")

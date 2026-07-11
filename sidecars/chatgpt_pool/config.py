@@ -14,7 +14,7 @@ SETTINGS_PATH = PROJECT_DIR / "settings.json"
 DEFAULT_DB_PATH = DATA_DIR / "accounts.db"
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 18080
-DEFAULT_MODEL = "gpt-image-2"
+DEFAULT_MODEL = "gpt-5-5"
 DEFAULT_TIMEOUT_SECONDS = 900
 DEFAULT_LEASE_TIMEOUT_SECONDS = 1200
 
@@ -60,12 +60,15 @@ def load_settings() -> SidecarSettings:
     lease_timeout_default = max(DEFAULT_LEASE_TIMEOUT_SECONDS, timeout_seconds + 300)
     lease_timeout_seconds = _as_int(cfg.get("lease_timeout_seconds"), lease_timeout_default, minimum=60)
     lease_timeout_seconds = max(lease_timeout_seconds, timeout_seconds + 60)
+    generation_model = str(cfg.get("generation_model") or DEFAULT_MODEL).strip() or DEFAULT_MODEL
+    if generation_model in {"gpt-image-2", "gpt-5-3", "auto"}:
+        generation_model = DEFAULT_MODEL
     return SidecarSettings(
         host=str(os.environ.get("CHATGPT_POOL_HOST") or cfg.get("host") or DEFAULT_HOST).strip() or DEFAULT_HOST,
         port=_as_int(os.environ.get("CHATGPT_POOL_PORT") or cfg.get("port"), DEFAULT_PORT),
         auth_key=auth_key,
         db_path=Path(os.environ.get("CHATGPT_POOL_DB") or cfg.get("db_path") or DEFAULT_DB_PATH).expanduser(),
-        generation_model=str(cfg.get("generation_model") or DEFAULT_MODEL),
+        generation_model=generation_model,
         timeout_seconds=timeout_seconds,
         lease_timeout_seconds=lease_timeout_seconds,
         refresh_interval_seconds=_as_int(cfg.get("refresh_interval_seconds"), 300),

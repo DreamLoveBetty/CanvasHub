@@ -7,4 +7,5 @@ SIDECAR_CAPABILITIES = {
     "search": True,
     "chat_completions": True,
     "editable_files": True,
+    "model_discovery": True,
 }

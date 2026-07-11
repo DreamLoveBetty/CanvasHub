@@ -7,6 +7,11 @@ from typing import Any, Callable, Iterator
 from .account_pool import AccountPool
 from .account_store import LIMITED_STATUS, VERIFICATION_STATUS
 from .backend_runtime import build_backend_for_lease, mark_verification_required, verification_exhausted_message
+from .model_catalog import (
+    is_model_unavailable_error,
+    normalize_web_model_id,
+    resolve_account_image_model,
+)
 from .openai_backend import ImageGenerationLimitError, ImageGenerationStatus, OpenAIBackend, VerificationRequiredError
 
 IMAGE_TIMEOUT_SECS = 420
@@ -175,6 +180,25 @@ def _acquire_available_with_queue(
             raise
 
 
+def _call_with_model_adaptation(backend: Any, requested_model: str, call: Callable[[str], dict[str, Any]]):
+    actual_model, normalized_requested, adapted = resolve_account_image_model(backend, requested_model)
+    try:
+        return call(actual_model), actual_model, normalized_requested, adapted
+    except Exception as exc:
+        if not is_model_unavailable_error(exc):
+            raise
+        fallback_model, _, _ = resolve_account_image_model(
+            backend,
+            requested_model,
+            force=True,
+            excluded={actual_model},
+        )
+        if not fallback_model or fallback_model == actual_model:
+            raise
+        item = call(fallback_model)
+        return item, fallback_model, normalized_requested, True
+
+
 def _generate_one_image(
     index: int,
     prompt: str,
@@ -202,7 +226,11 @@ def _generate_one_image(
                     limited_tokens_this_image.add(lease.access_token)
                     _mark_limited(pool, lease.access_token, status, message)
                     continue
-            item = backend.generate_image(prompt, model, size, quality)
+            item, actual_model, requested_model, model_adapted = _call_with_model_adaptation(
+                backend,
+                model,
+                lambda selected_model: backend.generate_image(prompt, selected_model, size, quality),
+            )
             b64_json = str(item.get("b64_json") or "")
             if not b64_json:
                 raise RuntimeError("upstream did not return b64_json")
@@ -210,6 +238,9 @@ def _generate_one_image(
             return {
                 "b64_json": b64_json,
                 "revised_prompt": str(item.get("revised_prompt") or prompt),
+                "model": actual_model,
+                "requested_model": requested_model,
+                "model_adapted": model_adapted,
             }
         except ImageGenerationLimitError as exc:
             message = _quota_message(lease.email if lease else "", exc.status) if exc.status else str(exc)
@@ -288,7 +319,18 @@ def edit_image(
                     limited_tokens_this_edit.add(lease.access_token)
                     _mark_limited(pool, lease.access_token, status, message)
                     continue
-            item = backend.edit_image(ctx["prompt"], images, ctx["model"], ctx["size"], ctx["quality"], mask=mask)
+            item, actual_model, requested_model, model_adapted = _call_with_model_adaptation(
+                backend,
+                ctx["model"],
+                lambda selected_model: backend.edit_image(
+                    ctx["prompt"],
+                    images,
+                    selected_model,
+                    ctx["size"],
+                    ctx["quality"],
+                    mask=mask,
+                ),
+            )
             b64_json = str(item.get("b64_json") or "")
             if not b64_json:
                 raise RuntimeError("upstream did not return b64_json")
@@ -299,6 +341,9 @@ def edit_image(
                     {
                         "b64_json": b64_json,
                         "revised_prompt": str(item.get("revised_prompt") or ctx["prompt"]),
+                        "model": actual_model,
+                        "requested_model": requested_model,
+                        "model_adapted": model_adapted,
                     }
                 ],
             }
@@ -350,9 +395,7 @@ def _request_context(
     prompt = str(body.get("prompt") or "").strip()
     if not prompt:
         raise ValueError("prompt is required")
-    model = str(body.get("model") or "gpt-image-2")
-    if model != "gpt-image-2":
-        raise ValueError("unsupported model for chatgpt_pool v1: gpt-image-2 only")
+    model = normalize_web_model_id(body.get("model") or "gpt-image-2")
     n = _coerce_image_count(body.get("n") or 1)
     response_format = str(body.get("response_format") or "b64_json")
     if response_format != "b64_json":

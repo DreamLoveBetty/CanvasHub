@@ -7,12 +7,23 @@
   const AUTH_STATE_WAITERS = [];
 
   function setAuthState(state) {
+    const previousState = AUTH_STATE;
     AUTH_STATE = state;
     const isResolvedState = state === 'authenticated' || state === 'unauthenticated';
-    if (!isResolvedState) return;
-    while (AUTH_STATE_WAITERS.length) {
-      const resolve = AUTH_STATE_WAITERS.shift();
-      resolve(state === 'authenticated');
+    if (isResolvedState) {
+      while (AUTH_STATE_WAITERS.length) {
+        const resolve = AUTH_STATE_WAITERS.shift();
+        resolve(state === 'authenticated');
+      }
+    }
+    if (previousState !== state) {
+      window.dispatchEvent(new CustomEvent('miniapp:auth-state-change', {
+        detail: {
+          state,
+          previousState,
+          authenticated: state === 'authenticated'
+        }
+      }));
     }
   }
 

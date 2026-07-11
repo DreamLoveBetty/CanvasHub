@@ -94,6 +94,19 @@ class GoogleTelegramToggleTest(unittest.TestCase):
             patch.object(server, "send_status_notification"), \
             patch.object(
                 server,
+                "resolve_route_model",
+                return_value={
+                    "route": "codex",
+                    "model": "gpt-5.5",
+                    "reasoning_effort": "medium",
+                    "available": True,
+                    "source": "test",
+                    "model_role": "responses_main_model",
+                    "image_engine": {"id": "gpt-image-2", "label": "GPT Image 2"},
+                },
+            ), \
+            patch.object(
+                server,
                 "edit_image_gpt_codex",
                 return_value={
                     "success": True,

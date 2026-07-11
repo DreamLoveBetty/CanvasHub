@@ -44,6 +44,11 @@
       promptMode: 'smart',
       gptProviderRoute: 'codex',
       gptMainModel: 'gpt-5.5',
+      gptModelsByRoute: {
+        codex: 'gpt-5.5',
+        chatgpt_pool: 'gpt-5-5',
+        third_party_image_api: 'gpt-image-2'
+      },
       reasoningEffort: 'medium',
       model: 'gemini-3.1-flash-image',
       workflow: '',
@@ -159,7 +164,7 @@
 
   function normalizeGptMainModel(value, fallback = 'gpt-5.5') {
     const normalized = String(value || '').trim();
-    return ['gpt-5.5', 'gpt-5.4', 'gpt-5.4-mini', 'gpt-5.3-codex', 'gpt-5.2'].includes(normalized) ? normalized : fallback;
+    return /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(normalized) ? normalized : fallback;
   }
 
   function normalizeGoogleModel(value, fallback = 'gemini-3.1-flash-image') {
@@ -171,7 +176,7 @@
 
   function normalizeReasoningEffort(value, fallback = 'medium') {
     const normalized = String(value || '').trim().toLowerCase();
-    return ['none', 'low', 'medium', 'high', 'xhigh'].includes(normalized) ? normalized : fallback;
+    return ['none', 'low', 'medium', 'high', 'xhigh', 'max', 'ultra'].includes(normalized) ? normalized : fallback;
   }
 
   function getStatusLabel(status) {
@@ -347,6 +352,11 @@
         state.runtimeConfig.hasSavedReasoningEffort = Object.prototype.hasOwnProperty.call(parsed.params, 'reasoningEffort');
         state.params = { ...state.params, ...parsed.params };
         state.params.model = normalizeGoogleModel(state.params.model);
+        state.params.gptModelsByRoute = {
+          codex: normalizeGptMainModel(state.params.gptModelsByRoute?.codex || state.params.gptMainModel, 'gpt-5.5'),
+          chatgpt_pool: normalizeGptMainModel(state.params.gptModelsByRoute?.chatgpt_pool, 'gpt-5-5'),
+          third_party_image_api: normalizeGptMainModel(state.params.gptModelsByRoute?.third_party_image_api, 'gpt-image-2')
+        };
       }
       if (parsed.canvas && typeof parsed.canvas === 'object') {
         const parsedNodes = parsed.canvas.nodes && typeof parsed.canvas.nodes === 'object'

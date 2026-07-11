@@ -35,6 +35,7 @@ from .app_config import (
 )
 from PIL import Image
 from .image_resolution import build_resolution_metadata
+from .gpt_model_catalog import codex_fallback_models, normalize_model_id, resolve_route_model
 from .storage_paths import daily_output_dir, write_obsidian_prompt_sidecar
 
 GPT_OUTPUT_DIR = BASE_DIR / "gpt_outputs"
@@ -64,6 +65,17 @@ TRANSIENT_ERROR_MARKERS = (
     "HTTP 502",
     "HTTP 503",
     "HTTP 504",
+)
+UNSUPPORTED_CHATGPT_CODEX_MODEL_MARKERS = (
+    "model is not supported when using codex with a chatgpt account",
+    "model is not supported for codex with a chatgpt account",
+    "model is not available",
+    "model is unavailable",
+    "unsupported model",
+    "invalid model",
+    "model_not_found",
+    "model_access_denied",
+    "does not exist or you do not have access",
 )
 
 LOCAL_PROVIDER_TOTAL_TIMEOUT_SECONDS = DEFAULT_GPT_PROVIDER_TOTAL_TIMEOUT_SECONDS
@@ -324,8 +336,7 @@ def _normalize_prompt_mode(prompt_mode: str) -> str:
 def _normalize_main_model(model: str | None) -> str:
     cfg = get_gpt_provider_config()
     fallback = str(cfg.get("image_main_model") or DEFAULT_GPT_IMAGE_MAIN_MODEL)
-    selected = str(model or fallback).strip()
-    return selected if selected in SUPPORTED_IMAGE_MAIN_MODELS else fallback
+    return normalize_model_id(model or fallback, normalize_model_id(fallback))
 
 
 def _normalize_reasoning_effort(effort: str | None) -> str:
@@ -333,6 +344,16 @@ def _normalize_reasoning_effort(effort: str | None) -> str:
     fallback = str(cfg.get("reasoning_effort") or DEFAULT_GPT_REASONING_EFFORT).strip().lower()
     selected = str(effort or fallback).strip().lower()
     return selected if selected in SUPPORTED_REASONING_EFFORTS else fallback
+
+
+def _reasoning_effort_for_model(model: str, effort: str) -> str:
+    try:
+        resolution = resolve_route_model("codex", model, reasoning_effort=effort)
+        if resolution.get("model") == model and resolution.get("reasoning_efforts"):
+            return str(resolution.get("reasoning_effort") or effort)
+    except Exception:
+        pass
+    return effort
 
 
 def _normalize_transport_mode(mode: str | None) -> str:
@@ -393,6 +414,27 @@ def _call_with_transient_retries(label: str, fn, attempts: int = 2):
             print(f"⏳ Retrying {label} in {wait_seconds}s...")
             time.sleep(wait_seconds)
     raise last_error
+
+
+def _call_with_model_compatibility_fallback(label: str, main_model: str, fn):
+    selected_model = str(main_model or DEFAULT_GPT_IMAGE_MAIN_MODEL).strip()
+    candidates = [selected_model, *codex_fallback_models(selected_model)]
+    last_error = None
+    for index, candidate in enumerate(candidates):
+        try:
+            return fn(candidate), candidate
+        except Exception as exc:
+            last_error = exc
+            message = str(exc).lower()
+            unsupported = any(marker in message for marker in UNSUPPORTED_CHATGPT_CODEX_MODEL_MARKERS)
+            if not unsupported or index >= len(candidates) - 1:
+                raise
+            next_model = candidates[index + 1]
+            print(
+                f"⚠️ {label} model {candidate} is unavailable for ChatGPT Codex auth; "
+                f"retrying with {next_model}"
+            )
+    raise last_error or RuntimeError(f"{label} has no compatible model")
 
 
 def _provider_subprocess_context():
@@ -722,7 +764,9 @@ def generate_image_gpt_codex(
         moderation_key = _normalize_gpt_moderation(moderation)
         prompt_mode_key = _normalize_prompt_mode(prompt_mode)
         main_model_key = _normalize_main_model(main_model)
-        reasoning_effort_key = _normalize_reasoning_effort(reasoning_effort)
+        requested_main_model_key = main_model_key
+        requested_reasoning_effort_key = _normalize_reasoning_effort(reasoning_effort)
+        reasoning_effort_key = _reasoning_effort_for_model(main_model_key, requested_reasoning_effort_key)
         transport_mode_key = _normalize_transport_mode(transport_mode)
         total_timeout_key = _normalize_total_timeout_seconds(total_timeout_seconds)
 
@@ -747,31 +791,46 @@ def generate_image_gpt_codex(
                 result["canceled"] = True
                 return result
             try:
-                batch = _call_with_transient_retries(
-                    f"gpt-image-2 generate {index + 1}/{count}",
-                    lambda: _run_provider_with_total_timeout(
-                        f"gpt-image-2 generate {index + 1}/{count}",
-                        "generate",
-                        {
-                            "prompt": provider_prompt,
-                            "size": resolution or "1k",
-                            "ratio": ratio or "1:1",
-                            "quality": quality_key,
-                            "background": "auto",
-                            "moderation": moderation_key,
-                            "output_format": "png",
-                            "output_compression": 100,
-                            "n": 1,
-                            "prompt_mode": prompt_mode_key,
-                            "main_model": main_model_key,
-                            "reasoning_effort": reasoning_effort_key,
-                            "transport_mode": transport_mode_key,
-                        },
-                        timeout_seconds=total_timeout_key,
-                        on_wait=on_provider_wait,
-                        provider_env=provider_env,
-                    ),
+                label = f"gpt-image-2 generate {index + 1}/{count}"
+                attempted_reasoning: dict[str, str] = {}
+
+                def call_model(selected_model: str):
+                    selected_effort = _reasoning_effort_for_model(selected_model, requested_reasoning_effort_key)
+                    attempted_reasoning[selected_model] = selected_effort
+                    return _call_with_transient_retries(
+                        label,
+                        lambda: _run_provider_with_total_timeout(
+                            label,
+                            "generate",
+                            {
+                                "prompt": provider_prompt,
+                                "size": resolution or "1k",
+                                "ratio": ratio or "1:1",
+                                "quality": quality_key,
+                                "background": "auto",
+                                "moderation": moderation_key,
+                                "output_format": "png",
+                                "output_compression": 100,
+                                "n": 1,
+                                "prompt_mode": prompt_mode_key,
+                                "main_model": selected_model,
+                                "reasoning_effort": selected_effort,
+                                "transport_mode": transport_mode_key,
+                            },
+                            timeout_seconds=total_timeout_key,
+                            on_wait=on_provider_wait,
+                            provider_env=provider_env,
+                        ),
+                    )
+
+                batch, main_model_key = _call_with_model_compatibility_fallback(
+                    label,
+                    main_model_key,
+                    call_model,
                 )
+                reasoning_effort_key = attempted_reasoning.get(main_model_key, reasoning_effort_key)
+                batch_result["main_model"] = main_model_key
+                batch_result["reasoning_effort"] = reasoning_effort_key
                 if not batch:
                     raise RuntimeError("gpt-image-2 did not return any images")
                 for image_item in batch:
@@ -814,6 +873,12 @@ def generate_image_gpt_codex(
             raise RuntimeError("gpt-image-2 did not return any images")
 
         result.update(_build_gpt_output_result(batch_result))
+        if main_model_key != requested_main_model_key:
+            result["requested_main_model"] = requested_main_model_key
+            result["model_fallback_from"] = requested_main_model_key
+        if reasoning_effort_key != requested_reasoning_effort_key:
+            result["requested_reasoning_effort"] = requested_reasoning_effort_key
+            result["reasoning_fallback_from"] = requested_reasoning_effort_key
     except Exception as exc:
         result["error"] = str(exc)
 
@@ -855,7 +920,9 @@ def edit_image_gpt_codex(
         moderation_key = _normalize_gpt_moderation(moderation)
         prompt_mode_key = _normalize_prompt_mode(prompt_mode)
         main_model_key = _normalize_main_model(main_model)
-        reasoning_effort_key = _normalize_reasoning_effort(reasoning_effort)
+        requested_main_model_key = main_model_key
+        requested_reasoning_effort_key = _normalize_reasoning_effort(reasoning_effort)
+        reasoning_effort_key = _reasoning_effort_for_model(main_model_key, requested_reasoning_effort_key)
         transport_mode_key = _normalize_transport_mode(transport_mode)
         total_timeout_key = _normalize_total_timeout_seconds(total_timeout_seconds)
         tmp_sources, source_paths = _write_temp_source_images(images)
@@ -866,32 +933,44 @@ def edit_image_gpt_codex(
             tmp_mask, mask_paths = _write_temp_source_images([mask])
             mask_path = mask_paths[0] if mask_paths else None
 
-        edited_images = _call_with_transient_retries(
-            "gpt-image-2 edit",
-            lambda: _run_provider_with_total_timeout(
+        attempted_reasoning: dict[str, str] = {}
+
+        def call_model(selected_model: str):
+            selected_effort = _reasoning_effort_for_model(selected_model, requested_reasoning_effort_key)
+            attempted_reasoning[selected_model] = selected_effort
+            return _call_with_transient_retries(
                 "gpt-image-2 edit",
-                "edit",
-                {
-                    "prompt": provider_prompt,
-                    "image_paths": source_paths,
-                    "mask_path": mask_path,
-                    "size": resolution or "1k",
-                    "ratio": ratio or "1:1",
-                    "quality": quality_key,
-                    "background": "auto",
-                    "moderation": moderation_key,
-                    "output_format": "png",
-                    "output_compression": 100,
-                    "prompt_mode": prompt_mode_key,
-                    "main_model": main_model_key,
-                    "reasoning_effort": reasoning_effort_key,
-                    "transport_mode": transport_mode_key,
-                },
-                timeout_seconds=total_timeout_key,
-                on_wait=on_provider_wait,
-                provider_env=provider_env,
-            ),
+                lambda: _run_provider_with_total_timeout(
+                    "gpt-image-2 edit",
+                    "edit",
+                    {
+                        "prompt": provider_prompt,
+                        "image_paths": source_paths,
+                        "mask_path": mask_path,
+                        "size": resolution or "1k",
+                        "ratio": ratio or "1:1",
+                        "quality": quality_key,
+                        "background": "auto",
+                        "moderation": moderation_key,
+                        "output_format": "png",
+                        "output_compression": 100,
+                        "prompt_mode": prompt_mode_key,
+                        "main_model": selected_model,
+                        "reasoning_effort": selected_effort,
+                        "transport_mode": transport_mode_key,
+                    },
+                    timeout_seconds=total_timeout_key,
+                    on_wait=on_provider_wait,
+                    provider_env=provider_env,
+                ),
+            )
+
+        edited_images, main_model_key = _call_with_model_compatibility_fallback(
+            "gpt-image-2 edit",
+            main_model_key,
+            call_model,
         )
+        reasoning_effort_key = attempted_reasoning.get(main_model_key, reasoning_effort_key)
         result.update(
             _save_gpt_outputs(
                 edited_images,
@@ -906,6 +985,12 @@ def edit_image_gpt_codex(
                 reasoning_effort=reasoning_effort_key,
             )
         )
+        if main_model_key != requested_main_model_key:
+            result["requested_main_model"] = requested_main_model_key
+            result["model_fallback_from"] = requested_main_model_key
+        if reasoning_effort_key != requested_reasoning_effort_key:
+            result["requested_reasoning_effort"] = requested_reasoning_effort_key
+            result["reasoning_fallback_from"] = requested_reasoning_effort_key
     except Exception as exc:
         result["error"] = str(exc)
     finally:

@@ -3,6 +3,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import secrets
+import threading
 import time
 import uuid
 from typing import Any, Callable
@@ -29,6 +30,8 @@ USER_AGENT = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
     "(KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
 )
+SESSION_TTL_SECONDS = 10 * 60
+COMPLETED_TTL_SECONDS = 10 * 60
 
 
 class OAuthError(RuntimeError):
@@ -40,10 +43,60 @@ class OAuthService:
         self,
         store: AccountStore,
         token_exchange: Callable[[str, str, str], dict[str, str]] | None = None,
+        profile_fetcher: Callable[[str], dict[str, Any]] | None = None,
     ):
         self.store = store
         self._token_exchange = token_exchange or self._exchange_code
+        self._profile_fetcher = profile_fetcher or self._fetch_profile
+        self._lock = threading.RLock()
         self._sessions: dict[str, dict[str, Any]] = {}
+        self._completed: dict[str, dict[str, Any]] = {}
+
+    @staticmethod
+    def _fetch_profile(access_token: str) -> dict[str, Any]:
+        return OpenAIBackend(access_token, timeout_seconds=60).fetch_account_profile()
+
+    @staticmethod
+    def _public_result(result: dict[str, Any]) -> dict[str, Any]:
+        return {key: value for key, value in result.items() if not str(key).startswith("_")}
+
+    def _cleanup_locked(self) -> None:
+        now = time.time()
+        expired_sessions = [
+            session_id
+            for session_id, session in self._sessions.items()
+            if not session.get("exchanging") and float(session.get("expires_at") or 0) <= now
+        ]
+        for session_id in expired_sessions:
+            self._sessions.pop(session_id, None)
+        expired_completed = [
+            session_id
+            for session_id, result in self._completed.items()
+            if float(result.get("_expires_at") or 0) <= now
+        ]
+        for session_id in expired_completed:
+            self._completed.pop(session_id, None)
+
+    def _release_exchange(self, session_id: str, error: Exception) -> None:
+        with self._lock:
+            session = self._sessions.get(session_id)
+            if not session:
+                return
+            session["exchanging"] = False
+            session["last_error"] = str(error)
+
+    def _store_completed_locked(self, session_id: str, state: str, result: dict[str, Any]) -> dict[str, Any]:
+        completed = {
+            **result,
+            "ok": True,
+            "pending": False,
+            "session_id": session_id,
+            "status": "completed",
+            "_state": state,
+            "_expires_at": time.time() + COMPLETED_TTL_SECONDS,
+        }
+        self._completed[session_id] = completed
+        return self._public_result(completed)
 
     @staticmethod
     def _pkce() -> tuple[str, str]:
@@ -79,18 +132,23 @@ class OAuthService:
             params["max_age"] = "0"
         if str(email_hint or "").strip():
             params["login_hint"] = str(email_hint).strip()
-        self._sessions[session_id] = {
-            "code_verifier": verifier,
-            "state": state,
-            "created_at": time.time(),
-            "redirect_uri": REDIRECT_URI,
-        }
+        now = time.time()
+        with self._lock:
+            self._cleanup_locked()
+            self._sessions[session_id] = {
+                "code_verifier": verifier,
+                "state": state,
+                "created_at": now,
+                "expires_at": now + SESSION_TTL_SECONDS,
+                "redirect_uri": REDIRECT_URI,
+                "exchanging": False,
+            }
         return {
             "session_id": session_id,
             "state": state,
             "authorize_url": f"{AUTH_BASE}/api/accounts/authorize?{urlencode(params)}",
             "redirect_uri_prefix": REDIRECT_URI,
-            "expires_in": "600",
+            "expires_in": str(SESSION_TTL_SECONDS),
         }
 
     @staticmethod
@@ -109,25 +167,86 @@ class OAuthService:
             raise OAuthError("missing OAuth code")
         state_sid = state.split(".", 1)[0] if state else ""
         sid = state_sid or str(session_id or "").strip()
-        session = self._sessions.get(sid)
-        if not session:
-            raise OAuthError("OAuth session expired or not found")
-        if state and session.get("state") and state != session["state"]:
-            raise OAuthError("OAuth state mismatch")
-        token_data = self._token_exchange(code, session["code_verifier"], str(session.get("redirect_uri") or REDIRECT_URI))
-        if not token_data.get("access_token") or not token_data.get("refresh_token"):
-            raise OAuthError("OAuth token response missing access_token or refresh_token")
-        result = self.store.upsert_accounts([{**token_data, "source_type": "oauth_login"}])
+        if not sid:
+            raise OAuthError("missing OAuth session")
+
+        with self._lock:
+            self._cleanup_locked()
+            completed = self._completed.get(sid)
+            if completed:
+                if state and completed.get("_state") and state != completed["_state"]:
+                    raise OAuthError("OAuth state mismatch")
+                return self._public_result(completed)
+            session = self._sessions.get(sid)
+            if not session:
+                raise OAuthError("OAuth session expired or not found")
+            if state and session.get("state") and state != session["state"]:
+                raise OAuthError("OAuth state mismatch")
+            if session.get("exchanging"):
+                return {
+                    "ok": True,
+                    "pending": True,
+                    "session_id": sid,
+                    "status": "exchanging",
+                    "message": "OAuth token exchange is already in progress",
+                }
+            session["exchanging"] = True
+            session.pop("last_error", None)
+            exchange_session = dict(session)
+            token_data = dict(session.get("_token_data") or {})
+
+        if not token_data:
+            try:
+                token_data = self._token_exchange(
+                    code,
+                    str(exchange_session.get("code_verifier") or ""),
+                    str(exchange_session.get("redirect_uri") or REDIRECT_URI),
+                )
+            except Exception as exc:
+                if isinstance(exc, OAuthError):
+                    self._release_exchange(sid, exc)
+                    raise
+                error = OAuthError(f"OAuth token exchange failed: {exc}")
+                self._release_exchange(sid, error)
+                raise error from exc
+            if not token_data.get("access_token") or not token_data.get("refresh_token"):
+                error = OAuthError("OAuth token response missing access_token or refresh_token")
+                self._release_exchange(sid, error)
+                raise error
+            with self._lock:
+                current = self._sessions.get(sid)
+                if current:
+                    current["_token_data"] = dict(token_data)
+
+        access_token = str(token_data.get("access_token") or "")
         try:
-            profile = OpenAIBackend(str(token_data.get("access_token") or ""), timeout_seconds=60).fetch_account_profile()
+            result = self.store.upsert_accounts([{**token_data, "source_type": "oauth_login"}])
+        except Exception as exc:
+            error = OAuthError(f"OAuth account save failed: {exc}")
+            self._release_exchange(sid, error)
+            raise error from exc
+
+        try:
+            profile = self._profile_fetcher(access_token)
             updates = {key: value for key, value in profile.items() if key in {"email", "user_id", "plan_type"} and value}
             if updates:
-                self.store.update_account(str(token_data.get("access_token") or ""), updates)
+                self.store.update_account(access_token, updates)
                 result["items"] = self.store.list_public_accounts()
         except Exception:
             pass
-        self._sessions.pop(sid, None)
-        return {"ok": True, "account": result["items"][0] if result.get("items") else {}, **result}
+
+        final_result = {
+            **result,
+            "account": self.store.public_account(access_token) or {},
+        }
+        with self._lock:
+            self._sessions.pop(sid, None)
+            return self._store_completed_locked(sid, str(exchange_session.get("state") or state), final_result)
+
+    @staticmethod
+    def _is_curl_tls_runtime_error(exc: Exception) -> bool:
+        message = str(exc).lower()
+        return "tls connect error" in message or "openssl_internal:invalid library" in message
 
     @staticmethod
     def _exchange_code(code: str, code_verifier: str, redirect_uri: str) -> dict[str, str]:
@@ -153,27 +272,42 @@ class OAuthService:
             "code": code,
             "redirect_uri": redirect_uri,
         }
-        session = None
-        try:
-            if curl_requests is not None:
-                session = curl_requests.Session(impersonate="chrome", verify=False)
-                response = session.post(
+        response = None
+        curl_session = None
+        curl_error: Exception | None = None
+        if curl_requests is not None:
+            try:
+                curl_session = curl_requests.Session(impersonate="chrome", verify=False)
+                response = curl_session.post(
                     f"{AUTH_BASE}/api/accounts/oauth/token",
                     headers=headers,
                     json=payload,
                     timeout=60,
                 )
-            else:
+            except Exception as exc:
+                if not OAuthService._is_curl_tls_runtime_error(exc):
+                    raise OAuthError(f"OAuth token exchange request failed: {exc}") from exc
+                curl_error = exc
+            finally:
+                if curl_session is not None:
+                    curl_session.close()
+
+        if response is None:
+            try:
                 response = std_requests.post(
                     f"{AUTH_BASE}/api/accounts/oauth/token",
                     headers=headers,
                     json=payload,
                     timeout=60,
                 )
-        finally:
-            if session is not None:
-                session.close()
-        data = response.json() if response.text else {}
+            except Exception as exc:
+                fallback_detail = f"; curl_cffi TLS error: {curl_error}" if curl_error else ""
+                raise OAuthError(f"OAuth token exchange request failed: {exc}{fallback_detail}") from exc
+
+        try:
+            data = response.json() if response.text else {}
+        except ValueError:
+            data = {}
         if response.status_code != 200 or not isinstance(data, dict):
             detail = ""
             if isinstance(data, dict):

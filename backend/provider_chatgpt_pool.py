@@ -266,6 +266,8 @@ def _append_chatgpt_pool_output(
     out_path.write_bytes(_decode_b64_image(b64_json))
 
     revised_prompt = str((item or {}).get("revised_prompt") or "").strip()
+    actual_model = str((item or {}).get("model") or "").strip()
+    requested_model = str((item or {}).get("requested_model") or "").strip()
     actual_size = _image_dimensions(out_path)
     requested_size = _map_size(ratio, resolution)
     sidecar = _write_prompt_sidecar(
@@ -289,6 +291,9 @@ def _append_chatgpt_pool_output(
             "preview_path": assets["preview_path"],
             "thumb_path": assets["thumb_path"],
             "revised_prompt": revised_prompt,
+            "model": actual_model,
+            "requested_model": requested_model,
+            "model_adapted": bool((item or {}).get("model_adapted")),
             "requested_resolution": str(resolution or "").strip().lower(),
             "requested_size": requested_size,
             "actual_size": actual_size_payload,
@@ -305,6 +310,8 @@ def _build_chatgpt_pool_output_result(batch: dict[str, Any]) -> dict[str, Any]:
     thumb_paths = [str(entry.get("thumb_path") or "") for entry in entries]
     revised_prompts = [str(entry.get("revised_prompt") or "") for entry in entries if str(entry.get("revised_prompt") or "").strip()]
     actual_sizes = [entry.get("actual_size") for entry in entries if isinstance(entry.get("actual_size"), dict)]
+    actual_models = list(dict.fromkeys(str(entry.get("model") or "") for entry in entries if str(entry.get("model") or "")))
+    requested_models = list(dict.fromkeys(str(entry.get("requested_model") or "") for entry in entries if str(entry.get("requested_model") or "")))
     primary = output_paths[0]
     result = {
         "success": True,
@@ -322,6 +329,10 @@ def _build_chatgpt_pool_output_result(batch: dict[str, Any]) -> dict[str, Any]:
         "revised_prompts": revised_prompts,
         "requested_size": str(entries[0].get("requested_size") or ""),
         "actual_sizes": actual_sizes,
+        "main_model": actual_models[0] if actual_models else "",
+        "actual_models": actual_models,
+        "requested_main_model": requested_models[0] if requested_models else "",
+        "model_adapted": any(bool(entry.get("model_adapted")) for entry in entries),
     }
     result.update(
         build_resolution_metadata(
@@ -498,6 +509,7 @@ def generate_image_gpt_pool(
     quality: str = "auto",
     image_count: int = 1,
     prompt_mode: str = "smart",
+    main_model: str | None = None,
     on_image_saved: Callable[[dict[str, Any], int, int], None] | None = None,
 ) -> dict[str, Any]:
     cfg = get_chatgpt_pool_config(ensure_auth_key=True)
@@ -512,7 +524,7 @@ def generate_image_gpt_pool(
     except (TypeError, ValueError):
         count = 1
     payload = {
-        "model": cfg.get("generation_model") or "gpt-image-2",
+        "model": str(main_model or cfg.get("generation_model") or "gpt-5-5"),
         "prompt": _prepare_pool_prompt(prompt, prompt_mode),
         "n": count,
         "response_format": "b64_json",
@@ -588,6 +600,7 @@ def edit_image_gpt_pool(
     moderation: str = "auto",
     mask: str | None = None,
     prompt_mode: str = "smart",
+    main_model: str | None = None,
 ) -> dict[str, Any]:
     cfg = get_chatgpt_pool_config(ensure_auth_key=True)
     if not cfg.get("enabled"):
@@ -600,7 +613,7 @@ def edit_image_gpt_pool(
         return {"success": False, "error": "GPT pool edit requires at least one source image"}
 
     payload = {
-        "model": cfg.get("generation_model") or "gpt-image-2",
+        "model": str(main_model or cfg.get("generation_model") or "gpt-5-5"),
         "prompt": _prepare_pool_prompt(prompt, prompt_mode),
         "image": source_images,
         "response_format": "b64_json",

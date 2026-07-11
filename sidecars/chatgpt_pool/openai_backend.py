@@ -39,6 +39,8 @@ IMAGE_POLICY_REFUSAL_MARKERS = (
     "违反了我们的内容政策",
     "违反我们的内容政策",
     "可能违反内容政策",
+    "生成的图片可能违反",
+    "潜在欺诈或诈骗活动",
     "content policy",
     "safety policy",
     "can't help with that image",
@@ -460,6 +462,10 @@ class OpenAIBackend:
             pass
         return {key: value for key, value in profile.items() if value}
 
+    def fetch_model_catalog(self) -> dict[str, Any]:
+        """Return the account-scoped model picker catalog used by ChatGPT Web."""
+        return self._get_json("/backend-api/models?history_and_training_disabled=false")
+
     def _get_json(self, path: str) -> dict[str, Any]:
         response = self._request("GET", self.base_url + path, headers=self._headers(path, {"Accept": "application/json"}), timeout=30)
         ensure_ok(response, path)
@@ -531,7 +537,10 @@ class OpenAIBackend:
         return {}
 
     def _image_model_slug(self, model: str) -> str:
-        return "gpt-5-3" if str(model or "gpt-image-2") == "gpt-image-2" else "auto"
+        value = str(model or "gpt-image-2").strip()
+        if value == "gpt-image-2":
+            return "gpt-5-5"
+        return value if re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,127}", value) else "gpt-5-5"
 
     def _image_headers(self, path: str, requirements: Requirements, conduit_token: str = "", accept: str = "*/*") -> dict[str, str]:
         extra = {

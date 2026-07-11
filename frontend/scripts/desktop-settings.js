@@ -4,10 +4,21 @@
   let lastPromptConfig = null;
   let lastChatgptPoolAccounts = null;
   let lastSystemSettings = null;
+  let lastGptModelCatalog = null;
   let activeTab = 'status';
   let settingsInfoTipOpen = false;
   let chatgptPoolActivity = null;
   let chatgptPoolRefreshBusy = false;
+  let chatgptPoolOAuthActivity = null;
+  let chatgptPoolOAuthSessionId = '';
+  let chatgptPoolOAuthAuthorizeUrl = '';
+  let managedCodexOAuthActivity = null;
+  let managedCodexOAuthSessionId = '';
+  let managedCodexOAuthAuthorizeUrl = '';
+  let managedCodexOAuthPollTimer = null;
+  let managedCodexOAuthPollDeadline = 0;
+  const MANAGED_CODEX_OAUTH_POLL_INTERVAL_MS = 1500;
+  const MANAGED_CODEX_OAUTH_POLL_TIMEOUT_MS = 15 * 60 * 1000;
   const SETTINGS_TAB_HELP = {
     system: {
       title: '系统配置',
@@ -377,22 +388,68 @@
 
   function renderProviderCoreSettings(provider) {
     const currentModel = provider.image_main_model || 'gpt-5.5';
-    const modelOptions = (provider.allowed_image_main_models || ['gpt-5.5']).map(value => optionHtml(value, value, currentModel)).join('');
-    const effortOptions = (provider.allowed_reasoning_efforts || ['none', 'low', 'medium', 'high', 'xhigh'])
-      .map(value => optionHtml(value, value, provider.reasoning_effort || 'medium')).join('');
+    const codexRoute = lastGptModelCatalog?.routes?.codex || null;
+    const models = codexRoute
+      ? (codexRoute.available === false
+        ? []
+        : (Array.isArray(codexRoute.models) ? codexRoute.models.filter(item => item?.image_generation !== false) : []))
+      : (provider.allowed_image_main_models || ['gpt-5.5']).map(value => ({ id: value, label: value }));
+    const selectedModel = models.some(item => item.id === currentModel)
+      ? currentModel
+      : (codexRoute?.default_model || models[0]?.id || '');
+    const modelOptions = models.length
+      ? models.map(item => optionHtml(item.id, item.label || item.id, selectedModel)).join('')
+      : optionHtml('', '无可用模型', '');
+    const selectedModelMeta = models.find(item => item.id === selectedModel) || null;
+    const reasoningEfforts = Array.isArray(selectedModelMeta?.reasoning_efforts)
+      ? selectedModelMeta.reasoning_efforts
+      : (codexRoute ? [] : (provider.allowed_reasoning_efforts || ['low', 'medium', 'high', 'xhigh']));
+    const configuredEffort = provider.reasoning_effort || 'medium';
+    const selectedEffort = reasoningEfforts.includes(configuredEffort)
+      ? configuredEffort
+      : (reasoningEfforts.includes(selectedModelMeta?.default_reasoning_effort)
+        ? selectedModelMeta.default_reasoning_effort
+        : (reasoningEfforts.includes('medium') ? 'medium' : reasoningEfforts[0]));
+    const effortOptions = reasoningEfforts.length
+      ? reasoningEfforts.map(value => optionHtml(value, value, selectedEffort)).join('')
+      : optionHtml('none', '不适用', 'none');
     return renderCard('Provider 连接', [
       `<div class="desk-settings-form" data-system-settings-card="provider">
         <label>
-          <span>GPT 主模型</span>
-          <select class="desk-select" data-system-setting-field="gpt_provider.image_main_model">${modelOptions}</select>
+          <span>主模型</span>
+          <select class="desk-select" data-system-setting-field="gpt_provider.image_main_model"${models.length ? '' : ' disabled'}>${modelOptions}</select>
         </label>
         <label>
           <span>推理强度</span>
-          <select class="desk-select" data-system-setting-field="gpt_provider.reasoning_effort">${effortOptions}</select>
+          <select class="desk-select" data-system-setting-field="gpt_provider.reasoning_effort"${reasoningEfforts.length ? '' : ' disabled'}>${effortOptions}</select>
         </label>
+        <p class="desk-settings-form__hint">生图引擎：${escapeHtml(codexRoute?.image_engine?.label || 'GPT Image 2')}</p>
+        <div class="desk-settings-form__actions desk-settings-form__actions--compact">
+          <button type="button" data-gpt-generation-models-refresh>刷新线路模型</button>
+        </div>
         ${renderSystemSaveButton('provider', '保存 Provider 配置')}
       </div>`
     ], true);
+  }
+
+  function syncProviderReasoningField(modelSelect) {
+    const route = lastGptModelCatalog?.routes?.codex;
+    const reasoningSelect = modelSelect?.closest('[data-system-settings-card="provider"]')
+      ?.querySelector('[data-system-setting-field="gpt_provider.reasoning_effort"]');
+    if (!route || !reasoningSelect) return;
+    const model = (route.models || []).find(item => item?.id === modelSelect.value);
+    const efforts = Array.isArray(model?.reasoning_efforts) ? model.reasoning_efforts : [];
+    const current = reasoningSelect.value;
+    const selected = efforts.includes(current)
+      ? current
+      : (efforts.includes(model?.default_reasoning_effort)
+        ? model.default_reasoning_effort
+        : (efforts.includes('medium') ? 'medium' : efforts[0]));
+    reasoningSelect.innerHTML = efforts.length
+      ? efforts.map(value => optionHtml(value, value, selected)).join('')
+      : optionHtml('none', '不适用', 'none');
+    reasoningSelect.disabled = !efforts.length;
+    window.DesktopSelect?.refresh?.(reasoningSelect);
   }
 
   function renderThirdPartyImageSettings(config, nanoConfig = {}) {
@@ -450,6 +507,22 @@
   }
 
   function renderChatgptPoolRuntimeSettings(pool) {
+    const poolRoute = lastGptModelCatalog?.routes?.chatgpt_pool || null;
+    const models = poolRoute
+      ? (poolRoute.available === false
+        ? []
+        : (Array.isArray(poolRoute.models) ? poolRoute.models.filter(item => item?.image_generation !== false) : []))
+      : [{ id: 'gpt-5-5', label: 'GPT-5.5' }];
+    const rawConfiguredModel = String(pool.generation_model || 'gpt-5-5');
+    const configuredModel = ['gpt-image-2', 'gpt-5-3', 'auto'].includes(rawConfiguredModel)
+      ? (poolRoute?.default_model || 'gpt-5-5')
+      : rawConfiguredModel;
+    const selectedModel = models.some(item => item.id === configuredModel)
+      ? configuredModel
+      : (poolRoute?.default_model || models[0]?.id || '');
+    const poolModelOptions = models.length
+      ? models.map(item => optionHtml(item.id, item.label || item.id, selectedModel)).join('')
+      : optionHtml('', '无可用模型', '');
     return renderCard('账号池运行配置', [
       `<div class="desk-settings-form" data-system-settings-card="chatgpt-pool">
         ${renderCheckbox('启用账号池', 'chatgpt_pool.enabled', pool.enabled !== false)}
@@ -457,9 +530,16 @@
         ${renderSecretInput('Auth Key', 'chatgpt_pool.auth_key', pool.auth_key_configured, {
           placeholder: pool.auth_key_configured ? '留空则不修改' : '留空可由服务自动生成'
         })}
-        ${renderInput('生成模型', 'chatgpt_pool.generation_model', pool.generation_model || 'gpt-image-2')}
+        <label>
+          <span>主模型</span>
+          <select class="desk-select" data-system-setting-field="chatgpt_pool.generation_model"${models.length ? '' : ' disabled'}>${poolModelOptions}</select>
+        </label>
+        <p class="desk-settings-form__hint">生图引擎：${escapeHtml(poolRoute?.image_engine?.label || 'ChatGPT Image')}</p>
         ${renderInput('超时秒数', 'chatgpt_pool.timeout_seconds', pool.timeout_seconds || 420, { type: 'number', min: 30, max: 1800, step: 30 })}
         ${renderInput('账号库路径', 'chatgpt_pool.db_path', pool.db_path || 'data/chatgpt_pool/accounts.db')}
+        <div class="desk-settings-form__actions desk-settings-form__actions--compact">
+          <button type="button" data-gpt-generation-models-refresh>刷新网页模型</button>
+        </div>
         ${renderSystemSaveButton('chatgpt-pool', '保存账号池配置')}
       </div>`
     ], Boolean(pool.enabled));
@@ -647,6 +727,8 @@
   }
 
   function renderManagedCodexAddSettings(managed) {
+    const activity = managedCodexOAuthActivity;
+    const activityText = activity ? `${activity.time} · ${activity.message}` : '';
     return renderCard('添加托管 Codex 账号', [
       `<details class="desk-settings-details" open>
         <summary>
@@ -654,19 +736,26 @@
           <em>可反复添加多个 ChatGPT / Codex 账号</em>
         </summary>
         <div class="desk-settings-form desk-settings-form--compact">
-          <input type="hidden" data-managed-codex-session-id>
+          <input type="hidden" data-managed-codex-session-id value="${escapeHtml(managedCodexOAuthSessionId)}">
           <label>
             <span>邮箱</span>
             <input class="desk-input" type="email" data-managed-codex-email-hint placeholder="可选">
           </label>
           <label class="desk-settings-form__wide">
             <span>授权链接</span>
-            <textarea class="desk-settings-textarea" data-managed-codex-authorize-url readonly></textarea>
+            <textarea class="desk-settings-textarea" data-managed-codex-authorize-url readonly>${escapeHtml(managedCodexOAuthAuthorizeUrl)}</textarea>
           </label>
           <label class="desk-settings-form__wide">
             <span>回调 URL / Code</span>
             <textarea class="desk-settings-textarea" data-managed-codex-callback placeholder="http://localhost:1455/auth/callback?code=..."></textarea>
           </label>
+          <div
+            class="desk-settings-pool-activity ${activity ? `is-${escapeHtml(activity.tone || 'working')}` : ''}"
+            data-managed-codex-oauth-feedback
+            role="status"
+            aria-live="polite"
+            ${activityText ? '' : 'hidden'}
+          >${escapeHtml(activityText)}</div>
           <div class="desk-settings-form__actions">
             <button type="button" data-managed-codex-oauth-start>打开授权</button>
             <button type="button" class="is-primary" data-managed-codex-oauth-finish>完成授权</button>
@@ -795,6 +884,9 @@
     const accounts = Array.isArray(accountsPayload?.items) ? accountsPayload.items : [];
     const online = Boolean(pool?.online);
     const noAccounts = accounts.length === 0;
+    const oauthActivity = chatgptPoolOAuthActivity;
+    const oauthActivityText = oauthActivity ? `${oauthActivity.time} · ${oauthActivity.message}` : '';
+    const oauthOpen = noAccounts || Boolean(chatgptPoolOAuthSessionId) || Boolean(oauthActivity);
     return [
       renderCard('账号列表', [
         renderChatgptPoolActionBar(pool, accountsPayload),
@@ -803,25 +895,32 @@
           : '<div class="desk-settings-empty desk-settings-empty--compact">暂无账号，先在下方添加一个授权账号。</div>'
       ], online && (stats.active ?? 0) > 0),
       renderCard('添加账号', [
-        `<details class="desk-settings-details"${noAccounts ? ' open' : ''}>
+        `<details class="desk-settings-details"${oauthOpen ? ' open' : ''}>
           <summary>
             <span>OAuth 登录</span>
             <em>生成授权，登录后粘贴 callback URL</em>
           </summary>
           <div class="desk-settings-form desk-settings-form--compact">
-            <input type="hidden" data-chatgpt-pool-session-id>
+            <input type="hidden" data-chatgpt-pool-session-id value="${escapeHtml(chatgptPoolOAuthSessionId)}">
             <label>
               <span>邮箱</span>
               <input class="desk-input" type="email" data-chatgpt-pool-email-hint placeholder="可选">
             </label>
             <label class="desk-settings-form__wide">
               <span>授权链接</span>
-              <textarea class="desk-settings-textarea" data-chatgpt-pool-authorize-url readonly></textarea>
+              <textarea class="desk-settings-textarea" data-chatgpt-pool-authorize-url readonly>${escapeHtml(chatgptPoolOAuthAuthorizeUrl)}</textarea>
             </label>
             <label class="desk-settings-form__wide">
               <span>回调 URL / Code</span>
-              <textarea class="desk-settings-textarea" data-chatgpt-pool-callback placeholder="https://platform.openai.com/auth/callback?code=..."></textarea>
+              <textarea class="desk-settings-textarea" data-chatgpt-pool-callback placeholder="登录完成后，复制浏览器地址栏的完整 URL 并粘贴到这里"></textarea>
             </label>
+            <div
+              class="desk-settings-pool-activity ${oauthActivity ? `is-${escapeHtml(oauthActivity.tone || 'working')}` : ''}"
+              data-chatgpt-pool-oauth-feedback
+              role="status"
+              aria-live="polite"
+              ${oauthActivityText ? '' : 'hidden'}
+            >${escapeHtml(oauthActivityText)}</div>
             <div class="desk-settings-form__actions">
               <button type="button" data-chatgpt-pool-oauth-start>生成授权</button>
               <button type="button" class="is-primary" data-chatgpt-pool-oauth-finish>完成授权</button>
@@ -1026,6 +1125,42 @@
     return `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
   }
 
+  function setManagedCodexOAuthActivity(message, tone = 'working') {
+    const text = String(message || '').trim();
+    managedCodexOAuthActivity = text
+      ? { message: text, tone: String(tone || 'working'), time: chatgptPoolClockLabel() }
+      : null;
+    const node = els.deskSettingsBody?.querySelector?.('[data-managed-codex-oauth-feedback]');
+    if (!node) return;
+    if (!managedCodexOAuthActivity) {
+      node.hidden = true;
+      node.textContent = '';
+      node.className = 'desk-settings-pool-activity';
+      return;
+    }
+    node.hidden = false;
+    node.className = `desk-settings-pool-activity is-${managedCodexOAuthActivity.tone}`;
+    node.textContent = `${managedCodexOAuthActivity.time} · ${managedCodexOAuthActivity.message}`;
+  }
+
+  function setChatgptPoolOAuthActivity(message, tone = 'working') {
+    const text = String(message || '').trim();
+    chatgptPoolOAuthActivity = text
+      ? { message: text, tone: String(tone || 'working'), time: chatgptPoolClockLabel() }
+      : null;
+    const node = els.deskSettingsBody?.querySelector?.('[data-chatgpt-pool-oauth-feedback]');
+    if (!node) return;
+    if (!chatgptPoolOAuthActivity) {
+      node.hidden = true;
+      node.textContent = '';
+      node.className = 'desk-settings-pool-activity';
+      return;
+    }
+    node.hidden = false;
+    node.className = `desk-settings-pool-activity is-${chatgptPoolOAuthActivity.tone}`;
+    node.textContent = `${chatgptPoolOAuthActivity.time} · ${chatgptPoolOAuthActivity.message}`;
+  }
+
   function setChatgptPoolActivity(message, tone = 'info') {
     const text = String(message || '').trim();
     chatgptPoolActivity = text
@@ -1180,16 +1315,28 @@
       throw new Error('诊断 API 未加载');
     }
     renderLoading();
-    const [data, systemSettings, promptConfig] = await Promise.all([
+    const [data, systemSettings, promptConfig, gptModels] = await Promise.all([
       window.DesktopApi.getSystemDiagnostics(),
       window.DesktopApi.getSystemSettings ? window.DesktopApi.getSystemSettings().catch(error => ({ ok: false, error: error.message })) : Promise.resolve(null),
-      window.DesktopApi.getPromptConfig ? window.DesktopApi.getPromptConfig().catch(error => ({ ok: false, error: error.message })) : Promise.resolve(null)
+      window.DesktopApi.getPromptConfig ? window.DesktopApi.getPromptConfig().catch(error => ({ ok: false, error: error.message })) : Promise.resolve(null),
+      window.DesktopApi.getGptModels ? window.DesktopApi.getGptModels().catch(error => ({ ok: false, error: error.message })) : Promise.resolve(null)
     ]);
     lastDiagnostics = data;
     lastSystemSettings = systemSettings?.ok ? systemSettings : null;
     lastPromptConfig = promptConfig?.ok ? promptConfig : null;
+    lastGptModelCatalog = gptModels?.ok ? gptModels : lastGptModelCatalog;
+    if (lastGptModelCatalog) window.DesktopCanvas?.applyGptModelCatalog?.(lastGptModelCatalog);
     renderDiagnostics(data);
     return data;
+  }
+
+  async function refreshGptGenerationModels() {
+    if (!window.DesktopApi?.getGptModels) throw new Error('GPT 模型目录 API 未加载');
+    const payload = await window.DesktopApi.getGptModels(true);
+    lastGptModelCatalog = payload;
+    window.DesktopCanvas?.applyGptModelCatalog?.(payload);
+    if (lastDiagnostics) renderDiagnostics(lastDiagnostics);
+    return payload;
   }
 
   async function reloadPromptModels(provider) {
@@ -1378,10 +1525,24 @@
   async function loadChatgptPoolAccounts(options = {}) {
     if (!window.DesktopApi?.getChatgptPoolAccounts) throw new Error('账号池 API 未加载');
     const userAction = Boolean(options?.userAction);
+    const preserveScroll = Boolean(options?.preserveScroll);
+    const scrollTop = preserveScroll ? (els.deskSettingsBody?.scrollTop || 0) : 0;
     if (userAction) setChatgptPoolActivity('正在读取账号列表...', 'working');
     try {
       lastChatgptPoolAccounts = await window.DesktopApi.getChatgptPoolAccounts();
-      if (lastDiagnostics) renderDiagnostics(lastDiagnostics);
+      if (lastDiagnostics) {
+        lastDiagnostics = {
+          ...lastDiagnostics,
+          chatgpt_pool: {
+            ...(lastDiagnostics.chatgpt_pool || {}),
+            online: true,
+            health_error: '',
+            stats: lastChatgptPoolAccounts?.stats || lastDiagnostics.chatgpt_pool?.stats || {}
+          }
+        };
+        renderDiagnostics(lastDiagnostics);
+        if (preserveScroll && els.deskSettingsBody) els.deskSettingsBody.scrollTop = scrollTop;
+      }
       if (userAction) {
         setChatgptPoolActivity(`账号列表已更新：${chatgptPoolStatsLabel(lastChatgptPoolAccounts)}`, 'success');
       }
@@ -1405,28 +1566,98 @@
   async function startChatgptPoolOAuth() {
     if (!window.DesktopApi?.startChatgptPoolOAuth) throw new Error('账号池 OAuth API 未加载');
     const emailHint = els.deskSettingsBody?.querySelector('[data-chatgpt-pool-email-hint]')?.value || '';
-    const result = await window.DesktopApi.startChatgptPoolOAuth({ email_hint: emailHint, force_reauth: true });
-    const sessionInput = els.deskSettingsBody?.querySelector('[data-chatgpt-pool-session-id]');
-    const urlInput = els.deskSettingsBody?.querySelector('[data-chatgpt-pool-authorize-url]');
-    if (sessionInput) sessionInput.value = result.session_id || '';
-    if (urlInput) urlInput.value = result.authorize_url || '';
-    if (result.authorize_url) {
-      if (window.DesktopApi?.openChatgptPoolOAuthClean) {
-        await window.DesktopApi.openChatgptPoolOAuthClean({ authorize_url: result.authorize_url });
-      } else {
-        window.open(result.authorize_url, '_blank', 'noopener,noreferrer');
+    setChatgptPoolOAuthActivity('正在创建账号池 OAuth 授权会话...', 'working');
+    try {
+      const result = await window.DesktopApi.startChatgptPoolOAuth({ email_hint: emailHint, force_reauth: true });
+      chatgptPoolOAuthSessionId = String(result.session_id || '').trim();
+      chatgptPoolOAuthAuthorizeUrl = String(result.authorize_url || '').trim();
+      if (!chatgptPoolOAuthSessionId || !chatgptPoolOAuthAuthorizeUrl) {
+        throw new Error('账号池没有返回有效的 OAuth 授权会话。');
       }
+      const sessionInput = els.deskSettingsBody?.querySelector('[data-chatgpt-pool-session-id]');
+      const urlInput = els.deskSettingsBody?.querySelector('[data-chatgpt-pool-authorize-url]');
+      const callbackInput = els.deskSettingsBody?.querySelector('[data-chatgpt-pool-callback]');
+      if (sessionInput) sessionInput.value = chatgptPoolOAuthSessionId;
+      if (urlInput) urlInput.value = chatgptPoolOAuthAuthorizeUrl;
+      if (callbackInput) callbackInput.value = '';
+
+      let opened = false;
+      try {
+        if (window.DesktopApi?.openChatgptPoolOAuthClean) {
+          await window.DesktopApi.openChatgptPoolOAuthClean({ authorize_url: chatgptPoolOAuthAuthorizeUrl });
+        } else {
+          window.open(chatgptPoolOAuthAuthorizeUrl, '_blank', 'noopener,noreferrer');
+        }
+        opened = true;
+        setChatgptPoolOAuthActivity('授权页面已打开；登录后请粘贴最终回调 URL，再点击“完成授权”。', 'working');
+      } catch (openError) {
+        setChatgptPoolOAuthActivity(
+          `授权链接已生成，但自动打开失败：${openError.message || '请复制上方链接手动打开'}`,
+          'warn'
+        );
+      }
+      window.DesktopResults?.showTransientMessage?.(
+        opened ? '账号池授权已生成并打开。' : '账号池授权链接已生成，请手动打开上方链接。',
+        opened ? 'success' : 'warning'
+      );
+      return result;
+    } catch (error) {
+      setChatgptPoolOAuthActivity(error.message || '账号池 OAuth 授权链接生成失败', 'error');
+      throw error;
     }
-    window.DesktopResults?.showTransientMessage?.('账号池授权已生成并打开。', 'success');
+  }
+
+  function chatgptPoolCallbackHasState(callback) {
+    try {
+      return Boolean(new URL(String(callback || '').trim()).searchParams.get('state'));
+    } catch (_error) {
+      return false;
+    }
   }
 
   async function finishChatgptPoolOAuth() {
     if (!window.DesktopApi?.finishChatgptPoolOAuth) throw new Error('账号池 OAuth API 未加载');
-    const sessionId = els.deskSettingsBody?.querySelector('[data-chatgpt-pool-session-id]')?.value || '';
-    const callback = els.deskSettingsBody?.querySelector('[data-chatgpt-pool-callback]')?.value || '';
-    await window.DesktopApi.finishChatgptPoolOAuth({ session_id: sessionId, callback });
-    await refreshChatgptPoolStatus();
-    window.DesktopResults?.showTransientMessage?.('账号授权已写入账号池。', 'success');
+    const sessionId = String(
+      els.deskSettingsBody?.querySelector('[data-chatgpt-pool-session-id]')?.value
+      || chatgptPoolOAuthSessionId
+      || ''
+    ).trim();
+    const callback = String(els.deskSettingsBody?.querySelector('[data-chatgpt-pool-callback]')?.value || '').trim();
+    if (!callback) {
+      const error = new Error('请先粘贴授权完成后的回调 URL 或 Code。');
+      setChatgptPoolOAuthActivity(error.message, 'warn');
+      throw error;
+    }
+    if (!sessionId && !chatgptPoolCallbackHasState(callback)) {
+      const error = new Error('当前授权会话已丢失，请重新生成授权；完整回调 URL 可直接重试。');
+      setChatgptPoolOAuthActivity(error.message, 'warn');
+      throw error;
+    }
+
+    setChatgptPoolOAuthActivity('正在兑换 OAuth token 并写入账号池...', 'working');
+    try {
+      const result = await window.DesktopApi.finishChatgptPoolOAuth({ session_id: sessionId, callback });
+      if (result?.pending) {
+        setChatgptPoolOAuthActivity('OAuth token 正在兑换，请稍后再次点击“完成授权”。', 'working');
+        return false;
+      }
+      chatgptPoolOAuthSessionId = '';
+      chatgptPoolOAuthAuthorizeUrl = '';
+      setChatgptPoolOAuthActivity('账号池 OAuth 授权完成，账号已添加。', 'success');
+      try {
+        await loadChatgptPoolAccounts({ preserveScroll: true });
+      } catch (refreshError) {
+        setChatgptPoolOAuthActivity(
+          `授权已完成，但账号列表刷新失败：${refreshError.message || '网络错误'}`,
+          'warn'
+        );
+      }
+      window.DesktopResults?.showTransientMessage?.('账号授权已写入账号池。', 'success');
+      return true;
+    } catch (error) {
+      setChatgptPoolOAuthActivity(error.message || '账号池 OAuth 授权完成失败', 'error');
+      throw error;
+    }
   }
 
   function parseChatgptPoolImportPayload() {
@@ -1518,29 +1749,163 @@
     return true;
   }
 
+  async function refreshManagedCodexOAuthStatusView() {
+    if (!window.DesktopApi?.getManagedCodexOAuthStatus) throw new Error('托管 Codex OAuth 状态 API 未加载');
+    const payload = await window.DesktopApi.getManagedCodexOAuthStatus();
+    const managed = payload?.managed_codex_oauth || payload || {};
+    if (lastDiagnostics) {
+      const scrollTop = els.deskSettingsBody?.scrollTop || 0;
+      lastDiagnostics = { ...lastDiagnostics, managed_codex_oauth: managed };
+      renderDiagnostics(lastDiagnostics);
+      if (els.deskSettingsBody) els.deskSettingsBody.scrollTop = scrollTop;
+    }
+    return managed;
+  }
+
+  function stopManagedCodexOAuthPolling({ clearSession = false } = {}) {
+    if (managedCodexOAuthPollTimer) window.clearTimeout(managedCodexOAuthPollTimer);
+    managedCodexOAuthPollTimer = null;
+    managedCodexOAuthPollDeadline = 0;
+    if (clearSession) {
+      managedCodexOAuthSessionId = '';
+      managedCodexOAuthAuthorizeUrl = '';
+    }
+  }
+
+  function scheduleManagedCodexOAuthPoll(sessionId, delay = MANAGED_CODEX_OAUTH_POLL_INTERVAL_MS) {
+    if (!sessionId || sessionId !== managedCodexOAuthSessionId) return;
+    if (managedCodexOAuthPollDeadline && Date.now() >= managedCodexOAuthPollDeadline) {
+      stopManagedCodexOAuthPolling();
+      setManagedCodexOAuthActivity('授权会话等待超时，可重新打开授权或粘贴回调 URL。', 'warn');
+      return;
+    }
+    if (managedCodexOAuthPollTimer) window.clearTimeout(managedCodexOAuthPollTimer);
+    managedCodexOAuthPollTimer = window.setTimeout(() => {
+      managedCodexOAuthPollTimer = null;
+      pollManagedCodexOAuthSession(sessionId);
+    }, delay);
+  }
+
+  async function applyManagedCodexOAuthCompletion(result, requestedSessionId = '') {
+    const completedSessionId = String(result?.session_id || requestedSessionId || '').trim();
+    const activeSessionCompleted = !managedCodexOAuthSessionId
+      || !completedSessionId
+      || completedSessionId === managedCodexOAuthSessionId;
+    if (activeSessionCompleted) {
+      stopManagedCodexOAuthPolling({ clearSession: true });
+      setManagedCodexOAuthActivity('Codex OAuth 授权完成，账号已添加并设为当前账号。', 'success');
+    } else {
+      setManagedCodexOAuthActivity('另一个 Codex OAuth 授权已完成，当前会话仍在等待。', 'success');
+    }
+    try {
+      await refreshManagedCodexOAuthStatusView();
+    } catch (error) {
+      setManagedCodexOAuthActivity(
+        `授权已完成，但账号状态刷新失败：${error.message || '网络错误'}`,
+        'warn'
+      );
+    }
+    if (!activeSessionCompleted) scheduleManagedCodexOAuthPoll(managedCodexOAuthSessionId);
+    refreshGptGenerationModels().catch(() => null);
+    window.DesktopResults?.showTransientMessage?.('Codex OAuth 已写入托管账号。', 'success');
+    return true;
+  }
+
+  async function checkManagedCodexOAuthSession(sessionId, callback = '') {
+    const result = await window.DesktopApi.finishManagedCodexOAuth({
+      session_id: sessionId,
+      callback
+    });
+    if (result?.pending) {
+      setManagedCodexOAuthActivity(
+        result.status === 'exchanging'
+          ? '正在换取 Codex OAuth token...'
+          : '等待浏览器完成登录并返回授权结果...',
+        'working'
+      );
+      return false;
+    }
+    if (result?.ok === false) {
+      const error = new Error(result.error || 'Codex OAuth 授权失败');
+      error.oauthTerminal = true;
+      throw error;
+    }
+    return applyManagedCodexOAuthCompletion(result, sessionId);
+  }
+
+  async function pollManagedCodexOAuthSession(sessionId) {
+    if (!sessionId || sessionId !== managedCodexOAuthSessionId) return;
+    try {
+      const completed = await checkManagedCodexOAuthSession(sessionId);
+      if (!completed) scheduleManagedCodexOAuthPoll(sessionId);
+    } catch (error) {
+      if (sessionId !== managedCodexOAuthSessionId) return;
+      if (error?.oauthTerminal) {
+        stopManagedCodexOAuthPolling();
+        setManagedCodexOAuthActivity(error.message || 'Codex OAuth 授权失败', 'error');
+        return;
+      }
+      setManagedCodexOAuthActivity(`授权状态检查失败，正在重试：${error.message || '网络错误'}`, 'warn');
+      scheduleManagedCodexOAuthPoll(sessionId, 3000);
+    }
+  }
+
   async function startManagedCodexOAuth() {
     if (!window.DesktopApi?.startManagedCodexOAuth) throw new Error('托管 Codex OAuth API 未加载');
     const emailHint = els.deskSettingsBody?.querySelector('[data-managed-codex-email-hint]')?.value || '';
-    const result = await window.DesktopApi.startManagedCodexOAuth({
-      email_hint: emailHint,
-      force_reauth: true,
-      open_browser: true
-    });
-    const sessionInput = els.deskSettingsBody?.querySelector('[data-managed-codex-session-id]');
-    const urlInput = els.deskSettingsBody?.querySelector('[data-managed-codex-authorize-url]');
-    if (sessionInput) sessionInput.value = result.session_id || '';
-    if (urlInput) urlInput.value = result.authorize_url || '';
-    window.DesktopResults?.showTransientMessage?.('Codex OAuth 授权已打开。完成登录后刷新状态。', 'success');
-    return result;
+    setManagedCodexOAuthActivity('正在创建 Codex OAuth 授权会话...', 'working');
+    try {
+      const result = await window.DesktopApi.startManagedCodexOAuth({
+        email_hint: emailHint,
+        force_reauth: true,
+        open_browser: true
+      });
+      stopManagedCodexOAuthPolling();
+      managedCodexOAuthSessionId = String(result.session_id || '').trim();
+      managedCodexOAuthAuthorizeUrl = String(result.authorize_url || '').trim();
+      managedCodexOAuthPollDeadline = Date.now() + MANAGED_CODEX_OAUTH_POLL_TIMEOUT_MS;
+      const sessionInput = els.deskSettingsBody?.querySelector('[data-managed-codex-session-id]');
+      const urlInput = els.deskSettingsBody?.querySelector('[data-managed-codex-authorize-url]');
+      const callbackInput = els.deskSettingsBody?.querySelector('[data-managed-codex-callback]');
+      if (sessionInput) sessionInput.value = managedCodexOAuthSessionId;
+      if (urlInput) urlInput.value = managedCodexOAuthAuthorizeUrl;
+      if (callbackInput) callbackInput.value = '';
+      setManagedCodexOAuthActivity('授权页面已打开，等待浏览器回调...', 'working');
+      scheduleManagedCodexOAuthPoll(managedCodexOAuthSessionId, 800);
+      window.DesktopResults?.showTransientMessage?.('Codex OAuth 授权已打开。', 'success');
+      return result;
+    } catch (error) {
+      setManagedCodexOAuthActivity(error.message || 'Codex OAuth 授权打开失败', 'error');
+      throw error;
+    }
   }
 
   async function finishManagedCodexOAuth() {
     if (!window.DesktopApi?.finishManagedCodexOAuth) throw new Error('托管 Codex OAuth API 未加载');
-    const sessionId = els.deskSettingsBody?.querySelector('[data-managed-codex-session-id]')?.value || '';
-    const callback = els.deskSettingsBody?.querySelector('[data-managed-codex-callback]')?.value || '';
-    await window.DesktopApi.finishManagedCodexOAuth({ session_id: sessionId, callback });
-    await refresh();
-    window.DesktopResults?.showTransientMessage?.('Codex OAuth 已写入托管账号。', 'success');
+    const sessionId = String(
+      els.deskSettingsBody?.querySelector('[data-managed-codex-session-id]')?.value
+      || managedCodexOAuthSessionId
+      || ''
+    ).trim();
+    const callback = String(els.deskSettingsBody?.querySelector('[data-managed-codex-callback]')?.value || '').trim();
+    if (!sessionId && !callback) {
+      const error = new Error('请先点击“打开授权”生成授权会话。');
+      setManagedCodexOAuthActivity(error.message, 'warn');
+      throw error;
+    }
+    setManagedCodexOAuthActivity('正在确认 Codex OAuth 授权结果...', 'working');
+    try {
+      const completed = await checkManagedCodexOAuthSession(sessionId, callback);
+      if (!completed) {
+        setManagedCodexOAuthActivity('尚未收到浏览器回调，请先在授权页完成登录。', 'warn');
+        if (sessionId === managedCodexOAuthSessionId) scheduleManagedCodexOAuthPoll(sessionId);
+        return false;
+      }
+      return true;
+    } catch (error) {
+      setManagedCodexOAuthActivity(error.message || 'Codex OAuth 授权完成失败', 'error');
+      throw error;
+    }
   }
 
   async function refreshManagedCodexOAuth(accountId = '', all = false) {
@@ -1679,6 +2044,10 @@
       }
     });
     els.deskSettingsBody?.addEventListener('change', event => {
+      const systemField = event.target.closest('[data-system-setting-field]');
+      if (systemField?.dataset.systemSettingField === 'gpt_provider.image_main_model') {
+        syncProviderReasoningField(systemField);
+      }
       const field = event.target.closest('[data-prompt-config-field]');
       if (!field) return;
       if (field.dataset.promptConfigField === 'provider') {
@@ -1686,6 +2055,17 @@
       }
     });
     els.deskSettingsBody?.addEventListener('click', event => {
+      const refreshGenerationModels = event.target.closest('[data-gpt-generation-models-refresh]');
+      if (refreshGenerationModels) {
+        event.preventDefault();
+        runButtonAction(refreshGenerationModels, refreshGptGenerationModels, {
+          loadingText: '刷新中...',
+          doneText: '已刷新',
+          successMessage: '线路模型已刷新。',
+          errorMessage: '线路模型刷新失败'
+        });
+        return;
+      }
       const clearSecret = event.target.closest('[data-system-secret-clear-field]');
       if (clearSecret) {
         event.preventDefault();

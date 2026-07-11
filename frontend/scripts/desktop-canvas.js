@@ -42,6 +42,7 @@
     '.desk-node-palette',
     '.desk-gallery-panel',
     '.desk-settings',
+    '.desk-selection-group',
     '.desk-selection-toolbar',
     '.desk-zoom-controls',
     '.desk-workflow-dock-toggle',
@@ -51,6 +52,7 @@
     '.desk-node-palette',
     '.desk-gallery-panel',
     '.desk-settings',
+    '.desk-selection-group',
     '.desk-selection-toolbar',
     '.desk-zoom-controls',
     '.desk-workflow-dock-toggle',
@@ -102,24 +104,32 @@
     { value: 'gemini-3.1-flash-image', label: 'Flash' }
   ];
   const GPT_MAIN_MODEL_OPTIONS = [
+    { value: 'gpt-5.6-sol', label: 'GPT-5.6 Sol' },
+    { value: 'gpt-5.6-terra', label: 'GPT-5.6 Terra' },
+    { value: 'gpt-5.6-luna', label: 'GPT-5.6 Luna' },
     { value: 'gpt-5.5', label: 'GPT-5.5' },
     { value: 'gpt-5.4', label: 'GPT-5.4' },
-    { value: 'gpt-5.4-mini', label: 'GPT-5.4 Mini' },
-    { value: 'gpt-5.3-codex', label: 'GPT-5.3 Codex' },
-    { value: 'gpt-5.2', label: 'GPT-5.2' }
+    { value: 'gpt-5.4-mini', label: 'GPT-5.4 Mini' }
   ];
   const GPT_REASONING_OPTIONS = [
     { value: 'none', label: '关闭' },
     { value: 'low', label: '低' },
     { value: 'medium', label: '中' },
     { value: 'high', label: '高' },
-    { value: 'xhigh', label: '超高' }
+    { value: 'xhigh', label: '超高' },
+    { value: 'max', label: '最大' },
+    { value: 'ultra', label: '极限' }
   ];
   const GPT_PROVIDER_ROUTE_OPTIONS = [
     { value: 'codex', label: '本地 Codex' },
     { value: 'chatgpt_pool', label: '账号池 API' },
     { value: 'third_party_image_api', label: '第三方 API' }
   ];
+  const GPT_ROUTE_PRESENTATION = {
+    codex: { modelLabel: '主模型', engineLabel: 'GPT Image 2' },
+    chatgpt_pool: { modelLabel: '主模型', engineLabel: 'ChatGPT Image' },
+    third_party_image_api: { modelLabel: '生图模型', engineLabel: 'gpt-image-2' }
+  };
   const GPT_TASK_TYPE_OPTIONS = [
     { value: 'image', label: '图片' },
     { value: 'ppt', label: 'PPT' },
@@ -203,6 +213,8 @@
   let activeImageEdit = null;
   let imageEditorThemeObserver = null;
   let externalTextStylePresets = [];
+  let gptModelCatalog = null;
+  let nodeGroupSequence = 0;
 
   function $(id) {
     return document.getElementById(id);
@@ -363,6 +375,171 @@
       .join('');
   }
 
+  function fallbackGptModelOptions(route) {
+    if (route === 'chatgpt_pool') {
+      return [{ value: 'gpt-5-5', label: 'GPT-5.5' }];
+    }
+    if (route === 'third_party_image_api') {
+      return [{ value: 'gpt-image-2', label: 'gpt-image-2' }];
+    }
+    return GPT_MAIN_MODEL_OPTIONS;
+  }
+
+  function gptRouteCatalog(route) {
+    const normalized = DesktopState.normalizeGptProviderRoute(route, 'codex');
+    return gptModelCatalog?.routes?.[normalized] || null;
+  }
+
+  function gptModelOptionsForRoute(route) {
+    const catalog = gptRouteCatalog(route);
+    if (catalog?.available === false) return [];
+    const models = Array.isArray(catalog?.models) ? catalog.models : [];
+    const options = models
+      .filter(item => item?.image_generation !== false)
+      .map(item => ({
+        value: DesktopState.normalizeGptMainModel(item?.id, ''),
+        label: String(item?.label || item?.id || '').trim()
+      }))
+      .filter(item => item.value && item.label);
+    if (catalog) return options;
+    return fallbackGptModelOptions(DesktopState.normalizeGptProviderRoute(route, 'codex'));
+  }
+
+  function gptModelCatalogEntry(route, model) {
+    const models = gptRouteCatalog(route)?.models;
+    if (!Array.isArray(models)) return null;
+    return models.find(item => String(item?.id || '') === String(model || '')) || null;
+  }
+
+  function reasoningOption(value) {
+    const normalized = String(value || '').trim().toLowerCase();
+    const known = GPT_REASONING_OPTIONS.find(item => item.value === normalized);
+    return known || (normalized ? { value: normalized, label: normalized } : null);
+  }
+
+  function gptReasoningOptionsForModel(route, model) {
+    const normalizedRoute = DesktopState.normalizeGptProviderRoute(route, 'codex');
+    const catalog = gptRouteCatalog(normalizedRoute);
+    if (!catalog) return normalizedRoute === 'codex' ? GPT_REASONING_OPTIONS : [];
+    const entry = gptModelCatalogEntry(normalizedRoute, model);
+    return (Array.isArray(entry?.reasoning_efforts) ? entry.reasoning_efforts : [])
+      .map(reasoningOption)
+      .filter(Boolean);
+  }
+
+  function selectedReasoningForModel(params, route, model, options) {
+    const values = new Set(options.map(item => item.value));
+    const current = DesktopState.normalizeReasoningEffort(params?.reasoningEffort, 'medium');
+    const modelDefault = DesktopState.normalizeReasoningEffort(
+      gptModelCatalogEntry(route, model)?.default_reasoning_effort,
+      'medium'
+    );
+    return [current, modelDefault, 'medium', options[0]?.value]
+      .find(value => value && values.has(value)) || options[0]?.value || 'none';
+  }
+
+  function updateGptRoutePresentation(node, route) {
+    const normalizedRoute = DesktopState.normalizeGptProviderRoute(route, 'codex');
+    const catalog = gptRouteCatalog(normalizedRoute);
+    const fallback = GPT_ROUTE_PRESENTATION[normalizedRoute] || GPT_ROUTE_PRESENTATION.codex;
+    const modelLabel = normalizedRoute === 'third_party_image_api'
+      ? String(catalog?.model_field_label || fallback.modelLabel)
+      : fallback.modelLabel;
+    const engineLabel = String(catalog?.image_engine?.label || catalog?.image_engine?.id || fallback.engineLabel);
+    const label = node.querySelector('[data-gpt-model-field-label]');
+    const engine = node.querySelector('[data-gpt-image-engine]');
+    if (label) label.textContent = modelLabel;
+    if (engine) {
+      engine.textContent = engineLabel;
+      engine.title = `生图引擎：${engineLabel}`;
+    }
+    node.dataset.gptModelRole = String(catalog?.model_role || '');
+  }
+
+  function applyGptReasoningToNode(node, route, model) {
+    const select = node?.querySelector('[data-field="reasoningEffort"], #deskReasoningEffortSelect');
+    const params = inputParamsForNode(node);
+    if (!select || !params) return 'none';
+    const options = gptReasoningOptionsForModel(route, model);
+    const selected = selectedReasoningForModel(params, route, model, options);
+    select.innerHTML = options.length
+      ? optionListHtml(options, selected)
+      : '<option value="none">不适用</option>';
+    select.value = selected;
+    select.disabled = !options.length;
+    select.title = options.length ? '' : '当前线路不使用推理强度';
+    params.reasoningEffort = selected;
+    window.DesktopSelect?.refresh?.(select);
+    return selected;
+  }
+
+  function selectedGptModelForRoute(params, route, options = gptModelOptionsForRoute(route)) {
+    const normalizedRoute = DesktopState.normalizeGptProviderRoute(route, 'codex');
+    const values = new Set(options.map(item => item.value));
+    const routeSelected = DesktopState.normalizeGptMainModel(params?.gptModelsByRoute?.[normalizedRoute], '');
+    const current = DesktopState.normalizeGptMainModel(params?.gptMainModel, '');
+    const routeDefault = DesktopState.normalizeGptMainModel(gptRouteCatalog(normalizedRoute)?.default_model, '');
+    return [routeSelected, current, routeDefault, options[0]?.value]
+      .find(value => value && values.has(value)) || options[0]?.value || '';
+  }
+
+  function inputParamsForNode(node) {
+    if (!node) return null;
+    if (node.dataset.nodeId === 'input') return DesktopState.state.params;
+    const nodeState = DesktopState.state.canvas.nodes[node.dataset.nodeId];
+    if (!nodeState || nodeState.type !== 'input') return null;
+    nodeState.params = nodeState.params || {};
+    return nodeState.params;
+  }
+
+  function applyGptModelRouteToNode(node, route, { rememberPrevious = true } = {}) {
+    if (!node) return '';
+    const normalizedRoute = DesktopState.normalizeGptProviderRoute(route, 'codex');
+    const select = node.querySelector('[data-field="gptMainModel"], #deskGptMainModelSelect');
+    const params = inputParamsForNode(node);
+    if (!select || !params) return '';
+    params.gptModelsByRoute = params.gptModelsByRoute && typeof params.gptModelsByRoute === 'object'
+      ? { ...params.gptModelsByRoute }
+      : {};
+    const previousRoute = DesktopState.normalizeGptProviderRoute(select.dataset.modelRoute, '');
+    if (rememberPrevious && previousRoute && previousRoute !== normalizedRoute && select.value) {
+      params.gptModelsByRoute[previousRoute] = DesktopState.normalizeGptMainModel(select.value, params.gptModelsByRoute[previousRoute] || 'gpt-5.5');
+    }
+    const options = gptModelOptionsForRoute(normalizedRoute);
+    const optionValues = new Set(options.map(item => item.value));
+    const currentSelection = DesktopState.normalizeGptMainModel(select.value, '');
+    const selected = previousRoute === normalizedRoute && optionValues.has(currentSelection)
+      ? currentSelection
+      : selectedGptModelForRoute(params, normalizedRoute, options);
+    const catalog = gptRouteCatalog(normalizedRoute);
+    select.innerHTML = options.length
+      ? optionListHtml(options, selected)
+      : '<option value="">无可用模型</option>';
+    select.value = selected;
+    select.dataset.modelRoute = normalizedRoute;
+    select.disabled = !options.length || catalog?.available === false;
+    select.title = String(catalog?.warning || '');
+    params.gptMainModel = selected || '';
+    if (selected) params.gptModelsByRoute[normalizedRoute] = selected;
+    updateGptRoutePresentation(node, normalizedRoute);
+    applyGptReasoningToNode(node, normalizedRoute, selected);
+    window.DesktopSelect?.refresh?.(select);
+    return selected;
+  }
+
+  function applyGptModelCatalog(payload = {}) {
+    if (payload?.routes && typeof payload.routes === 'object') {
+      gptModelCatalog = payload;
+    }
+    document.querySelectorAll('.desk-node--input[data-node-id]').forEach(node => {
+      const route = node.querySelector('[data-field="gptProviderRoute"], #deskGptProviderRouteSelect')?.value || 'codex';
+      applyGptModelRouteToNode(node, route, { rememberPrevious: false });
+    });
+    DesktopState.saveSettings();
+    window.requestAnimationFrame(() => window.DesktopSelect?.refreshAll?.());
+    return gptModelCatalog;
+  }
+
   function ratioFromAspect(aspectRatio, fallback = '1:1') {
     const ratioValue = Number(aspectRatio || 1);
     if (!Number.isFinite(ratioValue) || ratioValue <= 0) return fallback;
@@ -477,6 +654,7 @@
       'deskSelectionMarquee',
       'deskSelectionBounds',
       'deskSelectionCount',
+      'deskSelectionGroupBtn',
       'deskSelectionToolbar',
       'deskSmartGuideX',
       'deskSmartGuideY',
@@ -512,6 +690,97 @@
 
   function getNodeElement(nodeId) {
     return document.querySelector(`.desk-node[data-node-id="${CSS.escape(nodeId)}"]`);
+  }
+
+  function normalizeNodeGroupId(value) {
+    const normalized = String(value || '').trim();
+    return /^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/.test(normalized) ? normalized : '';
+  }
+
+  function normalizeNodeGroups(nodes = DesktopState.state.canvas.nodes) {
+    const groups = new Map();
+    let changed = false;
+    Object.values(nodes || {}).forEach(node => {
+      if (!node || typeof node !== 'object') return;
+      const groupId = normalizeNodeGroupId(node.groupId);
+      if (!groupId) {
+        if (Object.prototype.hasOwnProperty.call(node, 'groupId')) {
+          delete node.groupId;
+          changed = true;
+        }
+        return;
+      }
+      if (node.groupId !== groupId) {
+        node.groupId = groupId;
+        changed = true;
+      }
+      groups.set(groupId, (groups.get(groupId) || 0) + 1);
+    });
+    Object.values(nodes || {}).forEach(node => {
+      const groupId = normalizeNodeGroupId(node?.groupId);
+      if (!groupId || (groups.get(groupId) || 0) >= 2) return;
+      delete node.groupId;
+      changed = true;
+    });
+    return changed;
+  }
+
+  function getNodeIdsInGroup(groupId, nodes = DesktopState.state.canvas.nodes) {
+    const normalized = normalizeNodeGroupId(groupId);
+    if (!normalized) return [];
+    return Object.keys(nodes || {}).filter(nodeId => normalizeNodeGroupId(nodes[nodeId]?.groupId) === normalized);
+  }
+
+  function expandNodeIdsToGroups(nodeIds, nodes = DesktopState.state.canvas.nodes) {
+    const expanded = [];
+    const seen = new Set();
+    const append = nodeId => {
+      if (!nodes?.[nodeId] || seen.has(nodeId)) return;
+      seen.add(nodeId);
+      expanded.push(nodeId);
+    };
+    (nodeIds || []).forEach(nodeId => {
+      if (!nodes?.[nodeId]) return;
+      append(nodeId);
+      getNodeIdsInGroup(nodes[nodeId]?.groupId, nodes).forEach(append);
+    });
+    return expanded;
+  }
+
+  function normalizeCanvasGroupsAndSelection() {
+    const canvas = DesktopState.state.canvas;
+    const groupsChanged = normalizeNodeGroups(canvas.nodes);
+    const selected = Array.isArray(canvas.selectedNodeIds)
+      ? canvas.selectedNodeIds
+      : (canvas.selectedNodeId ? [canvas.selectedNodeId] : []);
+    const expanded = expandNodeIdsToGroups(selected, canvas.nodes);
+    const selectionChanged = expanded.length !== selected.length
+      || expanded.some((nodeId, index) => nodeId !== selected[index]);
+    canvas.selectedNodeIds = expanded;
+    canvas.selectedNodeId = expanded[0] || '';
+    return groupsChanged || selectionChanged;
+  }
+
+  function createNodeGroupId() {
+    let groupId = '';
+    do {
+      nodeGroupSequence += 1;
+      groupId = `group_${Date.now().toString(36)}_${nodeGroupSequence.toString(36)}`;
+    } while (getNodeIdsInGroup(groupId).length);
+    return groupId;
+  }
+
+  function getSelectionGroupState(nodeIds = getSelectedNodeIds()) {
+    const selectedIds = [...new Set((nodeIds || []).filter(nodeId => DesktopState.state.canvas.nodes[nodeId]))];
+    if (selectedIds.length < 2) return { grouped: false, groupId: '', memberIds: selectedIds };
+    const groupId = normalizeNodeGroupId(DesktopState.state.canvas.nodes[selectedIds[0]]?.groupId);
+    if (!groupId || selectedIds.some(nodeId => normalizeNodeGroupId(DesktopState.state.canvas.nodes[nodeId]?.groupId) !== groupId)) {
+      return { grouped: false, groupId: '', memberIds: selectedIds };
+    }
+    const memberIds = getNodeIdsInGroup(groupId);
+    const selected = new Set(selectedIds);
+    const grouped = memberIds.length === selectedIds.length && memberIds.every(nodeId => selected.has(nodeId));
+    return { grouped, groupId: grouped ? groupId : '', memberIds: selectedIds };
   }
 
   function getSelectedNodeIds() {
@@ -631,7 +900,9 @@
   }
 
   function setSelectedNodes(nodeIds, save = true) {
-    const uniqueIds = [...new Set((nodeIds || []).filter(nodeId => !!DesktopState.state.canvas.nodes[nodeId]))];
+    const uniqueIds = expandNodeIdsToGroups(
+      [...new Set((nodeIds || []).filter(nodeId => !!DesktopState.state.canvas.nodes[nodeId]))]
+    );
     DesktopState.state.canvas.selectedNodeIds = uniqueIds;
     DesktopState.state.canvas.selectedNodeId = uniqueIds[0] || '';
     blurEditableFocusOutsideSelection(uniqueIds);
@@ -1079,7 +1350,11 @@
     const selected = new Set(selectedIds);
     document.querySelectorAll('.desk-node[data-node-id]').forEach(node => {
       const isSelected = selected.has(node.dataset.nodeId);
+      const groupId = normalizeNodeGroupId(DesktopState.state.canvas.nodes[node.dataset.nodeId]?.groupId);
       node.classList.toggle('is-selected', isSelected);
+      node.classList.toggle('is-grouped', Boolean(groupId));
+      if (groupId) node.dataset.nodeGroupId = groupId;
+      else delete node.dataset.nodeGroupId;
       if (!isSelected && node.classList.contains('desk-node--text')) {
         setTextStyleMenuOpen(node, false);
       }
@@ -1163,6 +1438,51 @@
     return getBoundsFromRects((nodeIds || []).map(getNodeBoundsById).filter(Boolean));
   }
 
+  function getSelectionUnits(nodeIds = getSelectedNodeIds()) {
+    const units = [];
+    const byKey = new Map();
+    (nodeIds || []).forEach(nodeId => {
+      const node = DesktopState.state.canvas.nodes[nodeId];
+      if (!node) return;
+      const groupId = normalizeNodeGroupId(node.groupId);
+      const key = groupId ? `group:${groupId}` : `node:${nodeId}`;
+      let unit = byKey.get(key);
+      if (!unit) {
+        unit = { key, groupId, nodeIds: [] };
+        byKey.set(key, unit);
+        units.push(unit);
+      }
+      unit.nodeIds.push(nodeId);
+    });
+    return units.map(unit => ({
+      ...unit,
+      bounds: getBoundsForNodeIds(unit.nodeIds)
+    })).filter(unit => unit.bounds);
+  }
+
+  function moveSelectionUnit(unit, dx, dy) {
+    unit.nodeIds.forEach(nodeId => {
+      const node = DesktopState.state.canvas.nodes[nodeId];
+      if (!node) return;
+      node.x += dx;
+      node.y += dy;
+      applyNodeLayout(nodeId);
+    });
+    unit.bounds = {
+      ...unit.bounds,
+      x: unit.bounds.x + dx,
+      y: unit.bounds.y + dy,
+      right: unit.bounds.right + dx,
+      bottom: unit.bounds.bottom + dy,
+      centerX: unit.bounds.centerX + dx,
+      centerY: unit.bounds.centerY + dy
+    };
+  }
+
+  function selectionGroupShortcutLabel() {
+    return IS_MAC_PLATFORM ? 'Command+G' : 'Ctrl+G';
+  }
+
   function worldRectToCanvasRect(rect) {
     const canvas = DesktopState.state.canvas;
     return {
@@ -1178,11 +1498,13 @@
     const selectedIds = getSelectedNodeIds();
     if (selectedIds.length < 2) {
       els.deskSelectionToolbar.classList.remove('is-active');
-      els.deskSelectionBounds?.classList.remove('is-active');
+      els.deskSelectionBounds?.classList.remove('is-active', 'is-grouped');
       return;
     }
     const bounds = getBoundsForNodeIds(selectedIds);
     if (!bounds) return;
+    const groupState = getSelectionGroupState(selectedIds);
+    const units = getSelectionUnits(selectedIds);
     const rect = worldRectToCanvasRect(bounds);
     if (els.deskSelectionBounds) {
       els.deskSelectionBounds.style.left = `${rect.left}px`;
@@ -1190,10 +1512,25 @@
       els.deskSelectionBounds.style.width = `${rect.width}px`;
       els.deskSelectionBounds.style.height = `${rect.height}px`;
       els.deskSelectionBounds.classList.add('is-active');
+      els.deskSelectionBounds.classList.toggle('is-grouped', groupState.grouped);
     }
     if (els.deskSelectionCount) {
       els.deskSelectionCount.textContent = `${selectedIds.length} 个节点`;
     }
+    if (els.deskSelectionGroupBtn) {
+      const label = groupState.grouped ? '解除群组' : '群组';
+      const title = groupState.grouped
+        ? `解除选中节点的群组 (${selectionGroupShortcutLabel()})`
+        : `将选中的节点设为群组 (${selectionGroupShortcutLabel()})`;
+      els.deskSelectionGroupBtn.textContent = label;
+      els.deskSelectionGroupBtn.dataset.mode = groupState.grouped ? 'ungroup' : 'group';
+      els.deskSelectionGroupBtn.setAttribute('aria-label', title);
+      els.deskSelectionGroupBtn.title = title;
+    }
+    els.deskSelectionToolbar.querySelectorAll('[data-align]').forEach(button => {
+      const minimumUnits = String(button.dataset.align || '').startsWith('distribute-') ? 3 : 2;
+      button.disabled = units.length < minimumUnits;
+    });
     els.deskSelectionToolbar.style.left = `${Math.max(8, rect.left)}px`;
     els.deskSelectionToolbar.style.top = `${Math.max(8, rect.top - 42)}px`;
     els.deskSelectionToolbar.classList.add('is-active');
@@ -1225,43 +1562,64 @@
     DesktopState.saveSettings();
   }
 
+  function toggleSelectionGroup() {
+    const selectedIds = getSelectedNodeIds();
+    if (selectedIds.length < 2) return false;
+    const groupState = getSelectionGroupState(selectedIds);
+    if (groupState.grouped) {
+      selectedIds.forEach(nodeId => {
+        delete DesktopState.state.canvas.nodes[nodeId].groupId;
+      });
+      setSelectedNodes(selectedIds, false);
+      DesktopState.saveSettings();
+      DesktopResults.showTransientMessage('已解除节点群组。');
+      return true;
+    }
+
+    const groupId = createNodeGroupId();
+    selectedIds.forEach(nodeId => {
+      DesktopState.state.canvas.nodes[nodeId].groupId = groupId;
+    });
+    setSelectedNodes(selectedIds, false);
+    DesktopState.saveSettings();
+    DesktopResults.showTransientMessage(`已将 ${selectedIds.length} 个节点设为群组。`);
+    return true;
+  }
+
   function alignSelection(action) {
     const selectedIds = getSelectedNodeIds();
     if (selectedIds.length < 2) return;
     const bounds = getBoundsForNodeIds(selectedIds);
     if (!bounds) return;
-    const items = selectedIds.map(nodeId => ({
-      nodeId,
-      node: DesktopState.state.canvas.nodes[nodeId],
-      bounds: getNodeBoundsById(nodeId)
-    })).filter(item => item.node && item.bounds);
+    const units = getSelectionUnits(selectedIds);
+    if (units.length < 2) return;
 
-    if (action === 'left') items.forEach(item => { item.node.x = bounds.x; });
-    if (action === 'hcenter') items.forEach(item => { item.node.x = bounds.centerX - item.bounds.width / 2; });
-    if (action === 'right') items.forEach(item => { item.node.x = bounds.right - item.bounds.width; });
-    if (action === 'top') items.forEach(item => { item.node.y = bounds.y; });
-    if (action === 'vcenter') items.forEach(item => { item.node.y = bounds.centerY - item.bounds.height / 2; });
-    if (action === 'bottom') items.forEach(item => { item.node.y = bounds.bottom - item.bounds.height; });
+    if (action === 'left') units.forEach(unit => moveSelectionUnit(unit, bounds.x - unit.bounds.x, 0));
+    if (action === 'hcenter') units.forEach(unit => moveSelectionUnit(unit, bounds.centerX - unit.bounds.centerX, 0));
+    if (action === 'right') units.forEach(unit => moveSelectionUnit(unit, bounds.right - unit.bounds.right, 0));
+    if (action === 'top') units.forEach(unit => moveSelectionUnit(unit, 0, bounds.y - unit.bounds.y));
+    if (action === 'vcenter') units.forEach(unit => moveSelectionUnit(unit, 0, bounds.centerY - unit.bounds.centerY));
+    if (action === 'bottom') units.forEach(unit => moveSelectionUnit(unit, 0, bounds.bottom - unit.bounds.bottom));
 
-    if (action === 'distribute-x' && items.length >= 3) {
-      const ordered = [...items].sort((a, b) => a.bounds.x - b.bounds.x);
-      const totalWidth = ordered.reduce((sum, item) => sum + item.bounds.width, 0);
+    if (action === 'distribute-x' && units.length >= 3) {
+      const ordered = [...units].sort((a, b) => a.bounds.x - b.bounds.x);
+      const totalWidth = ordered.reduce((sum, unit) => sum + unit.bounds.width, 0);
       const gap = (bounds.width - totalWidth) / Math.max(1, ordered.length - 1);
       let x = bounds.x;
-      ordered.forEach(item => {
-        item.node.x = x;
-        x += item.bounds.width + gap;
+      ordered.forEach(unit => {
+        moveSelectionUnit(unit, x - unit.bounds.x, 0);
+        x += unit.bounds.width + gap;
       });
     }
 
-    if (action === 'distribute-y' && items.length >= 3) {
-      const ordered = [...items].sort((a, b) => a.bounds.y - b.bounds.y);
-      const totalHeight = ordered.reduce((sum, item) => sum + item.bounds.height, 0);
+    if (action === 'distribute-y' && units.length >= 3) {
+      const ordered = [...units].sort((a, b) => a.bounds.y - b.bounds.y);
+      const totalHeight = ordered.reduce((sum, unit) => sum + unit.bounds.height, 0);
       const gap = (bounds.height - totalHeight) / Math.max(1, ordered.length - 1);
       let y = bounds.y;
-      ordered.forEach(item => {
-        item.node.y = y;
-        y += item.bounds.height + gap;
+      ordered.forEach(unit => {
+        moveSelectionUnit(unit, 0, y - unit.bounds.y);
+        y += unit.bounds.height + gap;
       });
     }
 
@@ -1653,6 +2011,17 @@
     const archiveChecked = outputControls.archiveEnabled !== false;
     const telegramChecked = outputControls.telegramEnabled !== false;
     const batchChecked = !!(defaults.batchMode ?? nodeState.batchMode);
+    const gptRoute = DesktopState.normalizeGptProviderRoute(defaults.gptProviderRoute, 'codex');
+    const gptModelOptions = gptModelOptionsForRoute(gptRoute);
+    const selectedGptModel = selectedGptModelForRoute(defaults, gptRoute, gptModelOptions);
+    const routeCatalog = gptRouteCatalog(gptRoute);
+    const routePresentation = GPT_ROUTE_PRESENTATION[gptRoute] || GPT_ROUTE_PRESENTATION.codex;
+    const modelFieldLabel = gptRoute === 'third_party_image_api'
+      ? String(routeCatalog?.model_field_label || routePresentation.modelLabel)
+      : routePresentation.modelLabel;
+    const imageEngineLabel = String(routeCatalog?.image_engine?.label || routeCatalog?.image_engine?.id || routePresentation.engineLabel);
+    const reasoningOptions = gptReasoningOptionsForModel(gptRoute, selectedGptModel);
+    const selectedReasoning = selectedReasoningForModel(defaults, gptRoute, selectedGptModel, reasoningOptions);
     return `
       <section class="desk-node desk-node--input desk-glass" data-node-id="${nodeId}" aria-label="模型输入节点">
         <div class="desk-node__header" data-node-drag-handle>
@@ -1687,15 +2056,15 @@
           </label>
           <label>
             <span>线路</span>
-            <select class="desk-select" data-field="gptProviderRoute">${optionListHtml(GPT_PROVIDER_ROUTE_OPTIONS, defaults.gptProviderRoute || 'codex')}</select>
+            <select class="desk-select" data-field="gptProviderRoute">${optionListHtml(GPT_PROVIDER_ROUTE_OPTIONS, gptRoute)}</select>
           </label>
-          <label>
-            <span>推理模型</span>
-            <select class="desk-select" data-field="gptMainModel">${optionListHtml(GPT_MAIN_MODEL_OPTIONS, defaults.gptMainModel || 'gpt-5.5')}</select>
+          <label class="desk-gpt-model-field">
+            <span class="desk-gpt-model-caption"><b data-gpt-model-field-label>${escapeHtml(modelFieldLabel)}</b><small data-gpt-image-engine title="生图引擎：${escapeHtml(imageEngineLabel)}">${escapeHtml(imageEngineLabel)}</small></span>
+            <select class="desk-select" data-field="gptMainModel" data-model-route="${escapeHtml(gptRoute)}">${optionListHtml(gptModelOptions, selectedGptModel)}</select>
           </label>
           <label>
             <span>推理强度</span>
-            <select class="desk-select" data-field="reasoningEffort">${optionListHtml(GPT_REASONING_OPTIONS, defaults.reasoningEffort || 'medium')}</select>
+            <select class="desk-select" data-field="reasoningEffort"${reasoningOptions.length ? '' : ' disabled'}>${reasoningOptions.length ? optionListHtml(reasoningOptions, selectedReasoning) : '<option value="none">不适用</option>'}</select>
           </label>
           <label>
             <span>理解方式</span>
@@ -2268,8 +2637,8 @@
     if (els.deskGptTaskTypeSelect) els.deskGptTaskTypeSelect.value = normalizedTaskType;
     const routeSelect = els.deskGptProviderRouteSelect || els.deskInputNode?.querySelector('[data-field="gptProviderRoute"], #deskGptProviderRouteSelect');
     if (routeSelect) routeSelect.value = state.params.gptProviderRoute || 'codex';
-    if (els.deskGptMainModelSelect) els.deskGptMainModelSelect.value = state.params.gptMainModel || 'gpt-5.5';
     if (els.deskReasoningEffortSelect) els.deskReasoningEffortSelect.value = state.params.reasoningEffort || 'medium';
+    applyGptModelRouteToNode(els.deskInputNode, routeSelect?.value || state.params.gptProviderRoute || 'codex', { rememberPrevious: false });
     if (els.deskPromptModeSelect) els.deskPromptModeSelect.value = DesktopState.normalizePromptMode(state.params.promptMode, 'smart');
     if (els.deskBatchMode) els.deskBatchMode.checked = !!state.params.batchMode;
     applyPromptModeToNode(els.deskInputNode, state.params.promptMode || 'smart');
@@ -2312,7 +2681,13 @@
       ? DesktopState.normalizeGptProviderRoute(routeSelect?.value, 'codex')
       : 'chatgpt_pool';
     state.params.useThirdPartyApi = state.params.gptProviderRoute === 'third_party_image_api';
+    state.params.reasoningEffort = DesktopState.normalizeReasoningEffort(els.deskReasoningEffortSelect?.value, state.params.reasoningEffort || 'medium');
+    applyGptModelRouteToNode(els.deskInputNode, state.params.gptProviderRoute);
     state.params.gptMainModel = DesktopState.normalizeGptMainModel(els.deskGptMainModelSelect?.value, 'gpt-5.5');
+    state.params.gptModelsByRoute = {
+      ...(state.params.gptModelsByRoute || {}),
+      [state.params.gptProviderRoute]: state.params.gptMainModel
+    };
     state.params.reasoningEffort = DesktopState.normalizeReasoningEffort(els.deskReasoningEffortSelect?.value, 'medium');
     state.params.promptMode = DesktopState.normalizePromptMode(els.deskPromptModeSelect?.value, getPromptModeFromNode(els.deskInputNode, 'smart'));
     state.params.batchMode = !!els.deskBatchMode?.checked;
@@ -2345,6 +2720,16 @@
     const route = taskType === 'image'
       ? DesktopState.normalizeGptProviderRoute(node.querySelector('[data-field="gptProviderRoute"]')?.value, 'codex')
       : 'chatgpt_pool';
+    nodeState.params = nodeState.params || {};
+    nodeState.params.reasoningEffort = DesktopState.normalizeReasoningEffort(
+      node.querySelector('[data-field="reasoningEffort"]')?.value,
+      nodeState.params.reasoningEffort || 'medium'
+    );
+    applyGptModelRouteToNode(node, route);
+    const routeModels = {
+      ...(nodeState.params?.gptModelsByRoute || {}),
+      [route]: DesktopState.normalizeGptMainModel(node.querySelector('[data-field="gptMainModel"]')?.value, 'gpt-5.5')
+    };
     nodeState.provider = getProviderFromNode(node);
     nodeState.params = {
       ratio: DesktopState.normalizeRatio(node.querySelector('[data-field="ratio"]')?.value, '9:16'),
@@ -2359,6 +2744,7 @@
       gptProviderRoute: route,
       useThirdPartyApi: route === 'third_party_image_api',
       gptMainModel: DesktopState.normalizeGptMainModel(node.querySelector('[data-field="gptMainModel"]')?.value, 'gpt-5.5'),
+      gptModelsByRoute: routeModels,
       reasoningEffort: DesktopState.normalizeReasoningEffort(node.querySelector('[data-field="reasoningEffort"]')?.value, 'medium'),
       promptMode: getPromptModeFromNode(node, 'smart'),
       batchMode: !!node.querySelector('[data-field="batchMode"]')?.checked
@@ -2902,6 +3288,7 @@
       if (locked) routeSelect.value = 'chatgpt_pool';
       routeSelect.disabled = locked;
       routeSelect.title = locked ? 'PPT/PSD 任务只能走账号池 Web API 线路' : '';
+      applyGptModelRouteToNode(node, routeSelect.value);
     }
     node.classList.toggle('is-editable-file-task', normalized !== 'image');
     return normalized;
@@ -3830,6 +4217,7 @@
     refs.forEach(revokeReferenceUrl);
     if (nodeId === 'input') DesktopState.state.referenceImages = [];
     delete getNodeReferenceStore()[nodeId];
+    normalizeNodeGroups();
     setSelectedNodes(options.clearSelection ? [] : getSelectedNodeIds().filter(id => id !== nodeId), false);
     const affectedLayoutIds = (DesktopState.state.canvas.edges || [])
       .filter(edge => edge.from === nodeId || edge.to === nodeId)
@@ -4910,6 +5298,8 @@
     if (!id) return null;
     clean.id = id;
     clean.type = normalizeNodeMenuType(clean.type || (id === 'input' ? 'input' : 'image'));
+    clean.groupId = normalizeNodeGroupId(clean.groupId);
+    if (!clean.groupId) delete clean.groupId;
     clean.x = Number.isFinite(Number(clean.x)) ? Number(clean.x) : 56;
     clean.y = Number.isFinite(Number(clean.y)) ? Number(clean.y) : 72;
     clean.width = Number.isFinite(Number(clean.width)) ? Number(clean.width) : (clean.type === 'input' ? DEFAULT_INPUT_NODE_WIDTH : (clean.type === 'upscale' ? DEFAULT_UPSCALE_NODE_WIDTH : DEFAULT_IMAGE_NODE_WIDTH));
@@ -4966,15 +5356,19 @@
     if (!nodes.input) {
       nodes.input = { id: 'input', type: 'input', x: 56, y: 72, width: DEFAULT_INPUT_NODE_WIDTH, height: DEFAULT_INPUT_NODE_HEIGHT };
     }
+    normalizeNodeGroups(nodes);
     const edges = (Array.isArray(source.edges) ? source.edges : [])
       .map(edge => ({
         from: String(edge?.from || ''),
         to: String(edge?.to || '')
       }))
       .filter(edge => edge.from && edge.to && edge.from !== edge.to && nodes[edge.from] && nodes[edge.to]);
-    const selectedNodeIds = (Array.isArray(source.selectedNodeIds) ? source.selectedNodeIds : [source.selectedNodeId])
-      .map(item => String(item || ''))
-      .filter(nodeId => nodes[nodeId]);
+    const selectedNodeIds = expandNodeIdsToGroups(
+      (Array.isArray(source.selectedNodeIds) ? source.selectedNodeIds : [source.selectedNodeId])
+        .map(item => String(item || ''))
+        .filter(nodeId => nodes[nodeId]),
+      nodes
+    );
     return {
       x: Number.isFinite(Number(source.x)) ? Number(source.x) : 0,
       y: Number.isFinite(Number(source.y)) ? Number(source.y) : 0,
@@ -7291,10 +7685,13 @@
       setNodePaletteOpen(false);
       hideContextMenu();
       if (!event.target.closest('.desk-node--text, #deskPromptDrawer')) {
-        const selectedTextNode = getSelectedNodeIds()
+        const selectedIds = getSelectedNodeIds();
+        const pointerNodeId = getCanvasNodeIdForElement(event.target);
+        const pointerInsideSelection = pointerNodeId && selectedIds.includes(pointerNodeId);
+        const selectedTextNode = selectedIds
           .map(nodeId => DesktopState.state.canvas.nodes[nodeId])
           .some(node => node?.type === 'text');
-        if (selectedTextNode) selectNode('');
+        if (selectedTextNode && !pointerInsideSelection) selectNode('');
       }
     });
 
@@ -7579,6 +7976,7 @@
       const routeSelect = event.target.closest('select[data-field="gptProviderRoute"]');
       if (routeSelect) {
         const routeNode = routeSelect.closest('.desk-node--input[data-node-id]');
+        applyGptModelRouteToNode(routeNode, routeSelect.value);
         if (routeNode?.dataset.nodeId === 'input') {
           DesktopState.state.params.gptProviderRoute = DesktopState.normalizeGptProviderRoute(routeSelect.value, 'codex');
           DesktopState.state.params.useThirdPartyApi = DesktopState.state.params.gptProviderRoute === 'third_party_image_api';
@@ -7649,6 +8047,7 @@
       const routeSelect = event.target.closest('select[data-field="gptProviderRoute"]');
       if (routeSelect) {
         const routeNode = routeSelect.closest('.desk-node--input[data-node-id]');
+        applyGptModelRouteToNode(routeNode, routeSelect.value);
         if (routeNode?.dataset.nodeId === 'input') readFormToState();
         else {
           syncInputNodeStateFromDom(routeNode);
@@ -7815,6 +8214,14 @@
     els.deskSelectionToolbar?.addEventListener('pointerdown', event => {
       event.stopPropagation();
     });
+    els.deskSelectionGroupBtn?.addEventListener('pointerdown', event => {
+      event.stopPropagation();
+    });
+    els.deskSelectionGroupBtn?.addEventListener('click', event => {
+      event.preventDefault();
+      event.stopPropagation();
+      toggleSelectionGroup();
+    });
     els.deskSelectionToolbar?.addEventListener('click', event => {
       const button = event.target.closest('[data-align]');
       if (!button) return;
@@ -7857,10 +8264,10 @@
       if (DesktopState.state.canvas.nodes[node?.dataset.nodeId || '']?.type === 'input') return;
       startNodeResize(event);
       return;
-    }
+      }
       if (event.target.closest('[data-node-drag-handle]')) {
         const node = event.target.closest('.desk-node[data-node-id]');
-        if (node) selectNode(node.dataset.nodeId);
+        if (node && !getSelectedNodeIds().includes(node.dataset.nodeId)) selectNode(node.dataset.nodeId);
         startNodeDrag(event, { force: isTextNodeDragEdge(event, node) });
       }
     });
@@ -7956,6 +8363,20 @@
         }
       }
       const editingSelectedNode = isEditingSelectedNode(event.target);
+      const groupModifier = IS_MAC_PLATFORM ? event.metaKey : event.ctrlKey;
+      if (
+        groupModifier
+        && !event.altKey
+        && !event.shiftKey
+        && String(event.key || '').toLowerCase() === 'g'
+        && !editingSelectedNode
+        && getSelectedNodeIds().length >= 2
+      ) {
+        event.preventDefault();
+        event.stopPropagation();
+        if (!event.repeat) toggleSelectionGroup();
+        return;
+      }
       if ((event.key === 'Delete' || event.key === 'Backspace') && !editingSelectedNode) {
         const selectedNodeIds = nodeIdsForKeyboardDelete(event);
         if (selectedNodeIds.length) {
@@ -7985,16 +8406,19 @@
     migrateResultNodesToModelOutputs();
     migrateLegacyPromptDraftToTextNode();
     ensureTextNodeAliases();
+    const groupsChanged = normalizeCanvasGroupsAndSelection();
     syncFormFromState();
     renderReferenceThumbs();
     updateCanvasToolCursor(false);
     bindEvents();
+    if (groupsChanged) DesktopState.saveSettings();
   }
 
   window.DesktopCanvas = {
     init,
     readFormToState,
     syncFormFromState,
+    applyGptModelCatalog,
     renderReferenceThumbs,
     applyCanvasTransform,
     applyAllNodeLayouts,

@@ -1,4 +1,6 @@
 (function () {
+  let authenticatedDataStarted = false;
+
   function afterAuthReady(callback) {
     if (typeof waitForMiniappAuthReady === 'function') {
       waitForMiniappAuthReady(9000).then(ok => {
@@ -7,6 +9,23 @@
       return;
     }
     callback();
+  }
+
+  function loadAuthenticatedDesktopData() {
+    if (authenticatedDataStarted) return;
+    authenticatedDataStarted = true;
+
+    DesktopApi.getGptConfig()
+      .then(config => {
+        DesktopState.applyGptRuntimeConfig(config);
+        DesktopCanvas.syncFormFromState();
+      })
+      .catch(() => {});
+    DesktopApi.getGptModels?.()
+      .then(catalog => DesktopCanvas.applyGptModelCatalog?.(catalog))
+      .catch(() => {});
+    DesktopHistory.loadHistory().catch(() => {});
+    DesktopResults.restoreLastTask().catch(() => {});
   }
 
   function bindGlobalKeys() {
@@ -39,17 +58,16 @@
         });
     };
 
-    afterAuthReady(() => {
-      DesktopApi.getGptConfig()
-        .then(config => {
-          DesktopState.applyGptRuntimeConfig(config);
-          DesktopCanvas.syncFormFromState();
-        })
-        .catch(() => {});
-      DesktopHistory.loadHistory().catch(() => {});
-      DesktopResults.restoreLastTask().catch(() => {});
-    });
+    afterAuthReady(loadAuthenticatedDesktopData);
   }
+
+  window.addEventListener('miniapp:auth-state-change', event => {
+    if (event.detail?.state !== 'authenticated') {
+      authenticatedDataStarted = false;
+      return;
+    }
+    loadAuthenticatedDesktopData();
+  });
 
   window.addEventListener('desktop:language-change', () => {
     try {

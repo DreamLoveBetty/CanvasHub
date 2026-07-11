@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="canvashub-version" content="V26.0.0.1">
   <title>图像画布</title>
-  <link rel="stylesheet" href="styles/desktop-liquid.css?v=20260711-file-board-list4">
+  <link rel="stylesheet" href="styles/desktop-liquid.css?v=20260712-node-groups1">
   <link rel="stylesheet" href="styles/desktop-layout.css?v=20260629-desk-select1">
   <link rel="stylesheet" href="styles/desktop-pose.css?v=20260703-pose-reference1">
   <link rel="stylesheet" href="styles/desktop-file-results.css?v=20260711-file-board-list4">
@@ -259,8 +259,11 @@
         <span class="desk-smart-guide desk-smart-guide--x" id="deskSmartGuideX"></span>
         <span class="desk-smart-guide desk-smart-guide--y" id="deskSmartGuideY"></span>
       </div>
-      <div class="desk-selection-bounds" id="deskSelectionBounds" aria-hidden="true">
-        <span id="deskSelectionCount">0 个节点</span>
+      <div class="desk-selection-bounds" id="deskSelectionBounds">
+        <div class="desk-selection-bounds__meta">
+          <span id="deskSelectionCount" aria-live="polite">0 个节点</span>
+          <button type="button" class="desk-selection-group" id="deskSelectionGroupBtn" title="将选中的节点设为群组">群组</button>
+        </div>
       </div>
       <div class="desk-selection-toolbar desk-glass" id="deskSelectionToolbar" aria-label="节点对齐工具">
         <button type="button" data-align="left" title="左对齐" aria-label="左对齐">
@@ -416,14 +419,15 @@
               <option value="third_party_image_api">第三方 API</option>
             </select>
           </label>
-          <label>
-            <span>推理模型</span>
+          <label class="desk-gpt-model-field">
+            <span class="desk-gpt-model-caption"><b data-gpt-model-field-label>主模型</b><small data-gpt-image-engine title="生图引擎：GPT Image 2">GPT Image 2</small></span>
             <select id="deskGptMainModelSelect" class="desk-select">
+              <option value="gpt-5.6-sol">GPT-5.6 Sol</option>
+              <option value="gpt-5.6-terra">GPT-5.6 Terra</option>
+              <option value="gpt-5.6-luna">GPT-5.6 Luna</option>
               <option value="gpt-5.5" selected>GPT-5.5</option>
               <option value="gpt-5.4">GPT-5.4</option>
               <option value="gpt-5.4-mini">GPT-5.4 Mini</option>
-              <option value="gpt-5.3-codex">GPT-5.3 Codex</option>
-              <option value="gpt-5.2">GPT-5.2</option>
             </select>
           </label>
           <label>
@@ -434,6 +438,8 @@
               <option value="medium" selected>中</option>
               <option value="high">高</option>
               <option value="xhigh">超高</option>
+              <option value="max">最大</option>
+              <option value="ultra">极限</option>
             </select>
           </label>
           <label>
@@ -1233,23 +1239,23 @@
     <input id="deskLayoutImageInput" type="file" accept="image/*" hidden>
   </div>
 
-  <script src="scripts/desktop-i18n.js?v=20260710-file-output-redesign3"></script>
+  <script src="scripts/desktop-i18n.js?v=20260712-node-groups1"></script>
   <script src="scripts/auth-api.js?v=20260711-auth-ready1"></script>
   <script src="vendor/fabric.min.js?v=5.3.0"></script>
   <script src="vendor/fabric-eraser.mixin.js?v=20260628-image-editor-pin16"></script>
-  <script src="scripts/desktop-state.js?v=20260702-upscale-flow12"></script>
+  <script src="scripts/desktop-state.js?v=20260711-route-models2"></script>
   <script src="scripts/desktop-preferences.js?v=20260707-theme-circle-reveal7"></script>
   <script src="scripts/desktop-select.js?v=20260702-upscale-flow12"></script>
   <script src="scripts/desktop-api.js?v=20260711-route-models1"></script>
-  <script src="scripts/desktop-canvas.js?v=20260711-route-models2"></script>
+  <script src="scripts/desktop-canvas.js?v=20260712-node-groups2"></script>
   <script type="module" src="scripts/desktop-pose-studio.js?v=20260705-pose-legacy-skeleton1"></script>
   <script src="scripts/desktop-layout-editor.js?v=20260621-websearch1"></script>
   <script src="scripts/desktop-file-results.js?v=20260711-file-board-list3"></script>
   <script src="scripts/desktop-results.js?v=20260710-file-output-redesign3"></script>
   <script src="scripts/desktop-history.js?v=20260705-gallery-preview-counter1"></script>
-  <script src="scripts/desktop-settings.js?v=20260707-provider-auth-state1"></script>
+  <script src="scripts/desktop-settings.js?v=20260712-pool-oauth3"></script>
   <script src="scripts/desktop-prompt-editor.js?v=20260704-prompt-clear-position1"></script>
   <script src="scripts/desktop-prompt-drawer.js?v=20260706-prompt-drawer-session1"></script>
-  <script src="scripts/desktop-bootstrap.js?v=20260629-desk-select1"></script>
+  <script src="scripts/desktop-bootstrap.js?v=20260711-route-models2"></script>
 </body>
 </html>

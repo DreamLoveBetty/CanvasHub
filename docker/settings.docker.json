@@ -44,7 +44,7 @@
     "enabled": true,
     "base_url": "http://sidecar:18080",
     "auth_key": "",
-    "generation_model": "gpt-image-2",
+    "generation_model": "gpt-5-5",
     "timeout_seconds": 900,
     "db_path": "data/chatgpt_pool/accounts.db"
   },

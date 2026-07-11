@@ -408,6 +408,10 @@
     return requireApi().json('/api/gpt/config');
   }
 
+  function getGptModels(refresh = false) {
+    return requireApi().json(`/api/gpt/models${refresh ? '?refresh=1' : ''}`);
+  }
+
   function saveGptConfig(config = {}) {
     return requireApi().json('/api/gpt/config', {
       method: 'POST',
@@ -935,6 +939,7 @@
     getSystemSettings,
     saveSystemSettings,
     getGptConfig,
+    getGptModels,
     saveGptConfig,
     getChatgptPoolStatus,
     getChatgptPoolAccounts,

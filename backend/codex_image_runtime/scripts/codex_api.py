@@ -7,6 +7,7 @@ import base64
 import json
 import mimetypes
 import os
+import re
 import sys
 import time
 import uuid
@@ -47,11 +48,12 @@ except Exception:
     PROJECT_DEFAULT_IMAGE_MAIN_MODEL = DEFAULT_CHAT_MODEL
     PROJECT_DEFAULT_REASONING_EFFORT = "medium"
     PROJECT_IMAGE_MAIN_MODELS = {
+        "gpt-5.6-sol",
+        "gpt-5.6-terra",
+        "gpt-5.6-luna",
         "gpt-5.5",
         "gpt-5.4",
         "gpt-5.4-mini",
-        "gpt-5.3-codex",
-        "gpt-5.2",
     }
     PROJECT_REASONING_EFFORTS = {
         "none",
@@ -59,6 +61,8 @@ except Exception:
         "medium",
         "high",
         "xhigh",
+        "max",
+        "ultra",
     }
     get_gpt_provider_config = None
 
@@ -819,7 +823,9 @@ def normalize_image_main_model(value: str | None) -> str:
     if configured not in SUPPORTED_IMAGE_MAIN_MODELS:
         configured = PROJECT_DEFAULT_IMAGE_MAIN_MODEL
     model = str(value or configured).strip()
-    return model if model in SUPPORTED_IMAGE_MAIN_MODELS else configured
+    if re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,127}", model):
+        return model
+    return configured
 
 
 def normalize_reasoning_effort(value: str | None) -> str:

@@ -98,6 +98,7 @@ from .api_client_gpt import send_telegram_result, send_tg_document
 from .provider_gpt_codex import generate_image_gpt_codex, edit_image_gpt_codex, get_gpt_provider_auth_status
 from .provider_chatgpt_pool import chat_chatgpt_pool, edit_image_gpt_pool, generate_editable_file_gpt_pool, generate_image_gpt_pool, search_chatgpt_pool
 from .provider_third_party_image import generate_image_third_party, edit_image_third_party
+from .gpt_model_catalog import DEFAULT_POOL_MODEL, get_gpt_model_catalog, normalize_model_id, resolve_route_model
 from .image_resolution import build_resolution_metadata, normalize_actual_sizes
 from .managed_codex_oauth import (
     delete_managed_auth,
@@ -296,8 +297,7 @@ VALID_GPT_TRANSPORT_MODES = set(GPT_TRANSPORT_MODES)
 def _coerce_gpt_main_model(value):
     if value in (None, ''):
         value = get_gpt_provider_config().get('image_main_model')
-    model = str(value or '').strip()
-    return model if model in VALID_GPT_MAIN_MODELS else DEFAULT_GPT_IMAGE_MAIN_MODEL
+    return normalize_model_id(value, DEFAULT_GPT_IMAGE_MAIN_MODEL)
 
 
 def _coerce_gpt_reasoning_effort(value):
@@ -4626,6 +4626,10 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
             if not self.require_auth():
                 return
             self.handle_gpt_config()
+        elif path == '/api/gpt/models':
+            if not self.require_auth():
+                return
+            self.handle_gpt_models(parsed)
         elif path == '/api/gpt-pool/status':
             if not self.require_auth():
                 return
@@ -6181,6 +6185,16 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
             print(f"❌ ChatGPT 账号池状态读取失败：{e}")
             self.send_json({"ok": False, "error": str(e)}, 500)
 
+    def handle_gpt_models(self, parsed):
+        """Return account-scoped generation models for each GPT route."""
+        try:
+            query = urllib.parse.parse_qs(parsed.query or '')
+            refresh = _coerce_bool((query.get('refresh') or [''])[0], False)
+            self.send_json(get_gpt_model_catalog(force=refresh))
+        except Exception as e:
+            print(f"❌ GPT 模型目录读取失败：{e}")
+            self.send_json({"ok": False, "error": str(e)}, 502)
+
     def handle_chatgpt_pool_accounts(self):
         """Proxy account list through server.py so the UI never sees sidecar auth."""
         try:
@@ -6352,7 +6366,8 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
             payload = self._read_json_body()
             if path == "/api/gpt-pool/oauth/finish" and payload.get("callback_url") and not payload.get("callback"):
                 payload["callback"] = payload.get("callback_url")
-            data = _chatgpt_pool_request("POST", sidecar_path, payload)
+            request_timeout = 130 if path == "/api/gpt-pool/oauth/finish" else None
+            data = _chatgpt_pool_request("POST", sidecar_path, payload, timeout=request_timeout)
             self.send_json(data)
         except json.JSONDecodeError:
             self.send_json({"ok": False, "error": "请求体格式错误"}, 400)
@@ -8336,6 +8351,26 @@ def process_edit_task(task_id, prompt, images, params):
         _finalize_generation_task(task_id, 'failed', run_id=run_id, stage='failed', progress_text=error_info.get('display_error') or error_msg, error_info=error_info, error_type=error_type, provider=task_provider, route=task_route, task_type=task_kind)
         send_status_notification(task_id, f'❌ 编辑失败：{(error_info.get("display_error") or error_msg)[:100]}', '⚠️')
 
+def _annotate_gpt_route_result(result, route_resolution, *, requested_route, requested_model, requested_reasoning_effort):
+    actual_model = str(result.get('main_model') or route_resolution.get('model') or requested_model)
+    actual_reasoning = str(result.get('reasoning_effort') or route_resolution.get('reasoning_effort') or 'none')
+    result['main_model'] = actual_model
+    result['requested_main_model'] = requested_model
+    if actual_model != requested_model:
+        result['model_fallback_from'] = requested_model
+    result['reasoning_effort'] = actual_reasoning
+    result['requested_reasoning_effort'] = requested_reasoning_effort
+    if actual_reasoning != requested_reasoning_effort:
+        result['reasoning_fallback_from'] = requested_reasoning_effort
+    result['requested_gpt_provider_route'] = requested_route
+    result['model_role'] = str(route_resolution.get('model_role') or '')
+    result['model_catalog_source'] = str(route_resolution.get('source') or '')
+    image_engine = route_resolution.get('image_engine') or {}
+    result['image_engine'] = str(image_engine.get('id') or '')
+    result['image_engine_label'] = str(image_engine.get('label') or image_engine.get('id') or '')
+    return result
+
+
 def _generate_gpt_with_pool_fallback(task_id, prompt, ratio, resolution, quality, image_count=1, moderation='auto', prompt_mode='smart', main_model=None, reasoning_effort=None, gpt_provider_route='codex'):
     """Run Codex with managed OAuth preferred, then local auth, then account-pool fallback."""
     primary_error = None
@@ -8345,12 +8380,22 @@ def _generate_gpt_with_pool_fallback(task_id, prompt, ratio, resolution, quality
     prompt_meta = {}
     if prompt_mode == 'web_search':
         prompt, prompt_meta = _prepare_web_search_generation_prompt(task_id, prompt)
-    main_model = _coerce_gpt_main_model(main_model)
-    reasoning_effort = _coerce_gpt_reasoning_effort(reasoning_effort)
+    requested_main_model = _coerce_gpt_main_model(main_model)
+    requested_reasoning_effort = _coerce_gpt_reasoning_effort(reasoning_effort)
     gpt_provider_route = _coerce_gpt_provider_route(gpt_provider_route)
+    route_model = resolve_route_model(
+        gpt_provider_route,
+        requested_main_model,
+        reasoning_effort=requested_reasoning_effort,
+    )
+    main_model = route_model.get('model') or requested_main_model
+    reasoning_effort = route_model.get('reasoning_effort') or requested_reasoning_effort
     provider_timeout_seconds = _coerce_gpt_provider_total_timeout(None)
 
-    if gpt_provider_route == 'codex':
+    if gpt_provider_route == 'codex' and not route_model.get('available'):
+        primary_error = route_model.get('warning') or '当前 Codex 账号没有可用的图片生成模型'
+        _append_task_route_trace(task_id, 'codex', 'skipped', primary_error)
+    elif gpt_provider_route == 'codex':
         route_started = time.monotonic()
         provider_route = gpt_provider_route
         provider_label = 'Codex provider'
@@ -8363,6 +8408,20 @@ def _generate_gpt_with_pool_fallback(task_id, prompt, ratio, resolution, quality
             f'正在调用{provider_label}',
             timeout_seconds=provider_timeout_seconds,
         )
+        if route_model.get('adapted'):
+            _append_task_route_trace(
+                task_id,
+                provider_trace_route,
+                'model_adapted',
+                f"模型 {requested_main_model} 当前不可用，已改用 {main_model}",
+            )
+        if route_model.get('reasoning_adapted'):
+            _append_task_route_trace(
+                task_id,
+                provider_trace_route,
+                'reasoning_adapted',
+                f"推理强度 {requested_reasoning_effort} 不适用于 {main_model}，已改用 {reasoning_effort}",
+            )
         try:
             update_task_status(task_id, 'processing', f'正在调用{provider_label}...', stage='calling_gpt')
             send_status_notification(task_id, f'生成中... 正在调用{provider_label}...', '🤖')
@@ -8396,6 +8455,13 @@ def _generate_gpt_with_pool_fallback(task_id, prompt, ratio, resolution, quality
                     result.update(prompt_meta)
                 result['prompt_mode'] = prompt_mode
                 result['gpt_provider_route'] = gpt_provider_route
+                _annotate_gpt_route_result(
+                    result,
+                    route_model,
+                    requested_route=gpt_provider_route,
+                    requested_model=requested_main_model,
+                    requested_reasoning_effort=requested_reasoning_effort,
+                )
                 result['codex_auth_source'] = codex_auth_source
                 result['route_trace'] = (get_task(task_id) or {}).get('params', {}).get('route_trace')
                 _append_task_route_trace(
@@ -8445,6 +8511,19 @@ def _generate_gpt_with_pool_fallback(task_id, prompt, ratio, resolution, quality
         else:
             send_status_notification(task_id, f'{provider_error_text}，切换 ChatGPT 账号池托底中...', '🛟')
         try:
+            pool_model_resolution = resolve_route_model(
+                'chatgpt_pool',
+                requested_main_model,
+                reasoning_effort=requested_reasoning_effort,
+            )
+            pool_main_model = pool_model_resolution.get('model') or DEFAULT_POOL_MODEL
+            if pool_model_resolution.get('adapted'):
+                _append_task_route_trace(
+                    task_id,
+                    'chatgpt_pool',
+                    'model_adapted',
+                    f"账号池不支持 {requested_main_model}，已改用 {pool_main_model}",
+                )
             if prompt_mode == 'web_search':
                 pool_prompt, pool_prompt_meta = prompt, prompt_meta
             else:
@@ -8457,6 +8536,7 @@ def _generate_gpt_with_pool_fallback(task_id, prompt, ratio, resolution, quality
                 quality,
                 image_count=image_count,
                 prompt_mode=prompt_mode,
+                main_model=pool_main_model,
                 on_image_saved=_make_gpt_image_progress_callback(task_id, image_count),
             )
         except Exception as e:
@@ -8478,9 +8558,17 @@ def _generate_gpt_with_pool_fallback(task_id, prompt, ratio, resolution, quality
                 pool_result['fallback_source'] = 'chatgpt_pool'
                 pool_result['requested_image_count'] = image_count
                 pool_result['prompt_mode'] = prompt_mode
-                pool_result['main_model'] = main_model
-                pool_result['reasoning_effort'] = reasoning_effort
-                pool_result['gpt_provider_route'] = gpt_provider_route
+                actual_pool_model = pool_result.get('main_model') or pool_main_model
+                pool_result['main_model'] = actual_pool_model
+                pool_result['reasoning_effort'] = pool_model_resolution.get('reasoning_effort') or 'none'
+                pool_result['gpt_provider_route'] = 'chatgpt_pool'
+                _annotate_gpt_route_result(
+                    pool_result,
+                    pool_model_resolution,
+                    requested_route=gpt_provider_route,
+                    requested_model=requested_main_model,
+                    requested_reasoning_effort=requested_reasoning_effort,
+                )
                 _append_task_route_trace(
                     task_id,
                     'chatgpt_pool',
@@ -8872,8 +8960,10 @@ def process_gpt_task(task_id, prompt, ratio, resolution, quality='auto', image_c
     task_provider = 'codex'
     task_route = 'codex'
     try:
-        main_model = _coerce_gpt_main_model(main_model)
-        reasoning_effort = _coerce_gpt_reasoning_effort(reasoning_effort)
+        requested_main_model = _coerce_gpt_main_model(main_model)
+        main_model = requested_main_model
+        requested_reasoning_effort = _coerce_gpt_reasoning_effort(reasoning_effort)
+        reasoning_effort = requested_reasoning_effort
         gpt_provider_route = _coerce_gpt_provider_route(gpt_provider_route)
         use_third_party_api = _gpt_route_uses_third_party(gpt_provider_route) or _coerce_use_third_party_api(use_third_party_api)
         archive_enabled = _coerce_bool(archive_enabled, True)
@@ -8904,6 +8994,13 @@ def process_gpt_task(task_id, prompt, ratio, resolution, quality='auto', image_c
         if _coerce_prompt_mode(prompt_mode) == 'web_search' and use_third_party_api:
             prompt, prompt_meta = _prepare_web_search_generation_prompt(task_id, prompt)
         if use_third_party_api:
+            third_party_model = resolve_route_model(
+                'third_party_image_api',
+                requested_main_model,
+                reasoning_effort=requested_reasoning_effort,
+            )
+            main_model = third_party_model.get('model') or requested_main_model
+            reasoning_effort = third_party_model.get('reasoning_effort') or 'none'
             route_started = time.monotonic()
             _append_task_route_trace(task_id, 'third_party_image_api', 'started', '正在调用第三方图片 API')
             update_task_status(task_id, 'processing', '正在调用第三方图片 API...', stage='calling_third_party_image_api')
@@ -8920,8 +9017,13 @@ def process_gpt_task(task_id, prompt, ratio, resolution, quality='auto', image_c
             result['fallback_source'] = 'third_party_image_api'
             result['gpt_provider_route'] = 'third_party_image_api'
             result['prompt_mode'] = prompt_mode
-            result['main_model'] = main_model
-            result['reasoning_effort'] = reasoning_effort
+            _annotate_gpt_route_result(
+                result,
+                third_party_model,
+                requested_route=gpt_provider_route,
+                requested_model=requested_main_model,
+                requested_reasoning_effort=requested_reasoning_effort,
+            )
             if prompt_meta:
                 result.update(prompt_meta)
             _append_task_route_trace(
@@ -8935,7 +9037,7 @@ def process_gpt_task(task_id, prompt, ratio, resolution, quality='auto', image_c
             source = 'third_party_image_api'
         else:
             result, source, primary_error = _generate_gpt_with_pool_fallback(
-                task_id, prompt, ratio, resolution, quality, image_count=image_count, moderation=moderation, prompt_mode=prompt_mode, main_model=main_model, reasoning_effort=reasoning_effort, gpt_provider_route=gpt_provider_route
+                task_id, prompt, ratio, resolution, quality, image_count=image_count, moderation=moderation, prompt_mode=prompt_mode, main_model=main_model, reasoning_effort=requested_reasoning_effort, gpt_provider_route=gpt_provider_route
             )
         if source == 'canceled' or _is_task_canceled(task_id):
             _finish_canceled_gpt_task(task_id, result)
@@ -8984,7 +9086,16 @@ def process_gpt_task(task_id, prompt, ratio, resolution, quality='auto', image_c
             'actual_size': result.get('actual_size'),
             'actual_megapixels': result.get('actual_megapixels'),
             'main_model': result.get('main_model') or main_model,
+            'requested_main_model': result.get('requested_main_model') or requested_main_model,
+            'model_fallback_from': result.get('model_fallback_from'),
+            'requested_gpt_provider_route': result.get('requested_gpt_provider_route') or gpt_provider_route,
             'reasoning_effort': result.get('reasoning_effort') or reasoning_effort,
+            'requested_reasoning_effort': result.get('requested_reasoning_effort') or requested_reasoning_effort,
+            'reasoning_fallback_from': result.get('reasoning_fallback_from'),
+            'model_role': result.get('model_role'),
+            'model_catalog_source': result.get('model_catalog_source'),
+            'image_engine': result.get('image_engine'),
+            'image_engine_label': result.get('image_engine_label'),
             'provider_total_timeout_seconds': _coerce_gpt_provider_total_timeout(None),
             'codex_auth_source': result.get('codex_auth_source'),
             'route_trace': result.get('route_trace'),
@@ -9081,13 +9192,32 @@ def process_gpt_edit_task(task_id, prompt, images, ratio, resolution, quality='a
     task_provider = 'codex'
     task_route = 'codex_edit'
     try:
-        main_model = _coerce_gpt_main_model(main_model)
-        reasoning_effort = _coerce_gpt_reasoning_effort(reasoning_effort)
+        requested_main_model = _coerce_gpt_main_model(main_model)
+        requested_reasoning_effort = _coerce_gpt_reasoning_effort(reasoning_effort)
         gpt_provider_route = _coerce_gpt_provider_route(gpt_provider_route)
         use_third_party_api = _gpt_route_uses_third_party(gpt_provider_route) or _coerce_use_third_party_api(use_third_party_api)
         archive_enabled = _coerce_bool(archive_enabled, True)
         telegram_enabled = _coerce_bool(telegram_enabled, True)
         use_chatgpt_pool = (not use_third_party_api) and gpt_provider_route == 'chatgpt_pool'
+        route_for_model = 'third_party_image_api' if use_third_party_api else ('chatgpt_pool' if use_chatgpt_pool else 'codex')
+        model_resolution = resolve_route_model(
+            route_for_model,
+            requested_main_model,
+            reasoning_effort=requested_reasoning_effort,
+        )
+        codex_unavailable_error = ''
+        if route_for_model == 'codex' and not model_resolution.get('available'):
+            codex_unavailable_error = model_resolution.get('warning') or '当前 Codex 账号没有可用的图片编辑模型'
+            if get_chatgpt_pool_config(ensure_auth_key=True).get('enabled'):
+                use_chatgpt_pool = True
+                route_for_model = 'chatgpt_pool'
+                model_resolution = resolve_route_model(
+                    route_for_model,
+                    requested_main_model,
+                    reasoning_effort=requested_reasoning_effort,
+                )
+        main_model = model_resolution.get('model') or requested_main_model
+        reasoning_effort = model_resolution.get('reasoning_effort') or requested_reasoning_effort
         source_count = len(images or [])
         task_route = 'third_party_image_api_edit' if use_third_party_api else ('chatgpt_pool_edit' if use_chatgpt_pool else 'codex_edit')
         task_provider = 'third_party_image_api' if use_third_party_api else ('chatgpt_pool' if use_chatgpt_pool else 'codex')
@@ -9109,6 +9239,10 @@ def process_gpt_edit_task(task_id, prompt, images, ratio, resolution, quality='a
         send_status_notification(task_id, '已提交 GPT 图片编辑任务，请等待...', '✅')
         update_task_status(task_id, 'preparing', '正在准备 GPT 编辑...')
         provider_timeout_seconds = _coerce_gpt_provider_total_timeout(None)
+        if codex_unavailable_error:
+            _append_task_route_trace(task_id, 'codex_edit', 'skipped', codex_unavailable_error)
+            if not use_chatgpt_pool:
+                raise RuntimeError(codex_unavailable_error)
         if use_third_party_api:
             route_started = time.monotonic()
             update_task_status(task_id, 'processing', '正在调用第三方图片编辑 API...', stage='calling_third_party_image_api')
@@ -9149,6 +9283,7 @@ def process_gpt_edit_task(task_id, prompt, images, ratio, resolution, quality='a
                 moderation=moderation,
                 mask=mask,
                 prompt_mode=prompt_mode,
+                main_model=main_model,
             )
             if not result.get('success'):
                 provider_error = result.get('error', 'ChatGPT 账号池图片编辑 API 失败')
@@ -9202,6 +9337,13 @@ def process_gpt_edit_task(task_id, prompt, images, ratio, resolution, quality='a
                 _append_task_route_trace(task_id, trace_route, 'failed', provider_error)
                 raise RuntimeError(_format_gpt_provider_error(provider_error))
             result['codex_auth_source'] = codex_auth_source
+        _annotate_gpt_route_result(
+            result,
+            model_resolution,
+            requested_route=gpt_provider_route,
+            requested_model=requested_main_model,
+            requested_reasoning_effort=requested_reasoning_effort,
+        )
         if _is_task_canceled(task_id):
             _finish_canceled_gpt_task(task_id, result)
             return
@@ -9247,7 +9389,16 @@ def process_gpt_edit_task(task_id, prompt, images, ratio, resolution, quality='a
             'actual_size': result.get('actual_size'),
             'actual_megapixels': result.get('actual_megapixels'),
             'main_model': result.get('main_model') or main_model,
+            'requested_main_model': result.get('requested_main_model') or requested_main_model,
+            'model_fallback_from': result.get('model_fallback_from'),
+            'requested_gpt_provider_route': result.get('requested_gpt_provider_route') or gpt_provider_route,
             'reasoning_effort': result.get('reasoning_effort') or reasoning_effort,
+            'requested_reasoning_effort': result.get('requested_reasoning_effort') or requested_reasoning_effort,
+            'reasoning_fallback_from': result.get('reasoning_fallback_from'),
+            'model_role': result.get('model_role'),
+            'model_catalog_source': result.get('model_catalog_source'),
+            'image_engine': result.get('image_engine'),
+            'image_engine_label': result.get('image_engine_label'),
             'provider_total_timeout_seconds': provider_timeout_seconds,
             'codex_auth_source': result.get('codex_auth_source'),
             'revised_prompt': result.get('revised_prompt'),

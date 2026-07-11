@@ -11,6 +11,69 @@ from backend import managed_codex_oauth as managed
 
 
 class ManagedCodexOAuthAccountsTest(unittest.TestCase):
+    def test_multiple_oauth_sessions_are_pending_and_idempotent(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            cfg = {
+                "enabled": True,
+                "auth_file": root / "auth.json",
+                "accounts_dir": root / "accounts",
+                "api_base": "https://chatgpt.com/backend-api/codex",
+                "redirect_uri": "http://localhost:1455/auth/callback",
+            }
+            with patch.object(managed, "get_managed_codex_oauth_config", return_value=cfg), \
+                 patch.object(managed, "_ensure_callback_server", return_value={"listening": True}):
+                with managed._LOCK:
+                    managed._PENDING.clear()
+                    managed._COMPLETED.clear()
+                try:
+                    first = managed.start_oauth_login(open_browser=False)
+                    second = managed.start_oauth_login(open_browser=False)
+                    third = managed.start_oauth_login(open_browser=False)
+
+                    self.assertNotEqual(first["session_id"], second["session_id"])
+                    pending = managed.finish_oauth_callback(session_id=second["session_id"])
+                    self.assertTrue(pending["ok"])
+                    self.assertTrue(pending["pending"])
+                    self.assertEqual(pending["status"], "waiting_callback")
+
+                    def exchange(session, code):
+                        return {
+                            "ok": True,
+                            "account_id": f"account-{code}",
+                            "expires_at": "2099-01-01T00:00:00Z",
+                        }
+
+                    with patch.object(managed, "_exchange_code", side_effect=exchange) as exchange_code:
+                        completed = managed.finish_oauth_callback(
+                            code="one",
+                            session_id=first["session_id"],
+                        )
+                        replay = managed.finish_oauth_callback(session_id=first["session_id"])
+                        second_completed = managed.finish_oauth_callback(
+                            code="two",
+                            session_id=second["session_id"],
+                        )
+                        callback_completed = managed.finish_oauth_callback(
+                            callback_url=(
+                                "http://localhost:1455/auth/callback"
+                                f"?code=three&state={third['session_id']}"
+                            ),
+                            session_id=first["session_id"],
+                        )
+
+                    self.assertFalse(completed["pending"])
+                    self.assertEqual(replay["account_id"], "account-one")
+                    self.assertEqual(second_completed["account_id"], "account-two")
+                    self.assertEqual(callback_completed["account_id"], "account-three")
+                    self.assertEqual(exchange_code.call_count, 3)
+                    with managed._LOCK:
+                        self.assertEqual(managed._PENDING, {})
+                finally:
+                    with managed._LOCK:
+                        managed._PENDING.clear()
+                        managed._COMPLETED.clear()
+
     def test_import_status_select_disable_and_provider_env(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

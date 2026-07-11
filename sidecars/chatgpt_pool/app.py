@@ -18,6 +18,7 @@ from .chat_api import create_chat_completion
 from .config import load_settings
 from .editable_api import generate_editable_file
 from .image_api import edit_image, generate_images, stream_images
+from .model_catalog import discover_pool_models
 from .oauth_flow import OAuthError, OAuthService
 from .openai_backend import OpenAIBackend, VerificationRequiredError
 from .search_api import search_web
@@ -82,6 +83,8 @@ def health():
         "ok": True,
         "stats": pool.stats(),
         "model": settings.generation_model,
+        "main_model": settings.generation_model,
+        "image_engine": "ChatGPT Image",
         "capabilities": SIDECAR_CAPABILITIES,
     }
 
@@ -90,6 +93,12 @@ def health():
 def list_accounts(authorization: str | None = Header(default=None)):
     require_auth(authorization)
     return {"ok": True, "items": store.list_public_accounts(), "stats": pool.stats()}
+
+
+@app.get("/models")
+def list_models(refresh: bool = False, authorization: str | None = Header(default=None)):
+    require_auth(authorization)
+    return discover_pool_models(store, force=bool(refresh))
 
 
 @app.post("/accounts/import")

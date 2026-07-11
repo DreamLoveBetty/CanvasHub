@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import secrets
 import socket
 import tempfile
@@ -30,7 +31,7 @@ DEFAULT_PROMPT_SKILL_REASONING_EFFORT = "medium"
 DEFAULT_PROMPT_SKILL_OUTPUT = "full_prompt"
 DEFAULT_CHATGPT_POOL_ENABLED = True
 DEFAULT_CHATGPT_POOL_BASE_URL = "http://127.0.0.1:18080"
-DEFAULT_CHATGPT_POOL_MODEL = "gpt-image-2"
+DEFAULT_CHATGPT_POOL_MODEL = "gpt-5-5"
 DEFAULT_CHATGPT_POOL_TIMEOUT_SECONDS = 900
 DEFAULT_MANAGED_CODEX_OAUTH_ENABLED = True
 DEFAULT_MANAGED_CODEX_OAUTH_API_BASE = "https://chatgpt.com/backend-api/codex"
@@ -46,11 +47,12 @@ DEFAULT_THIRD_PARTY_IMAGE_EDIT_PATH = "/v1/images/edits"
 DEFAULT_THIRD_PARTY_IMAGE_FORMAT = "png"
 DEFAULT_THIRD_PARTY_IMAGE_TIMEOUT_SECONDS = 900
 GPT_IMAGE_MAIN_MODELS = {
+    "gpt-5.6-sol",
+    "gpt-5.6-terra",
+    "gpt-5.6-luna",
     "gpt-5.5",
     "gpt-5.4",
     "gpt-5.4-mini",
-    "gpt-5.3-codex",
-    "gpt-5.2",
 }
 GPT_REASONING_EFFORTS = {
     "none",
@@ -58,6 +60,8 @@ GPT_REASONING_EFFORTS = {
     "medium",
     "high",
     "xhigh",
+    "max",
+    "ultra",
 }
 GPT_TRANSPORT_MODES = {
     "stream",
@@ -441,12 +445,16 @@ def get_chatgpt_pool_config(ensure_auth_key: bool = False) -> dict[str, Any]:
         BASE_DIR / "data" / "chatgpt_pool" / "accounts.db",
     )
 
+    generation_model = _as_str(section.get("generation_model") or DEFAULT_CHATGPT_POOL_MODEL) or DEFAULT_CHATGPT_POOL_MODEL
+    if generation_model in {"gpt-image-2", "gpt-5-3", "auto"}:
+        generation_model = DEFAULT_CHATGPT_POOL_MODEL
+
     return {
         "enabled": _as_bool(os.environ.get("CHATGPT_POOL_ENABLED"), _as_bool(section.get("enabled"), DEFAULT_CHATGPT_POOL_ENABLED)),
         "base_url": base_url.rstrip("/"),
         "auth_key": auth_key,
         "auth_key_configured": bool(auth_key),
-        "generation_model": _as_str(section.get("generation_model") or DEFAULT_CHATGPT_POOL_MODEL) or DEFAULT_CHATGPT_POOL_MODEL,
+        "generation_model": generation_model,
         "timeout_seconds": _as_int(section.get("timeout_seconds"), DEFAULT_CHATGPT_POOL_TIMEOUT_SECONDS),
         "db_path": db_path,
     }
@@ -540,7 +548,7 @@ def get_gpt_provider_config() -> dict[str, Any]:
         or settings.get("main_model")
         or DEFAULT_GPT_IMAGE_MAIN_MODEL
     )
-    if image_main_model not in GPT_IMAGE_MAIN_MODELS:
+    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,127}", image_main_model):
         image_main_model = DEFAULT_GPT_IMAGE_MAIN_MODEL
 
     reasoning_effort = _as_str(
