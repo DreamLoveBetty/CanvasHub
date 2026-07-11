@@ -21,6 +21,8 @@
   const DEFAULT_IMAGE_NODE_HEIGHT = 400;
   const DEFAULT_INPUT_NODE_WIDTH = 720;
   const DEFAULT_INPUT_NODE_HEIGHT = 460;
+  const DEFAULT_FILE_OUTPUT_NODE_WIDTH = 458;
+  const DEFAULT_FILE_OUTPUT_NODE_HEIGHT = 420;
   const DEFAULT_UPSCALE_NODE_WIDTH = 360;
   const DEFAULT_UPSCALE_NODE_HEIGHT = 180;
   const LOCKED_INPUT_NODE_WIDTH = DEFAULT_INPUT_NODE_WIDTH;
@@ -685,6 +687,10 @@
     if (nodeState.type === 'input') {
       nodeState.width = LOCKED_INPUT_NODE_WIDTH;
       nodeState.height = LOCKED_INPUT_NODE_HEIGHT;
+    }
+    if (nodeState.type === 'file_output') {
+      nodeState.width = DEFAULT_FILE_OUTPUT_NODE_WIDTH;
+      nodeState.height = DEFAULT_FILE_OUTPUT_NODE_HEIGHT;
     }
     if (nodeState.type === 'upscale') {
       nodeState.width = DEFAULT_UPSCALE_NODE_WIDTH;
@@ -1485,10 +1491,10 @@
     const id = nextNodeId(type);
     const count = Object.keys(DesktopState.state.canvas.nodes).length;
     const defaultWidth = type === 'file_output'
-      ? 458
+      ? DEFAULT_FILE_OUTPUT_NODE_WIDTH
       : (type === 'upscale' ? DEFAULT_UPSCALE_NODE_WIDTH : (type === 'layout' ? 320 : (type === 'pose' ? 340 : (type === 'text' ? DEFAULT_TEXT_NODE_WIDTH : DEFAULT_INPUT_NODE_WIDTH))));
     const defaultHeight = type === 'file_output'
-      ? 520
+      ? DEFAULT_FILE_OUTPUT_NODE_HEIGHT
       : (type === 'upscale' ? DEFAULT_UPSCALE_NODE_HEIGHT : (type === 'layout' ? 300 : (type === 'pose' ? 300 : (type === 'text' ? DEFAULT_TEXT_NODE_HEIGHT : DEFAULT_INPUT_NODE_HEIGHT))));
     const node = {
       id,
@@ -1734,9 +1740,19 @@
     return `
       <section class="desk-node desk-node--file-output desk-glass" data-node-id="${nodeId}" aria-label="文件结果节点">
         <div class="desk-node__header" data-node-drag-handle>
-          <div>
-            <p class="desk-node__eyebrow">文件结果</p>
-            <h2 data-output-title>等待 PPT / PSD</h2>
+          <div class="desk-file-node-heading">
+            <span class="desk-file-node-heading__icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24">
+                <path d="M8 3.5h6.8L19 7.7V19a1.5 1.5 0 0 1-1.5 1.5H8A1.5 1.5 0 0 1 6.5 19V5A1.5 1.5 0 0 1 8 3.5Z"></path>
+                <path d="M14.5 3.8V8h4.2"></path>
+                <path d="M9.5 12h6"></path>
+                <path d="M9.5 15.5h4.5"></path>
+              </svg>
+            </span>
+            <div>
+              <p class="desk-node__eyebrow">文件结果</p>
+              <h2 data-output-title>等待 PPT / PSD</h2>
+            </div>
           </div>
           <div class="desk-node-tools">
             <span class="desk-status-pill" data-output-status>空闲</span>
@@ -1745,27 +1761,32 @@
         </div>
         <button type="button" class="desk-port desk-port--in" data-port="in" data-node-id="${nodeId}" title="连接模型节点到这里" aria-label="连接输入"></button>
         <div class="desk-progress-wrap" aria-label="生成进度" aria-hidden="true">
-          <div class="desk-progress-copy"><strong data-progress-percent>0%</strong></div>
+          <div class="desk-progress-copy">
+            <span data-progress-stage>正在生成文件</span>
+            <span><strong data-progress-percent>0%</strong><em data-progress-timer>00:00</em></span>
+          </div>
           <div class="desk-progress"><span data-progress-bar></span></div>
         </div>
         <div class="desk-file-result" data-result-grid>
-          <div class="desk-file-result-empty"><strong>文件会出现在这里</strong><span>连接 PPT/PSD 模型任务后点击生成。</span></div>
+          <div class="desk-file-result-empty">
+            <div class="desk-file-result-empty__icon" aria-hidden="true">
+              <svg viewBox="0 0 48 48">
+                <path class="desk-file-empty-back" d="M11 13.5h16l8 8V39H11z"></path>
+                <path class="desk-file-empty-front" d="M17 8.5h15l7 7V34H17z"></path>
+                <path class="desk-file-empty-fold" d="M31.5 9v7h7"></path>
+                <path class="desk-file-empty-line" d="M22 22h11M22 27h8"></path>
+              </svg>
+            </div>
+            <span class="desk-file-result-empty__kicker">文件收件箱</span>
+            <strong>文件会出现在这里</strong>
+            <span>从模型节点生成 PPT/PSD，结果会自动汇入这里。</span>
+            <div class="desk-file-result-empty__types" aria-label="支持 PPT 和 PSD"><span>PPT</span><i></i><span>PSD</span></div>
+          </div>
         </div>
-        <div class="desk-output-controls">
-          <label class="desk-switch"><input type="checkbox" checked data-output-archive><span></span><em>保存到 PPT/PSD</em></label>
-          <label class="desk-switch"><input type="checkbox" checked data-output-telegram><span></span><em>发送到 Telegram</em></label>
-          <div class="desk-path-chip">GPT Images / PPT · PSD</div>
+        <div class="desk-file-output-footer">
+          <div class="desk-file-output-source"><i aria-hidden="true"></i><span>由模型节点生成</span></div>
+          <div class="desk-pill-row" data-output-pills><span>等待文件任务</span></div>
         </div>
-        <div class="desk-action-row">
-          <button type="button" class="desk-button desk-button--primary" data-send-original disabled>发送文件</button>
-          <button type="button" class="desk-button" data-copy-prompt disabled>复制提示词</button>
-          <button type="button" class="desk-button desk-button--generate" data-result-run title="生成文件" aria-label="生成文件">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M13 3 5 14h6l-1 7 8-11h-6l1-7Z"></path>
-            </svg>
-          </button>
-        </div>
-        <div class="desk-pill-row" data-output-pills><span>等待文件任务</span></div>
         <span class="desk-resize-handle desk-resize-handle--locked" aria-hidden="true"></span>
       </section>
     `;
@@ -3545,6 +3566,26 @@
     return '';
   }
 
+  function resolveResultNodeIdForRun(nodeId = 'input') {
+    const directNode = DesktopState.state.canvas.nodes[nodeId];
+    if (directNode?.type !== 'input') return nodeId;
+    const node = getNodeElement(nodeId);
+    const storedTaskType = nodeId === 'input'
+      ? DesktopState.state.params?.gptTaskType
+      : directNode.params?.gptTaskType;
+    const taskType = DesktopState.normalizeGptTaskType(
+      node?.querySelector('[data-field="gptTaskType"]')?.value || storedTaskType,
+      'image'
+    );
+    if (taskType === 'image') return nodeId;
+    const edge = (DesktopState.state.canvas.edges || []).find(item => (
+      item.from === nodeId
+      && DesktopState.state.canvas.nodes[item.to]?.type === 'file_output'
+    ));
+    if (!edge) throw new Error('PPT/PSD 请先把模型节点连接到文件结果节点。');
+    return edge.to;
+  }
+
   function readConfigForResult(resultNodeId) {
     const directNode = DesktopState.state.canvas.nodes[resultNodeId];
     if (directNode?.type === 'upscale') {
@@ -3554,7 +3595,7 @@
       const config = readInputNodeConfig(resultNodeId);
       const taskType = DesktopState.normalizeGptTaskType(config.params?.gptTaskType, 'image');
       if (taskType !== 'image') {
-        throw new Error('PPT/PSD 请连接到文件结果节点后，从文件结果节点点击生成。');
+        throw new Error('PPT/PSD 请先把模型节点连接到文件结果节点。');
       }
       const outputControls = readOutputControlsForTask(resultNodeId);
       config.params = {
@@ -7962,6 +8003,7 @@
     applyWorkflowSnapshot,
     saveWorkflowFile,
     loadWorkflowFile,
+    resolveResultNodeIdForRun,
     readConfigForResult,
     updateInputProgressOverlay,
     connectNodes,

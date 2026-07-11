@@ -1478,9 +1478,10 @@
   }
 
   async function submitFromResultNode(resultNodeId = DEFAULT_RESULT_NODE_ID) {
-    stopResultPolling(resultNodeId);
-    stopBatchPolling(resultNodeId);
-    const config = DesktopCanvas.readConfigForResult(resultNodeId);
+    const resolvedResultNodeId = DesktopCanvas.resolveResultNodeIdForRun?.(resultNodeId) || resultNodeId;
+    stopResultPolling(resolvedResultNodeId);
+    stopBatchPolling(resolvedResultNodeId);
+    const config = DesktopCanvas.readConfigForResult(resolvedResultNodeId);
     if (!String(config.prompt || '').trim()) {
       throw new Error('请先连接文本节点作为提示词');
     }
@@ -1490,8 +1491,8 @@
         : String(config.prompt || '').split(/\n\s*\n|\r?\n/).map(item => item.trim()).filter(Boolean).length;
       if (promptCount < 2) throw new Error('批量模式至少需要 2 条提示词');
     }
-    DesktopCanvas.ensureImageOutputsForConfig?.(resultNodeId, config);
-    return submitConfigToResult(config, resultNodeId);
+    DesktopCanvas.ensureImageOutputsForConfig?.(resolvedResultNodeId, config);
+    return submitConfigToResult(config, resolvedResultNodeId);
   }
 
   async function submitConfigToResult(config, resultNodeId = DEFAULT_RESULT_NODE_ID) {
@@ -1508,6 +1509,7 @@
     pendingOutput.rawError = '';
     pendingOutput.errorCode = '';
     pendingOutput.errorCategory = '';
+    pendingOutput.fileManifest = null;
     resetOutputTiming(pendingOutput);
     applyTask({
       task_id: '',
@@ -1516,6 +1518,7 @@
       progress: 0,
       prompt: config.prompt,
       type: config.provider,
+      params: config.params || {},
       requested_image_count: config.expectedImageOutputCount || undefined
     }, resultNodeId);
     if (config.batchMode) {
@@ -1548,7 +1551,8 @@
       progress_text: data.message || '任务已提交，等待生成...',
       progress: Number(data.progress || 0) || 0,
       prompt: config.prompt,
-      type: config.provider
+      type: config.provider,
+      params: config.params || {}
     }, resultNodeId);
     scheduleResultPoll(resultNodeId, taskId, 900);
     DesktopHistory.loadHistory().catch(() => {});
