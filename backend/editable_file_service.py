@@ -12,9 +12,12 @@ import subprocess
 import time
 import zipfile
 from datetime import datetime
+from io import BytesIO
 from pathlib import Path
 from typing import Any
 from urllib.parse import quote
+
+from PIL import Image, ImageChops
 
 from .app_config import BASE_DIR
 from .storage_paths import IMAGE_ARCHIVE_DIR
@@ -292,13 +295,25 @@ def _extract_zip_layers(zip_path: Path | None, task_dir: Path) -> list[dict[str,
     try:
         layers_dir.mkdir(parents=True, exist_ok=True)
         with zipfile.ZipFile(zip_path) as zf:
-            for item in zf.infolist():
+            file_items = [item for item in zf.infolist() if not item.is_dir()]
+            has_layers_directory = any(
+                Path(item.filename.replace("\\", "/").lstrip("/")).parts[:1] == ("layers",)
+                for item in file_items
+            )
+            for item in file_items:
                 if item.is_dir():
                     continue
-                suffix = Path(item.filename).suffix.lower()
+                normalized_name = item.filename.replace("\\", "/").lstrip("/")
+                parts = Path(normalized_name).parts
+                if not parts or (has_layers_directory and parts[0] != "layers"):
+                    continue
+                source_name = Path(normalized_name).name
+                if source_name.lower() in {"original_reference.png", "composite_preview.png"}:
+                    continue
+                suffix = Path(source_name).suffix.lower()
                 if suffix not in {".png", ".jpg", ".jpeg", ".webp"}:
                     continue
-                name = _safe_filename(Path(item.filename).name, f"layer-{len(layers) + 1:03d}{suffix}")
+                name = _safe_filename(source_name, f"layer-{len(layers) + 1:03d}{suffix}")
                 target = layers_dir / name
                 with zf.open(item) as src, target.open("wb") as dst:
                     shutil.copyfileobj(src, dst)
@@ -306,6 +321,103 @@ def _extract_zip_layers(zip_path: Path | None, task_dir: Path) -> list[dict[str,
     except Exception as exc:
         print(f"⚠️ PSD zip layer extraction failed: {exc}")
     return layers
+
+
+def _imagemagick_psd_scene_count(primary_path: Path) -> int:
+    magick = _find_executable(["magick", "/opt/homebrew/bin/magick", "/usr/local/bin/magick"])
+    if magick:
+        command = [magick, "identify", str(primary_path)]
+    else:
+        identify = _find_executable(["identify", "/opt/homebrew/bin/identify", "/usr/local/bin/identify"])
+        command = [identify, str(primary_path)] if identify else []
+    if not command:
+        raise RuntimeError("ImageMagick is required to validate PSD layers")
+    completed = subprocess.run(
+        command,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        timeout=60,
+        check=False,
+    )
+    scenes = [line for line in completed.stdout.decode("utf-8", "replace").splitlines() if line.strip()]
+    if completed.returncode != 0:
+        detail = completed.stderr.decode("utf-8", "replace")[-800:]
+        raise RuntimeError(f"ImageMagick could not read PSD: {detail}")
+    return len(scenes)
+
+
+def validate_psd_artifacts(primary_path: Path, zip_path: Path | None) -> dict[str, Any]:
+    if not primary_path.exists() or primary_path.stat().st_size < 1024:
+        raise RuntimeError("PSD 文件缺失或体积异常")
+    with primary_path.open("rb") as source:
+        if source.read(4) != b"8BPS":
+            raise RuntimeError("PSD 文件头无效，不是真实 Photoshop 文档")
+    scene_count = _imagemagick_psd_scene_count(primary_path)
+    if scene_count < 3:
+        raise RuntimeError("PSD 至少需要 2 个真实可编辑图层")
+    if not zip_path or not zip_path.exists() or not zipfile.is_zipfile(zip_path):
+        raise RuntimeError("PSD 图层 ZIP 缺失或无效")
+
+    bad_markers = ("fallback", "placeholder", "automatic extraction unavailable")
+    canvas_size: tuple[int, int] | None = None
+    layer_names: list[str] = []
+    has_transparency = False
+    with zipfile.ZipFile(zip_path) as archive:
+        names = [name.replace("\\", "/").lstrip("/") for name in archive.namelist()]
+        for name in names:
+            parts = Path(name).parts
+            if (
+                len(parts) >= 2
+                and parts[0] == "layers"
+                and Path(name).suffix.lower() == ".png"
+                and Path(name).name.lower() not in {"original_reference.png", "composite_preview.png"}
+            ):
+                layer_names.append(name)
+        layer_names.sort()
+        if len(layer_names) < 2:
+            raise RuntimeError("PSD 图层 ZIP 中至少需要 2 张 layers/ PNG")
+        layer_images: list[Image.Image] = []
+        for name in layer_names:
+            with archive.open(name) as source:
+                image = Image.open(BytesIO(source.read())).convert("RGBA")
+                image.load()
+            layer_images.append(image)
+            if canvas_size is None:
+                canvas_size = image.size
+            elif image.size != canvas_size:
+                raise RuntimeError("PSD 图层 PNG 画布尺寸不一致")
+            alpha_min, alpha_max = image.getchannel("A").getextrema()
+            has_transparency = has_transparency or alpha_min < 255 or alpha_max < 255
+        if not has_transparency:
+            raise RuntimeError("PSD 图层 PNG 不含真实透明像素")
+        if "composite_preview.png" not in names:
+            raise RuntimeError("PSD 图层 ZIP 缺少 composite_preview.png")
+        with archive.open("composite_preview.png") as source:
+            preview = Image.open(BytesIO(source.read())).convert("RGBA")
+            preview.load()
+        if canvas_size and preview.size != canvas_size:
+            raise RuntimeError("PSD 组合预览尺寸与图层画布不一致")
+        reconstructed = Image.new("RGBA", preview.size, (0, 0, 0, 0))
+        for layer_image in layer_images:
+            reconstructed = Image.alpha_composite(reconstructed, layer_image)
+        expected = Image.alpha_composite(Image.new("RGBA", preview.size, (0, 0, 0, 0)), preview)
+        if ImageChops.difference(reconstructed, expected).getbbox() is not None:
+            raise RuntimeError("PSD 图层叠加后不能精确还原组合预览")
+        for name in names:
+            if Path(name).suffix.lower() not in {".txt", ".json", ".md"}:
+                continue
+            text = archive.read(name).decode("utf-8", "replace").lower()
+            if any(marker in text for marker in bad_markers):
+                raise RuntimeError(f"PSD 图层 ZIP 包含无效占位标记：{name}")
+    return {
+        "ok": True,
+        "psd_scene_count": scene_count,
+        "editable_layer_count": max(0, scene_count - 1),
+        "zip_layer_count": len(layer_names),
+        "canvas_size": list(canvas_size or (0, 0)),
+        "has_transparency": has_transparency,
+        "reconstruction_exact": True,
+    }
 
 
 def _build_psd_preview(primary_path: Path, zip_path: Path | None, task_dir: Path) -> dict[str, Any]:
@@ -339,79 +451,89 @@ def save_editable_artifacts(
     subject: str = "",
     conversation_id: str = "",
     archive_enabled: bool = True,
+    strict_psd_validation: bool = False,
 ) -> dict[str, Any]:
     kind = normalize_editable_type(kind)
     now = datetime.now()
     task_dir = allocate_task_dir(kind, prompt, subject, now, archive_enabled=archive_enabled)
-    stamp = now.strftime("%Y%m%d_%H%M%S")
-    topic = infer_subject(prompt, subject)
-    primary_suffix = ".pptx" if kind == "ppt" else ".psd"
-    primary_name = _safe_filename(str(primary.get("filename") or ""), f"{topic}_{stamp}{primary_suffix}")
-    if Path(primary_name).suffix.lower() not in ({".ppt", ".pptx"} if kind == "ppt" else {".psd"}):
-        primary_name = f"{Path(primary_name).stem}{primary_suffix}"
-    primary_path = task_dir / primary_name
-    primary_path.write_bytes(_decode_b64(str(primary.get("b64") or primary.get("base64") or "")))
+    try:
+        stamp = now.strftime("%Y%m%d_%H%M%S")
+        topic = infer_subject(prompt, subject)
+        primary_suffix = ".pptx" if kind == "ppt" else ".psd"
+        primary_name = _safe_filename(str(primary.get("filename") or ""), f"{topic}_{stamp}{primary_suffix}")
+        if Path(primary_name).suffix.lower() not in ({".ppt", ".pptx"} if kind == "ppt" else {".psd"}):
+            primary_name = f"{Path(primary_name).stem}{primary_suffix}"
+        primary_path = task_dir / primary_name
+        primary_path.write_bytes(_decode_b64(str(primary.get("b64") or primary.get("base64") or "")))
 
-    zip_path: Path | None = None
-    if zip_artifact and (zip_artifact.get("b64") or zip_artifact.get("base64")):
-        zip_name = _safe_filename(str(zip_artifact.get("filename") or ""), f"{topic}_{stamp}_source.zip")
-        if Path(zip_name).suffix.lower() != ".zip":
-            zip_name = f"{Path(zip_name).stem}.zip"
-        zip_path = task_dir / zip_name
-        zip_path.write_bytes(_decode_b64(str(zip_artifact.get("b64") or zip_artifact.get("base64") or "")))
+        zip_path: Path | None = None
+        if zip_artifact and (zip_artifact.get("b64") or zip_artifact.get("base64")):
+            zip_name = _safe_filename(str(zip_artifact.get("filename") or ""), f"{topic}_{stamp}_source.zip")
+            if Path(zip_name).suffix.lower() != ".zip":
+                zip_name = f"{Path(zip_name).stem}.zip"
+            zip_path = task_dir / zip_name
+            zip_path.write_bytes(_decode_b64(str(zip_artifact.get("b64") or zip_artifact.get("base64") or "")))
 
-    prompt_path = task_dir / "prompt.txt"
-    prompt_path.write_text(str(prompt or "").strip() + "\n", encoding="utf-8")
+        validation: dict[str, Any] | None = None
+        if kind == "psd" and strict_psd_validation:
+            validation = validate_psd_artifacts(primary_path, zip_path)
 
-    preview = _build_ppt_preview(primary_path, task_dir) if kind == "ppt" else _build_psd_preview(primary_path, zip_path, task_dir)
-    artifacts = [
-        {
-            "role": "primary",
-            "name": primary_path.name,
-            "path": str(primary_path),
-            "relative_path": _relative_path(primary_path),
-            "url": editable_url(primary_path),
-            "mime_type": mimetypes.guess_type(primary_path.name)[0] or "application/octet-stream",
-            "size": primary_path.stat().st_size,
-        }
-    ]
-    if zip_path:
-        artifacts.append(
+        prompt_path = task_dir / "prompt.txt"
+        prompt_path.write_text(str(prompt or "").strip() + "\n", encoding="utf-8")
+
+        preview = _build_ppt_preview(primary_path, task_dir) if kind == "ppt" else _build_psd_preview(primary_path, zip_path, task_dir)
+        artifacts = [
             {
-                "role": "source_zip",
-                "name": zip_path.name,
-                "path": str(zip_path),
-                "relative_path": _relative_path(zip_path),
-                "url": editable_url(zip_path),
-                "mime_type": "application/zip",
-                "size": zip_path.stat().st_size,
+                "role": "primary",
+                "name": primary_path.name,
+                "path": str(primary_path),
+                "relative_path": _relative_path(primary_path),
+                "url": editable_url(primary_path),
+                "mime_type": mimetypes.guess_type(primary_path.name)[0] or "application/octet-stream",
+                "size": primary_path.stat().st_size,
             }
-        )
+        ]
+        if zip_path:
+            artifacts.append(
+                {
+                    "role": "source_zip",
+                    "name": zip_path.name,
+                    "path": str(zip_path),
+                    "relative_path": _relative_path(zip_path),
+                    "url": editable_url(zip_path),
+                    "mime_type": "application/zip",
+                    "size": zip_path.stat().st_size,
+                }
+            )
 
-    manifest = {
-        "version": 1,
-        "task_id": task_id,
-        "artifact_type": kind,
-        "subject": topic,
-        "prompt": str(prompt or "").strip(),
-        "conversation_id": conversation_id,
-        "created_at": int(time.time()),
-        "directory": str(task_dir),
-        "directory_relative": _relative_path(task_dir),
-        "archived": bool(archive_enabled),
-        "storage": "archive" if archive_enabled else "local",
-        "primary": artifacts[0],
-        "zip": artifacts[1] if len(artifacts) > 1 else None,
-        "artifacts": artifacts,
-        "preview": preview,
-        "result_files": [item["relative_path"] for item in artifacts],
-        "prompt_file": str(prompt_path),
-    }
-    manifest_path = task_dir / "manifest.json"
-    manifest["manifest_path"] = str(manifest_path)
-    manifest["manifest_url"] = editable_url(manifest_path)
-    manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
-    return manifest
+        manifest = {
+            "version": 1,
+            "task_id": task_id,
+            "artifact_type": kind,
+            "subject": topic,
+            "prompt": str(prompt or "").strip(),
+            "conversation_id": conversation_id,
+            "created_at": int(time.time()),
+            "directory": str(task_dir),
+            "directory_relative": _relative_path(task_dir),
+            "archived": bool(archive_enabled),
+            "storage": "archive" if archive_enabled else "local",
+            "primary": artifacts[0],
+            "zip": artifacts[1] if len(artifacts) > 1 else None,
+            "artifacts": artifacts,
+            "preview": preview,
+            "validation": validation,
+            "result_files": [item["relative_path"] for item in artifacts],
+            "prompt_file": str(prompt_path),
+        }
+        manifest_path = task_dir / "manifest.json"
+        manifest["manifest_path"] = str(manifest_path)
+        manifest["manifest_url"] = editable_url(manifest_path)
+        manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
+        return manifest
+    except Exception:
+        shutil.rmtree(task_dir, ignore_errors=True)
+        raise
 
 
 def list_editable_files(

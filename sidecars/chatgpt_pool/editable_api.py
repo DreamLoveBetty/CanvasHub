@@ -11,6 +11,35 @@ from .backend_runtime import build_backend_for_lease, mark_verification_required
 from .openai_backend import OpenAIBackend, VerificationRequiredError
 
 
+RETRYABLE_PSD_ACCOUNT_ERROR_MARKERS = (
+    "adobe connector",
+    "adobe oauth",
+    "adobe guest",
+    "adobeid-na1.services.adobe.com",
+    "auth.services.adobe.com",
+    "/ims/fromsusi",
+    "sslerror",
+    "ssl eof",
+    "unexpected_eof_while_reading",
+    "remote end closed connection",
+    "connection reset",
+    "connection aborted",
+    "max retries exceeded",
+)
+
+
+def _is_retryable_psd_account_error(error: Exception | str) -> bool:
+    text = str(error or "").strip().lower()
+    return bool(text) and any(marker in text for marker in RETRYABLE_PSD_ACCOUNT_ERROR_MARKERS)
+
+
+def _psd_account_errors_message(errors: list[str]) -> str:
+    details = [str(item or "").strip() for item in errors if str(item or "").strip()]
+    if not details:
+        return "Adobe connector initialization failed for all available ChatGPT accounts"
+    return "Adobe connector initialization failed after trying available ChatGPT accounts: " + " | ".join(details[:4])
+
+
 def _artifact_payload(path: Path, role: str) -> dict[str, Any]:
     return {
         "role": role,
@@ -44,6 +73,7 @@ def generate_editable_file(
     backend_factory = backend_factory or OpenAIBackend
     skipped_tokens: set[str] = set()
     verification_errors: list[str] = []
+    psd_account_errors: list[str] = []
     while True:
         lease = None
         try:
@@ -77,12 +107,35 @@ def generate_editable_file(
             mark_verification_required(pool, lease.access_token, message)
             continue
         except RuntimeError as exc:
-            if "no available image quota" in str(exc).lower() and verification_errors:
-                raise RuntimeError(verification_exhausted_message(pool, verification_errors)) from exc
+            if "no available image quota" in str(exc).lower():
+                if psd_account_errors:
+                    raise RuntimeError(_psd_account_errors_message([*verification_errors, *psd_account_errors])) from exc
+                if verification_errors:
+                    raise RuntimeError(verification_exhausted_message(pool, verification_errors)) from exc
+            if kind == "psd" and lease is not None and _is_retryable_psd_account_error(exc):
+                message = f"{lease.email}: {exc}" if lease.email else str(exc)
+                psd_account_errors.append(message)
+                skipped_tokens.add(lease.access_token)
+                pool.mark_result(lease.access_token, False, str(exc))
+                print(
+                    f"[chatgpt-pool] PSD Adobe setup failed for {lease.email or 'account'}; trying next account: {exc}",
+                    flush=True,
+                )
+                continue
             if lease is not None:
                 pool.mark_result(lease.access_token, False, str(exc))
             raise
         except Exception as exc:
+            if kind == "psd" and lease is not None and _is_retryable_psd_account_error(exc):
+                message = f"{lease.email}: {exc}" if lease.email else str(exc)
+                psd_account_errors.append(message)
+                skipped_tokens.add(lease.access_token)
+                pool.mark_result(lease.access_token, False, str(exc))
+                print(
+                    f"[chatgpt-pool] PSD Adobe transport failed for {lease.email or 'account'}; trying next account: {exc}",
+                    flush=True,
+                )
+                continue
             if lease is not None:
                 pool.mark_result(lease.access_token, False, str(exc))
             raise

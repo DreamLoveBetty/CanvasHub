@@ -381,6 +381,15 @@ def _classify_route_error(route, message=''):
         return 'quota'
     if 'timeout' in text or 'timed out' in text or '超时' in text:
         return 'timeout'
+    if (
+        'sslerror' in text
+        or 'ssl eof' in text
+        or 'unexpected_eof_while_reading' in text
+        or 'remote end closed connection' in text
+        or 'connection reset' in text
+        or 'connection aborted' in text
+    ):
+        return 'transport'
     if 'finished without image output' in text or 'did not return any images' in text or 'upstream did not return image output' in text:
         return 'no_image_output'
     if 'download url' in text or 'download_url' in text or 'artifact' in text:
@@ -8775,6 +8784,7 @@ def process_gpt_editable_file_task(
             task_id=task_id,
             conversation_id=str(result.get('conversation_id') or ''),
             archive_enabled=bool(archive_enabled),
+            strict_psd_validation=(kind == 'psd'),
         )
         _record_generation_event(task_id, 'artifact_saved', f'{kind.upper()} 文件产物已保存', stage='saving', payload={'artifact_type': kind, 'result_count': len(manifest.get("result_files") or [])})
         _append_task_route_trace(task_id, 'chatgpt_pool_editable', 'succeeded', f'{kind.upper()} 文件生成成功')
@@ -8825,6 +8835,20 @@ def process_gpt_editable_file_task(
         print(f"✅ {kind.upper()} 文件任务成功：{task_id}")
 
     except Exception as e:
+        if _is_task_canceled(task_id):
+            _finalize_generation_task(
+                task_id,
+                'canceled',
+                run_id=run_id,
+                stage='canceled',
+                progress_text='任务已取消',
+                error_type='UserCanceled',
+                provider=task_provider,
+                route=task_route,
+                task_type=task_kind,
+                extra={'artifact_type': kind if 'kind' in locals() else ''},
+            )
+            return
         raw_error_msg = str(e)
         error_type = type(e).__name__
         error_info = _translate_generation_failure(
