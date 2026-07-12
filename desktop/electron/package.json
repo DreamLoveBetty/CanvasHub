@@ -1,6 +1,6 @@
 {
   "name": "canvashub-desktop",
-  "version": "26.1.0",
+  "version": "26.1.1",
   "description": "CanvasHub desktop application",
   "main": "app-dist/main.js",
   "private": true,

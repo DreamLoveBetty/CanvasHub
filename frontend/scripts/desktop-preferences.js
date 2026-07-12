@@ -264,23 +264,27 @@
   const SEEN_RELEASE_KEY = 'desktop_release_notes_seen_v1';
   const RELEASES = [
     {
-      id: '20260712-1',
-      version: 'V26.0.0.1',
-      date: '2026-07-12',
+      id: 'bundled-release',
+      version: '',
+      date: '2026-07-13',
       title: {
-        zh: '画布能力与连接体验更新',
-        en: 'Canvas and account connection updates',
+        zh: '桌面版与画布体验更新',
+        en: 'Desktop and canvas experience update',
       },
       items: {
         zh: [
-          '画布节点支持组合与解组，成组内容可一起选择、移动和对齐。',
-          'PSD 分层文件可在预览中独立显示或隐藏图层。',
-          'Codex 与 ChatGPT 账号连接流程更稳定，状态反馈更清晰。',
+          '新增 macOS 桌面版，启动后自动最大化，画布默认显示比例调整为 75%。',
+          '版本更新铃铛会展示最新发布信息，并在发现新版本时持续提醒。',
+          '画布节点支持组合与解组，PSD 文件支持独立显示或隐藏图层。',
+          '高清放大组件改为首次使用时自动后台下载，安装包保持轻量。',
+          '优化桌面数据存储、账号连接与整体运行稳定性。',
         ],
         en: [
-          'Canvas nodes can now be grouped, moved, and aligned together.',
-          'PSD previews now support showing or hiding individual layers.',
-          'Codex and ChatGPT account connection flows are more reliable and easier to follow.',
+          'The macOS desktop app now opens maximized, with canvas zoom defaulting to 75%.',
+          'The update bell shows release information and remains marked when a newer version is available.',
+          'Canvas nodes support grouping, while PSD previews support showing or hiding individual layers.',
+          'The upscale component now installs automatically on first use to keep the initial download smaller.',
+          'Desktop storage, account connections, and runtime stability have been improved.',
         ],
       },
     },
@@ -334,6 +338,14 @@
     return RELEASES[0] || null;
   }
 
+  function releaseVersion(release) {
+    return String(release?.version || appVersion()).trim();
+  }
+
+  function releaseSeenId(release) {
+    return `${String(release?.id || 'release')}:${releaseVersion(release)}`;
+  }
+
   function appVersion() {
     const version = appUpdateStatus.currentVersion
       || document.body?.dataset.appVersion
@@ -353,7 +365,7 @@
     const latest = latestRelease();
     if (!latest) return false;
     try {
-      return localStorage.getItem(SEEN_RELEASE_KEY) !== latest.id;
+      return localStorage.getItem(SEEN_RELEASE_KEY) !== releaseSeenId(latest);
     } catch (error) {
       return true;
     }
@@ -370,7 +382,7 @@
     const latest = latestRelease();
     if (!latest) return;
     try {
-      localStorage.setItem(SEEN_RELEASE_KEY, latest.id);
+      localStorage.setItem(SEEN_RELEASE_KEY, releaseSeenId(latest));
     } catch (error) {}
     updateUnreadState();
   }
@@ -383,10 +395,10 @@
     meta.className = 'desk-release__meta';
 
     const version = document.createElement('strong');
-    version.textContent = release.version;
+    version.textContent = releaseVersion(release);
     meta.appendChild(version);
 
-    if (index === 0) {
+    if (index === 0 && !hasAvailableAppUpdate()) {
       const latest = document.createElement('span');
       latest.className = 'desk-release__latest';
       latest.textContent = copy[lang].latest;

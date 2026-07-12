@@ -30,7 +30,7 @@ interface DesktopUpdateStatus {
   error: string;
 }
 
-const APP_VERSION = '26.1.0';
+const APP_VERSION = '26.1.1';
 const PROJECT_ROOT = path.resolve(__dirname, '../../..');
 const services: ServiceProcess[] = [];
 let mainWindow: BrowserWindow | null = null;
