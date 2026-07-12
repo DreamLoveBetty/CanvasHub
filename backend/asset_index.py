@@ -16,15 +16,15 @@ from typing import Any
 
 from PIL import Image
 
-from .app_config import BASE_DIR
+from .app_config import APP_DATA_DIR
 from .database import get_all_tasks
 from .image_resolution import infer_resolution_label, normalize_resolution_label
 from .storage_paths import IMAGE_ARCHIVE_DIR, archive_scan_roots
 from .thumb_cache import thumb_url_for_media_url
 
 
-DB_PATH = BASE_DIR / "assets.db"
-HISTORY_FILE = BASE_DIR / "history.jsonl"
+DB_PATH = APP_DATA_DIR / "assets.db"
+HISTORY_FILE = APP_DATA_DIR / "history.jsonl"
 TAG_SPLIT_RE = re.compile(r"[,，;；\n]+")
 IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp"}
 SIDECAR_PARAM_KEYS = {

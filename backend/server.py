@@ -52,6 +52,7 @@ from http.cookies import SimpleCookie
 from PIL import Image
 import requests
 from .app_config import (
+    APP_DATA_DIR,
     BASE_DIR,
     DEFAULT_GPT_IMAGE_MAIN_MODEL,
     DEFAULT_GPT_PROVIDER_TOTAL_TIMEOUT_SECONDS,
@@ -122,6 +123,11 @@ from .upscale_runtime import (
     normalize_upscale_model,
     upscale_image_file,
 )
+from .optional_components import (
+    get_upscale_component_status,
+    remove_upscale_component,
+    start_upscale_component_install,
+)
 from .asset_index import (
     create_asset_set,
     cleanup_asset_sets,
@@ -160,6 +166,7 @@ from .prompt_source_sync import (
 )
 from .thumb_cache import ensure_webp_thumbnail, parse_thumb_request, resolve_media_path
 from .pose_service import pose_assets_status
+from .app_updates import get_app_update_status
 
 SERVER_CONFIG = get_server_config()
 SERVER_HOST = SERVER_CONFIG["host"]
@@ -167,8 +174,8 @@ PORT = SERVER_CONFIG["port"]
 PROJECT_ROOT = BASE_DIR
 BACKEND_ROOT = Path(__file__).resolve().parent
 FRONTEND_ROOT = PROJECT_ROOT / "frontend"
-DIRECTORY = str(PROJECT_ROOT)
-PROMPT_DATA_DIR = Path(DIRECTORY) / 'data'
+DIRECTORY = str(APP_DATA_DIR)
+PROMPT_DATA_DIR = APP_DATA_DIR / 'data'
 STYLE_PRESETS_FILE = PROMPT_DATA_DIR / 'style_presets.json'
 PROMPT_VERSIONS_FILE = PROMPT_DATA_DIR / 'prompt_versions.json'
 COMFY_BASE_URL = os.environ.get('COMFY_BASE_URL', 'http://192.168.179.111:28188').rstrip('/')
@@ -2165,10 +2172,13 @@ def save_prompt_version(data):
     _write_versioned_json(PROMPT_VERSIONS_FILE, "versions", versions[-1000:])
     return version
 COMFY_CLIENT_ID = os.environ.get('COMFY_CLIENT_ID', f"tg-mini-app-{uuid.uuid4().hex[:12]}")
-COMFY_WORKFLOW_DIR = Path(DIRECTORY) / 'workflows'
+COMFY_WORKFLOW_DIR = PROJECT_ROOT / 'workflows'
 COMFY_POLL_INTERVAL_SECONDS = float(os.environ.get('COMFY_POLL_INTERVAL_SECONDS', '2'))
 COMFY_TASK_TIMEOUT_SECONDS = int(os.environ.get('COMFY_TASK_TIMEOUT_SECONDS', '1800'))
-UPSCALE_MODEL_DIR = Path(os.environ.get('UPSCALE_MODEL_DIR') or default_upscale_model_dir(PROJECT_ROOT)).expanduser()
+UPSCALE_MODEL_DIR = Path(
+    os.environ.get('UPSCALE_MODEL_DIR')
+    or (APP_DATA_DIR / 'components' / 'upscale' / 'current' / 'models' if os.environ.get('CANVASHUB_DATA_DIR') else default_upscale_model_dir(PROJECT_ROOT))
+).expanduser()
 COMFY_RATIO_SIZES = {
     '1:1': (1024, 1024),
     '16:9': (1344, 768),
@@ -3387,7 +3397,7 @@ def _chatgpt_pool_account_by_id(account_id):
 
 
 def _chatgpt_pool_verification_profile_dir(account_or_id):
-    root = BASE_DIR / "data" / "chatgpt_pool" / "verify_chrome_profiles"
+    root = APP_DATA_DIR / "chatgpt_pool" / "verify_chrome_profiles"
     email = ""
     if isinstance(account_or_id, dict):
         email = str(account_or_id.get("email") or "").strip()
@@ -4618,6 +4628,10 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
             if not self.require_auth():
                 return
             self.handle_system_diagnostics()
+        elif path == '/api/app/update-status':
+            if not self.require_auth():
+                return
+            self.handle_app_update_status()
         elif path == '/api/system/settings':
             if not self.require_auth():
                 return
@@ -4703,6 +4717,10 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
             if not self.require_auth():
                 return
             self.handle_upscale_models()
+        elif path == '/api/upscale/component/status':
+            if not self.require_auth():
+                return
+            self.handle_upscale_component_status()
         elif path.startswith('/image/'):
             if not self.require_auth():
                 return
@@ -4830,6 +4848,14 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
             if not self.require_auth():
                 return
             self.handle_upscale_run()
+        elif path == '/api/upscale/component/install':
+            if not self.require_auth():
+                return
+            self.handle_upscale_component_install()
+        elif path == '/api/upscale/component/remove':
+            if not self.require_auth():
+                return
+            self.handle_upscale_component_remove()
         elif path == '/api/gpt/config':
             if not self.require_auth():
                 return
@@ -5793,9 +5819,31 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
                 "ok": True,
                 "model_dir": str(UPSCALE_MODEL_DIR),
                 "models": available_upscale_models(UPSCALE_MODEL_DIR),
+                "component": get_upscale_component_status(),
             })
         except Exception as e:
             self.send_json({"error": str(e)}, 500)
+
+    def handle_upscale_component_status(self):
+        try:
+            self.send_json({"ok": True, **get_upscale_component_status()})
+        except Exception as e:
+            self.send_json({"error": str(e)}, 500)
+
+    def handle_upscale_component_install(self):
+        try:
+            content_length = int(self.headers.get('Content-Length', 0))
+            body = self.rfile.read(content_length) if content_length else b'{}'
+            data = json.loads(body or b'{}')
+            self.send_json({"ok": True, **start_upscale_component_install(bool(data.get('force')))}, 202)
+        except Exception as e:
+            self.send_json({"error": str(e)}, 500)
+
+    def handle_upscale_component_remove(self):
+        try:
+            self.send_json({"ok": True, **remove_upscale_component()})
+        except Exception as e:
+            self.send_json({"error": str(e)}, 409)
 
     def handle_upscale_run(self):
         """处理本地高清放大请求。"""
@@ -5814,6 +5862,13 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
 
             incoming_params = data.get('params') if isinstance(data.get('params'), dict) else {}
             model_name = normalize_upscale_model(data.get('model', incoming_params.get('model')))
+            model_status = next((item for item in available_upscale_models(UPSCALE_MODEL_DIR) if item.get('id') == model_name), {})
+            if not model_status.get('available'):
+                self.send_json({
+                    "error": "高清放大组件尚未安装，请先完成组件下载。",
+                    "component": get_upscale_component_status(),
+                }, 409)
+                return
             prompt = str(data.get('prompt') or incoming_params.get('prompt') or f'高清放大：{model_name}').strip()
             params = {
                 'model': model_name,
@@ -6117,6 +6172,10 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
         except Exception as e:
             print(f"❌ 系统诊断失败：{e}")
             self.send_json({"ok": False, "error": str(e)}, 500)
+
+    def handle_app_update_status(self):
+        """Return the latest public CanvasHub release without exposing configuration."""
+        self.send_json({"ok": True, **get_app_update_status()})
 
     def handle_system_settings(self):
         """Return editable project settings without secret values."""

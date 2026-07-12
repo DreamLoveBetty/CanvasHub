@@ -1,0 +1,101 @@
+{
+  "name": "canvashub-desktop",
+  "version": "26.1.0",
+  "description": "CanvasHub desktop application",
+  "main": "app-dist/main.js",
+  "private": true,
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "npm run build && electron .",
+    "prepare:release": "node scripts/write-release-config.mjs",
+    "pack": "npm run build && npm run prepare:release && electron-builder --dir",
+    "dist:mac": "npm run build && npm run prepare:release && electron-builder --mac dmg zip",
+    "dist:win": "npm run build && npm run prepare:release && electron-builder --win nsis"
+  },
+  "dependencies": {
+    "electron-updater": "^6.6.2"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.0",
+    "electron": "^39.2.0",
+    "electron-builder": "^26.0.12",
+    "typescript": "^5.9.3"
+  },
+  "build": {
+    "appId": "com.canvashub.desktop",
+    "productName": "CanvasHub",
+    "asar": true,
+    "publish": [
+      {
+        "provider": "generic",
+        "url": "https://github.com/DreamLoveBetty/CanvasHub/releases/latest/download"
+      }
+    ],
+    "files": [
+      "app-dist/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "../../frontend",
+        "to": "app-resources/frontend"
+      },
+      {
+        "from": "../../static",
+        "to": "app-resources/static"
+      },
+      {
+        "from": "../../prompt_skills",
+        "to": "app-resources/prompt_skills"
+      },
+      {
+        "from": "../../workflows",
+        "to": "app-resources/workflows"
+      },
+      {
+        "from": "../../settings.example.json",
+        "to": "app-resources/settings.example.json"
+      },
+      {
+        "from": "../../LICENSE",
+        "to": "app-resources/LICENSE"
+      },
+      {
+        "from": "../../THIRD_PARTY_NOTICES.md",
+        "to": "app-resources/THIRD_PARTY_NOTICES.md"
+      },
+      {
+        "from": "app-dist/release-config.json",
+        "to": "release-config.json"
+      },
+      {
+        "from": "../../dist/canvashub-runtime",
+        "to": "runtime"
+      }
+    ],
+    "mac": {
+      "category": "public.app-category.graphics-design",
+      "icon": "assets/canvashub-app-icon.icns",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "target": [
+        "dmg",
+        "zip"
+      ]
+    },
+    "dmg": {
+      "sign": false
+    },
+    "win": {
+      "icon": "assets/canvashub-app-icon.ico",
+      "target": [
+        "nsis"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "deleteAppDataOnUninstall": false
+    }
+  }
+}

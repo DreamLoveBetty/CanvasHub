@@ -14,11 +14,11 @@ from typing import Callable
 
 from PIL import Image
 
-from .app_config import BASE_DIR
+from .app_config import APP_DATA_DIR, BASE_DIR
 
 
 FRONTEND_ROOT = BASE_DIR / "frontend"
-THUMB_CACHE_ROOT = FRONTEND_ROOT / "thumb"
+THUMB_CACHE_ROOT = APP_DATA_DIR / "cache" / "thumb"
 THUMB_MAX_SIDE = 420
 THUMB_QUALITY = 76
 IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp"}
@@ -83,11 +83,11 @@ def resolve_media_path(media_path: str, resolvers: dict[str, Resolver]) -> Path 
     if path.startswith("/image/"):
         return resolvers["image"](Path(path).name)
     if path.startswith("/google_outputs/"):
-        candidate = (BASE_DIR / "google_outputs" / Path(path).name).resolve()
-        root = (BASE_DIR / "google_outputs").resolve()
+        candidate = (APP_DATA_DIR / "google_outputs" / Path(path).name).resolve()
+        root = (APP_DATA_DIR / "google_outputs").resolve()
     elif path.startswith("/gpt_outputs/"):
-        candidate = (BASE_DIR / "gpt_outputs" / Path(path).name).resolve()
-        root = (BASE_DIR / "gpt_outputs").resolve()
+        candidate = (APP_DATA_DIR / "gpt_outputs" / Path(path).name).resolve()
+        root = (APP_DATA_DIR / "gpt_outputs").resolve()
     else:
         return None
     try:

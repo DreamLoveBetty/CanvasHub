@@ -39,15 +39,42 @@ python3 server.py
 http://127.0.0.1:18463/desktop.html
 ```
 
-Windows 用户可以在项目根目录双击 `start-windows.bat` 一键启动。脚本会在需要时创建 `.venv`、安装依赖，并把主服务和 ChatGPT 账号池 sidecar 作为后台进程启动，同时打开桌面页面。需要停止时双击 `stop-windows.bat`。
+Windows 用户可以在项目根目录双击 `start-windows.bat` 一键启动。脚本会在需要时创建 `.venv`、安装依赖并打开桌面页面。需要停止时双击 `stop-windows.bat`。
 
-macOS/Linux 更省心的本地工作流可以使用 `./start.sh`，它会启动主服务和可选的 ChatGPT 账号池 sidecar。
+macOS/Linux 可以使用 `./start.sh` 启动本地应用。
 
 如果通过隧道或反向代理暴露应用，并希望 `start.sh` 打印用于 BotFather 配置的公开 URL，可以设置 `MINIAPP_PUBLIC_URL`：
 
 ```bash
 MINIAPP_PUBLIC_URL=https://your-domain.example ./start.sh
 ```
+
+## 桌面 App
+
+桌面版可以从 [GitHub Releases](https://github.com/DreamLoveBetty/CanvasHub/releases)
+下载。应用设置、账号信息、图片归档、缓存和可选组件会保存在当前用户的数据
+目录中，覆盖安装或升级应用不会清除这些内容。
+
+### 高清放大组件
+
+为了控制安装包体积，高清放大组件不会包含在首次安装包中。用户第一次运行
+高清放大节点时，应用会自动在后台下载、校验并安装对应组件，无需手动查找、
+下载或解压文件。界面会显示下载进度，安装完成后继续执行高清放大；以后使用
+会直接复用已经安装的组件。
+
+组件下载需要能够访问 GitHub。下载中断时可以重新点击高清放大，应用会继续
+下载或重新尝试安装。普通生图、编辑和图库功能不受高清组件下载状态影响。
+
+未使用 Developer ID 的 macOS 包适合内测：用户可右键应用选择“打开”，或在
+“系统设置 -> 隐私与安全性”中选择“仍要打开”。如果仍被隔离，可执行：
+
+```bash
+xattr -dr com.apple.quarantine /Applications/CanvasHub.app
+open /Applications/CanvasHub.app
+```
+
+不要让用户全局关闭 Gatekeeper。macOS 可靠自动更新需要 Developer ID 签名
+和 Apple 公证；未签名版本应通过重新下载新版 DMG 手动更新。
 
 ## 配置
 
@@ -57,7 +84,7 @@ MINIAPP_PUBLIC_URL=https://your-domain.example ./start.sh
 - Telegram：Bot Token、Chat ID、允许用户 ID、Telegram 代理。
 - Provider：本地 Codex provider、托管 Codex OAuth、传输策略、超时。
 - 第三方：nano banana / 兼容图片 API。
-- 账号池：本地 sidecar 设置和授权账号。
+- 账号池：账号连接和授权账号管理。
 - 润色：提示词技能 provider/model 配置。
 - 路径：归档目录、源图目录、任务数据库。
 

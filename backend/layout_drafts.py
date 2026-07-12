@@ -15,12 +15,12 @@ import uuid
 from pathlib import Path
 from typing import Any
 
-from .app_config import BASE_DIR
+from .app_config import APP_DATA_DIR
 from .storage_paths import IMAGE_ARCHIVE_DIR
 
 
 DRAFT_ROOT = IMAGE_ARCHIVE_DIR / "_layout_drafts"
-DB_PATH = BASE_DIR / "layout_drafts.db"
+DB_PATH = APP_DATA_DIR / "layout_drafts.db"
 VALID_DRAFT_ID = re.compile(r"^[A-Za-z0-9_-]{8,80}$")
 
 

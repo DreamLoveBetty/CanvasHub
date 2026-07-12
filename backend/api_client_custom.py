@@ -14,7 +14,7 @@ import time
 import urllib.request
 import urllib.error
 from pathlib import Path
-from .app_config import BASE_DIR
+from .app_config import APP_DATA_DIR
 from .storage_paths import daily_output_dir, write_obsidian_prompt_sidecar
 
 # Config
@@ -23,7 +23,7 @@ API_KEY = os.environ.get("CUSTOM_API_KEY", "pwd")
 MODEL_NAME = os.environ.get("CUSTOM_MODEL_NAME", "GPT-5.4")
 TIMEOUT_SECONDS = int(os.environ.get("CUSTOM_TIMEOUT", "120"))
 
-CUSTOM_OUTPUT_DIR = BASE_DIR / "custom_outputs"
+CUSTOM_OUTPUT_DIR = APP_DATA_DIR / "custom_outputs"
 
 
 def _normalize_ratio(ratio: str) -> str:

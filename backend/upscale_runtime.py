@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import json
 import os
 from pathlib import Path
+import subprocess
 from typing import Callable
 
 from PIL import Image
@@ -195,7 +197,7 @@ def _upscale_tensor_tiled(
     return output / weights.clamp_min(1)
 
 
-def upscale_image_file(
+def _upscale_image_file_in_process(
     input_path: Path,
     output_path: Path,
     *,
@@ -269,4 +271,93 @@ def upscale_image_file(
         scale=scale,
         model=normalized_model,
         device=selected_device,
+    )
+
+
+def _upscale_with_worker(
+    worker: Path,
+    input_path: Path,
+    output_path: Path,
+    *,
+    model_name: str,
+    model_dir: Path,
+    device: str | None,
+    tile_size: int,
+    tile_overlap: int,
+    progress: Callable[[float, str], None] | None,
+) -> UpscaleResult:
+    command = [
+        str(worker),
+        "--input", str(input_path),
+        "--output", str(output_path),
+        "--model", model_name,
+        "--model-dir", str(model_dir),
+        "--device", str(device or "auto"),
+        "--tile-size", str(tile_size),
+        "--tile-overlap", str(tile_overlap),
+    ]
+    process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding="utf-8")
+    final: dict | None = None
+    assert process.stdout is not None
+    for line in process.stdout:
+        try:
+            event = json.loads(line)
+        except Exception:
+            continue
+        if event.get("type") == "progress" and progress:
+            progress(float(event.get("progress") or 0), str(event.get("message") or "高清放大中..."))
+        elif event.get("type") == "result":
+            final = event
+    stderr = process.stderr.read() if process.stderr else ""
+    return_code = process.wait()
+    if return_code != 0 or not final:
+        raise UpscaleRuntimeError(stderr.strip() or f"高清放大 Worker 退出：{return_code}")
+    return UpscaleResult(
+        output_width=int(final["output_width"]),
+        output_height=int(final["output_height"]),
+        input_width=int(final["input_width"]),
+        input_height=int(final["input_height"]),
+        scale=int(final["scale"]),
+        model=str(final["model"]),
+        device=str(final["device"]),
+    )
+
+
+def upscale_image_file(
+    input_path: Path,
+    output_path: Path,
+    *,
+    model_name: str,
+    model_dir: Path,
+    device: str | None = None,
+    tile_size: int = 256,
+    tile_overlap: int = 32,
+    progress: Callable[[float, str], None] | None = None,
+) -> UpscaleResult:
+    try:
+        from .optional_components import resolve_upscale_worker
+        worker = resolve_upscale_worker()
+    except Exception:
+        worker = None
+    if worker:
+        return _upscale_with_worker(
+            worker,
+            input_path,
+            output_path,
+            model_name=model_name,
+            model_dir=model_dir,
+            device=device,
+            tile_size=tile_size,
+            tile_overlap=tile_overlap,
+            progress=progress,
+        )
+    return _upscale_image_file_in_process(
+        input_path,
+        output_path,
+        model_name=model_name,
+        model_dir=model_dir,
+        device=device,
+        tile_size=tile_size,
+        tile_overlap=tile_overlap,
+        progress=progress,
     )

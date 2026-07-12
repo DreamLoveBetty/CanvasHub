@@ -4,6 +4,8 @@
   const LAST_TASK_KEY = 'desktop_canvas_last_task_v1';
   const DEFAULT_INPUT_NODE_WIDTH = 720;
   const DEFAULT_INPUT_NODE_HEIGHT = 460;
+  const DEFAULT_CANVAS_SCALE = 0.75;
+  const CANVAS_VIEW_VERSION = 2;
 
   const statusLabels = {
     idle: '空闲',
@@ -88,12 +90,13 @@
     todayCount: 0,
     runtimeConfig: {
       hasSavedGptMainModel: false,
-      hasSavedReasoningEffort: false
+      hasSavedReasoningEffort: false,
+      resetCanvasViewOnLoad: false
     },
     canvas: {
       x: 0,
       y: 0,
-      scale: 1,
+      scale: DEFAULT_CANVAS_SCALE,
       selectedNodeId: '',
       nodes: {
         input: { id: 'input', type: 'input', x: 56, y: 72, width: DEFAULT_INPUT_NODE_WIDTH, height: DEFAULT_INPUT_NODE_HEIGHT }
@@ -321,6 +324,7 @@
     state.params.model = normalizeGoogleModel(state.params.model);
     try {
       localStorage.setItem(SETTINGS_KEY, JSON.stringify({
+        canvasViewVersion: CANVAS_VIEW_VERSION,
         provider: state.provider,
         inputExpanded: state.inputExpanded,
         referenceImages: sanitizeReferences(state.referenceImages),
@@ -339,6 +343,8 @@
   function loadSettings() {
     try {
       const parsed = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}');
+      const resetCanvasView = Number(parsed.canvasViewVersion || 0) < CANVAS_VIEW_VERSION;
+      state.runtimeConfig.resetCanvasViewOnLoad = resetCanvasView;
       if (parsed.provider) state.provider = parsed.provider;
       if (typeof parsed.inputExpanded === 'boolean') state.inputExpanded = parsed.inputExpanded;
       if (Array.isArray(parsed.referenceImages)) {
@@ -381,6 +387,7 @@
           }
         });
       }
+      if (resetCanvasView) state.canvas.scale = DEFAULT_CANVAS_SCALE;
       if (parsed.outputs && typeof parsed.outputs === 'object') {
         state.outputs = { ...state.outputs, ...sanitizeOutputMap(parsed.outputs) };
       }
@@ -435,6 +442,7 @@
 
   window.DesktopState = {
     state,
+    DEFAULT_CANVAS_SCALE,
     clamp,
     normalizeRatio,
     normalizeResolution,

@@ -18,11 +18,11 @@ from urllib.parse import urlparse
 import requests
 from PIL import Image
 
-from .app_config import BASE_DIR, get_third_party_image_config
+from .app_config import APP_DATA_DIR, get_third_party_image_config
 from .image_resolution import build_resolution_metadata
 from .storage_paths import daily_output_dir, write_obsidian_prompt_sidecar
 
-GPT_OUTPUT_DIR = BASE_DIR / "gpt_outputs"
+GPT_OUTPUT_DIR = APP_DATA_DIR / "gpt_outputs"
 PROVIDER_NAME = "third-party-gpt-image"
 _RATE_LIMIT_LOCK = threading.Lock()
 _RATE_LIMIT_UNTIL = 0.0

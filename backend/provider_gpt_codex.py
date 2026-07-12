@@ -23,6 +23,7 @@ from pathlib import Path
 from typing import Callable, Dict, Optional
 
 from .app_config import (
+    APP_DATA_DIR,
     BASE_DIR,
     DEFAULT_GPT_IMAGE_MAIN_MODEL,
     DEFAULT_GPT_PROVIDER_TOTAL_TIMEOUT_SECONDS,
@@ -38,7 +39,7 @@ from .image_resolution import build_resolution_metadata
 from .gpt_model_catalog import codex_fallback_models, normalize_model_id, resolve_route_model
 from .storage_paths import daily_output_dir, write_obsidian_prompt_sidecar
 
-GPT_OUTPUT_DIR = BASE_DIR / "gpt_outputs"
+GPT_OUTPUT_DIR = APP_DATA_DIR / "gpt_outputs"
 CODEX_IMAGE_RUNTIME_DIR = BASE_DIR / "backend" / "codex_image_runtime"
 CODEX_IMAGE_RUNTIME_SCRIPTS_DIR = CODEX_IMAGE_RUNTIME_DIR / "scripts"
 if str(CODEX_IMAGE_RUNTIME_SCRIPTS_DIR) not in sys.path:

@@ -25,6 +25,9 @@
     "source_image_dir": "data/source_images",
     "tasks_db": "tasks.db"
   },
+  "desktop_components": {
+    "upscale_manifest_url": ""
+  },
   "gpt_provider": {
     "auth_file": "",
     "auth_dir": "",

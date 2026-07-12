@@ -1,6 +1,8 @@
 .env
 .venv/
 .venv-sam3d/
+.venv-desktop/
+.venv-upscale-component/
 
 # Local operator / memory context. AGENTS.md is tracked for project rules;
 # keep the maintainer-specific docs below out of the public release.
@@ -46,6 +48,8 @@ launchd/*.plist
 tests/
 .nested-git-backups/
 scripts/
+!desktop/electron/scripts/
+!desktop/electron/scripts/write-release-config.mjs
 test_node.js
 apply_neumorphic.py
 inject_style.py
@@ -61,6 +65,13 @@ output/
 font/
 artifacts/
 generated/
+build/
+dist/
+desktop/electron/dist/
+desktop/electron/app-dist/
+desktop/electron/node_modules/
+desktop/electron/release/
+desktop/electron/assets/canvashub-app-icon-white.png
 frontend/thumb/
 frontend/assets/image-editor-icons/*.png
 frontend/assets/image-editor-cursors/*.png

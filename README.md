@@ -47,12 +47,10 @@ http://127.0.0.1:18463/desktop.html
 ```
 
 On Windows, double-click `start-windows.bat` from the project root for a
-one-click launch. It creates `.venv` when needed, installs dependencies, starts
-the main server and ChatGPT account-pool sidecar as background processes, and
-opens the desktop page. Use `stop-windows.bat` to stop both background services.
+one-click launch. It creates `.venv` when needed, installs dependencies, and
+opens the desktop page. Use `stop-windows.bat` to stop the local app.
 
-For the lower-maintenance macOS/Linux local workflow, `./start.sh` can start the
-main server and the optional ChatGPT account-pool sidecar.
+On macOS/Linux, use `./start.sh` to start the local app.
 
 If you expose the app through a tunnel or reverse proxy and want `start.sh` to
 print that URL for BotFather setup, set `MINIAPP_PUBLIC_URL`:
@@ -60,6 +58,26 @@ print that URL for BotFather setup, set `MINIAPP_PUBLIC_URL`:
 ```bash
 MINIAPP_PUBLIC_URL=https://your-domain.example ./start.sh
 ```
+
+## Desktop App
+
+Download the desktop app from
+[GitHub Releases](https://github.com/DreamLoveBetty/CanvasHub/releases). Settings,
+account information, image archives, caches, and optional components are stored
+in the current user's application-data directory and remain available after an
+app upgrade or reinstall.
+
+### Upscale Component
+
+To keep the initial installer smaller, the local upscale component is installed
+on demand. The first time an upscale node runs, CanvasHub automatically
+downloads, verifies, and installs the correct component in the background. No
+manual download or extraction is required. Progress is shown in the app, and
+later upscale jobs reuse the installed component.
+
+Component installation requires access to GitHub. If a download is interrupted,
+run the upscale node again to resume or retry. Image generation, editing, and
+gallery features remain available when the optional component is not installed.
 
 ## Configuration
 
@@ -69,7 +87,7 @@ Most runtime settings can be edited from the desktop Settings Center.
 - Telegram: bot token, chat id, allowed user ids, and Telegram proxy.
 - Provider: local Codex provider, managed Codex OAuth, transport mode, timeout.
 - Third-party: nano banana / compatible image APIs.
-- Account pool: local sidecar settings and authorized accounts.
+- Account pool: account connections and authorized-account management.
 - Polish: prompt-skill provider/model configuration.
 - Paths: archive directory, source image directory, and tasks database.
 

@@ -74,6 +74,8 @@
     '输入访问密码': 'Access password',
     '验证并登录': 'Sign In',
     '切换明暗配色': 'Toggle light or dark theme',
+    '版本更新': 'Product updates',
+    '关闭版本更新': 'Close product updates',
     '浅色': 'Light',
     '深色': 'Dark',
     '语言': 'Language',

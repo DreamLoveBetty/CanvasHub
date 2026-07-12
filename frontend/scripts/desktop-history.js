@@ -2580,8 +2580,96 @@
     return galleryFiles.find(item => item.id === id || item.directoryRelative === id);
   }
 
+  function editablePreviewLayers(file) {
+    const layers = Array.isArray(file?.preview?.layers) ? file.preview.layers : [];
+    return layers
+      .map((layer, position) => ({
+        ...layer,
+        position,
+        index: Number(layer?.index || position + 1),
+        name: String(layer?.name || `图层 ${position + 1}`),
+        url: String(layer?.url || '')
+      }))
+      .filter(layer => layer.url)
+      .sort((left, right) => left.index - right.index || left.position - right.position);
+  }
+
+  function editablePreviewCanvas(file) {
+    const preview = file?.preview || {};
+    const validationSize = Array.isArray(file?.validation?.canvas_size) ? file.validation.canvas_size : [];
+    const previewSize = Array.isArray(preview.canvas_size) ? preview.canvas_size : [];
+    const canvas = preview.canvas && typeof preview.canvas === 'object' ? preview.canvas : {};
+    const width = coercePositiveNumber(
+      validationSize[0]
+      || previewSize[0]
+      || canvas.width
+      || preview.canvas_width
+      || preview.canvasWidth
+    );
+    const height = coercePositiveNumber(
+      validationSize[1]
+      || previewSize[1]
+      || canvas.height
+      || preview.canvas_height
+      || preview.canvasHeight
+    );
+    return width && height ? { width, height } : null;
+  }
+
+  function editableLayerPlacement(layer, canvas) {
+    const placement = layer?.placement && typeof layer.placement === 'object' ? layer.placement : {};
+    const readCoordinate = (value, fallback) => {
+      const number = Number(value);
+      return Number.isFinite(number) ? number : fallback;
+    };
+    return {
+      x: readCoordinate(layer?.x ?? layer?.left ?? placement.x ?? placement.left, 0),
+      y: readCoordinate(layer?.y ?? layer?.top ?? placement.y ?? placement.top, 0),
+      width: coercePositiveNumber(layer?.width ?? placement.width) || canvas.width,
+      height: coercePositiveNumber(layer?.height ?? placement.height) || canvas.height
+    };
+  }
+
+  function filePreviewCompositeHtml(file, layers) {
+    const canvas = editablePreviewCanvas(file);
+    if (!canvas || !layers.length) return '';
+    const images = layers.map((layer, position) => {
+      const placement = editableLayerPlacement(layer, canvas);
+      return `
+        <image
+          class="desk-file-preview-modal__composite-layer"
+          data-file-layer-image="${position}"
+          href="${escapeHtml(layer.url)}"
+          x="${placement.x}"
+          y="${placement.y}"
+          width="${placement.width}"
+          height="${placement.height}"
+          preserveAspectRatio="none"
+        ></image>
+      `;
+    }).join('');
+    return `
+      <svg
+        class="desk-file-preview-modal__composite"
+        data-file-layer-composite
+        viewBox="0 0 ${canvas.width} ${canvas.height}"
+        preserveAspectRatio="xMidYMid meet"
+        role="img"
+        aria-label="${escapeHtml(file?.title || 'PSD 图层组合预览')}"
+      >
+        <title>${escapeHtml(file?.title || 'PSD 图层组合预览')}</title>
+        ${images}
+      </svg>
+    `;
+  }
+
   function filePreviewStageHtml(file) {
     const preview = file?.preview || {};
+    const layers = editablePreviewLayers(file);
+    const composite = String(file?.kind || '').toUpperCase() === 'PSD'
+      ? filePreviewCompositeHtml(file, layers)
+      : '';
+    if (composite) return composite;
     const firstPage = Array.isArray(preview.pages) ? preview.pages[0] : null;
     const imageUrl = file?.previewUrl || preview.image_url || preview.imageUrl || firstPage?.url || '';
     if (imageUrl) {
@@ -2622,14 +2710,28 @@
     if (els.deskFilePreviewTitle) els.deskFilePreviewTitle.textContent = file.title || file.subject || '文件预览';
     if (els.deskFilePreviewMeta) els.deskFilePreviewMeta.innerHTML = filePreviewMetaHtml(file);
     if (els.deskFilePreviewPrompt) els.deskFilePreviewPrompt.textContent = file.prompt || '无提示词';
-    const layers = Array.isArray(file.preview?.layers) ? file.preview.layers : [];
+    const layers = editablePreviewLayers(file);
     if (els.deskFilePreviewLayersBlock) els.deskFilePreviewLayersBlock.hidden = !layers.length;
     if (els.deskFilePreviewLayers) {
-      els.deskFilePreviewLayers.innerHTML = layers.slice(0, 24).map(layer => `
-        <a href="${escapeHtml(layer.url)}" target="_blank" rel="noopener" title="${escapeHtml(layer.name || '图层')}">
-          <img src="${escapeHtml(layer.url)}" alt="">
-          <span>${escapeHtml(layer.name || '图层')}</span>
-        </a>
+      els.deskFilePreviewLayers.innerHTML = layers.map((layer, position) => `
+        <div class="desk-file-preview-modal__layer" data-file-layer-row="${position}" role="listitem">
+          <a class="desk-file-preview-modal__layer-link" href="${escapeHtml(layer.url)}" target="_blank" rel="noopener" title="${escapeHtml(layer.name)}">
+            <img src="${escapeHtml(layer.url)}" alt="">
+            <span class="desk-file-preview-modal__layer-copy">
+              <strong>${escapeHtml(layer.name)}</strong>
+              <em>第 ${String(layer.index).padStart(2, '0')} 层</em>
+            </span>
+          </a>
+          <button
+            type="button"
+            class="desk-file-preview-modal__layer-visibility"
+            data-file-layer-visibility="${position}"
+            data-file-layer-name="${escapeHtml(layer.name)}"
+            aria-label="隐藏图层 ${escapeHtml(layer.name)}"
+            aria-pressed="true"
+            title="隐藏图层"
+          ><span aria-hidden="true"></span></button>
+        </div>
       `).join('');
     }
     setActionLink(els.deskFilePreviewOpenBtn, file.primary?.url || '');
@@ -2651,6 +2753,23 @@
     els.deskFilePreviewModal?.classList.remove('is-open');
     els.deskFilePreviewModal?.setAttribute('aria-hidden', 'true');
     previewEditableFile = null;
+  }
+
+  function toggleEditableFileLayer(button) {
+    if (!button || !els.deskFilePreviewStage) return;
+    const layerPosition = String(button.dataset.fileLayerVisibility || '');
+    if (!layerPosition) return;
+    const visible = button.getAttribute('aria-pressed') !== 'true';
+    const layerName = String(button.dataset.fileLayerName || '图层');
+    const layerImage = els.deskFilePreviewStage.querySelector(
+      `[data-file-layer-image="${CSS.escape(layerPosition)}"]`
+    );
+    const layerRow = button.closest('[data-file-layer-row]');
+    layerImage?.classList.toggle('is-hidden', !visible);
+    layerRow?.classList.toggle('is-hidden', !visible);
+    button.setAttribute('aria-pressed', visible ? 'true' : 'false');
+    button.setAttribute('aria-label', `${visible ? '隐藏' : '显示'}图层 ${layerName}`);
+    button.title = visible ? '隐藏图层' : '显示图层';
   }
 
   async function sendEditableFile(file, button) {
@@ -4466,6 +4585,13 @@
     els.deskFilePreviewCloseBtn?.addEventListener('click', closeEditableFilePreview);
     els.deskFilePreviewModal?.addEventListener('click', event => {
       if (event.target === els.deskFilePreviewModal) closeEditableFilePreview();
+    });
+    els.deskFilePreviewLayers?.addEventListener('click', event => {
+      const button = event.target.closest('[data-file-layer-visibility]');
+      if (!button) return;
+      event.preventDefault();
+      event.stopPropagation();
+      toggleEditableFileLayer(button);
     });
     els.deskFilePreviewSendBtn?.addEventListener('click', async () => {
       try {

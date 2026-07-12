@@ -19,7 +19,7 @@ from urllib.parse import quote
 
 from PIL import Image, ImageChops
 
-from .app_config import BASE_DIR
+from .app_config import APP_DATA_DIR
 from .storage_paths import IMAGE_ARCHIVE_DIR
 
 
@@ -27,7 +27,7 @@ EDITABLE_FILE_TYPES = {"ppt", "psd"}
 EDITABLE_ROOT = IMAGE_ARCHIVE_DIR.parent
 PPT_ROOT = EDITABLE_ROOT / "PPT"
 PSD_ROOT = EDITABLE_ROOT / "PSD"
-LOCAL_EDITABLE_ROOT = BASE_DIR / "data" / "editable_outputs"
+LOCAL_EDITABLE_ROOT = APP_DATA_DIR / "editable_outputs"
 
 
 def normalize_editable_type(value: str) -> str:

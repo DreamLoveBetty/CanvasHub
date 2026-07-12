@@ -11,10 +11,10 @@ import os
 import re
 import secrets
 import socketserver
-import subprocess
 import threading
 import time
 import urllib.parse
+import webbrowser
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -520,7 +520,7 @@ def start_oauth_login(open_browser: bool = True, force_reauth: bool = False, ema
         params["login_hint"] = str(email_hint).strip()
     authorize_url = f"{AUTHORIZE_URL}?{urllib.parse.urlencode(params)}"
     if open_browser:
-        subprocess.Popen(["open", authorize_url], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        webbrowser.open(authorize_url, new=2, autoraise=True)
     return {
         "ok": True,
         "session_id": state,

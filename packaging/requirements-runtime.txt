@@ -1,0 +1,3 @@
+-r ../requirements.txt
+-r ../sidecars/chatgpt_pool/requirements.txt
+pyinstaller>=6.16,<7

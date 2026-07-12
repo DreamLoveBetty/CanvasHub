@@ -14,10 +14,14 @@ from pathlib import Path
 from typing import Any
 
 BACKEND_DIR = Path(__file__).resolve().parent
-BASE_DIR = BACKEND_DIR.parent
-DEFAULT_SETTINGS_PATH = BASE_DIR / "settings.json"
-DEFAULT_IMAGE_ARCHIVE_DIR = BASE_DIR / "data" / "archive"
-DEFAULT_SOURCE_IMAGE_DIR = BASE_DIR / "data" / "source_images"
+SOURCE_BASE_DIR = BACKEND_DIR.parent
+BASE_DIR = Path(os.environ.get("CANVASHUB_RESOURCE_DIR") or SOURCE_BASE_DIR).expanduser().resolve()
+_APP_DATA_OVERRIDE = str(os.environ.get("CANVASHUB_DATA_DIR") or "").strip()
+APP_DATA_DIR = Path(_APP_DATA_OVERRIDE).expanduser().resolve() if _APP_DATA_OVERRIDE else BASE_DIR
+DESKTOP_DATA_MODE = bool(_APP_DATA_OVERRIDE)
+DEFAULT_SETTINGS_PATH = APP_DATA_DIR / "settings.json"
+DEFAULT_IMAGE_ARCHIVE_DIR = APP_DATA_DIR / ("archive" if DESKTOP_DATA_MODE else "data/archive")
+DEFAULT_SOURCE_IMAGE_DIR = APP_DATA_DIR / ("source_images" if DESKTOP_DATA_MODE else "data/source_images")
 DEFAULT_SERVER_HOST = "127.0.0.1"
 DEFAULT_PUBLIC_SERVER_HOST = "0.0.0.0"
 DEFAULT_SERVER_PORT = 18463
@@ -35,8 +39,8 @@ DEFAULT_CHATGPT_POOL_MODEL = "gpt-5-5"
 DEFAULT_CHATGPT_POOL_TIMEOUT_SECONDS = 900
 DEFAULT_MANAGED_CODEX_OAUTH_ENABLED = True
 DEFAULT_MANAGED_CODEX_OAUTH_API_BASE = "https://chatgpt.com/backend-api/codex"
-DEFAULT_MANAGED_CODEX_OAUTH_AUTH_FILE = BASE_DIR / "data" / "managed_codex_oauth" / "auth.json"
-DEFAULT_MANAGED_CODEX_OAUTH_ACCOUNTS_DIR = BASE_DIR / "data" / "managed_codex_oauth" / "accounts"
+DEFAULT_MANAGED_CODEX_OAUTH_AUTH_FILE = APP_DATA_DIR / ("auth/managed_codex/auth.json" if DESKTOP_DATA_MODE else "data/managed_codex_oauth/auth.json")
+DEFAULT_MANAGED_CODEX_OAUTH_ACCOUNTS_DIR = APP_DATA_DIR / ("auth/managed_codex/accounts" if DESKTOP_DATA_MODE else "data/managed_codex_oauth/accounts")
 DEFAULT_MANAGED_CODEX_OAUTH_REDIRECT_URI = "http://localhost:1455/auth/callback"
 DEFAULT_NANO_BANANA_API_BASE_URL = ""
 DEFAULT_YUNWU_API_BASE_URL = DEFAULT_NANO_BANANA_API_BASE_URL
@@ -334,7 +338,7 @@ def _resolve_project_path(raw: Any, default: Path) -> Path:
         return default
     path = Path(text).expanduser()
     if not path.is_absolute():
-        path = BASE_DIR / path
+        path = APP_DATA_DIR / path
     return path
 
 
@@ -344,7 +348,7 @@ def _resolve_optional_project_path(raw: Any) -> Path | None:
         return None
     path = Path(text).expanduser()
     if not path.is_absolute():
-        path = BASE_DIR / path
+        path = APP_DATA_DIR / path
     return path
 
 
@@ -411,7 +415,7 @@ def get_database_path() -> Path:
         os.environ.get("TASKS_DB_PATH")
         or os.environ.get("TASKS_DB")
         or paths.get("tasks_db"),
-        BASE_DIR / "tasks.db",
+        APP_DATA_DIR / "tasks.db",
     )
 
 
@@ -442,7 +446,7 @@ def get_chatgpt_pool_config(ensure_auth_key: bool = False) -> dict[str, Any]:
 
     db_path = _resolve_project_path(
         os.environ.get("CHATGPT_POOL_DB") or section.get("db_path"),
-        BASE_DIR / "data" / "chatgpt_pool" / "accounts.db",
+        APP_DATA_DIR / ("chatgpt_pool/accounts.db" if DESKTOP_DATA_MODE else "data/chatgpt_pool/accounts.db"),
     )
 
     generation_model = _as_str(section.get("generation_model") or DEFAULT_CHATGPT_POOL_MODEL) or DEFAULT_CHATGPT_POOL_MODEL

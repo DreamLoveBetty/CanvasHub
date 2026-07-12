@@ -252,6 +252,24 @@
     return requireApi().json('/api/upscale/models');
   }
 
+  function getUpscaleComponentStatus() {
+    return requireApi().json('/api/upscale/component/status');
+  }
+
+  function installUpscaleComponent(options = {}) {
+    return requireApi().json('/api/upscale/component/install', {
+      method: 'POST',
+      body: JSON.stringify({ force: options.force === true }),
+    });
+  }
+
+  function removeUpscaleComponent() {
+    return requireApi().json('/api/upscale/component/remove', {
+      method: 'POST',
+      body: JSON.stringify({}),
+    });
+  }
+
   function getBatch(batchId) {
     if (!batchId) return Promise.reject(new Error('缺少 batch_id'));
     return requireApi().json(`/api/batches/${encodeURIComponent(batchId)}`);
@@ -390,6 +408,10 @@
 
   function getSystemDiagnostics() {
     return requireApi().json('/api/system/diagnostics');
+  }
+
+  function getAppUpdateStatus() {
+    return requireApi().json('/api/app/update-status');
   }
 
   function getSystemSettings() {
@@ -922,6 +944,9 @@
     submitCurrentTask,
     getStatus,
     getUpscaleModels,
+    getUpscaleComponentStatus,
+    installUpscaleComponent,
+    removeUpscaleComponent,
     getBatch,
     controlBatch,
     cancelTask,
@@ -936,6 +961,7 @@
     sendEditableFile,
     deleteEditableFile,
     getSystemDiagnostics,
+    getAppUpdateStatus,
     getSystemSettings,
     saveSystemSettings,
     getGptConfig,

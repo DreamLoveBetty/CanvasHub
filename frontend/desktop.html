@@ -3,14 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="canvashub-version" content="V26.0.0.1">
+  <meta name="canvashub-version" content="V26.1.0">
   <title>图像画布</title>
-  <link rel="stylesheet" href="styles/desktop-liquid.css?v=20260712-node-groups1">
+  <link rel="stylesheet" href="styles/desktop-liquid.css?v=20260713-app-update-bell1-canvas-zoom75">
   <link rel="stylesheet" href="styles/desktop-layout.css?v=20260629-desk-select1">
   <link rel="stylesheet" href="styles/desktop-pose.css?v=20260703-pose-reference1">
   <link rel="stylesheet" href="styles/desktop-file-results.css?v=20260711-file-board-list4">
 </head>
-<body class="desk-app" data-app-version="V26.0.0.1">
+<body class="desk-app" data-app-version="V26.1.0">
   <div id="authOverlay" class="auth-overlay">
     <div class="auth-card desk-glass">
       <div class="auth-title" data-i18n="authTitle">需要身份验证</div>
@@ -41,6 +41,35 @@
         </button>
       </div>
       <div class="desk-titlebar-actions" aria-label="显示与语言" data-i18n-aria="displayLanguage">
+        <div class="desk-release" id="deskRelease" data-i18n-skip>
+          <button type="button" class="desk-release__trigger" id="deskReleaseTrigger" aria-label="版本更新" title="版本更新" aria-expanded="false" aria-controls="deskReleasePanel">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M10.3 5.2a2 2 0 0 1 3.4 0"></path>
+              <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"></path>
+              <path d="M10 21h4"></path>
+            </svg>
+            <span class="desk-release__unread" aria-hidden="true"></span>
+          </button>
+          <section class="desk-release__panel desk-glass" id="deskReleasePanel" role="dialog" aria-modal="false" aria-labelledby="deskReleaseTitle" hidden>
+            <header class="desk-release__header">
+              <div>
+                <span id="deskReleaseEyebrow">CANVASHUB</span>
+                <h2 id="deskReleaseTitle">版本更新</h2>
+              </div>
+              <button type="button" class="desk-release__close" id="deskReleaseClose" aria-label="关闭版本更新" title="关闭版本更新">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M18 6 6 18"></path>
+                  <path d="m6 6 12 12"></path>
+                </svg>
+              </button>
+            </header>
+            <div class="desk-release__list" id="deskReleaseList"></div>
+            <footer class="desk-release__footer">
+              <span id="deskReleaseCurrentLabel">当前版本</span>
+              <strong id="deskReleaseCurrentVersion">V26.1.0</strong>
+            </footer>
+          </section>
+        </div>
         <button type="button" class="desk-theme-toggle" id="deskThemeToggle" aria-label="切换明暗配色" title="切换明暗配色" data-i18n-aria="themeToggleTitle" data-i18n-title="themeToggleTitle">
           <span class="desk-theme-toggle__icon desk-theme-toggle__icon--sun" aria-hidden="true">
             <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"></circle><path d="M12 3v2.2M12 18.8V21M3 12h2.2M18.8 12H21M5.6 5.6l1.6 1.6M16.8 16.8l1.6 1.6M18.4 5.6l-1.6 1.6M7.2 16.8l-1.6 1.6"></path></svg>
@@ -300,7 +329,7 @@
         </div>
         <div class="desk-zoom-row">
           <button type="button" id="deskZoomOutBtn" title="缩小画布" aria-label="缩小画布">-</button>
-          <button type="button" class="desk-zoom-label" id="deskZoomLabel" aria-haspopup="menu" aria-expanded="false" aria-controls="deskZoomPresetMenu" title="选择固定缩放比">100%</button>
+          <button type="button" class="desk-zoom-label" id="deskZoomLabel" aria-haspopup="menu" aria-expanded="false" aria-controls="deskZoomPresetMenu" title="选择固定缩放比">75%</button>
           <button type="button" id="deskZoomInBtn" title="放大画布" aria-label="放大画布">+</button>
           <button type="button" id="deskMiniMapPinBtn" title="固定小地图" aria-label="固定小地图" aria-pressed="false">
             <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="6" width="14" height="12" rx="2"></rect><path d="M9 10h6M9 14h4"></path></svg>
@@ -645,7 +674,7 @@
       <div class="desk-settings__header">
         <div class="desk-settings__title">
           <h2>设置中心</h2>
-          <span class="desk-settings__version" aria-label="版本 V26.0.0.1">V26.0.0.1</span>
+          <span class="desk-settings__version" aria-label="版本 V26.1.0">V26.1.0</span>
         </div>
         <div class="desk-settings__actions">
           <button type="button" id="deskSettingsInfoBtn" class="desk-settings-info-trigger" title="查看当前页说明" aria-label="查看当前页说明" aria-haspopup="dialog" aria-expanded="false" aria-controls="deskSettingsInfoTip" hidden>
@@ -807,7 +836,7 @@
           </section>
           <section id="deskFilePreviewLayersBlock" hidden>
             <strong>图层</strong>
-            <div class="desk-file-preview-modal__layers" id="deskFilePreviewLayers"></div>
+            <div class="desk-file-preview-modal__layers" id="deskFilePreviewLayers" role="list"></div>
           </section>
           <div class="desk-file-preview-modal__actions">
             <a id="deskFilePreviewOpenBtn" href="#" target="_blank" rel="noopener">打开主文件</a>
@@ -1239,20 +1268,20 @@
     <input id="deskLayoutImageInput" type="file" accept="image/*" hidden>
   </div>
 
-  <script src="scripts/desktop-i18n.js?v=20260712-node-groups1"></script>
+  <script src="scripts/desktop-i18n.js?v=20260712-release-bell1-node-groups1"></script>
   <script src="scripts/auth-api.js?v=20260711-auth-ready1"></script>
   <script src="vendor/fabric.min.js?v=5.3.0"></script>
   <script src="vendor/fabric-eraser.mixin.js?v=20260628-image-editor-pin16"></script>
-  <script src="scripts/desktop-state.js?v=20260711-route-models2"></script>
-  <script src="scripts/desktop-preferences.js?v=20260707-theme-circle-reveal7"></script>
+  <script src="scripts/desktop-state.js?v=20260713-canvas-zoom75"></script>
+  <script src="scripts/desktop-preferences.js?v=20260713-backend-update-status1"></script>
   <script src="scripts/desktop-select.js?v=20260702-upscale-flow12"></script>
-  <script src="scripts/desktop-api.js?v=20260711-route-models1"></script>
-  <script src="scripts/desktop-canvas.js?v=20260712-node-groups2"></script>
+  <script src="scripts/desktop-api.js?v=20260713-backend-update-status1"></script>
+  <script src="scripts/desktop-canvas.js?v=20260712-node-groups2-20260713-canvas-zoom75-upscale-component1"></script>
   <script type="module" src="scripts/desktop-pose-studio.js?v=20260705-pose-legacy-skeleton1"></script>
   <script src="scripts/desktop-layout-editor.js?v=20260621-websearch1"></script>
   <script src="scripts/desktop-file-results.js?v=20260711-file-board-list3"></script>
   <script src="scripts/desktop-results.js?v=20260710-file-output-redesign3"></script>
-  <script src="scripts/desktop-history.js?v=20260705-gallery-preview-counter1"></script>
+  <script src="scripts/desktop-history.js?v=20260705-gallery-preview-counter1-file-layer-composite1"></script>
   <script src="scripts/desktop-settings.js?v=20260712-pool-oauth3"></script>
   <script src="scripts/desktop-prompt-editor.js?v=20260704-prompt-clear-position1"></script>
   <script src="scripts/desktop-prompt-drawer.js?v=20260706-prompt-drawer-session1"></script>

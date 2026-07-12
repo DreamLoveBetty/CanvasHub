@@ -5,6 +5,7 @@
   const MIN_SCALE = 0.3;
   const MAX_SCALE = 1.8;
   const ZOOM_PRESETS = [0.3, 0.5, 0.75];
+  const DEFAULT_CANVAS_SCALE = 0.75;
   const MIN_NODE_WIDTH = 360;
   const MIN_NODE_HEIGHT = 260;
   const MAX_NODE_WIDTH = 760;
@@ -2565,8 +2566,8 @@
 
   function resetCanvasView() {
     const canvas = DesktopState.state.canvas;
-    canvas.scale = 1;
-    if (!centerCanvasOnPrimaryModel(1)) {
+    canvas.scale = DEFAULT_CANVAS_SCALE;
+    if (!centerCanvasOnPrimaryModel(DEFAULT_CANVAS_SCALE)) {
       canvas.x = 0;
       canvas.y = 0;
     }
@@ -3483,12 +3484,12 @@
     document.body.insertAdjacentHTML('beforeend', `
       <div class="desk-text-polish-modal" id="deskTextPolishModal" aria-hidden="true">
         <div class="desk-text-polish-modal__panel desk-glass">
-          <header>
-            <div>
+          <header class="desk-text-polish-modal__header">
+            <div class="desk-text-polish-modal__title">
               <p>Prompt Skill</p>
               <h2>GPT 润色结果</h2>
             </div>
-            <button type="button" data-polish-close title="关闭" aria-label="关闭">×</button>
+            <button type="button" class="desk-text-polish-modal__close" data-polish-close title="关闭" aria-label="关闭"></button>
           </header>
           <div class="desk-text-polish-modal__grid" role="listbox" aria-label="润色候选提示">
             ${TEXT_POLISH_VARIANTS.map(item => `
@@ -3502,10 +3503,12 @@
               </button>
             `).join('')}
           </div>
-          <div class="desk-text-polish-modal__meta" data-polish-meta></div>
-          <footer>
-            <button type="button" data-polish-copy>复制当前</button>
-            <button type="button" class="is-primary" data-polish-close>完成</button>
+          <footer class="desk-text-polish-modal__footer">
+            <div class="desk-text-polish-modal__meta" data-polish-meta></div>
+            <div class="desk-text-polish-modal__actions">
+              <button type="button" class="desk-text-polish-modal__copy" data-polish-copy>复制当前</button>
+              <button type="button" class="desk-text-polish-modal__done is-primary" data-polish-close>完成</button>
+            </div>
           </footer>
         </div>
       </div>
@@ -4455,11 +4458,54 @@
     };
   }
 
+  let upscaleComponentInstallPromise = null;
+
+  async function ensureUpscaleComponent(modelName) {
+    const catalog = await DesktopApi.getUpscaleModels();
+    const model = (catalog.models || []).find(item => item.id === modelName);
+    if (model?.available) return catalog;
+    if (upscaleComponentInstallPromise) return upscaleComponentInstallPromise;
+
+    const component = catalog.component || {};
+    if (!component.configured) {
+      throw new Error('高清放大组件下载源尚未配置。');
+    }
+
+    upscaleComponentInstallPromise = (async () => {
+      DesktopResults.showTransientMessage('首次使用，正在下载高清放大组件...', 'busy');
+      await DesktopApi.installUpscaleComponent();
+      const deadline = Date.now() + 45 * 60 * 1000;
+      let lastProgressBucket = -1;
+      while (Date.now() < deadline) {
+        const status = await DesktopApi.getUpscaleComponentStatus();
+        if (status.status === 'failed') throw new Error(status.error || '高清放大组件安装失败');
+        if (status.installed && status.status === 'ready') {
+          const refreshed = await DesktopApi.getUpscaleModels();
+          const readyModel = (refreshed.models || []).find(item => item.id === modelName);
+          if (!readyModel?.available) throw new Error(`高清放大模型不可用：${modelName}`);
+          DesktopResults.showTransientMessage('高清放大组件安装完成。', 'success');
+          return refreshed;
+        }
+        const progressBucket = Math.floor(Number(status.progress || 0) * 10);
+        if (progressBucket !== lastProgressBucket && progressBucket > 0) {
+          lastProgressBucket = progressBucket;
+          DesktopResults.showTransientMessage(`高清放大组件下载中 ${Math.min(100, progressBucket * 10)}%`, 'busy');
+        }
+        await new Promise(resolve => window.setTimeout(resolve, 1000));
+      }
+      throw new Error('高清放大组件下载超时，请稍后重试。');
+    })().finally(() => {
+      upscaleComponentInstallPromise = null;
+    });
+    return upscaleComponentInstallPromise;
+  }
+
   async function submitUpscaleReference(upscaleNodeId, reference, options = {}) {
     const config = readUpscaleNodeConfigForReference(upscaleNodeId, reference, {
       prompt: options.prompt || `高清放大：${reference?.title || reference?.name || '生成结果'}`,
       telegramEnabled: false
     });
+    await ensureUpscaleComponent(config.params?.model || '4x-UltraSharp');
     return DesktopResults.submitConfigToResult(config, upscaleNodeId);
   }
 
@@ -8411,6 +8457,12 @@
     renderReferenceThumbs();
     updateCanvasToolCursor(false);
     bindEvents();
+    if (DesktopState.state.runtimeConfig.resetCanvasViewOnLoad) {
+      DesktopState.state.runtimeConfig.resetCanvasViewOnLoad = false;
+      setCanvasScaleCenteredOnPrimary(DesktopState.DEFAULT_CANVAS_SCALE || DEFAULT_CANVAS_SCALE);
+    } else {
+      applyCanvasTransform();
+    }
     if (groupsChanged) DesktopState.saveSettings();
   }
 

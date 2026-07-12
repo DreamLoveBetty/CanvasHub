@@ -20,13 +20,13 @@ from typing import Any, Callable
 import requests
 from PIL import Image
 
-from .app_config import BASE_DIR
+from .app_config import APP_DATA_DIR
 from .storage_paths import SOURCE_IMAGE_DIR, source_image_roots
 from .thumb_cache import thumb_url_for_media_url
 
 
-DB_PATH = BASE_DIR / "prompt_sources.db"
-SETTINGS_PATH = BASE_DIR / "settings.json"
+DB_PATH = APP_DATA_DIR / "prompt_sources.db"
+SETTINGS_PATH = APP_DATA_DIR / "settings.json"
 HTTP_TIMEOUT = 30
 DB_TIMEOUT = 30
 MAX_IMAGE_BYTES = 35 * 1024 * 1024

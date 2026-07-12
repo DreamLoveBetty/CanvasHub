@@ -8,9 +8,11 @@ from pathlib import Path
 from typing import Any
 
 
-PROJECT_DIR = Path(__file__).resolve().parents[2]
-DATA_DIR = PROJECT_DIR / "data" / "chatgpt_pool"
-SETTINGS_PATH = PROJECT_DIR / "settings.json"
+PROJECT_DIR = Path(os.environ.get("CANVASHUB_RESOURCE_DIR") or Path(__file__).resolve().parents[2]).expanduser().resolve()
+APP_DATA_DIR = Path(os.environ.get("CANVASHUB_DATA_DIR") or PROJECT_DIR).expanduser().resolve()
+DESKTOP_DATA_MODE = bool(str(os.environ.get("CANVASHUB_DATA_DIR") or "").strip())
+DATA_DIR = APP_DATA_DIR / ("chatgpt_pool" if DESKTOP_DATA_MODE else "data/chatgpt_pool")
+SETTINGS_PATH = Path(os.environ.get("APP_SETTINGS_PATH") or APP_DATA_DIR / "settings.json").expanduser()
 DEFAULT_DB_PATH = DATA_DIR / "accounts.db"
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 18080
