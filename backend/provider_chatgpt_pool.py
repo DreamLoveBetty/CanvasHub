@@ -23,8 +23,12 @@ GPT_OUTPUT_DIR = APP_DATA_DIR / "gpt_outputs"
 PROVIDER_NAME = "chatgpt-pool-sidecar"
 POOL_IMAGE_TIMEOUT_SECONDS = 900
 POOL_IMAGE_MIN_TIMEOUT_SECONDS = 60
-POOL_IMAGE_MAX_TIMEOUT_SECONDS = 1800
+POOL_IMAGE_MAX_TIMEOUT_SECONDS = 900
 POOL_IMAGE_HTTP_TIMEOUT_BUFFER_SECONDS = 60
+POOL_IMAGE_STREAM_CONNECT_TIMEOUT_SECONDS = 15
+POOL_IMAGE_STREAM_READ_TIMEOUT_SECONDS = 45
+POOL_IMAGE_INITIAL_QUEUE_TIMEOUT_SECONDS = 180
+POOL_IMAGE_STREAM_FINAL_GRACE_SECONDS = 30
 MAX_POOL_IMAGE_COUNT = 8
 POOL_IMAGE_WEB_PROMPT_REPLACEMENTS = (
     ("不是直接复制敏感聊天内容", "基于原始聊天素材进行原创视觉转化"),
@@ -61,6 +65,41 @@ POOL_IMAGE_WEB_COMPATIBILITY_NOTE = (
     "构图以完整人物、角色身份、服装工艺和世界观叙事为核心，表达克制高级，"
     "采用自然得体、社交平台友好的原创叙事，保持文字清晰和画面干净。"
 )
+
+
+class PoolStreamDeadlineError(TimeoutError):
+    pass
+
+
+class PoolImageStreamResultError(RuntimeError):
+    def __init__(
+        self,
+        message: str,
+        *,
+        partial_errors: list[dict[str, Any]] | None = None,
+        error_code: str = "",
+        timed_out: bool = False,
+        completed_image_count: int = 0,
+    ):
+        super().__init__(message)
+        self.partial_errors = _sorted_partial_errors(partial_errors or [])
+        self.error_code = str(error_code or ("provider_timeout" if timed_out else ""))
+        self.timed_out = bool(timed_out)
+        self.completed_image_count = max(0, int(completed_image_count or 0))
+
+    def as_result(self) -> dict[str, Any]:
+        result: dict[str, Any] = {
+            "success": False,
+            "error": str(self),
+            "completed_image_count": self.completed_image_count,
+        }
+        if self.partial_errors:
+            result["partial_errors"] = self.partial_errors
+        if self.error_code:
+            result["error_code"] = self.error_code
+        if self.timed_out:
+            result["timed_out"] = True
+        return result
 
 
 def _normalize_quality(quality: str) -> str:
@@ -386,15 +425,98 @@ def _iter_sse_json(response: requests.Response):
 def _sorted_partial_errors(errors: list[dict[str, Any]]) -> list[dict[str, Any]]:
     deduped: list[dict[str, Any]] = []
     seen: set[tuple[str, str]] = set()
+    timeout_indexes: set[str] = set()
     for item in errors:
         if not isinstance(item, dict):
             continue
         key = (str(item.get("index")), str(item.get("error") or ""))
         if key in seen:
             continue
+        timeout_index = str(item.get("index"))
+        if str(item.get("error_code") or "") == "provider_timeout":
+            if timeout_index in timeout_indexes:
+                continue
+            timeout_indexes.add(timeout_index)
         seen.add(key)
         deduped.append(item)
     return sorted(deduped, key=lambda item: int(item.get("index") or 0))
+
+
+def _stream_batch_timeout_errors(
+    batch: dict[str, Any],
+    requested_count: int,
+    timeout_seconds: int,
+    existing_errors: list[dict[str, Any]] | None = None,
+) -> list[dict[str, Any]]:
+    completed = {
+        int(entry.get("index") or 0)
+        for entry in batch.get("entries") or []
+        if isinstance(entry, dict)
+    }
+    already_reported: set[int] = set()
+    for error in existing_errors or []:
+        if not isinstance(error, dict) or error.get("index") is None:
+            continue
+        try:
+            already_reported.add(int(error.get("index")))
+        except (TypeError, ValueError):
+            continue
+    return [
+        {
+            "index": index,
+            "error": (
+                f"image {index + 1}: ChatGPT account pool batch hard timeout "
+                f"after {max(1, int(timeout_seconds))} seconds"
+            ),
+            "error_code": "provider_timeout",
+            "timeout_scope": "batch",
+            "timeout_seconds": max(1, int(timeout_seconds)),
+        }
+        for index in range(max(1, int(requested_count or 1)))
+        if index not in completed and index not in already_reported
+    ]
+
+
+def _stream_idle_timeout_errors(
+    batch: dict[str, Any],
+    requested_count: int,
+    idle_timeout_seconds: int,
+    existing_errors: list[dict[str, Any]] | None = None,
+) -> list[dict[str, Any]]:
+    completed = {
+        int(entry.get("index") or 0)
+        for entry in batch.get("entries") or []
+        if isinstance(entry, dict)
+    }
+    already_reported: set[int] = set()
+    for error in existing_errors or []:
+        if not isinstance(error, dict) or error.get("index") is None:
+            continue
+        try:
+            already_reported.add(int(error.get("index")))
+        except (TypeError, ValueError):
+            continue
+    return [
+        {
+            "index": index,
+            "error": (
+                f"image {index + 1}: ChatGPT account pool sidecar stream produced no heartbeat "
+                f"for {max(1, int(idle_timeout_seconds))} seconds"
+            ),
+            "error_code": "provider_stream_timeout",
+            "timeout_scope": "stream_idle",
+            "timeout_seconds": max(1, int(idle_timeout_seconds)),
+        }
+        for index in range(max(1, int(requested_count or 1)))
+        if index not in completed and index not in already_reported
+    ]
+
+
+def _is_pool_stream_idle_timeout(error: Exception) -> bool:
+    if isinstance(error, requests.exceptions.Timeout):
+        return True
+    message = str(error or "").strip().lower()
+    return isinstance(error, requests.exceptions.ConnectionError) and "read timed out" in message
 
 
 def _should_retry_json_after_stream_error(error: Exception) -> bool:
@@ -425,14 +547,29 @@ def _generate_image_gpt_pool_stream(
     quality: str,
     requested_count: int,
     on_image_saved: Callable[[dict[str, Any], int, int], None] | None = None,
+    on_provider_wait: Callable[[str, int, int], None] | None = None,
 ) -> dict[str, Any]:
     stream_payload = dict(payload)
     stream_payload["stream"] = True
+    request_started_at = time.monotonic()
+    try:
+        configured_single_timeout = _pool_image_sidecar_timeout_seconds(stream_payload.get("timeout_seconds"))
+    except (TypeError, ValueError):
+        configured_single_timeout = POOL_IMAGE_TIMEOUT_SECONDS
+    worst_case_stream_timeout = (
+        configured_single_timeout * max(1, int(requested_count or 1))
+        + POOL_IMAGE_INITIAL_QUEUE_TIMEOUT_SECONDS
+        + POOL_IMAGE_STREAM_FINAL_GRACE_SECONDS
+    )
+    hard_deadline = request_started_at + max(1, int(timeout), worst_case_stream_timeout)
     response = session.post(
         url,
         headers={**headers, "Accept": "text/event-stream"},
         json=stream_payload,
-        timeout=timeout,
+        timeout=(
+            min(POOL_IMAGE_STREAM_CONNECT_TIMEOUT_SECONDS, max(1, int(timeout))),
+            min(POOL_IMAGE_STREAM_READ_TIMEOUT_SECONDS, max(1, int(timeout))),
+        ),
         stream=True,
     )
     content_type = str(response.headers.get("content-type") or response.headers.get("Content-Type") or "")
@@ -444,17 +581,63 @@ def _generate_image_gpt_pool_stream(
         items = data.get("data") if isinstance(data, dict) else []
         if not isinstance(items, list):
             raise RuntimeError("sidecar response missing data list")
+        if not items and isinstance(data, dict) and data.get("error"):
+            partial_errors = [item for item in data.get("partial_errors") or [] if isinstance(item, dict)]
+            raise PoolImageStreamResultError(
+                str(data.get("error")),
+                partial_errors=partial_errors,
+                error_code=str(data.get("error_code") or ""),
+                timed_out=bool(data.get("timed_out")),
+                completed_image_count=int(data.get("completed") or 0),
+            )
         result = save_chatgpt_pool_outputs(items, prompt=prompt, ratio=ratio, resolution=resolution, quality=quality, file_prefix="gpt_pool")
         if isinstance(data, dict) and data.get("partial_errors"):
             result["partial_errors"] = data.get("partial_errors")
+        if isinstance(data, dict) and data.get("timed_out"):
+            result["timed_out"] = True
+        result["completed_image_count"] = len(result.get("image_paths") or [])
         return result
 
     batch = _new_output_batch("gpt_pool")
     partial_errors: list[dict[str, Any]] = []
     final_seen = False
+    provider_timed_out = False
+    sidecar_timed_out = False
+    sidecar_completed_count: int | None = None
+    sidecar_batch_timeout_seconds = 0
     try:
         for event in _iter_sse_json(response):
             event_type = str((event or {}).get("type") or "")
+            if event_type == "started":
+                try:
+                    sidecar_batch_timeout_seconds = max(0, int(event.get("batch_timeout_seconds") or 0))
+                except (TypeError, ValueError):
+                    sidecar_batch_timeout_seconds = 0
+                if sidecar_batch_timeout_seconds:
+                    hard_deadline = min(
+                        hard_deadline,
+                        time.monotonic() + sidecar_batch_timeout_seconds + POOL_IMAGE_STREAM_FINAL_GRACE_SECONDS,
+                    )
+                continue
+            if time.monotonic() >= hard_deadline:
+                provider_timed_out = True
+                effective_timeout = sidecar_batch_timeout_seconds or max(1, int(timeout))
+                timeout_errors = _stream_batch_timeout_errors(
+                    batch,
+                    requested_count,
+                    effective_timeout,
+                    partial_errors,
+                )
+                partial_errors.extend(timeout_errors)
+                close_response = getattr(response, "close", None)
+                if callable(close_response):
+                    close_response()
+                if not batch.get("entries"):
+                    raise PoolStreamDeadlineError(
+                        "ChatGPT account pool image generation timed out before any image completed: "
+                        f"batch hard timeout after {effective_timeout} seconds"
+                    )
+                break
             if event_type == "image":
                 item = event.get("item") if isinstance(event.get("item"), dict) else {}
                 _append_chatgpt_pool_output(
@@ -471,16 +654,47 @@ def _generate_image_gpt_pool_stream(
                     partial = _build_chatgpt_pool_output_result(batch)
                     on_image_saved(partial, len(partial.get("image_paths") or []), requested_count)
                 continue
+            if event_type == "heartbeat":
+                if on_provider_wait:
+                    try:
+                        elapsed = max(0, int(event.get("elapsed_seconds") or 0))
+                        if event.get("remaining_seconds") is not None:
+                            remaining = max(0, int(event.get("remaining_seconds") or 0))
+                        else:
+                            sidecar_timeout = sidecar_batch_timeout_seconds or max(
+                                0,
+                                int(stream_payload.get("timeout_seconds") or 0),
+                            )
+                            remaining = max(0, sidecar_timeout - elapsed)
+                        on_provider_wait("ChatGPT account pool", elapsed, remaining)
+                    except Exception as callback_exc:
+                        print(f"⚠️ ChatGPT pool wait callback failed: {callback_exc}")
+                continue
             if event_type == "error":
-                partial_errors.append({"index": event.get("index"), "error": str(event.get("error") or "unknown error")})
+                partial_error = {"index": event.get("index"), "error": str(event.get("error") or "unknown error")}
+                for key in ("error_code", "timeout_scope", "timeout_seconds"):
+                    if event.get(key) is not None:
+                        partial_error[key] = event.get(key)
+                partial_errors.append(partial_error)
                 continue
             if event_type == "final":
                 final_seen = True
+                sidecar_timed_out = bool(event.get("timed_out"))
+                try:
+                    sidecar_completed_count = max(0, int(event.get("completed"))) if event.get("completed") is not None else None
+                except (TypeError, ValueError):
+                    sidecar_completed_count = None
                 for error in event.get("partial_errors") or []:
                     if isinstance(error, dict):
                         partial_errors.append(error)
                 if event.get("error") and not batch.get("entries"):
-                    raise RuntimeError(str(event.get("error")))
+                    raise PoolImageStreamResultError(
+                        str(event.get("error")),
+                        partial_errors=partial_errors,
+                        error_code=str(event.get("error_code") or ""),
+                        timed_out=sidecar_timed_out,
+                        completed_image_count=sidecar_completed_count or 0,
+                    )
                 if not batch.get("entries"):
                     items = event.get("data") if isinstance(event.get("data"), list) else []
                     for index, item in enumerate(items):
@@ -488,17 +702,83 @@ def _generate_image_gpt_pool_stream(
                             _append_chatgpt_pool_output(batch, item, prompt, ratio, resolution, quality, requested_count, index)
                 break
     except Exception as exc:
-        if not batch.get("entries"):
+        if isinstance(exc, PoolStreamDeadlineError):
+            provider_timed_out = True
+            effective_timeout = sidecar_batch_timeout_seconds or max(1, int(timeout))
+            close_response = getattr(response, "close", None)
+            if callable(close_response):
+                close_response()
+            if not batch.get("entries"):
+                partial_errors.extend(
+                    _stream_batch_timeout_errors(
+                        batch,
+                        requested_count,
+                        effective_timeout,
+                        partial_errors,
+                    )
+                )
+                raise PoolImageStreamResultError(
+                    "ChatGPT account pool image generation timed out before any image completed: "
+                    f"batch hard timeout after {effective_timeout} seconds",
+                    partial_errors=partial_errors,
+                    error_code="provider_timeout",
+                    timed_out=True,
+                ) from exc
+            partial_errors.extend(
+                _stream_batch_timeout_errors(
+                    batch,
+                    requested_count,
+                    effective_timeout,
+                    partial_errors,
+                )
+            )
+        elif _is_pool_stream_idle_timeout(exc):
+            provider_timed_out = True
+            idle_timeout = POOL_IMAGE_STREAM_READ_TIMEOUT_SECONDS
+            close_response = getattr(response, "close", None)
+            if callable(close_response):
+                close_response()
+            partial_errors.extend(
+                _stream_idle_timeout_errors(
+                    batch,
+                    requested_count,
+                    idle_timeout,
+                    partial_errors,
+                )
+            )
+            if not batch.get("entries"):
+                raise PoolImageStreamResultError(
+                    "ChatGPT account pool sidecar stream stopped sending heartbeats "
+                    f"for {idle_timeout} seconds before any image completed",
+                    partial_errors=partial_errors,
+                    error_code="provider_stream_timeout",
+                    timed_out=True,
+                ) from exc
+        elif not batch.get("entries"):
             raise
-        partial_errors.append({"index": None, "error": str(exc)})
+        else:
+            partial_errors.append({"index": None, "error": str(exc)})
 
     if not batch.get("entries"):
-        raise RuntimeError("ChatGPT pool sidecar did not return any images")
+        raise PoolImageStreamResultError(
+            "ChatGPT pool sidecar did not return any images",
+            partial_errors=partial_errors,
+            error_code="provider_timeout" if provider_timed_out or sidecar_timed_out else "",
+            timed_out=provider_timed_out or sidecar_timed_out,
+            completed_image_count=sidecar_completed_count or 0,
+        )
     result = _build_chatgpt_pool_output_result(batch)
     if partial_errors:
         result["partial_errors"] = _sorted_partial_errors(partial_errors)
-    if not final_seen:
+    if not final_seen and not provider_timed_out:
         result.setdefault("partial_errors", []).append({"index": None, "error": "sidecar stream ended before final event"})
+    if provider_timed_out or sidecar_timed_out:
+        result["timed_out"] = True
+    result["completed_image_count"] = (
+        sidecar_completed_count
+        if sidecar_completed_count is not None
+        else len(result.get("image_paths") or [])
+    )
     return result
 
 
@@ -511,6 +791,8 @@ def generate_image_gpt_pool(
     prompt_mode: str = "smart",
     main_model: str | None = None,
     on_image_saved: Callable[[dict[str, Any], int, int], None] | None = None,
+    on_provider_wait: Callable[[str, int, int], None] | None = None,
+    timeout_seconds: int | None = None,
 ) -> dict[str, Any]:
     cfg = get_chatgpt_pool_config(ensure_auth_key=True)
     if not cfg.get("enabled"):
@@ -530,7 +812,9 @@ def generate_image_gpt_pool(
         "response_format": "b64_json",
         "size": _map_size(ratio, resolution),
         "quality": _normalize_quality(quality),
-        "timeout_seconds": _pool_image_sidecar_timeout_seconds(cfg.get("timeout_seconds")),
+        "timeout_seconds": _pool_image_sidecar_timeout_seconds(
+            timeout_seconds if timeout_seconds is not None else cfg.get("timeout_seconds")
+        ),
     }
     session = requests.Session()
     session.trust_env = False
@@ -551,7 +835,12 @@ def generate_image_gpt_pool(
                 quality=quality,
                 requested_count=count,
                 on_image_saved=on_image_saved,
+                on_provider_wait=on_provider_wait,
             )
+            result["requested_image_count"] = count
+            return result
+        except PoolImageStreamResultError as stream_exc:
+            result = stream_exc.as_result()
             result["requested_image_count"] = count
             return result
         except Exception as stream_exc:
@@ -575,6 +864,16 @@ def generate_image_gpt_pool(
         items = data.get("data") if isinstance(data, dict) else []
         if not isinstance(items, list):
             raise RuntimeError("sidecar response missing data list")
+        if not items and isinstance(data, dict) and data.get("error"):
+            result = PoolImageStreamResultError(
+                str(data.get("error")),
+                partial_errors=[item for item in data.get("partial_errors") or [] if isinstance(item, dict)],
+                error_code=str(data.get("error_code") or ""),
+                timed_out=bool(data.get("timed_out")),
+                completed_image_count=int(data.get("completed") or 0),
+            ).as_result()
+            result["requested_image_count"] = count
+            return result
         result = save_chatgpt_pool_outputs(
             items,
             prompt=prompt,
@@ -585,6 +884,9 @@ def generate_image_gpt_pool(
         )
         if isinstance(data, dict) and data.get("partial_errors"):
             result["partial_errors"] = data.get("partial_errors")
+        if isinstance(data, dict) and data.get("timed_out"):
+            result["timed_out"] = True
+        result["completed_image_count"] = len(result.get("image_paths") or [])
         result["requested_image_count"] = count
         return result
     except Exception as exc:

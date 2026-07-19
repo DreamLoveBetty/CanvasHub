@@ -4,9 +4,11 @@ import base64
 import hashlib
 import json
 import mimetypes
+import queue
 import re
 import shutil
 import subprocess
+import threading
 import time
 import zipfile
 from dataclasses import dataclass
@@ -306,13 +308,21 @@ def build_image_edit_prompt(prompt: str, size: str | None, quality: str = "auto"
 
 
 class OpenAIBackend:
-    def __init__(self, access_token: str, timeout_seconds: int = 420):
+    def __init__(
+        self,
+        access_token: str,
+        timeout_seconds: int = 420,
+        deadline_monotonic: float | None = None,
+        cancel_event: Any = None,
+    ):
         # Lightweight legacy account-pool transport: keep the Web request surface
         # small and stable. Do not mix browser cookies, sec-ch hints, proxy/TLS
         # impersonation, or per-account browser profile data into this HTTP path.
         self.base_url = "https://chatgpt.com"
         self.access_token = access_token
         self.timeout_seconds = max(60, int(timeout_seconds or 420))
+        self._image_deadline_monotonic = float(deadline_monotonic) if deadline_monotonic is not None else None
+        self._image_cancel_event = cancel_event
         self.user_agent = USER_AGENT
         self.session = requests.Session()
         self.session.headers.update(
@@ -331,6 +341,37 @@ class OpenAIBackend:
         )
         self.pow_script_sources: list[str] = []
         self.pow_data_build = ""
+
+    def set_image_deadline(self, deadline_monotonic: float, cancel_event: Any = None) -> None:
+        deadline = float(deadline_monotonic)
+        if self._image_deadline_monotonic is None:
+            self._image_deadline_monotonic = deadline
+        else:
+            self._image_deadline_monotonic = min(self._image_deadline_monotonic, deadline)
+        if cancel_event is not None:
+            self._image_cancel_event = cancel_event
+
+    def _image_remaining_seconds(self) -> float:
+        if self._image_cancel_event is not None and self._image_cancel_event.is_set():
+            raise UpstreamError("ChatGPT image generation canceled at the batch deadline")
+        if self._image_deadline_monotonic is None:
+            return float(max(1, self.timeout_seconds))
+        remaining = self._image_deadline_monotonic - time.monotonic()
+        if remaining <= 0:
+            raise UpstreamError("ChatGPT image generation timed out at the absolute image deadline")
+        return remaining
+
+    def _image_request_timeout(self, requested: Any) -> Any:
+        if self._image_deadline_monotonic is None:
+            return requested
+        remaining = self._image_remaining_seconds()
+        if isinstance(requested, tuple):
+            return tuple(max(0.1, min(float(value), remaining)) for value in requested)
+        try:
+            requested_seconds = float(requested)
+        except (TypeError, ValueError):
+            requested_seconds = remaining
+        return max(0.1, min(requested_seconds, remaining))
 
     @staticmethod
     def _transient_exceptions() -> tuple[type[BaseException], ...]:
@@ -351,8 +392,11 @@ class OpenAIBackend:
 
     def _request(self, method: str, url: str, **kwargs: Any) -> requests.Response:
         last_error: Exception | None = None
+        requested_timeout = kwargs.get("timeout", self.timeout_seconds)
         for attempt in range(1, NETWORK_RETRY_ATTEMPTS + 1):
             try:
+                if self._image_deadline_monotonic is not None:
+                    kwargs["timeout"] = self._image_request_timeout(requested_timeout)
                 return self.session.request(method, url, **kwargs)
             except self._transient_exceptions() as exc:
                 last_error = exc
@@ -364,24 +408,32 @@ class OpenAIBackend:
                     f"retrying {attempt}/{NETWORK_RETRY_ATTEMPTS - 1}: {exc}",
                     flush=True,
                 )
+                if self._image_deadline_monotonic is not None:
+                    delay = min(delay, self._image_remaining_seconds())
                 time.sleep(delay)
         if last_error:
             raise last_error
         raise RuntimeError("request failed without response")
 
     def _bootstrap(self) -> None:
+        if self._image_deadline_monotonic is not None:
+            self._image_remaining_seconds()
         response = self._request("GET", self.base_url + "/", timeout=30)
         ensure_ok(response, "bootstrap")
         self.pow_script_sources, self.pow_data_build = parse_pow_resources(response.text)
+        if self._image_deadline_monotonic is not None:
+            self._image_remaining_seconds()
 
     def _requirements(self) -> Requirements:
+        if self._image_deadline_monotonic is not None:
+            self._image_remaining_seconds()
         path = "/backend-api/sentinel/chat-requirements"
         body = {"p": build_legacy_requirements_token(USER_AGENT, self.pow_script_sources, self.pow_data_build)}
         response = self.session.post(
             self.base_url + path,
             headers=self._headers(path, {"Content-Type": "application/json"}),
             json=body,
-            timeout=30,
+            timeout=self._image_request_timeout(30),
         )
         ensure_ok(response, "chat_requirements")
         data = response.json()
@@ -395,6 +447,8 @@ class OpenAIBackend:
         token = str(data.get("token") or "")
         if not token:
             raise UpstreamError("missing chat requirements token")
+        if self._image_deadline_monotonic is not None:
+            self._image_remaining_seconds()
         return Requirements(
             token=token,
             proof_token=proof_token,
@@ -899,6 +953,8 @@ class OpenAIBackend:
         model: str,
         attachment_mime_types: list[str] | None = None,
     ) -> str:
+        if self._image_deadline_monotonic is not None:
+            self._image_remaining_seconds()
         path = "/backend-api/f/conversation/prepare"
         payload = {
             "action": "next",
@@ -921,8 +977,15 @@ class OpenAIBackend:
         }
         if attachment_mime_types:
             payload["attachment_mime_types"] = attachment_mime_types
-        response = self.session.post(self.base_url + path, headers=self._image_headers(path, requirements), json=payload, timeout=60)
+        response = self.session.post(
+            self.base_url + path,
+            headers=self._image_headers(path, requirements),
+            json=payload,
+            timeout=self._image_request_timeout(60),
+        )
         ensure_ok(response, path)
+        if self._image_deadline_monotonic is not None:
+            self._image_remaining_seconds()
         return str(response.json().get("conduit_token") or "")
 
     def _start_image_generation(
@@ -933,6 +996,8 @@ class OpenAIBackend:
         model: str,
         uploaded: list[dict[str, Any]] | None = None,
     ) -> requests.Response:
+        if self._image_deadline_monotonic is not None:
+            self._image_remaining_seconds()
         path = "/backend-api/f/conversation"
         metadata = {
             "developer_mode_connector_ids": [],
@@ -1004,13 +1069,50 @@ class OpenAIBackend:
             stream=True,
         )
         ensure_ok(response, path)
+        if self._image_deadline_monotonic is not None:
+            self._image_remaining_seconds()
         return response
 
     def _image_stream_timeout(self) -> tuple[float, float]:
-        return (
+        timeout = (
             IMAGE_STREAM_CONNECT_TIMEOUT_SECS,
             max(30.0, min(float(self.timeout_seconds), IMAGE_STREAM_READ_TIMEOUT_SECS)),
         )
+        return self._image_request_timeout(timeout)
+
+    def _iter_image_sse_payloads(self, response: requests.Response) -> Iterable[str]:
+        if self._image_deadline_monotonic is None:
+            yield from iter_sse_payloads(response)
+            return
+
+        messages: queue.Queue[tuple[str, Any]] = queue.Queue()
+
+        def read_stream() -> None:
+            try:
+                for payload in iter_sse_payloads(response):
+                    messages.put(("payload", payload))
+            except BaseException as exc:
+                messages.put(("error", exc))
+            finally:
+                messages.put(("done", None))
+
+        threading.Thread(
+            target=read_stream,
+            name="chatgpt-pool-image-sse-reader",
+            daemon=True,
+        ).start()
+        while True:
+            remaining = self._image_remaining_seconds()
+            try:
+                kind, value = messages.get(timeout=min(1.0, remaining))
+            except queue.Empty:
+                continue
+            if kind == "payload":
+                yield str(value or "")
+                continue
+            if kind == "error":
+                raise value
+            return
 
     def _get_conversation(self, conversation_id: str) -> dict[str, Any]:
         path = f"/backend-api/conversation/{conversation_id}"
@@ -1173,7 +1275,12 @@ class OpenAIBackend:
                 self._collect_payload_text(item, parts)
 
     def _poll_image_results(self, conversation_id: str, deadline: float | None = None) -> tuple[list[str], list[str]]:
-        local_deadline = time.time() + max(60, self.timeout_seconds)
+        local_timeout = (
+            self._image_remaining_seconds()
+            if self._image_deadline_monotonic is not None
+            else max(60, self.timeout_seconds)
+        )
+        local_deadline = time.time() + local_timeout
         deadline_at = min(float(deadline), local_deadline) if deadline is not None else local_deadline
         file_ids: list[str] = []
         sediment_ids: list[str] = []
@@ -1181,6 +1288,8 @@ class OpenAIBackend:
         last_summary = "not-polled"
         last_log_at = 0.0
         while time.time() < deadline_at:
+            if self._image_deadline_monotonic is not None:
+                self._image_remaining_seconds()
             poll_count += 1
             data = self._get_conversation(conversation_id)
             self._raise_if_image_limit_message(data)
@@ -1218,7 +1327,16 @@ class OpenAIBackend:
                     flush=True,
                 )
                 last_log_at = now
-            time.sleep(5)
+            if self._image_deadline_monotonic is None:
+                time.sleep(5)
+            else:
+                sleep_seconds = min(
+                    5.0,
+                    max(0.0, deadline_at - time.time()),
+                    self._image_remaining_seconds(),
+                )
+                if sleep_seconds > 0:
+                    time.sleep(sleep_seconds)
         raise UpstreamError(
             "ChatGPT image generation timed out while polling results: "
             f"conversation_id={conversation_id}; polls={poll_count}; last_state={last_summary}"
@@ -1241,27 +1359,39 @@ class OpenAIBackend:
     def _resolve_image_urls(self, conversation_id: str, file_ids: list[str], sediment_ids: list[str]) -> list[str]:
         urls: list[str] = []
         for file_id in file_ids:
+            if self._image_deadline_monotonic is not None:
+                self._image_remaining_seconds()
             try:
                 url = self._download_url_for_file(file_id)
             except Exception:
+                if self._image_deadline_monotonic is not None:
+                    self._image_remaining_seconds()
                 continue
             if url:
                 urls.append(url)
         if urls:
             return urls
         for sediment_id in sediment_ids:
+            if self._image_deadline_monotonic is not None:
+                self._image_remaining_seconds()
             try:
                 url = self._download_url_for_attachment(conversation_id, sediment_id)
             except Exception:
+                if self._image_deadline_monotonic is not None:
+                    self._image_remaining_seconds()
                 continue
             if url:
                 urls.append(url)
         if urls:
             return urls
         for sediment_id in sediment_ids:
+            if self._image_deadline_monotonic is not None:
+                self._image_remaining_seconds()
             try:
                 url = self._download_url_for_file(sediment_id)
             except Exception:
+                if self._image_deadline_monotonic is not None:
+                    self._image_remaining_seconds()
                 continue
             if url:
                 urls.append(url)
@@ -1337,6 +1467,8 @@ class OpenAIBackend:
         matched: list[tuple[float, list[str]]] = []
         cursor = ""
         for _page in range(max(1, int(max_pages or 1))):
+            if self._image_deadline_monotonic is not None:
+                self._image_remaining_seconds()
             data = self._get_recent_image_generation_items(limit=limit, cursor=cursor)
             items = data.get("items") if isinstance(data.get("items"), list) else []
             for item in items:
@@ -1375,8 +1507,12 @@ class OpenAIBackend:
         return urls
 
     def _download_image(self, url: str) -> bytes:
+        if self._image_deadline_monotonic is not None:
+            self._image_remaining_seconds()
         response = self._request("GET", url, timeout=120)
         ensure_ok(response, "image_download")
+        if self._image_deadline_monotonic is not None:
+            self._image_remaining_seconds()
         return response.content
 
     def search(
@@ -3195,7 +3331,12 @@ class OpenAIBackend:
 
     def _result_from_image_response(self, response: requests.Response, revised_prompt: str) -> dict[str, str]:
         request_started_at = time.time()
-        deadline = time.time() + max(60, self.timeout_seconds)
+        result_timeout = (
+            self._image_remaining_seconds()
+            if self._image_deadline_monotonic is not None
+            else max(60, self.timeout_seconds)
+        )
+        deadline = time.time() + result_timeout
         conversation_id = ""
         file_ids: list[str] = []
         sediment_ids: list[str] = []
@@ -3203,10 +3344,12 @@ class OpenAIBackend:
         message = ""
         try:
             try:
-                for payload in iter_sse_payloads(response):
+                for payload in self._iter_image_sse_payloads(response):
                     if payload == "[DONE]":
                         break
                     self._raise_if_image_limit_message(payload)
+                    if self._image_deadline_monotonic is not None:
+                        self._image_remaining_seconds()
                     if time.time() >= deadline:
                         raise UpstreamError(
                             "ChatGPT image generation timed out while reading stream: "
@@ -3240,7 +3383,11 @@ class OpenAIBackend:
         if message and not file_ids and not sediment_ids:
             raise UpstreamError(message)
         if conversation_id and not file_ids and not sediment_ids:
-            time.sleep(IMAGE_POLL_SETTLE_SECS)
+            settle_seconds = IMAGE_POLL_SETTLE_SECS
+            if self._image_deadline_monotonic is not None:
+                settle_seconds = min(settle_seconds, self._image_remaining_seconds())
+            if settle_seconds > 0:
+                time.sleep(settle_seconds)
         if conversation_id and not file_ids and not sediment_ids:
             try:
                 file_ids, sediment_ids = self._poll_image_results(conversation_id, deadline=deadline)
@@ -3261,10 +3408,14 @@ class OpenAIBackend:
                     library_urls = []
                 if not library_urls:
                     raise
+        if self._image_deadline_monotonic is not None:
+            self._image_remaining_seconds()
         urls = library_urls or self._resolve_image_urls(conversation_id, file_ids, sediment_ids)
         if not urls:
             raise UpstreamError(message or "upstream did not return image output")
         image_bytes = self._download_image(urls[0])
+        if self._image_deadline_monotonic is not None:
+            self._image_remaining_seconds()
         return {
             "b64_json": base64.b64encode(image_bytes).decode("ascii"),
             "revised_prompt": revised_prompt,
@@ -3272,9 +3423,17 @@ class OpenAIBackend:
 
     def generate_image(self, prompt: str, model: str = "gpt-image-2", size: str | None = None, quality: str = "auto") -> dict[str, str]:
         final_prompt = build_image_prompt(prompt, size, quality)
+        if self._image_deadline_monotonic is not None:
+            self._image_remaining_seconds()
         self._bootstrap()
+        if self._image_deadline_monotonic is not None:
+            self._image_remaining_seconds()
         requirements = self._requirements()
+        if self._image_deadline_monotonic is not None:
+            self._image_remaining_seconds()
         conduit = self._prepare_image_conversation(final_prompt, requirements, model)
+        if self._image_deadline_monotonic is not None:
+            self._image_remaining_seconds()
         response = self._start_image_generation(final_prompt, requirements, conduit, model)
         return self._result_from_image_response(response, prompt)
 

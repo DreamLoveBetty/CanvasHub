@@ -46,6 +46,8 @@
     DesktopHistory.init();
     window.DesktopSettings?.init?.();
     window.DesktopPromptDrawer?.init?.();
+    window.DesktopPromptLibrary?.init?.();
+    window.DesktopPromptInsert?.init?.();
     window.DesktopI18n?.apply?.();
     window.DesktopSelect?.init?.();
     bindGlobalKeys();
@@ -75,6 +77,7 @@
       DesktopResults.renderIdleProviderHint?.();
       window.DesktopSettings?.render?.();
       window.DesktopPromptDrawer?.render?.();
+      window.DesktopPromptLibrary?.render?.();
     } catch (e) {}
     window.DesktopI18n?.apply?.();
     window.DesktopSelect?.refreshAll?.();

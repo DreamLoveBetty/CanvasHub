@@ -958,7 +958,7 @@ def _archive_asset_from_path(
 def _history_missing_asset_from_template(template: dict[str, Any], meta_map: dict[str, dict[str, Any]]) -> dict[str, Any]:
     file_name = str(template.get("file") or "").strip()
     provider = str(template.get("provider") or _provider_group(template) or "google")
-    project_root = BASE_DIR
+    project_root = APP_DATA_DIR
     local_url = ""
     thumb_url = ""
     if provider == "gpt":

@@ -4025,6 +4025,8 @@
   }
 
   async function openGallery() {
+    if (window.DesktopPromptLibrary?.close?.() === false) return false;
+    window.DesktopSettings?.close?.();
     els.deskGalleryPanel?.classList.add('is-open');
     els.deskGalleryPanel?.setAttribute('aria-hidden', 'false');
     resetGalleryRenderLimit();
@@ -4041,6 +4043,7 @@
     results
       .filter(result => result.status === 'rejected')
       .forEach(result => DesktopResults.showError(result.reason));
+    return true;
   }
 
   function closeGallery() {

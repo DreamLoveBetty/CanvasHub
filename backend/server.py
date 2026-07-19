@@ -113,7 +113,18 @@ from .managed_codex_oauth import (
 )
 from .editable_file_service import delete_editable_item, list_editable_files, resolve_editable_file, save_editable_artifacts
 from .spell_client import generate_structured_spell_prompt
-from .prompt_skill_client import analyze_prompt_image, assistant_chat, assistant_chat_stream, discover_prompt_models, extract_style_preset, list_prompt_providers, polish_prompt, safe_rewrite_prompt
+from .prompt_skill_client import (
+    analyze_prompt_image,
+    assistant_chat,
+    assistant_chat_stream,
+    discover_prompt_models,
+    extract_reusable_prompt_blocks,
+    extract_reusable_prompt_blocks_from_image,
+    extract_style_preset,
+    list_prompt_providers,
+    polish_prompt,
+    safe_rewrite_prompt,
+)
 from .storage_paths import IMAGE_ARCHIVE_DIR, SOURCE_IMAGE_DIR, archive_scan_roots, daily_output_dir, image_lookup_roots, source_image_roots, write_obsidian_prompt_sidecar
 from .upscale_runtime import (
     UPSCALE_MODELS,
@@ -163,6 +174,17 @@ from .prompt_source_sync import (
     resolve_source_image,
     start_prompt_source_sync,
     stop_prompt_source_sync,
+)
+from .prompt_library import (
+    delete_prompt_block,
+    delete_prompt_template,
+    init_prompt_library_store,
+    list_prompt_blocks,
+    list_prompt_templates,
+    mark_prompt_block_used,
+    resolve_prompt_template,
+    save_prompt_block,
+    save_prompt_template,
 )
 from .thumb_cache import ensure_webp_thumbnail, parse_thumb_request, resolve_media_path
 from .pose_service import pose_assets_status
@@ -586,6 +608,11 @@ def _finalize_generation_task(
 
 def _status_response_task(task):
     task = dict(task or {})
+    params = task.get('params') if isinstance(task.get('params'), dict) else {}
+    provider_failure = params.get('provider_failure') if isinstance(params.get('provider_failure'), dict) else {}
+    for key in ('timed_out', 'partial_errors', 'completed_image_count', 'requested_image_count'):
+        if provider_failure.get(key) is not None:
+            task[key] = provider_failure.get(key)
     result_files, primary_output = _history_task_result_files(task)
     if result_files:
         task['result_file'] = primary_output
@@ -944,6 +971,23 @@ def _format_gpt_pool_error(error):
         return 'ChatGPT 账号池账号被限流'
     summary = _first_user_error_line(text)
     return f'ChatGPT 账号池托底失败：{summary[:120]}' if summary else 'ChatGPT 账号池托底失败'
+
+
+class ChatgptPoolGenerationError(RuntimeError):
+    def __init__(self, message, provider_result):
+        super().__init__(message)
+        self.provider_result = dict(provider_result) if isinstance(provider_result, dict) else {}
+
+
+def _chatgpt_pool_failure_metadata(error):
+    result = getattr(error, 'provider_result', None)
+    if not isinstance(result, dict):
+        return {}
+    metadata = {}
+    for key in ('error_code', 'timed_out', 'partial_errors', 'completed_image_count', 'requested_image_count'):
+        if result.get(key) is not None:
+            metadata[key] = result.get(key)
+    return metadata
 
 
 def _prepare_chatgpt_pool_generation_prompt(task_id, prompt, prompt_mode):
@@ -1504,6 +1548,7 @@ RETRY_PARAM_RESULT_KEYS = {
     'file_manifest',
     'file_manifest_url',
     'editable_preview_status',
+    'provider_failure',
 }
 
 
@@ -2422,6 +2467,7 @@ def _sensitive_db_base_paths():
         Path(get_database_path()),
         Path(DIRECTORY) / 'assets.db',
         Path(DIRECTORY) / 'prompt_sources.db',
+        Path(DIRECTORY) / 'prompt_library.db',
     ]
     try:
         pool_db = get_chatgpt_pool_config().get('db_path')
@@ -3747,7 +3793,7 @@ def _sanitize_system_settings_patch(payload):
         _patch_text(pool, pool_data, key, max_len=2048)
     if "timeout_seconds" in pool_data:
         try:
-            pool["timeout_seconds"] = max(30, min(1800, int(pool_data.get("timeout_seconds"))))
+            pool["timeout_seconds"] = max(60, min(900, int(pool_data.get("timeout_seconds"))))
         except (TypeError, ValueError):
             pass
     _patch_secret(pool, pool_data, "auth_key")
@@ -4487,7 +4533,9 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
             return str(FRONTEND_ROOT.joinpath(*parts))
         if parts[0] == "static":
             return str(PROJECT_ROOT.joinpath(*parts))
-        return str(PROJECT_ROOT.joinpath(*parts))
+        # Do not expose project databases, settings, source code, or auth files
+        # through SimpleHTTPRequestHandler's catch-all static fallback.
+        return str(FRONTEND_ROOT / "__not_found__")
 
     def end_headers(self):
         """入口页防旧包；带版本号的静态资源允许 Telegram WebView 缓存。"""
@@ -4676,6 +4724,14 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
             if not self.require_auth():
                 return
             self.handle_prompt_versions(parsed)
+        elif path == '/api/prompt-library/blocks/list':
+            if not self.require_auth():
+                return
+            self.handle_prompt_library_blocks_list(parsed)
+        elif path == '/api/prompt-library/templates/list':
+            if not self.require_auth():
+                return
+            self.handle_prompt_library_templates_list()
         elif path == '/api/assets/sets':
             if not self.require_auth():
                 return
@@ -4932,6 +4988,30 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
             if not self.require_auth():
                 return
             self.handle_prompt_version_save()
+        elif path == '/api/prompt-library/blocks/save':
+            if not self.require_auth():
+                return
+            self.handle_prompt_library_block_save()
+        elif path == '/api/prompt-library/blocks/delete':
+            if not self.require_auth():
+                return
+            self.handle_prompt_library_block_delete()
+        elif path == '/api/prompt-library/blocks/use':
+            if not self.require_auth():
+                return
+            self.handle_prompt_library_block_use()
+        elif path == '/api/prompt-library/blocks/extract':
+            if not self.require_auth():
+                return
+            self.handle_prompt_library_blocks_extract()
+        elif path == '/api/prompt-library/templates/save':
+            if not self.require_auth():
+                return
+            self.handle_prompt_library_template_save()
+        elif path == '/api/prompt-library/templates/delete':
+            if not self.require_auth():
+                return
+            self.handle_prompt_library_template_delete()
         elif path == '/api/comfy/run':
             if not self.require_auth():
                 return
@@ -6472,6 +6552,54 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
             print(f"❌ Prompt versions 读取失败：{e}")
             self.send_json({"ok": False, "error": str(e)}, 500)
 
+    def handle_prompt_library_blocks_list(self, parsed):
+        """Return reusable short prompt blocks for slash insertion and editors."""
+        try:
+            query = urllib.parse.parse_qs(parsed.query)
+            result = list_prompt_blocks(
+                query=str(query.get('query', [''])[0] or '').strip(),
+                module_type=str(query.get('module_type', [''])[0] or '').strip(),
+                primary_type=str(query.get('primary_type', [''])[0] or '').strip(),
+                favorite=_coerce_bool(query.get('favorite', [False])[0], False),
+                limit=_history_page_int(query.get('limit', [500])[0], 500, minimum=1, maximum=1000),
+                offset=_history_page_int(query.get('offset', [0])[0], 0, minimum=0, maximum=1000000),
+            )
+            self.send_json({"ok": True, **result})
+        except Exception as e:
+            print(f"❌ 提示词素材块读取失败：{e}")
+            self.send_json({"ok": False, "error": str(e)}, 500)
+
+    def handle_prompt_library_templates_list(self):
+        """Return active system and user-defined prompt split rules."""
+        try:
+            self.send_json({"ok": True, "templates": list_prompt_templates()})
+        except Exception as e:
+            print(f"❌ 提示词模板读取失败：{e}")
+            self.send_json({"ok": False, "error": str(e)}, 500)
+
+    def handle_prompt_library_template_save(self):
+        """Create or update one user-defined prompt split rule."""
+        try:
+            template = save_prompt_template(self.read_json_body(max_bytes=2 * 1024 * 1024))
+            self.send_json({"ok": True, "template": template})
+        except ValueError as e:
+            self.send_json({"ok": False, "error": str(e)}, 400)
+        except Exception as e:
+            print(f"❌ 拆分规则保存失败：{e}")
+            self.send_json({"ok": False, "error": str(e)}, 500)
+
+    def handle_prompt_library_template_delete(self):
+        """Soft-delete one user-defined prompt split rule."""
+        try:
+            data = self.read_json_body(max_bytes=64 * 1024)
+            template = delete_prompt_template(data.get('id') or data.get('template_id'))
+            self.send_json({"ok": True, "template": template})
+        except ValueError as e:
+            self.send_json({"ok": False, "error": str(e)}, 400)
+        except Exception as e:
+            print(f"❌ 拆分规则删除失败：{e}")
+            self.send_json({"ok": False, "error": str(e)}, 500)
+
     def handle_prompt_config_save(self):
         """Persist non-secret prompt-skill settings into project settings.json."""
         try:
@@ -6561,6 +6689,84 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
             self.send_json({"ok": False, "error": str(e)}, 400)
         except Exception as e:
             print(f"❌ Prompt version 保存失败：{e}")
+            self.send_json({"ok": False, "error": str(e)}, 500)
+
+    def handle_prompt_library_block_save(self):
+        """Create or update one reusable short prompt block."""
+        try:
+            block = save_prompt_block(self.read_json_body(max_bytes=2 * 1024 * 1024))
+            self.send_json({"ok": True, "block": block})
+        except ValueError as e:
+            self.send_json({"ok": False, "error": str(e)}, 400)
+        except Exception as e:
+            print(f"❌ 提示词素材块保存失败：{e}")
+            self.send_json({"ok": False, "error": str(e)}, 500)
+
+    def handle_prompt_library_block_delete(self):
+        """Soft-delete one reusable short prompt block."""
+        try:
+            data = self.read_json_body(max_bytes=64 * 1024)
+            block = delete_prompt_block(data.get('id') or data.get('block_id'))
+            self.send_json({"ok": True, "block": block})
+        except ValueError as e:
+            self.send_json({"ok": False, "error": str(e)}, 404)
+        except Exception as e:
+            print(f"❌ 提示词素材块删除失败：{e}")
+            self.send_json({"ok": False, "error": str(e)}, 500)
+
+    def handle_prompt_library_block_use(self):
+        """Update block usage ranking after slash insertion."""
+        try:
+            data = self.read_json_body(max_bytes=64 * 1024)
+            block = mark_prompt_block_used(data.get('id') or data.get('block_id'))
+            self.send_json({"ok": True, "block": block})
+        except ValueError as e:
+            self.send_json({"ok": False, "error": str(e)}, 404)
+        except Exception as e:
+            print(f"❌ 提示词素材块使用状态更新失败：{e}")
+            self.send_json({"ok": False, "error": str(e)}, 500)
+
+    def handle_prompt_library_blocks_extract(self):
+        """Extract editable prompt-block candidates from text or one uploaded image."""
+        try:
+            data = self.read_json_body(max_bytes=64 * 1024 * 1024)
+            mode = str(data.get('mode') or 'text').strip().lower()
+            primary_type = str(data.get('primary_type') or '').strip()
+            rule_id = str(data.get('rule_id') or '').strip()
+            split_rule = resolve_prompt_template(rule_id, primary_type)
+            if rule_id and not split_rule:
+                raise ValueError("拆分规则不存在或已删除")
+            if split_rule:
+                primary_type = str(split_rule.get('primary_type') or primary_type).strip()
+            options = {
+                "provider": data.get("provider"),
+                "model": data.get("model"),
+                "reasoning_effort": data.get("reasoning_effort") or data.get("reasoningEffort") or ("medium" if mode == "image" else "low"),
+            }
+            if mode == 'image':
+                images = data.get('images') if isinstance(data.get('images'), list) else []
+                result = extract_reusable_prompt_blocks_from_image(
+                    str(data.get('message') or data.get('direction') or '').strip(),
+                    images,
+                    primary_type,
+                    options,
+                    split_rule,
+                )
+            elif mode == 'text':
+                result = extract_reusable_prompt_blocks(
+                    str(data.get('text') or data.get('prompt') or '').strip(),
+                    primary_type,
+                    options,
+                    split_rule,
+                )
+            else:
+                self.send_json({"ok": False, "error": "不支持的素材块提取模式"}, 400)
+                return
+            self.send_json(result)
+        except ValueError as e:
+            self.send_json({"ok": False, "error": str(e)}, 400)
+        except Exception as e:
+            print(f"❌ 提示词素材块提取失败：{e}")
             self.send_json({"ok": False, "error": str(e)}, 500)
 
     def handle_prompt_assistant_chat(self):
@@ -8434,6 +8640,7 @@ def _generate_gpt_with_pool_fallback(task_id, prompt, ratio, resolution, quality
     """Run Codex with managed OAuth preferred, then local auth, then account-pool fallback."""
     primary_error = None
     pool_error = None
+    pool_result = None
     prompt = str(prompt or '')
     prompt_mode = _coerce_prompt_mode(prompt_mode)
     prompt_meta = {}
@@ -8597,6 +8804,8 @@ def _generate_gpt_with_pool_fallback(task_id, prompt, ratio, resolution, quality
                 prompt_mode=prompt_mode,
                 main_model=pool_main_model,
                 on_image_saved=_make_gpt_image_progress_callback(task_id, image_count),
+                on_provider_wait=_make_gpt_pool_wait_callback(task_id),
+                timeout_seconds=pool_cfg.get('timeout_seconds'),
             )
         except Exception as e:
             pool_error = str(e)
@@ -8660,7 +8869,10 @@ def _generate_gpt_with_pool_fallback(task_id, prompt, ratio, resolution, quality
     else:
         send_status_notification(task_id, f'{provider_error_text}，切换账号池托底中...', '🛟')
 
-    raise RuntimeError(f"本地 provider 失败：{primary_error} | 账号池托底失败：{pool_error}")
+    failure_message = f"本地 provider 失败：{primary_error} | 账号池托底失败：{pool_error}"
+    if isinstance(pool_result, dict):
+        raise ChatgptPoolGenerationError(failure_message, pool_result)
+    raise RuntimeError(failure_message)
 
 
 def _make_gpt_image_progress_callback(task_id, requested_count):
@@ -8696,6 +8908,18 @@ def _make_gpt_provider_wait_callback(task_id):
             task_id,
             stage='calling_gpt',
             progress_text=f'正在等待本地 GPT provider 返回（已等待 {elapsed_seconds}s）...',
+            heartbeat_at=int(time.time()),
+        )
+
+    return on_wait
+
+
+def _make_gpt_pool_wait_callback(task_id):
+    def on_wait(label, elapsed_seconds, remaining_seconds):
+        update_task_fields(
+            task_id,
+            stage='fallback_running',
+            progress_text=f'正在等待 ChatGPT 账号池返回（已等待 {elapsed_seconds}s）...',
             heartbeat_at=int(time.time()),
         )
 
@@ -9228,6 +9452,9 @@ def process_gpt_task(task_id, prompt, ratio, resolution, quality='auto', image_c
     except Exception as e:
         raw_error_msg = str(e)
         error_type = type(e).__name__
+        pool_failure = _chatgpt_pool_failure_metadata(e)
+        if pool_failure:
+            _merge_task_params(task_id, {'provider_failure': pool_failure})
         error_info = _translate_generation_failure(
             task_id,
             raw_error_msg,
@@ -9237,11 +9464,17 @@ def process_gpt_task(task_id, prompt, ratio, resolution, quality='auto', image_c
             stage='failed',
             exception_name=error_type,
         )
+        if pool_failure.get('error_code'):
+            error_info['error_code'] = str(pool_failure.get('error_code'))
+        if pool_failure.get('timed_out'):
+            error_info['error_category'] = 'timeout'
+            provider_error = getattr(e, 'provider_result', {}).get('error')
+            error_info['display_error'] = _format_gpt_pool_error(provider_error)
         error_msg = error_info.get('display_error') or _format_gpt_failure_error(raw_error_msg)
         print(f"❌ GPT 任务失败：{task_id} - {raw_error_msg}")
         if error_msg != raw_error_msg:
             print(f"↪️ 用户可见错误：{error_msg}")
-        _finalize_generation_task(task_id, 'failed', run_id=run_id, stage='failed', progress_text=error_msg, error_info=error_info, error_type=error_type, provider=task_provider, route=task_route, task_type=task_kind)
+        _finalize_generation_task(task_id, 'failed', run_id=run_id, stage='failed', progress_text=error_msg, error_info=error_info, error_type=error_type, provider=task_provider, route=task_route, task_type=task_kind, extra={'provider_failure': pool_failure} if pool_failure else None)
         send_status_notification(task_id, f'❌ GPT 生成失败：{error_msg[:100]}', '⚠️')
 
 def process_gpt_edit_task(task_id, prompt, images, ratio, resolution, quality='auto', moderation='auto', mask=None, prompt_mode='smart', main_model=None, reasoning_effort=None, use_third_party_api=False, gpt_provider_route='codex', archive_enabled=True, telegram_enabled=True):
@@ -9547,6 +9780,8 @@ def run_server():
     orphan_prompt_runs = cancel_orphan_prompt_source_runs()
     if orphan_prompt_runs:
         print(f"⚠️ 已标记 {orphan_prompt_runs} 个重启后遗留的远程源同步任务为停止")
+    init_prompt_library_store(legacy_style_presets_file=STYLE_PRESETS_FILE)
+    print(f"✅ 提示词素材库初始化完成：{APP_DATA_DIR / 'prompt_library.db'}")
     _ensure_db_file_permissions()
     SOURCE_IMAGE_DIR.mkdir(parents=True, exist_ok=True)
     print(f"✅ 远程源素材库初始化完成：{SOURCE_IMAGE_DIR}")

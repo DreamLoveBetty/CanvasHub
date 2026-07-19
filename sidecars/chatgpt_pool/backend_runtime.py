@@ -11,18 +11,32 @@ def build_backend_for_lease(
     backend_factory: Callable[..., Any],
     lease: AccountLease,
     timeout_seconds: int | None = None,
+    deadline_monotonic: float | None = None,
+    cancel_event: Any = None,
 ) -> Any:
     if backend_factory is OpenAIBackend:
         kwargs: dict[str, Any] = {}
         if timeout_seconds is not None:
             kwargs["timeout_seconds"] = timeout_seconds
+        if deadline_monotonic is not None:
+            kwargs["deadline_monotonic"] = deadline_monotonic
+        if cancel_event is not None:
+            kwargs["cancel_event"] = cancel_event
         return backend_factory(lease.access_token, **kwargs)
     if timeout_seconds is not None:
         try:
-            return backend_factory(lease.access_token, timeout_seconds=timeout_seconds)
+            backend = backend_factory(lease.access_token, timeout_seconds=timeout_seconds)
+            set_deadline = getattr(backend, "set_image_deadline", None)
+            if callable(set_deadline) and deadline_monotonic is not None:
+                set_deadline(deadline_monotonic, cancel_event=cancel_event)
+            return backend
         except TypeError:
             pass
-    return backend_factory(lease.access_token)
+    backend = backend_factory(lease.access_token)
+    set_deadline = getattr(backend, "set_image_deadline", None)
+    if callable(set_deadline) and deadline_monotonic is not None:
+        set_deadline(deadline_monotonic, cancel_event=cancel_event)
+    return backend
 
 
 def mark_verification_required(pool: AccountPool, access_token: str, error: str) -> None:

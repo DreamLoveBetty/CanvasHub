@@ -765,6 +765,69 @@
     });
   }
 
+  function getPromptBlocks(options = {}) {
+    const params = new URLSearchParams();
+    params.set('limit', options.limit || 500);
+    params.set('offset', options.offset || 0);
+    if (options.query) params.set('query', options.query);
+    if (options.moduleType) params.set('module_type', options.moduleType);
+    if (options.primaryType) params.set('primary_type', options.primaryType);
+    if (options.favorite) params.set('favorite', 'true');
+    return requireApi().json(`/api/prompt-library/blocks/list?${params.toString()}`);
+  }
+
+  function savePromptBlock(payload = {}) {
+    return requireApi().json('/api/prompt-library/blocks/save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+  }
+
+  function deletePromptBlock(id) {
+    return requireApi().json('/api/prompt-library/blocks/delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id })
+    });
+  }
+
+  function markPromptBlockUsed(id) {
+    return requireApi().json('/api/prompt-library/blocks/use', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id })
+    });
+  }
+
+  function extractPromptBlocks(payload = {}) {
+    return requireApi().json('/api/prompt-library/blocks/extract', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+  }
+
+  function getPromptTemplates() {
+    return requireApi().json('/api/prompt-library/templates/list');
+  }
+
+  function savePromptTemplate(payload = {}) {
+    return requireApi().json('/api/prompt-library/templates/save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+  }
+
+  function deletePromptTemplate(id) {
+    return requireApi().json('/api/prompt-library/templates/delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id })
+    });
+  }
+
   function getPromptSources() {
     return requireApi().json('/api/prompt-sources');
   }
@@ -1002,6 +1065,14 @@
     saveStylePreset,
     extractStylePreset,
     savePromptVersion,
+    getPromptBlocks,
+    savePromptBlock,
+    deletePromptBlock,
+    markPromptBlockUsed,
+    extractPromptBlocks,
+    getPromptTemplates,
+    savePromptTemplate,
+    deletePromptTemplate,
     getPromptSources,
     getPromptSourceItems,
     syncPromptSource,

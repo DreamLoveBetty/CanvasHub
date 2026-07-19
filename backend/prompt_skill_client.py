@@ -28,6 +28,7 @@ from .app_config import (
     get_prompt_skill_config,
     load_app_settings,
 )
+from .prompt_library import built_in_templates
 
 CODEX_SCRIPTS_DIR = BASE_DIR / "backend" / "codex_image_runtime" / "scripts"
 if str(CODEX_SCRIPTS_DIR) not in sys.path:
@@ -995,6 +996,9 @@ def _call_prompt_provider(provider_id: str, prompt: str, system: str, model: str
 
 
 def _call_prompt_provider_image_json(provider_id: str, prompt: str, system: str, images: list[str], model: str, reasoning_effort: str) -> str:
+    if provider_id == "chatgpt_pool":
+        reply, _ = _chatgpt_pool_image_json_reply(prompt, system, images)
+        return reply
     if provider_id == DEFAULT_PROMPT_SKILL_PROVIDER:
         return _call_gpt_oauth_image_json(prompt, system, images, model, reasoning_effort)
     return _call_openai_compatible_image_json(_as_dict(_provider_settings().get(provider_id)), prompt, system, images, model)
@@ -1066,6 +1070,23 @@ def _call_prompt_provider_with_pool_fallback(
         return reply, "chatgpt_pool", fallback_model, "", warning
 
 
+def _select_prompt_provider_model_with_pool_fallback(
+    provider_id: str,
+    requested_model: str,
+    error_label: str,
+) -> tuple[str, str, str]:
+    if provider_id == "chatgpt_pool":
+        return provider_id, requested_model or "auto", ""
+    try:
+        return provider_id, _choose_model(provider_id, requested_model), ""
+    except Exception as exc:
+        if not _should_fallback_prompt_chat_to_pool(provider_id, exc):
+            raise
+        warning = f"{_prompt_pool_fallback_reason(exc)}{error_label}：{exc}"
+        print(f"⚠️ Prompt Skill {error_label} model selection fallback to account pool: {exc}")
+        return "chatgpt_pool", "auto", warning
+
+
 def _friendly_pool_image_analysis_error(error: Any) -> str:
     text = str(error or "").strip()
     lower = text.lower()
@@ -1120,6 +1141,63 @@ ASSISTANT_CHAT_SYSTEM = """你是桌面画布中文本节点的提示词创作�
 回答必须专业、精准、可执行；长度由问题复杂度决定，不强制简短，但避免客套、模板化废话和无关扩写。
 除非用户明确要求整理为正式提示词，否则不要输出完整成片提示词，不要输出多版本候选列表。
 你可以诊断当前文本的问题、提出改写策略、比较风格方向、指出容易跑偏的词，并在方向不清楚时提出关键追问。"""
+
+PROMPT_BLOCK_EXTRACTION_SYSTEM = """你是图像生成提示词素材块拆分器。
+你的唯一任务是把用户给出的完整提示词拆成可以单独复用和快速插入的短提示词素材块。
+
+必须遵守：
+1. 不要输出完整提示词，不要把原文整体作为一个素材块。
+2. 按语义拆分；人物优先拆成身份、外貌、动作姿态、表情视线、服装造型、妆发、配饰。
+3. 其他内容按主体、场景、构图、镜头、光线、色彩、视觉风格、材质细节、质量要求、负面约束等拆分。
+4. 每个素材块必须能脱离原文独立插入，保留关键限定词，但不得凭空增加原文没有的信息。
+5. 合并重复内容；忽略空泛套话。遵循本次拆分规则给出的粒度和数量上限；未指定时通常输出 3-18 个素材块。
+6. name 使用 4-16 个字概括内容；content 使用原提示词语言；compact_content 是更短的同义版本。
+7. module_type 只使用 snake_case 标识；优先使用本次任务提供的拆分规则模块，其次使用 identity、appearance、pose、expression、clothing、makeup_hair、accessories、subject、scene、composition、camera、lighting、color、style、material、quality、constraints；确实无法归类时使用 custom。
+8. 输出严格 JSON 对象，不要 Markdown、解释或代码围栏。
+
+JSON 形状：
+{"primary_type":"portrait/landscape/product/...","blocks":[{"name":"","module_type":"","content":"","compact_content":"","english_content":"","tags":[]}]}"""
+
+PROMPT_BLOCK_MODULE_ALIASES = {
+    "character_identity": "identity", "role": "identity", "人物身份": "identity", "角色身份": "identity", "身份": "identity",
+    "looks": "appearance", "visual_traits": "appearance", "外貌": "appearance",
+    "action": "pose", "动作": "pose", "姿态": "pose", "动作姿态": "pose",
+    "facial_expression": "expression", "表情": "expression", "表情视线": "expression",
+    "outfit": "clothing", "costume": "clothing", "服装": "clothing", "服装造型": "clothing",
+    "hair": "makeup_hair", "makeup": "makeup_hair", "妆发": "makeup_hair",
+    "props": "accessories", "配饰": "accessories", "主体": "subject", "场景": "scene",
+    "layout": "composition", "构图": "composition", "镜头": "camera", "光线": "lighting",
+    "palette": "color", "色彩": "color", "风格": "style", "视觉风格": "style",
+    "texture": "material", "材质": "material", "质量": "quality", "负面": "constraints",
+    "negative": "constraints", "negative_prompt": "constraints", "约束": "constraints",
+}
+
+PROMPT_BLOCK_MODULE_LABELS = {
+    "identity": "身份", "appearance": "外貌", "pose": "动作姿态", "expression": "表情视线",
+    "clothing": "服装造型", "makeup_hair": "妆发", "accessories": "配饰", "subject": "主体",
+    "scene": "场景环境", "composition": "构图", "camera": "视角与镜头", "lighting": "光线",
+    "color": "色彩", "style": "视觉风格", "material": "材质细节", "quality": "质量要求",
+    "constraints": "负面约束", "custom": "自定义素材",
+}
+
+PROMPT_BLOCK_TEMPLATES = {
+    str(template["primary_type"]): template
+    for template in built_in_templates()
+}
+PROMPT_BLOCK_PRIMARY_TYPES = set(PROMPT_BLOCK_TEMPLATES)
+PROMPT_BLOCK_MODULE_TYPE_OWNERS: dict[str, set[str]] = {}
+for _prompt_block_template in PROMPT_BLOCK_TEMPLATES.values():
+    for _prompt_block_module in _prompt_block_template.get("modules") or []:
+        _module_key = str(_prompt_block_module.get("key") or "").strip()
+        _module_label = str(_prompt_block_module.get("label") or "").strip()
+        if not _module_key:
+            continue
+        PROMPT_BLOCK_MODULE_LABELS.setdefault(_module_key, _module_label or _module_key)
+        if _module_label:
+            _alias_key = _module_label.lower().replace("-", "_").replace(" ", "_")
+            PROMPT_BLOCK_MODULE_ALIASES.setdefault(_alias_key, _module_key)
+        if str(_prompt_block_module.get("kind") or "") == "specific":
+            PROMPT_BLOCK_MODULE_TYPE_OWNERS.setdefault(_module_key, set()).add(str(_prompt_block_template["primary_type"]))
 
 SAFE_REWRITE_SYSTEM = """You are a prompt rewriting assistant for image generation.
 
@@ -2004,6 +2082,250 @@ def assistant_chat(text: str, message: str, options: dict[str, Any] | None = Non
     return result
 
 
+def _split_rule_module_labels(split_rule: dict[str, Any] | None) -> dict[str, str]:
+    labels: dict[str, str] = {}
+    for module in (split_rule or {}).get("modules") or []:
+        if not isinstance(module, dict) or module.get("enabled") is False:
+            continue
+        key = str(module.get("key") or "").strip()
+        if key:
+            labels[key] = str(module.get("label") or key).strip() or key
+    return labels
+
+
+def _normalize_prompt_block_type(value: Any, module_labels: dict[str, str] | None = None) -> str:
+    raw = str(value or "custom").strip().lower().replace("-", "_").replace(" ", "_")
+    labels = {**PROMPT_BLOCK_MODULE_LABELS, **(module_labels or {})}
+    if raw in labels:
+        return raw
+    normalized = PROMPT_BLOCK_MODULE_ALIASES.get(raw, raw)
+    if normalized not in labels:
+        return "custom"
+    return normalized
+
+
+PROMPT_BLOCK_TYPE_HINTS = (
+    ("storyboard", ("分镜", "镜头脚本", "storyboard", "shot list")),
+    ("infographic", ("信息图", "数据图表", "流程图", "仪表盘", "infographic", "data visualization", "dashboard")),
+    ("pattern", ("无缝图案", "连续纹样", "平铺纹理", "seamless pattern", "repeat pattern")),
+    ("three_d", ("3d视觉", "3d 视觉", "三维渲染", "立体渲染", "3d render", "cgi render")),
+    ("fashion", ("服装设计", "时装", "穿搭", "秀场", "lookbook", "fashion editorial")),
+    ("food", ("美食", "食物摄影", "菜品", "餐饮", "food photography", "dish", "cuisine")),
+    ("interior", ("室内设计", "室内空间", "客厅", "卧室", "interior design")),
+    ("architecture", ("建筑外观", "建筑设计", "建筑摄影", "architecture", "facade")),
+    ("product", ("商品", "产品图", "电商", "包装设计", "product shot", "e-commerce", "packaging")),
+    ("animal", ("动物", "宠物", "猫咪", "小狗", "wildlife", "pet portrait")),
+    ("landscape", ("风景", "自然景观", "山川", "海岸", "landscape", "scenery")),
+    ("character", ("角色设定", "角色设计", "人物设定", "character design", "character sheet")),
+    ("scene_concept", ("场景概念", "环境概念", "世界观场景", "concept environment", "environment design")),
+    ("social", ("小红书", "社交媒体", "社媒", "公众号首图", "social media", "instagram post")),
+    ("poster", ("海报", "主视觉", "kv", "banner", "poster", "key visual", "book cover", "封面")),
+    ("portrait", ("人像", "肖像", "人物写真", "portrait", "headshot")),
+    ("illustration", ("插画", "漫画", "绘本", "illustration", "comic")),
+)
+
+
+def _infer_prompt_block_primary_type_from_text(text: str) -> str:
+    normalized = re.sub(r"\s+", " ", str(text or "").strip().lower())
+    for primary_type, markers in PROMPT_BLOCK_TYPE_HINTS:
+        if any(marker in normalized for marker in markers):
+            return primary_type
+    return ""
+
+
+def _infer_prompt_block_primary_type_from_modules(data: Any) -> str:
+    payload = data if isinstance(data, dict) else {}
+    raw_blocks = payload.get("blocks") if isinstance(payload.get("blocks"), list) else []
+    scores: dict[str, int] = {}
+    for item in raw_blocks:
+        if not isinstance(item, dict):
+            continue
+        module_type = _normalize_prompt_block_type(item.get("module_type") or item.get("type"))
+        for owner in PROMPT_BLOCK_MODULE_TYPE_OWNERS.get(module_type, set()):
+            scores[owner] = scores.get(owner, 0) + 1
+    if not scores:
+        return ""
+    ranked = sorted(scores.items(), key=lambda item: (-item[1], item[0]))
+    if len(ranked) > 1 and ranked[0][1] == ranked[1][1]:
+        return ""
+    return ranked[0][0]
+
+
+def _prompt_block_template_context(primary_type: str, split_rule: dict[str, Any] | None = None) -> str:
+    template = split_rule or PROMPT_BLOCK_TEMPLATES.get(str(primary_type or "").strip())
+    if not template:
+        return "拆分规则：未指定；请根据原文判断 primary_type，并按通用语义拆分。"
+    modules = []
+    for module in template.get("modules") or []:
+        if not isinstance(module, dict) or module.get("enabled") is False:
+            continue
+        key = str(module.get("key") or "").strip()
+        label = str(module.get("label") or "").strip()
+        hint = str(module.get("hint") or "").strip()
+        if key:
+            required = "，重点模块" if module.get("required") else ""
+            modules.append(f"- {key}（{label or key}{required}）：{hint}" if hint else f"- {key}（{label or key}{required}）")
+    options = template.get("options") if isinstance(template.get("options"), dict) else {}
+    granularity = {"compact": "精简", "balanced": "均衡", "detailed": "详细"}.get(str(options.get("granularity") or "balanced"), "均衡")
+    max_blocks = max(3, min(30, int(options.get("max_blocks") or 18)))
+    return "\n".join([
+        f"拆分规则：{template.get('name') or primary_type}（rule_id={template.get('id') or 'system'}，version={template.get('version') or 1}，primary_type={primary_type}）",
+        f"拆分粒度：{granularity}；最多输出 {max_blocks} 个素材块。",
+        "该类型允许并优先使用以下模块；原文没有对应信息时不要强行生成：",
+        *modules,
+    ])
+
+
+def _normalize_extracted_prompt_blocks(
+    data: Any,
+    primary_type: str = "",
+    split_rule: dict[str, Any] | None = None,
+) -> list[dict[str, Any]]:
+    payload = data if isinstance(data, dict) else {}
+    raw_blocks = payload.get("blocks") if isinstance(payload.get("blocks"), list) else []
+    applicable_type = str(primary_type or "").strip()
+    if applicable_type not in PROMPT_BLOCK_PRIMARY_TYPES:
+        applicable_type = ""
+    blocks: list[dict[str, Any]] = []
+    seen: set[tuple[str, str]] = set()
+    module_labels = _split_rule_module_labels(split_rule)
+    allowed_modules = set(module_labels)
+    options = (split_rule or {}).get("options") if isinstance((split_rule or {}).get("options"), dict) else {}
+    max_blocks = max(3, min(30, int(options.get("max_blocks") or 24)))
+    for item in raw_blocks[:30]:
+        if not isinstance(item, dict):
+            continue
+        content = _clean_string(item.get("content") or item.get("text"), 12000)
+        if not content:
+            continue
+        module_type = _normalize_prompt_block_type(item.get("module_type") or item.get("type"), module_labels)
+        if allowed_modules and module_type not in allowed_modules:
+            continue
+        name = _clean_string(item.get("name") or item.get("label"), 120)
+        if not name:
+            name = module_labels.get(module_type) or PROMPT_BLOCK_MODULE_LABELS.get(module_type, "素材块")
+        key = (module_type, re.sub(r"\s+", " ", content).lower())
+        if key in seen:
+            continue
+        seen.add(key)
+        tags = []
+        for tag in item.get("tags") if isinstance(item.get("tags"), list) else []:
+            clean_tag = _clean_string(tag, 32).lstrip("#")
+            if clean_tag and clean_tag not in tags:
+                tags.append(clean_tag)
+        blocks.append({
+            "name": name,
+            "module_type": module_type,
+            "content": content,
+            "compact_content": _clean_string(item.get("compact_content") or item.get("compact"), 6000),
+            "english_content": _clean_string(item.get("english_content") or item.get("english"), 12000),
+            "applicable_types": [applicable_type] if applicable_type else [],
+            "tags": tags[:12],
+        })
+    if not blocks:
+        raise ValueError("没有从输入内容中拆出有效素材块")
+    return blocks[:max_blocks]
+
+
+def _split_rule_snapshot(split_rule: dict[str, Any] | None) -> dict[str, Any]:
+    if not split_rule:
+        return {}
+    return {
+        "id": str(split_rule.get("id") or ""),
+        "name": str(split_rule.get("name") or ""),
+        "primary_type": str(split_rule.get("primary_type") or ""),
+        "version": int(split_rule.get("version") or 1),
+        "system": bool(split_rule.get("system")),
+        "base_template_id": str(split_rule.get("base_template_id") or ""),
+        "modules": [dict(module) for module in (split_rule.get("modules") or []) if isinstance(module, dict)],
+        "options": dict(split_rule.get("options") or {}),
+    }
+
+
+def extract_reusable_prompt_blocks(
+    text: str,
+    primary_type: str = "",
+    options: dict[str, Any] | None = None,
+    split_rule: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Split one full image prompt into independently reusable prompt blocks."""
+    source_text = str(text or "").strip()
+    if not source_text:
+        raise ValueError("缺少要拆分的完整提示词")
+    options = options or {}
+    config = get_prompt_skill_config()
+    provider_id = str(options.get("provider") or config.get("provider") or DEFAULT_PROMPT_SKILL_PROVIDER).strip()
+    requested_model = str(options.get("model") or config.get("model") or "").strip()
+    original_provider_id = provider_id
+    provider_id, model, model_warning = _select_prompt_provider_model_with_pool_fallback(
+        provider_id,
+        requested_model,
+        "素材块拆分",
+    )
+    reasoning_effort = str(options.get("reasoning_effort") or options.get("reasoningEffort") or "low").strip().lower()
+    if reasoning_effort not in GPT_REASONING_EFFORTS:
+        reasoning_effort = "low"
+    requested_type = str(primary_type or "").strip()
+    if requested_type not in PROMPT_BLOCK_PRIMARY_TYPES:
+        requested_type = ""
+    suggested_type = requested_type or _infer_prompt_block_primary_type_from_text(source_text)
+    prompt = "\n".join([
+        f"适用内容类型：{requested_type or '自动判断'}",
+        f"自动类型初步判断：{suggested_type or '未知，请根据原文判断'}",
+        _prompt_block_template_context(suggested_type, split_rule),
+        "请把下面的完整图像生成提示词拆成可独立复用的素材块：",
+        "<<<",
+        source_text[:50000],
+        ">>>",
+    ])
+    started = time.time()
+    raw_text, provider_id, model, reasoning_effort, warning = _call_prompt_provider_with_pool_fallback(
+        provider_id,
+        prompt,
+        PROMPT_BLOCK_EXTRACTION_SYSTEM,
+        model,
+        reasoning_effort,
+        "素材块拆分",
+    )
+    warning = warning or model_warning
+    try:
+        if not raw_text:
+            raise RuntimeError("素材块拆分模型没有返回内容")
+        parsed = json.loads(_extract_first_json_block(raw_text))
+        model_type = str(parsed.get("primary_type") or parsed.get("primaryType") or "").strip() if isinstance(parsed, dict) else ""
+        resolved_type = requested_type or (model_type if model_type in PROMPT_BLOCK_PRIMARY_TYPES else "") or suggested_type or _infer_prompt_block_primary_type_from_modules(parsed)
+        blocks = _normalize_extracted_prompt_blocks(parsed, resolved_type, split_rule)
+    except Exception as exc:
+        if provider_id == "chatgpt_pool" or not _should_fallback_prompt_chat_to_pool(original_provider_id, exc):
+            raise
+        raw_text, model = _chatgpt_pool_chat_reply(prompt, PROMPT_BLOCK_EXTRACTION_SYSTEM)
+        parsed = json.loads(_extract_first_json_block(raw_text))
+        model_type = str(parsed.get("primary_type") or parsed.get("primaryType") or "").strip() if isinstance(parsed, dict) else ""
+        resolved_type = requested_type or (model_type if model_type in PROMPT_BLOCK_PRIMARY_TYPES else "") or suggested_type or _infer_prompt_block_primary_type_from_modules(parsed)
+        blocks = _normalize_extracted_prompt_blocks(parsed, resolved_type, split_rule)
+        provider_id = "chatgpt_pool"
+        reasoning_effort = ""
+        warning = f"{_prompt_pool_fallback_reason(exc)}素材块拆分：{exc}"
+        print(f"⚠️ Prompt Skill 素材块拆分 validation fallback to account pool: {exc}")
+    result = {
+        "ok": True,
+        "mode": "text",
+        "blocks": blocks,
+        "primary_type": resolved_type,
+        "provider": provider_id,
+        "model": model,
+        "reasoning_effort": reasoning_effort,
+        "latency_seconds": round(time.time() - started, 2),
+    }
+    rule_snapshot = _split_rule_snapshot(split_rule)
+    if rule_snapshot:
+        result["split_rule"] = rule_snapshot
+    if warning:
+        result["warning"] = warning
+        result["fallback"] = "chatgpt_pool_chat"
+    return result
+
+
 def assistant_chat_stream(text: str, message: str, options: dict[str, Any] | None = None) -> Iterator[dict[str, Any]]:
     """Stream lightweight prompt-direction chat deltas."""
     request = _assistant_chat_request(text, message, options)
@@ -2152,7 +2474,7 @@ IMAGE_PROMPT_ANALYSIS_SYSTEM = """你是“图片提示词拆解”专家，服�
 6. negative_prompt 必须根据当前图片分析“这张图不应该出现什么”来写，不能使用通用负面词清单。它应围绕当前图片的主体、版式、色彩、光影、材质、文字风险、UI/封面/卡片结构等具体错误来描述。
 7. 所有 prompt_blocks 必须是 standalone 文生图提示词，不得要求模型参考、保留、复刻、改动某张图片，也不得出现“参考图”“原图”“同款”“image1”“以图生图”“图像编辑”等依赖外部图片的词。
 8. 主候选提示词只写对生成图像有意义的视觉描述，不要出现“区域”“占位”“请勾选”“OCR”“编辑稿”“保留图中文字”等工具话术；文字槽位和原文只写入 text_regions/text_markdown。
-9. 主候选必须细拆人物主体：姿态、动作、手势、手臂位置、头部角度、表情、视线方向、身体裁切、完整服装造型、前后景遮挡关系。有人像时不要只写“人物肖像/半身像”。
+9. 主候选必须细拆人物主体：姿态、动作、手势、手臂位置、头部角度、表情、视线方向、身体裁切、完整服装造型、妆发、配饰、前后景遮挡关系。有人像时不要只写“人物肖像/半身像”。
    - 完整服装造型必须从上到下检查：发饰/头饰、上衣/外套/领口/袖型、腰部/腰带、裙装或裤装、腿部覆盖物、袜装、鞋履、手套、包袋、首饰和其他配饰。
    - 袜装/腿部覆盖物是独立服饰层级，必须中性描述颜色、长度、材质和覆盖范围；例如白色连裤袜、黑色裤袜、长筒袜、短袜、裸腿、靴袜、过膝袜、透明/不透明质感等。只要画面可见，就必须写入 subjects.outfit 和 main_prompt_no_text，不要因为它属于丝袜/袜装/贴身服饰而省略。
    - 若腿部或脚部被裁切/遮挡，也要在 body_crop 或 outfit 中说明“腿部被裁切/袜装不可见/鞋履不可见”，避免默认忽略下半身服饰。
@@ -2204,7 +2526,7 @@ JSON 形状：
     {"slot":"[MAIN_TITLE]","label":"主标题","kind":"text","description":"主标题文字槽位","source_region_id":"T1"}
   ],
   "layout": {"aspect_ratio":"","composition":"","hierarchy":"","spacing":"","alignment":""},
-  "subjects": [{"name":"","role":"","visual_traits":"","pose":"","expression":"","gaze":"","body_crop":"","outfit":"","placement":"","relationship":""}],
+  "subjects": [{"name":"","role":"","visual_traits":"","pose":"","expression":"","gaze":"","body_crop":"","outfit":"","makeup_hair":"","accessories":"","placement":"","relationship":""}],
   "overlays": [{"id":"O1","type":"selection_frame/inset_image/cursor/mask/shape/texture/other","position":"","appearance":"","layering":"","relationship":""}],
   "generation_hints": {"aspect_ratio":"","medium":"","camera":"","lighting":"","palette":"","rendering":"","style_keywords":[]},
   "confidence": {"overall":0.0,"ocr":0.0,"layout":0.0},
@@ -2355,7 +2677,10 @@ def _normalize_image_analysis_inputs(images: list[Any]) -> list[dict[str, Any]]:
                 "id": image_id,
                 "label": _clean_string(item.get("label") or item.get("name") or image_id, 120),
                 "source_node_id": _clean_string(item.get("sourceNodeId") or item.get("source_node_id"), 120),
-                "mime_type": _analysis_image_mime_type(image_url, str(item.get("mimeType") or item.get("type") or "image/png")),
+                "mime_type": _analysis_image_mime_type(
+                    image_url,
+                    str(item.get("mime_type") or item.get("mimeType") or item.get("type") or "image/png"),
+                ),
                 "image_url": image_url,
                 "role": "primary" if not normalized else "fusion_reserved",
             }
@@ -2733,7 +3058,6 @@ def _normalize_subjects(data: dict[str, Any]) -> list[dict[str, str]]:
                 _clean_standalone_context(_first_text(item, "bottom", "lower_body_clothing", "lowerBodyClothing", "skirt", "pants", limit=240), 240),
                 _clean_standalone_context(_first_text(item, "legwear", "hosiery", "tights", "pantyhose", "stockings", "socks", "袜装", "腿部覆盖物", limit=260), 260),
                 _clean_standalone_context(_first_text(item, "footwear", "shoes", "boots", "鞋履", limit=220), 220),
-                _clean_standalone_context(_first_text(item, "accessories", "props", "jewelry", "配饰", limit=300), 300),
             ]
             outfit = "，".join(part for part in dict.fromkeys(outfit_parts) if part)
             subject = {
@@ -2745,6 +3069,8 @@ def _normalize_subjects(data: dict[str, Any]) -> list[dict[str, str]]:
                 "gaze": _clean_standalone_context(_first_text(item, "gaze", "view_direction", "viewDirection", limit=240), 240),
                 "body_crop": _clean_standalone_context(_first_text(item, "body_crop", "bodyCrop", "crop", "framing", limit=300), 300),
                 "outfit": _clean_standalone_context(outfit, 900),
+                "makeup_hair": _clean_standalone_context(_first_text(item, "makeup_hair", "makeupHair", "hair_makeup", "hairMakeup", "hairstyle", "hair", "makeup", "妆发", limit=600), 600),
+                "accessories": _clean_standalone_context(_first_text(item, "accessories", "props", "jewelry", "headwear", "hair_accessories", "hairAccessories", "配饰", limit=500), 500),
                 "placement": _clean_standalone_context(_first_text(item, "placement", "position", limit=300), 300),
                 "relationship": _clean_standalone_context(_first_text(item, "relationship", "relation", limit=500), 500),
             }
@@ -2758,6 +3084,8 @@ def _normalize_subjects(data: dict[str, Any]) -> list[dict[str, str]]:
                 "gaze": "",
                 "body_crop": "",
                 "outfit": "",
+                "makeup_hair": "",
+                "accessories": "",
                 "placement": "",
                 "relationship": "",
             }
@@ -2815,6 +3143,8 @@ def _format_subject_detail_prompt(subjects: list[dict[str, str]]) -> str:
             subject.get("gaze"),
             subject.get("body_crop"),
             subject.get("outfit"),
+            subject.get("makeup_hair"),
+            subject.get("accessories"),
             subject.get("relationship"),
         ]
         line = "，".join(part for part in dict.fromkeys(parts) if part)
@@ -3302,41 +3632,398 @@ def analyze_prompt_image(message: str, images: list[Any], options: dict[str, Any
 
     config = get_prompt_skill_config()
     provider_id = str(options.get("provider") or config.get("provider") or DEFAULT_PROMPT_SKILL_PROVIDER).strip()
-    model = _choose_model(provider_id, str(options.get("model") or config.get("model") or "").strip())
+    requested_model = str(options.get("model") or config.get("model") or "").strip()
+    original_provider_id = provider_id
+    provider_id, model, fallback_warning = _select_prompt_provider_model_with_pool_fallback(
+        provider_id,
+        requested_model,
+        "图片分析",
+    )
     requested_effort = str(options.get("reasoning_effort") or options.get("reasoningEffort") or "medium").strip().lower()
     reasoning_effort = requested_effort if requested_effort in GPT_REASONING_EFFORTS else "medium"
     prompt = _build_image_analysis_user_prompt(str(message or "").strip(), normalized_images)
     started = time.time()
     image_urls = [normalized_images[0]["image_url"]]
-    fallback_warning = ""
-    try:
-        raw_text = _call_prompt_provider_image_json(
-            provider_id,
-            prompt,
-            IMAGE_PROMPT_ANALYSIS_SYSTEM,
-            image_urls,
-            model,
-            reasoning_effort,
-        )
-    except Exception as exc:
-        if not _should_fallback_prompt_chat_to_pool(provider_id, exc):
-            raise
-        raw_text, fallback_model, fallback_warning = _fallback_prompt_image_analysis_to_pool(
-            prompt,
-            IMAGE_PROMPT_ANALYSIS_SYSTEM,
-            image_urls,
-            exc,
-        )
-        provider_id = "chatgpt_pool"
-        model = fallback_model
-    if not raw_text:
-        raise RuntimeError("图片分析模型没有返回内容")
-    data = json.loads(_extract_first_json_block(raw_text))
-    result = _normalize_prompt_image_analysis(data, normalized_images, provider_id, model, reasoning_effort, started)
+
+    def parse_analysis(raw_text: str) -> dict[str, Any]:
+        if not raw_text:
+            raise RuntimeError("图片分析模型没有返回内容")
+        data = json.loads(_extract_first_json_block(raw_text))
+        if not isinstance(data, dict) or not any(
+            data.get(key)
+            for key in ("image_kind", "imageKind", "visual_summary", "summary", "visual_style", "prompt_blocks", "subjects", "layout")
+        ):
+            raise ValueError("图片分析模型返回的 JSON 结构不完整")
+        return _normalize_prompt_image_analysis(data, normalized_images, provider_id, model, reasoning_effort, started)
+
+    if provider_id == "chatgpt_pool":
+        raw_text, model = _chatgpt_pool_image_json_reply(prompt, IMAGE_PROMPT_ANALYSIS_SYSTEM, image_urls)
+        reasoning_effort = ""
+        result = parse_analysis(raw_text)
+    else:
+        try:
+            raw_text = _call_prompt_provider_image_json(
+                provider_id,
+                prompt,
+                IMAGE_PROMPT_ANALYSIS_SYSTEM,
+                image_urls,
+                model,
+                reasoning_effort,
+            )
+            result = parse_analysis(raw_text)
+        except Exception as exc:
+            if not _should_fallback_prompt_chat_to_pool(original_provider_id, exc):
+                raise
+            raw_text, fallback_model, fallback_warning = _fallback_prompt_image_analysis_to_pool(
+                prompt,
+                IMAGE_PROMPT_ANALYSIS_SYSTEM,
+                image_urls,
+                exc,
+            )
+            provider_id = "chatgpt_pool"
+            model = fallback_model
+            reasoning_effort = ""
+            result = parse_analysis(raw_text)
     if fallback_warning:
         result["warning"] = fallback_warning
         result["fallback"] = "chatgpt_pool_multimodal_chat"
     return result
+
+
+def _join_prompt_block_parts(*values: Any) -> str:
+    parts: list[str] = []
+    for value in values:
+        if isinstance(value, dict):
+            candidates = value.values()
+        elif isinstance(value, (list, tuple, set)):
+            candidates = value
+        else:
+            candidates = [value]
+        for candidate in candidates:
+            text = _clean_string(candidate, 5000)
+            if text and text not in parts:
+                parts.append(text)
+    return "；".join(parts)
+
+
+def _prompt_block_has_markers(text: str, chinese: tuple[str, ...] = (), english: tuple[str, ...] = ()) -> bool:
+    normalized = str(text or "").lower()
+    if any(marker in normalized for marker in chinese):
+        return True
+    return any(
+        re.search(rf"(?<![a-z0-9]){re.escape(marker.lower())}(?![a-z0-9])", normalized)
+        for marker in english
+    )
+
+
+def _prompt_block_has_human_evidence(text: str) -> bool:
+    return _prompt_block_has_markers(
+        text,
+        ("人物", "人像", "肖像", "女性", "男性", "女孩", "男孩", "女士", "男士", "模特", "少女", "少年"),
+        ("person", "portrait", "human", "woman", "man", "girl", "boy", "lady", "gentleman", "people", "adult", "child", "teenager", "businesswoman", "businessman"),
+    )
+
+
+def _infer_prompt_block_primary_type(analysis: dict[str, Any], requested: str = "") -> str:
+    clean_requested = str(requested or "").strip()
+    if clean_requested in PROMPT_BLOCK_PRIMARY_TYPES:
+        return clean_requested
+    flags = _as_dict(analysis.get("image_type_flags"))
+    kind = _clean_string(analysis.get("image_kind"), 120).lower()
+    summary = _clean_string(analysis.get("visual_summary"), 600).lower()
+    subjects = [item for item in _as_list(analysis.get("subjects")) if isinstance(item, dict)]
+    subject_evidence = " ".join(
+        _clean_string(subject.get(key), 500).lower()
+        for subject in subjects
+        for key in ("name", "role", "visual_traits", "outfit", "makeup_hair", "accessories")
+        if subject.get(key)
+    )
+    primary_evidence = f"{kind} {summary}"
+    combined = f"{primary_evidence} {subject_evidence}"
+
+    if flags.get("web_design") or _prompt_block_has_markers(combined, ("网页", "网站界面", "应用界面"), ("web design", "landing page", "app interface", "website")):
+        return "social"
+    if flags.get("cover_template") or _prompt_block_has_markers(combined, ("海报", "封面", "主视觉"), ("poster", "cover", "key visual")):
+        return "poster"
+    if flags.get("table_card") or _prompt_block_has_markers(combined, ("信息图", "图表", "卡片"), ("infographic", "data chart")):
+        return "infographic"
+    if _prompt_block_has_markers(combined, ("分镜", "镜头脚本"), ("storyboard", "shot list")):
+        return "storyboard"
+    if _prompt_block_has_markers(combined, ("无缝图案", "连续纹样", "平铺纹理"), ("seamless pattern", "repeat pattern")):
+        return "pattern"
+    if _prompt_block_has_markers(combined, ("3d视觉", "3d 视觉", "三维渲染", "立体渲染"), ("3d render", "cgi render")):
+        return "three_d"
+    if _prompt_block_has_markers(combined, ("服装设计", "时装", "穿搭", "秀场"), ("lookbook", "fashion editorial", "garment design")):
+        return "fashion"
+
+    category_markers = (
+        ("food", ("美食", "食物", "菜品", "餐饮", "料理", "甜点", "蛋糕"), ("food", "cuisine", "dish", "meal", "dessert", "cake", "cupcake", "hot dog")),
+        ("animal", ("动物", "宠物", "猫", "狗", "犬"), ("wildlife", "pet portrait", "dog", "cat", "retriever")),
+        ("interior", ("室内", "客厅", "卧室"), ("interior", "living room", "bedroom")),
+        ("architecture", ("建筑", "立面", "住宅", "房屋", "大楼"), ("architecture", "facade", "building", "house", "residence")),
+        ("product", ("产品", "商品", "包装", "电商", "瓶", "罐", "盒", "杯", "腕表", "手表", "手机", "耳机", "香水"), ("product", "e-commerce", "bottle", "package", "packaging", "cup", "mug", "watch", "phone", "headphone", "headphones", "perfume", "cosmetic", "cosmetics", "device")),
+        ("landscape", ("风景", "自然景观", "山川", "海岸"), ("landscape", "scenery")),
+        ("character", ("角色设定", "角色设计", "人物设定"), ("character design", "character sheet")),
+        ("scene_concept", ("场景概念", "环境概念", "世界观场景"), ("concept environment", "environment design")),
+        ("social", ("社交媒体", "社媒", "小红书"), ("social media", "instagram post")),
+        ("illustration", ("插画", "漫画", "绘本"), ("illustration", "comic")),
+        ("portrait", ("人像", "肖像", "人物写真"), ("portrait", "headshot")),
+    )
+    for primary_type, chinese, english in category_markers:
+        if _prompt_block_has_markers(primary_evidence, chinese, english):
+            return primary_type
+
+    for primary_type, chinese, english in category_markers[:4]:
+        if _prompt_block_has_markers(subject_evidence, chinese, english):
+            return primary_type
+    if _prompt_block_has_human_evidence(subject_evidence):
+        return "portrait"
+    for primary_type, chinese, english in category_markers[4:]:
+        if _prompt_block_has_markers(subject_evidence, chinese, english):
+            return primary_type
+    return "illustration"
+
+
+def _prompt_blocks_from_image_analysis(
+    result: dict[str, Any],
+    primary_type: str = "",
+    split_rule: dict[str, Any] | None = None,
+) -> tuple[list[dict[str, Any]], str]:
+    analysis = _as_dict(result.get("analysis"))
+    resolved_type = _infer_prompt_block_primary_type(analysis, primary_type)
+    candidates: list[dict[str, Any]] = []
+
+    def add(name: str, module_type: str, content: Any, tags: list[str] | None = None) -> None:
+        clean_content = _clean_string(content, 12000)
+        if not clean_content:
+            return
+        candidates.append({
+            "name": name,
+            "module_type": module_type,
+            "content": clean_content,
+            "compact_content": clean_content[:240] if len(clean_content) > 240 else clean_content,
+            "english_content": "",
+            "applicable_types": [resolved_type],
+            "tags": ["图片解析", *(tags or [])][:12],
+        })
+
+    subjects = [item for item in _as_list(analysis.get("subjects")) if isinstance(item, dict)]
+    subject_identity = _join_prompt_block_parts(*[
+        _join_prompt_block_parts(subject.get("name"), subject.get("role"), subject.get("relationship"))
+        for subject in subjects
+    ])
+    appearance = _join_prompt_block_parts(*[subject.get("visual_traits") for subject in subjects])
+    pose = _join_prompt_block_parts(*[subject.get("pose") for subject in subjects])
+    expression = _join_prompt_block_parts(*[
+        _join_prompt_block_parts(subject.get("expression"), subject.get("gaze")) for subject in subjects
+    ])
+    clothing = _join_prompt_block_parts(*[subject.get("outfit") for subject in subjects])
+    makeup_hair = _join_prompt_block_parts(*[subject.get("makeup_hair") for subject in subjects])
+    accessories = _join_prompt_block_parts(*[subject.get("accessories") for subject in subjects])
+    relationship = _join_prompt_block_parts(*[subject.get("relationship") for subject in subjects])
+    subject_placement = _join_prompt_block_parts(*[
+        _join_prompt_block_parts(subject.get("placement"), subject.get("body_crop")) for subject in subjects
+    ])
+
+    visual_summary = _clean_string(analysis.get("visual_summary"), 2000)
+    layout = _as_dict(analysis.get("layout"))
+    composition = _join_prompt_block_parts(layout, subject_placement)
+    hints = _as_dict(analysis.get("generation_hints"))
+    camera = _join_prompt_block_parts(hints.get("camera"), hints.get("aspect_ratio"))
+    lighting = _join_prompt_block_parts(hints.get("lighting"))
+    visual_style = _as_dict(analysis.get("visual_style"))
+    color = _join_prompt_block_parts(hints.get("palette"), visual_style.get("palette"))
+    prompt_blocks = _as_dict(analysis.get("prompt_blocks"))
+    main_prompt = _join_prompt_block_parts(prompt_blocks.get("main_prompt_no_text"))
+    style = _join_prompt_block_parts(
+        prompt_blocks.get("universal_style_prompt"),
+        visual_style.get("medium"), visual_style.get("rendering"), visual_style.get("style_scope"),
+    )
+    material = _join_prompt_block_parts(
+        visual_style.get("texture"), visual_style.get("edge_quality"),
+        visual_style.get("resolution_language"), hints.get("rendering"),
+    )
+    constraints = _join_prompt_block_parts(prompt_blocks.get("negative_prompt"))
+    text_regions = [item for item in _as_list(analysis.get("text_regions")) if isinstance(item, dict)]
+    text_evidence = _join_prompt_block_parts(*[
+        _join_prompt_block_parts(item.get("text"), item.get("role"), item.get("position"), item.get("style"))
+        for item in text_regions
+    ])
+    overlays = [item for item in _as_list(analysis.get("overlays")) if isinstance(item, dict)]
+    overlay_evidence = _join_prompt_block_parts(*[
+        _join_prompt_block_parts(item.get("type"), item.get("position"), item.get("appearance"), item.get("layering"), item.get("relationship"))
+        for item in overlays
+    ])
+
+    subject_evidence = _join_prompt_block_parts(subject_identity, appearance)
+    has_human_subject = _prompt_block_has_human_evidence(subject_evidence)
+    if subjects and (has_human_subject or resolved_type in {"portrait", "character", "fashion"}):
+        add("主体身份", "identity", subject_identity)
+        add("外貌特征", "appearance", appearance)
+        add("动作姿态", "pose", pose)
+        add("表情视线", "expression", expression)
+        add("服装造型", "clothing", clothing)
+        add("妆发细节", "makeup_hair", makeup_hair)
+        add("配饰道具", "accessories", accessories)
+    elif subjects:
+        add("主体特征", "subject", _join_prompt_block_parts(subject_identity, appearance, main_prompt, visual_summary))
+
+    specific_blocks: dict[str, list[tuple[str, str, Any]]] = {
+        "portrait": [
+            ("人体约束", "anatomy_constraints", constraints),
+        ],
+        "landscape": [
+            ("地貌环境", "landform", visual_summary),
+            ("大气效果", "atmosphere", _join_prompt_block_parts(visual_summary, lighting)),
+            ("前中后景", "depth", composition),
+        ],
+        "product": [
+            ("商品结构", "product_structure", _join_prompt_block_parts(appearance, main_prompt, visual_summary)),
+            ("材质工艺", "craft", material),
+            ("核心卖点", "selling_points", visual_summary),
+            ("商品摆放", "placement", composition),
+            ("商业布光", "commercial_lighting", lighting),
+            ("品牌限制", "brand_constraints", _join_prompt_block_parts(text_evidence, color)),
+        ],
+        "food": [
+            ("食材状态", "ingredients", _join_prompt_block_parts(main_prompt, visual_summary)),
+            ("摆盘方式", "plating", composition),
+            ("食物质感", "food_texture", material),
+            ("温度气息", "steam", _join_prompt_block_parts(visual_summary, lighting)),
+        ],
+        "architecture": [
+            ("建筑风格", "architectural_style", style),
+            ("建筑体量", "massing", _join_prompt_block_parts(main_prompt, visual_summary)),
+            ("立面细节", "facade", _join_prompt_block_parts(appearance, material)),
+            ("场地环境", "site", _join_prompt_block_parts(visual_summary, composition)),
+        ],
+        "interior": [
+            ("空间布局", "space_layout", composition),
+            ("家具陈设", "furniture", visual_summary),
+            ("空间材质", "surface_materials", material),
+            ("软装细节", "soft_furnishing", _join_prompt_block_parts(visual_summary, color)),
+        ],
+        "character": [
+            ("角色身份", "character_identity", subject_identity),
+            ("世界观", "worldbuilding", _join_prompt_block_parts(visual_summary, style)),
+            ("角色轮廓", "silhouette", appearance),
+            ("装备道具", "equipment", accessories),
+            ("设定视图", "turnaround", composition),
+        ],
+        "scene_concept": [
+            ("世界观", "worldbuilding", _join_prompt_block_parts(visual_summary, style)),
+            ("地理环境", "geography", visual_summary),
+            ("文明痕迹", "civilization", _join_prompt_block_parts(main_prompt, visual_summary)),
+            ("环境叙事", "environment_story", overlay_evidence),
+            ("尺度关系", "scale", composition),
+        ],
+        "animal": [
+            ("物种品种", "species", _join_prompt_block_parts(subject_identity, visual_summary)),
+            ("毛发羽毛", "fur", _join_prompt_block_parts(appearance, material)),
+            ("动作神态", "animal_action", _join_prompt_block_parts(pose, expression)),
+            ("栖息环境", "habitat", visual_summary),
+        ],
+        "fashion": [
+            ("服装版型", "garment_shape", clothing),
+            ("面料质感", "fabric", _join_prompt_block_parts(clothing, material)),
+            ("服装工艺", "craft", material),
+            ("整体搭配", "styling", _join_prompt_block_parts(clothing, accessories, color)),
+            ("展示姿态", "lookbook_pose", _join_prompt_block_parts(pose, composition)),
+        ],
+        "storyboard": [
+            ("景别", "shot_size", composition),
+            ("机位", "camera_position", camera),
+            ("人物调度", "blocking", _join_prompt_block_parts(subject_placement, relationship)),
+            ("镜头动作", "action", pose),
+            ("运镜", "camera_motion", camera),
+            ("连续性", "continuity", constraints),
+        ],
+        "illustration": [
+            ("叙事瞬间", "story_moment", visual_summary),
+            ("角色关系", "character_relation", _join_prompt_block_parts(subject_identity, relationship)),
+            ("线条表现", "linework", style),
+            ("上色方式", "rendering", _join_prompt_block_parts(style, material)),
+            ("对白区域", "speech_area", _join_prompt_block_parts(text_evidence, composition)),
+        ],
+        "poster": [
+            ("核心视觉", "key_visual", _join_prompt_block_parts(main_prompt, visual_summary)),
+            ("文案", "copy", text_evidence),
+            ("信息层级", "information_hierarchy", _join_prompt_block_parts(layout, text_evidence)),
+            ("版式", "layout", composition),
+            ("文字区域", "text_region", text_evidence),
+            ("品牌色", "brand_color", color),
+            ("Logo 区域", "logo_region", overlay_evidence),
+        ],
+        "social": [
+            ("视觉钩子", "visual_hook", _join_prompt_block_parts(main_prompt, visual_summary)),
+            ("标题区域", "headline", text_evidence),
+            ("品牌系统", "brand_system", _join_prompt_block_parts(style, color)),
+            ("平台安全区", "safe_area", composition),
+        ],
+        "infographic": [
+            ("信息范围", "data_scope", _join_prompt_block_parts(visual_summary, text_evidence)),
+            ("信息结构", "information_structure", composition),
+            ("图形关系", "diagram", _join_prompt_block_parts(overlay_evidence, layout)),
+            ("标注文字", "annotation", text_evidence),
+            ("可读性", "readability", _join_prompt_block_parts(layout, constraints)),
+        ],
+        "three_d": [
+            ("建模形态", "model_shape", _join_prompt_block_parts(appearance, main_prompt, visual_summary)),
+            ("材质着色", "shader", material),
+            ("渲染表现", "render_engine", style),
+            ("摄影棚", "studio", _join_prompt_block_parts(visual_summary, lighting)),
+        ],
+        "pattern": [
+            ("图案元素", "motif", _join_prompt_block_parts(main_prompt, visual_summary)),
+            ("重复规则", "repeat", _join_prompt_block_parts(layout, composition)),
+            ("元素密度", "density", composition),
+            ("接缝要求", "seam", constraints),
+        ],
+    }
+    for name, module_type, content in specific_blocks.get(resolved_type, []):
+        add(name, module_type, content, ["拆分规则"])
+
+    add("场景主题", "scene", visual_summary)
+    add("构图布局", "composition", composition)
+    add("镜头视角", "camera", camera)
+    add("光线氛围", "lighting", lighting)
+    add("色彩方案", "color", color)
+    add("视觉风格", "style", style)
+    add("材质渲染", "material", material)
+    add("负面约束", "constraints", constraints)
+    if overlays:
+        add("叠加元素", "custom", overlay_evidence)
+    if not candidates:
+        raise ValueError("图片分析完成，但没有得到可保存的素材块")
+    return _normalize_extracted_prompt_blocks({"blocks": candidates}, resolved_type, split_rule), resolved_type
+
+
+def extract_reusable_prompt_blocks_from_image(
+    message: str,
+    images: list[Any],
+    primary_type: str = "",
+    options: dict[str, Any] | None = None,
+    split_rule: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Analyze an uploaded image and convert the visual evidence into reusable blocks."""
+    result = analyze_prompt_image(message, images, options)
+    blocks, resolved_type = _prompt_blocks_from_image_analysis(result, primary_type, split_rule)
+    response = {
+        "ok": True,
+        "mode": "image",
+        "blocks": blocks,
+        "primary_type": resolved_type,
+        "analysis_id": result.get("analysis_id"),
+        "provider": result.get("provider"),
+        "model": result.get("model"),
+        "reasoning_effort": result.get("reasoning_effort"),
+        "latency_seconds": result.get("latency_seconds"),
+        **({"warning": result.get("warning"), "fallback": result.get("fallback")} if result.get("warning") else {}),
+    }
+    rule_snapshot = _split_rule_snapshot(split_rule)
+    if rule_snapshot:
+        response["split_rule"] = rule_snapshot
+    return response
 
 
 def _fallback_style_extract(text: str, message: str, candidate: str) -> dict[str, Any]:

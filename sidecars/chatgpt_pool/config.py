@@ -18,6 +18,8 @@ DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 18080
 DEFAULT_MODEL = "gpt-5-5"
 DEFAULT_TIMEOUT_SECONDS = 900
+MIN_TIMEOUT_SECONDS = 60
+MAX_TIMEOUT_SECONDS = 900
 DEFAULT_LEASE_TIMEOUT_SECONDS = 1200
 
 
@@ -58,7 +60,10 @@ def load_settings() -> SidecarSettings:
         # Standalone launches without server.py can still run, but callers must
         # read the printed/generated key from their configured settings path.
         auth_key = "sk-local-" + secrets.token_urlsafe(24)
-    timeout_seconds = _as_int(cfg.get("timeout_seconds"), DEFAULT_TIMEOUT_SECONDS)
+    timeout_seconds = min(
+        MAX_TIMEOUT_SECONDS,
+        _as_int(cfg.get("timeout_seconds"), DEFAULT_TIMEOUT_SECONDS, minimum=MIN_TIMEOUT_SECONDS),
+    )
     lease_timeout_default = max(DEFAULT_LEASE_TIMEOUT_SECONDS, timeout_seconds + 300)
     lease_timeout_seconds = _as_int(cfg.get("lease_timeout_seconds"), lease_timeout_default, minimum=60)
     lease_timeout_seconds = max(lease_timeout_seconds, timeout_seconds + 60)

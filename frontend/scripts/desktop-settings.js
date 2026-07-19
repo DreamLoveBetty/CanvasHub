@@ -535,7 +535,7 @@
           <select class="desk-select" data-system-setting-field="chatgpt_pool.generation_model"${models.length ? '' : ' disabled'}>${poolModelOptions}</select>
         </label>
         <p class="desk-settings-form__hint">生图引擎：${escapeHtml(poolRoute?.image_engine?.label || 'ChatGPT Image')}</p>
-        ${renderInput('超时秒数', 'chatgpt_pool.timeout_seconds', pool.timeout_seconds || 420, { type: 'number', min: 30, max: 1800, step: 30 })}
+        ${renderInput('超时秒数', 'chatgpt_pool.timeout_seconds', pool.timeout_seconds || 900, { type: 'number', min: 60, max: 900, step: 30 })}
         ${renderInput('账号库路径', 'chatgpt_pool.db_path', pool.db_path || 'data/chatgpt_pool/accounts.db')}
         <div class="desk-settings-form__actions desk-settings-form__actions--compact">
           <button type="button" data-gpt-generation-models-refresh>刷新网页模型</button>
@@ -1966,6 +1966,7 @@
   }
 
   async function open() {
+    if (window.DesktopPromptLibrary?.close?.() === false) return false;
     els.deskSettingsPanel?.classList.add('is-open');
     els.deskSettingsPanel?.setAttribute('aria-hidden', 'false');
     document.body.classList.add('desk-settings-open');
@@ -1987,6 +1988,7 @@
       }
       throw error;
     }
+    return true;
   }
 
   function close() {

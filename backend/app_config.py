@@ -37,6 +37,8 @@ DEFAULT_CHATGPT_POOL_ENABLED = True
 DEFAULT_CHATGPT_POOL_BASE_URL = "http://127.0.0.1:18080"
 DEFAULT_CHATGPT_POOL_MODEL = "gpt-5-5"
 DEFAULT_CHATGPT_POOL_TIMEOUT_SECONDS = 900
+MIN_CHATGPT_POOL_TIMEOUT_SECONDS = 60
+MAX_CHATGPT_POOL_TIMEOUT_SECONDS = 900
 DEFAULT_MANAGED_CODEX_OAUTH_ENABLED = True
 DEFAULT_MANAGED_CODEX_OAUTH_API_BASE = "https://chatgpt.com/backend-api/codex"
 DEFAULT_MANAGED_CODEX_OAUTH_AUTH_FILE = APP_DATA_DIR / ("auth/managed_codex/auth.json" if DESKTOP_DATA_MODE else "data/managed_codex_oauth/auth.json")
@@ -453,13 +455,22 @@ def get_chatgpt_pool_config(ensure_auth_key: bool = False) -> dict[str, Any]:
     if generation_model in {"gpt-image-2", "gpt-5-3", "auto"}:
         generation_model = DEFAULT_CHATGPT_POOL_MODEL
 
+    timeout_seconds = min(
+        MAX_CHATGPT_POOL_TIMEOUT_SECONDS,
+        _as_int(
+            section.get("timeout_seconds"),
+            DEFAULT_CHATGPT_POOL_TIMEOUT_SECONDS,
+            minimum=MIN_CHATGPT_POOL_TIMEOUT_SECONDS,
+        ),
+    )
+
     return {
         "enabled": _as_bool(os.environ.get("CHATGPT_POOL_ENABLED"), _as_bool(section.get("enabled"), DEFAULT_CHATGPT_POOL_ENABLED)),
         "base_url": base_url.rstrip("/"),
         "auth_key": auth_key,
         "auth_key_configured": bool(auth_key),
         "generation_model": generation_model,
-        "timeout_seconds": _as_int(section.get("timeout_seconds"), DEFAULT_CHATGPT_POOL_TIMEOUT_SECONDS),
+        "timeout_seconds": timeout_seconds,
         "db_path": db_path,
     }
 

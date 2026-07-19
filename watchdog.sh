@@ -328,7 +328,7 @@ if ! [[ "$last_cleanup" =~ ^[0-9]+$ ]]; then
 fi
 
 if [ $((now_epoch - last_cleanup)) -ge "$CLEANUP_INTERVAL_SECONDS" ]; then
-    if "$PY" -c "from database import cleanup_old_tasks, vacuum_tasks_db; n = cleanup_old_tasks(days=180); vacuum_tasks_db(); print(f'tasks cleanup: deleted {n} rows older than 180 days and vacuumed tasks.db')" >> "$LOG" 2>&1; then
+    if PYTHONPATH="$DIR" "$PY" -c "from backend.database import cleanup_old_tasks, vacuum_tasks_db; n = cleanup_old_tasks(days=180); vacuum_tasks_db(); print(f'tasks cleanup: deleted {n} rows older than 180 days and vacuumed tasks.db')" >> "$LOG" 2>&1; then
         printf '%s\n' "$now_epoch" > "$CLEANUP_MARKER"
         log "tasks.db cleanup completed"
     else

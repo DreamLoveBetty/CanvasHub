@@ -5,10 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="canvashub-version" content="V26.1.1">
   <title>图像画布</title>
-  <link rel="stylesheet" href="styles/desktop-liquid.css?v=20260713-app-update-bell1-canvas-zoom75">
+  <link rel="stylesheet" href="styles/desktop-liquid.css?v=20260713-app-update-bell1-canvas-zoom75-20260715-prompt-tokens6-20260717-prompt-color-token1-prompt-block-module-mark1">
   <link rel="stylesheet" href="styles/desktop-layout.css?v=20260629-desk-select1">
   <link rel="stylesheet" href="styles/desktop-pose.css?v=20260703-pose-reference1">
   <link rel="stylesheet" href="styles/desktop-file-results.css?v=20260711-file-board-list4">
+  <link rel="stylesheet" href="styles/desktop-prompt-library.css?v=20260719-color-image-analysis12">
 </head>
 <body class="desk-app" data-app-version="V26.1.1">
   <div id="authOverlay" class="auth-overlay">
@@ -256,6 +257,17 @@
           </svg>
         </span>
         <span>图库</span>
+      </button>
+      <button type="button" class="desk-rail__item" data-tool="prompts" title="提示词" aria-controls="deskPromptLibraryPanel" aria-expanded="false">
+        <span class="desk-rail__glyph desk-rail__glyph--prompts" aria-hidden="true">
+          <svg class="desk-rail-icon desk-rail-icon--prompts" viewBox="0 0 24 24">
+            <path class="desk-rail-icon__prompt-sheet" d="M6 3h8.6L18 6.4V21H6z"></path>
+            <path class="desk-rail-icon__prompt-fold" d="M14 3v4h4"></path>
+            <path class="desk-rail-icon__prompt-line" d="M9 11h6M9 15h4"></path>
+            <path class="desk-rail-icon__prompt-spark" d="M19 12v4M17 14h4"></path>
+          </svg>
+        </span>
+        <span>提示词</span>
       </button>
       <button type="button" class="desk-rail__item" data-tool="settings" title="设置" onclick="window.openDesktopSettingsPanel?.()">
         <span class="desk-rail__glyph desk-rail__glyph--settings" aria-hidden="true">
@@ -668,6 +680,77 @@
           </div>
         </aside>
       </div>
+    </section>
+
+    <section class="desk-prompt-library desk-glass" id="deskPromptLibraryPanel" aria-label="提示词管理" aria-hidden="true">
+      <header class="desk-prompt-library__header">
+        <div class="desk-prompt-library__identity">
+          <span class="desk-prompt-library__mark" aria-hidden="true">P</span>
+          <div>
+            <span>Prompt System</span>
+            <h2>提示词素材库</h2>
+          </div>
+        </div>
+        <div class="desk-prompt-library__header-actions">
+          <button type="button" class="desk-prompt-library__new" id="deskPromptLibraryNewBtn" title="新建素材块">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>
+            <span>新建素材块</span>
+          </button>
+          <button type="button" id="deskPromptLibraryRefreshBtn" title="刷新" aria-label="刷新提示词工作台">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 0 1 13.7-5.6"></path><path d="M18 3v4h-4"></path><path d="M20 12a8 8 0 0 1-13.7 5.6"></path><path d="M6 21v-4h4"></path></svg>
+          </button>
+          <button type="button" id="deskPromptLibraryCloseBtn" title="关闭" aria-label="关闭提示词工作台">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7 17 17"></path><path d="M17 7 7 17"></path></svg>
+          </button>
+        </div>
+      </header>
+      <nav class="desk-prompt-library__tabs" id="deskPromptLibraryTabs" role="tablist" aria-label="提示词工作区">
+        <button type="button" id="deskPromptWorkspaceTabBlocks" role="tab" tabindex="0" data-prompt-workspace="blocks" aria-selected="true" aria-controls="deskPromptLibraryWorkspace">
+          <svg class="desk-prompt-library__tab-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="3" width="7" height="7" rx="1"></rect><rect x="3" y="14" width="7" height="7" rx="1"></rect><rect x="14" y="14" width="7" height="7" rx="1"></rect></svg>
+          <span class="desk-prompt-library__tab-copy"><strong>素材块</strong><small>拆分、解析与 / 插入</small></span>
+        </button>
+        <button type="button" id="deskPromptWorkspaceTabTemplates" role="tab" tabindex="-1" data-prompt-workspace="templates" aria-selected="false" aria-controls="deskPromptLibraryWorkspace">
+          <svg class="desk-prompt-library__tab-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"></rect><path d="M3 9h18M9 21V9"></path></svg>
+          <span class="desk-prompt-library__tab-copy"><strong>拆分规则</strong><small>17 类拆分骨架</small></span>
+        </button>
+        <button type="button" id="deskPromptWorkspaceTabColors" role="tab" tabindex="-1" data-prompt-workspace="colors" aria-selected="false" aria-controls="deskPromptLibraryWorkspace">
+          <svg class="desk-prompt-library__tab-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 17a4 4 0 0 1-8 0V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2Z"></path><path d="m19.5 12.5-2.3-2.3a2.4 2.4 0 0 0-3.4 0L11 13"></path><path d="M16 19h4a2 2 0 0 0 2-2v-4a2 2 0 0 0-2-2h-1"></path><path d="M11 17v.01"></path></svg>
+          <span class="desk-prompt-library__tab-copy"><strong>色彩方案</strong><small>可复用配色组合</small></span>
+        </button>
+        <button type="button" id="deskPromptWorkspaceTabInspiration" role="tab" tabindex="-1" data-prompt-workspace="inspiration" aria-selected="false" aria-controls="deskPromptLibraryWorkspace">
+          <svg class="desk-prompt-library__tab-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3-1.9 5.1a2 2 0 0 1-1.2 1.2L4 11l4.9 1.7a2 2 0 0 1 1.2 1.2L12 19l1.9-5.1a2 2 0 0 1 1.2-1.2L20 11l-4.9-1.7a2 2 0 0 1-1.2-1.2Z"></path><path d="M5 3v4M3 5h4M19 17v4M17 19h4"></path></svg>
+          <span class="desk-prompt-library__tab-copy"><strong>灵感库</strong><small>远程提示词源</small></span>
+        </button>
+      </nav>
+      <div class="desk-prompt-library__workspace" id="deskPromptLibraryWorkspace" role="tabpanel" aria-labelledby="deskPromptWorkspaceTabBlocks">
+        <aside class="desk-prompt-library__nav" id="deskPromptLibraryNav" aria-label="分类导航"></aside>
+        <section class="desk-prompt-library__collection" aria-label="内容列表">
+          <div class="desk-prompt-library__toolbar">
+            <label class="desk-prompt-library__search">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6"></circle><path d="m16 16 4 4"></path></svg>
+              <input id="deskPromptLibrarySearchInput" type="search" placeholder="搜索名称、内容或标签">
+            </label>
+            <button type="button" class="desk-prompt-library__favorite-filter" id="deskPromptLibraryFavoriteFilter" aria-pressed="false" title="只看收藏">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 2.7 5.5 6.1.9-4.4 4.3 1 6.1-5.4-2.9-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"></path></svg>
+            </button>
+          </div>
+          <div class="desk-prompt-library__list-head">
+            <strong id="deskPromptLibraryListTitle">全部素材块</strong>
+            <span id="deskPromptLibraryCount" aria-live="polite">0 项</span>
+          </div>
+          <div class="desk-prompt-library__list" id="deskPromptLibraryList">
+            <div class="desk-prompt-library__empty">正在准备提示词工作台…</div>
+          </div>
+        </section>
+        <aside class="desk-prompt-library__editor" id="deskPromptLibraryEditor" aria-label="详情编辑器"></aside>
+      </div>
+      <footer class="desk-prompt-library__statusbar" aria-label="快捷输入说明">
+        <div class="desk-prompt-library__syntax">
+          <span><kbd>@</kbd> 引用画布节点或图片</span>
+          <span><kbd>/</kbd> 插入提示词素材块</span>
+          <span><kbd>#</kbd> 浏览与插入色彩方案</span>
+        </div>
+      </footer>
     </section>
 
     <section class="desk-settings desk-glass" id="deskSettingsPanel" aria-label="设置中心" aria-hidden="true">
@@ -1268,23 +1351,26 @@
     <input id="deskLayoutImageInput" type="file" accept="image/*" hidden>
   </div>
 
-  <script src="scripts/desktop-i18n.js?v=20260712-release-bell1-node-groups1"></script>
+  <script src="scripts/desktop-i18n.js?v=20260716-user-split-rules1"></script>
   <script src="scripts/auth-api.js?v=20260711-auth-ready1"></script>
   <script src="vendor/fabric.min.js?v=5.3.0"></script>
   <script src="vendor/fabric-eraser.mixin.js?v=20260628-image-editor-pin16"></script>
   <script src="scripts/desktop-state.js?v=20260713-canvas-zoom75"></script>
   <script src="scripts/desktop-preferences.js?v=20260713-release-version-sync1"></script>
   <script src="scripts/desktop-select.js?v=20260702-upscale-flow12"></script>
-  <script src="scripts/desktop-api.js?v=20260713-backend-update-status1"></script>
-  <script src="scripts/desktop-canvas.js?v=20260712-node-groups2-20260713-canvas-zoom75-upscale-component1"></script>
+  <script src="scripts/desktop-api.js?v=20260716-user-split-rules1"></script>
+  <script src="scripts/desktop-canvas.js?v=20260712-node-groups2-20260715-prompt-system2-canvas-zoom75-upscale-component1-20260715-prompt-tokens6-20260717-prompt-color-token1-prompt-block-module-mark1"></script>
   <script type="module" src="scripts/desktop-pose-studio.js?v=20260705-pose-legacy-skeleton1"></script>
   <script src="scripts/desktop-layout-editor.js?v=20260621-websearch1"></script>
   <script src="scripts/desktop-file-results.js?v=20260711-file-board-list3"></script>
   <script src="scripts/desktop-results.js?v=20260710-file-output-redesign3"></script>
-  <script src="scripts/desktop-history.js?v=20260705-gallery-preview-counter1-file-layer-composite1"></script>
-  <script src="scripts/desktop-settings.js?v=20260712-pool-oauth3"></script>
+  <script src="scripts/desktop-history.js?v=20260715-prompt-system2-gallery-preview-counter1-file-layer-composite1"></script>
+  <script src="scripts/desktop-settings.js?v=20260719-prompt-system2-pool-deadline1"></script>
   <script src="scripts/desktop-prompt-editor.js?v=20260704-prompt-clear-position1"></script>
   <script src="scripts/desktop-prompt-drawer.js?v=20260706-prompt-drawer-session1"></script>
-  <script src="scripts/desktop-bootstrap.js?v=20260711-route-models2"></script>
+  <script src="scripts/desktop-color-extractor.js?v=20260719-color-image-analysis10"></script>
+  <script src="scripts/desktop-prompt-library.js?v=20260719-color-image-analysis12-prompt-color-token1"></script>
+  <script src="scripts/desktop-prompt-insert.js?v=20260715-prompt-blocks4-prompt-colors1-prompt-tokens6-20260717-prompt-color-token1"></script>
+  <script src="scripts/desktop-bootstrap.js?v=20260713-prompt-system1"></script>
 </body>
 </html>

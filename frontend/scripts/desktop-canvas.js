@@ -74,7 +74,37 @@
   const IMAGE_EDIT_MAX_ZOOM = 4;
   const IMAGE_EDIT_ZOOM_STEP = 1.2;
   const WORKFLOW_SCHEMA = 'tg-mini-app-img-gen.desktop-workflow';
-  const WORKFLOW_VERSION = 1;
+  const WORKFLOW_VERSION = 2;
+  const PROMPT_DOCUMENT_SCHEMA = 'tg-mini-app-img-gen.prompt-document';
+  const PROMPT_DOCUMENT_VERSION = 1;
+  const PROMPT_DOCUMENT_MAX_SEGMENTS = 2000;
+  const PROMPT_DOCUMENT_MAX_LENGTH = 1000000;
+  const PROMPT_BLOCK_MAX_CONTENT_LENGTH = 200000;
+  const PROMPT_BLOCK_MAX_LABEL_LENGTH = 240;
+  const PROMPT_BLOCK_MAX_ID_LENGTH = 160;
+  const PROMPT_DOCUMENT_HISTORY_LIMIT = 50;
+  const PROMPT_BLOCK_MODULE_LABELS = Object.freeze({
+    raw: '原始提示词',
+    custom: '自定义',
+    identity: '身份',
+    appearance: '外貌',
+    pose: '动作姿态',
+    expression: '表情视线',
+    clothing: '服装造型',
+    makeup_hair: '妆发',
+    accessories: '配饰',
+    subject: '主体',
+    scene: '场景环境',
+    composition: '构图',
+    camera: '视角与镜头',
+    lighting: '光线',
+    color: '色彩',
+    style: '视觉风格',
+    material: '材质细节',
+    quality: '质量要求',
+    constraints: '负面约束',
+    goal: '生成目标'
+  });
   const PLATFORM_INFO = (() => {
     const nav = window.navigator || {};
     return {
@@ -216,6 +246,9 @@
   let externalTextStylePresets = [];
   let gptModelCatalog = null;
   let nodeGroupSequence = 0;
+  let promptBlockInstanceSequence = 0;
+  const promptDocumentHistories = new Map();
+  const promptDocumentVersions = new Map();
 
   function $(id) {
     return document.getElementById(id);
@@ -229,6 +262,491 @@
       '"': '&quot;',
       "'": '&#39;'
     }[char]));
+  }
+
+  function createPromptBlockInstanceId() {
+    promptBlockInstanceSequence += 1;
+    const unique = globalThis.crypto?.randomUUID?.()?.replaceAll('-', '')
+      || `${Date.now().toString(36)}${promptBlockInstanceSequence.toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+    return `prompt_block_${unique}`;
+  }
+
+  function truncatePromptValue(value, maxLength) {
+    const text = String(value ?? '');
+    return text.length > maxLength ? text.slice(0, maxLength) : text;
+  }
+
+  function createTextPromptDocument(value = '') {
+    return {
+      schema: PROMPT_DOCUMENT_SCHEMA,
+      version: PROMPT_DOCUMENT_VERSION,
+      segments: [{ type: 'text', text: truncatePromptValue(value, PROMPT_DOCUMENT_MAX_LENGTH) }]
+    };
+  }
+
+  function normalizePromptBlockSegment(segment = {}, fallback = {}) {
+    const source = segment && typeof segment === 'object' ? segment : {};
+    const base = fallback && typeof fallback === 'object' ? fallback : {};
+    const blockId = source.block_id ?? source.blockId ?? source.id ?? base.block_id ?? base.blockId ?? base.id ?? '';
+    const content = truncatePromptValue(
+      source.content_snapshot
+      ?? source.contentSnapshot
+      ?? source.content
+      ?? source.compact_content
+      ?? source.english_content
+      ?? base.content_snapshot
+      ?? base.contentSnapshot
+      ?? base.content
+      ?? base.compact_content
+      ?? base.english_content
+      ?? '',
+      PROMPT_BLOCK_MAX_CONTENT_LENGTH
+    );
+    const label = truncatePromptValue(
+      source.label_snapshot
+      ?? source.labelSnapshot
+      ?? source.name
+      ?? source.label
+      ?? base.label_snapshot
+      ?? base.labelSnapshot
+      ?? base.name
+      ?? base.label
+      ?? content.slice(0, 24)
+      ?? '素材块',
+      PROMPT_BLOCK_MAX_LABEL_LENGTH
+    ).trim() || '素材块';
+    const rawBlockVersion = source.block_version
+      ?? source.blockVersion
+      ?? source.version
+      ?? source.updated_at
+      ?? source.updatedAt
+      ?? base.block_version
+      ?? base.blockVersion
+      ?? base.version
+      ?? base.updated_at
+      ?? base.updatedAt
+      ?? 1;
+    const moduleType = truncatePromptValue(
+      source.module_type ?? source.moduleType ?? base.module_type ?? base.moduleType ?? 'custom',
+      PROMPT_BLOCK_MAX_ID_LENGTH
+    ) || 'custom';
+    const rawColors = source.color_snapshot
+      ?? source.colorSnapshot
+      ?? source.colors
+      ?? base.color_snapshot
+      ?? base.colorSnapshot
+      ?? base.colors
+      ?? [];
+    const colorCandidates = Array.isArray(rawColors) ? rawColors : String(rawColors || '').split(',');
+    const colorSnapshot = colorCandidates
+      .map(value => String(value || '').trim().toUpperCase())
+      .filter(value => /^#[0-9A-F]{6}$/.test(value))
+      .slice(0, 5);
+    if (moduleType === 'color' && !colorSnapshot.length) {
+      colorSnapshot.push(...(content.match(/#[0-9A-F]{6}/ig) || []).map(value => value.toUpperCase()).slice(0, 5));
+    }
+    return {
+      type: 'prompt_block',
+      instance_id: truncatePromptValue(
+        source.instance_id ?? source.instanceId ?? base.instance_id ?? base.instanceId ?? createPromptBlockInstanceId(),
+        PROMPT_BLOCK_MAX_ID_LENGTH
+      ) || createPromptBlockInstanceId(),
+      block_id: truncatePromptValue(blockId === null || blockId === undefined ? '' : blockId, PROMPT_BLOCK_MAX_ID_LENGTH),
+      module_type: moduleType,
+      label_snapshot: label,
+      content_snapshot: content,
+      color_snapshot: colorSnapshot,
+      block_version: (typeof rawBlockVersion === 'number' || typeof rawBlockVersion === 'string') ? rawBlockVersion : 1
+    };
+  }
+
+  function normalizePromptDocument(promptDocument, fallbackText = '') {
+    const sourceSegments = Array.isArray(promptDocument?.segments) ? promptDocument.segments : null;
+    const schemaSupported = !promptDocument?.schema || promptDocument.schema === PROMPT_DOCUMENT_SCHEMA;
+    const parsedVersion = promptDocument?.version === undefined || promptDocument?.version === null
+      ? PROMPT_DOCUMENT_VERSION
+      : Number(promptDocument.version);
+    const versionSupported = Number.isFinite(parsedVersion) && parsedVersion === PROMPT_DOCUMENT_VERSION;
+    if (!sourceSegments || !sourceSegments.length || !schemaSupported || !versionSupported) {
+      return createTextPromptDocument(fallbackText);
+    }
+    const segments = [];
+    let recognizedSegments = 0;
+    let remainingLength = PROMPT_DOCUMENT_MAX_LENGTH;
+    const pushText = value => {
+      if (remainingLength <= 0) return;
+      const text = truncatePromptValue(
+        String(value ?? '').replace(/\r\n?/g, '\n'),
+        remainingLength
+      );
+      remainingLength -= text.length;
+      const previous = segments[segments.length - 1];
+      if (previous?.type === 'text') previous.text += text;
+      else segments.push({ type: 'text', text });
+    };
+    sourceSegments.slice(0, PROMPT_DOCUMENT_MAX_SEGMENTS).forEach(segment => {
+      if (!segment || typeof segment !== 'object') return;
+      if (segment.type === 'prompt_block') {
+        if (remainingLength <= 0) return;
+        const block = normalizePromptBlockSegment(segment);
+        block.content_snapshot = truncatePromptValue(block.content_snapshot, remainingLength);
+        remainingLength -= block.content_snapshot.length;
+        segments.push(block);
+        recognizedSegments += 1;
+        return;
+      }
+      if (segment.type === 'text' || segment.text !== undefined) {
+        pushText(segment.text ?? '');
+        recognizedSegments += 1;
+        return;
+      }
+      if (segment.value !== undefined || segment.content !== undefined) {
+        pushText(segment.value ?? segment.content ?? '');
+        recognizedSegments += 1;
+      }
+    });
+    if (!recognizedSegments) return createTextPromptDocument(fallbackText);
+    if (!segments.length) segments.push({ type: 'text', text: '' });
+    return {
+      schema: PROMPT_DOCUMENT_SCHEMA,
+      version: PROMPT_DOCUMENT_VERSION,
+      segments
+    };
+  }
+
+  function materializePromptDocument(promptDocument) {
+    return (Array.isArray(promptDocument?.segments) ? promptDocument.segments : [])
+      .map(segment => segment?.type === 'prompt_block'
+        ? String(segment.content_snapshot || '')
+        : String(segment?.text || ''))
+      .join('');
+  }
+
+  function clonePromptDocument(promptDocument, fallbackText = '') {
+    return normalizePromptDocument(jsonClone(promptDocument, null), fallbackText);
+  }
+
+  function ensureTextNodePromptDocument(node) {
+    if (!node || node.type !== 'text') return null;
+    const normalized = normalizePromptDocument(node.promptDocument, node.text || '');
+    const text = materializePromptDocument(normalized);
+    node.promptDocument = normalized;
+    node.text = text;
+    return normalized;
+  }
+
+  function promptDocumentFingerprint(promptDocument, fallbackText = '') {
+    return JSON.stringify(normalizePromptDocument(promptDocument, fallbackText));
+  }
+
+  function getPromptDocumentVersion(nodeStateOrId) {
+    const nodeId = typeof nodeStateOrId === 'string' ? nodeStateOrId : nodeStateOrId?.id;
+    return nodeId ? (promptDocumentVersions.get(nodeId) || 0) : 0;
+  }
+
+  function bumpPromptDocumentVersion(nodeState) {
+    if (!nodeState?.id) return 0;
+    const version = getPromptDocumentVersion(nodeState) + 1;
+    promptDocumentVersions.set(nodeState.id, version);
+    return version;
+  }
+
+  function getPromptDocumentHistory(nodeId, create = true) {
+    if (!nodeId) return null;
+    let history = promptDocumentHistories.get(nodeId);
+    if (!history && create) {
+      history = { undo: [], redo: [], redoEligible: false };
+      promptDocumentHistories.set(nodeId, history);
+    }
+    return history || null;
+  }
+
+  function beginPromptDocumentHistory(nodeState) {
+    if (!nodeState || nodeState.type !== 'text') return null;
+    const beforeDocument = clonePromptDocument(ensureTextNodePromptDocument(nodeState), nodeState.text || '');
+    return {
+      beforeDocument,
+      beforeFingerprint: promptDocumentFingerprint(beforeDocument)
+    };
+  }
+
+  function commitPromptDocumentHistory(nodeState, entry) {
+    if (!entry || !nodeState?.id) return null;
+    const afterDocument = clonePromptDocument(ensureTextNodePromptDocument(nodeState), nodeState.text || '');
+    const afterFingerprint = promptDocumentFingerprint(afterDocument);
+    if (entry.beforeFingerprint === afterFingerprint) return null;
+    const history = getPromptDocumentHistory(nodeState.id);
+    const committed = { ...entry, afterDocument, afterFingerprint };
+    const previous = history.undo[history.undo.length - 1];
+    if (!previous
+      || previous.beforeFingerprint !== committed.beforeFingerprint
+      || previous.afterFingerprint !== committed.afterFingerprint) {
+      history.undo.push(committed);
+      if (history.undo.length > PROMPT_DOCUMENT_HISTORY_LIMIT) history.undo.shift();
+    }
+    history.redo = [];
+    history.redoEligible = false;
+    return committed;
+  }
+
+  function clearPromptDocumentHistory(nodeId) {
+    promptDocumentHistories.delete(nodeId);
+    promptDocumentVersions.delete(nodeId);
+  }
+
+  function promptDocumentHasEditorContent(promptDocument) {
+    return normalizePromptDocument(promptDocument).segments.some(segment => (
+      segment.type === 'prompt_block' || String(segment.text || '').trim().length > 0
+    ));
+  }
+
+  function updatePromptEditorEmptyState(editor, promptDocument) {
+    if (!editor) return;
+    editor.dataset.empty = promptDocumentHasEditorContent(promptDocument) ? 'false' : 'true';
+  }
+
+  function materializeTextNode(node) {
+    const promptDocument = ensureTextNodePromptDocument(node);
+    return promptDocument ? materializePromptDocument(promptDocument) : '';
+  }
+
+  function ensureTextNodePromptDocuments() {
+    let changed = false;
+    Object.values(DesktopState.state.canvas.nodes || {}).forEach(node => {
+      if (node?.type !== 'text') return;
+      const previousDocument = JSON.stringify(node.promptDocument || null);
+      const previousText = String(node.text || '');
+      ensureTextNodePromptDocument(node);
+      if (previousDocument !== JSON.stringify(node.promptDocument) || previousText !== node.text) changed = true;
+    });
+    return changed;
+  }
+
+  function shortPromptBlockLabel(value) {
+    const chars = Array.from(String(value || '素材块').trim() || '素材块');
+    return chars.length > 16 ? `${chars.slice(0, 16).join('')}…` : chars.join('');
+  }
+
+  function promptBlockModuleLabel(moduleType) {
+    const key = String(moduleType || 'custom').trim() || 'custom';
+    const liveLabel = String(window.DesktopPromptLibrary?.getModuleLabel?.(key) || '').trim();
+    return PROMPT_BLOCK_MODULE_LABELS[key] || liveLabel || key || '素材';
+  }
+
+  function promptBlockModuleMark(moduleType) {
+    const label = promptBlockModuleLabel(moduleType);
+    return Array.from(label).find(char => char.trim() && !/[_\-]/.test(char)) || '素';
+  }
+
+  function promptBlockTokenHtml(segment) {
+    const normalized = normalizePromptBlockSegment(segment);
+    const label = shortPromptBlockLabel(normalized.label_snapshot);
+    const rawTitle = [normalized.label_snapshot, normalized.content_snapshot].filter(Boolean).join('\n');
+    const title = rawTitle.length > 360 ? `${rawTitle.slice(0, 359)}…` : rawTitle;
+    const colors = Array.isArray(normalized.color_snapshot) ? normalized.color_snapshot.slice(0, 5) : [];
+    const isColor = normalized.module_type === 'color' && colors.length > 0;
+    const palette = Array.from({ length: 5 }, (_, index) => colors[index] || colors[colors.length - 1] || '#DCEBFA');
+    const colorClass = isColor ? ' desk-prompt-block-token--color' : '';
+    const colorData = isColor ? ` data-prompt-block-colors="${escapeHtml(colors.join(','))}"` : '';
+    const colorStyle = isColor ? ` style="${palette.map((color, index) => `--prompt-token-color-${index + 1}:${color}`).join(';')}"` : '';
+    const moduleLabel = promptBlockModuleLabel(normalized.module_type);
+    const moduleClass = isColor ? '' : ' desk-prompt-block-token--categorized';
+    const moduleData = isColor ? '' : ` data-prompt-block-module-label="${escapeHtml(moduleLabel)}" data-prompt-block-module-mark="${escapeHtml(promptBlockModuleMark(normalized.module_type))}"`;
+    const ariaType = isColor ? '色彩方案' : '提示词素材块';
+    const ariaLabel = isColor ? `${ariaType}：${normalized.label_snapshot}` : `${ariaType}，${moduleLabel}：${normalized.label_snapshot}`;
+    return `<span class="desk-prompt-block-token${colorClass}${moduleClass}" contenteditable="false" tabindex="0" role="button" aria-haspopup="listbox" aria-expanded="false" data-prompt-block-token="${escapeHtml(normalized.block_id)}" data-prompt-block-instance="${escapeHtml(normalized.instance_id)}" data-prompt-block-instance-id="${escapeHtml(normalized.instance_id)}" data-prompt-block-id="${escapeHtml(normalized.block_id)}" data-prompt-block-module="${escapeHtml(normalized.module_type)}" data-prompt-block-module-type="${escapeHtml(normalized.module_type)}"${moduleData}${colorData}${colorStyle} aria-label="${escapeHtml(ariaLabel)}" title="${escapeHtml(title)}"><span class="desk-prompt-block-token__label">${escapeHtml(label)}</span><span class="desk-prompt-block-token__chevron" aria-hidden="true"><svg viewBox="0 0 12 12"><path d="m3 4.5 3 3 3-3"></path></svg></span></span>`;
+  }
+
+  function promptDocumentEditorHtml(promptDocument) {
+    return normalizePromptDocument(promptDocument).segments.map(segment => {
+      if (segment.type === 'prompt_block') return promptBlockTokenHtml(segment);
+      return escapeHtml(segment.text || '').replace(/\n/g, '<br>');
+    }).join('');
+  }
+
+  function promptDocumentFromEditor(editor, nodeState) {
+    const existingBlocks = new Map(
+      normalizePromptDocument(nodeState?.promptDocument, nodeState?.text || '').segments
+        .filter(segment => segment.type === 'prompt_block')
+        .map(segment => [segment.instance_id, segment])
+    );
+    const segments = [];
+    const pushText = value => {
+      const text = String(value ?? '').replace(/\r\n?/g, '\n').replace(/\u00a0/g, ' ').replace(/\u200b/g, '');
+      if (!text) return;
+      const previous = segments[segments.length - 1];
+      if (previous?.type === 'text') previous.text += text;
+      else segments.push({ type: 'text', text });
+    };
+    const endsWithNewline = () => {
+      const previous = segments[segments.length - 1];
+      return previous?.type === 'text' && previous.text.endsWith('\n');
+    };
+    const blockTags = new Set(['DIV', 'P', 'LI', 'SECTION', 'ARTICLE', 'BLOCKQUOTE']);
+    const walk = parent => {
+      Array.from(parent.childNodes || []).forEach(child => {
+        if (child.nodeType === Node.TEXT_NODE) {
+          pushText(child.nodeValue || '');
+          return;
+        }
+        if (child.nodeType !== Node.ELEMENT_NODE) return;
+        if (child.matches?.('[data-prompt-block-token]')) {
+          const instanceId = String(child.dataset.promptBlockInstance || child.dataset.promptBlockInstanceId || '');
+          const segment = child._promptBlockSegment
+            || existingBlocks.get(instanceId)
+            || normalizePromptBlockSegment({
+              instance_id: instanceId,
+              block_id: child.dataset.promptBlockId || '',
+              module_type: child.dataset.promptBlockModuleType || child.dataset.promptBlockModule || 'custom',
+              color_snapshot: String(child.dataset.promptBlockColors || '').split(',').filter(Boolean),
+              label_snapshot: child.textContent || '素材块',
+              content_snapshot: child.textContent || ''
+            });
+          segments.push(normalizePromptBlockSegment(segment));
+          return;
+        }
+        if (child.tagName === 'BR') {
+          pushText('\n');
+          return;
+        }
+        const blockLike = blockTags.has(child.tagName);
+        if (blockLike && segments.length && !endsWithNewline()) pushText('\n');
+        walk(child);
+        if (blockLike && child.nextSibling && !endsWithNewline()) pushText('\n');
+      });
+    };
+    walk(editor);
+    if (!editor.querySelector('[data-prompt-block-token]') && editor.textContent === '') {
+      return createTextPromptDocument('');
+    }
+    return normalizePromptDocument({ segments }, '');
+  }
+
+  function renderPromptDocumentToEditor(editor, promptDocument) {
+    if (!editor) return;
+    editor.innerHTML = promptDocumentEditorHtml(promptDocument);
+    updatePromptEditorEmptyState(editor, promptDocument);
+  }
+
+  function setTextNodePromptDocument(node, nodeState, promptDocument, options = {}) {
+    if (!nodeState || nodeState.type !== 'text') return null;
+    const normalized = normalizePromptDocument(promptDocument, nodeState.text || '');
+    const beforeFingerprint = promptDocumentFingerprint(
+      ensureTextNodePromptDocument(nodeState),
+      nodeState.text || ''
+    );
+    const afterFingerprint = promptDocumentFingerprint(normalized);
+    const changed = beforeFingerprint !== afterFingerprint;
+    const historyEntry = changed && options.recordHistory !== false
+      ? beginPromptDocumentHistory(nodeState)
+      : null;
+    nodeState.promptDocument = normalized;
+    nodeState.text = materializePromptDocument(normalized);
+    const editor = node?.querySelector?.('[data-text-node-input]');
+    if (editor) {
+      renderPromptDocumentToEditor(editor, normalized);
+      if (options.dispatch !== false) {
+        editor.dispatchEvent(new CustomEvent('prompt-editor:change', { bubbles: true }));
+      }
+    }
+    if (changed) {
+      bumpPromptDocumentVersion(nodeState);
+      if (historyEntry) commitPromptDocumentHistory(nodeState, historyEntry);
+    }
+    if (options.save !== false) DesktopState.saveSettings();
+    if (options.notify !== false) notifyTextNodeListChange(nodeState.id);
+    return normalized;
+  }
+
+  function syncPromptDocumentFromEditor(editor, nodeState, options = {}) {
+    if (!editor || !nodeState || nodeState.type !== 'text') return null;
+    const beforeFingerprint = promptDocumentFingerprint(
+      ensureTextNodePromptDocument(nodeState),
+      nodeState.text || ''
+    );
+    const promptDocument = promptDocumentFromEditor(editor, nodeState);
+    const changed = beforeFingerprint !== promptDocumentFingerprint(promptDocument);
+    nodeState.promptDocument = promptDocument;
+    nodeState.text = materializePromptDocument(promptDocument);
+    updatePromptEditorEmptyState(editor, promptDocument);
+    if (changed) {
+      bumpPromptDocumentVersion(nodeState);
+      if (options.preserveRedo !== true) {
+        const history = getPromptDocumentHistory(nodeState.id, false);
+        if (history) {
+          history.redo = [];
+          history.redoEligible = false;
+        }
+      }
+    }
+    if (options.save !== false) DesktopState.saveSettings();
+    if (options.notify !== false) notifyTextNodeListChange(nodeState.id);
+    return promptDocument;
+  }
+
+  function focusPromptEditorAtEnd(node) {
+    const editor = node?.querySelector?.('[data-text-node-input]');
+    if (!editor) return;
+    editor.focus({ preventScroll: true });
+    const range = document.createRange();
+    range.selectNodeContents(editor);
+    range.collapse(false);
+    const selection = window.getSelection?.();
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+  }
+
+  function undoPromptDocumentChange(node, nodeState, options = {}) {
+    const history = getPromptDocumentHistory(nodeState?.id, false);
+    const entry = history?.undo?.[history.undo.length - 1];
+    if (!entry || !nodeState) return false;
+    const currentFingerprint = promptDocumentFingerprint(
+      ensureTextNodePromptDocument(nodeState),
+      nodeState.text || ''
+    );
+    if (currentFingerprint !== entry.afterFingerprint) return false;
+    if (options.expectedBeforeFingerprint && options.expectedBeforeFingerprint !== entry.beforeFingerprint) return false;
+    history.undo.pop();
+    history.redo.push(entry);
+    history.redoEligible = true;
+    setTextNodePromptDocument(node, nodeState, entry.beforeDocument, { recordHistory: false });
+    focusPromptEditorAtEnd(node);
+    return true;
+  }
+
+  function redoPromptDocumentChange(node, nodeState) {
+    const history = getPromptDocumentHistory(nodeState?.id, false);
+    const entry = history?.redo?.[history.redo.length - 1];
+    if (!entry || !history.redoEligible || !nodeState) return false;
+    const currentFingerprint = promptDocumentFingerprint(
+      ensureTextNodePromptDocument(nodeState),
+      nodeState.text || ''
+    );
+    if (currentFingerprint !== entry.beforeFingerprint) return false;
+    history.redo.pop();
+    history.undo.push(entry);
+    if (history.undo.length > PROMPT_DOCUMENT_HISTORY_LIMIT) history.undo.shift();
+    history.redoEligible = history.redo.length > 0;
+    setTextNodePromptDocument(node, nodeState, entry.afterDocument, { recordHistory: false });
+    focusPromptEditorAtEnd(node);
+    return true;
+  }
+
+  function handlePromptDocumentHistoryShortcut(event, editor) {
+    if ((!event.metaKey && !event.ctrlKey) || event.altKey) return false;
+    const key = String(event.key || '').toLowerCase();
+    const wantsUndo = key === 'z' && !event.shiftKey;
+    const wantsRedo = (key === 'z' && event.shiftKey) || (key === 'y' && event.ctrlKey);
+    if (!wantsUndo && !wantsRedo) return false;
+    const node = editor?.closest?.('.desk-node--text[data-node-id]');
+    const nodeState = node ? DesktopState.state.canvas.nodes[node.dataset.nodeId] : null;
+    const handled = wantsUndo
+      ? undoPromptDocumentChange(node, nodeState)
+      : redoPromptDocumentChange(node, nodeState);
+    if (!handled) return false;
+    event.preventDefault();
+    event.stopPropagation();
+    return true;
   }
 
   function sanitizeTextNodeAlias(value) {
@@ -338,7 +856,7 @@
         type: 'text',
         alias: getTextNodeAlias(node),
         label: getTextNodeAlias(node),
-        text: String(node.text || '')
+        text: materializeTextNode(node)
       }));
   }
 
@@ -1102,7 +1620,7 @@
     const prompt = String(DesktopState.state.prompt || '').trim();
     if (!prompt || !DesktopState.state.canvas.nodes.input) return false;
     const hasPromptTextNode = getConnectedTextNodes('input')
-      .some(node => String(node.text || '').trim() === prompt);
+      .some(node => materializeTextNode(node).trim() === prompt);
     if (!hasPromptTextNode) {
       setPromptTextForInputNode('input', prompt, { quiet: true });
     }
@@ -1219,7 +1737,7 @@
   function getPromptTargetText(options = {}) {
     const target = options.target || getPromptTargetInfo(options.nodeId || options);
     if (target.type === 'text') {
-      return DesktopState.state.canvas.nodes[target.nodeId]?.text || '';
+      return materializeTextNode(DesktopState.state.canvas.nodes[target.nodeId]);
     }
     return '';
   }
@@ -1869,6 +2387,7 @@
     }
     if (type === 'text') {
       node.text = '';
+      node.promptDocument = createTextPromptDocument('');
       node.stylePresetId = '';
       node.alias = nextTextNodeAlias();
     }
@@ -2347,6 +2866,7 @@
 
   function textNodeHtml(node) {
     const alias = getTextNodeAlias(node);
+    const promptDocument = ensureTextNodePromptDocument(node);
     return `
       <section class="desk-node desk-node--text" data-node-id="${node.id}" data-node-drag-handle aria-label="文本节点">
         <div class="desk-text-node__alias" data-text-node-alias-shell style="${textNodeAliasStyle(alias)}">
@@ -2364,7 +2884,7 @@
         <div class="desk-text-node__styles" data-text-style-tags${node.stylePresetId ? '' : ' hidden'}>
           ${textStyleTagHtml(node.stylePresetId)}
         </div>
-        <textarea class="desk-text-node__input" data-text-node-input placeholder="输入提示词或片段">${escapeHtml(node.text || '')}</textarea>
+        <div class="desk-text-node__input" data-text-node-input data-empty="${promptDocumentHasEditorContent(promptDocument) ? 'false' : 'true'}" contenteditable="true" role="textbox" aria-multiline="true" aria-label="输入提示词或片段" data-placeholder="输入提示词或片段" spellcheck="false">${promptDocumentEditorHtml(promptDocument)}</div>
         <button type="button" class="desk-port desk-port--out" data-port="out" data-node-id="${node.id}" title="连接提示词到模型节点" aria-label="连接文本输出"></button>
         <div class="desk-text-node__drawer" aria-label="文本节点操作">
           <button type="button" data-text-action="preset">预设风格</button>
@@ -2914,7 +3434,7 @@
 
   function isTextNodeDragEdge(event, node) {
     if (!node?.classList?.contains('desk-node--text')) return false;
-    if (event.target.closest('button, input, select, [data-text-style-menu], [data-node-resize-handle], .desk-port')) return false;
+    if (event.target.closest('button, input, select, [contenteditable="true"], [data-text-style-menu], [data-node-resize-handle], .desk-port')) return false;
     const rect = node.getBoundingClientRect();
     const x = event.clientX - rect.left;
     const y = event.clientY - rect.top;
@@ -2928,7 +3448,7 @@
 
   function startNodeDrag(event, options = {}) {
     if (event.button !== 0) return;
-    if (!options.force && event.target.closest('button, input, textarea, select')) return;
+    if (!options.force && event.target.closest('button, input, textarea, select, [contenteditable="true"]')) return;
     const node = event.target.closest('.desk-node[data-node-id]');
     if (!node) return;
     event.preventDefault();
@@ -3311,10 +3831,247 @@
 
   function setTextNodeValue(node, nodeState, value) {
     const next = String(value || '');
-    nodeState.text = next;
-    const input = node.querySelector('[data-text-node-input]');
-    if (input) input.value = next;
-    DesktopState.saveSettings();
+    return setTextNodePromptDocument(node, nodeState, createTextPromptDocument(next));
+  }
+
+  function createPromptBlockTokenElement(segment) {
+    const normalized = normalizePromptBlockSegment(segment);
+    const template = document.createElement('template');
+    template.innerHTML = promptBlockTokenHtml(normalized);
+    const token = template.content.firstElementChild;
+    if (token) token._promptBlockSegment = normalized;
+    return token;
+  }
+
+  function isRangeInsidePromptEditor(range, editor) {
+    if (!range || !editor) return false;
+    try {
+      return (range.startContainer === editor || editor.contains(range.startContainer))
+        && (range.endContainer === editor || editor.contains(range.endContainer));
+    } catch (error) {
+      return false;
+    }
+  }
+
+  function currentPromptEditorRange(editor) {
+    const selection = window.getSelection?.();
+    if (!selection?.rangeCount) return null;
+    const range = selection.getRangeAt(0);
+    return isRangeInsidePromptEditor(range, editor) ? range.cloneRange() : null;
+  }
+
+  function promptEditorEndRange(editor) {
+    const range = document.createRange();
+    range.selectNodeContents(editor);
+    range.collapse(false);
+    return range;
+  }
+
+  function setPromptEditorCaret(range) {
+    const selection = window.getSelection?.();
+    if (!selection || !range) return;
+    selection.removeAllRanges();
+    selection.addRange(range);
+  }
+
+  function resolvePromptTokenEditor(options = {}) {
+    const requestedTarget = options.target?.nodeType
+      ? options.target.closest?.('[data-text-node-input]')
+      : null;
+    let editor = requestedTarget?.closest?.('.desk-node--text[data-node-id]') ? requestedTarget : null;
+    let node = editor?.closest?.('.desk-node--text[data-node-id]') || null;
+    let nodeState = node ? DesktopState.state.canvas.nodes[node.dataset.nodeId] : null;
+    const requestedInfo = options.targetInfo
+      || (!options.target?.nodeType && options.target && typeof options.target === 'object' ? options.target : null);
+    const requestedNodeId = String(requestedInfo?.nodeId || options.nodeId || '');
+    if ((!nodeState || nodeState.type !== 'text') && requestedNodeId) {
+      const candidate = DesktopState.state.canvas.nodes[requestedNodeId];
+      if (candidate?.type === 'text') {
+        ensureGraphDom();
+        node = getNodeElement(requestedNodeId);
+        editor = node?.querySelector('[data-text-node-input]') || null;
+        nodeState = candidate;
+      }
+    }
+    if (!nodeState || nodeState.type !== 'text') {
+      const selectedNodeId = getSelectedNodeIds()
+        .find(nodeId => DesktopState.state.canvas.nodes[nodeId]?.type === 'text')
+        || (DesktopState.state.canvas.nodes[DesktopState.state.canvas.selectedNodeId]?.type === 'text'
+          ? DesktopState.state.canvas.selectedNodeId
+          : '');
+      if (selectedNodeId) {
+        ensureGraphDom();
+        node = getNodeElement(selectedNodeId);
+        editor = node?.querySelector('[data-text-node-input]') || null;
+        nodeState = DesktopState.state.canvas.nodes[selectedNodeId];
+      }
+    }
+    return editor && node && nodeState?.type === 'text' ? { editor, node, nodeState } : null;
+  }
+
+  function insertPromptBlockToken(block, options = {}) {
+    const resolved = resolvePromptTokenEditor(options);
+    if (!resolved) throw new Error('请先选择文本节点');
+    const { editor, node, nodeState } = resolved;
+    ensureTextNodePromptDocument(nodeState);
+    let range = null;
+    if (isRangeInsidePromptEditor(options.range, editor)) {
+      try { range = options.range.cloneRange(); } catch (error) { range = null; }
+    }
+    if (!range && options.target?.nodeType && editor === options.target.closest?.('[data-text-node-input]')) {
+      range = currentPromptEditorRange(editor);
+    }
+    const appendToEnd = !range;
+    if (!range) range = promptEditorEndRange(editor);
+    const segment = normalizePromptBlockSegment(block);
+    const token = createPromptBlockTokenElement(segment);
+    if (!token) throw new Error('素材块无法插入');
+    const currentText = materializeTextNode(nodeState);
+    const prefixText = appendToEnd && currentText && !/[\s，,。；;、]$/.test(currentText) ? '，' : '';
+    const followingCharacter = range.endContainer.nodeType === Node.TEXT_NODE
+      ? String(range.endContainer.nodeValue || '').slice(range.endOffset, range.endOffset + 1)
+      : '';
+    const suffixText = followingCharacter && /^[\s，,。；;、]/.test(followingCharacter) ? '' : ' ';
+    const suffix = suffixText ? document.createTextNode(suffixText) : null;
+    const fragment = document.createDocumentFragment();
+    if (prefixText) fragment.appendChild(document.createTextNode(prefixText));
+    fragment.appendChild(token);
+    if (suffix) fragment.appendChild(suffix);
+    const historyEntry = beginPromptDocumentHistory(nodeState);
+    range.deleteContents();
+    range.insertNode(fragment);
+    const caret = document.createRange();
+    caret.setStartAfter(suffix || token);
+    caret.collapse(true);
+    selectNode(nodeState.id);
+    editor.focus({ preventScroll: true });
+    setPromptEditorCaret(caret);
+    syncPromptDocumentFromEditor(editor, nodeState);
+    commitPromptDocumentHistory(nodeState, historyEntry);
+    setTextStyleMenuOpen(node, false);
+    editor.dispatchEvent(new CustomEvent('prompt-editor:change', { bubbles: true }));
+    return { nodeId: nodeState.id, instanceId: segment.instance_id, token };
+  }
+
+  function findPromptBlockTokenElement(instanceId) {
+    return Array.from(document.querySelectorAll('[data-prompt-block-token]'))
+      .find(token => String(token.dataset.promptBlockInstance || token.dataset.promptBlockInstanceId || '') === String(instanceId || ''))
+      || null;
+  }
+
+  function replacePromptBlockToken(tokenOrInstance, block) {
+    let token = tokenOrInstance?.nodeType
+      ? tokenOrInstance.closest?.('[data-prompt-block-token]')
+      : findPromptBlockTokenElement(tokenOrInstance);
+    const requestedInstanceId = String(
+      token?.dataset.promptBlockInstance
+      || token?.dataset.promptBlockInstanceId
+      || (typeof tokenOrInstance === 'string' ? tokenOrInstance : '')
+    );
+    if (!requestedInstanceId) throw new Error('素材块实例不存在');
+    let node = token?.closest?.('.desk-node--text[data-node-id]') || null;
+    let nodeState = node ? DesktopState.state.canvas.nodes[node.dataset.nodeId] : null;
+    if (!nodeState || nodeState.type !== 'text') {
+      nodeState = Object.values(DesktopState.state.canvas.nodes).find(item => (
+        item?.type === 'text'
+        && normalizePromptDocument(item.promptDocument, item.text || '').segments
+          .some(segment => segment.type === 'prompt_block' && segment.instance_id === requestedInstanceId)
+      ));
+      if (!nodeState) throw new Error('素材块实例不存在');
+      ensureGraphDom();
+      node = getNodeElement(nodeState.id);
+      token = findPromptBlockTokenElement(requestedInstanceId);
+    }
+    const promptDocument = clonePromptDocument(ensureTextNodePromptDocument(nodeState), nodeState.text || '');
+    const index = promptDocument.segments.findIndex(segment => (
+      segment.type === 'prompt_block' && segment.instance_id === requestedInstanceId
+    ));
+    if (index < 0) throw new Error('素材块实例不存在');
+    const previous = promptDocument.segments[index];
+    promptDocument.segments[index] = normalizePromptBlockSegment({
+      ...(block && typeof block === 'object' ? block : {}),
+      instance_id: requestedInstanceId
+    }, previous);
+    setTextNodePromptDocument(node, nodeState, promptDocument);
+    selectNode(nodeState.id);
+    const nextToken = findPromptBlockTokenElement(requestedInstanceId);
+    nextToken?.focus?.({ preventScroll: true });
+    return { nodeId: nodeState.id, instanceId: requestedInstanceId, token: nextToken };
+  }
+
+  function insertPlainTextIntoPromptEditor(editor, text) {
+    const node = editor?.closest?.('.desk-node--text[data-node-id]');
+    const nodeState = node ? DesktopState.state.canvas.nodes[node.dataset.nodeId] : null;
+    if (!editor || !nodeState) return false;
+    const range = currentPromptEditorRange(editor) || promptEditorEndRange(editor);
+    const historyEntry = beginPromptDocumentHistory(nodeState);
+    range.deleteContents();
+    const textNode = document.createTextNode(String(text || '').replace(/\r\n?/g, '\n'));
+    range.insertNode(textNode);
+    const caret = document.createRange();
+    caret.setStartAfter(textNode);
+    caret.collapse(true);
+    setPromptEditorCaret(caret);
+    syncPromptDocumentFromEditor(editor, nodeState);
+    commitPromptDocumentHistory(nodeState, historyEntry);
+    editor.dispatchEvent(new CustomEvent('prompt-editor:change', { bubbles: true }));
+    return true;
+  }
+
+  function adjacentPromptToken(range, editor, direction) {
+    if (!range?.collapsed || !isRangeInsidePromptEditor(range, editor)) return null;
+    let container = range.startContainer;
+    let offset = range.startOffset;
+    if (container.nodeType === Node.TEXT_NODE) {
+      const length = (container.nodeValue || '').length;
+      if ((direction < 0 && offset > 0) || (direction > 0 && offset < length)) return null;
+    } else if (container.nodeType === Node.ELEMENT_NODE) {
+      const index = direction < 0 ? offset - 1 : offset;
+      const direct = container.childNodes[index];
+      if (direct) {
+        if (direct.nodeType === Node.ELEMENT_NODE && direct.matches?.('[data-prompt-block-token]')) return direct;
+        if (direct.nodeType === Node.TEXT_NODE && (direct.nodeValue || '').length) return null;
+      }
+    }
+    let current = container.nodeType === Node.TEXT_NODE ? container : null;
+    if (!current && container !== editor) current = container;
+    while (current && current !== editor) {
+      const sibling = direction < 0 ? current.previousSibling : current.nextSibling;
+      if (sibling) {
+        if (sibling.nodeType === Node.ELEMENT_NODE && sibling.matches?.('[data-prompt-block-token]')) return sibling;
+        return null;
+      }
+      current = current.parentNode;
+    }
+    return null;
+  }
+
+  function handlePromptEditorTokenDelete(event, editor) {
+    if (event.key !== 'Backspace' && event.key !== 'Delete') return false;
+    const focusedToken = event.target.closest?.('[data-prompt-block-token]');
+    const selection = window.getSelection?.();
+    const range = selection?.rangeCount ? selection.getRangeAt(0) : null;
+    const token = focusedToken || adjacentPromptToken(range, editor, event.key === 'Backspace' ? -1 : 1);
+    if (!token || !editor.contains(token)) return false;
+    event.preventDefault();
+    event.stopPropagation();
+    const parent = token.parentNode;
+    const index = Array.prototype.indexOf.call(parent.childNodes, token);
+    const node = editor.closest('.desk-node--text[data-node-id]');
+    const nodeState = node ? DesktopState.state.canvas.nodes[node.dataset.nodeId] : null;
+    const historyEntry = beginPromptDocumentHistory(nodeState);
+    token.remove();
+    const caret = document.createRange();
+    caret.setStart(parent, Math.max(0, Math.min(index, parent.childNodes.length)));
+    caret.collapse(true);
+    editor.focus({ preventScroll: true });
+    setPromptEditorCaret(caret);
+    if (nodeState) {
+      syncPromptDocumentFromEditor(editor, nodeState);
+      commitPromptDocumentHistory(nodeState, historyEntry);
+    }
+    editor.dispatchEvent(new CustomEvent('prompt-editor:change', { bubbles: true }));
+    return true;
   }
 
   function updateTextStyleTag(node, nodeState) {
@@ -3507,6 +4264,9 @@
             <div class="desk-text-polish-modal__meta" data-polish-meta></div>
             <div class="desk-text-polish-modal__actions">
               <button type="button" class="desk-text-polish-modal__copy" data-polish-copy>复制当前</button>
+              <button type="button" data-polish-undo hidden>撤销应用</button>
+              <button type="button" data-polish-create data-polish-create-node>新建文本节点</button>
+              <button type="button" class="is-primary" data-polish-apply data-polish-apply-current>应用到当前节点</button>
               <button type="button" class="desk-text-polish-modal__done is-primary" data-polish-close>完成</button>
             </div>
           </footer>
@@ -3532,7 +4292,27 @@
         copyTextToClipboardLocal(getTextPolishVariantText(textPolishState?.variant || 'full'), '当前提示词已复制。')
           .then(status => setPolishCopyButtonState(copyButton, status || 'failed'))
           .catch(() => setPolishCopyButtonState(copyButton, 'failed'));
+        return;
       }
+      if (event.target.closest('[data-polish-apply-current]')) {
+        event.preventDefault();
+        applyCurrentTextPolishVariant();
+        return;
+      }
+      if (event.target.closest('[data-polish-create-node]')) {
+        event.preventDefault();
+        createTextNodeFromPolishVariant();
+        return;
+      }
+      if (event.target.closest('[data-polish-undo]')) {
+        event.preventDefault();
+        undoAppliedTextPolish();
+      }
+    });
+    document.addEventListener('prompt-editor:change', event => {
+      if (!textPolishState || !modal?.classList.contains('is-open')) return;
+      const changedNodeId = event.target?.closest?.('.desk-node--text[data-node-id]')?.dataset.nodeId || '';
+      if (changedNodeId === textPolishState.nodeId) renderTextPolishModal();
     });
     return modal;
   }
@@ -3565,34 +4345,156 @@
       button.classList.toggle('is-active', button.dataset.polishVariant === variant);
       button.setAttribute('aria-pressed', button.dataset.polishVariant === variant ? 'true' : 'false');
     });
+    const targetNodeState = DesktopState.state.canvas.nodes[textPolishState?.nodeId || ''];
+    const targetNodeExists = !!targetNodeState;
+    const currentFingerprint = targetNodeState
+      ? promptDocumentFingerprint(ensureTextNodePromptDocument(targetNodeState), targetNodeState.text || '')
+      : '';
+    const expectedFingerprint = textPolishState?.applied
+      ? textPolishState.appliedFingerprint
+      : textPolishState?.sourceFingerprint;
+    const targetChanged = !!targetNodeExists
+      && !!expectedFingerprint
+      && currentFingerprint !== expectedFingerprint;
+    const currentText = getTextPolishVariantText(variant);
+    const applyButton = modal.querySelector('[data-polish-apply-current]');
+    const createButton = modal.querySelector('[data-polish-create-node]');
+    const undoButton = modal.querySelector('[data-polish-undo]');
+    if (applyButton) applyButton.disabled = !targetNodeExists || !currentText || targetChanged;
+    if (createButton) createButton.disabled = !currentText;
+    if (undoButton) {
+      undoButton.hidden = !textPolishState?.applied || !targetNodeExists;
+      undoButton.disabled = !textPolishState?.applied || !targetNodeExists || targetChanged;
+      undoButton.title = targetChanged ? '文本节点已继续编辑，不能覆盖当前内容' : '';
+    }
     if (meta) {
       const modules = (textPolishState?.modules || []).join(' / ');
       const model = textPolishState?.model || '';
-      meta.textContent = [model, modules].filter(Boolean).join(' · ');
+      const applied = textPolishState?.applied && !targetChanged ? '已应用到当前节点，可撤销' : '';
+      const changed = targetChanged ? '文本节点已修改，请重新润色或新建节点' : '';
+      meta.textContent = [model, modules, applied, changed].filter(Boolean).join(' · ');
     }
   }
 
   function applyTextPolishVariant(variant) {
     if (!textPolishState) return;
+    const normalized = TEXT_POLISH_VARIANTS.some(item => item.id === variant) ? variant : 'full';
+    textPolishState.variant = normalized;
+    renderTextPolishModal();
+  }
+
+  function applyCurrentTextPolishVariant() {
+    if (!textPolishState) return false;
     const node = getNodeElement(textPolishState.nodeId);
     const nodeState = DesktopState.state.canvas.nodes[textPolishState.nodeId];
-    if (!node || !nodeState) return;
-    const normalized = TEXT_POLISH_VARIANTS.some(item => item.id === variant) ? variant : 'full';
-    const text = getTextPolishVariantText(normalized);
-    textPolishState.variant = normalized;
-    setTextNodeValue(node, nodeState, text || '');
+    const text = getTextPolishVariantText(textPolishState.variant || 'full');
+    if (!node || !nodeState) {
+      DesktopResults.showTransientMessage('原文本节点已不存在。', 'warning');
+      renderTextPolishModal();
+      return false;
+    }
+    if (!text) return false;
+    const currentFingerprint = promptDocumentFingerprint(
+      ensureTextNodePromptDocument(nodeState),
+      nodeState.text || ''
+    );
+    const expectedFingerprint = textPolishState.applied
+      ? textPolishState.appliedFingerprint
+      : textPolishState.sourceFingerprint;
+    if (expectedFingerprint && currentFingerprint !== expectedFingerprint) {
+      DesktopResults.showTransientMessage('文本节点已继续编辑，请重新润色或新建节点。', 'warning');
+      renderTextPolishModal();
+      return false;
+    }
+    const variant = textPolishState.variant || 'full';
+    const nextDocument = variant === 'original'
+      ? clonePromptDocument(textPolishState.originalDocument, textPolishState.originalText)
+      : createTextPromptDocument(text);
+    setTextNodePromptDocument(node, nodeState, nextDocument);
+    const restoredOriginal = variant === 'original';
+    textPolishState.applied = !restoredOriginal;
+    textPolishState.appliedVariant = restoredOriginal ? '' : variant;
+    textPolishState.appliedFingerprint = restoredOriginal
+      ? ''
+      : promptDocumentFingerprint(ensureTextNodePromptDocument(nodeState), nodeState.text || '');
+    selectNode(nodeState.id);
     renderTextPolishModal();
+    DesktopResults.showTransientMessage(restoredOriginal
+      ? '已恢复润色前的结构化内容。'
+      : '润色结果已应用到当前文本节点。');
+    return true;
+  }
+
+  function createTextNodeFromPolishVariant() {
+    if (!textPolishState) return '';
+    const text = getTextPolishVariantText(textPolishState.variant || 'full');
+    if (!text) return '';
+    const source = DesktopState.state.canvas.nodes[textPolishState.nodeId];
+    const worldPoint = source
+      ? { x: source.x + source.width + DEFAULT_TEXT_NODE_WIDTH / 2 + 48, y: source.y + source.height / 2 }
+      : null;
+    const nodeId = createTextNodeWithText(text, worldPoint);
+    const createdNode = DesktopState.state.canvas.nodes[nodeId];
+    const createdElement = getNodeElement(nodeId);
+    if (createdNode && createdElement && textPolishState.variant === 'original') {
+      setTextNodePromptDocument(
+        createdElement,
+        createdNode,
+        clonePromptDocument(textPolishState.originalDocument, textPolishState.originalText)
+      );
+    }
+    if (createdNode && createdElement && source?.stylePresetId) {
+      createdNode.stylePresetId = source.stylePresetId;
+      updateTextStyleTag(createdElement, createdNode);
+      DesktopState.saveSettings();
+    }
+    DesktopResults.showTransientMessage('已新建未连接的文本节点。');
+    return nodeId;
+  }
+
+  function undoAppliedTextPolish() {
+    if (!textPolishState?.applied) return false;
+    const node = getNodeElement(textPolishState.nodeId);
+    const nodeState = DesktopState.state.canvas.nodes[textPolishState.nodeId];
+    if (!node || !nodeState) {
+      DesktopResults.showTransientMessage('原文本节点已不存在。', 'warning');
+      renderTextPolishModal();
+      return false;
+    }
+    const currentFingerprint = promptDocumentFingerprint(
+      ensureTextNodePromptDocument(nodeState),
+      nodeState.text || ''
+    );
+    if (!textPolishState.appliedFingerprint || currentFingerprint !== textPolishState.appliedFingerprint) {
+      DesktopResults.showTransientMessage('文本节点已继续编辑，未覆盖当前内容。', 'warning');
+      renderTextPolishModal();
+      return false;
+    }
+    setTextNodePromptDocument(node, nodeState, clonePromptDocument(textPolishState.originalDocument, textPolishState.originalText));
+    textPolishState.applied = false;
+    textPolishState.appliedVariant = '';
+    textPolishState.appliedFingerprint = '';
+    selectNode(nodeState.id);
+    renderTextPolishModal();
+    DesktopResults.showTransientMessage('已恢复润色前的结构化内容。');
+    return true;
   }
 
   function openTextPolishModal(payload) {
     textPolishState = {
       nodeId: payload.nodeId,
       originalText: payload.originalText || '',
+      originalDocument: clonePromptDocument(payload.originalDocument, payload.originalText || ''),
+      sourceFingerprint: payload.sourceFingerprint
+        || promptDocumentFingerprint(payload.originalDocument, payload.originalText || ''),
       fullPrompt: payload.fullPrompt || '',
       compactPrompt: payload.compactPrompt || payload.fullPrompt || '',
       modules: payload.modules || [],
       model: payload.model || '',
-      variant: 'full'
+      variant: 'full',
+      applied: false,
+      appliedVariant: '',
+      appliedFingerprint: ''
     };
     const modal = ensureTextPolishModal();
     renderTextPolishModal();
@@ -3601,7 +4503,8 @@
   }
 
   async function runTextNodeGptPolish(node, nodeState, triggerButton) {
-    const originalText = String(nodeState.text || node.querySelector('[data-text-node-input]')?.value || '').trim();
+    const originalDocument = clonePromptDocument(ensureTextNodePromptDocument(nodeState), nodeState.text || '');
+    const originalText = materializePromptDocument(originalDocument).trim();
     if (!originalText) {
       DesktopResults.showTransientMessage('先在文本节点里输入提示词片段。');
       return;
@@ -3619,16 +4522,17 @@
       const fullPrompt = String(result.full_prompt || '').trim();
       const compactPrompt = String(result.compact_prompt || fullPrompt).trim();
       if (!fullPrompt) throw new Error('润色结果为空');
-      setTextNodeValue(node, nodeState, fullPrompt);
       openTextPolishModal({
         nodeId: node.dataset.nodeId,
         originalText,
+        originalDocument,
+        sourceFingerprint: promptDocumentFingerprint(originalDocument, originalText),
         fullPrompt,
         compactPrompt,
         modules: result.modules || [],
         model: result.model || ''
       });
-      DesktopResults.showTransientMessage('已回填完整提示词。');
+      DesktopResults.showTransientMessage('润色完成，请选择版本后应用。');
     } finally {
       if (triggerButton) {
         triggerButton.disabled = false;
@@ -3786,7 +4690,7 @@
     const textNodes = getConnectedTextNodes(inputNodeId);
     const nodePrompts = textNodes
       .map(node => ({
-        text: String(node.text || '').trim(),
+        text: materializeTextNode(node).trim(),
         styleId: node.stylePresetId || ''
       }))
       .filter(item => item.text);
@@ -3804,7 +4708,7 @@
     const textNodes = getConnectedTextNodes(inputNodeId);
     const styleIds = textNodes.map(node => node.stylePresetId || '').filter(Boolean);
     const basePrompt = [
-      ...textNodes.map(node => String(node.text || '').trim()).filter(Boolean),
+      ...textNodes.map(node => materializeTextNode(node).trim()).filter(Boolean),
       String(prompt || '').trim()
     ]
       .filter(Boolean)
@@ -4214,6 +5118,7 @@
       document.activeElement?.blur?.();
     }
     nodeEl?.remove();
+    clearPromptDocumentHistory(nodeId);
     delete DesktopState.state.canvas.nodes[nodeId];
     delete DesktopState.state.outputs[nodeId];
     const refs = nodeId === 'input' ? DesktopState.state.referenceImages : (getNodeReferenceStore()[nodeId] || []);
@@ -5361,7 +6266,8 @@
       };
     }
     if (clean.type === 'text') {
-      clean.text = String(clean.text || '');
+      clean.promptDocument = normalizePromptDocument(clean.promptDocument, clean.text || '');
+      clean.text = materializePromptDocument(clean.promptDocument);
       clean.alias = sanitizeTextNodeAlias(clean.alias) || nextTextNodeAlias(clean.id);
       clean.stylePresetId = String(clean.stylePresetId || '');
     }
@@ -5499,8 +6405,8 @@
 
   function workflowTitleFromSnapshot(snapshot) {
     const textNode = Object.values(snapshot.canvas?.nodes || {})
-      .find(node => node.type === 'text' && String(node.text || '').trim());
-    const title = String(textNode?.alias || textNode?.text || 'canvas-workflow').trim().slice(0, 36);
+      .find(node => node.type === 'text' && materializeTextNode(node).trim());
+    const title = String(textNode?.alias || materializeTextNode(textNode) || 'canvas-workflow').trim().slice(0, 36);
     return sanitizeImageEditFilename(title, 'canvas-workflow');
   }
 
@@ -5610,6 +6516,8 @@
       return false;
     }
     revokeCurrentWorkflowObjectUrls();
+    promptDocumentHistories.clear();
+    promptDocumentVersions.clear();
     DesktopState.state.provider = next.provider;
     DesktopState.state.inputExpanded = next.inputExpanded;
     DesktopState.state.prompt = next.prompt;
@@ -7698,11 +8606,25 @@
         }
         if (tool === 'gallery') {
           setNodePaletteOpen(false);
+          if (window.DesktopPromptLibrary?.close?.() === false) {
+            document.querySelectorAll('.desk-rail__item[data-tool]').forEach(item => item.classList.toggle('is-active', item.dataset.tool === 'prompts'));
+            return;
+          }
+          window.DesktopSettings?.close?.();
           window.DesktopHistory?.openGallery?.().catch(error => DesktopResults.showError(error));
+          return;
+        }
+        if (tool === 'prompts') {
+          setNodePaletteOpen(false);
+          window.DesktopPromptLibrary?.open?.().catch(error => DesktopResults.showError(error));
           return;
         }
         if (tool === 'settings') {
           setNodePaletteOpen(false);
+          if (window.DesktopPromptLibrary?.close?.() === false) {
+            document.querySelectorAll('.desk-rail__item[data-tool]').forEach(item => item.classList.toggle('is-active', item.dataset.tool === 'prompts'));
+            return;
+          }
           window.openDesktopSettingsPanel?.();
         }
       });
@@ -8066,9 +8988,23 @@
       const node = input.closest('.desk-node--text[data-node-id]');
       const nodeState = node ? DesktopState.state.canvas.nodes[node.dataset.nodeId] : null;
       if (!nodeState) return;
-      nodeState.text = input.value;
+      syncPromptDocumentFromEditor(input, nodeState);
       setTextStyleMenuOpen(node, false);
-      DesktopState.saveSettings();
+    });
+
+    els.deskCanvasWorld?.addEventListener('paste', event => {
+      const editor = event.target.closest?.('[data-text-node-input][contenteditable="true"]');
+      if (!editor) return;
+      event.preventDefault();
+      const text = event.clipboardData?.getData('text/plain') || '';
+      insertPlainTextIntoPromptEditor(editor, text);
+    });
+
+    els.deskCanvasWorld?.addEventListener('keydown', event => {
+      const editor = event.target.closest?.('[data-text-node-input][contenteditable="true"]');
+      if (!editor) return;
+      if (handlePromptDocumentHistoryShortcut(event, editor)) return;
+      handlePromptEditorTokenDelete(event, editor);
     });
 
     els.deskCanvasWorld?.addEventListener('change', event => {
@@ -8450,6 +9386,7 @@
   function init() {
     collectElements();
     migrateResultNodesToModelOutputs();
+    const promptDocumentsChanged = ensureTextNodePromptDocuments();
     migrateLegacyPromptDraftToTextNode();
     ensureTextNodeAliases();
     const groupsChanged = normalizeCanvasGroupsAndSelection();
@@ -8463,7 +9400,7 @@
     } else {
       applyCanvasTransform();
     }
-    if (groupsChanged) DesktopState.saveSettings();
+    if (groupsChanged || promptDocumentsChanged) DesktopState.saveSettings();
   }
 
   window.DesktopCanvas = {
@@ -8491,6 +9428,9 @@
     fillPromptTarget,
     fillNearestInputPrompt,
     createTextNodeWithText,
+    insertPromptBlockToken,
+    replacePromptBlockToken,
+    materializePromptDocument,
     listTextNodes,
     listPromptImageNodes,
     getTextStylePresets,

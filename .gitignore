@@ -47,7 +47,7 @@ sidecars/chatgpt_pool/launchd/*.plist
 launchd/*.plist
 tests/
 .nested-git-backups/
-scripts/
+/scripts/
 !desktop/electron/scripts/
 !desktop/electron/scripts/write-release-config.mjs
 test_node.js
@@ -65,6 +65,7 @@ output/
 font/
 artifacts/
 generated/
+/cache/
 build/
 dist/
 desktop/electron/dist/
@@ -83,3 +84,4 @@ work/
 *.bak
 *.tmp
 *.swp
+.gstack/
