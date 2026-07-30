@@ -10,6 +10,7 @@ contextBridge.exposeInMainWorld('CanvasHubDesktop', {
   }),
   openExternal: (url: string) => ipcRenderer.invoke('desktop:open-external', url),
   getUpdateStatus: () => ipcRenderer.invoke('desktop:get-update-status'),
+  installUpdate: () => ipcRenderer.invoke('desktop:install-update'),
   onUpdateStatus: (callback: (status: unknown) => void) => {
     const listener = (_event: Electron.IpcRendererEvent, status: unknown) => callback(status);
     ipcRenderer.on('desktop:update-status', listener);

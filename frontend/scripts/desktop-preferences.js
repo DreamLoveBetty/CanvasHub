@@ -266,25 +266,23 @@
     {
       id: 'bundled-release',
       version: '',
-      date: '2026-07-13',
+      date: '2026-07-30',
       title: {
-        zh: '桌面版与画布体验更新',
-        en: 'Desktop and canvas experience update',
+        zh: 'macOS 自定义更新助手',
+        en: 'Custom macOS update helper',
       },
       items: {
         zh: [
-          '新增 macOS 桌面版，启动后自动最大化，画布默认显示比例调整为 75%。',
-          '版本更新铃铛会展示最新发布信息，并在发现新版本时持续提醒。',
-          '画布节点支持组合与解组，PSD 文件支持独立显示或隐藏图层。',
-          '高清放大组件改为首次使用时自动后台下载，安装包保持轻量。',
-          '优化桌面数据存储、账号连接与整体运行稳定性。',
+          'macOS 桌面版会在后台下载更新，并提供“重启并安装”操作。',
+          '安装前会复核文件体积、SHA-512、应用标识、版本和可执行文件。',
+          '更新采用原子替换；安装或重启失败时自动恢复旧版本。',
+          '更新助手随应用内置，不需要单独安装应用或运行环境。',
         ],
         en: [
-          'The macOS desktop app now opens maximized, with canvas zoom defaulting to 75%.',
-          'The update bell shows release information and remains marked when a newer version is available.',
-          'Canvas nodes support grouping, while PSD previews support showing or hiding individual layers.',
-          'The upscale component now installs automatically on first use to keep the initial download smaller.',
-          'Desktop storage, account connections, and runtime stability have been improved.',
+          'The macOS desktop app downloads updates in the background and offers Restart and install.',
+          'The installer verifies size, SHA-512, bundle identity, version, and executable before replacement.',
+          'Updates use an atomic swap and restore the previous version if installation or relaunch fails.',
+          'The helper is bundled with CanvasHub and requires no separately installed app or runtime.',
         ],
       },
     },
@@ -302,7 +300,10 @@
       updateAvailableBody: '新版已经发布，可前往 GitHub Releases 查看并下载。',
       sourceUpdateBody: '新版已经发布，请查看 Release 并按说明更新源码。',
       dockerUpdateBody: '新版已经发布，请拉取最新镜像并重启容器。',
-      updateDownloadedBody: '新版已准备完成，将在退出应用后尝试安装。',
+      updateDownloadedBody: '新版已下载并校验，可立即重启完成更新。',
+      updateInstalling: '正在重启安装',
+      updateInstallingBody: 'CanvasHub 正在退出并安装新版。',
+      restartInstall: '重启并安装',
       viewUpdate: '查看更新',
       available: '可更新',
     },
@@ -317,7 +318,10 @@
       updateAvailableBody: 'A new release is available on GitHub Releases.',
       sourceUpdateBody: 'A new release is available. Open the release and update the source deployment.',
       dockerUpdateBody: 'A new release is available. Pull the latest image and restart the container.',
-      updateDownloadedBody: 'The update is ready and will be installed when the app exits.',
+      updateDownloadedBody: 'The update is downloaded and verified. Restart to finish installing it.',
+      updateInstalling: 'Restarting to install',
+      updateInstallingBody: 'CanvasHub is closing and installing the update.',
+      restartInstall: 'Restart and install',
       viewUpdate: 'View update',
       available: 'Available',
     },
@@ -356,7 +360,7 @@
   }
 
   function hasAvailableAppUpdate() {
-    return ['available', 'downloaded'].includes(String(appUpdateStatus.state || ''))
+    return ['available', 'downloaded', 'installing'].includes(String(appUpdateStatus.state || ''))
       && !!String(appUpdateStatus.version || '').trim();
   }
 
@@ -448,12 +452,18 @@
     }
 
     const title = document.createElement('h3');
-    title.textContent = String(appUpdateStatus.releaseName || '').trim() || (appUpdateStatus.state === 'downloaded'
-      ? labels.updateDownloaded
-      : labels.updateAvailable);
+    title.textContent = appUpdateStatus.state === 'installing'
+      ? labels.updateInstalling
+      : String(appUpdateStatus.releaseName || '').trim() || (appUpdateStatus.state === 'downloaded'
+        ? labels.updateDownloaded
+        : labels.updateAvailable);
     const body = document.createElement('p');
     body.className = 'desk-release__update-copy';
-    if (appUpdateStatus.state === 'downloaded') {
+    if (appUpdateStatus.error) {
+      body.textContent = String(appUpdateStatus.error);
+    } else if (appUpdateStatus.state === 'installing') {
+      body.textContent = labels.updateInstallingBody;
+    } else if (appUpdateStatus.state === 'downloaded') {
       body.textContent = labels.updateDownloadedBody;
     } else if (appUpdateStatus.deployment === 'docker') {
       body.textContent = labels.dockerUpdateBody;
@@ -464,13 +474,36 @@
     }
     article.append(meta, title, body);
 
+    const canInstall = appUpdateStatus.state === 'downloaded'
+      && appUpdateStatus.canInstall === true
+      && typeof window.CanvasHubDesktop?.installUpdate === 'function';
+    const isInstalling = appUpdateStatus.state === 'installing';
     const releaseUrl = String(appUpdateStatus.releaseUrl || '').trim();
-    if (/^https:\/\//i.test(releaseUrl)) {
+    if (canInstall || isInstalling || /^https:\/\//i.test(releaseUrl)) {
       const action = document.createElement('button');
       action.type = 'button';
       action.className = 'desk-release__update-action';
-      action.textContent = labels.viewUpdate;
-      action.addEventListener('click', () => {
+      action.disabled = isInstalling;
+      action.textContent = isInstalling
+        ? labels.updateInstalling
+        : canInstall ? labels.restartInstall : labels.viewUpdate;
+      action.addEventListener('click', async () => {
+        if (isInstalling) return;
+        if (canInstall) {
+          action.disabled = true;
+          action.textContent = labels.updateInstalling;
+          applyAppUpdateStatus({ state: 'installing', error: '', canInstall: false });
+          try {
+            await window.CanvasHubDesktop.installUpdate();
+          } catch (error) {
+            applyAppUpdateStatus({
+              state: 'downloaded',
+              error: String(error?.message || error || ''),
+              canInstall: true,
+            });
+          }
+          return;
+        }
         if (window.CanvasHubDesktop?.openExternal) {
           window.CanvasHubDesktop.openExternal(releaseUrl).catch(() => {});
           return;

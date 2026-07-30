@@ -723,6 +723,11 @@ button:disabled {
   background: #c9410d;
 }
 
+.desk-release__update-action:disabled {
+  cursor: wait;
+  opacity: 0.68;
+}
+
 .desk-release__item ul {
   display: grid;
   gap: 6px;

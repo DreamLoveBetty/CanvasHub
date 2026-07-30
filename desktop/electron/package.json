@@ -1,6 +1,6 @@
 {
   "name": "canvashub-desktop",
-  "version": "26.2.0",
+  "version": "26.2.1",
   "description": "CanvasHub desktop application",
   "main": "app-dist/main.js",
   "private": true,
@@ -78,6 +78,12 @@
       "icon": "assets/canvashub-app-icon.icns",
       "hardenedRuntime": true,
       "gatekeeperAssess": false,
+      "extraResources": [
+        {
+          "from": "../../dist/canvashub-updater",
+          "to": "updater/canvashub-updater"
+        }
+      ],
       "target": [
         "dmg",
         "zip"

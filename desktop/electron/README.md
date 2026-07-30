@@ -33,6 +33,14 @@ Runtime variables with the same names override the embedded values for
 diagnostics. Release builds require platform-native code signing; development
 builds never check for updates.
 
+On macOS, release builds also contain a native `canvashub-updater` helper. The
+application downloads and verifies the update ZIP through `electron-updater`,
+then the helper waits for CanvasHub to exit, replaces the application bundle,
+rolls back on replacement or relaunch failure, and starts the new version.
+The helper is copied to the per-user data directory before the application
+quits, so it remains available while the old bundle is replaced. The helper is
+a small Objective-C/Foundation executable with no separately installed runtime.
+
 GitHub Releases can host the generic update feed. For a public release
 repository, use `https://github.com/OWNER/REPO/releases/latest/download` as the
 update URL and upload the generated `latest-mac.yml` / `latest.yml`, installers,

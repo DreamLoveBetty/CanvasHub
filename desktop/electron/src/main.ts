@@ -1,7 +1,19 @@
 import { app, BrowserWindow, dialog, ipcMain, session, shell } from 'electron';
 import { autoUpdater } from 'electron-updater';
 import { ChildProcess, spawn, spawnSync } from 'node:child_process';
-import { createWriteStream, mkdirSync, readFileSync } from 'node:fs';
+import {
+  accessSync,
+  chmodSync,
+  constants,
+  copyFileSync,
+  createWriteStream,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  unlinkSync,
+} from 'node:fs';
 import net from 'node:net';
 import path from 'node:path';
 import { randomBytes } from 'node:crypto';
@@ -18,7 +30,7 @@ interface ReleaseConfiguration {
   upscale_manifest_url?: string;
 }
 
-type UpdateState = 'idle' | 'checking' | 'current' | 'available' | 'downloaded' | 'error';
+type UpdateState = 'idle' | 'checking' | 'current' | 'available' | 'downloaded' | 'installing' | 'error';
 
 interface DesktopUpdateStatus {
   state: UpdateState;
@@ -28,14 +40,32 @@ interface DesktopUpdateStatus {
   releaseDate: string;
   releaseUrl: string;
   error: string;
+  canInstall: boolean;
 }
 
-const APP_VERSION = '26.2.0';
+interface DownloadedDesktopUpdate {
+  filePath: string;
+  version: string;
+  sha512: string;
+  size: number;
+}
+
+interface CustomUpdateState {
+  status?: string;
+  expected_version?: string;
+  target_app?: string;
+  backup_app?: string;
+  error?: string;
+}
+
+const APP_VERSION = '26.2.1';
 const PROJECT_ROOT = path.resolve(__dirname, '../../..');
 const services: ServiceProcess[] = [];
 let mainWindow: BrowserWindow | null = null;
 let startupWindow: BrowserWindow | null = null;
 let quitting = false;
+let installStarted = false;
+let downloadedUpdate: DownloadedDesktopUpdate | null = null;
 let updateStatus: DesktopUpdateStatus = {
   state: 'idle',
   currentVersion: APP_VERSION,
@@ -44,6 +74,7 @@ let updateStatus: DesktopUpdateStatus = {
   releaseDate: '',
   releaseUrl: '',
   error: '',
+  canInstall: false,
 };
 
 function randomSecret(prefix: string): string {
@@ -85,6 +116,48 @@ function loadReleaseConfiguration(): ReleaseConfiguration {
   } catch {
     return {};
   }
+}
+
+function currentMacAppPath(): string {
+  return path.resolve(path.dirname(app.getPath('exe')), '../..');
+}
+
+function customUpdateStatePath(dataDir: string): string {
+  return path.join(dataDir, 'updater', 'update-state.json');
+}
+
+function isSafeUpdateBackup(targetApp: string, backupApp: string): boolean {
+  const target = path.resolve(targetApp);
+  const backup = path.resolve(backupApp);
+  const expectedPrefix = `.${path.basename(target)}.backup-`;
+  return path.dirname(backup) === path.dirname(target)
+    && path.basename(backup).startsWith(expectedPrefix);
+}
+
+function reconcileCustomUpdate(dataDir: string): string {
+  if (!app.isPackaged || process.platform !== 'darwin') return '';
+  const statePath = customUpdateStatePath(dataDir);
+  if (!existsSync(statePath)) return '';
+  try {
+    const state = JSON.parse(readFileSync(statePath, 'utf8')) as CustomUpdateState;
+    if (state.status === 'installed'
+      && state.expected_version === APP_VERSION
+      && path.resolve(String(state.target_app || '')) === currentMacAppPath()) {
+      const backupApp = String(state.backup_app || '');
+      if (backupApp && isSafeUpdateBackup(currentMacAppPath(), backupApp) && existsSync(backupApp)) {
+        rmSync(backupApp, { recursive: true, force: true });
+      }
+      unlinkSync(statePath);
+      return '';
+    }
+    if (state.status === 'failed') {
+      unlinkSync(statePath);
+      return String(state.error || '自定义更新助手未能完成安装');
+    }
+  } catch {
+    return '';
+  }
+  return '';
 }
 
 function githubReleasePageUrl(updateUrl: string): string {
@@ -254,7 +327,15 @@ async function configureUpdater(updateUrl: string): Promise<void> {
     publishUpdateStatus({ state: 'checking', error: '' });
   });
   autoUpdater.on('update-not-available', () => {
-    publishUpdateStatus({ state: 'current', version: '', releaseName: '', releaseDate: '', error: '' });
+    downloadedUpdate = null;
+    publishUpdateStatus({
+      state: 'current',
+      version: '',
+      releaseName: '',
+      releaseDate: '',
+      error: '',
+      canInstall: false,
+    });
   });
   autoUpdater.on('update-available', info => {
     publishUpdateStatus({
@@ -263,22 +344,57 @@ async function configureUpdater(updateUrl: string): Promise<void> {
       releaseName: String(info.releaseName || ''),
       releaseDate: String(info.releaseDate || ''),
       error: '',
+      canInstall: false,
     });
   });
   autoUpdater.on('update-downloaded', info => {
+    const rawDownloadedFile = String(info.downloadedFile || '').trim();
+    const downloadedFile = rawDownloadedFile ? path.resolve(rawDownloadedFile) : '';
+    const downloadedName = path.basename(downloadedFile);
+    const zipInfo = info.files.find(file => {
+      try {
+        return path.basename(new URL(file.url, 'https://updates.invalid/').pathname) === downloadedName;
+      } catch {
+        return false;
+      }
+    }) || info.files.find(file => String(file.url || '').toLowerCase().endsWith('.zip'));
+    let downloadedSize = 0;
+    try {
+      const downloadedStat = statSync(downloadedFile);
+      downloadedSize = downloadedStat.isFile() ? downloadedStat.size : 0;
+    } catch {
+      downloadedSize = 0;
+    }
+    const canInstall = process.platform === 'darwin'
+      && downloadedSize > 0
+      && !!zipInfo
+      && !!String(zipInfo.sha512 || '')
+      && downloadedSize === Number(zipInfo.size || 0);
+    downloadedUpdate = canInstall && zipInfo ? {
+      filePath: downloadedFile,
+      version: String(info.version || ''),
+      sha512: String(zipInfo.sha512 || ''),
+      size: Number(zipInfo.size || 0),
+    } : null;
     publishUpdateStatus({
       state: 'downloaded',
       version: String(info.version || ''),
       releaseName: String(info.releaseName || ''),
       releaseDate: String(info.releaseDate || ''),
       error: '',
+      canInstall,
     });
   });
   autoUpdater.on('error', error => {
-    publishUpdateStatus({ state: 'error', error: String(error?.message || error || '') });
+    const hasDownloadedUpdate = !!downloadedUpdate;
+    publishUpdateStatus({
+      state: hasDownloadedUpdate ? 'downloaded' : 'error',
+      error: String(error?.message || error || ''),
+      canInstall: hasDownloadedUpdate,
+    });
   });
   autoUpdater.autoDownload = true;
-  autoUpdater.autoInstallOnAppQuit = true;
+  autoUpdater.autoInstallOnAppQuit = process.platform !== 'darwin';
   autoUpdater.setFeedURL({ provider: 'generic', url: updateUrl });
   await autoUpdater.checkForUpdates().catch(() => undefined);
 }
@@ -330,6 +446,18 @@ async function bootstrap(): Promise<void> {
   await waitForUrl(`${baseUrl}/desktop.html`, server, 90_000);
   await authenticateDesktopSession(baseUrl, desktopPassword);
   mainWindow = createMainWindow(baseUrl);
+  const customUpdateError = reconcileCustomUpdate(paths.dataDir);
+  if (customUpdateError) {
+    mainWindow.once('ready-to-show', () => {
+      if (!mainWindow || mainWindow.isDestroyed()) return;
+      dialog.showMessageBox(mainWindow, {
+        type: 'error',
+        title: 'CanvasHub 更新失败',
+        message: '自动更新未能完成，已保留原版本',
+        detail: `${customUpdateError}\n日志位于 ${path.join(paths.logsDir, 'updater.log')}`,
+      }).catch(() => undefined);
+    });
+  }
   configureUpdater(updateUrl).catch(() => undefined);
 }
 
@@ -353,6 +481,80 @@ ipcMain.handle('desktop:open-external', async (_event, rawUrl: unknown) => {
 });
 
 ipcMain.handle('desktop:get-update-status', () => ({ ...updateStatus }));
+
+ipcMain.handle('desktop:install-update', async () => {
+  if (!app.isPackaged || process.platform !== 'darwin') {
+    throw new Error('当前运行方式不支持自定义自动安装');
+  }
+  if (installStarted) {
+    return { ok: true };
+  }
+  if (!downloadedUpdate || updateStatus.state !== 'downloaded') {
+    throw new Error('新版尚未下载完成');
+  }
+
+  const paths = desktopPaths();
+  const targetApp = currentMacAppPath();
+  const targetParent = path.dirname(targetApp);
+  const bundledHelper = path.join(process.resourcesPath, 'updater', 'canvashub-updater');
+  if (!existsSync(bundledHelper)) {
+    throw new Error('安装包中缺少自定义更新助手');
+  }
+  if (!existsSync(downloadedUpdate.filePath)
+    || statSync(downloadedUpdate.filePath).size !== downloadedUpdate.size) {
+    throw new Error('已下载的更新文件不完整，请重新启动应用后再试');
+  }
+  try {
+    accessSync(targetParent, constants.W_OK);
+  } catch {
+    throw new Error(`没有权限更新 ${targetApp}，请将 CanvasHub 移到可写的 Applications 目录`);
+  }
+
+  const helperDir = path.join(paths.dataDir, 'updater');
+  const helperPath = path.join(helperDir, 'canvashub-updater');
+  mkdirSync(helperDir, { recursive: true });
+  copyFileSync(bundledHelper, helperPath);
+  chmodSync(helperPath, 0o755);
+
+  const args = [
+    '--parent-pid', String(process.pid),
+    '--archive', downloadedUpdate.filePath,
+    '--target-app', targetApp,
+    '--expected-version', downloadedUpdate.version,
+    '--expected-sha512', downloadedUpdate.sha512,
+    '--expected-size', String(downloadedUpdate.size),
+    '--state-file', customUpdateStatePath(paths.dataDir),
+    '--log-file', path.join(paths.logsDir, 'updater.log'),
+  ];
+  await new Promise<void>((resolve, reject) => {
+    const child = spawn(helperPath, args, {
+      detached: true,
+      stdio: 'ignore',
+      env: {
+        HOME: app.getPath('home'),
+        LANG: process.env.LANG || 'en_US.UTF-8',
+        PATH: '/usr/bin:/bin:/usr/sbin:/sbin',
+      },
+    });
+    child.once('error', reject);
+    child.once('spawn', () => {
+      child.unref();
+      resolve();
+    });
+  }).catch(error => {
+    publishUpdateStatus({
+      state: 'downloaded',
+      error: String(error?.message || error || ''),
+      canInstall: true,
+    });
+    throw error;
+  });
+
+  installStarted = true;
+  publishUpdateStatus({ state: 'installing', error: '', canInstall: false });
+  setTimeout(() => app.quit(), 250).unref();
+  return { ok: true };
+});
 
 const hasInstanceLock = app.requestSingleInstanceLock();
 if (!hasInstanceLock) {

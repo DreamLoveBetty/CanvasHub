@@ -4,6 +4,10 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 BUILD_MODE="${CANVASHUB_DESKTOP_BUILD_MODE:-release}"
 
+if [ "$(uname -s)" = "Darwin" ]; then
+  "$ROOT/packaging/build-macos-updater.sh"
+fi
+
 "$ROOT/packaging/build-python-runtime.sh"
 
 cd "$ROOT/desktop/electron"
