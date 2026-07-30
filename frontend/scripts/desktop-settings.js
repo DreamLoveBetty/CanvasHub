@@ -5,7 +5,13 @@
   let lastChatgptPoolAccounts = null;
   let lastSystemSettings = null;
   let lastGptModelCatalog = null;
+  let lastComfyWorkflows = null;
+  let lastComfyHealth = null;
+  let activeComfyWorkflowId = '';
+  let pinterestAuthSessionId = window.sessionStorage?.getItem('deskPinterestAuthSessionId') || '';
+  let pinterestAuthActivity = null;
   let activeTab = 'status';
+  let tabsExpanded = false;
   let settingsInfoTipOpen = false;
   let chatgptPoolActivity = null;
   let chatgptPoolRefreshBusy = false;
@@ -19,6 +25,7 @@
   let managedCodexOAuthPollDeadline = 0;
   const MANAGED_CODEX_OAUTH_POLL_INTERVAL_MS = 1500;
   const MANAGED_CODEX_OAUTH_POLL_TIMEOUT_MS = 15 * 60 * 1000;
+  const EXTRA_SETTINGS_TABS = new Set(['third-party', 'chatgpt-pool', 'prompt', 'paths', 'comfy']);
   const SETTINGS_TAB_HELP = {
     system: {
       title: '系统配置',
@@ -32,11 +39,14 @@
         ]],
         ['对应模块', [
           'server.py 启动绑定、桌面端设置中心、Mini App 登录鉴权。',
-          '访问密码也保护系统诊断、历史、图片读取和生成接口。'
+          '访问密码也保护系统诊断、历史、图片读取和生成接口。',
+          'Pinterest 图库参数保存在 settings.json，完整浏览器登录态单独保存在 browser_auth.json。'
         ]],
         ['注意事项', [
           '公网模式只解决监听地址，不替代 HTTPS、反向代理、系统防火墙或 Telegram 域名配置。',
-          '如果只是本机使用，不要开启公网模式。'
+          '如果只是本机使用，不要开启公网模式。',
+          '“连接 Pinterest”会打开隔离浏览器窗口；登录完成后回到设置页点击“完成登录”。',
+          'Cookie 备用导入保存后不会回显；退出登录会删除 browser_auth.json。'
         ]]
       ]
     },
@@ -158,6 +168,22 @@
           'Tasks DB 路径错误会影响最近记录、日志查询和前端状态详情。'
         ]]
       ]
+    },
+    comfy: {
+      title: 'ComfyUI 配置',
+      subtitle: '本地服务与工作流目录',
+      summary: '配置 ComfyUI 服务连接，并管理画布节点中展示的工作流名称、能力和缩略图。',
+      sections: [
+        ['服务连接', [
+          'Base URL 同时包含协议、地址和端口，保存后立即用于后续 ComfyUI 请求。',
+          '测试连接会读取 ComfyUI system_stats 和 queue，不会向工作流队列提交任务。'
+        ]],
+        ['工作流库', [
+          '节点只显示已启用工作流；停用不会删除 JSON，也不会破坏旧画布引用。',
+          '缩略图会压缩成 WebP 保存，工作流 JSON 本身仍保留在后端 workflows 目录。',
+          '画布节点会自动解析 JSON 中的数字、开关、文本和常用枚举参数；节点修改只作为本次运行覆盖，不会改写原工作流。'
+        ]]
+      ]
     }
   };
 
@@ -188,6 +214,8 @@
       'deskSettingsInfoTipContent',
       'deskSettingsInfoTipClose',
       'deskSettingsTabs',
+      'deskSettingsTabsToggle',
+      'deskSettingsExtraTabs',
       'deskSettingsSummary',
       'deskSettingsBody'
     ].forEach(id => {
@@ -292,6 +320,7 @@
       options.min ? `min="${escapeHtml(options.min)}"` : '',
       options.max ? `max="${escapeHtml(options.max)}"` : '',
       options.step ? `step="${escapeHtml(options.step)}"` : '',
+      options.disabled ? 'disabled aria-disabled="true"' : '',
       type === 'password' ? 'autocomplete="new-password"' : ''
     ].filter(Boolean).join(' ');
     return `
@@ -315,6 +344,23 @@
           ` : ''}
         </div>
         <input class="desk-input" type="password" data-system-setting-field="${escapeHtml(field)}" placeholder="${escapeHtml(placeholder)}" value="" autocomplete="new-password">
+      </div>
+    `;
+  }
+
+  function renderSecretTextarea(label, field, configured, options = {}) {
+    const placeholder = options.placeholder || (configured ? '留空则不修改' : '粘贴登录态');
+    return `
+      <div class="desk-settings-secret-field desk-settings-form__wide">
+        <div class="desk-settings-secret-field__label">
+          <span>${escapeHtml(label)}</span>
+          ${configured ? `
+            <button type="button" class="desk-settings-secret-clear" data-system-secret-clear-field="${escapeHtml(field)}" data-system-secret-clear-label="${escapeHtml(label)}" title="清除已保存的${escapeHtml(label)}">
+              清除
+            </button>
+          ` : ''}
+        </div>
+        <textarea class="desk-settings-textarea" data-system-setting-field="${escapeHtml(field)}" placeholder="${escapeHtml(placeholder)}" autocomplete="off" autocapitalize="off" spellcheck="false"></textarea>
       </div>
     `;
   }
@@ -384,6 +430,81 @@
         ${renderSystemSaveButton('system', '保存系统配置')}
       </div>`
     ], !publicMode || Boolean(auth?.miniapp_access_password_configured));
+  }
+
+  function pinterestAuthLabel(status, configured) {
+    if (!configured) return '未配置';
+    if (status === 'authenticated') return '已登录';
+    if (status === 'invalid') return '登录已失效';
+    if (status === 'error') return '验证失败';
+    return '已保存，待验证';
+  }
+
+  function pinterestAuthSourceLabel(source) {
+    if (source === 'browser_login') return '浏览器授权 JSON';
+    if (source === 'cookie_import') return 'Cookie 导入 JSON';
+    if (source === 'browser_auth_json') return '授权 JSON';
+    if (source === 'legacy_cookie') return '旧版 settings Cookie';
+    return '未配置';
+  }
+
+  function renderPinterestSettings(config = {}) {
+    const authConfigured = Boolean(config.auth_configured);
+    const authStatus = config.auth_status || (authConfigured ? 'unverified' : 'not_configured');
+    const authOk = authStatus === 'authenticated';
+    const authLabel = pinterestAuthLabel(authStatus, authConfigured);
+    const authUsername = String(config.auth_username || '').trim();
+    const authDisplayName = String(config.auth_display_name || '').trim();
+    const authProfileUrl = String(config.auth_profile_url || '').trim();
+    const accountLabel = authUsername
+      ? `@${authUsername}`
+      : (authConfigured ? '账号信息待验证' : '未连接账号');
+    const accountMeta = authDisplayName && authDisplayName !== authUsername
+      ? `${authDisplayName} · ${authLabel}`
+      : authLabel;
+    const verifiedAt = config.last_verified_at
+      ? chatgptPoolTimeLabel(config.last_verified_at, '验证于 ')
+      : '尚未验证';
+    const browserAvailable = config.browser_login_available !== false;
+    const browserLabel = config.browser_name || 'Chrome';
+    const activityText = pinterestAuthActivity?.message || '';
+    return renderCard('Pinterest 图库', [
+      `<div class="desk-settings-form" data-system-settings-card="pinterest">
+        ${renderCheckbox('启用 Pinterest 图库', 'pinterest.enabled', Boolean(config.enabled))}
+        ${renderKv('授权账号', accountLabel)}
+        ${renderKv('个人主页', authProfileUrl || (authConfigured ? '验证后自动识别' : '连接账号后自动识别'))}
+        ${renderInput('同步目标主页（可选）', 'pinterest.sync_profile_url', config.sync_profile_url || '', { placeholder: 'https://www.pinterest.com/username/' })}
+        <label>
+          <span>同步方式</span>
+          <select class="desk-select" data-system-setting-field="pinterest.sync_mode">
+            ${optionHtml('auto', '自动（登录态优先，RSS 托底）', config.sync_mode || 'auto')}
+            ${optionHtml('authenticated_browser', '登录态完整同步', config.sync_mode)}
+            ${optionHtml('rss', '仅 RSS 增量同步', config.sync_mode)}
+          </select>
+        </label>
+        ${renderInput('每个图板最多 Pin 数', 'pinterest.max_pins_per_board', config.max_pins_per_board || 500, { type: 'number', min: 20, max: 5000, step: 20 })}
+        ${renderInput('验证超时（秒）', 'pinterest.request_timeout_seconds', config.request_timeout_seconds || 20, { type: 'number', min: 5, max: 60, step: 1 })}
+        ${renderCheckbox('下载 Pinterest 原图', 'pinterest.download_originals', config.download_originals !== false)}
+        ${renderSecretTextarea('Cookie（备用导入）', 'pinterest.auth_cookie', authConfigured, {
+          placeholder: authConfigured ? '登录态已保存；留空则不修改' : '浏览器登录不可用时，粘贴完整 Cookie'
+        })}
+        <div class="desk-settings-pinterest-status ${authOk ? 'is-ok' : 'is-warn'}">
+          <span aria-hidden="true"></span>
+          <strong>${escapeHtml(accountLabel)}</strong>
+          <small>${escapeHtml(`${accountMeta} · ${pinterestAuthSourceLabel(config.auth_source)} · ${verifiedAt}`)}</small>
+        </div>
+        ${activityText ? `<p class="desk-settings-form__activity">${escapeHtml(activityText)}</p>` : ''}
+        <p class="desk-settings-form__hint">授权账号和个人主页会在验证登录态后自动识别；仅在需要读取其他公开主页时填写“同步目标主页”。</p>
+        <div class="desk-settings-form__actions">
+          ${pinterestAuthSessionId
+            ? '<button type="button" class="is-primary" data-pinterest-auth-complete>完成登录</button><button type="button" data-pinterest-auth-cancel>取消登录</button>'
+            : `<button type="button" data-pinterest-auth-start${browserAvailable ? '' : ' disabled'} title="${escapeHtml(browserAvailable ? `使用 ${browserLabel} 登录` : '未找到 Chrome 或 Edge')}">${authConfigured ? '切换账号' : '连接 Pinterest'}</button>`}
+          ${authConfigured ? '<button type="button" data-pinterest-auth-verify>验证登录态</button>' : ''}
+          ${authConfigured ? '<button type="button" data-pinterest-auth-logout>退出登录</button>' : ''}
+          <button type="button" class="is-primary" data-system-settings-save="pinterest">保存 Pinterest 配置</button>
+        </div>
+      </div>`
+    ], !config.enabled || authOk);
   }
 
   function renderProviderCoreSettings(provider) {
@@ -492,6 +613,89 @@
       </div>`
     ], Boolean(api.api_key_configured && api.base_url));
     return nanoCard + gptImageCard;
+  }
+
+  function comfyWorkflowPlaceholder() {
+    return `<span class="desk-comfy-workflow-placeholder" aria-hidden="true"><i></i><i></i><i></i></span>`;
+  }
+
+  function renderComfyWorkflowCards(catalog = {}) {
+    const items = Array.isArray(catalog.items) ? catalog.items : [];
+    if (!items.length) return '<div class="desk-settings-empty">没有发现可配置的工作流 JSON。</div>';
+    if (!activeComfyWorkflowId || !items.some(item => item.id === activeComfyWorkflowId)) {
+      activeComfyWorkflowId = catalog.default_workflow || items[0].id;
+    }
+    return `<div class="desk-comfy-settings-workflows" role="listbox" aria-label="ComfyUI 工作流库">${items.map(item => `
+      <button type="button" class="desk-comfy-settings-workflow${item.id === activeComfyWorkflowId ? ' is-selected' : ''}${item.enabled ? '' : ' is-disabled'}" data-comfy-workflow-edit="${escapeHtml(item.id)}" role="option" aria-selected="${item.id === activeComfyWorkflowId ? 'true' : 'false'}">
+        <span class="desk-comfy-settings-workflow__thumb">${item.thumbnail_url ? `<img src="${escapeHtml(item.thumbnail_url)}" alt="">` : comfyWorkflowPlaceholder()}</span>
+        <span class="desk-comfy-settings-workflow__copy"><strong>${escapeHtml(item.label || item.id)}</strong><small>${escapeHtml(item.summary || item.id)}</small></span>
+        <span class="desk-comfy-settings-workflow__state">${item.enabled ? (item.is_default ? '默认' : '启用') : '停用'}</span>
+      </button>
+    `).join('')}</div>`;
+  }
+
+  function renderComfyWorkflowEditor(catalog = {}) {
+    const items = Array.isArray(catalog.items) ? catalog.items : [];
+    const item = items.find(entry => entry.id === activeComfyWorkflowId) || items[0];
+    if (!item) return '';
+    return `
+      <div class="desk-comfy-workflow-editor" data-comfy-workflow-editor="${escapeHtml(item.id)}">
+        <div class="desk-comfy-workflow-editor__heading">
+          <div><span>工作流配置</span><strong>${escapeHtml(item.id)}</strong></div>
+          <small>节点卡片会同步使用这些展示信息</small>
+        </div>
+        <div class="desk-settings-form desk-settings-form--comfy-workflow">
+          <label><span>显示名称</span><input class="desk-input" data-comfy-workflow-field="label" value="${escapeHtml(item.label || '')}"></label>
+          <label><span>简短说明</span><input class="desk-input" data-comfy-workflow-field="summary" value="${escapeHtml(item.summary || '')}"></label>
+          <label><span>默认宽度</span><input class="desk-input" type="number" min="64" max="8192" step="8" data-comfy-workflow-field="default_width" value="${escapeHtml(item.default_width || 1024)}"></label>
+          <label><span>默认高度</span><input class="desk-input" type="number" min="64" max="8192" step="8" data-comfy-workflow-field="default_height" value="${escapeHtml(item.default_height || 1024)}"></label>
+          <label><span>排序</span><input class="desk-input" type="number" min="0" max="9999" step="1" data-comfy-workflow-field="order" value="${escapeHtml(item.order ?? 100)}"></label>
+          <label><span>最大图片数</span><input class="desk-input" type="number" min="0" max="8" step="1" data-comfy-workflow-field="max_images" value="${escapeHtml(item.max_images ?? 0)}"></label>
+          <label><span>输出数量</span><input class="desk-input" type="number" min="1" max="8" step="1" data-comfy-workflow-field="output_count" value="${escapeHtml(item.output_count ?? 1)}"></label>
+          <label><span>节点中显示</span><input type="checkbox" data-comfy-workflow-field="enabled"${item.enabled ? ' checked' : ''}></label>
+          <label><span>默认工作流</span><input type="checkbox" data-comfy-workflow-field="is_default"${item.is_default ? ' checked' : ''}></label>
+          <label><span>接受文本</span><input type="checkbox" data-comfy-workflow-field="accepts_text"${item.accepts_text !== false ? ' checked' : ''}></label>
+          <label><span>接受图片</span><input type="checkbox" data-comfy-workflow-field="accepts_image"${item.accepts_image ? ' checked' : ''}></label>
+          <label class="desk-settings-form__wide desk-comfy-thumbnail-field"><span>卡片缩略图</span><input type="file" accept="image/png,image/jpeg,image/webp" data-comfy-workflow-thumbnail><small>${item.thumbnail_url ? '已配置，可重新选择图片替换' : '建议使用 320 × 200 或同等比例图片'}</small></label>
+          <div class="desk-settings-form__actions desk-settings-form__wide">
+            <button type="button" class="is-primary" data-comfy-workflow-save>保存工作流信息</button>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  function renderComfySettings(config = {}, catalog = {}, health = null) {
+    const environmentFields = Array.isArray(config.environment_fields) ? config.environment_fields : [];
+    const isEnvironmentManaged = field => environmentFields.includes(field);
+    const environmentHint = config.environment_managed
+      ? `<p class="desk-settings-form__hint">部分字段由环境变量托管：${escapeHtml(environmentFields.join('、') || 'ComfyUI 配置')}。</p>`
+      : '<p class="desk-settings-form__hint">Base URL 已包含协议、地址和端口；保存后立即用于新的 ComfyUI 请求。</p>';
+    const statusText = health?.online
+      ? `在线 · ${Number(health.latency_ms || 0)}ms · 队列 ${Number(health.queue_pending || 0) + Number(health.queue_running || 0)}`
+      : (health?.error ? `离线 · ${health.error}` : '尚未测试连接');
+    const serviceCard = renderCard('ComfyUI 服务连接', [
+      `<div class="desk-settings-form" data-system-settings-card="comfy">
+        ${renderInput('Base URL', 'comfy.base_url', config.base_url || 'http://127.0.0.1:8188', { placeholder: 'http://127.0.0.1:8188', disabled: isEnvironmentManaged('base_url') })}
+        ${renderInput('请求超时', 'comfy.timeout_seconds', config.timeout_seconds || 120, { type: 'number', min: 5, max: 1800, step: 5, disabled: isEnvironmentManaged('timeout_seconds') })}
+        ${renderInput('任务超时', 'comfy.task_timeout_seconds', config.task_timeout_seconds || 1800, { type: 'number', min: 60, max: 86400, step: 60, disabled: isEnvironmentManaged('task_timeout_seconds') })}
+        ${renderInput('轮询间隔', 'comfy.poll_interval_seconds', config.poll_interval_seconds || 2, { type: 'number', min: 0.25, max: 30, step: 0.25, disabled: isEnvironmentManaged('poll_interval_seconds') })}
+        ${environmentHint}
+        <div class="desk-comfy-service-status${health?.online ? ' is-online' : ''}"><span></span><strong>${escapeHtml(statusText)}</strong></div>
+        <div class="desk-settings-form__actions desk-settings-form__wide">
+          <button type="button" data-comfy-connection-test>测试连接</button>
+          <button type="button" class="is-primary" data-system-settings-save="comfy">保存 ComfyUI 配置</button>
+        </div>
+      </div>`
+    ], Boolean(health?.online || config.base_url));
+    const workflowsCard = renderCard('工作流库', [
+      `<div class="desk-comfy-settings-library">
+        <div class="desk-comfy-settings-library__meta"><span>${(catalog.items || []).filter(item => item.enabled).length} 已启用 / ${(catalog.items || []).length} 全部</span><small>点击卡片配置</small></div>
+        ${renderComfyWorkflowCards(catalog)}
+        ${renderComfyWorkflowEditor(catalog)}
+      </div>`
+    ], Boolean((catalog.items || []).some(item => item.enabled)));
+    return serviceCard + workflowsCard;
   }
 
   function renderPathSettings(storage, database) {
@@ -974,6 +1178,8 @@
     const providerRuntime = { ...provider, ...editableProvider };
     const editableServer = { ...server, ...(setting('server', {}) || {}) };
     const editablePool = { ...pool, ...(setting('chatgpt_pool', {}) || {}) };
+    const comfyConfig = { ...(data.comfy || {}), ...(setting('comfy', {}) || {}) };
+    const pinterest = setting('pinterest', {});
     const thirdPartyReady = Boolean(nanoBanana.api_key_configured || thirdParty.api_key_configured);
     const providerNeedsRelogin = Boolean(provider.requires_relogin);
     const providerReady = Boolean(provider.configured) && !providerNeedsRelogin;
@@ -997,7 +1203,9 @@
       },
       {
         tab: 'system',
-        html: activeTab === 'system' ? renderSystemRuntimeSettings(editableServer, setting('auth', auth)) : ''
+        html: activeTab === 'system'
+          ? renderSystemRuntimeSettings(editableServer, setting('auth', auth)) + renderPinterestSettings(pinterest)
+          : ''
       },
       {
         tab: 'status',
@@ -1078,6 +1286,16 @@
         html: activeTab === 'prompt'
           ? renderPromptSettings(promptRuntime)
           : renderPromptOverview(promptRuntime)
+      },
+      {
+        tab: 'comfy',
+        html: activeTab === 'comfy'
+          ? renderComfySettings(comfyConfig, lastComfyWorkflows || {}, lastComfyHealth)
+          : renderCard('ComfyUI', [
+            renderKv('服务地址', comfyConfig.base_url || '未配置'),
+            renderKv('工作流数量', (lastComfyWorkflows?.items || []).filter(item => item.enabled).length),
+            renderKv('连接状态', lastComfyHealth?.online ? '在线' : '未测试')
+          ], Boolean(comfyConfig.base_url))
       }
     ];
 
@@ -1096,6 +1314,8 @@
         <span>${server.public_mode ? '公网模式' : '本机模式'}</span>
         <span>第三方 ${thirdPartyReady ? '已配置' : '未配置'}</span>
         <span>账号池 ${pool.online ? '在线' : '未在线'}</span>
+        <span>ComfyUI ${lastComfyHealth?.online ? '在线' : '未测试'}</span>
+        <span>Pinterest ${pinterest.enabled ? pinterestAuthLabel(pinterest.auth_status, pinterest.auth_configured) : '未启用'}</span>
         <span>润色 ${promptSkill.model || promptRuntime.default_model || '未选模型'}</span>
         <span>Telegram ${telegram.bot_token_configured && telegram.chat_id_configured ? '可用' : '未就绪'}</span>
       `;
@@ -1315,17 +1535,22 @@
       throw new Error('诊断 API 未加载');
     }
     renderLoading();
-    const [data, systemSettings, promptConfig, gptModels] = await Promise.all([
+    const [data, systemSettings, promptConfig, gptModels, comfyWorkflows] = await Promise.all([
       window.DesktopApi.getSystemDiagnostics(),
       window.DesktopApi.getSystemSettings ? window.DesktopApi.getSystemSettings().catch(error => ({ ok: false, error: error.message })) : Promise.resolve(null),
       window.DesktopApi.getPromptConfig ? window.DesktopApi.getPromptConfig().catch(error => ({ ok: false, error: error.message })) : Promise.resolve(null),
-      window.DesktopApi.getGptModels ? window.DesktopApi.getGptModels().catch(error => ({ ok: false, error: error.message })) : Promise.resolve(null)
+      window.DesktopApi.getGptModels ? window.DesktopApi.getGptModels().catch(error => ({ ok: false, error: error.message })) : Promise.resolve(null),
+      window.DesktopApi.getComfyWorkflows ? window.DesktopApi.getComfyWorkflows(true).catch(error => ({ ok: false, error: error.message })) : Promise.resolve(null)
     ]);
     lastDiagnostics = data;
     lastSystemSettings = systemSettings?.ok ? systemSettings : null;
     lastPromptConfig = promptConfig?.ok ? promptConfig : null;
     lastGptModelCatalog = gptModels?.ok ? gptModels : lastGptModelCatalog;
+    lastComfyWorkflows = comfyWorkflows?.ok ? comfyWorkflows : lastComfyWorkflows;
     if (lastGptModelCatalog) window.DesktopCanvas?.applyGptModelCatalog?.(lastGptModelCatalog);
+    if (comfyWorkflows?.ok) {
+      window.dispatchEvent(new CustomEvent('desktop:comfy-workflows-updated', { detail: comfyWorkflows }));
+    }
     renderDiagnostics(data);
     return data;
   }
@@ -1489,7 +1714,7 @@
     const payload = {};
     card?.querySelectorAll('[data-system-setting-field]').forEach(input => {
       const field = input.dataset.systemSettingField;
-      if (!field) return;
+      if (!field || input.disabled) return;
       let value = input.type === 'checkbox' ? input.checked : input.value;
       if (input.type === 'number' && value !== '') value = Number(value);
       if (input.type === 'password' && !String(value || '').trim()) return;
@@ -1505,6 +1730,132 @@
     await window.DesktopApi.saveSystemSettings(payload);
     await refresh();
     window.DesktopResults?.showTransientMessage?.('系统配置已保存。', 'success');
+  }
+
+  async function verifyPinterestAuth(button) {
+    if (!window.DesktopApi?.saveSystemSettings || !window.DesktopApi?.verifyPinterestAuth) {
+      throw new Error('Pinterest 登录验证 API 未加载');
+    }
+    const card = button?.closest('[data-system-settings-card="pinterest"]');
+    const payload = collectSystemSettingsForm(card);
+    await window.DesktopApi.saveSystemSettings(payload);
+    let result;
+    try {
+      result = await window.DesktopApi.verifyPinterestAuth();
+    } finally {
+      await refresh().catch(() => {});
+    }
+    if (!result?.authenticated) {
+      throw new Error('Pinterest 登录态已失效，请更新 Cookie');
+    }
+    const account = result?.auth_username ? ` @${result.auth_username}` : '';
+    window.DesktopResults?.showTransientMessage?.(`Pinterest${account} 登录态验证通过。`, 'success');
+    return result;
+  }
+
+  async function startPinterestAuth(button) {
+    if (!window.DesktopApi?.saveSystemSettings || !window.DesktopApi?.startPinterestAuth) {
+      throw new Error('Pinterest 浏览器登录 API 未加载');
+    }
+    const card = button?.closest('[data-system-settings-card="pinterest"]');
+    const payload = collectSystemSettingsForm(card);
+    const saved = await window.DesktopApi.saveSystemSettings(payload);
+    if (saved?.ok) lastSystemSettings = saved;
+    const result = await window.DesktopApi.startPinterestAuth();
+    pinterestAuthSessionId = result.session_id || '';
+    if (pinterestAuthSessionId) window.sessionStorage?.setItem('deskPinterestAuthSessionId', pinterestAuthSessionId);
+    pinterestAuthActivity = result;
+    if (lastDiagnostics) renderDiagnostics(lastDiagnostics);
+    window.DesktopResults?.showTransientMessage?.(`已打开 ${result.browser || '浏览器'}，完成 Pinterest 登录后点击“完成登录”。`, 'success');
+    return result;
+  }
+
+  async function completePinterestAuth() {
+    if (!window.DesktopApi?.completePinterestAuth) throw new Error('Pinterest 登录完成 API 未加载');
+    if (!pinterestAuthSessionId) throw new Error('没有等待完成的 Pinterest 登录会话');
+    const result = await window.DesktopApi.completePinterestAuth(pinterestAuthSessionId);
+    pinterestAuthActivity = result;
+    if (result.pending) {
+      if (lastDiagnostics) renderDiagnostics(lastDiagnostics);
+      window.DesktopResults?.showTransientMessage?.(result.message || '尚未检测到登录，请在浏览器完成后重试。', 'warning');
+      return false;
+    }
+    pinterestAuthSessionId = '';
+    window.sessionStorage?.removeItem('deskPinterestAuthSessionId');
+    pinterestAuthActivity = null;
+    await refresh();
+    const account = result?.auth_username ? ` @${result.auth_username}` : '';
+    window.DesktopResults?.showTransientMessage?.(`Pinterest${account} 登录态已保存。`, 'success');
+    return result;
+  }
+
+  async function cancelPinterestAuth() {
+    if (!window.DesktopApi?.cancelPinterestAuth) throw new Error('Pinterest 登录取消 API 未加载');
+    await window.DesktopApi.cancelPinterestAuth(pinterestAuthSessionId);
+    pinterestAuthSessionId = '';
+    window.sessionStorage?.removeItem('deskPinterestAuthSessionId');
+    pinterestAuthActivity = null;
+    if (lastDiagnostics) renderDiagnostics(lastDiagnostics);
+    window.DesktopResults?.showTransientMessage?.('Pinterest 登录窗口已关闭。');
+    return true;
+  }
+
+  async function logoutPinterestAuth() {
+    if (!window.DesktopApi?.logoutPinterestAuth) throw new Error('Pinterest 退出登录 API 未加载');
+    if (window.confirm && !window.confirm('确认删除 Pinterest browser_auth.json 并退出登录？')) return false;
+    await window.DesktopApi.logoutPinterestAuth();
+    pinterestAuthSessionId = '';
+    window.sessionStorage?.removeItem('deskPinterestAuthSessionId');
+    pinterestAuthActivity = null;
+    await refresh();
+    window.DesktopResults?.showTransientMessage?.('Pinterest 登录态已删除。', 'success');
+    return true;
+  }
+
+  async function testComfyConnection() {
+    if (!window.DesktopApi?.testComfyConnection) throw new Error('ComfyUI 连接测试 API 未加载');
+    const card = els.deskSettingsBody?.querySelector('[data-system-settings-card="comfy"]');
+    const payload = collectSystemSettingsForm(card)?.comfy || {};
+    if (!payload.base_url) payload.base_url = setting('comfy.base_url', '');
+    if (!payload.timeout_seconds) payload.timeout_seconds = setting('comfy.timeout_seconds', 120);
+    lastComfyHealth = await window.DesktopApi.testComfyConnection(payload);
+    if (lastDiagnostics) renderDiagnostics(lastDiagnostics);
+    window.DesktopResults?.showTransientMessage?.(`ComfyUI 已连接，延迟 ${Number(lastComfyHealth.latency_ms || 0)}ms。`, 'success');
+    return lastComfyHealth;
+  }
+
+  function readFileAsDataUrl(file) {
+    if (!file) return Promise.resolve('');
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result || ''));
+      reader.onerror = () => reject(new Error('缩略图读取失败'));
+      reader.readAsDataURL(file);
+    });
+  }
+
+  async function saveComfyWorkflowConfig(button) {
+    if (!window.DesktopApi?.saveComfyWorkflowConfig) throw new Error('ComfyUI 工作流配置 API 未加载');
+    const editor = button?.closest('[data-comfy-workflow-editor]');
+    const workflowId = editor?.dataset?.comfyWorkflowEditor || '';
+    if (!workflowId) throw new Error('缺少工作流 ID');
+    const payload = { id: workflowId };
+    editor.querySelectorAll('[data-comfy-workflow-field]').forEach(input => {
+      const field = input.dataset.comfyWorkflowField;
+      if (!field) return;
+      let value = input.type === 'checkbox' ? input.checked : input.value;
+      if (input.type === 'number') value = Number(value);
+      payload[field] = value;
+    });
+    const thumbnail = editor.querySelector('[data-comfy-workflow-thumbnail]')?.files?.[0];
+    if (thumbnail) payload.thumbnail_data = await readFileAsDataUrl(thumbnail);
+    const response = await window.DesktopApi.saveComfyWorkflowConfig(payload);
+    lastComfyWorkflows = response;
+    activeComfyWorkflowId = workflowId;
+    window.dispatchEvent(new CustomEvent('desktop:comfy-workflows-updated', { detail: response }));
+    if (lastDiagnostics) renderDiagnostics(lastDiagnostics);
+    window.DesktopResults?.showTransientMessage?.('ComfyUI 工作流信息已保存。', 'success');
+    return response;
   }
 
   async function clearSystemSecret(button) {
@@ -1970,6 +2321,8 @@
     els.deskSettingsPanel?.classList.add('is-open');
     els.deskSettingsPanel?.setAttribute('aria-hidden', 'false');
     document.body.classList.add('desk-settings-open');
+    tabsExpanded = EXTRA_SETTINGS_TABS.has(activeTab);
+    updateTabs();
     const gallery = document.getElementById('deskGalleryPanel');
     gallery?.classList.remove('is-open');
     gallery?.setAttribute('aria-hidden', 'true');
@@ -1999,6 +2352,11 @@
   }
 
   function updateTabs() {
+    if (EXTRA_SETTINGS_TABS.has(activeTab)) tabsExpanded = true;
+    els.deskSettingsTabs?.classList.toggle('is-expanded', tabsExpanded);
+    els.deskSettingsTabsToggle?.setAttribute('aria-expanded', tabsExpanded ? 'true' : 'false');
+    els.deskSettingsTabsToggle?.setAttribute('aria-label', tabsExpanded ? '收起更多设置分类' : '展开更多设置分类');
+    els.deskSettingsExtraTabs?.setAttribute('aria-hidden', tabsExpanded ? 'false' : 'true');
     els.deskSettingsTabs?.querySelectorAll('[data-settings-tab]').forEach(button => {
       const active = button.dataset.settingsTab === activeTab;
       button.classList.toggle('is-active', active);
@@ -2031,6 +2389,15 @@
         errorMessage: '诊断读取失败'
       });
     });
+    els.deskSettingsTabsToggle?.addEventListener('click', event => {
+      event.preventDefault();
+      event.stopPropagation();
+      const nextExpanded = !tabsExpanded;
+      if (!nextExpanded && EXTRA_SETTINGS_TABS.has(activeTab)) activeTab = 'status';
+      tabsExpanded = nextExpanded;
+      updateTabs();
+      if (lastDiagnostics) renderDiagnostics(lastDiagnostics);
+    });
     els.deskSettingsTabs?.addEventListener('click', event => {
       const button = event.target.closest('[data-settings-tab]');
       if (!button) return;
@@ -2057,6 +2424,33 @@
       }
     });
     els.deskSettingsBody?.addEventListener('click', event => {
+      const comfyWorkflowCard = event.target.closest('[data-comfy-workflow-edit]');
+      if (comfyWorkflowCard) {
+        event.preventDefault();
+        activeComfyWorkflowId = comfyWorkflowCard.dataset.comfyWorkflowEdit || '';
+        if (lastDiagnostics) renderDiagnostics(lastDiagnostics);
+        return;
+      }
+      const comfyTest = event.target.closest('[data-comfy-connection-test]');
+      if (comfyTest) {
+        event.preventDefault();
+        runButtonAction(comfyTest, testComfyConnection, {
+          loadingText: '测试中...',
+          doneText: '已连接',
+          errorMessage: 'ComfyUI 连接失败'
+        });
+        return;
+      }
+      const comfyWorkflowSave = event.target.closest('[data-comfy-workflow-save]');
+      if (comfyWorkflowSave) {
+        event.preventDefault();
+        runButtonAction(comfyWorkflowSave, () => saveComfyWorkflowConfig(comfyWorkflowSave), {
+          loadingText: '保存中...',
+          doneText: '已保存',
+          errorMessage: '工作流信息保存失败'
+        });
+        return;
+      }
       const refreshGenerationModels = event.target.closest('[data-gpt-generation-models-refresh]');
       if (refreshGenerationModels) {
         event.preventDefault();
@@ -2107,6 +2501,56 @@
           loadingText: '保存中...',
           doneText: '已保存',
           errorMessage: 'GPT Provider 配置保存失败'
+        });
+        return;
+      }
+      const pinterestVerify = event.target.closest('[data-pinterest-auth-verify]');
+      if (pinterestVerify) {
+        event.preventDefault();
+        runButtonAction(pinterestVerify, () => verifyPinterestAuth(pinterestVerify), {
+          loadingText: '验证中...',
+          doneText: '验证通过',
+          errorMessage: 'Pinterest 登录态验证失败'
+        });
+        return;
+      }
+      const pinterestStart = event.target.closest('[data-pinterest-auth-start]');
+      if (pinterestStart) {
+        event.preventDefault();
+        runButtonAction(pinterestStart, () => startPinterestAuth(pinterestStart), {
+          loadingText: '打开中...',
+          doneText: '已打开',
+          errorMessage: 'Pinterest 登录窗口打开失败'
+        });
+        return;
+      }
+      const pinterestComplete = event.target.closest('[data-pinterest-auth-complete]');
+      if (pinterestComplete) {
+        event.preventDefault();
+        runButtonAction(pinterestComplete, completePinterestAuth, {
+          loadingText: '读取中...',
+          doneText: '已登录',
+          errorMessage: 'Pinterest 登录完成失败'
+        });
+        return;
+      }
+      const pinterestCancel = event.target.closest('[data-pinterest-auth-cancel]');
+      if (pinterestCancel) {
+        event.preventDefault();
+        runButtonAction(pinterestCancel, cancelPinterestAuth, {
+          loadingText: '关闭中...',
+          doneText: '已取消',
+          errorMessage: 'Pinterest 登录取消失败'
+        });
+        return;
+      }
+      const pinterestLogout = event.target.closest('[data-pinterest-auth-logout]');
+      if (pinterestLogout) {
+        event.preventDefault();
+        runButtonAction(pinterestLogout, logoutPinterestAuth, {
+          loadingText: '退出中...',
+          doneText: '已退出',
+          errorMessage: 'Pinterest 退出登录失败'
         });
         return;
       }

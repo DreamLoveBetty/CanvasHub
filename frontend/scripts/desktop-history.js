@@ -9,6 +9,30 @@
   let gallerySets = [];
   let galleryFiles = [];
   let galleryFileStats = {};
+  let pinterestBoards = [];
+  let pinterestPins = [];
+  let pinterestProfile = {};
+  let pinterestActiveBoardId = '';
+  let pinterestLibraryMeta = {};
+  let pinterestLoading = false;
+  let pinterestError = '';
+  let pinterestRequestId = 0;
+  let pinterestSyncStatus = {};
+  let pinterestSyncChecking = false;
+  let pinterestSyncRequestId = 0;
+  let pinterestSyncPromise = null;
+  let pinterestSyncTipBoardId = '';
+  let pinterestBoardDownloadRun = null;
+  let pinterestBoardDownloadTimer = null;
+  let pinterestBoardDownloadHideTimer = null;
+  const pinterestPinDownloads = new Set();
+  const pinterestAnalyzingPins = new Set();
+  let pinterestAnalysisAsset = null;
+  let pinterestAnalysisPrompt = '';
+  let pinterestAnalysisReturnFocus = null;
+  const PINTEREST_LIBRARY_LIMIT = 5000;
+  const PINTEREST_TERMINAL_HIDE_MS = 1100;
+  const PINTEREST_SYNC_TIP_STORAGE_PREFIX = 'desk_pinterest_sync_tip_seen_v1:';
   let promptSources = [];
   let promptSourceItems = [];
   let promptSourceFilter = 'all';
@@ -24,12 +48,20 @@
   let galleryAssetTotal = 0;
   let galleryAssetStats = {};
   let galleryAssetsFromIndex = false;
+  let galleryServerOffset = 0;
+  let galleryAssetsFullLoading = false;
+  let galleryLoadMorePromise = null;
+  let galleryAssetsGeneration = 0;
   let comparePair = [];
+  let comparePositionRaf = 0;
+  let comparePositionValue = 50;
+  let compareDragPointerId = null;
+  let compareDragRect = null;
   let previewCompareQueue = [];
   let galleryRenderLimit = 28;
   let gallerySearchTimer = null;
   let historyGenieTimer = null;
-  let historyGenieRaf = 0;
+  let historyGenieHandle = null;
   let historyGenieRunId = 0;
   const HISTORY_GENIE_DURATION_MS = 500;
   let previewAsset = null;
@@ -43,9 +75,14 @@
   const remoteImageChoice = new Map();
   const selectedGalleryIds = new Set();
   const GALLERY_ASSET_LOAD_LIMIT = 5000;
+  const GALLERY_PAGE_SIZE = 200;
+  const GALLERY_LOAD_MORE_THRESHOLD_PX = 900;
   const GALLERY_INITIAL_RENDER_LIMIT = 28;
   const PROMPT_SOURCE_INITIAL_RENDER_LIMIT = 28;
   const GALLERY_VIRTUAL_OVERSCAN_ROWS = 3;
+  let galleryVirtualDataRevision = 0;
+  let galleryVisibleAssetsCache = { revision: -1, items: [] };
+  let promptSourceVisibleItemsCache = { revision: -1, items: [] };
   const PROMPT_SOURCE_TAXONOMY_GROUPS = [
     ['style', '风格'],
     ['subject', '主体'],
@@ -482,6 +519,63 @@
     });
   }
 
+  function normalizePinterestPin(item) {
+    const remoteImageUrl = item?.remote_image_url || item?.remoteImageUrl || item?.image_url || item?.imageUrl || '';
+    const localImageUrl = item?.local_image_url || item?.localImageUrl || '';
+    const localThumbUrl = item?.local_thumb_url || item?.localThumbUrl || '';
+    const analysisPrompt = String(item?.analysis_prompt || item?.analysisPrompt || '').trim();
+    const analyzed = Boolean(item?.analyzed || analysisPrompt);
+    return normalizeGalleryAsset({
+      ...item,
+      id: item?.id || item?.pin_id || '',
+      asset_id: item?.id || item?.pin_id || '',
+      taskId: item?.pin_id || item?.id || '',
+      pinId: item?.pin_id || item?.pinId || '',
+      title: item?.title || 'Pinterest Pin',
+      prompt: analysisPrompt || item?.prompt || item?.description || '',
+      analysisPrompt,
+      analysis_prompt: analysisPrompt,
+      analyzed,
+      analyzedAt: item?.analyzed_at || item?.analyzedAt || '',
+      analysisPromptRelativePath: item?.analysis_prompt_relative_path || item?.analysisPromptRelativePath || '',
+      imageUrl: localImageUrl || remoteImageUrl,
+      imagePath: localImageUrl || remoteImageUrl,
+      thumbUrl: localThumbUrl || localImageUrl || item?.thumb_url || item?.thumbUrl || remoteImageUrl,
+      remoteImageUrl,
+      remoteThumbUrl: item?.thumb_url || item?.thumbUrl || remoteImageUrl,
+      localCached: Boolean(item?.local_cached ?? item?.localCached),
+      localImageUrl,
+      localThumbUrl,
+      localRelativePath: item?.local_relative_path || item?.localRelativePath || '',
+      localDownloadedAt: item?.local_downloaded_at || item?.localDownloadedAt || '',
+      localFileSize: Number(item?.local_file_size || item?.localFileSize || 0),
+      provider: 'pinterest',
+      providerLabel: 'Pinterest',
+      sourceKind: 'pinterest',
+      sourceUrl: item?.source_url || item?.sourceUrl || '',
+      createdAt: item?.created_at || item?.createdAt || 0,
+      boardId: item?.board_id || item?.boardId || '',
+      boardName: item?.board_name || item?.boardName || '',
+      boardUrl: item?.board_url || item?.boardUrl || '',
+      externalUrl: item?.external_url || item?.externalUrl || '',
+      favorite: false,
+      hidden: false,
+      hasTaskRecord: false,
+      tags: parseTags(item?.tags),
+      params: {
+        ...(item?.params || {}),
+        source_kind: 'pinterest',
+        source_url: item?.source_url || item?.sourceUrl || '',
+        board_id: item?.board_id || item?.boardId || '',
+        board_name: item?.board_name || item?.boardName || ''
+      }
+    });
+  }
+
+  function isRemoteLibraryAsset(asset) {
+    return ['remote_source', 'pinterest'].includes(String(asset?.sourceKind || ''));
+  }
+
   function assetSnapshotForSet(asset) {
     if (!asset?.id) return null;
     return {
@@ -687,6 +781,15 @@
       'deskGalleryDeleteBtn',
       'deskGalleryUndoDeleteBtn',
       'deskGalleryClearBtn',
+      'deskPinterestAnalysisModal',
+      'deskPinterestAnalysisImg',
+      'deskPinterestAnalysisTitle',
+      'deskPinterestAnalysisMeta',
+      'deskPinterestAnalysisPrompt',
+      'deskPinterestAnalysisTarget',
+      'deskPinterestAnalysisCopyBtn',
+      'deskPinterestAnalysisSendBtn',
+      'deskPinterestAnalysisCloseBtn',
       'deskGalleryPreviewModal',
       'deskGalleryPreviewStage',
       'deskGalleryPreviewImg',
@@ -736,6 +839,7 @@
       'deskFilePreviewDeleteBtn',
       'deskFilePreviewCloseBtn',
       'deskCompareModal',
+      'deskCompareStage',
       'deskCompareBaseImg',
       'deskCompareTopImg',
       'deskCompareOverlay',
@@ -822,9 +926,9 @@
   }
 
   function stopHistoryGenieAnimation() {
-    if (historyGenieRaf) {
-      window.cancelAnimationFrame(historyGenieRaf);
-      historyGenieRaf = 0;
+    if (historyGenieHandle) {
+      historyGenieHandle.cancel();
+      historyGenieHandle = null;
     }
     const canvas = els.deskHistoryGenieCanvas;
     if (!canvas?.getContext) return;
@@ -918,10 +1022,97 @@
     return canvas;
   }
 
+  // SVG-as-Image 光栅化时浏览器禁止一切外部加载（缩略图全空白），且主题 CSS 变量
+  // 在裸克隆里无法解析（背景全白）——这就是旧版"白板神灯"的成因。
+  // 新管线：把每个元素的计算样式烘焙成内联样式（变量/主题全部已解析），
+  // 缩略图直接从已加载的 <img> 像素转 dataURL 内联，零网络依赖。
+  const GENIE_BAKE_PROPS = [
+    'display', 'visibility', 'box-sizing',
+    'width', 'height', 'min-width', 'min-height', 'max-width', 'max-height',
+    'margin', 'padding', 'border', 'border-radius', 'outline',
+    'background-color', 'background-position', 'background-size', 'background-repeat',
+    'color', 'font-family', 'font-size', 'font-weight', 'font-style',
+    'line-height', 'letter-spacing', 'text-align', 'text-overflow', 'text-transform',
+    'white-space', 'word-break', 'overflow', 'overflow-x', 'overflow-y',
+    'flex-direction', 'flex-wrap', 'flex-grow', 'flex-shrink', 'flex-basis',
+    'align-items', 'align-self', 'justify-content', 'gap',
+    'grid-template-columns', 'grid-auto-rows', 'grid-auto-flow',
+    'position', 'top', 'right', 'bottom', 'left', 'z-index',
+    'opacity', 'box-shadow', 'object-fit', 'object-position',
+    'transform', 'transform-origin'
+  ];
+
+  function genieBakeElementStyles(source, target) {
+    const computed = getComputedStyle(source);
+    let cssText = '';
+    for (const prop of GENIE_BAKE_PROPS) {
+      const value = computed.getPropertyValue(prop);
+      if (value) cssText += `${prop}:${value};`;
+    }
+    // 渐变类 background-image 可烘焙；url() 引用（含 mask 图标）在 SVG 图像里无法加载，
+    // 直接跳过并同时放弃底色，避免图标变成实心色块
+    const backgroundImage = computed.getPropertyValue('background-image');
+    const maskImage = computed.getPropertyValue('mask-image') || computed.getPropertyValue('-webkit-mask-image');
+    if (maskImage && maskImage.includes('url(')) {
+      cssText += 'background:transparent;';
+    } else if (backgroundImage && backgroundImage !== 'none' && !backgroundImage.includes('url(')) {
+      cssText += `background-image:${backgroundImage};`;
+    }
+    cssText += 'backdrop-filter:none;-webkit-backdrop-filter:none;transition:none;animation:none;';
+    target.style.cssText = cssText;
+  }
+
+  function genieInlineImages(sourceRoot, cloneRoot) {
+    const sourceImgs = sourceRoot.querySelectorAll('img');
+    const cloneImgs = cloneRoot.querySelectorAll('img');
+    const count = Math.min(sourceImgs.length, cloneImgs.length);
+    for (let i = 0; i < count; i++) {
+      const source = sourceImgs[i];
+      const clone = cloneImgs[i];
+      try {
+        if (source.complete && source.naturalWidth > 0) {
+          const rect = source.getBoundingClientRect();
+          const width = Math.max(1, Math.round(rect.width || source.naturalWidth));
+          const height = Math.max(1, Math.round(rect.height || source.naturalHeight));
+          const scale = Math.min(2, window.devicePixelRatio || 1);
+          const canvas = document.createElement('canvas');
+          canvas.width = width * scale;
+          canvas.height = height * scale;
+          canvas.getContext('2d').drawImage(source, 0, 0, canvas.width, canvas.height);
+          clone.src = canvas.toDataURL('image/webp', 0.82);
+        } else {
+          clone.removeAttribute('src');
+          clone.style.background = 'rgba(148,163,184,0.18)';
+        }
+      } catch (error) {
+        clone.removeAttribute('src');
+      }
+    }
+  }
+
   async function snapshotHistoryPanel(panel, rect) {
     const fallback = () => drawHistoryPanelFallback(rect);
     try {
       const clone = panel.cloneNode(true);
+      // 并行遍历原树/克隆树烘焙计算样式（querySelectorAll 返回静态列表，索引一一对应）
+      const sourceEls = panel.querySelectorAll('*');
+      const cloneEls = clone.querySelectorAll('*');
+      genieBakeElementStyles(panel, clone);
+      const total = Math.min(sourceEls.length, cloneEls.length);
+      const scrollPairs = [];
+      for (let i = 0; i < total; i++) {
+        genieBakeElementStyles(sourceEls[i], cloneEls[i]);
+        if (sourceEls[i].scrollTop > 0) scrollPairs.push([cloneEls[i], sourceEls[i].scrollTop]);
+      }
+      genieInlineImages(panel, clone);
+      // 还原滚动位置：把滚动容器的内容整体上移
+      scrollPairs.forEach(([container, scrollTop]) => {
+        const inner = document.createElement('div');
+        inner.style.transform = `translateY(-${scrollTop}px)`;
+        while (container.firstChild) inner.appendChild(container.firstChild);
+        container.appendChild(inner);
+        container.style.overflow = 'hidden';
+      });
       clone.classList.remove('is-collapsed', 'is-genie-closing', 'is-genie-materializing');
       clone.style.position = 'relative';
       clone.style.top = '0';
@@ -936,25 +1127,10 @@
       clone.style.animation = 'none';
       clone.style.pointerEvents = 'none';
       clone.querySelector('#deskHistoryExpandBtn')?.remove();
-      const cssText = Array.from(document.styleSheets)
-        .map(sheet => {
-          try {
-            return Array.from(sheet.cssRules || []).map(rule => rule.cssText).join('\n');
-          } catch (e) {
-            return '';
-          }
-        })
-        .join('\n');
-      const markup = `
-        <svg xmlns="http://www.w3.org/2000/svg" width="${Math.round(rect.width)}" height="${Math.round(rect.height)}">
-          <foreignObject width="100%" height="100%">
-            <div xmlns="http://www.w3.org/1999/xhtml">
-              <style>${cssText}</style>
-              ${clone.outerHTML}
-            </div>
-          </foreignObject>
-        </svg>
-      `;
+      // 必须用 XMLSerializer：outerHTML 按 HTML 规则序列化（<img> 等空元素不自闭合），
+      // 在严格 XML 解析的 SVG blob 里必然报错——旧版神灯从未成功渲染过、一直走白板兜底的根因
+      const xhtml = new XMLSerializer().serializeToString(clone);
+      const markup = `<svg xmlns="http://www.w3.org/2000/svg" width="${Math.round(rect.width)}" height="${Math.round(rect.height)}"><foreignObject width="100%" height="100%">${xhtml}</foreignObject></svg>`;
       const blob = new Blob([markup], { type: 'image/svg+xml;charset=utf-8' });
       const url = URL.createObjectURL(blob);
       try {
@@ -1028,38 +1204,58 @@
     }
   }
 
-  function runHistoryGenieAnimation({ runId, direction, source, targetRect, panelRect, onStart, onDone }) {
-    if (runId !== historyGenieRunId) return;
+  // 通用神灯运行器：最近记录面板与提示词抽屉共用（经 window.DeskGenieFX 暴露）
+  function runGenieAnimationCore({ direction, source, targetRect, panelRect, duration = HISTORY_GENIE_DURATION_MS, isCancelled = () => false, onStart, onDone }) {
     const setup = setupHistoryGenieCanvas();
     if (!setup) {
       onStart?.();
       onDone?.();
-      return;
+      return { cancel() {} };
     }
     const { canvas, ctx, width, height } = setup;
+    let raf = 0;
     let startedAt = 0;
+    const stop = () => {
+      if (raf) {
+        window.cancelAnimationFrame(raf);
+        raf = 0;
+      }
+      ctx.clearRect(0, 0, width, height);
+      canvas.classList.remove('is-active');
+    };
     canvas.classList.add('is-active');
     onStart?.();
     const tick = timestamp => {
-      if (runId !== historyGenieRunId) {
-        ctx.clearRect(0, 0, width, height);
-        canvas.classList.remove('is-active');
-        historyGenieRaf = 0;
+      raf = 0;
+      if (isCancelled()) {
+        stop();
         return;
       }
       if (!startedAt) startedAt = timestamp;
-      const progress = clamp((timestamp - startedAt) / HISTORY_GENIE_DURATION_MS, 0, 1);
+      const progress = clamp((timestamp - startedAt) / duration, 0, 1);
       renderHistoryGenieFrame(ctx, source, width, height, progress, direction, targetRect, panelRect);
       if (progress < 1) {
-        historyGenieRaf = window.requestAnimationFrame(tick);
+        raf = window.requestAnimationFrame(tick);
         return;
       }
-      historyGenieRaf = 0;
-      canvas.classList.remove('is-active');
-      ctx.clearRect(0, 0, width, height);
+      stop();
       onDone?.();
     };
-    historyGenieRaf = window.requestAnimationFrame(tick);
+    raf = window.requestAnimationFrame(tick);
+    return { cancel: stop };
+  }
+
+  function runHistoryGenieAnimation({ runId, direction, source, targetRect, panelRect, onStart, onDone }) {
+    if (runId !== historyGenieRunId) return;
+    historyGenieHandle = runGenieAnimationCore({
+      direction,
+      source,
+      targetRect,
+      panelRect,
+      isCancelled: () => runId !== historyGenieRunId,
+      onStart,
+      onDone
+    });
   }
 
   async function animateHistoryGenieClose(panel, runId) {
@@ -1295,6 +1491,7 @@
 
   function providerGroup(itemOrType) {
     const type = String(typeof itemOrType === 'string' ? itemOrType : itemOrType?.type || '').toLowerCase();
+    if (type.includes('pinterest') || itemOrType?.provider === 'pinterest') return 'pinterest';
     if (type.startsWith('gpt')) return 'gpt';
     if (type === 'comfy') return 'comfy';
     if (type.includes('layout')) return 'layout';
@@ -1306,7 +1503,8 @@
       gpt: 'GPT',
       google: 'Google',
       comfy: 'Comfy',
-      layout: '排版'
+      layout: '排版',
+      pinterest: 'Pinterest'
     }[providerGroup(itemOrType)] || '图片';
   }
 
@@ -1634,11 +1832,19 @@
     renderCounters(items);
   }
 
+  function invalidateGalleryVirtualData() {
+    galleryVirtualDataRevision += 1;
+    galleryVisibleAssetsCache = { revision: -1, items: [] };
+    promptSourceVisibleItemsCache = { revision: -1, items: [] };
+  }
+
   function getVisibleAssets() {
+    if (galleryVisibleAssetsCache.revision === galleryVirtualDataRevision) {
+      return galleryVisibleAssetsCache.items;
+    }
     const query = galleryQuery.trim().toLowerCase();
     const tagQuery = galleryTag.trim().replace(/^#/, '').toLowerCase();
-    return galleryAssets.filter(asset => {
-      const tags = parseTags(asset.tags);
+    const items = galleryAssets.filter(asset => {
       if (asset.hidden && galleryFilter !== 'hidden') return false;
       if (galleryFilter === 'today' && !isToday(asset.createdAt)) return false;
       if (galleryFilter === 'selected' && !selectedGalleryIds.has(asset.id)) return false;
@@ -1651,11 +1857,13 @@
       if (['landscape', 'portrait', 'square'].includes(galleryFilter) && asset.orientation !== galleryFilter) return false;
       if (['1k', '2k', '4k'].includes(galleryFilter) && String(asset.resolution || '').toLowerCase() !== galleryFilter) return false;
       if (['png', 'jpg', 'webp'].includes(galleryFilter) && String(asset.format || '').toLowerCase() !== galleryFilter) return false;
-      if (tagQuery && !tags.some(tag => tag.toLowerCase().includes(tagQuery))) return false;
+      if (tagQuery && !parseTags(asset.tags).some(tag => tag.toLowerCase().includes(tagQuery))) return false;
       if (!query) return true;
       const haystack = assetMetaSearchText(asset).toLowerCase();
       return haystack.includes(query);
     });
+    galleryVisibleAssetsCache = { revision: galleryVirtualDataRevision, items };
+    return items;
   }
 
   function getVisibleEditableFiles() {
@@ -1713,15 +1921,18 @@
   }
 
   function getVisiblePromptSourceItems() {
+    if (promptSourceVisibleItemsCache.revision === galleryVirtualDataRevision) {
+      return promptSourceVisibleItemsCache.items;
+    }
     const query = galleryQuery.trim().toLowerCase();
     const tagQuery = galleryTag.trim().replace(/^#/, '').toLowerCase();
-    return promptSourceItems.filter(asset => {
-      const tags = parseTags(asset.tags);
+    const items = promptSourceItems.filter(asset => {
       const taxonomy = normalizeTaxonomy(asset.taxonomy || asset.promptTaxonomy);
       if (promptSourceFilter !== 'all' && asset.params?.prompt_source !== promptSourceFilter && asset.sourceSlug !== promptSourceFilter) return false;
       if (promptSourceTaxonomyFilters.style && !taxonomy.style.includes(promptSourceTaxonomyFilters.style)) return false;
       if (promptSourceTaxonomyFilters.subject && !taxonomy.subject.includes(promptSourceTaxonomyFilters.subject)) return false;
       if (promptSourceTaxonomyFilters.type && !taxonomy.type.includes(promptSourceTaxonomyFilters.type)) return false;
+      const tags = (tagQuery || query) ? parseTags(asset.tags) : [];
       if (tagQuery && !tags.some(tag => tag.toLowerCase().includes(tagQuery))) return false;
       if (!query) return true;
       const haystack = [
@@ -1734,6 +1945,25 @@
       ].filter(Boolean).join(' ').toLowerCase();
       return haystack.includes(query);
     });
+    promptSourceVisibleItemsCache = { revision: galleryVirtualDataRevision, items };
+    return items;
+  }
+
+  function getVisiblePinterestPins() {
+    const query = galleryQuery.trim().toLowerCase();
+    return pinterestPins.filter(asset => {
+      if (pinterestActiveBoardId && asset.boardId !== pinterestActiveBoardId) return false;
+      if (!query) return true;
+      const haystack = [
+        asset.title,
+        asset.prompt,
+        asset.boardName,
+        asset.sourceUrl,
+        asset.externalUrl,
+        ...parseTags(asset.tags)
+      ].filter(Boolean).join(' ').toLowerCase();
+      return haystack.includes(query);
+    });
   }
 
   function getSelectedAssets() {
@@ -1742,6 +1972,9 @@
       if (asset?.id) byId.set(asset.id, asset);
     });
     promptSourceItems.forEach(asset => {
+      if (asset?.id) byId.set(asset.id, asset);
+    });
+    pinterestPins.forEach(asset => {
       if (asset?.id) byId.set(asset.id, asset);
     });
     (activeGallerySet?.assets || []).forEach(asset => {
@@ -1838,6 +2071,11 @@
       if (previewAsset && visible.some(asset => asset.id === previewAsset.id)) return visible.map(withSelectedRemoteImage);
       return promptSourceItems.map(withSelectedRemoteImage);
     }
+    if (galleryView === 'pinterest') {
+      const visible = getVisiblePinterestPins();
+      if (previewAsset && visible.some(asset => asset.id === previewAsset.id)) return visible;
+      return pinterestPins;
+    }
     if (galleryView === 'setDetail' && activeGallerySet?.assets?.length) {
       return activeSetAssets(activeGallerySet);
     }
@@ -1914,6 +2152,7 @@
     if (!id) return null;
     const asset = galleryAssets.find(asset => asset.id === id)
       || promptSourceItems.find(asset => asset.id === id)
+      || pinterestPins.find(asset => asset.id === id)
       || (activeGallerySet?.assets || []).find(asset => asset.id === id)
       || gallerySets.flatMap(assetSet => assetSet.assets || []).find(asset => asset.id === id)
       || null;
@@ -2027,8 +2266,8 @@
     const model = params.main_model || asset?.mainModel || params.model || params.modelAlias || asset?.item?.model || asset?.providerLabel || providerLabel(asset);
     const ratio = params.ratio || params.aspect_ratio || params.aspectRatio || asset?.aspectRatio || '';
     const resolution = galleryAssetResolutionLabel(asset, params);
-    const source = asset?.sourceKind === 'remote_source'
-      ? (asset?.sourceName || asset?.providerLabel || '远程源')
+    const source = isRemoteLibraryAsset(asset)
+      ? (asset?.boardName || asset?.sourceName || asset?.providerLabel || '远程源')
       : (asset?.missingArchive ? '记录缺图' : (asset?.hasTaskRecord ? '有任务记录' : '仅归档文件'));
     const pixels = asset?.megapixels ? `${Number(asset.megapixels).toFixed(2).replace(/\.?0+$/, '')} MP` : '';
     const rows = [
@@ -2083,7 +2322,7 @@
   function renderPreviewActions(asset = previewAsset) {
     const hasAsset = !!asset;
     const hasImage = !!(asset?.imageUrl || asset?.imagePath);
-    const isRemote = asset?.sourceKind === 'remote_source';
+    const isRemote = isRemoteLibraryAsset(asset);
     const hasFile = !!asset?.file && !isRemote;
     const hasConfig = !!(asset?.prompt || (asset?.params && Object.keys(asset.params || {}).length));
     if (els.deskGalleryPreviewFavoriteBtn) {
@@ -2240,8 +2479,20 @@
     applyPreviewZoom();
   }
 
+  function hydratePreviewAsset(asset) {
+    // 瘦身卡片进预览时异步补全详情（revised prompt/params 全表/血缘），到货后原位重渲染
+    if (!asset || asset.fieldsMode !== 'card') return;
+    const assetId = asset.id || asset.asset_id;
+    ensureAssetDetail(asset).then(() => {
+      if (previewAsset && (previewAsset.id || previewAsset.asset_id) === assetId) {
+        setPreviewAsset(asset, false);
+      }
+    });
+  }
+
   function openPreview(asset) {
     if (!asset) return;
+    hydratePreviewAsset(asset);
     setPreviewAsset(asset, true);
     els.deskGalleryPreviewModal?.classList.add('is-open');
     els.deskGalleryPreviewModal?.setAttribute('aria-hidden', 'false');
@@ -2296,12 +2547,32 @@
     window.open(mediaUrl(url), '_blank', 'noopener');
   }
 
-  function navigatePreview(direction) {
-    const assets = getPreviewAssets();
-    if (!previewAsset || assets.length <= 1) return;
-    const index = getPreviewIndex();
-    const currentIndex = index >= 0 ? index : 0;
+  async function navigatePreview(direction) {
+    let assets = getPreviewAssets();
+    if (!previewAsset || !assets.length) return;
+    let currentIndex = getPreviewIndex();
+    if (currentIndex < 0) return;
+    const pagedView = galleryView === 'images' && galleryAssetsFromIndex;
+    // 服务端还有未加载页时，第一张不是完整集合的首尾回绕点。
+    if (direction < 0 && currentIndex <= 0 && pagedView && hasMoreGalleryAssets()) return;
+    if (direction > 0 && pagedView && hasMoreGalleryAssets() && currentIndex >= assets.length - 5) {
+      if (currentIndex >= assets.length - 1) {
+        // 已到窗口边界：先补一页再落点，避免误回绕到第一张
+        const previousLength = assets.length;
+        await loadMoreGalleryAssets();
+        assets = getPreviewAssets();
+        currentIndex = getPreviewIndex();
+        if (currentIndex < 0) return;
+        // 请求失败、被 full load 换代或本页全被去重时，保留当前预览；
+        // 下一次导航可继续请求，不能提前按已加载窗口回绕。
+        if (assets.length <= previousLength && hasMoreGalleryAssets()) return;
+      } else {
+        loadMoreGalleryAssets();
+      }
+    }
+    if (assets.length <= 1) return;
     const nextIndex = (currentIndex + direction + assets.length) % assets.length;
+    hydratePreviewAsset(assets[nextIndex]);
     setPreviewAsset(assets[nextIndex], true);
   }
 
@@ -2351,25 +2622,36 @@
     const focused = previewAsset?.id === asset.id;
     const refCount = getLineageReferences(asset).length;
     const derivedCount = Number(asset.derivedCount || 0);
-    const isRemote = asset.sourceKind === 'remote_source';
+    const isRemote = isRemoteLibraryAsset(asset);
+    const isPinterest = asset.sourceKind === 'pinterest';
     const remoteImages = getRemoteImageUrls(asset);
     const activeImageIndex = getRemoteImageIndex(asset);
     const hasSwitcher = remoteImages.length > 1;
     const hasIndexBadge = !hasSwitcher && asset.total > 1;
     const params = activeAsset?.params && typeof activeAsset.params === 'object' ? activeAsset.params : {};
+    const pinterestPinId = asset.pinId || asset.taskId || String(asset.id || '').replace(/^pinterest_/, '');
+    const pinterestDownloading = isPinterest && pinterestPinDownloads.has(pinterestPinId);
+    const pinterestAnalyzing = isPinterest && pinterestAnalyzingPins.has(pinterestPinId);
+    const pinterestAnalyzed = isPinterest && Boolean(asset.analyzed && String(asset.analysisPrompt || '').trim());
+    const pinterestAnalyzeLabel = pinterestAnalyzing ? '分析中' : (pinterestAnalyzed ? '已分析' : '分析');
+    const pinterestAnalyzeTitle = pinterestAnalyzing
+      ? '正在生成主提示词'
+      : (pinterestAnalyzed ? '已生成主提示词，点击可重新分析' : '分析图片并生成主提示词');
     const imageHtml = activeAsset.imageUrl
       ? `<img src="${escapeHtml(mediaUrl(activeAsset.thumbUrl || activeAsset.imageUrl))}" data-fallback="${escapeHtml(mediaUrl(activeAsset.imageUrl))}" alt="" draggable="false" loading="lazy" decoding="async" fetchpriority="${index < 8 ? 'high' : 'low'}">`
       : '<div class="desk-gallery-card__missing">记录缺图</div>';
-    const sourceBadge = isRemote ? (asset.stale ? '远程已删' : '远程源') : (asset.missingArchive ? '记录缺图' : (asset.hasTaskRecord ? '有记录' : '仅归档'));
-    const modelLabel = galleryAssetModelLabel(activeAsset, params);
+    const sourceBadge = isPinterest
+      ? (asset.boardName || 'Pinterest')
+      : (isRemote ? (asset.stale ? '远程已删' : '远程源') : (asset.missingArchive ? '记录缺图' : (asset.hasTaskRecord ? '有记录' : '仅归档')));
+    const modelLabel = isPinterest ? (asset.boardName || 'Pinterest') : galleryAssetModelLabel(activeAsset, params);
     const ratioLabel = galleryAssetRatioLabel(activeAsset, params);
     const resolutionLabel = galleryAssetResolutionLabel(activeAsset, params);
-    const summaryLine = `比例 ${ratioLabel} · 分辨率 ${resolutionLabel}`;
-    const detailLine = [
-      modelLabel,
-      sourceBadge,
-      asset.format
-    ].filter(Boolean).join(' · ');
+    const summaryLine = isPinterest
+      ? (asset.title || 'Pinterest Pin')
+      : `比例 ${ratioLabel} · 分辨率 ${resolutionLabel}`;
+    const detailLine = isPinterest
+      ? [sourceBadge, asset.localCached ? '已下载' : '远程', asset.dimensions || '', asset.format].filter(Boolean).join(' · ')
+      : [modelLabel, sourceBadge, asset.format].filter(Boolean).join(' · ');
     return `
       <article class="desk-gallery-card${selected ? ' is-selected' : ''}${focused ? ' is-focus-active' : ''}${asset.favorite ? ' is-favorite' : ''}${isRemote ? ' is-remote-source' : ''}${hasSwitcher ? ' has-gallery-switcher' : ''}${hasIndexBadge ? ' has-gallery-count' : ''}${asset.hidden ? ' is-hidden-asset' : ''}${asset.missingArchive ? ' is-missing-archive' : ''}${asset.stale ? ' is-stale-remote' : ''}" data-asset-id="${escapeHtml(asset.id)}" draggable="${asset.imageUrl ? 'true' : 'false'}" tabindex="-1">
         <div class="desk-gallery-card__image">
@@ -2391,7 +2673,7 @@
             <span class="desk-gallery-card__description">${escapeHtml(summaryLine)}</span>
             <em>${escapeHtml(detailLine)}</em>
           </div>
-          <div class="desk-gallery-card__meta-actions" aria-label="图片操作">
+          <div class="desk-gallery-card__meta-actions${isPinterest ? ' is-pinterest' : ''}" aria-label="图片操作">
             ${refCount || derivedCount ? `
               <div class="desk-gallery-card__lineage" aria-label="图片溯源">
                 ${refCount ? `<em>源 ${refCount}</em>` : ''}
@@ -2403,9 +2685,21 @@
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5 14.7 9l6 .9-4.3 4.2 1 5.9-5.4-2.8L6.6 20l1-5.9L3.3 9.9l6-.9L12 3.5Z"></path></svg>
               </button>
             `}
+            ${isPinterest ? `
+              <button type="button" class="desk-gallery-card__download${asset.localCached ? ' is-cached' : ''}" data-pinterest-download-pin="${escapeHtml(pinterestPinId)}" ${asset.localCached || pinterestDownloading ? 'disabled' : ''} title="${asset.localCached ? '已下载到本地' : (pinterestDownloading ? '正在下载' : '下载到本地')}" aria-label="${asset.localCached ? '已下载到本地' : (pinterestDownloading ? '正在下载' : '下载到本地')}">
+                ${asset.localCached
+                  ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4 10-10"></path></svg>'
+                  : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 19h14"></path></svg>'}
+              </button>
+            ` : ''}
             <button type="button" class="desk-gallery-card__select" data-gallery-select="${escapeHtml(asset.id)}" aria-pressed="${selected ? 'true' : 'false'}" title="${selected ? '取消选择' : '选择图片'}" aria-label="${selected ? '取消选择' : '选择'}">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4 10-10"></path></svg>
             </button>
+            ${isPinterest ? `
+              <button type="button" class="desk-gallery-card__analyze${pinterestAnalyzing ? ' is-analyzing' : ''}${pinterestAnalyzed ? ' is-analyzed' : ''}" data-pinterest-analyze-asset="${escapeHtml(asset.id)}" data-pinterest-analyze-pin="${escapeHtml(pinterestPinId)}" ${pinterestAnalyzing || !asset.imageUrl ? 'disabled' : ''} aria-busy="${pinterestAnalyzing ? 'true' : 'false'}" title="${escapeHtml(pinterestAnalyzeTitle)}" aria-label="${escapeHtml(pinterestAnalyzeTitle)}">
+                <span>${pinterestAnalyzeLabel}</span>
+              </button>
+            ` : ''}
           </div>
         </div>
       </article>
@@ -2429,6 +2723,52 @@
       return;
     }
     els.deskGalleryStats.hidden = false;
+    if (galleryView === 'pinterest') {
+      const authStatus = pinterestSyncStatus.auth_status || pinterestLibraryMeta.auth_status;
+      const authLabel = authStatus === 'authenticated'
+        ? '已登录'
+        : ((pinterestSyncStatus.auth_configured || pinterestLibraryMeta.auth_configured) ? '待验证' : '公开资料');
+      const localCount = pinterestPins.length;
+      const remoteChecked = Boolean(pinterestSyncStatus.checked_at);
+      const remoteCount = Number(
+        pinterestSyncStatus.remote_discovered_count
+        ?? pinterestSyncStatus.remote_reported_count
+        ?? 0
+      );
+      const remoteReportedCount = Number(pinterestSyncStatus.remote_reported_count || remoteCount);
+      const platformCountGap = Math.max(0, remoteReportedCount - remoteCount);
+      const pendingCount = pinterestActionableUpdateCount(pinterestSyncStatus);
+      const unavailableCount = pinterestStatusCount(pinterestSyncStatus, [
+        'unavailable_count',
+        'unavailable_unsynced_count',
+        'unavailable'
+      ]);
+      const unresolvedCount = pinterestStatusCount(pinterestSyncStatus, [
+        'unresolved_count',
+        'unresolved_unsynced_count',
+        'unresolved'
+      ]);
+      const remoteError = String(pinterestLibraryMeta.remote_error || '');
+      els.deskGalleryStats.innerHTML = [
+        `图板 ${Number(pinterestBoards.length || 0).toLocaleString('zh-CN')}`,
+        `当前 ${Number(getVisiblePinterestPins().length || 0).toLocaleString('zh-CN')}`,
+        `本地 ${Number(localCount).toLocaleString('zh-CN')}`,
+        pinterestSyncChecking
+          ? '远程 检查中'
+          : (
+              remoteError
+                ? '远程检查失败'
+                : (remoteChecked ? `远程 ${remoteCount.toLocaleString('zh-CN')}` : '远程 未检查')
+            ),
+        pendingCount ? `待同步 ${pendingCount.toLocaleString('zh-CN')}` : null,
+        unavailableCount ? `不可同步 ${unavailableCount.toLocaleString('zh-CN')}` : null,
+        unresolvedCount ? `待解析 ${unresolvedCount.toLocaleString('zh-CN')}` : null,
+        platformCountGap ? `平台统计差 ${platformCountGap.toLocaleString('zh-CN')}` : null,
+        authLabel,
+        '本地缓存'
+      ].filter(Boolean).map(item => `<span>${escapeHtml(item)}</span>`).join('');
+      return;
+    }
     if (galleryView === 'files') {
       const stats = galleryFileStats || {};
       const value = key => Number(stats[key] || 0).toLocaleString('zh-CN');
@@ -2456,17 +2796,65 @@
   function renderGalleryImages() {
     const grid = els.deskGalleryGrid;
     if (!grid) return;
-    renderGalleryStats();
     const assets = getVisibleAssets();
-    if (!assets.length) {
-      grid.innerHTML = '<div class="desk-gallery-empty">没有匹配的图片资产</div>';
-      return;
-    }
-    renderVirtualGalleryCards(grid, assets);
+    const result = renderVirtualGalleryCards(grid, assets, {
+      revision: galleryVirtualDataRevision,
+      viewKey: 'images',
+    });
     bindGalleryCardEvents();
+    maybeLoadMoreGalleryAssets(grid, result?.range);
+  }
+
+  function cancelGalleryVirtualFrame(container) {
+    if (!container?.__galleryVirtualFrame) return;
+    window.cancelAnimationFrame(container.__galleryVirtualFrame);
+    container.__galleryVirtualFrame = 0;
+  }
+
+  function resetGalleryVirtualContent(container) {
+    if (!container) return;
+    cancelGalleryVirtualFrame(container);
+    container.__galleryVirtualCanvas = null;
+    container.__galleryVirtualCells = null;
+    container.__galleryVirtualRangeKey = '';
+  }
+
+  function disposeGalleryVirtualContainer(container) {
+    if (!container) return;
+    resetGalleryVirtualContent(container);
+    container.__galleryVirtualResizeObserver?.disconnect?.();
+    container.__galleryVirtualResizeObserver = null;
+    container.__galleryVirtualResizeKey = '';
+    container.__galleryVirtualMetrics = null;
+  }
+
+  function invalidateGalleryVirtualLayout(container) {
+    if (!container) return;
+    container.__galleryVirtualMetrics = null;
+    container.__galleryVirtualRangeKey = '';
+  }
+
+  function observeGalleryVirtualSize(container) {
+    if (!container || container.__galleryVirtualResizeObserver || typeof window.ResizeObserver !== 'function') return;
+    const observer = new window.ResizeObserver(entries => {
+      const entry = entries.find(item => item.target === container);
+      if (!entry || !container.isConnected) return;
+      const width = Math.round(entry.contentRect?.width || 0);
+      const height = Math.round(entry.contentRect?.height || 0);
+      const nextKey = `${width}x${height}`;
+      if (!width || !height || nextKey === container.__galleryVirtualResizeKey) return;
+      container.__galleryVirtualResizeKey = nextKey;
+      invalidateGalleryVirtualLayout(container);
+      if (galleryView === 'images' && container !== els.deskGalleryGrid) return;
+      if (galleryView === 'sources' && !container.matches('[data-prompt-source-scroll]')) return;
+      scheduleGalleryVirtualRender(container);
+    });
+    observer.observe(container);
+    container.__galleryVirtualResizeObserver = observer;
   }
 
   function galleryVirtualMetrics(container) {
+    if (container.__galleryVirtualMetrics) return container.__galleryVirtualMetrics;
     const styles = window.getComputedStyle(container);
     const readPx = (name, fallback) => {
       const value = parseFloat(styles.getPropertyValue(name) || styles[name] || '');
@@ -2485,7 +2873,7 @@
     const align = styles.justifyContent || '';
     const extraWidth = Math.max(0, availableWidth - contentWidth);
     const offsetLeft = padLeft + (align.includes('center') ? extraWidth / 2 : 0);
-    return {
+    const metrics = {
       cardWidth,
       cardHeight,
       gap,
@@ -2495,57 +2883,167 @@
       padBottom,
       offsetLeft,
     };
+    container.__galleryVirtualMetrics = metrics;
+    observeGalleryVirtualSize(container);
+    return metrics;
   }
 
   function virtualGalleryWindow(container, total, metrics) {
     const rows = Math.ceil(total / metrics.columns);
     const scrollTop = Math.max(0, container.scrollTop - metrics.padTop);
+    const clientHeight = container.clientHeight;
     const startRow = Math.max(0, Math.floor(scrollTop / metrics.rowHeight) - GALLERY_VIRTUAL_OVERSCAN_ROWS);
-    const visibleRows = Math.max(1, Math.ceil(container.clientHeight / metrics.rowHeight));
+    const visibleRows = Math.max(1, Math.ceil(clientHeight / metrics.rowHeight));
     const endRow = Math.min(rows, startRow + visibleRows + GALLERY_VIRTUAL_OVERSCAN_ROWS * 2 + 1);
     return {
       rows,
       startIndex: Math.max(0, startRow * metrics.columns),
       endIndex: Math.min(total, endRow * metrics.columns),
       totalHeight: Math.max(0, rows * metrics.rowHeight - metrics.gap) + metrics.padTop + metrics.padBottom,
+      viewportBottom: container.scrollTop + clientHeight,
     };
   }
 
-  function renderVirtualGalleryCards(container, assets) {
+  function ensureGalleryVirtualCanvas(container) {
+    let canvas = container.__galleryVirtualCanvas;
+    if (!canvas || canvas.parentElement !== container || !canvas.matches('[data-gallery-virtual-canvas]')) {
+      const nestedScroller = container.querySelector?.('[data-prompt-source-scroll]');
+      if (nestedScroller && nestedScroller !== container) disposeGalleryVirtualContainer(nestedScroller);
+      container.replaceChildren();
+      canvas = document.createElement('div');
+      canvas.className = 'desk-gallery-virtual-canvas';
+      canvas.dataset.galleryVirtualCanvas = '';
+      container.appendChild(canvas);
+      container.__galleryVirtualCanvas = canvas;
+      container.__galleryVirtualCells = new Map();
+      container.__galleryVirtualRangeKey = '';
+    }
+    observeGalleryVirtualSize(container);
+    return canvas;
+  }
+
+  function galleryVirtualAssetKey(asset, index, usedKeys) {
+    const base = String(asset?.id || asset?.asset_id || `index-${index}`);
+    if (!usedKeys.has(base)) return base;
+    return `${base}::${index}`;
+  }
+
+  function positionGalleryVirtualCell(cell, index, metrics) {
+    const column = index % metrics.columns;
+    const row = Math.floor(index / metrics.columns);
+    const x = Math.round(metrics.offsetLeft + column * (metrics.cardWidth + metrics.gap));
+    const y = Math.round(metrics.padTop + row * metrics.rowHeight);
+    if (cell.__galleryVirtualIndex === index
+      && cell.__galleryVirtualX === x
+      && cell.__galleryVirtualY === y
+      && cell.__galleryVirtualWidth === metrics.cardWidth
+      && cell.__galleryVirtualHeight === metrics.cardHeight) return;
+    cell.style.transform = `translate3d(${x}px, ${y}px, 0)`;
+    cell.style.width = `${metrics.cardWidth}px`;
+    cell.style.height = `${metrics.cardHeight}px`;
+    cell.__galleryVirtualIndex = index;
+    cell.__galleryVirtualX = x;
+    cell.__galleryVirtualY = y;
+    cell.__galleryVirtualWidth = metrics.cardWidth;
+    cell.__galleryVirtualHeight = metrics.cardHeight;
+  }
+
+  function orderGalleryVirtualCells(canvas, orderedCells) {
+    let cursor = canvas.firstElementChild;
+    orderedCells.forEach(cell => {
+      if (cell === cursor) {
+        cursor = cursor.nextElementSibling;
+        return;
+      }
+      canvas.insertBefore(cell, cursor);
+    });
+  }
+
+  function renderVirtualGalleryCards(container, assets, options = {}) {
     const items = Array.isArray(assets) ? assets : [];
     if (!items.length) {
+      resetGalleryVirtualContent(container);
       container.innerHTML = '<div class="desk-gallery-empty">没有匹配的图片资产</div>';
-      return;
+      return null;
     }
     const metrics = galleryVirtualMetrics(container);
     const range = virtualGalleryWindow(container, items.length, metrics);
-    const cards = items.slice(range.startIndex, range.endIndex).map((asset, offset) => {
-      const index = range.startIndex + offset;
-      const column = index % metrics.columns;
-      const row = Math.floor(index / metrics.columns);
-      const x = Math.round(metrics.offsetLeft + column * (metrics.cardWidth + metrics.gap));
-      const y = Math.round(metrics.padTop + row * metrics.rowHeight);
-      return `<div class="desk-gallery-virtual-cell" style="transform: translate3d(${x}px, ${y}px, 0); width: ${metrics.cardWidth}px; height: ${metrics.cardHeight}px;">${renderGalleryImageCard(asset, index)}</div>`;
-    }).join('');
-    container.innerHTML = `
-      <div class="desk-gallery-virtual-canvas" data-gallery-virtual-canvas style="height: ${Math.ceil(range.totalHeight)}px;">
-        ${cards}
-      </div>
-    `;
+    const revision = Number(options.revision ?? galleryVirtualDataRevision);
+    const viewKey = String(options.viewKey || galleryView || 'images');
+    const rangeKey = [
+      viewKey,
+      revision,
+      items.length,
+      metrics.columns,
+      metrics.cardWidth,
+      metrics.cardHeight,
+      range.startIndex,
+      range.endIndex,
+    ].join(':');
+    const canvas = ensureGalleryVirtualCanvas(container);
+    const nextHeight = `${Math.ceil(range.totalHeight)}px`;
+    if (canvas.style.height !== nextHeight) canvas.style.height = nextHeight;
+    if (container.__galleryVirtualRangeKey === rangeKey) {
+      return { range, metrics, changed: false };
+    }
+
+    const cells = container.__galleryVirtualCells || new Map();
+    const usedKeys = new Set();
+    const orderedCells = [];
+    for (let index = range.startIndex; index < range.endIndex; index += 1) {
+      const asset = items[index];
+      const key = galleryVirtualAssetKey(asset, index, usedKeys);
+      usedKeys.add(key);
+      let cell = cells.get(key);
+      if (!cell) {
+        cell = document.createElement('div');
+        cell.className = 'desk-gallery-virtual-cell';
+        cell.dataset.galleryVirtualKey = key;
+        cells.set(key, cell);
+      }
+      positionGalleryVirtualCell(cell, index, metrics);
+      if (cell.__galleryVirtualRevision !== revision
+        || cell.__galleryVirtualAsset !== asset
+        || cell.__galleryVirtualRenderedIndex !== index) {
+        cell.innerHTML = renderGalleryImageCard(asset, index);
+        cell.__galleryVirtualRevision = revision;
+        cell.__galleryVirtualAsset = asset;
+        cell.__galleryVirtualRenderedIndex = index;
+      }
+      orderedCells.push(cell);
+    }
+
+    for (const [key, cell] of cells) {
+      if (usedKeys.has(key)) continue;
+      cell.remove();
+      cells.delete(key);
+    }
+    orderGalleryVirtualCells(canvas, orderedCells);
+    container.__galleryVirtualCells = cells;
+    container.__galleryVirtualRangeKey = rangeKey;
+    return { range, metrics, changed: true };
   }
 
   function scheduleGalleryVirtualRender(container = null) {
     const target = container || (galleryView === 'sources'
       ? els.deskGalleryGrid?.querySelector('[data-prompt-source-scroll]')
       : els.deskGalleryGrid);
-    if (!target || !['images', 'sources'].includes(galleryView)) return;
+    if (!target || !target.isConnected || !['images', 'sources'].includes(galleryView)) return;
+    if (galleryView === 'images' && target !== els.deskGalleryGrid) return;
+    if (galleryView === 'sources' && !target.matches('[data-prompt-source-scroll]')) return;
+    if (galleryRenderFrame) return;
     if (target.__galleryVirtualFrame) return;
     target.__galleryVirtualFrame = window.requestAnimationFrame(() => {
       target.__galleryVirtualFrame = 0;
       const assets = galleryView === 'sources' ? getVisiblePromptSourceItems() : getVisibleAssets();
       if (!assets.length) return;
-      renderVirtualGalleryCards(target, assets);
-      bindGalleryCardEvents();
+      const result = renderVirtualGalleryCards(target, assets, {
+        revision: galleryVirtualDataRevision,
+        viewKey: galleryView,
+      });
+      if (galleryView === 'images' && target === els.deskGalleryGrid) {
+        maybeLoadMoreGalleryAssets(target, result?.range);
+      }
     });
   }
 
@@ -2852,7 +3350,6 @@
   function renderGalleryFiles() {
     const grid = els.deskGalleryGrid;
     if (!grid) return;
-    renderGalleryStats();
     const files = getVisibleEditableFiles();
     if (!files.length) {
       grid.innerHTML = '<div class="desk-gallery-empty">没有匹配的 PPT / PSD 文件</div>';
@@ -2860,6 +3357,769 @@
     }
     grid.innerHTML = files.map(renderEditableFileCard).join('');
     bindGalleryFileEvents();
+  }
+
+  function activePinterestDownloadRun(boardId = pinterestActiveBoardId) {
+    const run = pinterestBoardDownloadRun;
+    return run && String(run.board_id || '') === String(boardId || '') ? run : null;
+  }
+
+  function pinterestSyncedCount(run) {
+    return Math.max(0, Number(run?.downloaded || 0) + Number(run?.already_cached || 0));
+  }
+
+  function pinterestStatusCount(source, keys = []) {
+    for (const key of keys) {
+      const value = source?.[key];
+      if (Array.isArray(value)) return value.length;
+      if (value !== undefined && value !== null && value !== '') {
+        const count = Number(value);
+        if (Number.isFinite(count)) return Math.max(0, count);
+      }
+    }
+    return 0;
+  }
+
+  function pinterestActionableUpdateCount(source) {
+    if (!source) return 0;
+    const explicitKeys = [
+      'actionable_unsynced_count',
+      'actionable_updates',
+      'actionable_count',
+      'syncable_count',
+      'available_unsynced_count'
+    ];
+    for (const key of explicitKeys) {
+      if (source[key] !== undefined && source[key] !== null) {
+        return pinterestStatusCount(source, [key]);
+      }
+    }
+    if (Array.isArray(source.boards)) {
+      return source.boards.reduce(
+        (sum, board) => sum + pinterestActionableUpdateCount(board),
+        0
+      );
+    }
+    if (
+      source.remote_discovered_count !== undefined
+      && source.local_count !== undefined
+    ) {
+      const discovered = pinterestStatusCount(source, ['remote_discovered_count']);
+      const local = pinterestStatusCount(source, ['local_count']);
+      const localOnly = pinterestStatusCount(source, ['local_only_count']);
+      return Math.max(0, discovered - local + localOnly);
+    }
+    const total = pinterestStatusCount(source, ['unsynced_count']);
+    const unavailable = pinterestStatusCount(source, [
+      'unavailable_count',
+      'unavailable_unsynced_count',
+      'unavailable'
+    ]);
+    const unresolved = pinterestStatusCount(source, [
+      'unresolved_count',
+      'unresolved_unsynced_count',
+      'unresolved'
+    ]);
+    return Math.max(0, total - unavailable - unresolved);
+  }
+
+  function pinterestBoardPendingCount(board) {
+    if (!board) return 0;
+    const statusBoard = pinterestSyncStatus.boards?.find(
+      item => String(item.id || '') === String(board.id || '')
+    );
+    return pinterestActionableUpdateCount(statusBoard || board);
+  }
+
+  function pinterestBoardCountLabel(board) {
+    const localCount = Math.max(0, Number(board?.local_count ?? board?.cached_count ?? 0));
+    const remoteCount = Math.max(0, Number(
+      board?.remote_discovered_count
+      ?? board?.remote_reported_count
+      ?? board?.pin_count
+      ?? localCount
+    ));
+    return pinterestSyncStatus.checked_at && remoteCount > localCount
+      ? `${localCount}/${remoteCount}`
+      : String(localCount);
+  }
+
+  function pinterestSyncTipStorageKey() {
+    const username = String(
+      pinterestSyncStatus.profile?.username
+      || pinterestProfile.username
+      || 'default'
+    ).trim().toLowerCase() || 'default';
+    return `${PINTEREST_SYNC_TIP_STORAGE_PREFIX}${username}`;
+  }
+
+  function maybeOpenPinterestSyncTip(board) {
+    const boardId = String(board?.id || '');
+    if (
+      !boardId
+      || pinterestActionableUpdateCount(pinterestSyncStatus) <= 0
+      || pinterestBoardPendingCount(board) <= 0
+    ) return;
+    if (pinterestSyncTipBoardId === boardId) return;
+    try {
+      if (window.localStorage?.getItem(pinterestSyncTipStorageKey()) === '1') return;
+      window.localStorage?.setItem(pinterestSyncTipStorageKey(), '1');
+    } catch (error) {
+      // Private browsing or disabled storage should not block the update hint.
+    }
+    pinterestSyncTipBoardId = boardId;
+  }
+
+  function pinterestRunIsActive(run) {
+    return ['preparing', 'running'].includes(String(run?.status || ''));
+  }
+
+  function renderPinterestBoardDownload(run, activeBoard) {
+    if (!activeBoard) return '';
+    const running = pinterestRunIsActive(run);
+    const preparing = run?.status === 'preparing' || run?.phase === 'discovering';
+    const blockedByOtherBoard = !running && pinterestRunIsActive(pinterestBoardDownloadRun);
+    const synced = pinterestSyncedCount(run);
+    const runTotal = Math.max(0, Number(run?.total || 0));
+    const boardTotal = Math.max(0, Number(
+      activeBoard.remote_discovered_count
+      ?? activeBoard.remote_reported_count
+      ?? activeBoard.pin_count
+      ?? 0
+    ));
+    const total = runTotal || boardTotal;
+    const progress = Math.max(0, Math.min(100, total ? (synced * 100 / total) : Number(run?.progress_percent || 0)));
+    const pendingCount = pinterestBoardPendingCount(activeBoard);
+    const hasUpdates = pendingCount > 0 && !running && !blockedByOtherBoard;
+    const showTip = !run && hasUpdates && pinterestSyncTipBoardId === String(activeBoard.id || '');
+    const runStatus = ['preparing', 'running', 'completed', 'partial', 'failed'].includes(String(run?.status || ''))
+      ? String(run.status)
+      : 'running';
+    const summary = run
+      ? (
+          pinterestRunIsActive(run)
+            ? (preparing ? '准备同步图板' : `已同步 ${synced}/${total}`)
+            : (run.message || `已同步 ${synced}/${total}`)
+        )
+      : (pendingCount ? `发现 ${pendingCount} 张待同步图片` : '本地图板已是最新');
+    const buttonTitle = run
+      ? summary
+      : (
+          blockedByOtherBoard
+            ? '另一个 Pinterest 图板正在同步'
+            : (
+                pendingCount
+                  ? `发现 ${pendingCount} 张待同步图片，点击同步整个图板`
+                  : '同步整个图板到本地'
+              )
+        );
+    const idleLabel = blockedByOtherBoard ? '正在同步其他图板' : '同步图板';
+    return `
+      <div class="desk-pinterest-download-control">
+        <button type="button" class="desk-pinterest-download-board${run ? ` has-progress is-${runStatus}` : ''}${running ? ' is-active' : ''}${preparing && runStatus !== 'preparing' ? ' is-preparing' : ''}${hasUpdates ? ' has-updates' : ''}" data-pinterest-download-board="${escapeHtml(activeBoard.id)}" style="--pinterest-sync-progress:${progress}" ${running || blockedByOtherBoard ? 'disabled' : ''} title="${escapeHtml(buttonTitle)}" aria-label="${escapeHtml(buttonTitle)}">
+          ${run ? `
+            <svg class="desk-pinterest-download-board__progress" viewBox="0 0 120 32" preserveAspectRatio="none" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(progress)}" aria-label="${escapeHtml(summary)}" data-pinterest-sync-progress>
+              <rect class="desk-pinterest-download-board__track" x="2" y="2" width="116" height="28" rx="14" pathLength="100"></rect>
+              <rect class="desk-pinterest-download-board__value" x="2" y="2" width="116" height="28" rx="14" pathLength="100"></rect>
+            </svg>
+          ` : ''}
+          <span class="desk-pinterest-download-board__content${run ? ' is-progress' : ''}">
+            ${run ? `
+              <strong data-pinterest-sync-percent>${Math.round(progress)}%</strong>
+              <span data-pinterest-sync-count>${synced}/${total} 张</span>
+            ` : `
+              <svg class="desk-pinterest-download-board__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6v5h-5M4 18v-5h5M18.5 9A7 7 0 0 0 6.1 6.1L4 8M5.5 15a7 7 0 0 0 12.4 2.9L20 16"></path></svg>
+              <span data-pinterest-sync-label>${escapeHtml(idleLabel)}</span>
+            `}
+          </span>
+        </button>
+        ${showTip ? `
+          <div class="desk-pinterest-sync-tip" data-pinterest-sync-tip role="status">
+            <span>远程有 ${pendingCount} 张图片需要同步到本地</span>
+            <button type="button" data-pinterest-sync-tip-close title="关闭提示" aria-label="关闭提示">
+              <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m6 6 8 8m0-8-8 8"></path></svg>
+            </button>
+          </div>
+        ` : ''}
+      </div>
+    `;
+  }
+
+  function rerenderPinterestPreservingScroll() {
+    const previous = els.deskGalleryGrid?.querySelector('[data-pinterest-scroll]')?.scrollTop || 0;
+    renderPinterestLibrary();
+    const next = els.deskGalleryGrid?.querySelector('[data-pinterest-scroll]');
+    if (next) next.scrollTop = previous;
+  }
+
+  function clearPinterestBoardDownloadHideTimer() {
+    if (!pinterestBoardDownloadHideTimer) return;
+    window.clearTimeout(pinterestBoardDownloadHideTimer);
+    pinterestBoardDownloadHideTimer = null;
+  }
+
+  function schedulePinterestBoardDownloadHide(run) {
+    clearPinterestBoardDownloadHideTimer();
+    const runId = String(run?.run_id || '');
+    const boardId = String(run?.board_id || '');
+    pinterestBoardDownloadHideTimer = window.setTimeout(() => {
+      pinterestBoardDownloadHideTimer = null;
+      const current = pinterestBoardDownloadRun;
+      const matchesRun = current && (
+        (runId && String(current.run_id || '') === runId)
+        || (!runId && String(current.board_id || '') === boardId)
+      );
+      if (!matchesRun || !['completed', 'partial', 'failed'].includes(String(current.status || ''))) return;
+      pinterestBoardDownloadRun = null;
+      if (galleryView === 'pinterest') {
+        rerenderPinterestPreservingScroll();
+        renderGalleryStats();
+      }
+    }, PINTEREST_TERMINAL_HIDE_MS);
+  }
+
+  function updatePinterestDownloadControls() {
+    const run = activePinterestDownloadRun();
+    if (!run) return;
+    const button = els.deskGalleryGrid?.querySelector('[data-pinterest-download-board]');
+    const running = pinterestRunIsActive(run);
+    const preparing = run.status === 'preparing' || run.phase === 'discovering';
+    if (button) {
+      button.disabled = running;
+      const runStatus = ['preparing', 'running', 'completed', 'partial', 'failed'].includes(String(run.status || ''))
+        ? String(run.status)
+        : 'running';
+      button.classList.remove('is-preparing', 'is-running', 'is-completed', 'is-partial', 'is-failed');
+      button.classList.add('has-progress', `is-${runStatus}`);
+      button.classList.toggle('is-active', running);
+      button.classList.toggle('is-preparing', preparing);
+      const synced = pinterestSyncedCount(run);
+      const activeBoard = pinterestBoards.find(board => String(board.id || '') === String(run.board_id || ''));
+      const total = Math.max(
+        0,
+        Number(run.total || 0)
+        || Number(
+          activeBoard?.remote_discovered_count
+          ?? activeBoard?.remote_reported_count
+          ?? activeBoard?.pin_count
+          ?? 0
+        )
+      );
+      const safeProgress = Math.max(0, Math.min(
+        100,
+        total ? (synced * 100 / total) : Number(run.progress_percent || 0)
+      ));
+      const roundedProgress = Math.round(safeProgress);
+      button.style.setProperty('--pinterest-sync-progress', String(safeProgress));
+      const progress = button.querySelector('[data-pinterest-sync-progress]');
+      if (progress) progress.setAttribute('aria-valuenow', String(roundedProgress));
+      const percent = button.querySelector('[data-pinterest-sync-percent]');
+      if (percent) percent.textContent = `${roundedProgress}%`;
+      const count = button.querySelector('[data-pinterest-sync-count]');
+      if (count) count.textContent = `${synced}/${total} 张`;
+      const summary = running
+        ? (preparing ? '准备同步图板' : `已同步 ${synced}/${total}`)
+        : (run.message || '');
+      if (progress) progress.setAttribute('aria-label', summary);
+      button.title = summary;
+      button.setAttribute('aria-label', summary);
+    }
+  }
+
+  function applyPinterestPinCache(pin, cache = {}) {
+    if (!pin || !cache.local_cached) return;
+    pin.remoteImageUrl = pin.remoteImageUrl || pin.imageUrl || '';
+    pin.remoteThumbUrl = pin.remoteThumbUrl || pin.thumbUrl || pin.remoteImageUrl;
+    pin.localCached = true;
+    pin.localImageUrl = cache.local_image_url || '';
+    pin.localThumbUrl = cache.local_thumb_url || pin.localImageUrl;
+    pin.localRelativePath = cache.local_relative_path || '';
+    pin.localDownloadedAt = cache.local_downloaded_at || '';
+    pin.localFileSize = Number(cache.local_file_size || 0);
+    pin.imageUrl = pin.localImageUrl || pin.imageUrl;
+    pin.imagePath = pin.imageUrl;
+    pin.thumbUrl = pin.localThumbUrl || pin.imageUrl;
+    pinterestLibraryMeta.cached_count = pinterestPins.filter(item => item.localCached).length;
+  }
+
+  async function downloadPinterestPinToLocal(pinId, button = null) {
+    const cleanPinId = String(pinId || '').trim();
+    const pin = pinterestPins.find(item => String(item.pinId || item.taskId || '').replace(/^pinterest_/, '') === cleanPinId);
+    if (!pin || !pin.boardId || pinterestPinDownloads.has(cleanPinId)) return;
+    pinterestPinDownloads.add(cleanPinId);
+    if (button) {
+      button.disabled = true;
+      button.title = '正在下载';
+      button.setAttribute('aria-label', '正在下载');
+    }
+    try {
+      const data = await DesktopApi.downloadPinterestPin({
+        boardId: pin.boardId,
+        pinId: cleanPinId
+      });
+      applyPinterestPinCache(pin, data.cache || {});
+      rerenderPinterestPreservingScroll();
+      renderGalleryStats();
+      DesktopResults.showTransientMessage(data.cache?.already_cached ? '图片已在本地。' : 'Pinterest 图片已下载到本地。');
+    } finally {
+      pinterestPinDownloads.delete(cleanPinId);
+      if (button?.isConnected && !pin.localCached) button.disabled = false;
+    }
+  }
+
+  function pinterestAnalysisMainPrompt(result = {}) {
+    const candidates = Array.isArray(result.candidates)
+      ? result.candidates
+      : [result.candidate].filter(Boolean);
+    const main = candidates.find(item => item?.kind === 'image_analysis_main')
+      || candidates.find(item => item?.text)
+      || {};
+    return String(
+      main.text
+      || result.analysis?.prompt_blocks?.main_prompt_no_text
+      || result.analysis?.promptBlocks?.mainPromptNoText
+      || ''
+    ).trim();
+  }
+
+  function pinterestAssetHasAnalysis(asset) {
+    return Boolean(asset?.analyzed && String(asset?.analysisPrompt || '').trim());
+  }
+
+  function applyPinterestAnalysisPrompt(asset, prompt, saved = {}) {
+    if (!asset) return;
+    const persistedPrompt = String(saved.analysis_prompt || saved.analysisPrompt || prompt || '').trim();
+    asset.prompt = persistedPrompt;
+    asset.analysisPrompt = persistedPrompt;
+    asset.analysis_prompt = persistedPrompt;
+    asset.analyzed = Boolean(persistedPrompt);
+    asset.analyzedAt = saved.analyzed_at || saved.analyzedAt || asset.analyzedAt || '';
+    asset.analysisPromptRelativePath = (
+      saved.analysis_prompt_relative_path
+      || saved.analysisPromptRelativePath
+      || asset.analysisPromptRelativePath
+      || ''
+    );
+    if (
+      previewAsset
+      && (previewAsset.id || previewAsset.asset_id) === (asset.id || asset.asset_id)
+    ) {
+      setPreviewAsset(asset, false);
+    }
+  }
+
+  function updatePinterestAnalyzeButton(pinId, busy) {
+    const cleanPinId = String(pinId || '');
+    const asset = pinterestPins.find(item => (
+      String(item.pinId || item.taskId || item.id || '').replace(/^pinterest_/, '') === cleanPinId
+    ));
+    const analyzed = pinterestAssetHasAnalysis(asset);
+    const idleTitle = analyzed
+      ? '已生成主提示词，点击可重新分析'
+      : '分析图片并生成主提示词';
+    els.deskGalleryGrid?.querySelectorAll?.('[data-pinterest-analyze-pin]').forEach(button => {
+      if (button.dataset.pinterestAnalyzePin !== cleanPinId) return;
+      button.disabled = !!busy || !asset?.imageUrl;
+      button.classList.toggle('is-analyzing', !!busy);
+      button.classList.toggle('is-analyzed', analyzed);
+      button.setAttribute('aria-busy', busy ? 'true' : 'false');
+      button.setAttribute('aria-label', busy ? '正在生成主提示词' : idleTitle);
+      button.title = busy ? '正在生成主提示词' : idleTitle;
+      const label = button.querySelector('span');
+      if (label) label.textContent = busy ? '分析中' : (analyzed ? '已分析' : '分析');
+    });
+  }
+
+  function currentPinterestAnalysisPrompt() {
+    return String(els.deskPinterestAnalysisPrompt?.value || pinterestAnalysisPrompt || '').trim();
+  }
+
+  function openPinterestAnalysisModal(asset, prompt, trigger = null) {
+    pinterestAnalysisAsset = asset || null;
+    pinterestAnalysisPrompt = String(prompt || '').trim();
+    pinterestAnalysisReturnFocus = trigger || null;
+    if (els.deskPinterestAnalysisImg) {
+      const imageUrl = mediaUrl(asset?.thumbUrl || asset?.imageUrl || '');
+      els.deskPinterestAnalysisImg.src = imageUrl;
+      els.deskPinterestAnalysisImg.alt = asset?.title || 'Pinterest 图片';
+      els.deskPinterestAnalysisImg.hidden = !imageUrl;
+    }
+    if (els.deskPinterestAnalysisTitle) {
+      els.deskPinterestAnalysisTitle.textContent = asset?.title || 'Pinterest 图片分析';
+    }
+    if (els.deskPinterestAnalysisMeta) {
+      els.deskPinterestAnalysisMeta.textContent = [
+        asset?.boardName || 'Pinterest',
+        asset?.dimensions || '',
+        asset?.format || ''
+      ].filter(Boolean).join(' · ');
+    }
+    if (els.deskPinterestAnalysisPrompt) {
+      els.deskPinterestAnalysisPrompt.value = pinterestAnalysisPrompt;
+    }
+    if (els.deskPinterestAnalysisTarget) {
+      const target = window.DesktopCanvas?.getPromptTargetInfo?.() || {};
+      els.deskPinterestAnalysisTarget.textContent = target.type === 'text' && target.nodeId
+        ? `发送后将写入当前文本节点「${target.label || '文本节点'}」。`
+        : '当前未选择文本节点，发送时会在画布上新建一个文本节点。';
+    }
+    if (els.deskPinterestAnalysisModal) {
+      els.deskPinterestAnalysisModal.hidden = false;
+      els.deskPinterestAnalysisModal.setAttribute('aria-hidden', 'false');
+      window.requestAnimationFrame(() => {
+        els.deskPinterestAnalysisModal?.classList.add('is-open');
+        els.deskPinterestAnalysisPrompt?.focus?.({ preventScroll: true });
+      });
+    }
+  }
+
+  function closePinterestAnalysisModal(options = {}) {
+    const modal = els.deskPinterestAnalysisModal;
+    if (!modal || modal.hidden) return;
+    modal.classList.remove('is-open');
+    modal.setAttribute('aria-hidden', 'true');
+    modal.hidden = true;
+    if (els.deskPinterestAnalysisImg) {
+      els.deskPinterestAnalysisImg.removeAttribute('src');
+      els.deskPinterestAnalysisImg.alt = '';
+    }
+    pinterestAnalysisAsset = null;
+    pinterestAnalysisPrompt = '';
+    if (options.restoreFocus !== false && pinterestAnalysisReturnFocus?.isConnected) {
+      pinterestAnalysisReturnFocus.focus?.({ preventScroll: true });
+    }
+    pinterestAnalysisReturnFocus = null;
+  }
+
+  async function copyPinterestAnalysisPrompt() {
+    const prompt = currentPinterestAnalysisPrompt();
+    if (!prompt) throw new Error('没有可复制的提示词');
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(prompt);
+    } else {
+      const textarea = els.deskPinterestAnalysisPrompt;
+      textarea?.focus?.();
+      textarea?.select?.();
+      if (!document.execCommand?.('copy')) throw new Error('复制失败');
+    }
+    const button = els.deskPinterestAnalysisCopyBtn;
+    if (button) {
+      button.textContent = '已复制';
+      window.setTimeout(() => {
+        if (button.isConnected) button.textContent = '复制提示词';
+      }, 1100);
+    }
+    DesktopResults.showTransientMessage('主提示词已复制。', 'success');
+  }
+
+  function sendPinterestAnalysisToTextNode() {
+    const prompt = currentPinterestAnalysisPrompt();
+    if (!prompt) throw new Error('没有可发送的提示词');
+    const canvas = window.DesktopCanvas;
+    const target = canvas?.getPromptTargetInfo?.() || {};
+    let message = '';
+    if (target.type === 'text' && target.nodeId) {
+      canvas.fillPromptTarget?.(prompt, { target });
+      message = `主提示词已发送到「${target.label || '文本节点'}」。`;
+    } else {
+      const nodeId = canvas?.createTextNodeWithText?.(prompt);
+      if (!nodeId) throw new Error('无法新建文本节点');
+      canvas.selectNode?.(nodeId);
+      message = '已新建文本节点并写入主提示词。';
+    }
+    closePinterestAnalysisModal({ restoreFocus: false });
+    closeGallery();
+    DesktopResults.showTransientMessage(message, 'success');
+  }
+
+  async function analyzePinterestAsset(asset, button = null) {
+    if (!asset || asset.sourceKind !== 'pinterest') throw new Error('Pinterest 图片不存在');
+    const pinId = String(asset.pinId || asset.taskId || asset.id || '').replace(/^pinterest_/, '');
+    if (!pinId || pinterestAnalyzingPins.has(pinId)) return;
+    if (pinterestAnalyzingPins.size) {
+      DesktopResults.showTransientMessage('已有一张 Pinterest 图片正在分析，请稍候。', 'warning');
+      return;
+    }
+    if (
+      pinterestAssetHasAnalysis(asset)
+      && typeof window.confirm === 'function'
+      && !window.confirm('这张图片已有分析提示词。确认重新分析并覆盖同目录下的 image.md 吗？')
+    ) {
+      return;
+    }
+    const source = String(asset.localImageUrl || asset.imageUrl || asset.remoteImageUrl || '').trim();
+    if (!source) throw new Error('这张 Pinterest 图片没有可分析的本地资源');
+    pinterestAnalyzingPins.add(pinId);
+    updatePinterestAnalyzeButton(pinId, true);
+    try {
+      const isDirectProviderUrl = /^https?:\/\//i.test(source);
+      let imagePayload = {
+        id: `pinterest_${pinId}`,
+        label: asset.title || 'Pinterest 图片',
+        role: 'primary'
+      };
+      if (isDirectProviderUrl) {
+        imagePayload.imageUrl = source;
+      } else {
+        if (!window.DesktopApi?.imageUrlToDataUri) throw new Error('图片读取组件尚未加载');
+        imagePayload.dataUrl = await DesktopApi.imageUrlToDataUri(mediaUrl(source));
+      }
+      const target = window.DesktopCanvas?.getPromptTargetInfo?.() || {};
+      const result = await DesktopApi.analyzePromptImage({
+        message: '分析这张 Pinterest 参考图，生成可直接用于图像生成的主提示词。',
+        images: [imagePayload],
+        target: target.type === 'text' ? target : {},
+        style: {},
+        keep_text: false
+      });
+      const prompt = pinterestAnalysisMainPrompt(result);
+      if (!prompt) throw new Error('图片分析完成，但没有生成主提示词');
+      if (!DesktopApi.savePinterestPrompt) throw new Error('Pinterest 提示词保存组件尚未加载');
+      const saved = await DesktopApi.savePinterestPrompt({
+        boardId: asset.boardId,
+        pinId,
+        prompt
+      });
+      applyPinterestAnalysisPrompt(asset, prompt, saved);
+      openPinterestAnalysisModal(asset, asset.analysisPrompt, button);
+      DesktopResults.showTransientMessage('Pinterest 图片分析已完成。', 'success');
+      return { ...result, pinterest_prompt: saved };
+    } finally {
+      pinterestAnalyzingPins.delete(pinId);
+      updatePinterestAnalyzeButton(pinId, false);
+    }
+  }
+
+  async function pollPinterestBoardDownload(runId) {
+    if (!runId || !DesktopApi.getPinterestDownloadStatus) return;
+    try {
+      const data = await DesktopApi.getPinterestDownloadStatus(runId);
+      pinterestBoardDownloadRun = data.run || null;
+      updatePinterestDownloadControls();
+      if (pinterestRunIsActive(pinterestBoardDownloadRun)) {
+        pinterestBoardDownloadTimer = window.setTimeout(() => {
+          pollPinterestBoardDownload(runId).catch(error => DesktopResults.showError(error));
+        }, 800);
+        return;
+      }
+      pinterestBoardDownloadTimer = null;
+      const run = pinterestBoardDownloadRun;
+      if (!run) {
+        if (galleryView === 'pinterest') rerenderPinterestPreservingScroll();
+        throw new Error('Pinterest 图板同步任务未返回状态');
+      }
+      if (run.status === 'completed') {
+        DesktopResults.showTransientMessage(run.message || 'Pinterest 图板已同步。');
+      } else {
+        DesktopResults.showError(new Error(run.message || 'Pinterest 图板未全部同步'));
+      }
+      schedulePinterestBoardDownloadHide(run);
+      await loadPinterestLibrary({ checkRemote: false });
+      await checkPinterestSyncStatus({ force: true });
+    } catch (error) {
+      pinterestBoardDownloadTimer = null;
+      if (pinterestRunIsActive(pinterestBoardDownloadRun)) {
+        pinterestBoardDownloadRun = null;
+        if (galleryView === 'pinterest') rerenderPinterestPreservingScroll();
+      }
+      throw error;
+    }
+  }
+
+  async function downloadPinterestBoardToLocal(boardId) {
+    const cleanBoardId = String(boardId || '').trim();
+    if (!cleanBoardId || !DesktopApi.downloadPinterestBoard) return;
+    if (pinterestRunIsActive(pinterestBoardDownloadRun)) return;
+    if (pinterestBoardDownloadTimer) {
+      window.clearTimeout(pinterestBoardDownloadTimer);
+      pinterestBoardDownloadTimer = null;
+    }
+    clearPinterestBoardDownloadHideTimer();
+    pinterestSyncTipBoardId = '';
+    const board = pinterestBoards.find(item => String(item.id || '') === cleanBoardId) || {};
+    const total = Math.max(0, Number(
+      board.remote_discovered_count
+      ?? board.remote_reported_count
+      ?? board.pin_count
+      ?? 0
+    ));
+    pinterestBoardDownloadRun = {
+      run_id: '',
+      board_id: cleanBoardId,
+      board_name: String(board.name || ''),
+      status: 'preparing',
+      started_at: new Date().toISOString(),
+      total,
+      processed: 0,
+      downloaded: 0,
+      already_cached: 0,
+      failed: 0,
+      progress_percent: 0,
+      message: '准备同步 Pinterest 图板'
+    };
+    rerenderPinterestPreservingScroll();
+    try {
+      const data = await DesktopApi.downloadPinterestBoard(cleanBoardId, { refresh: true });
+      const run = data.run || null;
+      if (!run?.run_id) throw new Error('Pinterest 图板同步任务启动失败');
+      pinterestBoardDownloadRun = run;
+      rerenderPinterestPreservingScroll();
+      await pollPinterestBoardDownload(run.run_id);
+    } catch (error) {
+      if (
+        pinterestBoardDownloadRun?.status === 'preparing'
+        && String(pinterestBoardDownloadRun.board_id || '') === cleanBoardId
+      ) {
+        pinterestBoardDownloadRun = null;
+      }
+      if (galleryView === 'pinterest') rerenderPinterestPreservingScroll();
+      throw error;
+    }
+  }
+
+  function renderPinterestLibrary() {
+    const grid = els.deskGalleryGrid;
+    if (!grid) return;
+    renderGalleryStats();
+    if (pinterestLoading) {
+      grid.innerHTML = `
+        <div class="desk-pinterest-state is-loading">
+          <span aria-hidden="true"></span>
+          <strong>正在读取 Pinterest 图库</strong>
+        </div>
+      `;
+      return;
+    }
+    if (pinterestError) {
+      grid.innerHTML = `
+        <div class="desk-pinterest-state is-error">
+          <strong>加载失败</strong>
+          <span>${escapeHtml(pinterestError)}</span>
+          <button type="button" data-pinterest-retry>重试</button>
+        </div>
+      `;
+      grid.querySelector('[data-pinterest-retry]')?.addEventListener('click', () => {
+        loadPinterestLibrary({ refresh: true }).catch(error => DesktopResults.showError(error));
+      });
+      return;
+    }
+    if (pinterestLibraryMeta.enabled === false) {
+      grid.innerHTML = `
+        <div class="desk-pinterest-state">
+          <strong>Pinterest 图库未启用</strong>
+          <button type="button" data-pinterest-open-settings>打开设置</button>
+        </div>
+      `;
+      grid.querySelector('[data-pinterest-open-settings]')?.addEventListener('click', () => {
+        closeGallery();
+        window.DesktopSettings?.open?.();
+      });
+      return;
+    }
+
+    const activeBoard = pinterestBoards.find(board => board.id === pinterestActiveBoardId);
+    const pins = getVisiblePinterestPins();
+    const profileName = pinterestProfile.name || pinterestProfile.username || 'Pinterest';
+    const profileHandle = pinterestProfile.username ? `@${pinterestProfile.username}` : '';
+    const authLabel = pinterestSyncStatus.source_mode === 'authenticated_browser' ? '已连接' : '本地缓存';
+    const boardDownloadRun = activePinterestDownloadRun(activeBoard?.id);
+    const firstPendingBoard = (
+      activeBoard && pinterestBoardPendingCount(activeBoard) > 0
+        ? activeBoard
+        : pinterestBoards.find(board => pinterestBoardPendingCount(board) > 0)
+    );
+    maybeOpenPinterestSyncTip(firstPendingBoard);
+    const showAllUpdatesTip = !activeBoard
+      && firstPendingBoard
+      && pinterestSyncTipBoardId === String(firstPendingBoard.id || '');
+    const allLocalCount = pinterestPins.length;
+    const allRemoteCount = Number(
+      pinterestSyncStatus.remote_discovered_count
+      ?? pinterestSyncStatus.remote_reported_count
+      ?? allLocalCount
+    );
+    const allCountLabel = pinterestSyncStatus.checked_at && allRemoteCount > allLocalCount
+      ? `${allLocalCount}/${allRemoteCount}`
+      : String(allLocalCount);
+    const boardButtons = [
+      `<button type="button" class="${pinterestActiveBoardId ? '' : 'is-active'}${pinterestActionableUpdateCount(pinterestSyncStatus) ? ' has-updates' : ''}" data-pinterest-board="">
+        <span class="desk-pinterest-board__cover is-all">P</span>
+        <span><strong>全部</strong><em>${escapeHtml(allCountLabel)}</em></span>
+      </button>`,
+      ...pinterestBoards.map(board => `
+        <button type="button" class="${board.id === pinterestActiveBoardId ? 'is-active' : ''}${pinterestBoardPendingCount(board) ? ' has-updates' : ''}" data-pinterest-board="${escapeHtml(board.id)}">
+          ${board.cover_url
+            ? `<img class="desk-pinterest-board__cover" src="${escapeHtml(board.cover_url)}" alt="" loading="lazy">`
+            : '<span class="desk-pinterest-board__cover">P</span>'}
+          <span><strong>${escapeHtml(board.name || '未命名图板')}</strong><em>${escapeHtml(pinterestBoardCountLabel(board))}</em></span>
+        </button>
+      `)
+    ].join('');
+    grid.innerHTML = `
+      <div class="desk-pinterest-head">
+        <div class="desk-pinterest-head__identity">
+          ${pinterestProfile.url ? `
+            <a class="desk-pinterest-profile-home-link" href="${escapeHtml(pinterestProfile.url)}" target="_blank" rel="noreferrer noopener" title="在 Pinterest 打开主页" aria-label="在 Pinterest 打开主页" data-pinterest-profile-home>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12.02 0C5.4 0 .03 5.37.03 11.99c0 5.08 3.16 9.42 7.62 11.17-.11-.95-.2-2.4.04-3.44.22-.94 1.41-5.97 1.41-5.97s-.36-.72-.36-1.78c0-1.67.97-2.91 2.17-2.91 1.02 0 1.52.77 1.52 1.69 0 1.03-.66 2.57-1 4-.28 1.2.6 2.17 1.78 2.17 2.13 0 3.77-2.25 3.77-5.5 0-2.87-2.06-4.88-5.01-4.88-3.41 0-5.42 2.56-5.42 5.21 0 1.03.4 2.14.89 2.74.1.12.11.22.08.34-.09.38-.29 1.2-.33 1.36-.05.23-.17.27-.4.17-1.5-.7-2.43-2.88-2.43-4.64 0-3.78 2.75-7.25 7.92-7.25 4.16 0 7.39 2.96 7.39 6.92 0 4.13-2.6 7.45-6.21 7.45-1.21 0-2.36-.63-2.75-1.38l-.75 2.85c-.27 1.04-1 2.35-1.49 3.14 1.12.35 2.32.54 3.55.54 6.62 0 11.99-5.37 11.99-11.99C24.01 5.37 18.64 0 12.02 0Z"></path></svg>
+            </a>
+          ` : `
+            <span class="desk-pinterest-profile-home-link is-static" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M12.02 0C5.4 0 .03 5.37.03 11.99c0 5.08 3.16 9.42 7.62 11.17-.11-.95-.2-2.4.04-3.44.22-.94 1.41-5.97 1.41-5.97s-.36-.72-.36-1.78c0-1.67.97-2.91 2.17-2.91 1.02 0 1.52.77 1.52 1.69 0 1.03-.66 2.57-1 4-.28 1.2.6 2.17 1.78 2.17 2.13 0 3.77-2.25 3.77-5.5 0-2.87-2.06-4.88-5.01-4.88-3.41 0-5.42 2.56-5.42 5.21 0 1.03.4 2.14.89 2.74.1.12.11.22.08.34-.09.38-.29 1.2-.33 1.36-.05.23-.17.27-.4.17-1.5-.7-2.43-2.88-2.43-4.64 0-3.78 2.75-7.25 7.92-7.25 4.16 0 7.39 2.96 7.39 6.92 0 4.13-2.6 7.45-6.21 7.45-1.21 0-2.36-.63-2.75-1.38l-.75 2.85c-.27 1.04-1 2.35-1.49 3.14 1.12.35 2.32.54 3.55.54 6.62 0 11.99-5.37 11.99-11.99C24.01 5.37 18.64 0 12.02 0Z"></path></svg>
+            </span>
+          `}
+          <div>
+            <strong>${escapeHtml(profileName)}</strong>
+            <em>${escapeHtml([profileHandle, authLabel].filter(Boolean).join(' · '))}</em>
+          </div>
+        </div>
+        <div class="desk-pinterest-head__actions">
+          ${renderPinterestBoardDownload(boardDownloadRun, activeBoard)}
+          ${showAllUpdatesTip ? `
+            <div class="desk-pinterest-sync-tip desk-pinterest-sync-tip--all" data-pinterest-sync-tip role="status">
+              <span>远程有 ${pinterestActionableUpdateCount(pinterestSyncStatus)} 张图片需要同步，请选择带红点的图板</span>
+              <button type="button" data-pinterest-sync-tip-close title="关闭提示" aria-label="关闭提示">
+                <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m6 6 8 8m0-8-8 8"></path></svg>
+              </button>
+            </div>
+          ` : ''}
+        </div>
+      </div>
+      <div class="desk-pinterest-boards" aria-label="Pinterest 图板">${boardButtons}</div>
+      <div class="desk-pinterest-scroll" data-pinterest-scroll>
+        <div class="desk-pinterest-grid">
+          ${pins.length
+            ? pins.map((pin, index) => renderGalleryImageCard(pin, index)).join('')
+            : `<div class="desk-gallery-empty">${escapeHtml(
+                activeBoard && pinterestBoardPendingCount(activeBoard)
+                  ? `图板「${activeBoard.name}」暂无本地图片，请点击“同步图板”`
+                  : (activeBoard ? `图板「${activeBoard.name}」暂无本地图片` : '本地暂无已同步的 Pinterest 图片')
+              )}</div>`}
+        </div>
+      </div>
+    `;
+    grid.querySelectorAll('[data-pinterest-board]').forEach(button => {
+      button.addEventListener('click', () => {
+        const boardId = button.dataset.pinterestBoard || '';
+        if (boardId === pinterestActiveBoardId) return;
+        pinterestActiveBoardId = boardId;
+        pinterestSyncTipBoardId = '';
+        const nextBoard = pinterestBoards.find(board => board.id === pinterestActiveBoardId);
+        maybeOpenPinterestSyncTip(nextBoard);
+        rerenderPinterestPreservingScroll();
+        renderGalleryStats();
+        renderGallerySelection();
+      });
+    });
+    grid.querySelector('[data-pinterest-sync-tip-close]')?.addEventListener('click', () => {
+      pinterestSyncTipBoardId = '';
+      rerenderPinterestPreservingScroll();
+    });
+    grid.querySelector('[data-pinterest-download-board]')?.addEventListener('click', event => {
+      const boardId = event.currentTarget.dataset.pinterestDownloadBoard || '';
+      pinterestSyncTipBoardId = '';
+      downloadPinterestBoardToLocal(boardId).catch(error => DesktopResults.showError(error));
+    });
+    bindGalleryCardEvents();
   }
 
   function promptSourceSummaryChips() {
@@ -3002,7 +4262,7 @@
   function renderPromptSources() {
     const grid = els.deskGalleryGrid;
     if (!grid) return;
-    renderGalleryStats();
+    disposeGalleryVirtualContainer(grid.querySelector('[data-prompt-source-scroll]'));
     const items = getVisiblePromptSourceItems();
     grid.innerHTML = [
       `<div class="desk-prompt-source-controls">
@@ -3017,7 +4277,10 @@
     ].join('');
     if (items.length) {
       const scroller = grid.querySelector('[data-prompt-source-scroll]');
-      renderVirtualGalleryCards(scroller, items);
+      renderVirtualGalleryCards(scroller, items, {
+        revision: galleryVirtualDataRevision,
+        viewKey: 'sources',
+      });
     }
     bindPromptSourceEvents();
     bindGalleryCardEvents();
@@ -3409,6 +4672,8 @@
       DesktopResults.showTransientMessage(selected.length ? '选中的图片已经在候选集里。' : '选择篮里还没有图片。');
       return;
     }
+    // 瘦身卡片先补全详情再入集，保证快照字段完整
+    await Promise.all(additions.map(asset => ensureAssetDetail(asset)));
     await persistAssetSet(activeGallerySet, { assets: [...current, ...additions] }, `已追加 ${additions.length} 张图片。`);
   }
 
@@ -3492,6 +4757,8 @@
   function scheduleGalleryRender(options = {}) {
     if (options.selection) gallerySelectionRenderPending = true;
     if (galleryRenderFrame) return;
+    cancelGalleryVirtualFrame(els.deskGalleryGrid);
+    cancelGalleryVirtualFrame(els.deskGalleryGrid?.querySelector('[data-prompt-source-scroll]'));
     galleryRenderFrame = window.requestAnimationFrame(() => {
       galleryRenderFrame = 0;
       renderGallery();
@@ -3504,22 +4771,36 @@
 
   function renderGallery() {
     if (!els.deskGalleryGrid) return;
+    cancelGalleryVirtualFrame(els.deskGalleryGrid);
+    cancelGalleryVirtualFrame(els.deskGalleryGrid.querySelector('[data-prompt-source-scroll]'));
     clearGalleryHoverState(els.deskGalleryGrid);
     clearGalleryHoverState(els.deskGalleryGrid.querySelector('[data-prompt-source-scroll]'));
+    disposeGalleryVirtualContainer(els.deskGalleryGrid.querySelector('[data-prompt-source-scroll]'));
+    invalidateGalleryVirtualData();
+    if (!['images', 'sets', 'setDetail', 'sources', 'files', 'pinterest'].includes(galleryView)) galleryView = 'images';
     document.querySelectorAll('[data-gallery-view]').forEach(button => {
       const view = button.dataset.galleryView;
       button.classList.toggle('is-active', view === galleryView || (galleryView === 'setDetail' && view === 'sets'));
     });
     if (els.deskGalleryFilterSelect) els.deskGalleryFilterSelect.value = galleryFilter;
     if (els.deskGalleryTagInput && els.deskGalleryTagInput.value !== galleryTag) els.deskGalleryTagInput.value = galleryTag;
+    if (els.deskGalleryFilterSelect) els.deskGalleryFilterSelect.hidden = galleryView === 'pinterest';
+    const tagFilter = els.deskGalleryTagInput?.closest('.desk-gallery-tag-filter');
+    if (tagFilter) tagFilter.hidden = galleryView === 'pinterest';
     renderGalleryStats();
-    if (!['images', 'sets', 'setDetail', 'sources', 'files'].includes(galleryView)) galleryView = 'images';
     els.deskGalleryGrid.classList.toggle('is-prompt-sources', galleryView === 'sources');
     els.deskGalleryGrid.classList.toggle('is-file-assets', galleryView === 'files');
+    els.deskGalleryGrid.classList.toggle('is-pinterest', galleryView === 'pinterest');
+    if (galleryView === 'images') {
+      invalidateGalleryVirtualLayout(els.deskGalleryGrid);
+    } else {
+      resetGalleryVirtualContent(els.deskGalleryGrid);
+    }
     if (galleryView === 'setDetail') renderAssetSetDetail();
     else if (galleryView === 'sets') renderGallerySets();
     else if (galleryView === 'files') renderGalleryFiles();
     else if (galleryView === 'sources') renderPromptSources();
+    else if (galleryView === 'pinterest') renderPinterestLibrary();
     else renderGalleryImages();
   }
 
@@ -3545,7 +4826,7 @@
       return;
     }
     const selected = getSelectedAssets();
-    const hasRemote = selected.some(asset => asset.sourceKind === 'remote_source');
+    const hasRemote = selected.some(isRemoteLibraryAsset);
     if (els.deskGallerySelectedCount) els.deskGallerySelectedCount.textContent = `${selected.length} 张`;
     if (els.deskGallerySelectedList) {
       if (!selected.length) {
@@ -3601,6 +4882,25 @@
       }
     }, true);
     grid.addEventListener('click', event => {
+      const pinterestAnalyzeButton = event.target?.closest?.('[data-pinterest-analyze-asset]');
+      if (pinterestAnalyzeButton && grid.contains(pinterestAnalyzeButton)) {
+        event.preventDefault();
+        event.stopPropagation();
+        const asset = findAssetById(pinterestAnalyzeButton.dataset.pinterestAnalyzeAsset || '');
+        analyzePinterestAsset(asset, pinterestAnalyzeButton)
+          .catch(error => galleryError(error, 'Pinterest 图片分析失败'));
+        return;
+      }
+      const pinterestDownloadButton = event.target?.closest?.('[data-pinterest-download-pin]');
+      if (pinterestDownloadButton && grid.contains(pinterestDownloadButton)) {
+        event.preventDefault();
+        event.stopPropagation();
+        downloadPinterestPinToLocal(
+          pinterestDownloadButton.dataset.pinterestDownloadPin || '',
+          pinterestDownloadButton
+        ).catch(error => DesktopResults.showError(error));
+        return;
+      }
       const selectButton = event.target?.closest?.('[data-gallery-select]');
       if (selectButton && grid.contains(selectButton)) {
         event.preventDefault();
@@ -3751,28 +5051,174 @@
     return items;
   }
 
-  async function loadGalleryAssets() {
+  async function loadGalleryAssets(options = {}) {
     if (!DesktopApi.getAssets) {
       galleryAssetsFromIndex = false;
       return galleryAssets;
     }
-    const data = await DesktopApi.getAssets({
-      limit: GALLERY_ASSET_LOAD_LIMIT,
-      offset: 0,
-      query: galleryQuery,
-      filter: galleryFilter,
-      tag: galleryTag,
-      includeHidden: galleryFilter === 'hidden'
-    });
-    galleryAssets = (Array.isArray(data.assets) ? data.assets : []).map(normalizeGalleryAsset);
-    galleryAssetTotal = Number(data.total || galleryAssets.length);
-    galleryAssetStats = data.stats || galleryAssetStats || {};
-    galleryAssetsFromIndex = true;
-    selectedGalleryIds.forEach(id => {
-      if (!galleryAssets.some(asset => asset.id === id)) selectedGalleryIds.delete(id);
-    });
-    scheduleGalleryRender({ selection: true });
-    return galleryAssets;
+    // full load 从请求发出时就换代，立即让旧窗口的 load-more 响应失效。
+    const generation = ++galleryAssetsGeneration;
+    const supersededLoadMorePromise = galleryLoadMorePromise;
+    galleryAssetsFullLoading = true;
+    // 刷新时保持当前已加载窗口大小（分页向下取整到页大小的整数倍），
+    // 避免删除/元数据刷新把用户已滚出的选中项裁掉
+    const loadedCount = galleryAssetsFromIndex ? galleryServerOffset : 0;
+    const windowSize = Math.min(
+      GALLERY_ASSET_LOAD_LIMIT,
+      Math.max(GALLERY_PAGE_SIZE, Math.ceil(loadedCount / GALLERY_PAGE_SIZE) * GALLERY_PAGE_SIZE)
+    );
+    try {
+      const data = await DesktopApi.getAssets({
+        limit: windowSize,
+        offset: 0,
+        query: galleryQuery,
+        filter: galleryFilter,
+        tag: galleryTag,
+        includeHidden: galleryFilter === 'hidden',
+        fields: 'card',
+        refresh: Boolean(options.refresh)
+      });
+      if (generation !== galleryAssetsGeneration) return galleryAssets;
+      if (galleryLoadMorePromise === supersededLoadMorePromise) galleryLoadMorePromise = null;
+      const responseAssets = Array.isArray(data.assets) ? data.assets : [];
+      const responseOffset = Number(data.offset ?? 0);
+      const responseTotal = Number(data.total);
+      galleryAssets = responseAssets.map(normalizeGalleryAsset);
+      galleryServerOffset = Math.max(0, Number.isFinite(responseOffset) ? responseOffset : 0) + responseAssets.length;
+      galleryAssetTotal = Number.isFinite(responseTotal) ? Math.max(0, responseTotal) : galleryServerOffset;
+      galleryAssetStats = data.stats || galleryAssetStats || {};
+      galleryAssetsFromIndex = true;
+      // 窗口化刷新只裁掉真正无处可解析的选中项：候选集/来源/预览里仍可解析的保留
+      const resolvableIds = new Set(galleryAssets.map(asset => asset.id));
+      (promptSourceItems || []).forEach(item => { if (item?.id) resolvableIds.add(item.id); });
+      if (activeGallerySet) {
+        (activeGallerySet.assets || []).forEach(asset => { if (asset?.id) resolvableIds.add(asset.id); });
+      }
+      gallerySets.forEach(set => {
+        (set?.assets || []).forEach(asset => { if (asset?.id) resolvableIds.add(asset.id); });
+      });
+      if (previewAsset?.id) resolvableIds.add(previewAsset.id);
+      selectedGalleryIds.forEach(id => {
+        if (!resolvableIds.has(id)) selectedGalleryIds.delete(id);
+      });
+      // selected 视图下把包含选中项的候选集资产合并回列表，避免窗口化刷新把集合成员冲出视图
+      if (galleryFilter === 'selected' && selectedGalleryIds.size) {
+        gallerySets.forEach(set => {
+          if ((set?.assets || []).some(asset => asset?.id && selectedGalleryIds.has(asset.id))) {
+            mergeAssetsFromSet(set);
+          }
+        });
+        if (activeGallerySet) mergeAssetsFromSet(activeGallerySet);
+      }
+      scheduleGalleryRender({ selection: true });
+      return galleryAssets;
+    } catch (error) {
+      if (generation !== galleryAssetsGeneration) return galleryAssets;
+      // 当前筛选没有建立成功的新窗口，禁止拿旧 offset 继续请求新筛选的数据。
+      galleryAssetsFromIndex = false;
+      galleryServerOffset = 0;
+      throw error;
+    } finally {
+      if (generation === galleryAssetsGeneration) {
+        if (galleryLoadMorePromise === supersededLoadMorePromise) galleryLoadMorePromise = null;
+        galleryAssetsFullLoading = false;
+      }
+    }
+  }
+
+  function hasMoreGalleryAssets() {
+    return galleryAssetsFromIndex && galleryServerOffset < galleryAssetTotal;
+  }
+
+  function loadMoreGalleryAssets() {
+    if (!DesktopApi.getAssets || !galleryAssetsFromIndex || galleryAssetsFullLoading) {
+      return Promise.resolve(false);
+    }
+    if (galleryLoadMorePromise) return galleryLoadMorePromise;
+    if (!hasMoreGalleryAssets()) return Promise.resolve(false);
+    // 代际守卫：追加期间若发生 full load（筛选/删除），丢弃这页过期数据。
+    const generation = galleryAssetsGeneration;
+    const requestOffset = galleryServerOffset;
+    const requestPromise = (async () => {
+      try {
+        const data = await DesktopApi.getAssets({
+          limit: GALLERY_PAGE_SIZE,
+          offset: requestOffset,
+          query: galleryQuery,
+          filter: galleryFilter,
+          tag: galleryTag,
+          includeHidden: galleryFilter === 'hidden',
+          fields: 'card'
+        });
+        if (generation !== galleryAssetsGeneration || galleryAssetsFullLoading) return false;
+        const responseAssets = Array.isArray(data.assets) ? data.assets : [];
+        const responseOffset = Number(data.offset ?? requestOffset);
+        const responseTotal = Number(data.total);
+        galleryServerOffset = Math.max(0, Number.isFinite(responseOffset) ? responseOffset : requestOffset) + responseAssets.length;
+        const known = new Set(galleryAssets.map(asset => asset.id));
+        const fresh = responseAssets
+          .map(normalizeGalleryAsset)
+          .filter(asset => asset.id && !known.has(asset.id));
+        if (fresh.length) galleryAssets = galleryAssets.concat(fresh);
+        if (Number.isFinite(responseTotal)) galleryAssetTotal = Math.max(0, responseTotal);
+        if (fresh.length) scheduleGalleryRender();
+        return fresh.length > 0;
+      } catch (error) {
+        if (generation === galleryAssetsGeneration && !galleryAssetsFullLoading) {
+          DesktopResults.showError(error);
+        }
+        return false;
+      }
+    })();
+    galleryLoadMorePromise = requestPromise;
+    const clearRequest = () => {
+      if (galleryLoadMorePromise === requestPromise) galleryLoadMorePromise = null;
+    };
+    requestPromise.then(clearRequest, clearRequest);
+    return requestPromise;
+  }
+
+  function maybeLoadMoreGalleryAssets(grid, virtualRange = null) {
+    if (!grid || galleryView !== 'images') return;
+    if (!galleryAssetsFromIndex || galleryAssetsFullLoading) return;
+    if (!hasMoreGalleryAssets()) return;
+    const viewportBottom = Number(virtualRange?.viewportBottom);
+    const totalHeight = Number(virtualRange?.totalHeight);
+    const nearEnd = Number.isFinite(viewportBottom) && Number.isFinite(totalHeight)
+      ? viewportBottom >= totalHeight - GALLERY_LOAD_MORE_THRESHOLD_PX
+      : grid.scrollTop + grid.clientHeight >= grid.scrollHeight - GALLERY_LOAD_MORE_THRESHOLD_PX;
+    if (nearEnd) {
+      loadMoreGalleryAssets();
+    }
+  }
+
+  function ensureAssetDetail(asset) {
+    // 瘦身卡片在预览等异步场景按需补全完整字段（revised prompt / params 全量 / 血缘快照）。
+    // 在途请求共享同一个 Promise：并发调用（预览 + 存集）都能真正等到补全完成。
+    if (!asset || asset.fieldsMode !== 'card' || !DesktopApi.getAssetDetail) return Promise.resolve(asset);
+    const assetId = asset.id || asset.asset_id;
+    if (!assetId) return Promise.resolve(asset);
+    if (asset.__detailPromise) return asset.__detailPromise;
+    asset.__detailPromise = (async () => {
+      try {
+        const data = await DesktopApi.getAssetDetail(assetId);
+        const detail = data && data.asset;
+        if (detail) {
+          const normalized = normalizeGalleryAsset(detail);
+          delete normalized.fieldsMode;
+          delete normalized.fields_mode;
+          Object.assign(asset, normalized);
+          delete asset.fieldsMode;
+          delete asset.fields_mode;
+        }
+      } catch (error) {
+        // 详情补全失败不打断预览，卡片字段仍可展示
+      } finally {
+        delete asset.__detailPromise;
+      }
+      return asset;
+    })();
+    return asset.__detailPromise;
   }
 
   async function loadGallerySets() {
@@ -3803,6 +5249,180 @@
     galleryFileStats = data.stats || {};
     if (galleryView === 'files') scheduleGalleryRender({ selection: true });
     return galleryFiles;
+  }
+
+  function mergePinterestBoardStatus(localBoards = pinterestBoards, statusBoards = pinterestSyncStatus.boards) {
+    const localCounts = new Map();
+    pinterestPins.forEach(pin => {
+      const boardId = String(pin.boardId || '');
+      if (boardId) localCounts.set(boardId, Number(localCounts.get(boardId) || 0) + 1);
+    });
+    const localById = new Map(
+      (Array.isArray(localBoards) ? localBoards : [])
+        .filter(board => board?.id)
+        .map(board => [String(board.id), board])
+    );
+    const statusById = new Map(
+      (Array.isArray(statusBoards) ? statusBoards : [])
+        .filter(board => board?.id)
+        .map(board => [String(board.id), board])
+    );
+    const orderedIds = [
+      ...statusById.keys(),
+      ...[...localById.keys()].filter(boardId => !statusById.has(boardId))
+    ];
+    return orderedIds.map(boardId => {
+      const local = localById.get(boardId) || {};
+      const status = statusById.get(boardId) || {};
+      const localCount = Number(localCounts.get(boardId) || status.local_count || local.cached_count || 0);
+      const remoteReported = Number(status.remote_reported_count ?? local.pin_count ?? localCount);
+      return {
+        ...local,
+        ...status,
+        id: boardId,
+        name: status.name || local.name || boardId,
+        url: status.url || local.url || '',
+        path: status.path || local.path || '',
+        cover_url: local.cover_url || '',
+        local_count: localCount,
+        cached_count: localCount,
+        pin_count: remoteReported,
+        remote_reported_count: remoteReported,
+        unsynced_count: Number(status.unsynced_count || 0),
+        actionable_unsynced_count: pinterestActionableUpdateCount(status)
+      };
+    });
+  }
+
+  function applyPinterestSyncStatus(data) {
+    pinterestSyncStatus = data && typeof data === 'object' ? data : {};
+    if (!pinterestActionableUpdateCount(pinterestSyncStatus)) {
+      pinterestSyncTipBoardId = '';
+    }
+    pinterestBoards = mergePinterestBoardStatus(pinterestBoards, pinterestSyncStatus.boards);
+    const remoteProfile = pinterestSyncStatus.profile && typeof pinterestSyncStatus.profile === 'object'
+      ? pinterestSyncStatus.profile
+      : {};
+    pinterestProfile = {
+      ...pinterestProfile,
+      ...remoteProfile,
+      image_url: pinterestProfile.image_url || ''
+    };
+    pinterestLibraryMeta = {
+      ...pinterestLibraryMeta,
+      auth_configured: pinterestSyncStatus.auth_configured ?? pinterestLibraryMeta.auth_configured,
+      auth_status: pinterestSyncStatus.auth_status || pinterestLibraryMeta.auth_status,
+      source_mode: 'local_cache',
+      remote_checked: Boolean(pinterestSyncStatus.checked_at),
+      remote_error: '',
+      remote_total: Number(
+        pinterestSyncStatus.remote_discovered_count
+        ?? pinterestSyncStatus.remote_reported_count
+        ?? 0
+      ),
+      cached_count: pinterestPins.length
+    };
+    const activeBoard = pinterestBoards.find(board => board.id === pinterestActiveBoardId);
+    const firstPendingBoard = (
+      activeBoard && pinterestBoardPendingCount(activeBoard) > 0
+        ? activeBoard
+        : pinterestBoards.find(board => pinterestBoardPendingCount(board) > 0)
+    );
+    maybeOpenPinterestSyncTip(firstPendingBoard);
+  }
+
+  async function checkPinterestSyncStatus(options = {}) {
+    if (!DesktopApi.getPinterestSyncStatus) return pinterestSyncStatus;
+    const checkedAt = Date.parse(String(pinterestSyncStatus.checked_at || ''));
+    if (
+      !options.force
+      && !options.refresh
+      && Number.isFinite(checkedAt)
+      && Date.now() - checkedAt < 60 * 1000
+    ) {
+      return pinterestSyncStatus;
+    }
+    if (pinterestSyncPromise) {
+      if (!options.force) return pinterestSyncPromise;
+      await pinterestSyncPromise;
+    }
+    const requestId = ++pinterestSyncRequestId;
+    pinterestSyncChecking = true;
+    if (galleryView === 'pinterest') renderGalleryStats();
+    pinterestSyncPromise = (async () => {
+      try {
+        const data = await DesktopApi.getPinterestSyncStatus({
+          limit: PINTEREST_LIBRARY_LIMIT,
+          refresh: Boolean(options.refresh)
+        });
+        if (requestId !== pinterestSyncRequestId) return pinterestSyncStatus;
+        applyPinterestSyncStatus(data);
+        if (galleryView === 'pinterest') {
+          rerenderPinterestPreservingScroll();
+          renderGallerySelection();
+        }
+        return pinterestSyncStatus;
+      } catch (error) {
+        if (requestId === pinterestSyncRequestId) {
+          pinterestLibraryMeta = {
+            ...pinterestLibraryMeta,
+            remote_error: error?.message || String(error)
+          };
+        }
+        return pinterestSyncStatus;
+      } finally {
+        if (requestId === pinterestSyncRequestId) {
+          pinterestSyncChecking = false;
+          pinterestSyncPromise = null;
+          if (galleryView === 'pinterest') renderGalleryStats();
+        }
+      }
+    })();
+    return pinterestSyncPromise;
+  }
+
+  async function loadPinterestLibrary(options = {}) {
+    if (!DesktopApi.getPinterestLibrary) return pinterestPins;
+    const requestId = ++pinterestRequestId;
+    const showLoading = !pinterestLibraryMeta.local_only && !pinterestPins.length;
+    pinterestLoading = showLoading;
+    pinterestError = '';
+    if (galleryView === 'pinterest' && showLoading) renderPinterestLibrary();
+    try {
+      const data = await DesktopApi.getPinterestLibrary({
+        limit: PINTEREST_LIBRARY_LIMIT,
+        localOnly: true
+      });
+      if (requestId !== pinterestRequestId) return pinterestPins;
+      const localBoards = Array.isArray(data.boards) ? data.boards : [];
+      pinterestProfile = data.profile && typeof data.profile === 'object' ? data.profile : {};
+      pinterestPins = (Array.isArray(data.pins) ? data.pins : []).map(normalizePinterestPin);
+      pinterestLibraryMeta = data || {};
+      pinterestBoards = mergePinterestBoardStatus(localBoards, pinterestSyncStatus.boards);
+      if (pinterestActiveBoardId && !pinterestBoards.some(board => board.id === pinterestActiveBoardId)) {
+        pinterestActiveBoardId = '';
+      }
+      selectedGalleryIds.forEach(id => {
+        if (id.startsWith('pinterest_') && !pinterestPins.some(pin => pin.id === id)) selectedGalleryIds.delete(id);
+      });
+      if (options.checkRemote !== false) {
+        window.setTimeout(() => {
+          checkPinterestSyncStatus({ refresh: Boolean(options.refresh) }).catch(() => {});
+        }, 0);
+      }
+      return pinterestPins;
+    } catch (error) {
+      if (requestId === pinterestRequestId) pinterestError = error?.message || String(error);
+      throw error;
+    } finally {
+      if (requestId === pinterestRequestId) {
+        pinterestLoading = false;
+        if (galleryView === 'pinterest') {
+          renderPinterestLibrary();
+          renderGallerySelection();
+        }
+      }
+    }
   }
 
   async function loadPromptSources() {
@@ -3991,6 +5611,8 @@
     const raw = window.prompt('候选集名称（可在名称后添加 #标签）', defaultName);
     if (raw === null) return;
     const { name, tags } = parseSetNameAndTags(raw, selected);
+    // 瘦身卡片先补全详情再做快照，保证候选集快照保留完整 prompt/params/血缘
+    await Promise.all(selected.map(asset => ensureAssetDetail(asset)));
     const result = await DesktopApi.saveAssetSet({
       name,
       tags,
@@ -4019,6 +5641,13 @@
       loadGalleryFiles().catch(error => DesktopResults.showError(error));
     } else if (galleryView === 'sources') {
       refreshPromptSources().catch(error => DesktopResults.showError(error));
+    } else if (galleryView === 'pinterest') {
+      if (!pinterestLibraryMeta.ok && !pinterestLoading) {
+        loadPinterestLibrary().catch(error => DesktopResults.showError(error));
+      } else {
+        renderPinterestLibrary();
+        checkPinterestSyncStatus().catch(() => {});
+      }
     } else {
       renderGallery();
     }
@@ -4032,21 +5661,41 @@
     resetGalleryRenderLimit();
     renderGallery();
     renderGallerySelection();
-    const sourceLoad = galleryView === 'sources' ? refreshPromptSources() : loadPromptSources();
-    const results = await Promise.allSettled([
-      loadHistory(80),
-      loadGalleryAssets(),
-      loadGallerySets(),
-      loadGalleryFiles(),
-      sourceLoad
-    ]);
-    results
-      .filter(result => result.status === 'rejected')
-      .forEach(result => DesktopResults.showError(result.reason));
+    // 首屏只等当前视图的数据；其余数据集延后到空闲时段加载，避免和关键请求争抢后端
+    const primaryLoaders = {
+      images: loadGalleryAssets,
+      sets: loadGallerySets,
+      setDetail: loadGallerySets,
+      files: loadGalleryFiles,
+      sources: refreshPromptSources,
+      pinterest: loadPinterestLibrary
+    };
+    const primaryKey = primaryLoaders[galleryView] ? galleryView : 'images';
+    const deferredLoads = [() => loadHistory(80)];
+    if (primaryKey !== 'images') deferredLoads.push(loadGalleryAssets);
+    if (primaryKey !== 'sets' && primaryKey !== 'setDetail') deferredLoads.push(loadGallerySets);
+    if (primaryKey !== 'files') deferredLoads.push(loadGalleryFiles);
+    if (primaryKey !== 'sources') deferredLoads.push(loadPromptSources);
+    const scheduleIdle = typeof window.requestIdleCallback === 'function'
+      ? callback => window.requestIdleCallback(callback, { timeout: 1500 })
+      : callback => window.setTimeout(callback, 600);
+    scheduleIdle(() => {
+      Promise.allSettled(deferredLoads.map(load => load())).then(results => {
+        results
+          .filter(result => result.status === 'rejected')
+          .forEach(result => DesktopResults.showError(result.reason));
+      });
+    });
+    try {
+      await primaryLoaders[primaryKey]();
+    } catch (error) {
+      DesktopResults.showError(error);
+    }
     return true;
   }
 
   function closeGallery() {
+    closePinterestAnalysisModal({ restoreFocus: false });
     els.deskGalleryPanel?.classList.remove('is-open');
     els.deskGalleryPanel?.setAttribute('aria-hidden', 'true');
   }
@@ -4120,12 +5769,82 @@
     if (els.deskComparePromptRight) els.deskComparePromptRight.textContent = right?.prompt || '无提示词';
   }
 
+  function compareImageBand(stageRect) {
+    // object-fit: contain 的实际渲染矩形（两图取并集）；分界线与拖动只作用于图片区域，不跑进留白
+    if (!stageRect || !stageRect.width || !stageRect.height) return null;
+    let left = Infinity;
+    let right = -Infinity;
+    let top = Infinity;
+    let bottom = -Infinity;
+    [els.deskCompareBaseImg, els.deskCompareTopImg].forEach(img => {
+      const naturalWidth = img?.naturalWidth || 0;
+      const naturalHeight = img?.naturalHeight || 0;
+      if (!naturalWidth || !naturalHeight) return;
+      const scale = Math.min(stageRect.width / naturalWidth, stageRect.height / naturalHeight);
+      const width = naturalWidth * scale;
+      const height = naturalHeight * scale;
+      const x = (stageRect.width - width) / 2;
+      const y = (stageRect.height - height) / 2;
+      left = Math.min(left, x);
+      right = Math.max(right, x + width);
+      top = Math.min(top, y);
+      bottom = Math.max(bottom, y + height);
+    });
+    if (!Number.isFinite(left) || right - left < 1) return null;
+    return { left, top, width: right - left, height: bottom - top };
+  }
+
+  let compareDividerBoundsKey = '';
+
   function updateComparePosition(value = els.deskCompareRange?.value || 50) {
-    const percent = Math.max(0, Math.min(100, Number(value) || 50));
-    if (els.deskCompareOverlay) {
-      els.deskCompareOverlay.style.clipPath = `inset(0 ${100 - percent}% 0 0)`;
-    }
-    if (els.deskCompareDivider) els.deskCompareDivider.style.left = `${percent}%`;
+    // 纯 transform 对偶平移实现揭示（外层左移、内层图片反向右移），
+    // 全程走合成器零重绘；旧的 clip-path 方案每帧都要重绘 4K 级原图导致拖动卡顿。
+    const num = Number(value);
+    comparePositionValue = Number.isFinite(num) ? Math.max(0, Math.min(100, num)) : 50;
+    if (comparePositionRaf) return;
+    comparePositionRaf = window.requestAnimationFrame(() => {
+      comparePositionRaf = 0;
+      // 先读后写：避免同帧内布局读写交错造成强制回流
+      const stageRect = compareDragRect
+        || (els.deskCompareStage ? els.deskCompareStage.getBoundingClientRect() : null);
+      const stageWidth = stageRect?.width || 0;
+      const percent = comparePositionValue;
+      const band = compareImageBand(stageRect);
+      // 分界点在舞台坐标系里的位置：percent 映射到图片带宽而非整个舞台
+      const seamX = band
+        ? band.left + band.width * percent / 100
+        : stageWidth * percent / 100;
+      const stageHidden = stageWidth ? 100 - (seamX / stageWidth) * 100 : 100 - percent;
+      if (els.deskCompareOverlay) {
+        els.deskCompareOverlay.style.transform = `translateX(-${stageHidden}%)`;
+      }
+      if (els.deskCompareTopImg) {
+        els.deskCompareTopImg.style.transform = `translateX(${stageHidden}%)`;
+      }
+      if (els.deskCompareDivider) {
+        if (stageWidth) {
+          // transform 定位分隔线：整条拖动链路零布局、零重绘，全走合成器
+          els.deskCompareDivider.style.left = '0';
+          els.deskCompareDivider.style.transform = `translateX(${seamX - 0.5}px)`;
+        } else {
+          els.deskCompareDivider.style.left = `${percent}%`;
+        }
+        // 线的上下端裁到图片高度内（尺寸只在开合/换图/缩放时变化，按 key 去重写入避免每帧布局）
+        const boundsKey = band ? `${band.top.toFixed(1)}|${band.height.toFixed(1)}` : 'full';
+        if (boundsKey !== compareDividerBoundsKey) {
+          compareDividerBoundsKey = boundsKey;
+          if (band) {
+            els.deskCompareDivider.style.top = `${band.top}px`;
+            els.deskCompareDivider.style.bottom = 'auto';
+            els.deskCompareDivider.style.height = `${band.height}px`;
+          } else {
+            els.deskCompareDivider.style.top = '0';
+            els.deskCompareDivider.style.bottom = '0';
+            els.deskCompareDivider.style.height = '';
+          }
+        }
+      }
+    });
   }
 
   function openCompare(assets = getSelectedAssets()) {
@@ -4150,11 +5869,17 @@
     renderCompareInfo(left, right);
     if (els.deskCompareRange) els.deskCompareRange.value = '50';
     updateComparePosition(50);
+    // 实测(2026-07-26 真机探针)：对比打开时身后的图库面板毛玻璃面每帧被重算,
+    // 拖动帧率 18fps；隐藏后 100fps。被完全遮挡的面板暂时下线,关闭对比时恢复。
+    els.deskGalleryPanel?.classList.add('desk-under-compare');
+    els.deskGalleryPreviewModal?.classList.add('desk-under-compare');
     els.deskCompareModal?.classList.add('is-open');
     els.deskCompareModal?.setAttribute('aria-hidden', 'false');
   }
 
   function closeCompare() {
+    els.deskGalleryPanel?.classList.remove('desk-under-compare');
+    els.deskGalleryPreviewModal?.classList.remove('desk-under-compare');
     els.deskCompareModal?.classList.remove('is-open');
     els.deskCompareModal?.setAttribute('aria-hidden', 'true');
   }
@@ -4252,9 +5977,22 @@
     return meta;
   }
 
+  function shouldReloadGalleryAfterMetaPatch(patch = {}) {
+    if (!galleryAssetsFromIndex) return false;
+    if (Object.prototype.hasOwnProperty.call(patch, 'hidden')) return true;
+    if (Object.prototype.hasOwnProperty.call(patch, 'favorite') && galleryFilter === 'favorite') return true;
+    return Object.prototype.hasOwnProperty.call(patch, 'tags')
+      && Boolean(galleryQuery.trim() || galleryTag.trim());
+  }
+
+  async function reloadGalleryAfterMetaPatch(patch = {}) {
+    if (shouldReloadGalleryAfterMetaPatch(patch)) await loadGalleryAssets();
+  }
+
   async function toggleAssetFavorite(asset, options = {}) {
     const nextValue = !asset.favorite;
     await updateAssetMeta(asset, { favorite: nextValue }, options);
+    await reloadGalleryAfterMetaPatch({ favorite: nextValue });
     DesktopResults.showTransientMessage(nextValue ? '已收藏。' : '已取消收藏。');
   }
 
@@ -4265,6 +6003,7 @@
     if (raw === null) return;
     const tags = parseTags(raw);
     await updateAssetMeta(asset, { tags });
+    await reloadGalleryAfterMetaPatch({ tags });
     DesktopResults.showTransientMessage(tags.length ? '标签已更新。' : '标签已清除。');
   }
 
@@ -4273,6 +6012,7 @@
     const nextValue = !asset.hidden;
     await updateAssetMeta(asset, { hidden: nextValue });
     if (nextValue && galleryFilter !== 'hidden') selectedGalleryIds.delete(asset.id);
+    await reloadGalleryAfterMetaPatch({ hidden: nextValue });
     renderPreviewActions(asset);
     DesktopResults.showTransientMessage(nextValue ? '图片已隐藏。' : '图片已取消隐藏。');
   }
@@ -4438,7 +6178,7 @@
       galleryMessage('正在刷新图库元数据...');
       await Promise.all([
         loadHistory(80),
-        loadGalleryAssets(),
+        loadGalleryAssets({ refresh: true }),
         loadGallerySets()
       ]);
       const count = Number(galleryAssetStats.metadata_image_count || 0).toLocaleString('zh-CN');
@@ -4533,6 +6273,7 @@
     for (const asset of selected) {
       await updateAssetMeta(asset, { tags });
     }
+    await reloadGalleryAfterMetaPatch({ tags });
     DesktopResults.showTransientMessage(tags.length ? `${selected.length} 张图片已更新标签。` : `${selected.length} 张图片已清除标签。`);
   }
 
@@ -4546,6 +6287,7 @@
     if (nextValue && galleryFilter !== 'hidden') {
       selected.forEach(asset => selectedGalleryIds.delete(asset.id));
     }
+    await reloadGalleryAfterMetaPatch({ hidden: nextValue });
     renderGallery();
     renderGallerySelection();
     DesktopResults.showTransientMessage(nextValue ? `${selected.length} 张图片已隐藏。` : `${selected.length} 张图片已取消隐藏。`);
@@ -4614,6 +6356,11 @@
     els.deskGalleryRefreshBtn?.addEventListener('click', () => {
       if (galleryView === 'sources') {
         refreshPromptSources().catch(error => DesktopResults.showError(error));
+        return;
+      }
+      if (galleryView === 'pinterest') {
+        loadPinterestLibrary({ refresh: true })
+          .catch(error => DesktopResults.showError(error));
         return;
       }
       Promise.all([
@@ -4689,6 +6436,25 @@
       renderGallery();
       renderGallerySelection();
     });
+    els.deskPinterestAnalysisCopyBtn?.addEventListener('click', () => {
+      copyPinterestAnalysisPrompt().catch(error => galleryError(error, '复制提示词失败'));
+    });
+    els.deskPinterestAnalysisSendBtn?.addEventListener('click', () => {
+      try {
+        sendPinterestAnalysisToTextNode();
+      } catch (error) {
+        galleryError(error, '发送到文本节点失败');
+      }
+    });
+    els.deskPinterestAnalysisCloseBtn?.addEventListener('click', () => closePinterestAnalysisModal());
+    els.deskPinterestAnalysisModal?.addEventListener('click', event => {
+      if (
+        event.target === els.deskPinterestAnalysisModal
+        || event.target?.closest?.('[data-pinterest-analysis-backdrop]')
+      ) {
+        closePinterestAnalysisModal();
+      }
+    });
 
     els.deskGalleryPreviewCopyBtn?.addEventListener('click', () => {
       copyPreviewPrompt().catch(error => DesktopResults.showError(error));
@@ -4736,6 +6502,60 @@
     });
 
     els.deskCompareRange?.addEventListener('input', event => updateComparePosition(event.target.value));
+    // 指针直控拖动：绕开原生滑杆事件管线，每个 pointermove 即时响应；
+    // range 仅保留键盘可达性（CSS 已设 pointer-events:none）
+    const comparePointerPercent = event => {
+      // 指针 → 图片带内百分比：留白区拖动会被夹到 0/100，分界线不会跑出图片边界
+      if (!compareDragRect) return null;
+      const band = compareImageBand(compareDragRect);
+      const originX = compareDragRect.left + (band ? band.left : 0);
+      const width = band ? band.width : compareDragRect.width;
+      if (!width) return null;
+      return Math.max(0, Math.min(100, ((event.clientX - originX) / width) * 100));
+    };
+    els.deskCompareStage?.addEventListener('pointerdown', event => {
+      if (event.button !== 0) return;
+      compareDragRect = els.deskCompareStage.getBoundingClientRect();
+      if (!compareDragRect.width) {
+        compareDragRect = null;
+        return;
+      }
+      compareDragPointerId = event.pointerId;
+      try {
+        els.deskCompareStage.setPointerCapture(event.pointerId);
+      } catch (error) {}
+      const percent = comparePointerPercent(event);
+      if (percent === null) return;
+      if (els.deskCompareRange) els.deskCompareRange.value = String(percent);
+      updateComparePosition(percent);
+      event.preventDefault();
+    });
+    els.deskCompareStage?.addEventListener('pointermove', event => {
+      if (compareDragPointerId === null || event.pointerId !== compareDragPointerId || !compareDragRect) return;
+      const percent = comparePointerPercent(event);
+      if (percent === null) return;
+      if (els.deskCompareRange) els.deskCompareRange.value = String(percent);
+      updateComparePosition(percent);
+    });
+    const endCompareDrag = event => {
+      if (compareDragPointerId === null || event.pointerId !== compareDragPointerId) return;
+      compareDragPointerId = null;
+      compareDragRect = null;
+    };
+    els.deskCompareStage?.addEventListener('pointerup', endCompareDrag);
+    els.deskCompareStage?.addEventListener('pointercancel', endCompareDrag);
+    // 图片解码完成后 naturalWidth 才可用，需要重算图片带并把分界线裁进图片区域
+    [els.deskCompareBaseImg, els.deskCompareTopImg].forEach(img => {
+      img?.addEventListener('load', () => {
+        if (els.deskCompareModal?.classList.contains('is-open')) updateComparePosition();
+      });
+    });
+    window.addEventListener('resize', () => {
+      if (els.deskCompareModal?.classList.contains('is-open')) {
+        compareDragRect = null;
+        updateComparePosition();
+      }
+    });
     els.deskCompareCloseBtn?.addEventListener('click', closeCompare);
     els.deskCompareSwapBtn?.addEventListener('click', swapCompare);
     els.deskCompareModal?.addEventListener('click', event => {
@@ -4760,6 +6580,10 @@
         return;
       }
       if (event.key !== 'Escape') return;
+      if (els.deskPinterestAnalysisModal && !els.deskPinterestAnalysisModal.hidden) {
+        closePinterestAnalysisModal();
+        return;
+      }
       if (els.deskFilePreviewModal?.classList.contains('is-open')) {
         closeEditableFilePreview();
         return;
@@ -4782,6 +6606,13 @@
     restoreHistoryCollapsedState();
     bindEvents();
   }
+
+  // 神灯引擎共享 API：快照（计算样式烘焙 + 图片内联）+ 翘曲动画；提示词抽屉等模块复用
+  window.DeskGenieFX = {
+    ready: historyGenieCanvasReady,
+    snapshotPanel: snapshotHistoryPanel,
+    animate: runGenieAnimationCore
+  };
 
   window.DesktopHistory = {
     init,

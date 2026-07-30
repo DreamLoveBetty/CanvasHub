@@ -8,6 +8,7 @@ import hashlib
 import os
 import re
 import tempfile
+import threading
 import urllib.parse
 from pathlib import Path
 from typing import Callable
@@ -22,6 +23,21 @@ THUMB_CACHE_ROOT = APP_DATA_DIR / "cache" / "thumb"
 THUMB_MAX_SIDE = 420
 THUMB_QUALITY = 76
 IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp"}
+
+
+class _GenerationLockEntry:
+    """Per-cache-key lock retained while callers hold or wait on it."""
+
+    __slots__ = ("lock", "users")
+
+    def __init__(self) -> None:
+        self.lock = threading.Lock()
+        self.users = 0
+
+
+# 并发请求同一张未缓存缩略图时按 cache key 去重，避免重复 PIL 解码
+_GEN_LOCKS: dict[str, _GenerationLockEntry] = {}
+_GEN_LOCKS_GUARD = threading.Lock()
 
 
 Resolver = Callable[[str], Path | None]
@@ -108,20 +124,36 @@ def ensure_webp_thumbnail(source: Path, *, size: int = THUMB_MAX_SIDE) -> Path:
     if cache_path.is_file():
         return cache_path
 
-    cache_path.parent.mkdir(parents=True, exist_ok=True)
-    with Image.open(source) as image:
-        frame = image.copy()
-        frame.thumbnail((safe_size, safe_size), Image.LANCZOS)
-        if frame.mode not in ("RGB", "RGBA"):
-            frame = frame.convert("RGBA" if "A" in frame.getbands() else "RGB")
-        with tempfile.NamedTemporaryFile(dir=str(cache_path.parent), suffix=".webp", delete=False) as tmp:
-            tmp_path = Path(tmp.name)
-        try:
-            frame.save(tmp_path, "WEBP", quality=THUMB_QUALITY, method=5)
-            os.replace(tmp_path, cache_path)
-        finally:
-            try:
-                tmp_path.unlink(missing_ok=True)
-            except Exception:
-                pass
+    lock_key = str(cache_path)
+    with _GEN_LOCKS_GUARD:
+        entry = _GEN_LOCKS.get(lock_key)
+        if entry is None:
+            entry = _GenerationLockEntry()
+            _GEN_LOCKS[lock_key] = entry
+        entry.users += 1
+    try:
+        with entry.lock:
+            if cache_path.is_file():
+                return cache_path
+            cache_path.parent.mkdir(parents=True, exist_ok=True)
+            with Image.open(source) as image:
+                frame = image.copy()
+                frame.thumbnail((safe_size, safe_size), Image.LANCZOS)
+                if frame.mode not in ("RGB", "RGBA"):
+                    frame = frame.convert("RGBA" if "A" in frame.getbands() else "RGB")
+                with tempfile.NamedTemporaryFile(dir=str(cache_path.parent), suffix=".webp", delete=False) as tmp:
+                    tmp_path = Path(tmp.name)
+                try:
+                    frame.save(tmp_path, "WEBP", quality=THUMB_QUALITY, method=5)
+                    os.replace(tmp_path, cache_path)
+                finally:
+                    try:
+                        tmp_path.unlink(missing_ok=True)
+                    except Exception:
+                        pass
+    finally:
+        with _GEN_LOCKS_GUARD:
+            entry.users -= 1
+            if entry.users == 0 and _GEN_LOCKS.get(lock_key) is entry:
+                _GEN_LOCKS.pop(lock_key, None)
     return cache_path

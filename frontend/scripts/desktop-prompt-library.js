@@ -12,23 +12,6 @@
     { id: 'muted', label: '低饱和', icon: '柔' },
     { id: 'cinematic', label: '电影感', icon: '影' },
   ];
-  const COLOR_SCHEMES = [
-    { id: 'coral-sunrise', name: '珊瑚日出', description: '珊瑚红与明亮金黄组成有亲和力的活力暖调。', colors: ['#EF476F', '#FF7F50', '#FFD166', '#FFF1D6', '#22333B'], categories: ['warm', 'vivid'], scenes: ['美妆海报', '夏日活动', '生活方式'], tags: ['暖色', '活力', '商业'], prompt: '色彩方案采用珊瑚红、暖橙与明亮金黄，奶油白作为大面积留白，深青灰稳定文字和阴影；整体明快、热情、有亲和力，保持暖色主导与清晰层级。' },
-    { id: 'amber-theater', name: '琥珀剧场', description: '深酒红、焦糖与琥珀金营造浓郁戏剧光感。', colors: ['#321B1B', '#7A2525', '#C15F2A', '#E6A756', '#F5E3C3'], categories: ['warm', 'cinematic'], scenes: ['电影海报', '餐饮品牌', '复古肖像'], tags: ['暖色', '戏剧', '质感'], prompt: '色彩方案以深酒红和暗棕为阴影基底，焦糖橙与琥珀金作为主要光色，浅香槟色控制高光；形成浓郁、克制的戏剧氛围和电影级明暗层次。' },
-    { id: 'citrus-market', name: '柑橘市集', description: '橘黄、青柠和叶绿构成清爽直接的消费视觉。', colors: ['#FF6B35', '#FFB703', '#D9ED92', '#52B788', '#1B4332'], categories: ['warm', 'vivid'], scenes: ['食品包装', '市集活动', '社媒物料'], tags: ['清新', '食物', '高饱和'], prompt: '色彩方案使用鲜橙与金黄建立食欲和活力，以青柠浅绿过渡，叶绿和深森林绿平衡画面；色彩清爽、明亮、自然，适合年轻化消费视觉。' },
-    { id: 'vintage-film', name: '复古胶片', description: '褪色砖红、芥末黄与灰青复现温和胶片质感。', colors: ['#9E4F3F', '#D29B52', '#E7D9B4', '#6F8A82', '#303B3A'], categories: ['warm', 'muted', 'cinematic'], scenes: ['人文纪实', '咖啡品牌', '旅行画面'], tags: ['复古', '胶片', '低饱和'], prompt: '色彩方案采用褪色砖红、芥末黄和灰青色，搭配旧纸米白与深灰绿；降低整体饱和度和对比，保留温暖颗粒感，呈现自然、怀旧的胶片色彩。' },
-    { id: 'porcelain-mist', name: '青瓷薄雾', description: '雾青、浅瓷白和墨绿组成安静通透的东方冷调。', colors: ['#DDEBE7', '#A7C7C0', '#5F8F86', '#2F5D57', '#F7F8F4'], categories: ['cool', 'muted'], scenes: ['东方美学', '护肤产品', '静物摄影'], tags: ['冷色', '东方', '克制'], prompt: '色彩方案以雾青和浅青瓷色为主，墨绿用于细节与文字，柔和瓷白承担留白；整体低饱和、通透、安静，强调东方审美和细腻材质。' },
-    { id: 'deep-sea-neon', name: '深海电光', description: '深海蓝与高亮青绿形成锐利的数字视觉。', colors: ['#071A2B', '#0B3C5D', '#00A8A8', '#4DEEEA', '#D8FFFF'], categories: ['cool', 'vivid', 'cinematic'], scenes: ['科技发布', '游戏视觉', '音乐封面'], tags: ['科技', '霓虹', '高对比'], prompt: '色彩方案以深海蓝和藏青作为大面积暗部，高亮青绿与电光蓝用于发光边缘和关键焦点，冰白点亮信息；整体冷峻、锐利，具有深海般纵深与数字霓虹质感。' },
-    { id: 'alpine-lake', name: '高山湖泊', description: '湖蓝、松针绿和雪白构成清冽自然的层次。', colors: ['#EAF4F4', '#A8DADC', '#4D908E', '#2D6A4F', '#1D3557'], categories: ['cool', 'muted'], scenes: ['户外品牌', '风景摄影', '健康生活'], tags: ['自然', '清冽', '户外'], prompt: '色彩方案使用雪白与浅湖蓝表现空气感，中层采用灰青色，松针绿和深山蓝稳住远景与文字；整体清冽、自然、层次分明，避免过度饱和。' },
-    { id: 'arctic-tech', name: '极地科技', description: '冰白、冷灰蓝与深靛蓝适合清晰精密的信息表达。', colors: ['#F5F9FC', '#C9D8E6', '#7EA3C4', '#24527A', '#102A43'], categories: ['cool', 'neutral'], scenes: ['科技产品', '数据界面', '企业视觉'], tags: ['理性', '专业', '科技'], prompt: '色彩方案以冰白和冷灰蓝构成干净背景，中蓝建立信息层级，深靛蓝用于核心文字和结构；整体理性、精密、清晰，呈现可信赖的现代科技气质。' },
-    { id: 'concrete-silver', name: '水泥银灰', description: '多层次银灰搭配炭黑，呈现冷静的工业秩序。', colors: ['#F2F3F4', '#CACFD2', '#909497', '#515A5A', '#1C2833'], categories: ['neutral', 'muted'], scenes: ['建筑画册', '工业产品', '极简版式'], tags: ['中性', '工业', '极简'], prompt: '色彩方案使用从银白到水泥灰的连续层次，并以炭黑建立最大对比；不引入明显色相，突出结构、材质和留白，整体冷静、精确、具有工业秩序。' },
-    { id: 'graphite-mono', name: '石墨单色', description: '石墨黑、纸白和中间灰构成高识别度的单色系统。', colors: ['#111111', '#343434', '#737373', '#BDBDBD', '#F4F4F2'], categories: ['neutral'], scenes: ['时尚大片', '字体海报', '作品集'], tags: ['黑白', '单色', '高对比'], prompt: '色彩方案限定为石墨黑、炭灰、中灰、浅灰和纸白，通过明度而非色相建立层级；保持轮廓利落、留白明确，呈现经典、克制的高对比单色视觉。' },
-    { id: 'morandi-garden', name: '莫兰迪花园', description: '灰粉、鼠尾草与雾蓝组合出温柔平衡的低饱和色域。', colors: ['#C9A9A6', '#D8C7B5', '#A8B5A2', '#8FA3AD', '#545B62'], categories: ['neutral', 'muted'], scenes: ['家居软装', '女性品牌', '生活摄影'], tags: ['柔和', '低饱和', '生活感'], prompt: '色彩方案采用灰粉、浅灰褐、鼠尾草绿与雾蓝，深灰仅用于必要的视觉锚点；统一降低饱和度和反差，营造温柔、耐看、平衡的生活美学。' },
-    { id: 'cream-black-gold', name: '奶油黑金', description: '柔和象牙白、墨黑与克制金色形成高级商业对比。', colors: ['#F7F1E3', '#D6C6A5', '#B08D57', '#34312D', '#111111'], categories: ['neutral', 'warm'], scenes: ['奢侈品', '珠宝静物', '高端邀请函'], tags: ['高级', '金色', '商业'], prompt: '色彩方案以象牙白和柔和米色承担大面积背景，墨黑建立清晰结构，古金色仅用于小面积高光和关键细节；整体克制、精致，避免金色泛滥。' },
-    { id: 'urban-red-blue', name: '都市红蓝', description: '信号红与深蓝在冷灰背景上形成直接的现代张力。', colors: ['#E63946', '#F1FAEE', '#A8DADC', '#457B9D', '#1D3557'], categories: ['neutral', 'vivid'], scenes: ['品牌海报', '体育视觉', '信息图表'], tags: ['现代', '对比', '品牌'], prompt: '色彩方案使用信号红作为小面积强焦点，深蓝构成稳定主色，浅灰蓝与暖白负责背景和信息分区；整体清晰、现代、有节奏，保持红蓝面积比例克制。' },
-    { id: 'violet-noir', name: '紫夜金属', description: '暗紫、蓝黑与冷银高光呈现神秘的夜间质感。', colors: ['#12101C', '#2D1E46', '#654A8E', '#A7A3C2', '#E8E7F0'], categories: ['cool', 'cinematic'], scenes: ['香水广告', '音乐视觉', '夜景时尚'], tags: ['神秘', '夜色', '金属'], prompt: '色彩方案以蓝黑和暗紫构成大面积夜色，中紫控制层次，冷银灰与微亮白塑造金属高光；整体神秘、精致、具有电影夜景的纵深感。' },
-    { id: 'desert-cinema', name: '荒漠电影', description: '沙岩、铁锈与深青阴影组成宽银幕式的大地色。', colors: ['#E2C290', '#C67C4E', '#8C3F2B', '#35524A', '#172A2A'], categories: ['warm', 'muted', 'cinematic'], scenes: ['旅行电影', '汽车广告', '叙事概念图'], tags: ['大地色', '宽银幕', '叙事'], prompt: '色彩方案以沙岩浅褐和铁锈红表现受光区域，深青绿与近黑青色压住阴影；降低高光饱和度，保留冷暖对照，形成辽阔、粗粝的宽银幕电影感。' },
-  ];
   const COLOR_FORMULAS = [
     { id: 'monochromatic', label: '单色', en: 'Monochromatic', description: '同一色相改变明度与饱和度，最安全统一。', offsets: [0, 0, 0, 0, 0] },
     { id: 'analogous', label: '类似色', en: 'Analogous', description: '选取色轮相邻色，柔和、自然、氛围连贯。', offsets: [0, 30, -30, 15, -15] },
@@ -76,6 +59,10 @@
     blocks: [],
     templates: [],
     colors: [],
+    colorLoadPromise: null,
+    colorDataVersion: 0,
+    legacyColorMigrationBlocked: false,
+    legacyColorMigrationWarned: false,
     sources: [],
     inspiration: [],
     selected: { blocks: '', templates: '', colors: '', inspiration: '' },
@@ -101,6 +88,10 @@
     ruleWriteAction: '',
     colorDraft: null,
     colorDraftBaseline: null,
+    colorSaveBusy: false,
+    colorWriteAction: '',
+    colorSaveCounter: 0,
+    colorFavoriteBusyId: '',
     colorBloomOpen: false,
     colorAnalysis: newColorAnalysisState(),
     extractorFocus: null,
@@ -269,18 +260,20 @@
     const temperature = draft.temperature === 'warm' ? '整体保持暖色倾向；' : draft.temperature === 'cool' ? '整体保持冷色倾向；' : '';
     return `色彩方案采用${formula.label}（${formula.en}）公式，以 ${colors[0]} 为主色、${colors[1]} 为辅色、${colors[2]} 为点缀色，配套 ${colors[3]} 与 ${colors[4]}。${ratio}${neutral}${temperature}适用于${industry.label}，保持清晰主次、稳定可读性与一致的品牌情绪。`;
   }
-  function normalizeCustomColor(item) {
+  function normalizeColorScheme(item, options = {}) {
     if (!item || typeof item !== 'object') return null;
     const colors = (Array.isArray(item.colors) ? item.colors : []).filter(color => /^#[0-9a-f]{6}$/i.test(String(color || ''))).slice(0, 5).map(safeColor);
     if (colors.length < 3) return null;
     while (colors.length < 5) colors.push(colors[colors.length - 1]);
-    const industry = colorIndustry(item.industry).id; const formula = colorFormula(item.formula).id;
+    const custom = options.custom ?? (item.custom === true);
+    const industry = custom ? colorIndustry(item.industry).id : cleanText(item.industry).slice(0, 64);
+    const formula = custom ? colorFormula(item.formula).id : cleanText(item.formula).slice(0, 64);
     return {
       id: cleanText(item.id).slice(0, 100) || `custom-color-${Date.now().toString(36)}`,
-      name: cleanText(item.name).slice(0, 100) || '自定义配色',
-      description: cleanText(item.description).slice(0, 500) || '手动创建的自定义配色方案。',
+      name: cleanText(item.name).slice(0, 100) || (custom ? '自定义配色' : '未命名配色'),
+      description: cleanText(item.description).slice(0, 500) || (custom ? '手动创建的自定义配色方案。' : '内置色彩方案。'),
       colors,
-      categories: inferColorCategories(colors),
+      categories: parseTags(item.categories).slice(0, 8).length ? parseTags(item.categories).slice(0, 8) : inferColorCategories(colors),
       scenes: parseTags(item.scenes).slice(0, 8),
       tags: parseTags(item.tags).slice(0, 12),
       prompt: cleanText(item.prompt).slice(0, 4000) || '使用此配色方案并保持明确的色彩层级。',
@@ -291,31 +284,70 @@
       temperature: ['auto', 'warm', 'cool'].includes(item.temperature) ? item.temperature : 'auto',
       neutral_balance: item.neutral_balance !== false,
       use_ratio: item.use_ratio !== false,
-      custom: true,
+      custom,
+      favorite: item.favorite === true,
     };
   }
-  function loadColorSchemes() {
-    let favorites = new Set();
-    let custom = [];
+  function normalizeCustomColor(item) { return normalizeColorScheme(item, { custom: true }); }
+  function readLegacyColorStorage() {
+    let customRaw = null;
+    let favoritesRaw = null;
     try {
-      const stored = JSON.parse(window.localStorage?.getItem(COLOR_FAVORITES_KEY) || '[]');
-      if (Array.isArray(stored)) favorites = new Set(stored.map(String));
+      customRaw = window.localStorage?.getItem(COLOR_CUSTOM_KEY) ?? null;
+      favoritesRaw = window.localStorage?.getItem(COLOR_FAVORITES_KEY) ?? null;
     } catch (error) {}
+    const parseList = raw => {
+      if (raw === null) return [];
+      try { const parsed = JSON.parse(raw); return Array.isArray(parsed) ? parsed : []; }
+      catch (error) { return []; }
+    };
+    return {
+      present: customRaw !== null || favoritesRaw !== null,
+      customSchemes: parseList(customRaw).map(normalizeCustomColor).filter(Boolean),
+      favoriteIds: parseList(favoritesRaw).map(value => cleanText(value)).filter(Boolean),
+    };
+  }
+  function clearLegacyColorStorage() {
     try {
-      const stored = JSON.parse(window.localStorage?.getItem(COLOR_CUSTOM_KEY) || '[]');
-      if (Array.isArray(stored)) custom = stored.map(normalizeCustomColor).filter(Boolean);
+      window.localStorage?.removeItem(COLOR_CUSTOM_KEY);
+      window.localStorage?.removeItem(COLOR_FAVORITES_KEY);
     } catch (error) {}
-    const builtIn = COLOR_SCHEMES.map(item => ({ ...item, colors: item.colors.map(safeColor), custom: false }));
-    state.colors = [...custom, ...builtIn].map(item => ({ ...item, favorite: favorites.has(item.id) }));
-    if (!state.selected.colors) state.selected.colors = itemId(state.colors[0]);
   }
-  function saveColorFavorites() {
-    try { window.localStorage?.setItem(COLOR_FAVORITES_KEY, JSON.stringify(state.colors.filter(item => item.favorite).map(item => item.id))); }
-    catch (error) {}
-  }
-  function saveCustomColors() {
-    try { window.localStorage?.setItem(COLOR_CUSTOM_KEY, JSON.stringify(state.colors.filter(item => item.custom).map(item => ({ ...item, favorite: undefined })))); }
-    catch (error) { throw new Error('无法保存自定义配色方案'); }
+  async function loadColorSchemes() {
+    if (state.colorLoadPromise) return state.colorLoadPromise;
+    const loadVersion = state.colorDataVersion;
+    const request = (async () => {
+      if (!window.DesktopApi?.getPromptColorSchemes) throw new Error('色彩方案 API 未加载');
+      const legacy = state.legacyColorMigrationBlocked ? { present: false, customSchemes: [], favoriteIds: [] } : readLegacyColorStorage();
+      let result = null;
+      if (legacy.present) {
+        if (!window.DesktopApi?.migrateLegacyPromptColorSchemes) throw new Error('旧配色迁移 API 未加载');
+        result = await window.DesktopApi.migrateLegacyPromptColorSchemes({
+          custom_schemes: legacy.customSchemes,
+          favorite_ids: legacy.favoriteIds,
+        });
+        if (result?.migration_complete === true) {
+          clearLegacyColorStorage();
+        } else {
+          state.legacyColorMigrationBlocked = true;
+          if (!state.legacyColorMigrationWarned) {
+            state.legacyColorMigrationWarned = true;
+            console.warn('[PromptLibrary] 部分旧版配色与 SQLite 数据冲突，已保留浏览器旧数据。');
+            notify('部分旧版配色存在冲突，已保留浏览器旧数据；当前显示数据库版本。', 'warning');
+          }
+        }
+      }
+      if (!Array.isArray(result?.color_schemes)) result = await window.DesktopApi.getPromptColorSchemes();
+      const loadedColors = (result?.color_schemes || []).map(item => normalizeColorScheme(item)).filter(Boolean);
+      if (loadVersion === state.colorDataVersion) {
+        state.colors = loadedColors;
+        if (!state.selected.colors) state.selected.colors = itemId(state.colors[0]);
+      }
+      return state.colors;
+    })();
+    state.colorLoadPromise = request;
+    try { return await request; }
+    finally { if (state.colorLoadPromise === request) state.colorLoadPromise = null; }
   }
   function createColorDraft(source = null, duplicate = false) {
     const industry = source ? colorIndustry(source.industry) : COLOR_INDUSTRIES[0];
@@ -363,11 +395,16 @@
     return Array.from(new Set([state.extractor, state.extractorDrafts.text, state.extractorDrafts.image].filter(Boolean)));
   }
   function isWriteBusy() {
-    return state.blockSaveBusy || state.ruleSaveBusy || (state.extractor.busy && state.extractor.busyAction === 'save');
+    return state.blockSaveBusy || state.ruleSaveBusy || state.colorSaveBusy || !!state.colorFavoriteBusyId || (state.extractor.busy && state.extractor.busyAction === 'save');
   }
   function guardWriteBusy() {
     if (!isWriteBusy()) return false;
-    notify(state.ruleSaveBusy ? '正在保存拆分规则，请稍候。' : '正在保存素材块，请稍候。', 'warning');
+    const message = state.ruleSaveBusy
+      ? '正在保存拆分规则，请稍候。'
+      : state.colorSaveBusy || state.colorFavoriteBusyId
+      ? '正在写入配色方案，请稍候。'
+      : '正在保存素材块，请稍候。';
+    notify(message, 'warning');
     return true;
   }
   function updateWriteControls() {
@@ -883,20 +920,20 @@
       ? `图片提取已同步 · ${colorAnalysisSummary(state.colorAnalysis.result)}`
       : '可直接修改生成结果';
     return `<div class="desk-prompt-editor-pane desk-prompt-editor-pane--color-draft"><div class="desk-prompt-editor-pane__head"><div><span class="desk-prompt-editor-pane__eyebrow">${draft.id ? '编辑自定义配色' : '手动创建配色'}</span><h3>${escapeHtml(draft.name || '未命名配色方案')}</h3><p>选择行业与色轮公式生成起点，再直接调整每一个色值。</p></div></div>
-      <form class="desk-prompt-color-draft" data-color-draft-form autocomplete="off">
+      <form class="desk-prompt-color-draft" data-color-draft-form autocomplete="off" ${state.colorSaveBusy ? 'inert aria-busy="true"' : ''}>
         <section class="desk-prompt-color-draft__section"><div class="desk-prompt-color-draft__section-head"><div><strong>基本设置</strong><span>定义方案用途和生成基色</span></div><button type="button" class="desk-prompt-color-draft__image-action ${state.colorAnalysis.open ? 'is-active' : ''}" data-prompt-action="toggle-color-analysis" aria-expanded="${state.colorAnalysis.open}"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"></rect><circle cx="9" cy="10" r="2"></circle><path d="m3 17 5-5 4 4 3-3 6 6"></path><path d="M18 3v4M16 5h4"></path></svg><span>${state.colorAnalysis.open ? '收起图片分析' : '从图片提取'}</span></button></div><div class="desk-prompt-color-draft__basics"><label class="desk-prompt-field"><span>方案名称</span><input name="color_name" maxlength="100" value="${escapeHtml(draft.name)}" placeholder="例如：清爽科技蓝" required></label><label class="desk-prompt-field"><span>设计行业</span><select name="color_industry">${COLOR_INDUSTRIES.map(item => `<option value="${item.id}" ${item.id === draft.industry ? 'selected' : ''}>${escapeHtml(item.label)}</option>`).join('')}</select></label><div class="desk-prompt-field desk-prompt-field--bloom" role="group" aria-labelledby="deskPromptBloomLabel"><span id="deskPromptBloomLabel">基色</span>${colorBloomPickerHtml(draft.base_color)}</div><label class="desk-prompt-field"><span>色温倾向</span><select name="color_temperature"><option value="auto" ${draft.temperature === 'auto' ? 'selected' : ''}>冷暖均衡</option><option value="warm" ${draft.temperature === 'warm' ? 'selected' : ''}>暖色倾向 · 活力亲切</option><option value="cool" ${draft.temperature === 'cool' ? 'selected' : ''}>冷色倾向 · 专业冷静</option></select></label><label class="desk-prompt-field"><span>明度 / 饱和度对比</span><select name="color_contrast"><option value="soft" ${draft.contrast === 'soft' ? 'selected' : ''}>柔和低对比 · 优雅高级</option><option value="balanced" ${draft.contrast === 'balanced' ? 'selected' : ''}>均衡对比 · 通用商业</option><option value="high" ${draft.contrast === 'high' ? 'selected' : ''}>鲜明高对比 · 活力醒目</option></select></label></div>${colorAnalysisHtml()}</section>
         <section class="desk-prompt-color-draft__section"><div class="desk-prompt-color-draft__section-head"><div><strong>色轮公式</strong><span>行业标准的色相组合规则</span></div><em>${escapeHtml(formula.en)}</em></div><div class="desk-prompt-color-formula-grid">${COLOR_FORMULAS.map(item => `<label><input type="radio" name="color_formula" value="${item.id}" ${item.id === draft.formula ? 'checked' : ''}><span><strong>${escapeHtml(item.label)}</strong><small>${escapeHtml(item.en)}</small><em>${escapeHtml(item.description)}</em></span></label>`).join('')}</div></section>
         <section class="desk-prompt-color-draft__section"><div class="desk-prompt-color-draft__section-head"><div><strong>实用规则</strong><span>用比例和中性色控制视觉层级</span></div></div><div class="desk-prompt-color-draft__rules"><label><input type="checkbox" name="color_use_ratio" ${draft.use_ratio ? 'checked' : ''}><span><strong>60-30-10 黄金比例</strong><small>主色 60% · 辅色 30% · 点缀色 10%</small></span></label><label><input type="checkbox" name="color_neutral_balance" ${draft.neutral_balance ? 'checked' : ''}><span><strong>自动加入中性色</strong><small>以低饱和浅色和深色保障留白与可读性</small></span></label></div><div class="desk-prompt-color-draft__generate-actions"><button type="button" class="desk-prompt-color-draft__generate" data-prompt-action="apply-color-industry"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="7" width="18" height="13" rx="2"></rect><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 12h18"></path></svg><span>应用行业推荐</span></button><button type="button" class="desk-prompt-color-draft__generate" data-prompt-action="generate-color-draft"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3-1.7 4.6a2 2 0 0 1-1.2 1.2L5 10.3l4.1 1.5a2 2 0 0 1 1.2 1.2L12 17.7l1.7-4.7a2 2 0 0 1 1.2-1.2l4.1-1.5-4.1-1.5a2 2 0 0 1-1.2-1.2Z"></path><path d="M5 3v3M3.5 4.5h3M19 17v4M17 19h4"></path></svg><span>按公式生成配色</span></button></div></section>
         <section class="desk-prompt-color-draft__section"><div class="desk-prompt-color-draft__section-head"><div><strong>色值微调</strong><span>${escapeHtml(colorTuneSummary)}</span></div><em>HEX</em></div><div class="desk-prompt-color-draft__ratio ${draft.use_ratio ? '' : 'is-even'}" aria-label="${draft.use_ratio ? '60-30-10 比例预览' : '等比例配色预览'}"><span style="--desk-prompt-color:${colors[0]};--desk-prompt-color-ink:${colorTextColor(colors[0])}"><b>${draft.use_ratio ? '60%' : '主色'}</b></span><span style="--desk-prompt-color:${colors[1]};--desk-prompt-color-ink:${colorTextColor(colors[1])}"><b>${draft.use_ratio ? '30%' : '辅色'}</b></span><span style="--desk-prompt-color:${colors[2]};--desk-prompt-color-ink:${colorTextColor(colors[2])}"><b>${draft.use_ratio ? '10%' : '点缀'}</b></span></div><div class="desk-prompt-color-draft__colors">${colors.map((color, index) => `<div><label style="--desk-prompt-color:${color};--desk-prompt-color-ink:${colorTextColor(color)}"><input type="color" name="color_picker_${index}" value="${color}" data-color-draft-index="${index}" aria-label="${roles[index]}颜色"><span>${roles[index]}</span></label><input name="color_hex_${index}" value="${color}" maxlength="7" spellcheck="false" data-color-draft-index="${index}" aria-label="${roles[index]}色值"></div>`).join('')}</div>${colorContrastHtml(colors)}</section>
         <section class="desk-prompt-color-draft__section"><div class="desk-prompt-color-draft__section-head"><div><strong>描述与提示词</strong><span>保存后可搜索、复制并插入文本节点</span></div></div><label class="desk-prompt-field"><span>方案描述</span><textarea name="color_description" maxlength="500">${escapeHtml(draft.description)}</textarea></label><label class="desk-prompt-field"><span>提示词片段</span><textarea name="color_prompt" maxlength="4000" required>${escapeHtml(draft.prompt)}</textarea></label><div class="desk-prompt-field-grid"><label class="desk-prompt-field"><span>适用场景</span><input name="color_scenes" value="${escapeHtml(parseTags(draft.scenes).join(', '))}" placeholder="界面系统, 品牌海报"></label><label class="desk-prompt-field"><span>标签</span><input name="color_tags" value="${escapeHtml(parseTags(draft.tags).join(', '))}" placeholder="科技, 专业, 高对比"></label></div></section>
-        <div class="desk-prompt-editor-actions"><button type="submit" class="is-primary">保存配色方案</button><button type="button" data-prompt-action="cancel-color-draft">取消</button>${draft.id ? '<button type="button" class="is-danger" data-prompt-action="delete-color-draft">删除</button>' : ''}</div>
+        <div class="desk-prompt-editor-actions"><button type="submit" class="is-primary" ${state.colorSaveBusy ? 'disabled' : ''}>${state.colorSaveBusy ? (state.colorWriteAction === 'delete' ? '正在删除…' : '正在保存…') : '保存配色方案'}</button><button type="button" data-prompt-action="cancel-color-draft" ${state.colorSaveBusy ? 'disabled' : ''}>取消</button>${draft.id ? `<button type="button" class="is-danger" data-prompt-action="delete-color-draft" ${state.colorSaveBusy ? 'disabled' : ''}>${state.colorSaveBusy && state.colorWriteAction === 'delete' ? '删除中…' : '删除'}</button>` : ''}</div>
       </form></div>`;
   }
   function colorEditorHtml(item) {
     if (!item) return emptyEditor('选择一个色彩方案');
     const colorValues = item.colors.map(safeColor);
     const formula = item.formula ? colorFormula(item.formula) : null;
-    return `<div class="desk-prompt-editor-pane desk-prompt-editor-pane--color"><div class="desk-prompt-editor-pane__head"><div><span class="desk-prompt-editor-pane__eyebrow">${item.custom ? `自定义 · ${escapeHtml(formula?.label || '手动配色')}` : '色彩方案'}</span><h3 data-i18n-skip>${escapeHtml(item.name)}</h3><p data-i18n-skip>${escapeHtml(item.description)}</p></div><div class="desk-prompt-editor-pane__head-actions"><button type="button" data-prompt-action="duplicate-color" title="以此方案为起点">以此为起点</button>${item.custom ? '<button type="button" data-prompt-action="edit-color">编辑</button>' : ''}<button type="button" data-prompt-action="toggle-color-favorite" aria-pressed="${item.favorite ? 'true' : 'false'}" title="${item.favorite ? '取消收藏' : '收藏'}" aria-label="${item.favorite ? '取消收藏' : '收藏'} ${escapeHtml(item.name)}">★</button></div></div>
+    return `<div class="desk-prompt-editor-pane desk-prompt-editor-pane--color"><div class="desk-prompt-editor-pane__head"><div><span class="desk-prompt-editor-pane__eyebrow">${item.custom ? `自定义 · ${escapeHtml(formula?.label || '手动配色')}` : '色彩方案'}</span><h3 data-i18n-skip>${escapeHtml(item.name)}</h3><p data-i18n-skip>${escapeHtml(item.description)}</p></div><div class="desk-prompt-editor-pane__head-actions"><button type="button" data-prompt-action="duplicate-color" title="以此方案为起点">以此为起点</button>${item.custom ? '<button type="button" data-prompt-action="edit-color">编辑</button>' : ''}<button type="button" data-prompt-action="toggle-color-favorite" aria-pressed="${item.favorite ? 'true' : 'false'}" title="${item.favorite ? '取消收藏' : '收藏'}" aria-label="${item.favorite ? '取消收藏' : '收藏'} ${escapeHtml(item.name)}" ${state.colorFavoriteBusyId === item.id ? 'disabled' : ''}>★</button></div></div>
       <div class="desk-prompt-color"><section class="desk-prompt-section"><div class="desk-prompt-section-title"><strong>配色预览</strong><em>点击色块复制 HEX</em></div><div class="desk-prompt-color__preview">${colorValues.map((color, index) => `<button type="button" data-color-value="${color}" title="复制 ${color}" aria-label="复制色值 ${color}" style="--desk-prompt-color:${color};--desk-prompt-color-ink:${colorTextColor(color)}"><span>${color}</span><small>${index === 0 ? '主色' : index === colorValues.length - 1 ? '锚点色' : `辅色 ${index}`}</small></button>`).join('')}</div></section>
       <section class="desk-prompt-section"><div class="desk-prompt-section-title"><strong>适用场景</strong></div><div class="desk-prompt-color__scenes">${(item.scenes || []).map(scene => `<span>${escapeHtml(scene)}</span>`).join('')}</div></section>
       <section class="desk-prompt-section"><div class="desk-prompt-section-title"><strong>提示词片段</strong></div><pre class="desk-prompt-color__prompt" data-i18n-skip>${escapeHtml(item.prompt)}</pre></section>
@@ -1252,11 +1289,14 @@
   }
   function discardColorDraft() {
     resetColorAnalysis();
+    state.colorSaveBusy = false;
+    state.colorWriteAction = '';
     state.colorDraft = null;
     state.colorDraftBaseline = null;
     state.colorBloomOpen = false;
   }
   function startNewColor(source = null, duplicate = false) {
+    if (guardWriteBusy()) return false;
     if (state.colorDraft && !confirmColorDraftDiscard()) return false;
     setColorDraft(createColorDraft(source, duplicate));
     state.workspace = 'colors';
@@ -1293,37 +1333,90 @@
     const invalidHex = Array.from(form.querySelectorAll('[name="color_base_hex"], [name^="color_hex_"]')).find(input => !/^#[0-9a-f]{6}$/i.test(cleanText(input.value)));
     if (invalidHex) { invalidHex.focus?.({ preventScroll: true }); throw new Error('色值必须使用完整的 HEX 格式，例如 #2563EB'); }
   }
-  function saveColorDraft(event) {
+  async function saveColorDraft(event) {
     event?.preventDefault?.();
+    if (state.colorSaveBusy) return;
+    let requestId = 0;
     try {
       validateColorDraftForm();
       const draft = syncColorDraftFromForm();
       if (!draft?.name) throw new Error('请输入配色方案名称');
       if (!draft.prompt) throw new Error('请输入提示词片段');
-      const id = draft.id || `custom-color-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+      const id = draft.id || draft.request_id || `custom-color-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+      if (!draft.id) draft.request_id = id;
       const existing = state.colors.find(item => itemId(item) === id);
-      const item = normalizeCustomColor({ ...draft, id });
-      if (!item) throw new Error('配色方案内容无效');
-      item.favorite = !!existing?.favorite;
+      const payload = normalizeCustomColor({ ...draft, id, favorite: !!existing?.favorite });
+      if (!payload) throw new Error('配色方案内容无效');
+      requestId = ++state.colorSaveCounter;
+      state.colorSaveBusy = true;
+      state.colorWriteAction = 'save';
+      render();
+      const result = await window.DesktopApi.savePromptColorScheme(payload);
+      if (requestId !== state.colorSaveCounter) return;
+      const item = normalizeColorScheme(result?.color_scheme);
+      if (!item?.id) throw new Error('服务未返回配色方案');
+      state.colorDataVersion += 1;
       state.colors = [item, ...state.colors.filter(color => itemId(color) !== id)];
-      state.selected.colors = id;
-      saveCustomColors();
+      state.selected.colors = item.id;
       discardColorDraft();
       render();
       notify(existing ? '自定义配色方案已更新。' : '自定义配色方案已保存。');
-    } catch (error) { reportError(error, '配色方案保存失败'); }
+      window.DesktopPromptInsert?.refresh?.().catch?.(() => {});
+    } catch (error) {
+      if (requestId && requestId !== state.colorSaveCounter) return;
+      state.colorSaveBusy = false;
+      state.colorWriteAction = '';
+      render();
+      reportError(error, '配色方案保存失败');
+    }
   }
   function cancelColorDraft() {
     if (!confirmColorDraftDiscard()) return;
     discardColorDraft(); renderEditor();
   }
-  function deleteColorDraft() {
+  async function deleteColorDraft() {
+    if (state.colorSaveBusy) return;
     const draft = syncColorDraftFromForm();
     if (!draft?.id) return;
     if (window.confirm && !window.confirm(`确定删除“${draft.name || '自定义配色'}”？`)) return;
-    state.colors = state.colors.filter(item => itemId(item) !== draft.id);
-    state.selected.colors = itemId(state.colors[0]);
-    saveCustomColors(); saveColorFavorites(); discardColorDraft(); render(); notify('自定义配色方案已删除。');
+    const requestId = ++state.colorSaveCounter;
+    state.colorSaveBusy = true;
+    state.colorWriteAction = 'delete';
+    render();
+    try {
+      await window.DesktopApi.deletePromptColorScheme(draft.id);
+      if (requestId !== state.colorSaveCounter) return;
+      state.colorDataVersion += 1;
+      state.colors = state.colors.filter(item => itemId(item) !== draft.id);
+      state.selected.colors = itemId(state.colors[0]);
+      discardColorDraft();
+      render();
+      notify('自定义配色方案已删除。');
+      window.DesktopPromptInsert?.refresh?.().catch?.(() => {});
+    } catch (error) {
+      if (requestId !== state.colorSaveCounter) return;
+      try {
+        const result = await window.DesktopApi.getPromptColorSchemes();
+        if (requestId !== state.colorSaveCounter) return;
+        const latest = (result?.color_schemes || []).map(item => normalizeColorScheme(item)).filter(Boolean);
+        if (!latest.some(item => itemId(item) === draft.id)) {
+          state.colorDataVersion += 1;
+          state.colors = latest;
+          state.selected.colors = itemId(state.colors[0]);
+          discardColorDraft();
+          render();
+          notify('自定义配色方案已删除。');
+          window.DesktopPromptInsert?.refresh?.().catch?.(() => {});
+          return;
+        }
+      } catch (reconcileError) {
+        console.warn('[PromptLibrary] 删除结果复核失败', reconcileError);
+      }
+      state.colorSaveBusy = false;
+      state.colorWriteAction = '';
+      render();
+      reportError(error, '配色方案删除失败');
+    }
   }
 
   function renderEditor() {
@@ -1361,7 +1454,7 @@
     });
     if (els.deskPromptLibraryFavoriteFilter) {
       els.deskPromptLibraryFavoriteFilter.hidden = !['blocks', 'colors'].includes(state.workspace);
-      els.deskPromptLibraryFavoriteFilter.disabled = state.workspace === 'colors' && !!state.colorDraft;
+      els.deskPromptLibraryFavoriteFilter.disabled = state.workspace === 'colors' && (!!state.colorDraft || state.colorSaveBusy || !!state.colorFavoriteBusyId);
       els.deskPromptLibraryFavoriteFilter.setAttribute('aria-pressed', state.favoriteOnly ? 'true' : 'false');
     }
     if (els.deskPromptLibrarySearchInput) {
@@ -1445,9 +1538,10 @@
     if (!window.DesktopApi?.getPromptBlocks) throw new Error('素材块 API 未加载');
     state.loading = true; renderList();
     try {
-      const [blocks, templates, sources] = await Promise.all([
+      const [blocks, templates, , sources] = await Promise.all([
         window.DesktopApi.getPromptBlocks({ limit: 1000 }),
         window.DesktopApi.getPromptTemplates(),
+        loadColorSchemes(),
         window.DesktopApi.getPromptSources().catch(() => ({ sources: [] }))
       ]);
       state.blocks = blocks?.items || [];
@@ -1638,13 +1732,25 @@
     try { sendBlockToCanvas(colorPromptBlock(currentItem())); }
     catch (error) { reportError(error, '色彩方案插入失败'); }
   }
-  function toggleColorFavorite() {
+  async function toggleColorFavorite() {
     const item = currentItem();
-    if (!item || state.workspace !== 'colors') return;
-    item.favorite = !item.favorite;
-    saveColorFavorites();
-    if (state.favoriteOnly && !item.favorite) state.selected.colors = itemId(filteredItems()[0]);
-    renderList(); renderEditor();
+    if (!item || state.workspace !== 'colors' || state.colorFavoriteBusyId) return;
+    const favorite = !item.favorite;
+    state.colorFavoriteBusyId = item.id;
+    render();
+    try {
+      const result = await window.DesktopApi.setPromptColorSchemeFavorite(item.id, favorite);
+      const saved = normalizeColorScheme(result?.color_scheme);
+      if (!saved?.id) throw new Error('服务未返回配色方案');
+      state.colorDataVersion += 1;
+      state.colors = state.colors.map(color => itemId(color) === saved.id ? saved : color);
+      if (state.favoriteOnly && !saved.favorite) state.selected.colors = itemId(filteredItems()[0]);
+    } catch (error) {
+      reportError(error, favorite ? '收藏配色方案失败' : '取消收藏失败');
+    } finally {
+      state.colorFavoriteBusyId = '';
+      render();
+    }
   }
   async function copyText(text, message = '已复制。') {
     const value = cleanText(text); if (!value) throw new Error('没有可复制的内容');
@@ -2040,14 +2146,14 @@
         else if (action === 'delete-rule-draft') await deleteRuleDraft();
         else if (action === 'duplicate-color') startNewColor(currentItem(), true);
         else if (action === 'edit-color') startNewColor(currentItem(), false);
-        else if (action === 'toggle-color-favorite') toggleColorFavorite();
+        else if (action === 'toggle-color-favorite') await toggleColorFavorite();
         else if (action === 'insert-color') insertColor();
         else if (action === 'copy-color-prompt') await copyText(currentItem()?.prompt);
         else if (action === 'copy-color-values') await copyText((currentItem()?.colors || []).join(', '));
         else if (action === 'apply-color-industry') applyColorIndustry();
         else if (action === 'generate-color-draft') regenerateColorDraft();
         else if (action === 'cancel-color-draft') cancelColorDraft();
-        else if (action === 'delete-color-draft') deleteColorDraft();
+        else if (action === 'delete-color-draft') await deleteColorDraft();
         else if (action === 'split-inspiration') openExtractor('text', { text: currentItem()?.prompt || '', primaryType: inferType(currentItem()), sourceTitle: currentItem()?.title || '' });
         else if (action === 'save-inspiration-block') await saveInspirationAsBlock();
         else if (action === 'copy-inspiration') await copyText(currentItem()?.prompt);
@@ -2184,13 +2290,14 @@
     });
   }
 
-  function init() { collectElements(); loadColorSchemes(); bindEvents(); render(); }
+  function init() { collectElements(); bindEvents(); render(); }
   window.DesktopPromptLibrary = {
     init,
     open,
     close,
     render,
     refresh: loadAll,
+    ensureColorSchemes: loadColorSchemes,
     getBlocks: () => state.blocks.slice(),
     getColorSchemes: () => state.colors.map(item => ({ ...item, colors: [...(item.colors || [])] })),
     colorPromptBlock,

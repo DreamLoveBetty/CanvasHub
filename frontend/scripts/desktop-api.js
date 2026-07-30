@@ -181,8 +181,14 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           prompt,
-          ratio: DesktopState.normalizeRatio(params.ratio, '1:1'),
-          workflow: params.workflow || ''
+          width: DesktopState.clamp(Math.round(Number(params.width || 1024) / 8) * 8, 64, 8192, 1024),
+          height: DesktopState.clamp(Math.round(Number(params.height || 1024) / 8) * 8, 64, 8192, 1024),
+          workflow: params.workflow || '',
+          workflow_parameters: params.workflowParameters || params.workflow_parameters || {},
+          image: images[0] || undefined,
+          images: images.slice(0, 8),
+          archive_enabled: true,
+          telegram_enabled: telegramEnabled
         })
       });
     }
@@ -319,7 +325,14 @@
     if (options.format) params.set('format', options.format);
     if (options.resolution) params.set('resolution', options.resolution);
     if (options.includeHidden) params.set('include_hidden', '1');
+    if (options.fields) params.set('fields', options.fields);
+    if (options.refresh) params.set('refresh', '1');
     return requireApi().json(`/api/assets?${params.toString()}`);
+  }
+
+  function getAssetDetail(assetId) {
+    if (!assetId) return Promise.reject(new Error('缺少资产 ID'));
+    return requireApi().json(`/api/assets/detail?id=${encodeURIComponent(assetId)}`);
   }
 
   function updateAssetMeta(assetId, patch = {}) {
@@ -418,12 +431,131 @@
     return requireApi().json('/api/system/settings');
   }
 
+  function getComfyWorkflows(includeDisabled = false) {
+    return requireApi().json(`/api/comfy/workflows${includeDisabled ? '?include_disabled=1' : ''}`);
+  }
+
+  function testComfyConnection(config = {}) {
+    const query = new URLSearchParams();
+    if (String(config.base_url || '').trim()) query.set('base_url', String(config.base_url).trim());
+    if (String(config.timeout_seconds || '').trim()) query.set('timeout_seconds', String(config.timeout_seconds).trim());
+    const suffix = query.toString();
+    return requireApi().json(`/api/comfy/health${suffix ? `?${suffix}` : ''}`);
+  }
+
+  function saveComfyWorkflowConfig(config = {}) {
+    return requireApi().json('/api/comfy/workflow/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(config)
+    });
+  }
+
   function saveSystemSettings(config = {}) {
     return requireApi().json('/api/system/settings', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(config)
     });
+  }
+
+  function verifyPinterestAuth() {
+    return requireApi().json('/api/pinterest/auth/verify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({})
+    });
+  }
+
+  function startPinterestAuth() {
+    return requireApi().json('/api/pinterest/auth/start', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({})
+    });
+  }
+
+  function completePinterestAuth(sessionId = '') {
+    return requireApi().json('/api/pinterest/auth/complete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ session_id: sessionId })
+    });
+  }
+
+  function cancelPinterestAuth(sessionId = '') {
+    return requireApi().json('/api/pinterest/auth/cancel', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ session_id: sessionId })
+    });
+  }
+
+  function logoutPinterestAuth() {
+    return requireApi().json('/api/pinterest/auth/logout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({})
+    });
+  }
+
+  function getPinterestLibrary(options = {}) {
+    const params = new URLSearchParams();
+    params.set('limit', options.limit || 200);
+    if (options.boardId || options.board_id) params.set('board_id', options.boardId || options.board_id);
+    if (options.refresh) params.set('refresh', '1');
+    if (options.localOnly || options.local_only) params.set('local_only', '1');
+    return requireApi().json(`/api/pinterest/library?${params.toString()}`);
+  }
+
+  function downloadPinterestPin(payload = {}) {
+    return requireApi().json('/api/pinterest/download-pin', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        board_id: payload.boardId || payload.board_id || '',
+        pin_id: payload.pinId || payload.pin_id || '',
+        force: Boolean(payload.force)
+      })
+    });
+  }
+
+  function savePinterestPrompt(payload = {}) {
+    return requireApi().json('/api/pinterest/prompt', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        board_id: payload.boardId || payload.board_id || '',
+        pin_id: payload.pinId || payload.pin_id || '',
+        prompt: payload.prompt || ''
+      })
+    });
+  }
+
+  function downloadPinterestBoard(boardId = '', options = {}) {
+    return requireApi().json('/api/pinterest/download-board', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        board_id: boardId,
+        refresh: options.refresh !== false
+      })
+    });
+  }
+
+  function getPinterestDownloadStatus(runId = '') {
+    const params = new URLSearchParams({ run_id: runId });
+    return requireApi().json(`/api/pinterest/download-status?${params.toString()}`);
+  }
+
+  function getPinterestSyncStatus(options = {}) {
+    const requestedLimit = Number(options.limit || 5000);
+    const limit = Number.isFinite(requestedLimit)
+      ? Math.max(20, Math.min(5000, Math.trunc(requestedLimit)))
+      : 5000;
+    const params = new URLSearchParams({ limit: String(limit) });
+    if (options.refresh) params.set('refresh', '1');
+    return requireApi().json(`/api/pinterest/sync-status?${params.toString()}`);
   }
 
   function getGptConfig() {
@@ -828,6 +960,42 @@
     });
   }
 
+  function getPromptColorSchemes() {
+    return requireApi().json('/api/prompt/color-schemes');
+  }
+
+  function savePromptColorScheme(payload = {}) {
+    return requireApi().json('/api/prompt/color-schemes/save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+  }
+
+  function deletePromptColorScheme(id) {
+    return requireApi().json('/api/prompt/color-schemes/delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id })
+    });
+  }
+
+  function setPromptColorSchemeFavorite(id, favorite) {
+    return requireApi().json('/api/prompt/color-schemes/favorite', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, favorite: !!favorite })
+    });
+  }
+
+  function migrateLegacyPromptColorSchemes(payload = {}) {
+    return requireApi().json('/api/prompt/color-schemes/migrate-legacy', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+  }
+
   function getPromptSources() {
     return requireApi().json('/api/prompt-sources');
   }
@@ -1016,6 +1184,7 @@
     retryTask,
     getHistory,
     getAssets,
+    getAssetDetail,
     updateAssetMeta,
     deleteAsset,
     deleteAssets,
@@ -1027,6 +1196,20 @@
     getAppUpdateStatus,
     getSystemSettings,
     saveSystemSettings,
+    startPinterestAuth,
+    completePinterestAuth,
+    cancelPinterestAuth,
+    verifyPinterestAuth,
+    logoutPinterestAuth,
+    getPinterestLibrary,
+    downloadPinterestPin,
+    savePinterestPrompt,
+    downloadPinterestBoard,
+    getPinterestDownloadStatus,
+    getPinterestSyncStatus,
+    getComfyWorkflows,
+    testComfyConnection,
+    saveComfyWorkflowConfig,
     getGptConfig,
     getGptModels,
     saveGptConfig,
@@ -1073,6 +1256,11 @@
     getPromptTemplates,
     savePromptTemplate,
     deletePromptTemplate,
+    getPromptColorSchemes,
+    savePromptColorScheme,
+    deletePromptColorScheme,
+    setPromptColorSchemeFavorite,
+    migrateLegacyPromptColorSchemes,
     getPromptSources,
     getPromptSourceItems,
     syncPromptSource,

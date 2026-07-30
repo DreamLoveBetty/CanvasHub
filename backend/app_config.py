@@ -52,6 +52,19 @@ DEFAULT_THIRD_PARTY_IMAGE_GENERATE_PATH = "/v1/images/generations"
 DEFAULT_THIRD_PARTY_IMAGE_EDIT_PATH = "/v1/images/edits"
 DEFAULT_THIRD_PARTY_IMAGE_FORMAT = "png"
 DEFAULT_THIRD_PARTY_IMAGE_TIMEOUT_SECONDS = 900
+DEFAULT_COMFY_BASE_URL = "http://192.168.179.111:28188"
+DEFAULT_COMFY_TIMEOUT_SECONDS = 120
+DEFAULT_COMFY_TASK_TIMEOUT_SECONDS = 1800
+DEFAULT_COMFY_POLL_INTERVAL_SECONDS = 2.0
+DEFAULT_PINTEREST_PROFILE_URL = ""
+DEFAULT_PINTEREST_SYNC_MODE = "auto"
+DEFAULT_PINTEREST_MAX_PINS_PER_BOARD = 500
+DEFAULT_PINTEREST_REQUEST_TIMEOUT_SECONDS = 20
+DEFAULT_PINTEREST_AUTH_FILE = APP_DATA_DIR / (
+    "auth/pinterest/browser_auth.json"
+    if DESKTOP_DATA_MODE
+    else "data/pinterest/browser_auth.json"
+)
 GPT_IMAGE_MAIN_MODELS = {
     "gpt-5.6-sol",
     "gpt-5.6-terra",
@@ -326,6 +339,159 @@ def get_third_party_image_config() -> dict[str, Any]:
         "edit_path": edit_path if edit_path.startswith("/") else f"/{edit_path}",
         "format": output_format,
         "timeout_seconds": timeout_seconds,
+    }
+
+
+def get_comfy_config() -> dict[str, Any]:
+    """Return ComfyUI connection settings with environment overrides."""
+    settings = load_app_settings()
+    section = settings.get("comfy") or {}
+    if not isinstance(section, dict):
+        section = {}
+
+    env_base_url = _as_str(os.environ.get("COMFY_BASE_URL"))
+    env_timeout = _as_str(os.environ.get("COMFY_TIMEOUT_SECONDS"))
+    env_task_timeout = _as_str(os.environ.get("COMFY_TASK_TIMEOUT_SECONDS"))
+    env_poll_interval = _as_str(os.environ.get("COMFY_POLL_INTERVAL_SECONDS"))
+    base_url = _as_str(env_base_url or section.get("base_url") or DEFAULT_COMFY_BASE_URL).rstrip("/")
+
+    def bounded_int(raw: Any, default: int, minimum: int, maximum: int) -> int:
+        try:
+            return max(minimum, min(maximum, int(raw)))
+        except (TypeError, ValueError):
+            return default
+
+    try:
+        poll_interval = float(env_poll_interval or section.get("poll_interval_seconds") or DEFAULT_COMFY_POLL_INTERVAL_SECONDS)
+    except (TypeError, ValueError):
+        poll_interval = DEFAULT_COMFY_POLL_INTERVAL_SECONDS
+
+    return {
+        "base_url": base_url or DEFAULT_COMFY_BASE_URL,
+        "timeout_seconds": bounded_int(
+            env_timeout or section.get("timeout_seconds"),
+            DEFAULT_COMFY_TIMEOUT_SECONDS,
+            5,
+            1800,
+        ),
+        "task_timeout_seconds": bounded_int(
+            env_task_timeout or section.get("task_timeout_seconds"),
+            DEFAULT_COMFY_TASK_TIMEOUT_SECONDS,
+            60,
+            86400,
+        ),
+        "poll_interval_seconds": max(0.25, min(30.0, poll_interval)),
+        "environment_managed": bool(env_base_url or env_timeout or env_task_timeout or env_poll_interval),
+        "environment_fields": [
+            name
+            for name, value in (
+                ("base_url", env_base_url),
+                ("timeout_seconds", env_timeout),
+                ("task_timeout_seconds", env_task_timeout),
+                ("poll_interval_seconds", env_poll_interval),
+            )
+            if value
+        ],
+    }
+
+
+def get_pinterest_auth_file() -> Path:
+    """Return the canonical Pinterest auth file without following paths outside app data."""
+    app_data_root = APP_DATA_DIR.resolve()
+    candidate = Path(DEFAULT_PINTEREST_AUTH_FILE).expanduser()
+    if not candidate.is_absolute():
+        candidate = APP_DATA_DIR / candidate
+    try:
+        relative_parent = candidate.parent.relative_to(APP_DATA_DIR)
+    except ValueError as exc:
+        raise RuntimeError("Pinterest 授权目录必须位于应用数据目录内") from exc
+    if any(part in {".", ".."} for part in relative_parent.parts):
+        raise RuntimeError("Pinterest 授权目录不能包含路径跳转")
+    current = Path(APP_DATA_DIR)
+    for part in relative_parent.parts:
+        current = current / part
+        if current.is_symlink():
+            raise RuntimeError("Pinterest 授权目录不能是符号链接")
+    auth_root = candidate.parent.resolve()
+    try:
+        auth_root.relative_to(app_data_root)
+    except ValueError as exc:
+        raise RuntimeError("Pinterest 授权目录必须位于应用数据目录内") from exc
+    target = auth_root / candidate.name
+    if target.is_symlink():
+        raise RuntimeError("Pinterest 授权文件不能是符号链接")
+    return target
+
+
+def get_pinterest_config() -> dict[str, Any]:
+    """Return private Pinterest sync settings from project settings.json."""
+    settings = load_app_settings()
+    section = settings.get("pinterest") or {}
+    if not isinstance(section, dict):
+        section = {}
+
+    sync_mode = _as_str(section.get("sync_mode") or DEFAULT_PINTEREST_SYNC_MODE).lower()
+    if sync_mode not in {"auto", "rss", "authenticated_browser"}:
+        sync_mode = DEFAULT_PINTEREST_SYNC_MODE
+
+    max_pins_per_board = _as_int(
+        section.get("max_pins_per_board"),
+        DEFAULT_PINTEREST_MAX_PINS_PER_BOARD,
+        minimum=20,
+    )
+    request_timeout_seconds = _as_int(
+        section.get("request_timeout_seconds"),
+        DEFAULT_PINTEREST_REQUEST_TIMEOUT_SECONDS,
+        minimum=5,
+    )
+    auth_file = get_pinterest_auth_file()
+    auth_file_data = _load_json(auth_file)
+    storage_state = auth_file_data.get("storage_state") if isinstance(auth_file_data.get("storage_state"), dict) else {}
+    stored_cookies = storage_state.get("cookies") if isinstance(storage_state.get("cookies"), list) else []
+    file_auth = auth_file_data.get("auth") if isinstance(auth_file_data.get("auth"), dict) else {}
+    file_account = auth_file_data.get("account") if isinstance(auth_file_data.get("account"), dict) else {}
+    auth_username = _as_str(file_account.get("username"))
+    auth_display_name = _as_str(file_account.get("display_name"))
+    auth_profile_url = _as_str(file_account.get("profile_url"))
+    sync_profile_url = _as_str(section.get("sync_profile_url"))
+    legacy_profile_url = _as_str(section.get("profile_url"))
+    legacy_auth_cookie = _as_str(section.get("auth_cookie"))
+    auth_configured = bool(stored_cookies or legacy_auth_cookie)
+    auth_status = _as_str(
+        file_auth.get("status")
+        or section.get("auth_status")
+        or ("unverified" if auth_configured else "not_configured")
+    ).lower()
+    if auth_status not in {"not_configured", "unverified", "authenticated", "invalid", "error"}:
+        auth_status = "unverified" if auth_configured else "not_configured"
+
+    return {
+        "enabled": _as_bool(section.get("enabled"), False),
+        "profile_url": _as_str(
+            sync_profile_url
+            or auth_profile_url
+            or legacy_profile_url
+            or DEFAULT_PINTEREST_PROFILE_URL
+        ),
+        "sync_profile_url": sync_profile_url,
+        "auth_file": str(auth_file),
+        "legacy_auth_cookie": legacy_auth_cookie,
+        "auth_configured": auth_configured,
+        "auth_status": auth_status,
+        "auth_updated_at": _as_str(auth_file_data.get("updated_at") or section.get("auth_updated_at")),
+        "last_verified_at": _as_str(file_auth.get("last_verified_at") or section.get("last_verified_at")),
+        "auth_source": (
+            _as_str(auth_file_data.get("source") or "browser_auth_json")
+            if stored_cookies
+            else ("legacy_cookie" if legacy_auth_cookie else "none")
+        ),
+        "auth_username": auth_username,
+        "auth_display_name": auth_display_name,
+        "auth_profile_url": auth_profile_url,
+        "sync_mode": sync_mode,
+        "download_originals": _as_bool(section.get("download_originals"), True),
+        "max_pins_per_board": min(5000, max_pins_per_board),
+        "request_timeout_seconds": min(60, request_timeout_seconds),
     }
 
 

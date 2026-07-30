@@ -109,7 +109,10 @@ class GalleryPreviewBackdropTest(unittest.TestCase):
         self.assertIn("inset: 52px 68px 48px 78px;", modal_block)
         self.assertIn("overflow: hidden;", modal_block)
         self.assertIn("border-radius: var(--desk-preview-radius);", modal_block)
-        self.assertIn("backdrop-filter: blur(18px) saturate(1.14);", modal_block)
+        # 性能不变量：对比模态禁止 backdrop-filter——背后画布/图库存在 infinite 动画时，
+        # 毛玻璃每帧全区域重算模糊，会让分隔线拖动持续掉帧（与预览外壳有意不一致）
+        self.assertNotIn("backdrop-filter: blur", modal_block)
+        self.assertIn(".desk-compare .desk-glass {", css)
         self.assertIn("width: 100%;", panel_block)
         self.assertIn("height: 100%;", panel_block)
         self.assertIn("border-radius: inherit;", panel_block)
@@ -131,14 +134,20 @@ class GalleryPreviewBackdropTest(unittest.TestCase):
         self.assertIn("lucide-contrast", contrast_icon)
         self.assertIn("lucide-circle-x", close_icon)
 
-    def test_gallery_preview_counter_uses_full_asset_index_limit(self) -> None:
+    def test_gallery_preview_counter_uses_full_asset_index_total(self) -> None:
+        # 二期分页后：计数器的"全量"语义由服务端 data.total 保证，而非一次拉满 5000。
         html = read_text("desktop.html")
         js = read_text("scripts/desktop-history.js")
 
         assert_asset_has_cache_bust(self, html, "scripts/desktop-history.js")
-        self.assertIn("const GALLERY_ASSET_LOAD_LIMIT = 5000;", js)
-        self.assertIn("limit: GALLERY_ASSET_LOAD_LIMIT", js)
+        self.assertIn("const GALLERY_PAGE_SIZE = 200;", js)
+        self.assertIn("fields: 'card'", js)
+        self.assertIn("let galleryServerOffset = 0;", js)
+        self.assertIn("function hasMoreGalleryAssets()", js)
+        self.assertNotIn("offset: galleryAssets.length", js)
         self.assertIn("Number(galleryAssetTotal || 0)", js)
+        self.assertIn("function loadMoreGalleryAssets", js)
+        self.assertIn("function ensureAssetDetail", js)
         self.assertNotIn("limit: 800", js)
 
 

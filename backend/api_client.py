@@ -9,6 +9,7 @@ import json
 import os
 import re
 import socket
+import threading
 import time
 from pathlib import Path
 from urllib.parse import urlparse
@@ -34,6 +35,27 @@ KEEPALIVE_COUNT = 4
 CHUNK_SIZE = 65536
 DATA_URI_RE = re.compile(r"data:image/[^;,\s]+;base64,[A-Za-z0-9+/=\s]+")
 URL_RE = re.compile(r"https?://[^\s)\"']+")
+GOOGLE_IMAGE_MODEL_ALIAS_FAMILIES = (
+    ('gemini-3-pro-image', 'gemini-3-pro-image-preview'),
+    ('gemini-3.1-flash-image', 'gemini-3.1-flash-image-preview'),
+)
+_GOOGLE_IMAGE_MODEL_CANONICAL = {
+    alias: family[0]
+    for family in GOOGLE_IMAGE_MODEL_ALIAS_FAMILIES
+    for alias in family
+}
+_resolved_model_cache = {}
+_resolved_model_cache_lock = threading.Lock()
+
+
+class ModelUnavailableError(Exception):
+    """Raised when an upstream explicitly says the requested model has no channel."""
+
+    def __init__(self, message, *, status_code=None, error_code='', error_type=''):
+        super().__init__(message)
+        self.status_code = status_code
+        self.error_code = str(error_code or '')
+        self.error_type = str(error_type or '')
 
 
 def load_telegram_delivery_config():
@@ -160,11 +182,53 @@ def _is_retryable_request_exception(exc: Exception) -> bool:
 
 def _normalize_openai_chat_model(model: str | None) -> str:
     normalized = str(model or '').replace('google/', '').strip()
-    aliases = {
-        'gemini-3-pro-image-preview': 'gemini-3-pro-image',
-        'gemini-3.1-flash-image-preview': 'gemini-3.1-flash-image',
-    }
-    return aliases.get(normalized, normalized) or DEFAULT_OPENAI_CHAT_IMAGE_MODEL
+    return _GOOGLE_IMAGE_MODEL_CANONICAL.get(normalized, normalized) or DEFAULT_OPENAI_CHAT_IMAGE_MODEL
+
+
+def _model_alias_candidates(model: str | None) -> list[str]:
+    canonical = _normalize_openai_chat_model(model)
+    for family in GOOGLE_IMAGE_MODEL_ALIAS_FAMILIES:
+        if canonical == family[0]:
+            return list(family)
+    return [canonical]
+
+
+def _model_cache_key(api_base: str, model: str | None) -> tuple[str, str, str]:
+    api_key = get_yunwu_api_key()
+    key_fingerprint = hashlib.sha256(api_key.encode('utf-8')).hexdigest()[:16] if api_key else ''
+    return str(api_base or '').rstrip('/'), key_fingerprint, _normalize_openai_chat_model(model)
+
+
+def _ordered_model_candidates(api_base: str, model: str | None) -> list[str]:
+    candidates = _model_alias_candidates(model)
+    cache_key = _model_cache_key(api_base, model)
+    with _resolved_model_cache_lock:
+        cached = _resolved_model_cache.get(cache_key)
+    if cached in candidates:
+        return [cached, *(candidate for candidate in candidates if candidate != cached)]
+    return candidates
+
+
+def _remember_resolved_model(api_base: str, requested_model: str | None, resolved_model: str) -> None:
+    with _resolved_model_cache_lock:
+        _resolved_model_cache[_model_cache_key(api_base, requested_model)] = resolved_model
+
+
+def _is_model_unavailable_http_error(status_code: int, error_text: str) -> bool:
+    message, code, error_type = _extract_http_error_detail(error_text)
+    normalized_code = str(code or '').strip().lower()
+    joined = ' '.join((message, code, error_type, error_text or '')).lower()
+    if normalized_code in {'model_not_found', 'model_not_available', 'unsupported_model'}:
+        return True
+    return any(
+        marker in joined
+        for marker in (
+            'no available channel for model',
+            'model is not available',
+            'model not found',
+            'unsupported model',
+        )
+    )
 
 
 def _normalize_openai_chat_max_tokens(value) -> int:
@@ -181,9 +245,11 @@ def _openai_chat_payload(
     max_tokens=4096,
     temperature=None,
     google_image_config=None,
+    preserve_model=False,
 ) -> dict:
+    payload_model = str(model or '').replace('google/', '').strip()
     payload = {
-        "model": _normalize_openai_chat_model(model),
+        "model": payload_model if preserve_model and payload_model else _normalize_openai_chat_model(model),
         "stream": False,
         "messages": [{"role": "user", "content": content}],
         "max_tokens": _normalize_openai_chat_max_tokens(max_tokens),
@@ -408,6 +474,21 @@ def _perform_request(url, payload, progress_cb=None, action='generate', extracto
             break
 
         error_text = response.text[:500]
+        if _is_model_unavailable_http_error(response.status_code, error_text):
+            formatted_error, _ = _format_http_error(response.status_code, error_text)
+            message, code, error_type = _extract_http_error_detail(error_text)
+            print(f"⚠️ 当前模型渠道不可用，不再重复请求同一模型：{message or code or error_text}")
+            progress_cb(
+                stage='retrying',
+                progress_text='当前模型名称不可用，正在自动匹配兼容名称...',
+                heartbeat=True,
+            )
+            raise ModelUnavailableError(
+                formatted_error,
+                status_code=response.status_code,
+                error_code=code,
+                error_type=error_type,
+            )
         if response.status_code in RETRYABLE_HTTP_STATUS and attempt < max_attempts:
             wait_s = HTTP_RETRY_BACKOFF_SECONDS * attempt
             print(f"⚠️ HTTP {response.status_code}，第 {attempt}/{max_attempts} 次失败，{wait_s}s 后重试")
@@ -475,6 +556,56 @@ def _perform_request(url, payload, progress_cb=None, action='generate', extracto
             ttfb_ms=(first_byte_at_ms - started_at_ms) if first_byte_at_ms else None,
             heartbeat=True)
         raise
+
+
+def _perform_request_with_model_aliases(
+    api_base,
+    requested_model,
+    request_builder,
+    *,
+    progress_cb=None,
+    action='generate',
+):
+    """Try equivalent provider model names and remember the one accepted by this key."""
+    progress_cb = progress_cb or _default_progress_cb
+    normalized_requested = _normalize_openai_chat_model(requested_model)
+    candidates = _ordered_model_candidates(api_base, requested_model)
+
+    for index, candidate in enumerate(candidates):
+        url, payload, extractor, stream_response = request_builder(candidate)
+        print(f'📡 请求模型: {candidate}')
+        print(f'📡 请求 URL: {url}')
+        try:
+            image_data, meta = _perform_request(
+                url,
+                payload,
+                progress_cb=progress_cb,
+                action=action,
+                extractor=extractor,
+                stream_response=stream_response,
+            )
+        except ModelUnavailableError:
+            if index + 1 >= len(candidates):
+                raise
+            next_candidate = candidates[index + 1]
+            print(f'🔁 模型名称自动适配：{candidate} -> {next_candidate}')
+            progress_cb(
+                stage='retrying',
+                progress_text=f'模型名称自动适配：{candidate} → {next_candidate}',
+                heartbeat=True,
+            )
+            continue
+
+        _remember_resolved_model(api_base, requested_model, candidate)
+        response_meta = dict(meta or {})
+        response_meta.update({
+            'requested_model': normalized_requested,
+            'resolved_model': candidate,
+            'model_alias_fallback': candidate != normalized_requested,
+        })
+        return image_data, response_meta
+
+    raise Exception('没有可用的 Google 图像模型名称')
 
 
 def generate_image(
@@ -556,29 +687,31 @@ def generate_image(
                 "",
                 actual_prompt,
             ])
-            payload = _openai_chat_payload(
-                api_model,
-                chat_prompt,
-                max_tokens=max_tokens,
-                temperature=temperature,
-                google_image_config={
-                    "image_size": image_size,
-                    "aspect_ratio": aspect_ratio,
-                },
-            )
-            print(f'📡 请求 URL: {url}')
-            image_data, meta = _perform_request(
-                url,
-                payload,
-                progress_cb=progress_cb,
-                action='generate',
-                extractor=_extract_image_from_openai_chat,
-                stream_response=False,
-            )
+
+            def request_builder(candidate):
+                chat_payload = _openai_chat_payload(
+                    candidate,
+                    chat_prompt,
+                    max_tokens=max_tokens,
+                    temperature=temperature,
+                    google_image_config={
+                        "image_size": image_size,
+                        "aspect_ratio": aspect_ratio,
+                    },
+                    preserve_model=True,
+                )
+                return url, chat_payload, _extract_image_from_openai_chat, False
         else:
-            url = _gemini_generate_url(api_base, api_model)
-            print(f'📡 请求 URL: {url}')
-            image_data, meta = _perform_request(url, payload, progress_cb=progress_cb, action='generate')
+            def request_builder(candidate):
+                return _gemini_generate_url(api_base, candidate), payload, _extract_image_from_json, True
+
+        image_data, meta = _perform_request_with_model_aliases(
+            api_base,
+            api_model,
+            request_builder,
+            progress_cb=progress_cb,
+            action='generate',
+        )
         print(f"✅ API 响应成功，图片大小：{len(image_data) / 1024 / 1024:.1f} MB")
         return image_data, meta
     except requests.exceptions.Timeout:
@@ -650,29 +783,31 @@ def edit_image(
                 img_text = str(img or "").strip()
                 image_url = img_text if img_text.startswith("data:") else f"data:image/png;base64,{img_text.split(',', 1)[-1]}"
                 content.append({"type": "image_url", "image_url": {"url": image_url}})
-            chat_payload = _openai_chat_payload(
-                api_model,
-                content,
-                max_tokens=max_tokens,
-                temperature=temperature,
-                google_image_config={
-                    "image_size": image_size,
-                    "aspect_ratio": aspect_ratio,
-                },
-            )
-            print(f'📡 请求 URL: {url}')
-            image_data, meta = _perform_request(
-                url,
-                chat_payload,
-                progress_cb=progress_cb,
-                action='edit',
-                extractor=_extract_image_from_openai_chat,
-                stream_response=False,
-            )
+
+            def request_builder(candidate):
+                chat_payload = _openai_chat_payload(
+                    candidate,
+                    content,
+                    max_tokens=max_tokens,
+                    temperature=temperature,
+                    google_image_config={
+                        "image_size": image_size,
+                        "aspect_ratio": aspect_ratio,
+                    },
+                    preserve_model=True,
+                )
+                return url, chat_payload, _extract_image_from_openai_chat, False
         else:
-            url = _gemini_generate_url(api_base, api_model)
-            print(f'📡 请求 URL: {url}')
-            image_data, meta = _perform_request(url, payload, progress_cb=progress_cb, action='edit')
+            def request_builder(candidate):
+                return _gemini_generate_url(api_base, candidate), payload, _extract_image_from_json, True
+
+        image_data, meta = _perform_request_with_model_aliases(
+            api_base,
+            api_model,
+            request_builder,
+            progress_cb=progress_cb,
+            action='edit',
+        )
         print(f"✅ 编辑成功，图片大小：{len(image_data) / 1024 / 1024:.1f} MB")
         return image_data, meta
     except Exception as e:

@@ -1195,7 +1195,7 @@ body.desk-app[data-theme="dark"] .desk-theme-toggle__icon--moon {
 .desk-select-option:hover,
 .desk-select-option.is-highlighted,
 .desk-select-option.is-selected {
-  color: #084fbd;
+  color: #c90020;
   background: rgba(8, 79, 189, 0.1);
 }
 
@@ -1810,7 +1810,7 @@ body.desk-app[data-theme="dark"]::after {
   gap: 8px;
   align-items: center;
   width: 100%;
-  min-height: 46px;
+  min-height: 44px;
   padding: 7px;
   color: var(--desk-ink);
   text-align: left;
@@ -2779,6 +2779,457 @@ body.desk-app[data-theme="dark"]::after {
   height: 460px;
   padding: 14px;
   overflow: visible;
+}
+
+.desk-node--comfy {
+  display: flex;
+  flex-direction: column;
+  width: 420px;
+  height: 640px;
+  min-width: 360px;
+  max-width: 900px;
+  min-height: 480px;
+  max-height: 960px;
+  padding: 14px;
+  overflow: visible;
+}
+
+.desk-node--comfy .desk-node__header {
+  margin-bottom: 9px;
+}
+
+.desk-node--comfy .desk-node__header h2 {
+  font-size: 18px;
+}
+
+.desk-comfy-node__section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 5px;
+  color: var(--desk-muted);
+  font-size: 10px;
+  font-weight: 820;
+}
+
+.desk-comfy-workflow-list {
+  display: grid;
+  flex: 1 1 210px;
+  align-content: start;
+  gap: 5px;
+  height: auto;
+  min-height: 100px;
+  max-height: none;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  padding: 1px;
+}
+
+.desk-comfy-workflow-card {
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr) 16px;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  min-height: 58px;
+  padding: 5px;
+  color: var(--desk-ink);
+  text-align: left;
+  background: rgba(255, 255, 255, 0.3);
+  border: 1px solid rgba(85, 101, 120, 0.12);
+  border-radius: 9px;
+  box-shadow: none;
+}
+
+.desk-comfy-workflow-card:hover {
+  color: var(--desk-ink);
+  background: rgba(255, 255, 255, 0.52);
+  border-color: rgba(8, 79, 189, 0.2);
+}
+
+.desk-comfy-workflow-card.is-selected {
+  background: rgba(8, 79, 189, 0.06);
+  border-color: rgba(8, 79, 189, 0.3);
+  box-shadow: inset 2px 0 0 rgba(8, 79, 189, 0.76);
+}
+
+.desk-comfy-workflow-card.is-disabled {
+  opacity: 0.52;
+}
+
+.desk-comfy-workflow-card__thumb {
+  display: grid;
+  width: 76px;
+  height: 48px;
+  overflow: hidden;
+  place-items: center;
+  gap: 4px;
+  padding: 9px 13px;
+  background: rgba(92, 111, 136, 0.09);
+  border-radius: 7px;
+}
+
+.desk-comfy-workflow-card__thumb img {
+  width: calc(100% + 26px);
+  height: calc(100% + 18px);
+  object-fit: cover;
+}
+
+.desk-comfy-workflow-card__thumb i {
+  display: block;
+  width: 100%;
+  height: 3px;
+  background: rgba(72, 91, 112, 0.24);
+  border-radius: 999px;
+}
+
+.desk-comfy-workflow-card__thumb i:nth-child(2) { width: 72%; justify-self: start; }
+.desk-comfy-workflow-card__thumb i:nth-child(3) { width: 86%; justify-self: start; }
+
+.desk-comfy-workflow-card__copy {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.desk-comfy-workflow-card__copy strong,
+.desk-comfy-workflow-card__copy small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.desk-comfy-workflow-card__copy strong { font-size: 11px; font-weight: 880; }
+.desk-comfy-workflow-card__copy small { color: var(--desk-muted); font-size: 9px; font-weight: 720; }
+.desk-comfy-workflow-card__check { color: transparent; font-size: 12px; font-weight: 900; }
+.desk-comfy-workflow-card.is-selected .desk-comfy-workflow-card__check { color: var(--desk-blue); }
+
+.desk-comfy-node__empty,
+.desk-comfy-node__inputs {
+  color: var(--desk-muted);
+  font-size: 10px;
+  font-weight: 740;
+}
+
+.desk-comfy-node__empty {
+  display: grid;
+  min-height: 72px;
+  place-items: center;
+  border: 1px dashed rgba(85, 101, 120, 0.18);
+  border-radius: 9px;
+}
+
+.desk-comfy-workflow-list > .desk-comfy-node__empty {
+  min-height: 100%;
+}
+
+.desk-comfy-node__params {
+  display: flex;
+  flex: 1 1 190px;
+  min-height: 130px;
+  overflow: hidden;
+  margin-top: 9px;
+}
+
+.desk-comfy-parameter-panel {
+  display: grid;
+  flex: 1 1 auto;
+  grid-template-rows: auto minmax(0, 1fr);
+  width: 100%;
+  min-height: 0;
+  overflow: hidden;
+  gap: 5px;
+  padding: 6px;
+  background: rgba(255, 255, 255, 0.25);
+  border: 1px solid rgba(85, 101, 120, 0.11);
+  border-radius: 9px;
+}
+
+.desk-comfy-parameter-panel__head,
+.desk-comfy-parameter-group header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.desk-comfy-parameter-panel__head > span {
+  color: var(--desk-ink);
+  font-size: 9px;
+  font-weight: 880;
+}
+
+.desk-comfy-parameter-panel__head small,
+.desk-comfy-parameter-group header small {
+  color: var(--desk-muted);
+  font-size: 8px;
+  font-weight: 720;
+}
+
+.desk-comfy-parameter-panel__head button {
+  padding: 0 0 0 5px;
+  color: var(--desk-blue);
+  font: inherit;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+
+.desk-comfy-parameter-scroll {
+  display: grid;
+  align-content: start;
+  gap: 7px;
+  height: auto;
+  min-height: 0;
+  max-height: none;
+  padding-right: 2px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.desk-comfy-parameter-group {
+  display: grid;
+  gap: 4px;
+}
+
+.desk-comfy-parameter-group + .desk-comfy-parameter-group {
+  padding-top: 6px;
+  border-top: 1px solid rgba(85, 101, 120, 0.1);
+}
+
+.desk-comfy-parameter-group header strong {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--desk-muted);
+  font-size: 8px;
+  font-weight: 820;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.desk-comfy-parameter-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
+  gap: 5px;
+}
+
+.desk-comfy-parameter-grid--optional {
+  grid-template-columns: repeat(auto-fill, minmax(140px, 180px));
+  justify-content: start;
+}
+
+.desk-comfy-parameter-field {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+  color: var(--desk-muted);
+  font-size: 8px;
+  font-weight: 760;
+}
+
+.desk-comfy-parameter-field > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.desk-comfy-parameter-field__control {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 18px;
+  align-items: center;
+  min-width: 0;
+  gap: 5px;
+}
+
+.desk-comfy-parameter-field__control > button[data-comfy-param-remove] {
+  display: grid;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  place-items: center;
+  color: #ffffff;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 900;
+  line-height: 1;
+  background: #ef4444;
+  border: 1px solid rgba(255, 255, 255, 0.78);
+  border-radius: 50%;
+  box-shadow: 0 2px 7px rgba(220, 38, 38, 0.25);
+  transition: transform 120ms ease, background-color 120ms ease, box-shadow 120ms ease;
+}
+
+.desk-comfy-parameter-field__control > button[data-comfy-param-remove] span {
+  display: block;
+  transform: translateY(-1px);
+}
+
+.desk-comfy-parameter-field__control > button[data-comfy-param-remove]:hover {
+  color: #ffffff;
+  background: #dc2626;
+  box-shadow: 0 3px 9px rgba(220, 38, 38, 0.34);
+  transform: scale(1.06);
+}
+
+.desk-comfy-parameter-field__control > button[data-comfy-param-remove]:focus-visible {
+  outline: 2px solid rgba(239, 68, 68, 0.28);
+  outline-offset: 2px;
+}
+
+.desk-comfy-parameter-field .desk-input,
+.desk-comfy-parameter-field .desk-select,
+.desk-comfy-parameter-field .desk-select-trigger {
+  width: 100%;
+  min-width: 0;
+  height: 26px;
+  min-height: 26px;
+  padding: 0 7px;
+  font-size: 9px;
+  border-radius: 7px;
+}
+
+.desk-comfy-parameter-field .desk-select-shell {
+  width: 100%;
+}
+
+.desk-comfy-parameter-field input[type="checkbox"] {
+  justify-self: start;
+  width: 16px;
+  height: 16px;
+}
+
+.desk-comfy-parameter-bindings {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.desk-comfy-parameter-bindings span {
+  padding: 2px 6px;
+  color: var(--desk-muted);
+  font-size: 7px;
+  font-weight: 720;
+  background: rgba(8, 79, 189, 0.05);
+  border-radius: 999px;
+}
+
+.desk-comfy-parameter-group--picker > .desk-select {
+  width: 100%;
+  min-width: 0;
+  height: 28px;
+  min-height: 28px;
+  font-size: 8px;
+  border-radius: 7px;
+}
+
+.desk-comfy-parameter-panel__empty {
+  display: grid;
+  min-height: 64px;
+  place-items: center;
+  padding: 10px;
+  color: var(--desk-muted);
+  font-size: 8px;
+  line-height: 1.5;
+  text-align: center;
+  border: 1px dashed rgba(85, 101, 120, 0.14);
+  border-radius: 7px;
+}
+
+.desk-node--comfy .desk-progress-wrap {
+  margin: 9px 0 0;
+  padding: 8px;
+}
+
+.desk-node--comfy .desk-progress-copy {
+  justify-content: space-between;
+  font-size: 9px;
+}
+
+.desk-comfy-node__footer {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: auto;
+  padding-top: 8px;
+}
+
+.desk-comfy-node__footer-main {
+  display: grid;
+  min-width: 0;
+  gap: 6px;
+}
+
+.desk-comfy-node__footer .desk-comfy-node__inputs {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.desk-comfy-node__footer .desk-output-controls {
+  display: flex;
+  gap: 10px;
+}
+
+.desk-node--comfy .desk-resize-handle {
+  right: 4px;
+  bottom: 4px;
+  width: 18px;
+  height: 18px;
+  opacity: 0.46;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  transition: opacity 150ms ease;
+}
+
+.desk-node--comfy .desk-resize-handle::after {
+  right: 1px;
+  bottom: 1px;
+  width: 10px;
+  height: 10px;
+  border-right-color: rgba(8, 79, 189, 0.64);
+  border-bottom-color: rgba(8, 79, 189, 0.64);
+  border-radius: 0;
+}
+
+.desk-node--comfy:hover .desk-resize-handle,
+.desk-node--comfy.is-selected .desk-resize-handle,
+.desk-node--comfy.is-resizing .desk-resize-handle {
+  opacity: 0.92;
+}
+
+.desk-node--comfy .desk-switch {
+  gap: 5px;
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.desk-node--comfy .desk-switch span {
+  width: 32px;
+  height: 18px;
+}
+
+.desk-node--comfy .desk-switch span::after {
+  width: 12px;
+  height: 12px;
+}
+
+.desk-node--comfy .desk-switch input:checked + span::after {
+  transform: translateX(14px);
+}
+
+.desk-node--comfy .desk-button--generate {
+  width: 48px;
+  height: 48px;
+  min-width: 48px;
+  padding: 0;
+  border-radius: 8px;
 }
 
 .desk-node--output {
@@ -4610,7 +5061,7 @@ body.desk-app[data-theme="dark"] .desk-image-editor__canvas-wrap {
 
 .desk-segment {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 4px;
   padding: 4px;
   margin-bottom: 14px;
@@ -6844,14 +7295,36 @@ body.desk-history-collapsed .desk-gallery {
 }
 
 .desk-settings-tabs {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 3px;
+  display: block;
   padding: 2px;
   background: rgba(255, 255, 255, 0.34);
   border: 1px solid rgba(255, 255, 255, 0.42);
   border-radius: 8px;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.38);
+}
+
+.desk-settings-tabs__primary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) 28px;
+  gap: 3px;
+}
+
+.desk-settings-tabs__extra {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 3px;
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  transform: translateY(-3px);
+  transition: max-height 180ms ease, opacity 150ms ease, transform 180ms ease, padding-top 180ms ease;
+}
+
+.desk-settings-tabs.is-expanded .desk-settings-tabs__extra {
+  max-height: 58px;
+  padding-top: 3px;
+  opacity: 1;
+  transform: translateY(0);
 }
 
 .desk-settings-tabs button {
@@ -6866,6 +7339,200 @@ body.desk-history-collapsed .desk-gallery {
   background: transparent;
   border: 0;
   border-radius: 8px;
+}
+
+.desk-settings-tabs .desk-settings-tabs__toggle {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  padding: 0;
+  color: rgba(72, 91, 112, 0.74);
+}
+
+.desk-settings-tabs__toggle svg {
+  width: 13px;
+  height: 13px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+  transition: transform 180ms ease;
+}
+
+.desk-settings-tabs.is-expanded .desk-settings-tabs__toggle svg {
+  transform: rotate(180deg);
+}
+
+.desk-comfy-settings-library {
+  display: grid;
+  gap: 8px;
+}
+
+.desk-comfy-settings-library__meta,
+.desk-comfy-workflow-editor__heading,
+.desk-comfy-service-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.desk-comfy-settings-library__meta,
+.desk-comfy-workflow-editor__heading small {
+  color: var(--desk-muted);
+  font-size: 9px;
+  font-weight: 760;
+}
+
+.desk-comfy-settings-workflows {
+  display: grid;
+  gap: 5px;
+  max-height: 224px;
+  overflow: auto;
+  padding: 1px;
+}
+
+.desk-comfy-settings-workflow {
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  min-height: 58px;
+  padding: 5px;
+  color: var(--desk-ink);
+  text-align: left;
+  background: rgba(255, 255, 255, 0.38);
+  border: 1px solid rgba(85, 101, 120, 0.12);
+  border-radius: 9px;
+  box-shadow: none;
+}
+
+.desk-comfy-settings-workflow:hover {
+  color: var(--desk-ink);
+  background: rgba(255, 255, 255, 0.6);
+  border-color: rgba(8, 79, 189, 0.2);
+}
+
+.desk-comfy-settings-workflow.is-selected {
+  background: rgba(8, 79, 189, 0.06);
+  border-color: rgba(8, 79, 189, 0.28);
+  box-shadow: inset 2px 0 0 rgba(8, 79, 189, 0.76);
+}
+
+.desk-comfy-settings-workflow.is-disabled {
+  opacity: 0.58;
+}
+
+.desk-comfy-settings-workflow__thumb {
+  display: grid;
+  width: 76px;
+  height: 48px;
+  overflow: hidden;
+  place-items: center;
+  background: rgba(102, 116, 132, 0.08);
+  border-radius: 7px;
+}
+
+.desk-comfy-settings-workflow__thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.desk-comfy-workflow-placeholder {
+  display: grid;
+  width: 34px;
+  gap: 4px;
+}
+
+.desk-comfy-workflow-placeholder i {
+  display: block;
+  height: 3px;
+  background: rgba(72, 91, 112, 0.24);
+  border-radius: 999px;
+}
+
+.desk-comfy-workflow-placeholder i:nth-child(2) { width: 72%; }
+.desk-comfy-workflow-placeholder i:nth-child(3) { width: 86%; }
+
+.desk-comfy-settings-workflow__copy {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.desk-comfy-settings-workflow__copy strong,
+.desk-comfy-settings-workflow__copy small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.desk-comfy-settings-workflow__copy strong {
+  font-size: 10px;
+  font-weight: 880;
+}
+
+.desk-comfy-settings-workflow__copy small,
+.desk-comfy-settings-workflow__state {
+  color: var(--desk-muted);
+  font-size: 8px;
+  font-weight: 720;
+}
+
+.desk-comfy-workflow-editor {
+  display: grid;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(85, 101, 120, 0.1);
+}
+
+.desk-comfy-workflow-editor__heading > div {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.desk-comfy-workflow-editor__heading span {
+  color: var(--desk-muted);
+  font-size: 8px;
+  font-weight: 760;
+}
+
+.desk-comfy-workflow-editor__heading strong {
+  overflow: hidden;
+  color: var(--desk-ink);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.desk-comfy-thumbnail-field small {
+  color: var(--desk-muted);
+  font-size: 8px;
+}
+
+.desk-comfy-service-status {
+  grid-column: 1 / -1;
+  justify-content: flex-start;
+  padding: 7px 9px;
+  color: var(--desk-muted);
+  font-size: 9px;
+  background: rgba(99, 113, 130, 0.06);
+  border-radius: 8px;
+}
+
+.desk-comfy-service-status span {
+  width: 7px;
+  height: 7px;
+  background: #f59e0b;
+  border-radius: 50%;
+}
+
+.desk-comfy-service-status.is-online span {
+  background: #22c55e;
 }
 
 .desk-settings-tabs button.is-active,
@@ -7070,6 +7737,10 @@ body.desk-history-collapsed .desk-gallery {
   font-weight: 760;
 }
 
+.desk-settings-secret-field.desk-settings-form__wide {
+  grid-column: 1 / -1;
+}
+
 .desk-settings-secret-field__label {
   display: flex;
   align-items: center;
@@ -7189,6 +7860,67 @@ body.desk-history-collapsed .desk-gallery {
   color: rgba(161, 98, 7, 0.96);
   font-size: 10px;
   font-weight: 720;
+}
+
+.desk-settings-pinterest-status {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 6px 8px;
+  color: #8a5200;
+  font-size: 10px;
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(217, 119, 6, 0.2);
+  border-radius: 8px;
+}
+
+.desk-settings-pinterest-status > span {
+  flex: 0 0 auto;
+  width: 7px;
+  height: 7px;
+  background: #d97706;
+  border-radius: 50%;
+}
+
+.desk-settings-pinterest-status strong {
+  color: inherit;
+  font-size: 10px;
+  font-weight: 850;
+}
+
+.desk-settings-pinterest-status small {
+  min-width: 0;
+  margin-left: auto;
+  overflow: hidden;
+  color: inherit;
+  font-size: 9px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.desk-settings-pinterest-status.is-ok {
+  color: #166534;
+  background: rgba(34, 197, 94, 0.1);
+  border-color: rgba(22, 163, 74, 0.2);
+}
+
+.desk-settings-pinterest-status.is-ok > span {
+  background: #16a34a;
+}
+
+.desk-settings-form__activity {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: 6px 8px;
+  color: #084fbd;
+  font-size: 10px;
+  font-weight: 760;
+  background: rgba(14, 115, 238, 0.08);
+  border: 1px solid rgba(8, 79, 189, 0.14);
+  border-radius: 8px;
 }
 
 .desk-settings-form__actions {
@@ -7582,13 +8314,16 @@ body.desk-history-collapsed .desk-gallery {
   }
 
   .desk-settings-tabs {
-    display: flex;
-    overflow-x: auto;
+    display: block;
+    overflow: hidden;
   }
 
-  .desk-settings-tabs button {
-    flex: 0 0 auto;
-    min-width: 70px;
+  .desk-settings-tabs__primary {
+    grid-template-columns: repeat(4, minmax(62px, 1fr)) 28px;
+  }
+
+  .desk-settings-tabs__extra {
+    grid-template-columns: repeat(4, minmax(62px, 1fr));
   }
 
   .desk-settings-info-tip {
@@ -8245,7 +8980,6 @@ body.desk-app[data-lang="en"] .desk-gallery-tabs button[data-gallery-view="sets"
   left: 0;
   contain: layout style;
   overflow: visible;
-  will-change: transform;
 }
 
 .desk-gallery-virtual-cell .desk-gallery-card {
@@ -8295,6 +9029,534 @@ body.desk-app[data-lang="en"] .desk-gallery-tabs button[data-gallery-view="sets"
   max-width: none;
   grid-template-columns: repeat(auto-fill, minmax(214px, 1fr));
   grid-auto-columns: auto;
+}
+
+.desk-gallery-grid.is-pinterest {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 0;
+  width: auto;
+  max-width: none;
+  height: 100%;
+  max-height: 100%;
+  padding: 0 14px 16px 0;
+  overflow: hidden;
+}
+
+.desk-pinterest-head {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 48px;
+  margin: 0 0 8px;
+  padding: 6px 8px;
+  background: rgba(255, 255, 255, 0.42);
+  border: 1px solid rgba(255, 255, 255, 0.58);
+  border-radius: 8px;
+}
+
+.desk-pinterest-head__identity {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+}
+
+.desk-pinterest-profile-home-link {
+  display: grid;
+  flex: 0 0 34px;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  color: #fff;
+  font-size: 17px;
+  font-weight: 900;
+  line-height: 0;
+  text-decoration: none;
+  background: #e60023;
+  border-radius: 50%;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.24),
+    0 4px 10px rgba(230, 0, 35, 0.2);
+  transition: filter 160ms ease, transform 160ms ease;
+}
+
+.desk-pinterest-profile-home-link svg {
+  display: block;
+  width: 22px;
+  height: 22px;
+  fill: #fff;
+}
+
+a.desk-pinterest-profile-home-link:hover {
+  filter: brightness(0.94);
+  transform: scale(1.06);
+}
+
+a.desk-pinterest-profile-home-link:focus-visible {
+  outline: 2px solid rgba(230, 0, 35, 0.48);
+  outline-offset: 2px;
+}
+
+.desk-pinterest-head__identity > div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.desk-pinterest-head__identity strong,
+.desk-pinterest-head__identity em {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.desk-pinterest-head__identity strong {
+  color: var(--desk-ink);
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.desk-pinterest-head__identity em {
+  color: var(--desk-muted);
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 700;
+}
+
+.desk-pinterest-download-board,
+.desk-pinterest-state button {
+  display: inline-flex;
+  flex: 0 0 auto;
+  gap: 5px;
+  align-items: center;
+  justify-content: center;
+  min-height: 26px;
+  padding: 0 9px;
+  color: var(--desk-ink);
+  font-size: 9px;
+  font-weight: 800;
+  text-decoration: none;
+  background: rgba(255, 255, 255, 0.64);
+  border: 1px solid rgba(96, 112, 128, 0.16);
+  border-radius: 7px;
+}
+
+.desk-pinterest-head__actions {
+  position: relative;
+  display: flex;
+  flex: 0 0 auto;
+  gap: 6px;
+  align-items: flex-start;
+}
+
+.desk-pinterest-download-control {
+  position: relative;
+  display: flex;
+  justify-items: end;
+  min-width: 120px;
+}
+
+.desk-pinterest-download-board {
+  --pinterest-sync-accent: #e60023;
+  --pinterest-sync-track: rgba(230, 0, 35, 0.16);
+  --pinterest-sync-surface: rgba(255, 255, 255, 0.7);
+  --pinterest-sync-progress: 0;
+  position: relative;
+  isolation: isolate;
+  width: 120px;
+  height: 32px;
+  min-height: 32px;
+  padding: 0 12px;
+  overflow: visible;
+  color: var(--desk-ink);
+  background: var(--pinterest-sync-surface);
+  border: 1px solid rgba(96, 112, 128, 0.16);
+  border-radius: 999px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.64),
+    0 5px 12px rgba(31, 45, 62, 0.1);
+  cursor: pointer;
+  transition:
+    color 160ms ease,
+    background 160ms ease,
+    border-color 160ms ease,
+    box-shadow 180ms ease,
+    transform 160ms ease;
+}
+
+.desk-pinterest-download-board:hover:not(:disabled) {
+  color: var(--pinterest-sync-accent);
+  background: rgba(255, 255, 255, 0.88);
+  border-color: rgba(8, 79, 189, 0.28);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.8),
+    0 7px 16px rgba(31, 45, 62, 0.14);
+  transform: translateY(-1px);
+}
+
+.desk-pinterest-download-board:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--pinterest-sync-accent) 42%, transparent);
+  outline-offset: 2px;
+}
+
+.desk-pinterest-download-board.has-progress {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.76), rgba(241, 247, 251, 0.7)),
+    var(--pinterest-sync-surface);
+  border-color: transparent;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.72),
+    inset 0 -1px 0 rgba(67, 86, 106, 0.08),
+    0 6px 16px rgba(31, 45, 62, 0.13);
+}
+
+.desk-pinterest-download-board.has-updates::after {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  width: 7px;
+  height: 7px;
+  content: "";
+  background: #e60023;
+  border: 2px solid rgba(255, 255, 255, 0.94);
+  border-radius: 50%;
+  box-shadow: 0 2px 6px rgba(230, 0, 35, 0.38);
+}
+
+.desk-pinterest-download-board:disabled {
+  cursor: progress;
+  opacity: 0.64;
+}
+
+.desk-pinterest-download-board.has-progress:disabled {
+  opacity: 1;
+}
+
+.desk-pinterest-download-board__content {
+  position: relative;
+  z-index: 2;
+  display: inline-flex;
+  width: 100%;
+  min-width: 0;
+  gap: 6px;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+}
+
+.desk-pinterest-download-board__content.is-progress {
+  gap: 5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.desk-pinterest-download-board__content.is-progress strong {
+  color: var(--pinterest-sync-accent);
+  font-size: 13px;
+  font-weight: 950;
+  line-height: 1;
+  letter-spacing: -0.35px;
+}
+
+.desk-pinterest-download-board__content.is-progress > span {
+  color: color-mix(in srgb, var(--desk-ink) 72%, transparent);
+  font-size: 7.5px;
+  font-weight: 850;
+  line-height: 1;
+}
+
+.desk-pinterest-download-board__icon {
+  width: 12px;
+  height: 12px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
+}
+
+.desk-pinterest-download-board__progress {
+  position: absolute;
+  inset: -1px;
+  z-index: 1;
+  display: block;
+  width: calc(100% + 2px);
+  height: calc(100% + 2px);
+  overflow: visible;
+  pointer-events: none;
+}
+
+.desk-pinterest-download-board__track,
+.desk-pinterest-download-board__value {
+  fill: none;
+  vector-effect: non-scaling-stroke;
+}
+
+.desk-pinterest-download-board__track {
+  stroke: var(--pinterest-sync-track);
+  stroke-width: 3;
+}
+
+.desk-pinterest-download-board__value {
+  stroke: var(--pinterest-sync-accent);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-dasharray:
+    var(--pinterest-sync-progress)
+    calc(100 - var(--pinterest-sync-progress));
+  stroke-dashoffset: 25;
+  filter: drop-shadow(0 1px 2px color-mix(in srgb, var(--pinterest-sync-accent) 24%, transparent));
+  transition: stroke-dasharray 520ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.desk-pinterest-download-board.is-preparing .desk-pinterest-download-board__value {
+  stroke-dasharray: 8 92;
+  animation: desk-pinterest-sync-orbit 1100ms linear infinite;
+}
+
+.desk-pinterest-download-board.is-completed {
+  animation: desk-pinterest-sync-settle 620ms ease both;
+}
+
+.desk-pinterest-download-board.is-partial,
+.desk-pinterest-download-board.is-failed {
+  --pinterest-sync-accent: #e60023;
+}
+
+.desk-pinterest-download-board.is-completed .desk-pinterest-download-board__value {
+  stroke-linecap: butt;
+  stroke-dasharray: 100 0;
+}
+
+@keyframes desk-pinterest-sync-orbit {
+  to {
+    stroke-dashoffset: -75;
+  }
+}
+
+@keyframes desk-pinterest-sync-settle {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+
+  48% {
+    transform: scale(1.025);
+  }
+}
+
+.desk-pinterest-sync-tip {
+  position: absolute;
+  top: 37px;
+  right: 0;
+  z-index: 8;
+  width: 190px;
+  min-height: 34px;
+  padding: 7px 28px 7px 9px;
+  color: #6f0011;
+  font-size: 9px;
+  font-weight: 750;
+  line-height: 1.4;
+  text-align: left;
+  background: rgba(255, 255, 255, 0.98);
+  border: 1px solid rgba(230, 0, 35, 0.28);
+  border-radius: 7px;
+  box-shadow: 0 10px 24px rgba(54, 22, 30, 0.2);
+}
+
+.desk-pinterest-sync-tip::before {
+  position: absolute;
+  top: -5px;
+  right: 19px;
+  width: 8px;
+  height: 8px;
+  content: "";
+  background: inherit;
+  border-top: 1px solid rgba(230, 0, 35, 0.28);
+  border-left: 1px solid rgba(230, 0, 35, 0.28);
+  transform: rotate(45deg);
+}
+
+.desk-pinterest-sync-tip--all {
+  top: 32px;
+  right: 0;
+}
+
+.desk-pinterest-sync-tip > button {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  display: grid;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  place-items: center;
+  color: #8c1024;
+  background: transparent;
+  border: 0;
+  border-radius: 4px;
+}
+
+.desk-pinterest-sync-tip > button:hover {
+  background: rgba(230, 0, 35, 0.08);
+}
+
+.desk-pinterest-sync-tip > button svg {
+  width: 12px;
+  height: 12px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-width: 1.8;
+}
+
+.desk-pinterest-boards {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 6px;
+  width: 100%;
+  padding: 0 0 8px;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  scrollbar-width: thin;
+}
+
+.desk-pinterest-boards > button {
+  position: relative;
+  display: flex;
+  flex: 0 0 auto;
+  gap: 6px;
+  align-items: center;
+  min-width: 94px;
+  max-width: 164px;
+  height: 38px;
+  padding: 3px 8px 3px 3px;
+  color: var(--desk-muted);
+  text-align: left;
+  background: rgba(255, 255, 255, 0.38);
+  border: 1px solid rgba(255, 255, 255, 0.56);
+  border-radius: 8px;
+}
+
+.desk-pinterest-boards > button.has-updates::after {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 6px;
+  height: 6px;
+  content: "";
+  background: #e60023;
+  border: 1.5px solid rgba(255, 255, 255, 0.94);
+  border-radius: 50%;
+  box-shadow: 0 1px 4px rgba(230, 0, 35, 0.34);
+}
+
+.desk-pinterest-boards > button.is-active {
+  color: #9f001a;
+  background: rgba(255, 255, 255, 0.82);
+  border-color: rgba(230, 0, 35, 0.28);
+  box-shadow: inset 0 -2px 0 #e60023, 0 6px 14px rgba(31, 45, 62, 0.08);
+}
+
+.desk-pinterest-board__cover {
+  display: grid;
+  flex: 0 0 30px;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 900;
+  object-fit: cover;
+  background: #e60023;
+  border-radius: 6px;
+}
+
+.desk-pinterest-boards > button > span:last-child {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+
+.desk-pinterest-boards strong,
+.desk-pinterest-boards em {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.desk-pinterest-boards strong {
+  font-size: 9px;
+  font-weight: 850;
+}
+
+.desk-pinterest-boards em {
+  color: inherit;
+  font-size: 8px;
+  font-style: normal;
+  opacity: 0.7;
+}
+
+.desk-pinterest-scroll {
+  flex: 1 1 0;
+  min-height: 0;
+  padding: 2px 0 18px;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+.desk-pinterest-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, var(--desk-gallery-card-size));
+  gap: var(--desk-gallery-card-gap);
+  align-content: start;
+  justify-content: start;
+}
+
+.desk-pinterest-grid > .desk-gallery-empty {
+  grid-column: 1 / -1;
+}
+
+.desk-pinterest-state {
+  display: grid;
+  flex: 1 1 auto;
+  gap: 8px;
+  min-height: 220px;
+  place-content: center;
+  justify-items: center;
+  color: var(--desk-muted);
+  text-align: center;
+}
+
+.desk-pinterest-state strong {
+  color: var(--desk-ink);
+  font-size: 12px;
+}
+
+.desk-pinterest-state span {
+  max-width: 420px;
+  font-size: 10px;
+}
+
+.desk-pinterest-state.is-loading > span {
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(230, 0, 35, 0.18);
+  border-top-color: #e60023;
+  border-radius: 50%;
+  animation: desk-spin 700ms linear infinite;
+}
+
+@keyframes desk-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.desk-pinterest-state.is-error strong {
+  color: #b42318;
 }
 
 .desk-prompt-source-scroll .desk-gallery-card {
@@ -8761,6 +10023,14 @@ body.desk-app[data-lang="en"] .desk-gallery-tabs button[data-gallery-view="sets"
   color: rgba(9, 24, 38, 0.92);
   background: rgba(255, 255, 255, 0.82);
   border-color: rgba(255, 255, 255, 0.72);
+}
+
+.desk-gallery-card__download.is-cached,
+.desk-gallery-card__download.is-cached:disabled {
+  color: #147a3d;
+  background: rgba(214, 250, 225, 0.86);
+  border-color: rgba(34, 197, 94, 0.24);
+  opacity: 1;
 }
 
 .desk-gallery-card__meta strong {
@@ -9869,6 +11139,43 @@ body.desk-app[data-theme="dark"] .desk-file-preview-modal__actions #deskFilePrev
   border-color: rgba(255, 255, 255, 0.38);
 }
 
+@media (max-width: 980px) {
+  .desk-gallery,
+  body.desk-history-collapsed .desk-gallery {
+    position: fixed;
+    inset: 48px 8px 44px 72px;
+  }
+
+  .desk-gallery__body {
+    display: grid;
+    grid-template-rows: minmax(0, 1fr) auto;
+    align-items: stretch;
+  }
+
+  .desk-gallery-inspector {
+    grid-template-columns: 88px minmax(0, 1fr) minmax(190px, 34%);
+    grid-template-rows: minmax(72px, auto);
+    max-height: 124px;
+    padding: 8px;
+  }
+
+  .desk-gallery-inspector__head {
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+  }
+
+  .desk-gallery-selected,
+  .desk-gallery-inspector__actions {
+    max-height: 106px;
+  }
+
+  .desk-gallery-inspector__actions {
+    align-content: start;
+    overflow: auto;
+  }
+}
+
 .desk-gallery-empty {
   display: grid;
   grid-column: 1 / -1;
@@ -9924,6 +11231,23 @@ body.desk-app[data-theme="dark"] .desk-file-preview-modal__actions #deskFilePrev
 .desk-prompt-source-taxonomy button.is-active {
   background: rgba(255, 255, 255, 0.5);
   box-shadow: none;
+}
+
+.desk-gallery-tabs button[data-gallery-view="pinterest"]:hover:not(.is-active) {
+  color: #c6001e;
+  background: rgba(230, 0, 35, 0.08);
+}
+
+.desk-gallery-tabs button[data-gallery-view="pinterest"].is-active,
+.desk-gallery-tabs button[data-gallery-view="pinterest"].is-active:hover {
+  color: #fff;
+  background:
+    radial-gradient(circle at 28% 18%, rgba(255, 255, 255, 0.22), transparent 34%),
+    linear-gradient(180deg, #f31b3b 0%, #e60023 58%, #c6001e 100%);
+  border: 1px solid rgba(181, 0, 28, 0.38);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    0 5px 12px rgba(230, 0, 35, 0.2);
 }
 
 .desk-gallery__actions button {
@@ -10554,14 +11878,29 @@ body.desk-app[data-theme="dark"] .desk-file-preview-modal__actions #deskFilePrev
   visibility: hidden;
   opacity: 0;
   overflow: hidden;
+  /* 不用 backdrop-filter：背后的画布/图库有 infinite 动画（工具栏流光、节点提示等），
+     毛玻璃背景每帧失效会强制全模态区域重算模糊，拖动分隔线时表现为持续掉帧。
+     改用更实的深色底保持同等对比度，成本恒为零。 */
   background:
-    linear-gradient(90deg, rgba(18, 24, 27, 0.20), rgba(18, 24, 27, 0.24)),
-    rgba(16, 22, 25, 0.24);
+    linear-gradient(90deg, rgba(18, 24, 27, 0.55), rgba(18, 24, 27, 0.62)),
+    rgba(16, 22, 25, 0.58);
   border-radius: var(--desk-preview-radius);
   box-shadow: 0 28px 90px rgba(2, 6, 10, 0.24);
-  backdrop-filter: blur(18px) saturate(1.14);
-  -webkit-backdrop-filter: blur(18px) saturate(1.14);
   transition: opacity 160ms ease, visibility 160ms ease;
+}
+
+/* 面板挂着全局 desk-glass（blur 24px），对比场景内一并禁用，避免双层毛玻璃嵌套 */
+.desk-compare .desk-glass {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+/* 对比打开期间隐藏被完全遮挡的图库面板/预览模态：
+   它们的全屏级毛玻璃面会随每帧合成损伤被迫重算（真机实测 18fps→100fps），
+   visibility 隐藏保留布局与状态，关闭对比时原样恢复 */
+.desk-gallery.desk-under-compare,
+.desk-gallery-preview.desk-under-compare {
+  visibility: hidden !important;
 }
 
 .desk-compare.is-open {
@@ -10673,6 +12012,8 @@ body.desk-app[data-theme="dark"] .desk-file-preview-modal__actions #deskFilePrev
   place-items: center;
   min-height: 0;
   overflow: hidden;
+  cursor: ew-resize;
+  touch-action: none;
   background:
     linear-gradient(45deg, rgba(96, 112, 132, 0.09) 25%, transparent 25% 75%, rgba(96, 112, 132, 0.09) 75%),
     linear-gradient(45deg, rgba(96, 112, 132, 0.09) 25%, transparent 25% 75%, rgba(96, 112, 132, 0.09) 75%);
@@ -10796,7 +12137,14 @@ body.desk-app[data-theme="dark"] .desk-file-preview-modal__actions #deskFilePrev
 
 .desk-compare__overlay {
   overflow: hidden;
-  clip-path: inset(0 50% 0 0);
+  /* 揭示由 transform 对偶平移实现（JS 同步外层/内层位移），拖动全程合成器直出零重绘 */
+  transform: translateX(-50%);
+  will-change: transform;
+}
+
+.desk-compare__overlay img {
+  transform: translateX(50%);
+  will-change: transform;
 }
 
 .desk-compare__divider {
@@ -10836,9 +12184,9 @@ body.desk-app[data-theme="dark"] .desk-file-preview-modal__actions #deskFilePrev
   font-weight: 850;
   text-overflow: ellipsis;
   white-space: nowrap;
-  background: rgba(15, 23, 42, 0.48);
+  /* 不用 backdrop-filter：毛玻璃盖在动画图层上会强制每帧重算模糊；加深底色保持可读性 */
+  background: rgba(15, 23, 42, 0.72);
   border-radius: 999px;
-  backdrop-filter: blur(10px);
 }
 
 .desk-compare__label--left {
@@ -10857,6 +12205,8 @@ body.desk-app[data-theme="dark"] .desk-file-preview-modal__actions #deskFilePrev
   margin: 0;
   cursor: ew-resize;
   opacity: 0;
+  /* 拖动由舞台的 Pointer Events 直控；range 仅保留键盘可达性 */
+  pointer-events: none;
 }
 
 @media (max-width: 980px) {
@@ -10948,6 +12298,17 @@ body.desk-app[data-theme="dark"] .desk-file-preview-modal__actions #deskFilePrev
   bottom: 35px;
   width: clamp(570px, 48vw, 960px);
   height: min(270px, calc(75vh - 99px));
+}
+
+/* 神灯动画期间：状态切换必须瞬时（真实面板由翘曲位图代演），开启阶段整体隐形 */
+.desk-prompt-drawer.is-genie-anim,
+.desk-prompt-drawer.is-genie-anim * {
+  transition: none !important;
+}
+
+.desk-prompt-drawer.is-genie-hidden {
+  opacity: 0 !important;
+  pointer-events: none !important;
 }
 
 .desk-prompt-drawer__handle {
@@ -15032,6 +16393,40 @@ body.desk-app[data-theme="dark"] .desk-settings-tabs button.is-active:hover {
     0 8px 18px rgba(196, 54, 14, 0.28);
 }
 
+body.desk-app[data-theme="dark"] .desk-comfy-settings-workflow,
+body.desk-app[data-theme="dark"] .desk-comfy-workflow-card {
+  color: var(--desk-ink);
+  background: rgba(28, 34, 36, 0.62);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+body.desk-app[data-theme="dark"] .desk-comfy-parameter-panel {
+  background: rgba(20, 26, 29, 0.58);
+  border-color: rgba(255, 255, 255, 0.07);
+}
+
+body.desk-app[data-theme="dark"] .desk-comfy-parameter-group + .desk-comfy-parameter-group {
+  border-color: rgba(255, 255, 255, 0.07);
+}
+
+body.desk-app[data-theme="dark"] .desk-comfy-settings-workflow:hover,
+body.desk-app[data-theme="dark"] .desk-comfy-workflow-card:hover {
+  color: #fff7f0;
+  background: rgba(255, 106, 34, 0.1);
+  border-color: rgba(255, 106, 34, 0.24);
+}
+
+body.desk-app[data-theme="dark"] .desk-comfy-settings-workflow.is-selected,
+body.desk-app[data-theme="dark"] .desk-comfy-workflow-card.is-selected {
+  background: rgba(255, 106, 34, 0.1);
+  border-color: rgba(255, 106, 34, 0.3);
+  box-shadow: inset 2px 0 0 #ff6a22;
+}
+
+body.desk-app[data-theme="dark"] .desk-comfy-workflow-card.is-selected .desk-comfy-workflow-card__check {
+  color: #ff9b68;
+}
+
 body.desk-app[data-theme="dark"] .desk-settings__summary span {
   color: rgba(214, 220, 221, 0.76);
   background: rgba(28, 34, 36, 0.58);
@@ -15208,6 +16603,32 @@ body.desk-app[data-theme="dark"] .desk-settings-secret-clear:hover {
 
 body.desk-app[data-theme="dark"] .desk-settings-form__hint {
   color: #ffb089;
+}
+
+body.desk-app[data-theme="dark"] .desk-settings-pinterest-status {
+  color: #ffb089;
+  background: rgba(255, 106, 34, 0.12);
+  border-color: rgba(255, 106, 34, 0.22);
+}
+
+body.desk-app[data-theme="dark"] .desk-settings-pinterest-status > span {
+  background: #ff7a33;
+}
+
+body.desk-app[data-theme="dark"] .desk-settings-pinterest-status.is-ok {
+  color: #96f0bd;
+  background: rgba(34, 197, 94, 0.12);
+  border-color: rgba(150, 240, 189, 0.22);
+}
+
+body.desk-app[data-theme="dark"] .desk-settings-pinterest-status.is-ok > span {
+  background: #45d483;
+}
+
+body.desk-app[data-theme="dark"] .desk-settings-form__activity {
+  color: #ffd1b8;
+  background: rgba(255, 106, 34, 0.1);
+  border-color: rgba(255, 106, 34, 0.2);
 }
 
 body.desk-app[data-theme="dark"] .desk-settings-form__actions button,
@@ -15433,6 +16854,23 @@ body.desk-app[data-theme="dark"] .desk-gallery-tabs button.is-active:hover {
     0 8px 18px rgba(196, 54, 14, 0.28);
 }
 
+body.desk-app[data-theme="dark"] .desk-gallery-tabs button[data-gallery-view="pinterest"]:hover:not(.is-active) {
+  color: #ff9aaa;
+  background: rgba(230, 0, 35, 0.12);
+}
+
+body.desk-app[data-theme="dark"] .desk-gallery-tabs button[data-gallery-view="pinterest"].is-active,
+body.desk-app[data-theme="dark"] .desk-gallery-tabs button[data-gallery-view="pinterest"].is-active:hover {
+  color: #fff7f8;
+  background:
+    radial-gradient(circle at 28% 18%, rgba(255, 224, 229, 0.2), transparent 34%),
+    linear-gradient(180deg, #f31b3b 0%, #e60023 58%, #a9001a 100%);
+  border-color: rgba(255, 112, 133, 0.54);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    0 8px 18px rgba(230, 0, 35, 0.28);
+}
+
 body.desk-app[data-theme="dark"] .desk-gallery-search svg {
   stroke: rgba(190, 199, 201, 0.68);
 }
@@ -15455,6 +16893,93 @@ body.desk-app[data-theme="dark"] .desk-gallery-filter option {
 
 body.desk-app[data-theme="dark"] .desk-gallery-stats span {
   color: rgba(214, 220, 221, 0.76);
+}
+
+body.desk-app[data-theme="dark"] .desk-pinterest-head,
+body.desk-app[data-theme="dark"] .desk-pinterest-boards > button {
+  color: rgba(214, 220, 221, 0.76);
+  background: rgba(28, 34, 36, 0.68);
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+body.desk-app[data-theme="dark"] .desk-pinterest-boards > button.is-active {
+  color: #ffd1b8;
+  background: rgba(50, 38, 38, 0.9);
+  border-color: rgba(230, 0, 35, 0.38);
+  box-shadow: inset 0 -2px 0 #ef4056, 0 8px 18px rgba(0, 0, 0, 0.24);
+}
+
+body.desk-app[data-theme="dark"] .desk-pinterest-download-board,
+body.desk-app[data-theme="dark"] .desk-pinterest-state button {
+  color: #ffb089;
+  background: rgba(42, 50, 52, 0.92);
+  border-color: rgba(255, 106, 34, 0.24);
+}
+
+body.desk-app[data-theme="dark"] .desk-pinterest-download-board {
+  --pinterest-sync-accent: #e60023;
+  --pinterest-sync-track: rgba(230, 0, 35, 0.2);
+  --pinterest-sync-surface: rgba(42, 50, 52, 0.94);
+}
+
+body.desk-app[data-theme="dark"] .desk-pinterest-download-board:hover:not(:disabled) {
+  color: #ffc4a7;
+  background: rgba(48, 57, 59, 0.98);
+  border-color: rgba(255, 106, 34, 0.42);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.07),
+    0 8px 18px rgba(0, 0, 0, 0.26);
+}
+
+body.desk-app[data-theme="dark"] .desk-pinterest-download-board.has-progress {
+  background:
+    linear-gradient(180deg, rgba(48, 57, 59, 0.96), rgba(35, 42, 44, 0.96)),
+    var(--pinterest-sync-surface);
+  border-color: transparent;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.22),
+    0 7px 17px rgba(0, 0, 0, 0.28);
+}
+
+body.desk-app[data-theme="dark"] .desk-pinterest-download-board__content.is-progress > span {
+  color: rgba(220, 226, 227, 0.68);
+}
+
+body.desk-app[data-theme="dark"] .desk-pinterest-download-board.is-partial,
+body.desk-app[data-theme="dark"] .desk-pinterest-download-board.is-failed {
+  --pinterest-sync-accent: #e60023;
+}
+
+body.desk-app[data-theme="dark"] .desk-pinterest-download-board.has-updates::after,
+body.desk-app[data-theme="dark"] .desk-pinterest-boards > button.has-updates::after {
+  border-color: #2a3234;
+}
+
+body.desk-app[data-theme="dark"] .desk-pinterest-sync-tip {
+  color: #ffd7de;
+  background: rgba(42, 30, 34, 0.98);
+  border-color: rgba(230, 0, 35, 0.42);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.34);
+}
+
+body.desk-app[data-theme="dark"] .desk-pinterest-sync-tip > button {
+  color: #ff9aaa;
+}
+
+body.desk-app[data-theme="dark"] .desk-pinterest-sync-tip > button:hover {
+  background: rgba(230, 0, 35, 0.16);
+}
+
+body.desk-app[data-theme="dark"] .desk-pinterest-head__identity strong,
+body.desk-app[data-theme="dark"] .desk-pinterest-state strong {
+  color: var(--desk-ink);
+}
+
+body.desk-app[data-theme="dark"] .desk-pinterest-head__identity em,
+body.desk-app[data-theme="dark"] .desk-pinterest-state {
+  color: rgba(190, 199, 201, 0.68);
 }
 
 body.desk-app[data-theme="dark"] .desk-gallery-inspector,
@@ -15592,6 +17117,7 @@ body.desk-app[data-theme="dark"] .desk-gallery-set-asset__actions button[data-se
 }
 
 body.desk-app[data-theme="dark"] .desk-gallery-card__favorite[aria-pressed="true"],
+body.desk-app[data-theme="dark"] .desk-gallery-card__download.is-cached,
 body.desk-app[data-theme="dark"] #deskGallerySaveSetBtn,
 body.desk-app[data-theme="dark"] .desk-gallery-set-detail__actions button[data-set-add-selected] {
   color: #96f0bd;
@@ -15950,14 +17476,13 @@ body.desk-app:not([data-theme="dark"]) .desk-gallery-preview__toolbar button:dis
 }
 
 body.desk-app:not([data-theme="dark"]) .desk-compare {
+  /* 同基础规则：去 backdrop-filter（背后 infinite 动画会导致每帧全区域重算模糊），加实底色补偿 */
   background:
-    linear-gradient(120deg, rgba(245, 250, 253, 0.26), rgba(226, 236, 245, 0.2)),
-    rgba(250, 253, 255, 0.16);
+    linear-gradient(120deg, rgba(245, 250, 253, 0.78), rgba(226, 236, 245, 0.72)),
+    rgba(250, 253, 255, 0.6);
   box-shadow:
     0 28px 90px rgba(40, 56, 76, 0.18),
     inset 0 1px 0 rgba(255, 255, 255, 0.34);
-  backdrop-filter: blur(24px) saturate(1.08);
-  -webkit-backdrop-filter: blur(24px) saturate(1.08);
 }
 
 body.desk-app:not([data-theme="dark"]) .desk-compare__panel {
@@ -16819,7 +18344,488 @@ body.desk-app:not([data-theme="dark"]) .desk-compare__actions button:hover:not(:
     animation-iteration-count: 1 !important;
   }
 
+  .desk-pinterest-download-board.is-preparing .desk-pinterest-download-board__value,
+  .desk-pinterest-download-board.is-completed {
+    animation: none !important;
+  }
+
   .desk-link-pulse {
     display: none;
+  }
+}
+
+/* Pinterest card image analysis */
+.desk-gallery-card__meta-actions.is-pinterest {
+  display: grid;
+  grid-template-columns: repeat(2, 18px);
+  gap: 2px;
+  width: 38px;
+  max-width: 38px;
+}
+
+.desk-gallery-card__meta-actions.is-pinterest .desk-gallery-card__analyze {
+  grid-column: 1 / -1;
+  display: inline-flex;
+  gap: 3px;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  min-width: 38px;
+  height: 16px;
+  min-height: 16px;
+  padding: 0 5px;
+  color: #084fbd;
+  font-size: 7px;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: 0.04em;
+  background: rgba(230, 0, 35, 0.08);
+  border-color: rgba(230, 0, 35, 0.24);
+  border-radius: 999px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.64), 0 5px 12px rgba(230, 0, 35, 0.1);
+  -webkit-backdrop-filter: blur(10px) saturate(1.08);
+  backdrop-filter: blur(10px) saturate(1.08);
+}
+
+.desk-gallery-card__meta-actions.is-pinterest .desk-gallery-card__analyze:hover:not(:disabled) {
+  color: #ffffff;
+  background: linear-gradient(180deg, #f11236, #c90020);
+  border-color: rgba(201, 0, 32, 0.58);
+}
+
+.desk-gallery-card__meta-actions.is-pinterest .desk-gallery-card__analyze.is-analyzed:not(.is-analyzing) {
+  color: #ffffff;
+  background: linear-gradient(180deg, #f11236, #d60022);
+  border-color: rgba(183, 0, 29, 0.52);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.24), 0 5px 12px rgba(230, 0, 35, 0.18);
+}
+
+.desk-gallery-card__analyze.is-analyzing {
+  cursor: wait;
+  opacity: 1;
+}
+
+.desk-gallery-card__analyze.is-analyzing::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  flex: 0 0 6px;
+  border: 1px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: desk-pinterest-analysis-spin 700ms linear infinite;
+}
+
+.desk-pinterest-analysis-modal[hidden] {
+  display: none;
+}
+
+.desk-pinterest-analysis-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 92;
+  display: grid;
+  padding: 42px;
+  place-items: center;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 180ms ease;
+}
+
+.desk-pinterest-analysis-modal.is-open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.desk-pinterest-analysis-modal__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(20, 30, 42, 0.16);
+  -webkit-backdrop-filter: blur(18px) saturate(0.96);
+  backdrop-filter: blur(18px) saturate(0.96);
+}
+
+.desk-pinterest-analysis-modal__panel {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  width: min(720px, calc(100vw - 84px));
+  max-height: min(620px, calc(100dvh - 84px));
+  min-height: 430px;
+  overflow: hidden;
+  color: var(--desk-ink);
+  background:
+    radial-gradient(circle at 10% 0%, rgba(255, 255, 255, 0.5), transparent 38%),
+    linear-gradient(145deg, rgba(248, 252, 255, 0.58), rgba(218, 233, 244, 0.44));
+  border: 1px solid rgba(255, 255, 255, 0.56);
+  border-radius: 18px;
+  box-shadow:
+    0 30px 80px rgba(24, 42, 62, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.64);
+  -webkit-backdrop-filter: blur(28px) saturate(1.16);
+  backdrop-filter: blur(28px) saturate(1.16);
+  transform: translateY(10px) scale(0.985);
+  transition: transform 220ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.desk-pinterest-analysis-modal.is-open .desk-pinterest-analysis-modal__panel {
+  transform: translateY(0) scale(1);
+}
+
+.desk-pinterest-analysis-modal__header {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 46px;
+  padding: 6px 10px 6px 12px;
+  background: rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid rgba(79, 103, 126, 0.13);
+}
+
+.desk-pinterest-analysis-modal__identity {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  min-width: 0;
+}
+
+.desk-pinterest-analysis-modal__mark {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  place-items: center;
+  color: #ffffff;
+  background: #e60023;
+  border-radius: 50%;
+  box-shadow: 0 8px 18px rgba(230, 0, 35, 0.22);
+}
+
+.desk-pinterest-analysis-modal__mark svg {
+  width: 20px;
+  height: 20px;
+  fill: currentColor;
+}
+
+.desk-pinterest-analysis-modal__identity > div {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+
+.desk-pinterest-analysis-modal__identity > div > span {
+  color: var(--desk-muted);
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.desk-pinterest-analysis-modal__identity h2 {
+  margin: 0;
+  color: var(--desk-ink);
+  font-size: 16px;
+  font-weight: 900;
+  line-height: 1.05;
+}
+
+.desk-pinterest-analysis-modal__close {
+  display: grid;
+  width: 30px;
+  min-width: 30px;
+  height: 30px;
+  padding: 0;
+  place-items: center;
+  color: rgba(25, 38, 52, 0.72);
+  background: rgba(255, 255, 255, 0.58);
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  border-radius: 10px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72), 0 6px 14px rgba(31, 45, 62, 0.08);
+}
+
+.desk-pinterest-analysis-modal__close svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-width: 2;
+}
+
+.desk-pinterest-analysis-modal__close:hover {
+  color: #e60023;
+  background: rgba(255, 255, 255, 0.86);
+}
+
+.desk-pinterest-analysis-modal__body {
+  display: grid;
+  grid-template-columns: 148px minmax(0, 1fr);
+  gap: 14px;
+  min-height: 0;
+  padding: 16px;
+  overflow: hidden;
+}
+
+.desk-pinterest-analysis-modal__source {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.desk-pinterest-analysis-modal__source img {
+  display: block;
+  width: 148px;
+  height: 148px;
+  margin-bottom: 4px;
+  object-fit: cover;
+  background: rgba(210, 222, 233, 0.56);
+  border: 1px solid rgba(255, 255, 255, 0.78);
+  border-radius: 14px;
+  box-shadow: 0 12px 28px rgba(31, 45, 62, 0.14);
+}
+
+.desk-pinterest-analysis-modal__source strong,
+.desk-pinterest-analysis-modal__source span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.desk-pinterest-analysis-modal__source strong {
+  color: var(--desk-ink);
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.desk-pinterest-analysis-modal__source span {
+  color: var(--desk-muted);
+  font-size: 9px;
+  font-weight: 750;
+}
+
+.desk-pinterest-analysis-modal__prompt {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 7px;
+  min-width: 0;
+  min-height: 0;
+}
+
+.desk-pinterest-analysis-modal__prompt > span {
+  color: var(--desk-muted);
+  font-size: 10px;
+  font-weight: 850;
+}
+
+.desk-pinterest-analysis-modal__prompt textarea {
+  width: 100%;
+  min-width: 0;
+  min-height: 280px;
+  padding: 13px 14px;
+  resize: none;
+  color: rgba(20, 32, 44, 0.94);
+  font: 500 11px/1.7 ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: rgba(255, 255, 255, 0.38);
+  border: 1px solid rgba(255, 255, 255, 0.44);
+  border-radius: 13px;
+  outline: none;
+  box-shadow:
+    inset 0 1px 2px rgba(31, 45, 62, 0.05),
+    0 8px 20px rgba(31, 45, 62, 0.06);
+  -webkit-backdrop-filter: blur(16px) saturate(1.08);
+  backdrop-filter: blur(16px) saturate(1.08);
+}
+
+.desk-pinterest-analysis-modal__prompt textarea:focus {
+  border-color: rgba(8, 79, 189, 0.38);
+  box-shadow:
+    0 0 0 3px rgba(8, 79, 189, 0.1),
+    inset 0 1px 2px rgba(31, 45, 62, 0.04);
+}
+
+.desk-pinterest-analysis-modal__footer {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 44px;
+  padding: 6px 12px;
+  background: rgba(255, 255, 255, 0.08);
+  border-top: 1px solid rgba(79, 103, 126, 0.13);
+}
+
+.desk-pinterest-analysis-modal__footer p {
+  max-width: 380px;
+  margin: 0;
+  color: var(--desk-muted);
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.desk-pinterest-analysis-modal__footer > div {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  flex: 0 0 auto;
+}
+
+.desk-pinterest-analysis-modal__footer button {
+  min-height: 30px;
+  padding: 0 13px;
+  color: rgba(20, 32, 44, 0.82);
+  font-size: 9px;
+  font-weight: 850;
+  background: rgba(255, 255, 255, 0.58);
+  border: 1px solid rgba(255, 255, 255, 0.74);
+  border-radius: 999px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72), 0 7px 16px rgba(31, 45, 62, 0.08);
+}
+
+.desk-pinterest-analysis-modal__footer button:hover {
+  color: rgba(9, 24, 38, 0.96);
+  background: rgba(255, 255, 255, 0.86);
+}
+
+.desk-pinterest-analysis-modal__footer button.is-primary {
+  color: #ffffff;
+  background: linear-gradient(180deg, #0d6fe8, #084fbd);
+  border-color: rgba(8, 79, 189, 0.48);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 8px 18px rgba(8, 79, 189, 0.2);
+}
+
+body.desk-app[data-theme="dark"] .desk-gallery-card__meta-actions.is-pinterest .desk-gallery-card__analyze {
+  color: #ff8fa1;
+  background: rgba(230, 0, 35, 0.14);
+  border-color: rgba(255, 70, 99, 0.3);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 6px 14px rgba(0, 0, 0, 0.18);
+}
+
+body.desk-app[data-theme="dark"] .desk-gallery-card__meta-actions.is-pinterest .desk-gallery-card__analyze:hover:not(:disabled) {
+  color: #ffffff;
+  background: linear-gradient(180deg, #f32143, #c90020);
+  border-color: rgba(255, 79, 107, 0.62);
+}
+
+body.desk-app[data-theme="dark"] .desk-gallery-card__meta-actions.is-pinterest .desk-gallery-card__analyze.is-analyzed:not(.is-analyzing) {
+  color: #ffffff;
+  background: linear-gradient(180deg, #ef173a, #bf001e);
+  border-color: rgba(255, 79, 107, 0.56);
+}
+
+body.desk-app[data-theme="dark"] .desk-pinterest-analysis-modal__backdrop {
+  background: rgba(5, 7, 8, 0.38);
+}
+
+body.desk-app[data-theme="dark"] .desk-pinterest-analysis-modal__panel {
+  color: rgba(245, 247, 248, 0.94);
+  background:
+    radial-gradient(circle at 8% 0%, rgba(255, 119, 48, 0.09), transparent 36%),
+    linear-gradient(145deg, rgba(33, 38, 40, 0.72), rgba(19, 23, 25, 0.62));
+  border-color: rgba(255, 255, 255, 0.14);
+  box-shadow: 0 34px 90px rgba(0, 0, 0, 0.48), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+body.desk-app[data-theme="dark"] .desk-pinterest-analysis-modal__header,
+body.desk-app[data-theme="dark"] .desk-pinterest-analysis-modal__footer {
+  background: rgba(17, 21, 23, 0.16);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+body.desk-app[data-theme="dark"] .desk-pinterest-analysis-modal__identity h2,
+body.desk-app[data-theme="dark"] .desk-pinterest-analysis-modal__source strong {
+  color: rgba(248, 250, 252, 0.96);
+}
+
+body.desk-app[data-theme="dark"] .desk-pinterest-analysis-modal__identity > div > span,
+body.desk-app[data-theme="dark"] .desk-pinterest-analysis-modal__source span,
+body.desk-app[data-theme="dark"] .desk-pinterest-analysis-modal__prompt > span,
+body.desk-app[data-theme="dark"] .desk-pinterest-analysis-modal__footer p {
+  color: rgba(226, 232, 240, 0.65);
+}
+
+body.desk-app[data-theme="dark"] .desk-pinterest-analysis-modal__close,
+body.desk-app[data-theme="dark"] .desk-pinterest-analysis-modal__footer button {
+  color: rgba(242, 244, 245, 0.82);
+  background: rgba(47, 54, 56, 0.76);
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 7px 18px rgba(0, 0, 0, 0.22);
+}
+
+body.desk-app[data-theme="dark"] .desk-pinterest-analysis-modal__source img {
+  background: rgba(10, 13, 14, 0.7);
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.32);
+}
+
+body.desk-app[data-theme="dark"] .desk-pinterest-analysis-modal__prompt textarea {
+  color: rgba(246, 247, 248, 0.92);
+  background: rgba(10, 13, 14, 0.36);
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.26);
+}
+
+body.desk-app[data-theme="dark"] .desk-pinterest-analysis-modal__prompt textarea:focus {
+  border-color: rgba(255, 134, 76, 0.44);
+  box-shadow: 0 0 0 3px rgba(255, 112, 43, 0.1), inset 0 1px 3px rgba(0, 0, 0, 0.24);
+}
+
+body.desk-app[data-theme="dark"] .desk-pinterest-analysis-modal__footer button:hover {
+  color: #fff7f0;
+  background: rgba(67, 74, 76, 0.9);
+}
+
+body.desk-app[data-theme="dark"] .desk-pinterest-analysis-modal__footer button.is-primary,
+body.desk-app[data-theme="dark"] .desk-pinterest-analysis-modal__footer button.is-primary:hover {
+  color: #fff7f0;
+  background: linear-gradient(180deg, rgba(255, 122, 51, 0.98), rgba(185, 51, 18, 0.98));
+  border-color: rgba(255, 148, 92, 0.58);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16), 0 9px 20px rgba(196, 54, 14, 0.26);
+}
+
+@keyframes desk-pinterest-analysis-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 720px) {
+  .desk-pinterest-analysis-modal {
+    padding: 18px;
+  }
+
+  .desk-pinterest-analysis-modal__panel {
+    width: calc(100vw - 36px);
+    max-height: calc(100dvh - 36px);
+  }
+
+  .desk-pinterest-analysis-modal__body {
+    grid-template-columns: 84px minmax(0, 1fr);
+    gap: 10px;
+    padding: 12px;
+  }
+
+  .desk-pinterest-analysis-modal__source img {
+    width: 84px;
+    height: 84px;
+  }
+
+  .desk-pinterest-analysis-modal__footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .desk-pinterest-analysis-modal__footer > div {
+    justify-content: flex-end;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .desk-gallery-card__analyze.is-analyzing::before {
+    animation-duration: 1.4s !important;
+    animation-iteration-count: infinite !important;
   }
 }

@@ -22,6 +22,17 @@
   const DEFAULT_IMAGE_NODE_HEIGHT = 400;
   const DEFAULT_INPUT_NODE_WIDTH = 720;
   const DEFAULT_INPUT_NODE_HEIGHT = 460;
+  const DEFAULT_COMFY_NODE_WIDTH = 420;
+  const DEFAULT_COMFY_NODE_HEIGHT = 640;
+  const MIN_COMFY_NODE_WIDTH = 360;
+  const MIN_COMFY_NODE_HEIGHT = 480;
+  const MAX_COMFY_NODE_WIDTH = 900;
+  const MAX_COMFY_NODE_HEIGHT = 960;
+  const DEFAULT_COMFY_PIXEL_WIDTH = 1024;
+  const DEFAULT_COMFY_PIXEL_HEIGHT = 1024;
+  const MIN_COMFY_PIXEL_SIZE = 64;
+  const MAX_COMFY_PIXEL_SIZE = 8192;
+  const COMFY_PIXEL_STEP = 8;
   const DEFAULT_FILE_OUTPUT_NODE_WIDTH = 458;
   const DEFAULT_FILE_OUTPUT_NODE_HEIGHT = 420;
   const DEFAULT_UPSCALE_NODE_WIDTH = 360;
@@ -175,12 +186,19 @@
     { value: '4x-UltraSharp', label: 'UltraSharp' },
     { value: '4x-AnimeSharp', label: 'AnimeSharp' }
   ];
+  let comfyWorkflowCatalog = { workflows: [], items: [], default_workflow: '' };
   const NODE_MENU_ITEMS = [
     {
       type: 'input',
       title: '模型输入',
       subtitle: '模型与提示词',
       icon: '<svg class="desk-node-icon desk-node-icon--input" viewBox="0 0 24 24"><g class="desk-node-icon__frame"><path d="M3 8V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-3"></path></g><g class="desk-node-icon__enter"><path d="m10 16 4-4-4-4"></path><path d="M3 12h11"></path></g></svg>'
+    },
+    {
+      type: 'comfy',
+      title: 'Comfy 工作流',
+      subtitle: '本地工作流执行',
+      icon: '<svg class="desk-node-icon desk-node-icon--comfy" viewBox="0 0 24 24"><path d="M7 4h10a3 3 0 0 1 3 3v10a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3V7a3 3 0 0 1 3-3Z"></path><path d="M8 9h8M8 13h5M8 17h7"></path><circle cx="17" cy="13" r="1.5"></circle></svg>'
     },
     {
       type: 'file_output',
@@ -1122,7 +1140,7 @@
   }
 
   function updateProviderParamVisibility(root, provider = 'gpt') {
-    const current = ['gpt', 'google', 'comfy'].includes(provider) ? provider : 'gpt';
+    const current = ['gpt', 'google'].includes(provider) ? provider : 'gpt';
     root?.querySelectorAll('[data-provider-param]').forEach(item => {
       const scopes = String(item.dataset.providerParam || '').split(/\s+/).filter(Boolean);
       item.hidden = scopes.length > 0 && !scopes.includes(current);
@@ -1517,6 +1535,9 @@
     Object.values(DesktopState.state.canvas.nodes)
       .filter(node => node.type === 'upscale')
       .forEach(node => refreshUpscaleNodeMode(node.id));
+    Object.values(DesktopState.state.canvas.nodes)
+      .filter(node => node.type === 'comfy')
+      .forEach(node => refreshComfyNode(node.id));
     applyNodeSelection();
     updateLinkPath();
     updateInputProgressOverlay();
@@ -1651,13 +1672,15 @@
     const fromType = DesktopState.state.canvas.nodes[fromNodeId]?.type;
     const targetTypes = fromType === 'input'
       ? ['image', 'file_output', 'upscale']
+      : (fromType === 'comfy'
+        ? ['image', 'upscale']
       : (fromType === 'output'
         ? ['image']
         : (fromType === 'image'
-          ? ['input', 'layout', 'pose', 'upscale']
+          ? ['input', 'comfy', 'layout', 'pose', 'upscale']
           : (fromType === 'upscale'
             ? ['image']
-            : ((fromType === 'layout' || fromType === 'pose') ? ['input', 'upscale'] : (fromType === 'text' ? ['input'] : [])))));
+            : ((fromType === 'layout' || fromType === 'pose') ? ['input', 'comfy', 'upscale'] : (fromType === 'text' ? ['input', 'comfy'] : []))))));
     return NODE_MENU_ITEMS.filter(item => targetTypes.includes(item.type));
   }
 
@@ -2353,7 +2376,7 @@
   function nextNodeId(type) {
     const prefix = type === 'file_output'
       ? 'file_output'
-      : (type === 'image' ? 'image' : (type === 'upscale' ? 'upscale' : (type === 'pose' ? 'pose' : (type === 'layout' ? 'layout' : (type === 'text' ? 'text' : 'input')))));
+      : (type === 'comfy' ? 'comfy' : (type === 'image' ? 'image' : (type === 'upscale' ? 'upscale' : (type === 'pose' ? 'pose' : (type === 'layout' ? 'layout' : (type === 'text' ? 'text' : 'input'))))));
     let id = '';
     do {
       const unique = globalThis.crypto?.randomUUID?.()?.replaceAll('-', '')
@@ -2369,10 +2392,10 @@
     const count = Object.keys(DesktopState.state.canvas.nodes).length;
     const defaultWidth = type === 'file_output'
       ? DEFAULT_FILE_OUTPUT_NODE_WIDTH
-      : (type === 'upscale' ? DEFAULT_UPSCALE_NODE_WIDTH : (type === 'layout' ? 320 : (type === 'pose' ? 340 : (type === 'text' ? DEFAULT_TEXT_NODE_WIDTH : DEFAULT_INPUT_NODE_WIDTH))));
+      : (type === 'comfy' ? DEFAULT_COMFY_NODE_WIDTH : (type === 'upscale' ? DEFAULT_UPSCALE_NODE_WIDTH : (type === 'layout' ? 320 : (type === 'pose' ? 340 : (type === 'text' ? DEFAULT_TEXT_NODE_WIDTH : DEFAULT_INPUT_NODE_WIDTH)))));
     const defaultHeight = type === 'file_output'
       ? DEFAULT_FILE_OUTPUT_NODE_HEIGHT
-      : (type === 'upscale' ? DEFAULT_UPSCALE_NODE_HEIGHT : (type === 'layout' ? 300 : (type === 'pose' ? 300 : (type === 'text' ? DEFAULT_TEXT_NODE_HEIGHT : DEFAULT_INPUT_NODE_HEIGHT))));
+      : (type === 'comfy' ? DEFAULT_COMFY_NODE_HEIGHT : (type === 'upscale' ? DEFAULT_UPSCALE_NODE_HEIGHT : (type === 'layout' ? 300 : (type === 'pose' ? 300 : (type === 'text' ? DEFAULT_TEXT_NODE_HEIGHT : DEFAULT_INPUT_NODE_HEIGHT)))));
     const node = {
       id,
       type,
@@ -2384,6 +2407,17 @@
     if (type === 'input') {
       node.width = LOCKED_INPUT_NODE_WIDTH;
       node.height = LOCKED_INPUT_NODE_HEIGHT;
+    }
+    if (type === 'comfy') {
+      node.workflow = comfyWorkflowCatalog.default_workflow || comfyWorkflowCatalog.workflows?.[0] || '';
+      const workflowMeta = comfyWorkflowCatalog.items?.find(item => item.id === node.workflow);
+      const defaultSize = comfyWorkflowDefaultSize(workflowMeta);
+      node.pixelWidth = defaultSize.width;
+      node.pixelHeight = defaultSize.height;
+      node.ratio = workflowMeta?.default_ratio || '1:1';
+      node.resolution = '1k';
+      node.workflowParameters = {};
+      node.output = { archiveEnabled: true, telegramEnabled: true };
     }
     if (type === 'text') {
       node.text = '';
@@ -2433,7 +2467,7 @@
       node.output = { archiveEnabled: true, telegramEnabled: false };
     }
     DesktopState.state.canvas.nodes[id] = node;
-    if (type === 'input' || type === 'file_output' || type === 'upscale') {
+    if (type === 'input' || type === 'comfy' || type === 'file_output' || type === 'upscale') {
       DesktopState.state.outputs[id] = {
         status: 'idle',
         stage: '',
@@ -2443,7 +2477,7 @@
         imagePaths: [],
         primaryFile: '',
         primaryImagePath: '',
-        type: type === 'upscale' ? 'upscale' : 'gpt',
+        type: type === 'upscale' ? 'upscale' : (type === 'comfy' ? 'comfy' : 'gpt'),
         error: '',
         taskId: '',
         fileManifest: null,
@@ -2522,7 +2556,7 @@
     const defaults = nodeId === 'input'
       ? (DesktopState.state.params || {})
       : (nodeState.params || DesktopState.state.params || {});
-    const provider = ['gpt', 'google', 'comfy'].includes(nodeState.provider)
+    const provider = ['gpt', 'google'].includes(nodeState.provider)
       ? nodeState.provider
       : (nodeId === 'input' ? DesktopState.state.provider : 'gpt');
     const outputControls = nodeId === 'input'
@@ -2559,10 +2593,9 @@
         <div class="desk-segment" role="tablist" aria-label="选择模型提供方">
           <button type="button" class="${provider === 'gpt' ? 'is-active' : ''}" data-provider="gpt">GPT</button>
           <button type="button" class="${provider === 'google' ? 'is-active' : ''}" data-provider="google">Google</button>
-          <button type="button" class="${provider === 'comfy' ? 'is-active' : ''}" data-provider="comfy">Comfy</button>
         </div>
         <div class="desk-param-grid" aria-label="模型参数">
-          <label data-provider-param="gpt google comfy"><span>画幅</span><select class="desk-select" data-field="ratio">${ratioOptionsHtml(defaults.ratio || '9:16')}</select></label>
+          <label data-provider-param="gpt google"><span>画幅</span><select class="desk-select" data-field="ratio">${ratioOptionsHtml(defaults.ratio || '9:16')}</select></label>
           <label data-provider-param="gpt google"><span>分辨率</span><select class="desk-select" data-field="resolution">${optionListHtml([{ value: '1k', label: '1k' }, { value: '2k', label: '2k' }, { value: '4k', label: '4k' }], defaults.resolution || '2k')}</select></label>
           <label data-provider-param="google" hidden><span>模型</span><select class="desk-select" data-field="model">${googleModelOptionsHtml(defaults.model || DEFAULT_GOOGLE_MODEL)}</select></label>
           <label data-provider-param="gpt"><span>质量</span><select class="desk-select" data-field="quality">${optionListHtml([{ value: 'auto', label: 'auto' }, { value: 'low', label: 'low' }, { value: 'medium', label: 'medium' }, { value: 'high', label: 'high' }], defaults.quality || 'auto')}</select></label>
@@ -2623,6 +2656,208 @@
         <span class="desk-resize-handle desk-resize-handle--locked" aria-hidden="true"></span>
       </section>
     `;
+  }
+
+  function comfyWorkflowCardsHtml(selectedWorkflow = '') {
+    const items = Array.isArray(comfyWorkflowCatalog.items) ? comfyWorkflowCatalog.items : [];
+    const visible = items.filter(item => item.enabled || item.id === selectedWorkflow);
+    if (!visible.length) {
+      return '<div class="desk-comfy-node__empty">设置中心还没有启用工作流</div>';
+    }
+    return visible.map(item => `
+      <button type="button" class="desk-comfy-workflow-card${item.id === selectedWorkflow ? ' is-selected' : ''}${item.enabled ? '' : ' is-disabled'}" data-comfy-workflow="${escapeHtml(item.id)}" role="option" aria-selected="${item.id === selectedWorkflow ? 'true' : 'false'}">
+        <span class="desk-comfy-workflow-card__thumb">${item.thumbnail_url ? `<img src="${escapeHtml(item.thumbnail_url)}" alt="">` : '<i></i><i></i><i></i>'}</span>
+        <span class="desk-comfy-workflow-card__copy"><strong>${escapeHtml(item.label || item.id)}</strong><small>${escapeHtml(item.summary || item.id)}</small></span>
+        <span class="desk-comfy-workflow-card__check" aria-hidden="true">✓</span>
+      </button>
+    `).join('');
+  }
+
+  function comfyWorkflowParameterOverrides(node, workflowId = node?.workflow || '') {
+    if (!node || !workflowId) return {};
+    if (!node.workflowParameters || typeof node.workflowParameters !== 'object' || Array.isArray(node.workflowParameters)) {
+      node.workflowParameters = {};
+    }
+    const overrides = node.workflowParameters[workflowId];
+    return overrides && typeof overrides === 'object' && !Array.isArray(overrides) ? overrides : {};
+  }
+
+  function normalizeComfyPixelSize(value, fallback = DEFAULT_COMFY_PIXEL_WIDTH) {
+    const fallbackNumber = Number.isFinite(Number(fallback)) ? Number(fallback) : DEFAULT_COMFY_PIXEL_WIDTH;
+    const number = Number.isFinite(Number(value)) ? Number(value) : fallbackNumber;
+    return clamp(Math.round(number / COMFY_PIXEL_STEP) * COMFY_PIXEL_STEP, MIN_COMFY_PIXEL_SIZE, MAX_COMFY_PIXEL_SIZE);
+  }
+
+  function comfyWorkflowDefaultSize(workflowMeta) {
+    return {
+      width: normalizeComfyPixelSize(workflowMeta?.default_width, DEFAULT_COMFY_PIXEL_WIDTH),
+      height: normalizeComfyPixelSize(workflowMeta?.default_height, DEFAULT_COMFY_PIXEL_HEIGHT)
+    };
+  }
+
+  function comfyParameterValueHtml(parameter, value) {
+    const parameterId = escapeHtml(parameter.id || '');
+    const type = String(parameter.type || 'text');
+    if (type === 'boolean') {
+      return `<input type="checkbox" data-comfy-param="${parameterId}" data-comfy-param-type="boolean"${value ? ' checked' : ''}>`;
+    }
+    if (type === 'select') {
+      const options = Array.isArray(parameter.options) ? parameter.options : [];
+      return `<select class="desk-select" data-comfy-param="${parameterId}" data-comfy-param-type="select">${options.map(option => optionListHtml([{ value: option, label: option }], value)).join('')}</select>`;
+    }
+    if (type === 'number') {
+      const min = Number.isFinite(Number(parameter.min)) ? ` min="${escapeHtml(parameter.min)}"` : '';
+      const max = Number.isFinite(Number(parameter.max)) ? ` max="${escapeHtml(parameter.max)}"` : '';
+      const step = Number.isFinite(Number(parameter.step)) ? ` step="${escapeHtml(parameter.step)}"` : '';
+      return `<input class="desk-input" type="number"${min}${max}${step} value="${escapeHtml(value)}" data-comfy-param="${parameterId}" data-comfy-param-type="number">`;
+    }
+    return `<input class="desk-input" type="text" value="${escapeHtml(value)}" data-comfy-param="${parameterId}" data-comfy-param-type="text">`;
+  }
+
+  function comfyParameterPickerHtml(parameters, overrides) {
+    const available = parameters.filter(parameter => !Object.prototype.hasOwnProperty.call(overrides, parameter.id));
+    if (!available.length) {
+      return '<select class="desk-select" data-comfy-param-picker disabled><option>没有更多可添加参数</option></select>';
+    }
+    const groups = [];
+    available.forEach(parameter => {
+      let group = groups.find(item => item.nodeId === parameter.node_id);
+      if (!group) {
+        group = {
+          nodeId: parameter.node_id,
+          title: parameter.node_title || parameter.class_type || `节点 ${parameter.node_id}`,
+          parameters: []
+        };
+        groups.push(group);
+      }
+      group.parameters.push(parameter);
+    });
+    return `<select class="desk-select" data-comfy-param-picker aria-label="添加工作流参数">
+      <option value="">＋ 选择需要添加的参数</option>
+      ${groups.map(group => `<optgroup label="${escapeHtml(`${group.title} · #${group.nodeId}`)}">${group.parameters.map(parameter => `<option value="${escapeHtml(parameter.id)}">${escapeHtml(parameter.label || parameter.input_name || parameter.id)}</option>`).join('')}</optgroup>`).join('')}
+    </select>`;
+  }
+
+  function comfyWorkflowParametersHtml(node, workflowMeta) {
+    const parameters = Array.isArray(workflowMeta?.parameters) ? workflowMeta.parameters : [];
+    const overrides = comfyWorkflowParameterOverrides(node, workflowMeta?.id || node?.workflow || '');
+    const activeParameters = parameters.filter(parameter => Object.prototype.hasOwnProperty.call(overrides, parameter.id));
+    const defaultSize = comfyWorkflowDefaultSize(workflowMeta);
+    node.pixelWidth = normalizeComfyPixelSize(node?.pixelWidth, defaultSize.width);
+    node.pixelHeight = normalizeComfyPixelSize(node?.pixelHeight, defaultSize.height);
+    const groups = [];
+    activeParameters.forEach(parameter => {
+      let group = groups.find(item => item.nodeId === parameter.node_id);
+      if (!group) {
+        group = { nodeId: parameter.node_id, title: parameter.node_title || parameter.class_type || `节点 ${parameter.node_id}`, parameters: [] };
+        groups.push(group);
+      }
+      group.parameters.push(parameter);
+    });
+    return `
+      <div class="desk-comfy-parameter-panel" data-comfy-parameter-panel>
+        <div class="desk-comfy-parameter-panel__head">
+          <span>工作流参数</span>
+          <small>${parameters.length ? `已添加 ${activeParameters.length} / 可选 ${parameters.length}` : '暂无可选参数'} <button type="button" data-comfy-params-reset>恢复默认</button></small>
+        </div>
+        <div class="desk-comfy-parameter-scroll">
+          <section class="desk-comfy-parameter-group desk-comfy-parameter-group--size">
+            <header><strong>基础输入</strong><small>像素值需被 8 整除</small></header>
+            <div class="desk-comfy-parameter-grid">
+              <label class="desk-comfy-parameter-field"><span>宽度（像素）</span><input class="desk-input" type="number" min="${MIN_COMFY_PIXEL_SIZE}" max="${MAX_COMFY_PIXEL_SIZE}" step="${COMFY_PIXEL_STEP}" value="${escapeHtml(node.pixelWidth)}" data-comfy-field="pixelWidth"></label>
+              <label class="desk-comfy-parameter-field"><span>高度（像素）</span><input class="desk-input" type="number" min="${MIN_COMFY_PIXEL_SIZE}" max="${MAX_COMFY_PIXEL_SIZE}" step="${COMFY_PIXEL_STEP}" value="${escapeHtml(node.pixelHeight)}" data-comfy-field="pixelHeight"></label>
+            </div>
+            <div class="desk-comfy-parameter-bindings"><span>提示词来自接入的文本节点</span>${workflowMeta?.accepts_image ? '<span>图像来自接入的图像节点</span>' : ''}</div>
+          </section>
+          <section class="desk-comfy-parameter-group desk-comfy-parameter-group--picker">
+            <header><strong>添加参数</strong><small>仅添加需要调整的项目</small></header>
+            ${comfyParameterPickerHtml(parameters, overrides)}
+          </section>
+          ${groups.map(group => `
+            <section class="desk-comfy-parameter-group">
+              <header><strong>${escapeHtml(group.title)}</strong><small>#${escapeHtml(group.nodeId)}</small></header>
+              <div class="desk-comfy-parameter-grid desk-comfy-parameter-grid--optional">
+                ${group.parameters.map(parameter => {
+                  const value = overrides[parameter.id];
+                  const parameterLabel = parameter.label || parameter.input_name || parameter.id;
+                  return `<div class="desk-comfy-parameter-field" title="${escapeHtml(parameter.input_name || parameter.id)}"><span>${escapeHtml(parameterLabel)}</span><div class="desk-comfy-parameter-field__control">${comfyParameterValueHtml(parameter, value)}<button type="button" data-comfy-param-remove="${escapeHtml(parameter.id)}" title="移除参数" aria-label="移除${escapeHtml(parameterLabel)}"><span aria-hidden="true">−</span></button></div></div>`;
+                }).join('')}
+              </div>
+            </section>
+          `).join('') || '<div class="desk-comfy-parameter-panel__empty">当前仅使用基础输入。可从“添加参数”中选择需要调整的高级参数。</div>'}
+        </div>
+      </div>`;
+  }
+
+  function comfyNodeHtml(node) {
+    const output = node.output || { archiveEnabled: true, telegramEnabled: true };
+    const selectedWorkflow = node.workflow || comfyWorkflowCatalog.default_workflow || comfyWorkflowCatalog.workflows?.[0] || '';
+    if (!node.workflow && selectedWorkflow) node.workflow = selectedWorkflow;
+    const selectedMeta = (comfyWorkflowCatalog.items || []).find(item => item.id === selectedWorkflow);
+    return `
+      <section class="desk-node desk-node--comfy desk-glass" data-node-id="${node.id}" aria-label="Comfy 工作流节点">
+        <div class="desk-node__header" data-node-drag-handle>
+          <div><p class="desk-node__eyebrow">Comfy 工作流</p><h2>选择并运行本地工作流</h2></div>
+          <div class="desk-node-tools"><span class="desk-status-pill" data-output-status>空闲</span><button type="button" class="desk-node-delete" data-node-delete title="删除节点" aria-label="删除节点">删</button></div>
+        </div>
+        <button type="button" class="desk-port desk-port--out" data-port="out" data-node-id="${node.id}" title="连接到图片或高清放大节点" aria-label="连接输出"></button>
+        <button type="button" class="desk-port desk-port--in desk-port--image-in" data-port="in" data-node-id="${node.id}" title="连接文本、图片、姿态或排版节点" aria-label="连接输入"></button>
+        <div class="desk-comfy-node__section-head"><span>工作流</span><small data-comfy-workflow-count>${(comfyWorkflowCatalog.items || []).filter(item => item.enabled).length} 个</small></div>
+        <div class="desk-comfy-workflow-list" data-comfy-workflow-list role="listbox" aria-label="选择 Comfy 工作流">${comfyWorkflowCardsHtml(selectedWorkflow)}</div>
+        <div class="desk-comfy-node__params">
+          ${comfyWorkflowParametersHtml(node, selectedMeta)}
+        </div>
+        <div class="desk-progress-wrap" aria-label="生成进度" aria-hidden="true">
+          <div class="desk-progress-copy"><span data-progress-stage>等待 ComfyUI</span><span><strong data-progress-percent>0%</strong><em data-progress-timer>00:00</em></span></div>
+          <div class="desk-progress"><span data-progress-bar></span></div>
+        </div>
+        <div class="desk-comfy-node__footer">
+          <div class="desk-comfy-node__footer-main">
+            <div class="desk-comfy-node__inputs" data-comfy-input-summary>文本 0 · 图片 0</div>
+            <div class="desk-output-controls">
+              <label class="desk-switch"><input type="checkbox" checked disabled data-output-archive><span></span><em>自动归档</em></label>
+              <label class="desk-switch"><input type="checkbox" ${output.telegramEnabled !== false ? 'checked' : ''} data-output-telegram><span></span><em>Telegram</em></label>
+            </div>
+          </div>
+          <button type="button" class="desk-button desk-button--generate" data-result-run title="运行 Comfy 工作流" aria-label="运行 Comfy 工作流"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 3 5 14h6l-1 7 8-11h-6l1-7Z"></path></svg></button>
+        </div>
+        <span class="desk-resize-handle" data-node-resize-handle title="缩放 Comfy 节点" aria-hidden="true"></span>
+      </section>
+    `;
+  }
+
+  function refreshComfyNode(nodeId) {
+    const state = DesktopState.state.canvas.nodes[nodeId];
+    const element = getNodeElement(nodeId);
+    if (!state || state.type !== 'comfy' || !element) return;
+    const available = (comfyWorkflowCatalog.items || []).filter(item => item.enabled || item.id === state.workflow);
+    if (!state.workflow && available.length) {
+      state.workflow = comfyWorkflowCatalog.default_workflow || available[0].id;
+      const selectedMeta = available.find(item => item.id === state.workflow);
+      const defaultSize = comfyWorkflowDefaultSize(selectedMeta);
+      state.pixelWidth = defaultSize.width;
+      state.pixelHeight = defaultSize.height;
+      state.ratio = selectedMeta?.default_ratio || state.ratio || '1:1';
+    }
+    const list = element.querySelector('[data-comfy-workflow-list]');
+    if (list) list.innerHTML = comfyWorkflowCardsHtml(state.workflow || '');
+    const count = element.querySelector('[data-comfy-workflow-count]');
+    if (count) count.textContent = `${(comfyWorkflowCatalog.items || []).filter(item => item.enabled).length} 个`;
+    const textCount = getConnectedTextNodes(nodeId).length;
+    const imageCount = getConnectedImageReferences(nodeId).length;
+    const summary = element.querySelector('[data-comfy-input-summary]');
+    if (summary) summary.textContent = `文本 ${textCount} · 图片 ${imageCount}`;
+    const parameterPanel = element.querySelector('[data-comfy-parameter-panel]');
+    const workflowMeta = (comfyWorkflowCatalog.items || []).find(item => item.id === state.workflow);
+    if (parameterPanel) parameterPanel.outerHTML = comfyWorkflowParametersHtml(state, workflowMeta);
+  }
+
+  async function loadComfyWorkflowCatalog() {
+    if (!window.DesktopApi?.getComfyWorkflows) return comfyWorkflowCatalog;
+    const payload = await window.DesktopApi.getComfyWorkflows(true);
+    if (payload?.ok !== false) comfyWorkflowCatalog = payload || comfyWorkflowCatalog;
+    Object.values(DesktopState.state.canvas.nodes || {}).filter(node => node.type === 'comfy').forEach(node => refreshComfyNode(node.id));
+    return comfyWorkflowCatalog;
   }
 
   function fileOutputNodeHtml(nodeId) {
@@ -2997,7 +3232,7 @@
         ? fileOutputNodeHtml(nodeId)
         : (node.type === 'image'
           ? imageNodeHtml(node)
-          : (node.type === 'upscale' ? upscaleNodeHtml(node) : (node.type === 'pose' ? poseNodeHtml(node) : (node.type === 'layout' ? layoutNodeHtml(node) : (node.type === 'text' ? textNodeHtml(node) : inputNodeHtml(nodeId))))));
+          : (node.type === 'comfy' ? comfyNodeHtml(node) : (node.type === 'upscale' ? upscaleNodeHtml(node) : (node.type === 'pose' ? poseNodeHtml(node) : (node.type === 'layout' ? layoutNodeHtml(node) : (node.type === 'text' ? textNodeHtml(node) : inputNodeHtml(nodeId)))))));
       world.insertAdjacentHTML('beforeend', html);
     });
   }
@@ -3311,6 +3546,12 @@
         if (telegramToggle) telegramToggle.checked = upscaleNode?.output?.telegramEnabled === true;
         return;
       }
+      if (node.classList.contains('desk-node--comfy')) {
+        const comfyNode = DesktopState.state.canvas.nodes[node.dataset.nodeId || ''];
+        if (archiveToggle) archiveToggle.checked = true;
+        if (telegramToggle) telegramToggle.checked = comfyNode?.output?.telegramEnabled !== false;
+        return;
+      }
       if (archiveToggle) archiveToggle.checked = normalized.archiveEnabled;
       if (telegramToggle) telegramToggle.checked = normalized.telegramEnabled;
     });
@@ -3331,10 +3572,10 @@
       ...(DesktopState.state.outputs[nodeId].params || {}),
       ...controls
     };
-    if (nodeState?.type === 'upscale') {
+    if (nodeState?.type === 'upscale' || nodeState?.type === 'comfy') {
       nodeState.output = {
         archiveEnabled: true,
-        telegramEnabled: controls.telegramEnabled === true
+        telegramEnabled: nodeState.type === 'upscale' ? controls.telegramEnabled === true : controls.telegramEnabled !== false
       };
       DesktopState.state.outputs[nodeId].params.archiveEnabled = true;
       DesktopState.state.outputs[nodeId].params.telegramEnabled = nodeState.output.telegramEnabled;
@@ -3569,6 +3810,9 @@
       } else if (nodeState.type === 'text') {
         nodeState.width = clamp(activeInteraction.width + pointer.x - activeInteraction.startWorldX, MIN_TEXT_NODE_WIDTH, MAX_TEXT_NODE_WIDTH);
         nodeState.height = clamp(activeInteraction.height + pointer.y - activeInteraction.startWorldY, MIN_TEXT_NODE_HEIGHT, MAX_TEXT_NODE_HEIGHT);
+      } else if (nodeState.type === 'comfy') {
+        nodeState.width = clamp(activeInteraction.width + pointer.x - activeInteraction.startWorldX, MIN_COMFY_NODE_WIDTH, MAX_COMFY_NODE_WIDTH);
+        nodeState.height = clamp(activeInteraction.height + pointer.y - activeInteraction.startWorldY, MIN_COMFY_NODE_HEIGHT, MAX_COMFY_NODE_HEIGHT);
       } else if (nodeState.type === 'input') {
         nodeState.width = LOCKED_INPUT_NODE_WIDTH;
         nodeState.height = LOCKED_INPUT_NODE_HEIGHT;
@@ -4766,6 +5010,46 @@
     };
   }
 
+  function readComfyNodeConfig(nodeId) {
+    const element = getNodeElement(nodeId);
+    const node = DesktopState.state.canvas.nodes[nodeId];
+    if (!element || !node || node.type !== 'comfy') throw new Error('Comfy 工作流节点不存在');
+    const selected = (comfyWorkflowCatalog.items || []).find(item => item.id === node.workflow);
+    if (!node.workflow) throw new Error('请先在 Comfy 节点中选择工作流');
+    if (selected && !selected.enabled) throw new Error('当前 Comfy 工作流已停用，请在设置中心重新启用或选择其他工作流');
+    const connectedReferences = getConnectedImageReferences(nodeId);
+    const references = selected
+      ? (selected.accepts_image
+        ? connectedReferences.slice(0, Math.max(1, Number(selected.max_images || 1)))
+        : [])
+      : connectedReferences.slice(0, 1);
+    if (selected?.accepts_image && !references.length) throw new Error('当前 Comfy 工作流需要连接一张参考图');
+    const connectedPrompt = String(getVisibleInputPrompt(nodeId) || '').trim();
+    if (selected?.accepts_text !== false && !connectedPrompt) throw new Error('请连接一个包含提示词的文本节点');
+    const prompt = selected?.accepts_text === false ? (selected?.label || 'ComfyUI 工作流') : connectedPrompt;
+    const defaultSize = comfyWorkflowDefaultSize(selected);
+    node.pixelWidth = normalizeComfyPixelSize(element.querySelector('[data-comfy-field="pixelWidth"]')?.value, node.pixelWidth || defaultSize.width);
+    node.pixelHeight = normalizeComfyPixelSize(element.querySelector('[data-comfy-field="pixelHeight"]')?.value, node.pixelHeight || defaultSize.height);
+    node.output = readOutputControlsFromNode(element, node.output || { archiveEnabled: true, telegramEnabled: true });
+    node.output.archiveEnabled = true;
+    return {
+      nodeId,
+      prompt,
+      provider: 'comfy',
+      batchMode: false,
+      expectedImageOutputCount: Math.max(1, Number(selected?.output_count || 1)),
+      params: {
+        workflow: node.workflow,
+        workflowParameters: { ...comfyWorkflowParameterOverrides(node, node.workflow) },
+        width: node.pixelWidth,
+        height: node.pixelHeight,
+        archiveEnabled: true,
+        telegramEnabled: node.output.telegramEnabled !== false
+      },
+      referenceImages: references
+    };
+  }
+
   function syncUpscaleNodeStateFromDom(node) {
     const nodeId = node?.dataset?.nodeId || '';
     const nodeState = nodeId ? DesktopState.state.canvas.nodes[nodeId] : null;
@@ -4884,6 +5168,9 @@
     const directNode = DesktopState.state.canvas.nodes[resultNodeId];
     if (directNode?.type === 'upscale') {
       return readUpscaleNodeConfig(resultNodeId);
+    }
+    if (directNode?.type === 'comfy') {
+      return readComfyNodeConfig(resultNodeId);
     }
     if (directNode?.type === 'input') {
       const config = readInputNodeConfig(resultNodeId);
@@ -5060,10 +5347,11 @@
   }
 
   function ensureImageOutputsForConfig(resultNodeId, config) {
-    const modelNodeId = DesktopState.state.canvas.nodes[resultNodeId]?.type === 'input'
+    const directType = DesktopState.state.canvas.nodes[resultNodeId]?.type;
+    const modelNodeId = directType === 'input' || directType === 'comfy'
       ? resultNodeId
       : (config?.nodeId || findInputForResult(resultNodeId));
-    if (!modelNodeId || DesktopState.state.canvas.nodes[modelNodeId]?.type !== 'input') return [];
+    if (!modelNodeId || !['input', 'comfy'].includes(DesktopState.state.canvas.nodes[modelNodeId]?.type)) return [];
     const expected = expectedImageOutputCount(config);
     config.expectedImageOutputCount = expected;
     if (!expected) return [];
@@ -5100,7 +5388,7 @@
   }
 
   function normalizeNodeMenuType(type) {
-    return ['input', 'file_output', 'layout', 'text', 'image', 'pose', 'upscale'].includes(type) ? type : 'input';
+    return ['input', 'comfy', 'file_output', 'layout', 'text', 'image', 'pose', 'upscale'].includes(type) ? type : 'input';
   }
 
   function addNodeFromMenu(type, worldPoint) {
@@ -5156,24 +5444,30 @@
     const modelToResult = from?.type === 'input' && (to?.type === 'output' || to?.type === 'file_output');
     const modelToImage = from?.type === 'input' && to?.type === 'image';
     const modelToUpscale = from?.type === 'input' && to?.type === 'upscale';
+    const comfyToImage = from?.type === 'comfy' && to?.type === 'image';
+    const comfyToUpscale = from?.type === 'comfy' && to?.type === 'upscale';
     const imageToInput = from?.type === 'image' && to?.type === 'input';
+    const imageToComfy = from?.type === 'image' && to?.type === 'comfy';
     const imageToLayout = from?.type === 'image' && to?.type === 'layout';
     const imageToPoseReference = from?.type === 'image' && to?.type === 'pose';
     const imageToUpscale = from?.type === 'image' && to?.type === 'upscale';
     const layoutToInput = from?.type === 'layout' && to?.type === 'input';
+    const layoutToComfy = from?.type === 'layout' && to?.type === 'comfy';
     const layoutToUpscale = from?.type === 'layout' && to?.type === 'upscale';
     const poseToInput = from?.type === 'pose' && to?.type === 'input';
+    const poseToComfy = from?.type === 'pose' && to?.type === 'comfy';
     const poseToUpscale = from?.type === 'pose' && to?.type === 'upscale';
     const textToInput = from?.type === 'text' && to?.type === 'input';
+    const textToComfy = from?.type === 'text' && to?.type === 'comfy';
     const outputToImage = from?.type === 'output' && to?.type === 'image';
     const upscaleToImage = from?.type === 'upscale' && to?.type === 'image';
-    if (!from || !to || (!modelToResult && !modelToImage && !modelToUpscale && !imageToInput && !imageToLayout && !imageToPoseReference && !imageToUpscale && !layoutToInput && !layoutToUpscale && !poseToInput && !poseToUpscale && !textToInput && !outputToImage && !upscaleToImage)) {
-      if (!options.quiet) DesktopResults.showTransientMessage('当前支持：模型到图片/文件结果/高清放大，图片到模型/排版/姿态参考/高清放大，排版/姿态参考/文本到模型，高清放大到图片。');
+    if (!from || !to || (!modelToResult && !modelToImage && !modelToUpscale && !comfyToImage && !comfyToUpscale && !imageToInput && !imageToComfy && !imageToLayout && !imageToPoseReference && !imageToUpscale && !layoutToInput && !layoutToComfy && !layoutToUpscale && !poseToInput && !poseToComfy && !poseToUpscale && !textToInput && !textToComfy && !outputToImage && !upscaleToImage)) {
+      if (!options.quiet) DesktopResults.showTransientMessage('当前支持：模型/Comfy 到图片或高清放大，图片/排版/姿态/文本到模型或 Comfy。');
       return '';
     }
     DesktopState.state.canvas.edges = (DesktopState.state.canvas.edges || []).filter(edge => {
       if (modelToResult) return edge.to !== toNodeId;
-      if (modelToImage) return edge.to !== toNodeId;
+      if (modelToImage || comfyToImage) return edge.to !== toNodeId;
       if (outputToImage) return edge.to !== toNodeId;
       if (upscaleToImage) return edge.to !== toNodeId;
       return !(edge.from === fromNodeId && edge.to === toNodeId);
@@ -5206,6 +5500,11 @@
       DesktopResults.showTransientMessage('图片已接入高清放大节点。');
       DesktopState.saveSettings();
       return edgeId;
+    } else if (imageToComfy || layoutToComfy || poseToComfy || textToComfy) {
+      refreshComfyNode(toNodeId);
+      if (!options.quiet) DesktopResults.showTransientMessage('输入已接入 Comfy 工作流节点。');
+      DesktopState.saveSettings();
+      return edgeId;
     } else if (poseToInput) {
       DesktopResults.showTransientMessage('姿态参考节点已接入模型，导出后会作为参考图。');
       DesktopState.saveSettings();
@@ -5214,12 +5513,12 @@
       if (!options.quiet) DesktopResults.showTransientMessage('文本节点已接入模型提示词。');
       DesktopState.saveSettings();
       return edgeId;
-    } else if (modelToImage) {
+    } else if (modelToImage || comfyToImage) {
       assignImageOutputSlots(fromNodeId);
-      if (!options.quiet) DesktopResults.showTransientMessage('图片节点已接入模型输出。');
+      if (!options.quiet) DesktopResults.showTransientMessage('图片节点已接入生成输出。');
       DesktopState.saveSettings();
       return edgeId;
-    } else if (modelToUpscale) {
+    } else if (modelToUpscale || comfyToUpscale) {
       updateUpscaleInputCount(toNodeId);
       if (!options.quiet) DesktopResults.showTransientMessage('高清放大已接入模型输出，模型完成后会自动放大。');
       DesktopState.saveSettings();
@@ -5258,6 +5557,7 @@
     const poseIds = new Set();
     const upscaleIds = new Set();
     const modelOutputIds = new Set();
+    const comfyIds = new Set();
     removedEdges.forEach(edge => {
       const from = DesktopState.state.canvas.nodes[edge.from];
       const to = DesktopState.state.canvas.nodes[edge.to];
@@ -5265,12 +5565,14 @@
       if (to?.type === 'pose') poseIds.add(edge.to);
       if (to?.type === 'upscale') upscaleIds.add(edge.to);
       if (from?.type === 'upscale') upscaleIds.add(edge.from);
-      if (from?.type === 'input' && to?.type === 'image') modelOutputIds.add(edge.from);
+      if ((from?.type === 'input' || from?.type === 'comfy') && to?.type === 'image') modelOutputIds.add(edge.from);
+      if (to?.type === 'comfy') comfyIds.add(edge.to);
     });
     modelOutputIds.forEach(assignImageOutputSlots);
     layoutIds.forEach(updateLayoutInputCount);
     poseIds.forEach(refreshPoseNode);
     upscaleIds.forEach(updateUpscaleInputCount);
+    comfyIds.forEach(refreshComfyNode);
   }
 
   function removeEdgesById(edgeIds = [], options = {}) {
@@ -5419,10 +5721,10 @@
     const resultNode = DesktopState.state.canvas.nodes[resultNodeId];
     if (resultNode?.type === 'upscale') return 0;
     if (String(output?.type || '').toLowerCase() === 'upscale') return 0;
-    const modelNodeId = resultNode?.type === 'input'
+    const modelNodeId = resultNode?.type === 'input' || resultNode?.type === 'comfy'
       ? resultNodeId
       : findInputForResult(resultNodeId);
-    if (!modelNodeId || DesktopState.state.canvas.nodes[modelNodeId]?.type !== 'input') return 0;
+    if (!modelNodeId || !['input', 'comfy'].includes(DesktopState.state.canvas.nodes[modelNodeId]?.type)) return 0;
     const upscaleNodeIds = getRunnableUpscaleNodeIds(modelNodeId);
     if (!upscaleNodeIds.length) return 0;
 
@@ -5520,7 +5822,7 @@
       return;
     }
     const sourceNode = DesktopState.state.canvas.nodes[activeInteraction.fromNodeId];
-    if (sourceNode?.type === 'output' || sourceNode?.type === 'input' || sourceNode?.type === 'upscale') {
+    if (sourceNode?.type === 'output' || sourceNode?.type === 'input' || sourceNode?.type === 'comfy' || sourceNode?.type === 'upscale') {
       const imageNode = target?.closest?.('.desk-node--image[data-node-id]');
       if (imageNode) {
         connectNodes(activeInteraction.fromNodeId, imageNode.dataset.nodeId);
@@ -6253,15 +6555,39 @@
     if (!clean.groupId) delete clean.groupId;
     clean.x = Number.isFinite(Number(clean.x)) ? Number(clean.x) : 56;
     clean.y = Number.isFinite(Number(clean.y)) ? Number(clean.y) : 72;
-    clean.width = Number.isFinite(Number(clean.width)) ? Number(clean.width) : (clean.type === 'input' ? DEFAULT_INPUT_NODE_WIDTH : (clean.type === 'upscale' ? DEFAULT_UPSCALE_NODE_WIDTH : DEFAULT_IMAGE_NODE_WIDTH));
-    clean.height = Number.isFinite(Number(clean.height)) ? Number(clean.height) : (clean.type === 'input' ? DEFAULT_INPUT_NODE_HEIGHT : (clean.type === 'upscale' ? DEFAULT_UPSCALE_NODE_HEIGHT : DEFAULT_IMAGE_NODE_HEIGHT));
+    clean.width = Number.isFinite(Number(clean.width)) ? Number(clean.width) : (clean.type === 'input' ? DEFAULT_INPUT_NODE_WIDTH : (clean.type === 'comfy' ? DEFAULT_COMFY_NODE_WIDTH : (clean.type === 'upscale' ? DEFAULT_UPSCALE_NODE_WIDTH : DEFAULT_IMAGE_NODE_WIDTH)));
+    clean.height = Number.isFinite(Number(clean.height)) ? Number(clean.height) : (clean.type === 'input' ? DEFAULT_INPUT_NODE_HEIGHT : (clean.type === 'comfy' ? DEFAULT_COMFY_NODE_HEIGHT : (clean.type === 'upscale' ? DEFAULT_UPSCALE_NODE_HEIGHT : DEFAULT_IMAGE_NODE_HEIGHT)));
     if (clean.type === 'input') {
       clean.width = DEFAULT_INPUT_NODE_WIDTH;
       clean.height = DEFAULT_INPUT_NODE_HEIGHT;
-      clean.provider = ['gpt', 'google', 'comfy'].includes(clean.provider) ? clean.provider : 'gpt';
+      if (clean.provider === 'comfy' && clean.id !== 'input') {
+        clean.type = 'comfy';
+        clean.width = DEFAULT_COMFY_NODE_WIDTH;
+        clean.height = DEFAULT_COMFY_NODE_HEIGHT;
+        clean.workflow = clean.params?.workflow || clean.workflow || '';
+        clean.ratio = clean.params?.ratio || clean.ratio || '1:1';
+      } else {
+        clean.provider = ['gpt', 'google'].includes(clean.provider) ? clean.provider : 'gpt';
+      }
       clean.params = normalizeWorkflowParams(clean.params || {}, DesktopState.state.params || {});
       clean.output = {
         archiveEnabled: clean.output?.archiveEnabled !== false,
+        telegramEnabled: clean.output?.telegramEnabled !== false
+      };
+    }
+    if (clean.type === 'comfy') {
+      clean.width = clamp(clean.width, MIN_COMFY_NODE_WIDTH, MAX_COMFY_NODE_WIDTH);
+      clean.height = clamp(clean.height, MIN_COMFY_NODE_HEIGHT, MAX_COMFY_NODE_HEIGHT);
+      clean.workflow = String(clean.workflow || clean.params?.workflow || '');
+      clean.ratio = DesktopState.normalizeRatio(clean.ratio || clean.params?.ratio, '1:1');
+      clean.resolution = DesktopState.normalizeResolution(clean.resolution || clean.params?.resolution, '1k');
+      clean.pixelWidth = normalizeComfyPixelSize(clean.pixelWidth || clean.params?.width, DEFAULT_COMFY_PIXEL_WIDTH);
+      clean.pixelHeight = normalizeComfyPixelSize(clean.pixelHeight || clean.params?.height, DEFAULT_COMFY_PIXEL_HEIGHT);
+      clean.workflowParameters = clean.workflowParameters && typeof clean.workflowParameters === 'object' && !Array.isArray(clean.workflowParameters)
+        ? clean.workflowParameters
+        : {};
+      clean.output = {
+        archiveEnabled: true,
         telegramEnabled: clean.output?.telegramEnabled !== false
       };
     }
@@ -6361,7 +6687,7 @@
     }
     const params = normalizeWorkflowParams(raw.params || {}, DesktopState.state.params || {});
     return {
-      provider: ['gpt', 'google', 'comfy'].includes(raw.provider) ? raw.provider : 'gpt',
+      provider: ['gpt', 'google'].includes(raw.provider) ? raw.provider : 'gpt',
       inputExpanded: raw.inputExpanded !== false,
       prompt: String(raw.prompt || ''),
       referenceImages: normalizeWorkflowReferences(raw.referenceImages),
@@ -8664,6 +8990,61 @@
     });
 
     els.deskCanvasWorld?.addEventListener('click', event => {
+      const comfyParamsReset = event.target.closest('[data-comfy-params-reset]');
+      if (comfyParamsReset) {
+        const nodeElement = comfyParamsReset.closest('.desk-node--comfy[data-node-id]');
+        const nodeState = nodeElement ? DesktopState.state.canvas.nodes[nodeElement.dataset.nodeId] : null;
+        if (!nodeState) return;
+        event.preventDefault();
+        event.stopPropagation();
+        if (nodeState.workflowParameters && typeof nodeState.workflowParameters === 'object') {
+          delete nodeState.workflowParameters[nodeState.workflow];
+        }
+        const workflowMeta = (comfyWorkflowCatalog.items || []).find(item => item.id === nodeState.workflow);
+        const defaultSize = comfyWorkflowDefaultSize(workflowMeta);
+        nodeState.pixelWidth = defaultSize.width;
+        nodeState.pixelHeight = defaultSize.height;
+        nodeState.ratio = workflowMeta?.default_ratio || '1:1';
+        nodeState.resolution = '1k';
+        refreshComfyNode(nodeState.id);
+        DesktopState.saveSettings();
+        return;
+      }
+      const comfyParameterRemove = event.target.closest('[data-comfy-param-remove]');
+      if (comfyParameterRemove) {
+        const nodeElement = comfyParameterRemove.closest('.desk-node--comfy[data-node-id]');
+        const nodeState = nodeElement ? DesktopState.state.canvas.nodes[nodeElement.dataset.nodeId] : null;
+        if (!nodeState?.workflow) return;
+        event.preventDefault();
+        event.stopPropagation();
+        const bucket = nodeState.workflowParameters?.[nodeState.workflow];
+        if (bucket && typeof bucket === 'object') {
+          delete bucket[comfyParameterRemove.dataset.comfyParamRemove || ''];
+          if (!Object.keys(bucket).length) delete nodeState.workflowParameters[nodeState.workflow];
+        }
+        refreshComfyNode(nodeState.id);
+        DesktopState.saveSettings();
+        return;
+      }
+      const comfyWorkflowButton = event.target.closest('[data-comfy-workflow]');
+      if (comfyWorkflowButton) {
+        const nodeElement = comfyWorkflowButton.closest('.desk-node--comfy[data-node-id]');
+        const nodeState = nodeElement ? DesktopState.state.canvas.nodes[nodeElement.dataset.nodeId] : null;
+        if (!nodeState) return;
+        event.preventDefault();
+        event.stopPropagation();
+        nodeState.workflow = comfyWorkflowButton.dataset.comfyWorkflow || '';
+        const meta = (comfyWorkflowCatalog.items || []).find(item => item.id === nodeState.workflow);
+        const defaultSize = comfyWorkflowDefaultSize(meta);
+        nodeState.pixelWidth = defaultSize.width;
+        nodeState.pixelHeight = defaultSize.height;
+        if (meta?.default_ratio) nodeState.ratio = meta.default_ratio;
+        nodeState.resolution = '1k';
+        refreshComfyNode(nodeState.id);
+        selectNode(nodeState.id);
+        DesktopState.saveSettings();
+        return;
+      }
       const aliasEditButton = event.target.closest('[data-text-node-alias-edit]');
       if (aliasEditButton) {
         const shell = aliasEditButton.closest('.desk-text-node__alias');
@@ -8969,6 +9350,27 @@
         DesktopState.saveSettings();
         return;
       }
+      const comfyParameter = event.target.closest('.desk-node--comfy[data-node-id] [data-comfy-param]');
+      if (comfyParameter) {
+        const nodeElement = comfyParameter.closest('.desk-node--comfy[data-node-id]');
+        const nodeState = DesktopState.state.canvas.nodes[nodeElement?.dataset.nodeId || ''];
+        if (!nodeState?.workflow) return;
+        const workflowMeta = (comfyWorkflowCatalog.items || []).find(item => item.id === nodeState.workflow);
+        const parameterMeta = (workflowMeta?.parameters || []).find(item => item.id === comfyParameter.dataset.comfyParam);
+        if (!parameterMeta) return;
+        if (!nodeState.workflowParameters || typeof nodeState.workflowParameters !== 'object' || Array.isArray(nodeState.workflowParameters)) {
+          nodeState.workflowParameters = {};
+        }
+        const bucket = nodeState.workflowParameters[nodeState.workflow] && typeof nodeState.workflowParameters[nodeState.workflow] === 'object'
+          ? nodeState.workflowParameters[nodeState.workflow]
+          : {};
+        let value = comfyParameter.type === 'checkbox' ? comfyParameter.checked : comfyParameter.value;
+        if (parameterMeta.type === 'number') value = Number(value);
+        bucket[parameterMeta.id] = value;
+        nodeState.workflowParameters[nodeState.workflow] = bucket;
+        DesktopState.saveSettings();
+        return;
+      }
       const aliasInput = event.target.closest('[data-text-node-alias]');
       if (aliasInput) {
         if (aliasInput.readOnly) return;
@@ -9045,6 +9447,42 @@
       const upscaleField = event.target.closest('.desk-node--upscale[data-node-id] [data-upscale-field]');
       if (upscaleField) {
         syncUpscaleNodeStateFromDom(upscaleField.closest('.desk-node--upscale[data-node-id]'));
+        DesktopState.saveSettings();
+      }
+      const comfyField = event.target.closest('.desk-node--comfy[data-node-id] [data-comfy-field]');
+      if (comfyField) {
+        const nodeElement = comfyField.closest('.desk-node--comfy[data-node-id]');
+        const nodeState = DesktopState.state.canvas.nodes[nodeElement?.dataset.nodeId || ''];
+        if (nodeState) {
+          const workflowMeta = (comfyWorkflowCatalog.items || []).find(item => item.id === nodeState.workflow);
+          const defaultSize = comfyWorkflowDefaultSize(workflowMeta);
+          const isWidth = comfyField.dataset.comfyField === 'pixelWidth';
+          const value = normalizeComfyPixelSize(comfyField.value, isWidth ? defaultSize.width : defaultSize.height);
+          if (isWidth) nodeState.pixelWidth = value;
+          else nodeState.pixelHeight = value;
+          comfyField.value = String(value);
+          DesktopState.saveSettings();
+        }
+        return;
+      }
+      const comfyParameterPicker = event.target.closest('.desk-node--comfy[data-node-id] [data-comfy-param-picker]');
+      if (comfyParameterPicker) {
+        const parameterId = comfyParameterPicker.value || '';
+        const nodeElement = comfyParameterPicker.closest('.desk-node--comfy[data-node-id]');
+        const nodeState = DesktopState.state.canvas.nodes[nodeElement?.dataset.nodeId || ''];
+        if (!parameterId || !nodeState?.workflow) return;
+        const workflowMeta = (comfyWorkflowCatalog.items || []).find(item => item.id === nodeState.workflow);
+        const parameterMeta = (workflowMeta?.parameters || []).find(item => item.id === parameterId);
+        if (!parameterMeta) return;
+        if (!nodeState.workflowParameters || typeof nodeState.workflowParameters !== 'object' || Array.isArray(nodeState.workflowParameters)) {
+          nodeState.workflowParameters = {};
+        }
+        const bucket = nodeState.workflowParameters[nodeState.workflow] && typeof nodeState.workflowParameters[nodeState.workflow] === 'object'
+          ? nodeState.workflowParameters[nodeState.workflow]
+          : {};
+        bucket[parameterMeta.id] = parameterMeta.default;
+        nodeState.workflowParameters[nodeState.workflow] = bucket;
+        refreshComfyNode(nodeState.id);
         DesktopState.saveSettings();
       }
     });
@@ -9383,8 +9821,58 @@
     });
   }
 
+  function migrateLegacyComfyProviders() {
+    let changed = false;
+    const state = DesktopState.state;
+    Object.values(state.canvas.nodes || {}).forEach(node => {
+      if (!node || node.id === 'input' || node.type !== 'input' || node.provider !== 'comfy') return;
+      node.type = 'comfy';
+      node.workflow = node.params?.workflow || node.workflow || '';
+      node.ratio = node.params?.ratio || node.ratio || '1:1';
+      node.resolution = node.params?.resolution || node.resolution || '1k';
+      node.pixelWidth = normalizeComfyPixelSize(node.params?.width, DEFAULT_COMFY_PIXEL_WIDTH);
+      node.pixelHeight = normalizeComfyPixelSize(node.params?.height, DEFAULT_COMFY_PIXEL_HEIGHT);
+      node.width = DEFAULT_COMFY_NODE_WIDTH;
+      node.height = DEFAULT_COMFY_NODE_HEIGHT;
+      node.output = { archiveEnabled: true, telegramEnabled: node.output?.telegramEnabled !== false };
+      changed = true;
+    });
+    if (state.provider !== 'comfy') return changed;
+    const primary = state.canvas.nodes.input;
+    if (!primary) {
+      state.provider = 'gpt';
+      return true;
+    }
+    const comfy = createNodeState('comfy');
+    comfy.x = primary.x + primary.width + 84;
+    comfy.y = primary.y;
+    comfy.workflow = state.params.workflow || comfy.workflow || '';
+    comfy.ratio = state.params.ratio || '1:1';
+    comfy.resolution = state.params.resolution || '1k';
+    comfy.pixelWidth = normalizeComfyPixelSize(state.params.width, comfy.pixelWidth || DEFAULT_COMFY_PIXEL_WIDTH);
+    comfy.pixelHeight = normalizeComfyPixelSize(state.params.height, comfy.pixelHeight || DEFAULT_COMFY_PIXEL_HEIGHT);
+    state.canvas.edges = (state.canvas.edges || []).map(edge => ({
+      ...edge,
+      from: edge.from === 'input' ? comfy.id : edge.from,
+      to: edge.to === 'input' ? comfy.id : edge.to
+    }));
+    if (state.referenceImages?.length) {
+      state.nodeReferenceImages[comfy.id] = state.referenceImages;
+      state.referenceImages = [];
+    }
+    if (state.outputs?.input) {
+      state.outputs[comfy.id] = { ...state.outputs.input, type: 'comfy' };
+      state.outputs.input = { status: 'idle', stage: '', progressText: '', progress: 0, files: [], imagePaths: [], primaryFile: '', primaryImagePath: '', type: 'gpt', error: '', taskId: '' };
+    }
+    state.provider = 'gpt';
+    primary.provider = 'gpt';
+    changed = true;
+    return changed;
+  }
+
   function init() {
     collectElements();
+    const comfyMigrated = migrateLegacyComfyProviders();
     migrateResultNodesToModelOutputs();
     const promptDocumentsChanged = ensureTextNodePromptDocuments();
     migrateLegacyPromptDraftToTextNode();
@@ -9400,7 +9888,15 @@
     } else {
       applyCanvasTransform();
     }
-    if (groupsChanged || promptDocumentsChanged) DesktopState.saveSettings();
+    loadComfyWorkflowCatalog().catch(() => {});
+    window.addEventListener('desktop:comfy-workflows-updated', event => {
+      if (event.detail) comfyWorkflowCatalog = event.detail;
+      Object.values(DesktopState.state.canvas.nodes || {}).filter(node => node.type === 'comfy').forEach(node => refreshComfyNode(node.id));
+    });
+    window.addEventListener('miniapp:auth-state-change', event => {
+      if (event.detail?.authenticated) loadComfyWorkflowCatalog().catch(() => {});
+    });
+    if (groupsChanged || promptDocumentsChanged || comfyMigrated) DesktopState.saveSettings();
   }
 
   window.DesktopCanvas = {

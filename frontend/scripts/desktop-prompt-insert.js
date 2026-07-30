@@ -66,8 +66,6 @@
       if (!force) return state.blocks;
     }
     if (state.loaded && !force) return state.blocks;
-    state.loading = true;
-    state.error = '';
     const request = (async () => {
       const local = !force ? window.DesktopPromptLibrary?.getBlocks?.() : [];
       const blocksPromise = Array.isArray(local) && local.length
@@ -86,21 +84,33 @@
     state.loadPromise = request;
     try {
       return await request;
-    } catch (error) {
-      state.error = '素材块加载失败，点击重试';
-      throw error;
     } finally {
       if (state.loadPromise === request) state.loadPromise = null;
-      state.loading = false;
     }
   }
-  function loadColors() {
-    const colors = window.DesktopPromptLibrary?.getColorSchemes?.();
-    state.colors = Array.isArray(colors) ? colors : [];
-    return state.colors;
+  async function loadColors(force = false) {
+    const local = !force ? window.DesktopPromptLibrary?.getColorSchemes?.() : [];
+    if (Array.isArray(local) && local.length) {
+      state.error = '';
+      state.colors = local;
+      return state.colors;
+    }
+    try {
+      if (window.DesktopPromptLibrary?.ensureColorSchemes) {
+        state.colors = await window.DesktopPromptLibrary.ensureColorSchemes();
+      } else {
+        if (!window.DesktopApi?.getPromptColorSchemes) throw new Error('色彩方案 API 未加载');
+        const result = await window.DesktopApi.getPromptColorSchemes();
+        state.colors = Array.isArray(result?.color_schemes) ? result.color_schemes : [];
+      }
+      return state.colors;
+    } catch (error) { throw error; }
   }
   function loadChoices(force = false) {
-    return state.trigger === '#' ? Promise.resolve(loadColors()) : loadBlocks(force);
+    return state.trigger === '#' ? loadColors(force) : loadBlocks(force);
+  }
+  function currentLoadError() {
+    return state.trigger === '#' ? '色彩方案加载失败，点击重试' : '素材块加载失败，点击重试';
   }
   function matchesTarget(target) { return target?.matches?.(TARGET_SELECTOR) || false; }
   function detectTextarea(target) {
@@ -187,7 +197,7 @@
     }
     if (!state.filtered.length) {
       const emptyMessage = state.loading
-        ? '正在读取素材块…'
+        ? (colorMode ? '正在读取色彩方案…' : '正在读取素材块…')
         : state.mode === 'replace'
         ? (state.moduleType ? '该类型暂无其它素材块' : '无法识别该素材块的类型')
         : colorMode ? '没有匹配的色彩方案' : '没有匹配的素材块';
@@ -217,14 +227,20 @@
     const token = state.token;
     state.loaded = false;
     state.blocks = [];
+    if (state.trigger === '#') state.colors = [];
+    state.loading = true;
+    state.error = '';
     const blocksPromise = loadChoices(true);
     filterBlocks(); render(); positionMenu();
     try {
       await blocksPromise;
       if (requestId !== state.openRequestId || mode !== state.mode || target !== state.target || token !== state.token) return;
+      state.loading = false;
       filterBlocks(); render(); positionMenu();
     } catch (error) {
-      if (requestId !== state.openRequestId) return;
+      if (requestId !== state.openRequestId || mode !== state.mode || target !== state.target || token !== state.token) return;
+      state.loading = false;
+      state.error = currentLoadError();
       console.error('[PromptInsert]', error);
       filterBlocks(); render(); positionMenu();
     }
@@ -261,12 +277,22 @@
     const requestId = ++state.openRequestId;
     state.mode = 'insert'; state.trigger = match.trigger || '/'; state.target = match.target; state.token = null; state.query = match.query; state.moduleType = ''; state.currentBlockId = '';
     state.slashStart = match.slashStart; state.range = match.range; state.activeIndex = 0;
+    state.loading = true; state.error = '';
     setOwnerAria(state.target);
     ensureMenu().classList.add('is-open');
     const blocksPromise = loadChoices();
     filterBlocks(); render(); positionMenu();
-    try { await blocksPromise; if (requestId !== state.openRequestId || state.target !== match.target || state.mode !== 'insert') return; filterBlocks(); render(); positionMenu(); }
-    catch (error) { console.error('[PromptInsert]', error); filterBlocks(); render(); positionMenu(); }
+    try {
+      await blocksPromise;
+      if (requestId !== state.openRequestId || state.target !== match.target || state.mode !== 'insert') return;
+      state.loading = false;
+      filterBlocks(); render(); positionMenu();
+    } catch (error) {
+      if (requestId !== state.openRequestId || state.target !== match.target || state.mode !== 'insert') return;
+      state.loading = false;
+      state.error = currentLoadError();
+      console.error('[PromptInsert]', error); filterBlocks(); render(); positionMenu();
+    }
   }
   function tokenData(token, names) {
     for (const name of names) {
@@ -291,6 +317,7 @@
     const requestId = ++state.openRequestId;
     state.mode = 'replace'; state.target = null; state.token = token; state.range = null; state.slashStart = -1; state.query = '';
     state.moduleType = tokenModuleType(token); state.currentBlockId = tokenBlockId(token); state.trigger = state.currentBlockId.startsWith('color-scheme:') ? '#' : '/'; state.activeIndex = 0;
+    state.loading = true; state.error = '';
     setOwnerAria(token);
     const menu = ensureMenu();
     menu.classList.add('is-open');
@@ -300,12 +327,15 @@
     try {
       await blocksPromise;
       if (requestId !== state.openRequestId || state.token !== token || state.mode !== 'replace') return;
+      state.loading = false;
       const currentBlock = inferTokenBlock(token);
       if (!state.moduleType) state.moduleType = currentBlock?.module_type || '';
       if (!state.currentBlockId && currentBlock?.id) state.currentBlockId = String(currentBlock.id);
       filterBlocks(); render(); positionMenu();
     } catch (error) {
-      if (requestId !== state.openRequestId) return;
+      if (requestId !== state.openRequestId || state.token !== token || state.mode !== 'replace') return;
+      state.loading = false;
+      state.error = currentLoadError();
       console.error('[PromptInsert]', error); filterBlocks(); render(); positionMenu();
     }
   }
@@ -316,7 +346,7 @@
     state.menu?.classList.remove('is-open');
     state.menu?.classList.remove('is-replace-mode');
     state.menu?.querySelector('.desk-prompt-slash-menu__list')?.removeAttribute('aria-activedescendant');
-    state.mode = 'insert'; state.trigger = '/'; state.target = null; state.token = null; state.range = null; state.slashStart = -1; state.query = ''; state.moduleType = ''; state.currentBlockId = ''; state.filtered = []; state.activeIndex = 0;
+    state.mode = 'insert'; state.trigger = '/'; state.target = null; state.token = null; state.range = null; state.slashStart = -1; state.query = ''; state.moduleType = ''; state.currentBlockId = ''; state.filtered = []; state.activeIndex = 0; state.loading = false; state.error = '';
     if (restoreToken?.isConnected) restoreToken.focus?.({ preventScroll: true });
   }
   function dispatchInput(target) {
@@ -450,9 +480,9 @@
     isOpen: () => !!state.menu?.classList.contains('is-open'),
     refresh: async () => {
       state.loaded = false;
-      loadColors();
       try {
-        return await loadBlocks(true);
+        const [colors, blocks] = await Promise.all([loadColors(true), loadBlocks(true)]);
+        return { colors, blocks };
       } finally {
         if (state.menu?.classList.contains('is-open')) { filterBlocks(); render(); positionMenu(); }
       }

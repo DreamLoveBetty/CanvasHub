@@ -473,29 +473,137 @@
     els.deskPromptDrawerToggle.style.setProperty('--desk-prompt-handle-eye-shift-y', `${Number(y || 0).toFixed(2)}px`);
   }
 
+  // 眼睛跟随是 document 级 pointermove：必须 rAF 合并 + 缓存把手矩形，
+  // 否则每个指针事件一次 getBoundingClientRect 强制回流，会拖慢全应用的拖拽交互（如图片对比滑杆）
+  let handleEyesRaf = 0;
+  let handleEyesPoint = null;
+  let handleEyesRect = null;
+  let handleEyesRectAt = 0;
+
   function resetPromptDrawerHandleEyes() {
+    if (handleEyesRaf) {
+      window.cancelAnimationFrame(handleEyesRaf);
+      handleEyesRaf = 0;
+    }
+    handleEyesPoint = null;
     setPromptDrawerHandleEyesOffset(0, 0);
   }
 
   function updatePromptDrawerHandleEyes(event) {
     if (!state.open || !els.deskPromptDrawerToggle) return;
     if (event?.pointerType && event.pointerType !== 'mouse') return;
-    const rect = els.deskPromptDrawerToggle.getBoundingClientRect();
-    if (!rect.width || !rect.height) return;
-    const centerX = rect.left + rect.width / 2;
-    const centerY = rect.top + rect.height / 2;
-    const driftX = clamp((event.clientX - centerX) * 0.03, -2.2, 2.2);
-    const driftY = clamp((event.clientY - centerY) * 0.02, -1.6, 1.6);
-    setPromptDrawerHandleEyesOffset(driftX, driftY);
+    handleEyesPoint = { x: event.clientX, y: event.clientY };
+    if (handleEyesRaf) return;
+    handleEyesRaf = window.requestAnimationFrame(() => {
+      handleEyesRaf = 0;
+      const point = handleEyesPoint;
+      if (!point || !state.open || !els.deskPromptDrawerToggle) return;
+      const now = performance.now();
+      if (!handleEyesRect || now - handleEyesRectAt > 300) {
+        handleEyesRect = els.deskPromptDrawerToggle.getBoundingClientRect();
+        handleEyesRectAt = now;
+      }
+      const rect = handleEyesRect;
+      if (!rect.width || !rect.height) return;
+      const centerX = rect.left + rect.width / 2;
+      const centerY = rect.top + rect.height / 2;
+      const driftX = clamp((point.x - centerX) * 0.03, -2.2, 2.2);
+      const driftY = clamp((point.y - centerY) * 0.02, -1.6, 1.6);
+      setPromptDrawerHandleEyesOffset(driftX, driftY);
+    });
   }
 
-  function setOpen(open) {
+  function applyPromptDrawerOpenState(open) {
     state.open = !!open;
+    handleEyesRect = null;
     els.deskPromptDrawer?.classList.toggle('is-open', state.open);
     els.deskPromptDrawer?.setAttribute('aria-expanded', state.open ? 'true' : 'false');
     resetPromptDrawerHandleEyes();
     if (state.open) window.setTimeout(focusEditor, 40);
     render();
+  }
+
+  let promptGenieRunId = 0;
+
+  function promptDrawerCollapsedRect() {
+    // 收起态：87×21 药丸，水平居中，bottom 35px（与 .desk-prompt-drawer 基础样式一致）
+    const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 0;
+    const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 0;
+    const width = 87;
+    const height = 21;
+    return {
+      left: Math.max(0, (viewportWidth - width) / 2),
+      top: Math.max(0, viewportHeight - 35 - height),
+      width,
+      height
+    };
+  }
+
+  async function animatePromptGenieClose(runId) {
+    const drawer = els.deskPromptDrawer;
+    const fx = window.DeskGenieFX;
+    const panelRect = drawer.getBoundingClientRect();
+    const source = await fx.snapshotPanel(drawer, panelRect);
+    if (runId !== promptGenieRunId) return;
+    fx.animate({
+      direction: 'minimize',
+      source,
+      targetRect: promptDrawerCollapsedRect(),
+      panelRect,
+      isCancelled: () => runId !== promptGenieRunId,
+      onStart: () => {
+        drawer.classList.add('is-genie-anim');
+        applyPromptDrawerOpenState(false);
+      },
+      onDone: () => {
+        drawer.classList.remove('is-genie-anim');
+      }
+    });
+  }
+
+  async function animatePromptGenieOpen(runId) {
+    const drawer = els.deskPromptDrawer;
+    const fx = window.DeskGenieFX;
+    // 先无过渡地切到展开布局并整体隐形，待快照就绪再播翘曲
+    drawer.classList.add('is-genie-anim', 'is-genie-hidden');
+    applyPromptDrawerOpenState(true);
+    await new Promise(resolve => window.requestAnimationFrame(resolve));
+    if (runId !== promptGenieRunId) {
+      drawer.classList.remove('is-genie-anim', 'is-genie-hidden');
+      return;
+    }
+    const panelRect = drawer.getBoundingClientRect();
+    const source = await fx.snapshotPanel(drawer, panelRect);
+    if (runId !== promptGenieRunId) {
+      drawer.classList.remove('is-genie-anim', 'is-genie-hidden');
+      return;
+    }
+    fx.animate({
+      direction: 'open',
+      source,
+      targetRect: promptDrawerCollapsedRect(),
+      panelRect,
+      isCancelled: () => runId !== promptGenieRunId,
+      onStart: () => {},
+      onDone: () => {
+        drawer.classList.remove('is-genie-anim', 'is-genie-hidden');
+      }
+    });
+  }
+
+  function setOpen(open, animate = true) {
+    const next = !!open;
+    const fx = window.DeskGenieFX;
+    if (!animate || next === state.open || !fx?.ready?.() || !els.deskPromptDrawer) {
+      applyPromptDrawerOpenState(next);
+      return;
+    }
+    const runId = ++promptGenieRunId;
+    if (next) {
+      animatePromptGenieOpen(runId);
+    } else {
+      animatePromptGenieClose(runId);
+    }
   }
 
   function renderTarget() {

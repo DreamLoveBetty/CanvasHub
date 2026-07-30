@@ -24,6 +24,7 @@ htmlcov/
 .mypy_cache/
 .ruff_cache/
 .playwright-cli/
+.claude/
 .watchdog.lock/
 *.pid
 nohup.out
@@ -40,6 +41,10 @@ data/
 models/upscale/*.pth
 models/upscale/*.pt
 models/upscale/*.safetensors
+# ComfyUI workflows are local; retain only the tracked smoke fixtures.
+workflows/*.json
+!workflows/Lumina_2_Upscale.json
+!workflows/sd15_text_to_image.json
 static/pose/mannequin/*.glb
 sidecars/chatgpt_pool/.venv/
 sidecars/chatgpt_pool/.venv-runtime/
@@ -76,6 +81,8 @@ desktop/electron/assets/canvashub-app-icon-white.png
 frontend/thumb/
 frontend/assets/image-editor-icons/*.png
 frontend/assets/image-editor-cursors/*.png
+# Local, unreferenced design-review capture.
+frontend/assets/prompt-library-guide.png
 work/
 *.sqlite
 *.sqlite3

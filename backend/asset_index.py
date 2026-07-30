@@ -4,10 +4,12 @@
 
 from __future__ import annotations
 
+import copy
 import hashlib
 import json
 import re
 import sqlite3
+import threading
 import time
 import uuid
 import urllib.parse
@@ -17,6 +19,7 @@ from typing import Any
 from PIL import Image
 
 from .app_config import APP_DATA_DIR
+from .database import DB_PATH as TASKS_DB_PATH
 from .database import get_all_tasks
 from .image_resolution import infer_resolution_label, normalize_resolution_label
 from .storage_paths import IMAGE_ARCHIVE_DIR, archive_scan_roots
@@ -62,6 +65,90 @@ SIDECAR_PARAM_KEYS = {
     "seed",
 }
 IMAGE_INFO_CACHE: dict[str, tuple[tuple[int, int], dict[str, Any]]] = {}
+
+# ---------------------------------------------------------------------------
+# 持久化文件元数据缓存（sidecar 解析结果 + PIL 尺寸），按 (mtime_ns, size) 指纹命中，
+# 让重启后的冷构建不再逐文件读 sidecar / 解码图片。
+# ---------------------------------------------------------------------------
+_FILE_META_LOCK = threading.RLock()
+_FILE_META_ROWS: dict[str, tuple[int, int, str]] | None = None  # path -> (mtime_ns, size, payload_json)
+_FILE_META_PENDING: dict[str, tuple[int, int, str]] = {}
+_FILE_META_SEEN: set[str] = set()  # 本轮构建触达过的路径，flush 时据此清理消失文件的行
+
+# ---------------------------------------------------------------------------
+# 成品索引缓存：构建一次（含血缘装饰），后续请求只做过滤/排序/切片。
+# 失效条件：归档目录/任务库指纹变化、显式失效钩子（资产元数据变更）、TTL 兜底。
+# ---------------------------------------------------------------------------
+_INDEX_LOCK = threading.RLock()
+_INDEX_CACHE: dict[str, Any] | None = None  # {"fingerprint", "built_at", "variants": {"all"|"missing": {...}}}
+_INDEX_TTL_SECONDS = 60
+
+# 图库列表瘦身投影保留的字段。原则：网格卡片渲染、客户端搜索、同步 dragstart 载荷、
+# 候选集快照、套用参数等**同步**流程所需字段必须保留（prompt / params / 基础元信息）；
+# 只砍真正的大头：revised_prompt 三份拷贝 + 血缘装饰快照数组（预览打开时走 detail 接口补全）。
+CARD_PROJECTION_FIELDS = (
+    "id", "asset_id", "taskId", "task_id", "file",
+    "archiveRelPath", "archive_rel_path",
+    "imageUrl", "imagePath", "thumbUrl", "title",
+    "prompt", "note", "stale",
+    "mainModel", "reasoningEffort",
+    "requestedResolution", "requested_resolution",
+    "actualResolution", "actual_resolution", "resolution",
+    "resolutionMismatch", "resolution_mismatch",
+    "type", "provider", "providerLabel", "sourceKind", "assetSource",
+    "hasTaskRecord", "has_task_record", "missingArchive", "missing_archive",
+    "status", "createdAt", "updatedAt", "index", "total",
+    "favorite", "hidden", "tags", "rating",
+    "derivedCount", "relatedCount",
+    "referenceAssetIds", "reference_asset_ids", "sourceTaskIds", "source_task_ids",
+    "width", "height", "imageWidth", "imageHeight",
+    "aspectRatio", "aspect_ratio", "orientation", "dimensions",
+    "fileSizeBytes", "file_size_bytes", "fileSizeLabel", "file_size_label",
+    "format", "megapixels",
+)
+
+# 瘦身版 params 中剔除的重字段（列表场景用不到，详情接口仍返回完整版）
+CARD_PARAMS_DROP_KEYS = {"revised_prompt"}
+
+# 瘦身版 referenceAssets 保留 id 引用 + 无 id 引用的识别字段（imageUrl/missing/deleted），
+# 保证前端 normalizeLineageAsset 的过滤条件下"源 N"角标计数与全量模式一致
+CARD_REFERENCE_KEYS = ("id", "asset_id", "taskId", "task_id", "index", "imageUrl", "image_url", "missing", "deleted")
+
+
+def invalidate_asset_index_cache() -> None:
+    """资产可见状态发生变化（收藏/隐藏/标签/删除恢复等）后调用，强制下次重建索引。"""
+    global _INDEX_CACHE
+    with _INDEX_LOCK:
+        _INDEX_CACHE = None
+
+
+def _stat_fingerprint(path: Path) -> tuple[int, int]:
+    try:
+        stat = path.stat()
+        return (int(stat.st_mtime_ns), int(stat.st_size))
+    except OSError:
+        return (0, 0)
+
+
+def _index_fingerprint() -> tuple:
+    """轻量指纹：任务库 + 旧历史文件 + 各归档根目录及其一级子目录的 mtime。
+    捕捉新增/删除/任务完成；就地编辑等深层变化由 TTL 兜底。"""
+    parts: list[Any] = [
+        _stat_fingerprint(Path(TASKS_DB_PATH)),
+        _stat_fingerprint(HISTORY_FILE),
+    ]
+    for root_key, root in archive_scan_roots():
+        parts.append((root_key, _stat_fingerprint(root)))
+        try:
+            children = sorted(
+                (child.name, int(child.stat().st_mtime_ns))
+                for child in root.iterdir()
+                if child.is_dir()
+            )
+        except OSError:
+            children = []
+        parts.append(tuple(children))
+    return tuple(parts)
 
 
 def init_asset_store() -> None:
@@ -111,7 +198,101 @@ def init_asset_store() -> None:
         )
         conn.execute("CREATE INDEX IF NOT EXISTS idx_asset_delete_journal_created ON asset_delete_journal(created_at)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_asset_delete_journal_restored ON asset_delete_journal(restored)")
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS file_meta_cache (
+                path TEXT PRIMARY KEY,
+                mtime_ns INTEGER NOT NULL,
+                size_bytes INTEGER NOT NULL,
+                payload_json TEXT DEFAULT '{}',
+                updated_at INTEGER
+            )
+            """
+        )
         conn.commit()
+
+
+def _file_meta_rows() -> dict[str, tuple[int, int, str]]:
+    """一次性读入 file_meta_cache 全表（进程内驻留），供构建循环做 O(1) 命中。"""
+    global _FILE_META_ROWS
+    with _FILE_META_LOCK:
+        if _FILE_META_ROWS is None:
+            rows: dict[str, tuple[int, int, str]] = {}
+            try:
+                with sqlite3.connect(DB_PATH) as conn:
+                    for path, mtime_ns, size_bytes, payload_json in conn.execute(
+                        "SELECT path, mtime_ns, size_bytes, payload_json FROM file_meta_cache"
+                    ):
+                        rows[str(path)] = (int(mtime_ns), int(size_bytes), str(payload_json or "{}"))
+            except Exception:
+                rows = {}
+            _FILE_META_ROWS = rows
+        return _FILE_META_ROWS
+
+
+def _file_meta_get(path: Path, fingerprint: tuple[int, int]) -> dict[str, Any] | None:
+    key = str(path)
+    row = _file_meta_rows().get(key)
+    if not row or (row[0], row[1]) != fingerprint:
+        return None
+    _FILE_META_SEEN.add(key)
+    try:
+        payload = json.loads(row[2])
+        return payload if isinstance(payload, dict) else None
+    except Exception:
+        return None
+
+
+def _file_meta_put(path: Path, fingerprint: tuple[int, int], payload: dict[str, Any]) -> None:
+    try:
+        payload_json = json.dumps(payload, ensure_ascii=False)
+    except Exception:
+        return
+    key = str(path)
+    with _FILE_META_LOCK:
+        _file_meta_rows()[key] = (fingerprint[0], fingerprint[1], payload_json)
+        _FILE_META_PENDING[key] = (fingerprint[0], fingerprint[1], payload_json)
+        _FILE_META_SEEN.add(key)
+
+
+def _flush_file_meta_cache() -> None:
+    """构建结束后把新解析的文件元数据批量落库，并清理本轮未触达（已消失）的行。"""
+    with _FILE_META_LOCK:
+        pending = list(_FILE_META_PENDING.items())
+        _FILE_META_PENDING.clear()
+        seen = set(_FILE_META_SEEN)
+        _FILE_META_SEEN.clear()
+        rows = _file_meta_rows()
+        # 只有本轮确实触达过文件时才做清理，避免异常空构建误删全表
+        stale = [key for key in rows if key not in seen] if seen else []
+        for key in stale:
+            rows.pop(key, None)
+    if not pending and not stale:
+        return
+    now = _now()
+    try:
+        with sqlite3.connect(DB_PATH) as conn:
+            if pending:
+                conn.executemany(
+                    """
+                    INSERT INTO file_meta_cache (path, mtime_ns, size_bytes, payload_json, updated_at)
+                    VALUES (?, ?, ?, ?, ?)
+                    ON CONFLICT(path) DO UPDATE SET
+                        mtime_ns=excluded.mtime_ns,
+                        size_bytes=excluded.size_bytes,
+                        payload_json=excluded.payload_json,
+                        updated_at=excluded.updated_at
+                    """,
+                    [(key, row[0], row[1], row[2], now) for key, row in pending],
+                )
+            if stale:
+                conn.executemany(
+                    "DELETE FROM file_meta_cache WHERE path = ?",
+                    [(key,) for key in stale],
+                )
+            conn.commit()
+    except Exception as exc:
+        print(f"⚠️ file_meta_cache 落库失败（不影响本次响应）：{exc}")
 
 
 def _now() -> int:
@@ -252,6 +433,15 @@ def _image_file_meta(path: Path) -> dict[str, Any]:
     if cached and cached[0] == fingerprint:
         return dict(cached[1])
 
+    # 进程内未命中时先查持久化缓存，重启后的冷构建可跳过 PIL 解码
+    ns_fingerprint = (int(stat.st_mtime_ns), int(stat.st_size))
+    persisted = _file_meta_get(path, ns_fingerprint)
+    if isinstance(persisted, dict) and persisted.get("kind") == "image_meta":
+        stored = persisted.get("meta")
+        if isinstance(stored, dict) and stored:
+            IMAGE_INFO_CACHE[cache_key] = (fingerprint, dict(stored))
+            return dict(stored)
+
     meta: dict[str, Any] = {
         "fileSizeBytes": int(stat.st_size),
         "file_size_bytes": int(stat.st_size),
@@ -283,6 +473,9 @@ def _image_file_meta(path: Path) -> dict[str, Any]:
         pass
 
     IMAGE_INFO_CACHE[cache_key] = (fingerprint, dict(meta))
+    # 只有 PIL 成功解析出尺寸才持久化，避免瞬时打开失败被永久缓存成"无尺寸"
+    if "width" in meta:
+        _file_meta_put(path, ns_fingerprint, {"kind": "image_meta", "meta": meta})
     return meta
 
 
@@ -354,8 +547,48 @@ def _image_url(provider: str, file_name: str) -> str:
     return f"/image/{file_name}"
 
 
-def _thumb_url(provider: str, file_name: str, image_url: str) -> str:
-    return thumb_url_for_media_url(image_url)
+# 低于该边长的 sidecar 不做 420px 缩略图源：400px 的 gpt sidecar 通过，旧版 300px google sidecar 回退原图
+_SIDECAR_THUMB_MIN_SIDE = 360
+# 原图 mtime 比 sidecar 晚超过该秒数视为"被就地编辑过"，放弃 sidecar；容差覆盖归档搬运的写入延迟
+_SIDECAR_FRESHNESS_TOLERANCE = 60
+
+
+def _sidecar_thumb_source(provider: str, file_name: str, original_path: Path | None = None) -> str:
+    """Return the pre-generated small thumbnail URL for this file if one is usable."""
+    name = Path(str(file_name or "")).name
+    if not name:
+        return ""
+    if provider == "gpt":
+        candidate = APP_DATA_DIR / "gpt_outputs" / f"{Path(name).stem}_thumb.png"
+        default_original = APP_DATA_DIR / "gpt_outputs" / name
+        url = f"/gpt_outputs/{candidate.name}"
+    else:
+        candidate = APP_DATA_DIR / "google_outputs" / f"thumb_{name}"
+        default_original = APP_DATA_DIR / "google_outputs" / name
+        url = f"/google_outputs/{candidate.name}"
+    try:
+        candidate_stat = candidate.stat()
+    except OSError:
+        return ""
+    # 原图被就地编辑（明显比 sidecar 新）时放弃 sidecar，避免缩略图永远停留在生成时的内容
+    original = original_path if original_path is not None else default_original
+    try:
+        if original.is_file() and original.stat().st_mtime > candidate_stat.st_mtime + _SIDECAR_FRESHNESS_TOLERANCE:
+            return ""
+    except OSError:
+        pass
+    # 尺寸门槛：过小的旧版 sidecar 不足以喂 420px 请求（_image_file_meta 只读文件头且带缓存）
+    meta = _image_file_meta(candidate)
+    max_side = max(int(meta.get("width") or 0), int(meta.get("height") or 0))
+    if max_side < _SIDECAR_THUMB_MIN_SIDE:
+        return ""
+    return url
+
+
+def _thumb_url(provider: str, file_name: str, image_url: str, original_path: Path | None = None) -> str:
+    # 优先用生成时写好的 400px sidecar 做 WebP 转码源，冷生成从全尺寸解码降到小图解码
+    sidecar = _sidecar_thumb_source(provider, file_name, original_path)
+    return thumb_url_for_media_url(sidecar or image_url)
 
 
 def _archive_image_files() -> list[tuple[Path, str, str]]:
@@ -403,13 +636,35 @@ def _infer_archive_provider(path: Path, template: dict[str, Any] | None = None) 
 
 
 def _read_archive_sidecar(path: Path) -> tuple[str, dict[str, Any]]:
+    """带持久化缓存的 sidecar 读取：指纹命中时跳过文件读取与正则解析。"""
+    txt_path = path.with_suffix(".txt")
+    try:
+        stat = txt_path.stat()
+    except OSError:
+        return "", {}
+    fingerprint = (int(stat.st_mtime_ns), int(stat.st_size))
+    cached = _file_meta_get(txt_path, fingerprint)
+    if isinstance(cached, dict) and cached.get("kind") == "sidecar":
+        params = cached.get("params")
+        return str(cached.get("prompt") or ""), dict(params) if isinstance(params, dict) else {}
+    result = _read_archive_sidecar_uncached(path)
+    if result is None:
+        # 瞬时读取失败（如 iCloud 未就绪 / fd 耗尽）：不落缓存，下次构建重试
+        return "", {}
+    prompt, params = result
+    _file_meta_put(txt_path, fingerprint, {"kind": "sidecar", "prompt": prompt, "params": params})
+    return prompt, params
+
+
+def _read_archive_sidecar_uncached(path: Path) -> tuple[str, dict[str, Any]] | None:
+    """返回 (prompt, params)；文件存在但读取失败时返回 None（调用方不缓存）。"""
     txt_path = path.with_suffix(".txt")
     if not txt_path.exists():
         return "", {}
     try:
         text = txt_path.read_text(encoding="utf-8").strip()
     except Exception:
-        return "", {}
+        return None
     if not text:
         return "", {}
 
@@ -680,7 +935,8 @@ def _clean_asset_snapshot(asset: dict[str, Any]) -> dict[str, Any]:
 
 
 def _asset_map_for_sets() -> dict[str, dict[str, Any]]:
-    data = list_assets(limit=3000, offset=0, include_hidden=True)
+    # 与其他调用方一致的 5000 上限；命中成品索引缓存后这只是一次切片
+    data = list_assets(limit=5000, offset=0, include_hidden=True)
     return {
         str(asset.get("id") or asset.get("asset_id")): asset
         for asset in data.get("assets", [])
@@ -904,7 +1160,7 @@ def _archive_asset_from_path(
         "archive_rel_path": public_rel_path,
         "imageUrl": image_url,
         "imagePath": image_url,
-        "thumbUrl": thumb_url_for_media_url(image_url),
+        "thumbUrl": _thumb_url(provider, file_name, image_url, original_path=path),
         "title": (template or {}).get("title") or _prompt_title(prompt or path.stem),
         "prompt": prompt,
         "revisedPrompt": params.get("revised_prompt") or "",
@@ -985,7 +1241,7 @@ def _history_missing_asset_from_template(template: dict[str, Any], meta_map: dic
         "asset_id": asset_id,
         "imageUrl": local_url,
         "imagePath": local_url,
-        "thumbUrl": thumb_url_for_media_url(local_url) if local_url else "",
+        "thumbUrl": thumb_url_for_media_url(thumb_url or local_url) if (thumb_url or local_url) else "",
         "sourceKind": "missing_history",
         "assetSource": "missing_history",
         "hasTaskRecord": True,
@@ -1078,25 +1334,12 @@ def _orientation_label(value: str) -> str:
     }.get(str(value or "").strip().lower(), "")
 
 
-def list_assets(
-    limit: int = 200,
-    offset: int = 0,
-    query: str = "",
-    provider: str = "all",
-    tag: str = "",
-    favorite: bool = False,
-    hidden: bool = False,
-    include_hidden: bool = False,
-    source: str = "all",
-    ratio: str = "",
-    orientation: str = "",
-    file_format: str = "",
-    resolution: str = "",
-) -> dict[str, Any]:
-    init_asset_store()
-    safe_limit = max(1, min(int(limit or 200), 5000))
-    safe_offset = max(0, int(offset or 0))
+def _build_index_variants() -> dict[str, dict[str, Any]]:
+    """一次性构建两种视图变体（全量 / 仅缺档历史），含血缘装饰。
 
+    与旧版逐请求构建逻辑完全一致；missing 变体使用全新对象，
+    避免与 all 变体共享 dict 被二次装饰互相污染。
+    """
     meta_map = _load_meta()
     tasks = get_all_tasks(limit=10000, offset=0)
     tasks.extend(_load_old_history(10000))
@@ -1133,11 +1376,14 @@ def list_assets(
                 used_template_ids.add(template_id)
         assets.append(_archive_asset_from_path(path, root_key, rel_path, meta_map, template, preserve_template_id))
 
-    history_missing_assets = [
-        _history_missing_asset_from_template(asset, meta_map)
-        for asset in task_assets
-        if str(asset.get("file") or "").strip() and str(asset.get("file") or "").strip() not in archive_names
-    ]
+    def _missing_assets() -> list[dict[str, Any]]:
+        return [
+            _history_missing_asset_from_template(asset, meta_map)
+            for asset in task_assets
+            if str(asset.get("file") or "").strip() and str(asset.get("file") or "").strip() not in archive_names
+        ]
+
+    history_missing_assets = _missing_assets()
     displayable_history_fallback_assets = [
         asset
         for asset in history_missing_assets
@@ -1164,11 +1410,89 @@ def list_assets(
         "metadata_image_count": metadata_count,
     }
 
-    source_filter = str(source or "all").strip().lower()
-    if source_filter in ("missing_history", "history_missing", "missing"):
-        assets = history_missing_assets
-
     _decorate_lineage(assets)
+
+    missing_variant_assets = _missing_assets()
+    _decorate_lineage(missing_variant_assets)
+
+    _flush_file_meta_cache()
+    return {
+        "all": {"assets": assets, "stats": stats},
+        "missing": {"assets": missing_variant_assets, "stats": stats},
+    }
+
+
+def _get_index_variants() -> dict[str, dict[str, Any]]:
+    """指纹 + TTL 双条件命中成品索引缓存；未命中则在锁内重建（并发请求只建一次）。"""
+    global _INDEX_CACHE
+    fingerprint = _index_fingerprint()
+    with _INDEX_LOCK:
+        cache = _INDEX_CACHE
+        if (
+            cache
+            and cache["fingerprint"] == fingerprint
+            and time.monotonic() - cache["built_at"] < _INDEX_TTL_SECONDS
+        ):
+            return cache["variants"]
+        variants = _build_index_variants()
+        _INDEX_CACHE = {
+            "fingerprint": fingerprint,
+            "built_at": time.monotonic(),
+            "variants": variants,
+        }
+        return variants
+
+
+def _asset_card_projection(asset: dict[str, Any]) -> dict[str, Any]:
+    """图库网格卡片的瘦身投影（新建 dict，绝不改写缓存中的共享对象）。
+
+    砍掉 revisedPrompt/revised_prompt、params.revised_prompt、
+    lineage 装饰快照（derivedAssets/relatedAssets/referenceAssets 全量快照）。
+    """
+    card = {key: asset[key] for key in CARD_PROJECTION_FIELDS if key in asset}
+    params = asset.get("params")
+    if isinstance(params, dict):
+        card["params"] = {key: value for key, value in params.items() if key not in CARD_PARAMS_DROP_KEYS}
+    refs = asset.get("referenceAssets")
+    if isinstance(refs, list) and refs:
+        slim_refs = [
+            {key: ref[key] for key in CARD_REFERENCE_KEYS if key in ref}
+            for ref in refs
+            if isinstance(ref, dict)
+        ]
+        card["referenceAssets"] = slim_refs
+        card["reference_assets"] = slim_refs
+    card["fieldsMode"] = "card"
+    card["fields_mode"] = "card"
+    return card
+
+
+def list_assets(
+    limit: int = 200,
+    offset: int = 0,
+    query: str = "",
+    provider: str = "all",
+    tag: str = "",
+    favorite: bool = False,
+    hidden: bool = False,
+    include_hidden: bool = False,
+    source: str = "all",
+    ratio: str = "",
+    orientation: str = "",
+    file_format: str = "",
+    resolution: str = "",
+    fields: str = "",
+) -> dict[str, Any]:
+    init_asset_store()
+    safe_limit = max(1, min(int(limit or 200), 5000))
+    safe_offset = max(0, int(offset or 0))
+
+    source_filter = str(source or "all").strip().lower()
+    variants = _get_index_variants()
+    variant_key = "missing" if source_filter in ("missing_history", "history_missing", "missing") else "all"
+    variant = variants[variant_key]
+    assets = variant["assets"]
+    stats = variant["stats"]
 
     tag_filter = str(tag or "").strip().lstrip("#").lower()
     provider_filter = str(provider or "all").strip().lower()
@@ -1208,6 +1532,9 @@ def list_assets(
 
     filtered.sort(key=lambda item: (int(item.get("createdAt") or 0), item.get("taskId") or "", -int(item.get("index") or 0)), reverse=True)
     page = filtered[safe_offset:safe_offset + safe_limit]
+    projection = str(fields or "").strip().lower()
+    if projection in ("card", "list", "slim"):
+        page = [_asset_card_projection(asset) for asset in page]
     known_tags = sorted({
         tag
         for item in assets
@@ -1228,11 +1555,13 @@ def get_asset(asset_id: str) -> dict[str, Any] | None:
     clean_id = str(asset_id or "").strip()
     if not clean_id:
         return None
-    for source in ("all", "missing_history"):
-        data = list_assets(limit=5000, offset=0, include_hidden=True, source=source)
-        for asset in data.get("assets", []):
+    init_asset_store()
+    variants = _get_index_variants()
+    for variant_key in ("all", "missing"):
+        for asset in variants[variant_key]["assets"]:
             if str(asset.get("id") or asset.get("asset_id") or "") == clean_id:
-                return asset
+                # 返回深拷贝，避免调用方改写缓存中的共享对象
+                return copy.deepcopy(asset)
     return None
 
 
@@ -1277,6 +1606,9 @@ def update_asset_meta(
             [*updates.values(), clean_id],
         )
         conn.commit()
+
+    # 元数据变更立即失效成品索引，前端紧随其后的刷新会拿到新状态
+    invalidate_asset_index_cache()
 
     meta = _load_meta().get(clean_id, {})
     return {
@@ -1604,6 +1936,16 @@ def list_asset_sets(
             ORDER BY updated_at DESC, created_at DESC
             """
         ).fetchall()
+
+    if not rows:
+        # 没有候选集时直接返回，跳过 _asset_map_for_sets() 的全量资产扫描
+        return {
+            "sets": [],
+            "total": 0,
+            "limit": safe_limit,
+            "offset": safe_offset,
+            "tags": [],
+        }
 
     asset_map = _asset_map_for_sets()
     sets = [_row_to_set(row, asset_map) for row in rows]

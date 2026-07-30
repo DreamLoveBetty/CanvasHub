@@ -29,9 +29,11 @@ import socketserver
 import socket
 import os
 import posixpath
+import gzip
 import json
 import time
 import random
+import math
 import threading
 import urllib.parse
 import tempfile
@@ -63,11 +65,13 @@ from .app_config import (
     GPT_TRANSPORT_MODES,
     get_chatgpt_pool_config,
     get_chatgpt_pool_public_config,
+    get_comfy_config,
     get_managed_codex_oauth_public_config,
     get_allowed_cors_origins,
     get_max_concurrent_tasks,
     get_proxy_config,
     get_prompt_skill_config,
+    get_pinterest_config,
     get_database_path,
     get_gpt_provider_config,
     get_miniapp_access_password,
@@ -146,6 +150,7 @@ from .asset_index import (
     get_asset as get_gallery_asset,
     get_delete_batch,
     init_asset_store,
+    invalidate_asset_index_cache,
     list_asset_sets,
     list_assets as list_gallery_assets,
     mark_delete_batch_restored,
@@ -176,17 +181,40 @@ from .prompt_source_sync import (
     stop_prompt_source_sync,
 )
 from .prompt_library import (
+    ColorSchemeNotFoundError,
+    delete_color_scheme,
     delete_prompt_block,
     delete_prompt_template,
     init_prompt_library_store,
+    list_color_schemes,
     list_prompt_blocks,
     list_prompt_templates,
     mark_prompt_block_used,
+    migrate_legacy_color_schemes,
     resolve_prompt_template,
+    save_color_scheme,
     save_prompt_block,
     save_prompt_template,
+    set_color_scheme_favorite,
 )
-from .thumb_cache import ensure_webp_thumbnail, parse_thumb_request, resolve_media_path
+from .pinterest_auth import (
+    browser_login_capability as get_pinterest_browser_login_capability,
+    cancel_browser_login as cancel_pinterest_browser_login,
+    complete_browser_login as complete_pinterest_browser_login,
+    delete_saved_auth as delete_pinterest_auth,
+    ensure_pinterest_auth_storage,
+    import_cookie_header as import_pinterest_cookie_header,
+    start_browser_login as start_pinterest_browser_login,
+    verify_saved_auth as verify_pinterest_saved_auth,
+)
+from .pinterest_gallery import get_pinterest_library, get_pinterest_sync_status
+from .pinterest_storage import (
+    download_pinterest_pin,
+    get_pinterest_board_download,
+    save_pinterest_pin_prompt,
+    start_pinterest_board_sync,
+)
+from .thumb_cache import THUMB_MAX_SIDE, ensure_webp_thumbnail, parse_thumb_request, resolve_media_path
 from .pose_service import pose_assets_status
 from .app_updates import get_app_update_status
 
@@ -200,8 +228,6 @@ DIRECTORY = str(APP_DATA_DIR)
 PROMPT_DATA_DIR = APP_DATA_DIR / 'data'
 STYLE_PRESETS_FILE = PROMPT_DATA_DIR / 'style_presets.json'
 PROMPT_VERSIONS_FILE = PROMPT_DATA_DIR / 'prompt_versions.json'
-COMFY_BASE_URL = os.environ.get('COMFY_BASE_URL', 'http://192.168.179.111:28188').rstrip('/')
-COMFY_TIMEOUT_SECONDS = int(os.environ.get('COMFY_TIMEOUT_SECONDS', '120'))
 MAX_GPT_IMAGE_COUNT = 8
 
 
@@ -2218,19 +2244,25 @@ def save_prompt_version(data):
     return version
 COMFY_CLIENT_ID = os.environ.get('COMFY_CLIENT_ID', f"tg-mini-app-{uuid.uuid4().hex[:12]}")
 COMFY_WORKFLOW_DIR = PROJECT_ROOT / 'workflows'
-COMFY_POLL_INTERVAL_SECONDS = float(os.environ.get('COMFY_POLL_INTERVAL_SECONDS', '2'))
-COMFY_TASK_TIMEOUT_SECONDS = int(os.environ.get('COMFY_TASK_TIMEOUT_SECONDS', '1800'))
+COMFY_PREVIEW_DIR = APP_DATA_DIR / 'data' / 'comfy' / 'previews'
 UPSCALE_MODEL_DIR = Path(
     os.environ.get('UPSCALE_MODEL_DIR')
     or (APP_DATA_DIR / 'components' / 'upscale' / 'current' / 'models' if os.environ.get('CANVASHUB_DATA_DIR') else default_upscale_model_dir(PROJECT_ROOT))
 ).expanduser()
 COMFY_RATIO_SIZES = {
     '1:1': (1024, 1024),
+    '2:3': (832, 1216),
+    '3:2': (1216, 832),
     '16:9': (1344, 768),
     '9:16': (768, 1344),
     '4:3': (1152, 864),
     '3:4': (864, 1152),
+    '4:5': (896, 1120),
+    '5:4': (1120, 896),
+    '9:21': (640, 1472),
+    '21:9': (1472, 640),
 }
+COMFY_RESOLUTION_LONG_EDGES = {'1k': 0, '2k': 2048, '4k': 4096}
 
 # 确保静态文件始终从 mini-app 目录提供（避免因启动 cwd 不同导致前端 404）
 try:
@@ -2603,6 +2635,462 @@ def _new_comfy_session():
     return session
 
 
+def _comfy_workflow_catalog_settings():
+    settings = load_app_settings()
+    section = settings.get('comfy') if isinstance(settings.get('comfy'), dict) else {}
+    catalog = section.get('workflow_catalog') if isinstance(section.get('workflow_catalog'), dict) else {}
+    return catalog
+
+
+def _comfy_workflow_preview_path(workflow_name):
+    safe_name = Path(str(workflow_name or '')).name
+    digest = hashlib.sha256(safe_name.encode('utf-8')).hexdigest()[:20]
+    return COMFY_PREVIEW_DIR / f'{digest}.webp'
+
+
+def _comfy_workflow_uses_token(path, token):
+    try:
+        return token in path.read_text(encoding='utf-8', errors='ignore')
+    except Exception:
+        return False
+
+
+def _default_comfy_workflow_label(filename):
+    stem = Path(filename).stem.replace('_', ' ').replace('-', ' ').strip()
+    aliases = {
+        'sd15 text to image': 'SD 1.5 文生图',
+        'lumina 2 upscale': 'Lumina 2 放大',
+    }
+    return aliases.get(stem.lower(), stem or filename)
+
+
+COMFY_PARAMETER_LABELS = {
+    'seed': '随机种子',
+    'noise_seed': '噪声种子',
+    'steps': '采样步数',
+    'cfg': '引导强度（CFG）',
+    'sampler_name': '采样器',
+    'scheduler': '调度器',
+    'denoise': '降噪强度',
+    'strength_model': '模型强度',
+    'strength_clip': 'CLIP 强度',
+    'upscale_method': '缩放算法',
+    'scale_by': '缩放倍数',
+    'batch_size': '批次数量',
+    'resolution': '目标分辨率',
+    'max_resolution': '最大分辨率',
+    'resolution_steps': '分辨率步进',
+    'color_correction': '色彩校正',
+    'input_noise_scale': '输入噪声强度',
+    'latent_noise_scale': '潜空间噪声强度',
+    'temporal_overlap': '时序重叠',
+    'temporal_size': '时序块尺寸',
+    'prepend_frames': '前置帧数',
+    'uniform_batch_size': '统一批次',
+    'encode_tiled': '编码分块',
+    'decode_tiled': '解码分块',
+    'encode_tile_size': '编码块尺寸',
+    'decode_tile_size': '解码块尺寸',
+    'encode_tile_overlap': '编码块重叠',
+    'decode_tile_overlap': '解码块重叠',
+    'blocks_to_swap': '交换区块数',
+    'swap_io_components': '交换 I/O 组件',
+    'attention_mode': '注意力模式',
+    'enable_debug': '调试输出',
+    'tile_size': '分块尺寸',
+    'overlap': '分块重叠',
+    'aspect_ratio': '画面比例',
+    'proportional_width': '比例宽度',
+    'proportional_height': '比例高度',
+    'fit': '适配方式',
+    'method': '处理方式',
+    'round_to_multiple': '对齐倍数',
+    'scale_to_side': '缩放基准边',
+    'scale_to_length': '缩放目标长度',
+    'background_color': '背景颜色',
+    'value': '数值',
+    'instruction': '模型指令',
+    'to_ref': '使用参考图',
+    'ref_main_image': '主参考图',
+    'ref_longest_edge': '参考图最长边',
+    'ref_crop': '裁剪参考图',
+    'ref_upscale': '放大参考图',
+    'ref_resize_mode': '参考图缩放方式',
+    'image_output': '图像输出方式',
+    'save_prefix': '保存前缀',
+}
+COMFY_PARAMETER_OPTIONS = {
+    'sampler_name': ['euler', 'euler_ancestral', 'heun', 'dpm_2', 'dpm_2_ancestral', 'lms', 'dpmpp_2m', 'dpmpp_2m_sde', 'dpmpp_3m_sde', 'ddim', 'uni_pc'],
+    'scheduler': ['normal', 'karras', 'exponential', 'sgm_uniform', 'simple', 'ddim_uniform', 'beta'],
+    'upscale_method': ['nearest-exact', 'bilinear', 'area', 'bicubic', 'bislerp'],
+    'color_correction': ['none', 'wavelet', 'adain', 'lab'],
+}
+COMFY_PARAMETER_EXCLUDED_INPUTS = {
+    'width', 'height', 'image', 'images', 'prompt', 'text',
+    'positive', 'negative', 'positive_prompt', 'negative_prompt', 'filename_prefix',
+    'device', 'offload_device', 'cache_model', 'tile_debug', 'type', 'weight_dtype',
+    'clip_name', 'vae_name', 'unet_name', 'lora_name', 'ckpt_name', 'model',
+}
+
+COMFY_DIMENSION_MIN = 64
+COMFY_DIMENSION_MAX = 8192
+COMFY_DIMENSION_STEP = 8
+
+
+def _comfy_parameter_label(name):
+    label = COMFY_PARAMETER_LABELS.get(name)
+    if label:
+        return label
+    readable = str(name or '').replace('_', ' ').strip()
+    return f'自定义参数（{readable or "未命名"}）'
+
+
+def _normalize_comfy_dimension(value, fallback=1024):
+    try:
+        number = int(round(float(value)))
+    except (TypeError, ValueError):
+        try:
+            number = int(round(float(fallback)))
+        except (TypeError, ValueError):
+            number = 1024
+    number = max(COMFY_DIMENSION_MIN, min(COMFY_DIMENSION_MAX, number))
+    number = int(round(number / COMFY_DIMENSION_STEP) * COMFY_DIMENSION_STEP)
+    return max(COMFY_DIMENSION_MIN, min(COMFY_DIMENSION_MAX, number))
+
+
+def _extract_comfy_workflow_default_size(workflow, fallback=(1024, 1024)):
+    fallback_width = _normalize_comfy_dimension(fallback[0] if fallback else 1024, 1024)
+    fallback_height = _normalize_comfy_dimension(fallback[1] if fallback else 1024, 1024)
+    if not isinstance(workflow, dict):
+        return fallback_width, fallback_height
+    candidates = []
+    for node in workflow.values():
+        if not isinstance(node, dict):
+            continue
+        inputs = node.get('inputs') if isinstance(node.get('inputs'), dict) else {}
+        raw_width = inputs.get('width')
+        raw_height = inputs.get('height')
+        if isinstance(raw_width, bool) or isinstance(raw_height, bool):
+            continue
+        if isinstance(raw_width, (dict, list)) or isinstance(raw_height, (dict, list)):
+            continue
+        try:
+            width = float(raw_width)
+            height = float(raw_height)
+        except (TypeError, ValueError):
+            continue
+        priority = 0 if str(node.get('class_type') or '').lower() == 'emptylatentimage' else 1
+        candidates.append((priority, width, height))
+    if not candidates:
+        return fallback_width, fallback_height
+    _, width, height = min(candidates, key=lambda item: item[0])
+    return _normalize_comfy_dimension(width, fallback_width), _normalize_comfy_dimension(height, fallback_height)
+
+
+def _comfy_workflow_has_image_input(workflow):
+    if not isinstance(workflow, dict):
+        return False
+    for node in workflow.values():
+        if not isinstance(node, dict):
+            continue
+        class_key = str(node.get('class_type') or '').lower().replace('_', '')
+        inputs = node.get('inputs') if isinstance(node.get('inputs'), dict) else {}
+        if 'loadimage' in class_key and 'image' in inputs:
+            return True
+    return False
+
+
+def _comfy_ratio_from_size(width, height):
+    width = _normalize_comfy_dimension(width, 1024)
+    height = _normalize_comfy_dimension(height, 1024)
+    divisor = math.gcd(width, height) or 1
+    return f'{width // divisor}:{height // divisor}'
+
+
+def _comfy_parameter_number_bounds(name, value):
+    specs = {
+        'seed': (-1, 2**31 - 1, 1),
+        'steps': (1, 200, 1),
+        'cfg': (0, 100, 0.1),
+        'denoise': (0, 1, 0.01),
+        'strength_model': (-10, 10, 0.05),
+        'strength_clip': (-10, 10, 0.05),
+        'scale_by': (0.1, 8, 0.05),
+        'batch_size': (1, 8, 1),
+        'resolution': (64, 8192, 64),
+        'max_resolution': (0, 8192, 64),
+        'input_noise_scale': (0, 10, 0.01),
+        'latent_noise_scale': (0, 10, 0.01),
+        'temporal_overlap': (0, 256, 1),
+        'prepend_frames': (0, 256, 1),
+        'blocks_to_swap': (0, 128, 1),
+    }
+    if name in specs:
+        return specs[name]
+    if isinstance(value, int) and not isinstance(value, bool):
+        return (-1000000, 1000000, 1)
+    return (-1000000, 1000000, 0.01)
+
+
+def _extract_comfy_workflow_parameters(workflow):
+    if not isinstance(workflow, dict):
+        return []
+    parameters = []
+    for raw_node_id, node in workflow.items():
+        if not isinstance(node, dict):
+            continue
+        node_id = str(raw_node_id)
+        class_type = str(node.get('class_type') or 'Node').strip()
+        class_key = class_type.lower()
+        if class_type in ('SaveImage', 'PreviewImage') or class_key.endswith('loader') or 'loadmodel' in class_key:
+            continue
+        inputs = node.get('inputs') if isinstance(node.get('inputs'), dict) else {}
+        node_title = str((node.get('_meta') or {}).get('title') or class_type).strip()[:100]
+        for raw_name, raw_value in inputs.items():
+            name = str(raw_name)
+            if name in COMFY_PARAMETER_EXCLUDED_INPUTS or (name.startswith('text_') and name[5:].isdigit()):
+                continue
+            if isinstance(raw_value, (dict, list)) or raw_value is None:
+                continue
+            if not isinstance(raw_value, (str, int, float, bool)):
+                continue
+            value = raw_value
+            if isinstance(value, str) and '{{' in value:
+                if name != 'seed':
+                    continue
+                value = -1
+            parameter_type = 'text'
+            parameter = {
+                'id': f'{node_id}:{name}',
+                'node_id': node_id,
+                'input_name': name,
+                'node_title': node_title,
+                'class_type': class_type,
+                'label': _comfy_parameter_label(name),
+                'default': value,
+            }
+            if isinstance(value, bool):
+                parameter_type = 'boolean'
+            elif isinstance(value, (int, float)) and not isinstance(value, bool):
+                parameter_type = 'number'
+                minimum, maximum, step = _comfy_parameter_number_bounds(name, value)
+                parameter.update({'min': minimum, 'max': maximum, 'step': step})
+            elif name in COMFY_PARAMETER_OPTIONS:
+                parameter_type = 'select'
+                options = list(COMFY_PARAMETER_OPTIONS[name])
+                if value not in options:
+                    options.insert(0, value)
+                parameter['options'] = options
+            parameter['type'] = parameter_type
+            parameters.append(parameter)
+            if len(parameters) >= 256:
+                return parameters
+    return parameters
+
+
+def _coerce_comfy_parameter_value(parameter, value):
+    parameter_type = parameter.get('type')
+    if parameter_type == 'boolean':
+        return _coerce_bool(value, bool(parameter.get('default')))
+    if parameter_type == 'number':
+        try:
+            number = float(value)
+        except (TypeError, ValueError):
+            return parameter.get('default')
+        number = max(float(parameter.get('min', -1000000)), min(float(parameter.get('max', 1000000)), number))
+        step = float(parameter.get('step', 1) or 1)
+        if isinstance(parameter.get('default'), int) and not isinstance(parameter.get('default'), bool) and step.is_integer():
+            return int(round(number))
+        return number
+    if parameter_type == 'select':
+        text = str(value or '')
+        return text if text in (parameter.get('options') or []) else parameter.get('default')
+    return str(value or '')[:4096]
+
+
+def _apply_comfy_parameter_overrides(workflow, overrides):
+    if not isinstance(overrides, dict) or not overrides:
+        return workflow, {}
+    schema = {item['id']: item for item in _extract_comfy_workflow_parameters(workflow)}
+    applied = {}
+    for parameter_id, raw_value in overrides.items():
+        parameter = schema.get(str(parameter_id))
+        if not parameter:
+            continue
+        node = workflow.get(parameter['node_id'])
+        inputs = node.get('inputs') if isinstance(node, dict) and isinstance(node.get('inputs'), dict) else None
+        if inputs is None:
+            continue
+        value = _coerce_comfy_parameter_value(parameter, raw_value)
+        inputs[parameter['input_name']] = value
+        applied[parameter['id']] = value
+    return workflow, applied
+
+
+def _collect_comfy_workflows(include_disabled=False):
+    catalog = _comfy_workflow_catalog_settings()
+    items = []
+    def bounded_int(value, default, minimum, maximum):
+        try:
+            return max(minimum, min(maximum, int(value)))
+        except (TypeError, ValueError):
+            return default
+    for path in sorted(COMFY_WORKFLOW_DIR.glob('*.json')):
+        workflow_id = path.name
+        meta = catalog.get(workflow_id) if isinstance(catalog.get(workflow_id), dict) else {}
+        try:
+            workflow_data = json.loads(path.read_text(encoding='utf-8'))
+        except Exception:
+            workflow_data = {}
+        parameters = _extract_comfy_workflow_parameters(workflow_data)
+        default_ratio = str(meta.get('default_ratio') or '1:1')
+        ratio_width, ratio_height = _resolve_comfy_size(default_ratio, '1k')
+        detected_width, detected_height = _extract_comfy_workflow_default_size(
+            workflow_data,
+            (ratio_width, ratio_height),
+        )
+        default_width = _normalize_comfy_dimension(meta.get('default_width'), detected_width)
+        default_height = _normalize_comfy_dimension(meta.get('default_height'), detected_height)
+        auto_accepts_image = (
+            _comfy_workflow_uses_token(path, '{{IMAGE}}')
+            or _comfy_workflow_uses_token(path, '{{IMAGE_')
+            or _comfy_workflow_has_image_input(workflow_data)
+        )
+        accepts_image = _coerce_bool(meta.get('accepts_image'), auto_accepts_image)
+        enabled = _coerce_bool(meta.get('enabled'), True)
+        if not include_disabled and not enabled:
+            continue
+        max_images = bounded_int(meta.get('max_images'), 1 if accepts_image else 0, 0, 8)
+        output_count = bounded_int(meta.get('output_count'), 1, 1, 8)
+        preview_path = _comfy_workflow_preview_path(workflow_id)
+        label = str(meta.get('label') or _default_comfy_workflow_label(workflow_id)).strip()[:120]
+        summary = str(meta.get('summary') or ('图生图 · 需要参考图' if accepts_image else '文生图 · 单图')).strip()[:180]
+        items.append({
+            'id': workflow_id,
+            'label': label,
+            'summary': summary,
+            'enabled': enabled,
+            'is_default': _coerce_bool(meta.get('is_default'), False),
+            'order': bounded_int(meta.get('order'), 100, 0, 9999),
+            'default_ratio': default_ratio,
+            'default_width': default_width,
+            'default_height': default_height,
+            'accepts_text': _coerce_bool(meta.get('accepts_text'), True),
+            'accepts_image': accepts_image,
+            'max_images': max_images,
+            'output_count': output_count,
+            'parameter_count': len(parameters),
+            'parameters': parameters,
+            'thumbnail_url': f'/api/comfy/workflow-thumbnail?id={urllib.parse.quote(workflow_id)}&v={preview_path.stat().st_mtime_ns}' if preview_path.exists() else '',
+        })
+    items.sort(key=lambda item: (item['order'], item['label'].lower(), item['id'].lower()))
+    default_item = next((item for item in items if item['is_default'] and item['enabled']), None)
+    if default_item is None:
+        default_item = next((item for item in items if item['enabled']), None)
+    return {
+        'workflows': [item['id'] for item in items if item['enabled']],
+        'items': items,
+        'default_workflow': default_item['id'] if default_item else '',
+    }
+
+
+def _save_comfy_workflow_config(data):
+    workflow_id = Path(str(data.get('id') or data.get('workflow') or '')).name
+    workflow_path = COMFY_WORKFLOW_DIR / workflow_id
+    if not workflow_id or not workflow_path.exists() or workflow_path.suffix.lower() != '.json':
+        raise FileNotFoundError('工作流不存在')
+
+    thumbnail_data = str(data.get('thumbnail_data') or '').strip()
+    thumbnail_bytes = None
+    if thumbnail_data:
+        image_bytes, _mime_type, _extension = _decode_data_uri_image(thumbnail_data)
+        buffer = __import__('io').BytesIO()
+        with Image.open(__import__('io').BytesIO(image_bytes)) as source:
+            preview = source.convert('RGB')
+            preview.thumbnail((640, 400), Image.Resampling.LANCZOS)
+            preview.save(buffer, 'WEBP', quality=84, method=6)
+        thumbnail_bytes = buffer.getvalue()
+
+    settings = load_app_settings()
+    section = settings.get('comfy') if isinstance(settings.get('comfy'), dict) else {}
+    section = dict(section)
+    catalog = section.get('workflow_catalog') if isinstance(section.get('workflow_catalog'), dict) else {}
+    catalog = dict(catalog)
+    previous = catalog.get(workflow_id) if isinstance(catalog.get(workflow_id), dict) else {}
+    meta = dict(previous)
+    for key, limit in (('label', 120), ('summary', 180), ('default_ratio', 16)):
+        if key in data:
+            meta[key] = str(data.get(key) or '').strip()[:limit]
+    for key in ('enabled', 'is_default', 'accepts_text', 'accepts_image'):
+        if key in data:
+            meta[key] = _coerce_bool(data.get(key), False)
+    for key, minimum, maximum in (('order', 0, 9999), ('max_images', 0, 8), ('output_count', 1, 8)):
+        if key in data:
+            try:
+                meta[key] = max(minimum, min(maximum, int(data.get(key))))
+            except (TypeError, ValueError):
+                pass
+    for key in ('default_width', 'default_height'):
+        if key in data:
+            meta[key] = _normalize_comfy_dimension(data.get(key), previous.get(key, 1024))
+    if meta.get('is_default'):
+        for existing_id, existing_meta in list(catalog.items()):
+            if isinstance(existing_meta, dict) and existing_id != workflow_id and existing_meta.get('is_default'):
+                catalog[existing_id] = {**existing_meta, 'is_default': False}
+    catalog[workflow_id] = meta
+    section['workflow_catalog'] = catalog
+    settings['comfy'] = section
+    save_app_settings(settings)
+
+    if thumbnail_bytes is not None:
+        COMFY_PREVIEW_DIR.mkdir(parents=True, exist_ok=True)
+        _comfy_workflow_preview_path(workflow_id).write_bytes(thumbnail_bytes)
+    elif _coerce_bool(data.get('clear_thumbnail'), False):
+        try:
+            _comfy_workflow_preview_path(workflow_id).unlink()
+        except FileNotFoundError:
+            pass
+    return next((item for item in _collect_comfy_workflows(include_disabled=True)['items'] if item['id'] == workflow_id), None)
+
+
+def _normalize_comfy_base_url(value):
+    base_url = str(value or '').strip().rstrip('/')
+    parsed = urllib.parse.urlparse(base_url)
+    if parsed.scheme not in ('http', 'https') or not parsed.hostname:
+        raise ValueError('ComfyUI Base URL 必须是完整的 http:// 或 https:// 地址')
+    return base_url
+
+
+def _collect_comfy_health(overrides=None):
+    config = dict(get_comfy_config())
+    overrides = overrides if isinstance(overrides, dict) else {}
+    if str(overrides.get('base_url') or '').strip():
+        config['base_url'] = _normalize_comfy_base_url(overrides.get('base_url'))
+    if str(overrides.get('timeout_seconds') or '').strip():
+        try:
+            config['timeout_seconds'] = max(5, min(1800, int(overrides.get('timeout_seconds'))))
+        except (TypeError, ValueError):
+            raise ValueError('ComfyUI 请求超时必须是 5 到 1800 之间的整数')
+    started = time.perf_counter()
+    with _new_comfy_session() as session:
+        response = session.get(f"{config['base_url']}/system_stats", timeout=min(config['timeout_seconds'], 10))
+        response.raise_for_status()
+        stats = response.json() if response.content else {}
+        queue_response = session.get(f"{config['base_url']}/queue", timeout=min(config['timeout_seconds'], 10))
+        queue_response.raise_for_status()
+        queue_data = queue_response.json() if queue_response.content else {}
+    pending = queue_data.get('queue_pending') if isinstance(queue_data, dict) else []
+    running = queue_data.get('queue_running') if isinstance(queue_data, dict) else []
+    return {
+        'ok': True,
+        'online': True,
+        'latency_ms': round((time.perf_counter() - started) * 1000),
+        'queue_pending': len(pending) if isinstance(pending, list) else 0,
+        'queue_running': len(running) if isinstance(running, list) else 0,
+        'system': stats if isinstance(stats, dict) else {},
+    }
+
+
 def _load_comfy_workflow(workflow_name):
     if not workflow_name:
         raise ValueError('缺少工作流名称')
@@ -2615,8 +3103,22 @@ def _load_comfy_workflow(workflow_name):
         return json.load(f), workflow_path.name
 
 
-def _resolve_comfy_size(ratio):
-    return COMFY_RATIO_SIZES.get(str(ratio or '1:1').strip(), COMFY_RATIO_SIZES['1:1'])
+def _resolve_comfy_size(ratio, resolution='1k'):
+    width, height = COMFY_RATIO_SIZES.get(str(ratio or '1:1').strip(), COMFY_RATIO_SIZES['1:1'])
+    target_long_edge = COMFY_RESOLUTION_LONG_EDGES.get(str(resolution or '1k').strip().lower(), 0)
+    if not target_long_edge:
+        return width, height
+    try:
+        ratio_width, ratio_height = (max(1, int(part)) for part in str(ratio or '1:1').split(':', 1))
+    except (TypeError, ValueError):
+        ratio_width, ratio_height = 1, 1
+    if ratio_width >= ratio_height:
+        width = target_long_edge
+        height = max(64, round(target_long_edge * ratio_height / ratio_width / 64) * 64)
+    else:
+        height = target_long_edge
+        width = max(64, round(target_long_edge * ratio_width / ratio_height / 64) * 64)
+    return width, height
 
 
 def _replace_comfy_tokens(value, replacements):
@@ -2663,12 +3165,13 @@ def _upload_comfy_image(image_data):
     image_bytes, mime_type, extension = _decode_data_uri_image(image_data)
     filename = f"miniapp_{int(time.time())}_{random.randint(1000, 9999)}{extension}"
 
+    config = get_comfy_config()
     with _new_comfy_session() as session:
         response = session.post(
-            f'{COMFY_BASE_URL}/upload/image',
+            f"{config['base_url']}/upload/image",
             files={'image': (filename, image_bytes, mime_type)},
             data={'type': 'input', 'overwrite': 'true'},
-            timeout=COMFY_TIMEOUT_SECONDS,
+            timeout=config['timeout_seconds'],
         )
         response.raise_for_status()
         result = response.json()
@@ -2676,23 +3179,41 @@ def _upload_comfy_image(image_data):
     return result.get('name') or filename
 
 
-def _prepare_comfy_workflow(workflow, prompt, ratio, uploaded_image_name=None):
-    width, height = _resolve_comfy_size(ratio)
+def _prepare_comfy_workflow(
+    workflow,
+    prompt,
+    ratio,
+    uploaded_image_name=None,
+    uploaded_image_names=None,
+    resolution='1k',
+    width=None,
+    height=None,
+):
+    fallback_width, fallback_height = _resolve_comfy_size(ratio, resolution)
+    width = _normalize_comfy_dimension(width, fallback_width)
+    height = _normalize_comfy_dimension(height, fallback_height)
     prepared = json.loads(json.dumps(workflow))
+    image_names = [str(name).strip() for name in (uploaded_image_names or []) if str(name).strip()]
+    if uploaded_image_name and uploaded_image_name not in image_names:
+        image_names.insert(0, uploaded_image_name)
     replacements = {
         '{{PROMPT}}': prompt or '',
         '{{WIDTH}}': width,
         '{{HEIGHT}}': height,
         '{{SEED}}': random.randint(1, 2**31 - 1),
-        '{{IMAGE}}': uploaded_image_name or '',
+        '{{IMAGE}}': image_names[0] if image_names else '',
     }
+    for index, image_name in enumerate(image_names, start=1):
+        replacements[f'{{{{IMAGE_{index}}}}}'] = image_name
     prepared = _replace_comfy_tokens(prepared, replacements)
 
+    load_image_index = 0
     for node in prepared.values():
         if not isinstance(node, dict):
             continue
 
-        class_type = node.get('class_type')
+        class_type = str(node.get('class_type') or '')
+        class_key = class_type.lower().replace('_', '')
         inputs = node.get('inputs') if isinstance(node.get('inputs'), dict) else None
         if not inputs:
             continue
@@ -2700,21 +3221,31 @@ def _prepare_comfy_workflow(workflow, prompt, ratio, uploaded_image_name=None):
         if class_type == 'EmptyLatentImage':
             inputs['width'] = width
             inputs['height'] = height
+        else:
+            if 'width' in inputs and not isinstance(inputs.get('width'), (dict, list)):
+                inputs['width'] = width
+            if 'height' in inputs and not isinstance(inputs.get('height'), (dict, list)):
+                inputs['height'] = height
 
-        if uploaded_image_name and class_type == 'LoadImage':
-            inputs['image'] = uploaded_image_name
+        if prompt and isinstance(inputs.get('prompt'), str):
+            inputs['prompt'] = prompt
+
+        if image_names and 'loadimage' in class_key and 'image' in inputs and not isinstance(inputs.get('image'), (dict, list)):
+            inputs['image'] = image_names[min(load_image_index, len(image_names) - 1)]
+            load_image_index += 1
 
     return prepared
 
 
 def _proxy_comfy_json(method, path, *, params=None, payload=None):
+    config = get_comfy_config()
     with _new_comfy_session() as session:
         response = session.request(
             method,
-            f'{COMFY_BASE_URL}{path}',
+            f"{config['base_url']}{path}",
             params=params,
             json=payload,
-            timeout=COMFY_TIMEOUT_SECONDS,
+            timeout=config['timeout_seconds'],
         )
         response.raise_for_status()
         return response.json()
@@ -2726,23 +3257,24 @@ def _fetch_comfy_binary(filename, subfolder='', file_type='output'):
         'subfolder': subfolder or '',
         'type': file_type or 'output',
     }
+    config = get_comfy_config()
     with _new_comfy_session() as session:
         response = session.get(
-            f'{COMFY_BASE_URL}/view',
+            f"{config['base_url']}/view",
             params=params,
-            timeout=COMFY_TIMEOUT_SECONDS,
+            timeout=config['timeout_seconds'],
         )
         response.raise_for_status()
         return response.content, response.headers.get('Content-Type', 'application/octet-stream')
 
 
-def _find_best_comfy_image(outputs):
-    final_img = None
-    temp_img = None
-
+def _find_comfy_images(outputs):
     if not isinstance(outputs, dict):
-        return None
+        return []
 
+    final_images = []
+    temp_images = []
+    seen = set()
     for node_output in outputs.values():
         images = node_output.get('images') if isinstance(node_output, dict) else None
         if not images:
@@ -2750,12 +3282,21 @@ def _find_best_comfy_image(outputs):
         for image in images:
             if not isinstance(image, dict):
                 continue
-            if image.get('type') == 'output' and final_img is None:
-                final_img = image
-            elif temp_img is None:
-                temp_img = image
+            key = (image.get('filename'), image.get('subfolder'), image.get('type'))
+            if not key[0] or key in seen:
+                continue
+            seen.add(key)
+            if image.get('type') == 'output':
+                final_images.append(image)
+            else:
+                temp_images.append(image)
 
-    return final_img or temp_img
+    return final_images or temp_images
+
+
+def _find_best_comfy_image(outputs):
+    images = _find_comfy_images(outputs)
+    return images[0] if images else None
 
 
 def _save_task_params(task_id, params):
@@ -2783,12 +3324,14 @@ def _sync_comfy_task(prompt_id, entry):
     outputs = entry.get('outputs') if isinstance(entry, dict) else {}
     completed = bool(status.get('completed')) if isinstance(status, dict) else False
     status_str = str(status.get('status_str', '') if isinstance(status, dict) else '').lower()
-    comfy_image = _find_best_comfy_image(outputs)
+    comfy_images = _find_comfy_images(outputs)
+    comfy_image = comfy_images[0] if comfy_images else None
 
     params = task.get('params') or {}
     updated_params = dict(params)
     if comfy_image:
         updated_params['comfy_image'] = comfy_image
+        updated_params['comfy_images'] = comfy_images
 
     if completed and comfy_image:
         update_task_status(
@@ -2802,6 +3345,7 @@ def _sync_comfy_task(prompt_id, entry):
         return {
             'completed': True,
             'image': comfy_image,
+            'images': comfy_images,
             'params': updated_params,
             'progress_text': 'ComfyUI 已完成，正在整理结果...',
         }
@@ -3059,72 +3603,302 @@ def process_upscale_task(task_id, prompt, image_data, params):
                 pass
 
 
-def _send_comfy_result(task_id, prompt, workflow, ratio, comfy_image, params):
-    temp_path = None
-    filename = str(comfy_image.get('filename', '')).strip()
-    if not filename:
-        raise RuntimeError('ComfyUI 输出缺少 filename')
+_COMFY_ARCHIVE_MANIFEST_VERSION = 1
+_COMFY_TELEGRAM_STATES = frozenset(('pending', 'sending', 'sent', 'failed'))
 
-    subfolder = comfy_image.get('subfolder', '')
-    file_type = comfy_image.get('type', 'output')
 
-    update_task_status(task_id, 'processing', 'ComfyUI 已完成，正在发送到 Telegram...', stage='sending_telegram')
-    send_status_notification(task_id, 'ComfyUI 已完成，正在发送图片...', '📤')
+def _comfy_archive_date(params):
+    manifest = params.get('comfy_archive_manifest') if isinstance(params.get('comfy_archive_manifest'), dict) else {}
+    for value in (params.get('comfy_archive_date'), manifest.get('archive_date')):
+        text = str(value or '').strip()
+        try:
+            parsed = datetime.strptime(text, '%Y-%m-%d')
+        except (TypeError, ValueError):
+            continue
+        if parsed.strftime('%Y-%m-%d') == text:
+            return text
+    return datetime.now().strftime('%Y-%m-%d')
 
+
+def _comfy_archive_source_key(task_id, item):
+    payload = [
+        str(task_id or ''),
+        str(item.get('filename') or '').strip(),
+        str(item.get('subfolder') or '').strip(),
+        str(item.get('type') or 'output').strip() or 'output',
+    ]
+    encoded = json.dumps(payload, ensure_ascii=False, separators=(',', ':')).encode('utf-8')
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def _comfy_archive_filename(task_id, item, source_key):
+    filename = str(item.get('filename') or '').strip()
+    suffix = Path(filename).suffix or '.png'
+    if suffix.lower() not in ('.png', '.jpg', '.jpeg', '.webp'):
+        suffix = '.png'
+    else:
+        suffix = suffix.lower()
+    source_stem = re.sub(r'[^A-Za-z0-9_-]+', '_', Path(filename).stem).strip('_')[:48] or 'output'
+    task_key = hashlib.sha256(str(task_id or '').encode('utf-8')).hexdigest()[:16]
+    return f'comfy_{task_key}_{source_stem}_{source_key[:16]}{suffix}'
+
+
+def _comfy_archive_file_ready(path):
     try:
-        image_bytes, _ = _fetch_comfy_binary(filename, subfolder, file_type)
-        suffix = Path(filename).suffix or '.png'
-        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
-            tmp.write(image_bytes)
-            temp_path = tmp.name
+        return path.is_file() and path.stat().st_size > 0
+    except OSError:
+        return False
 
-        caption_parts = [part for part in (f'ComfyUI {workflow}'.strip(), ratio) if part]
+
+def _build_comfy_archive_manifest(task_id, params, comfy_images, archive_date):
+    previous = params.get('comfy_archive_manifest') if isinstance(params.get('comfy_archive_manifest'), dict) else {}
+    previous_items = previous.get('items') if isinstance(previous.get('items'), list) else []
+    previous_by_key = {
+        str(item.get('source_key')): item
+        for item in previous_items
+        if isinstance(item, dict) and item.get('source_key')
+    }
+    legacy_all_sent = bool(params.get('comfy_telegram_sent'))
+    items = []
+    for image in comfy_images:
+        source_key = _comfy_archive_source_key(task_id, image)
+        old_item = previous_by_key.get(source_key) or {}
+        telegram_state = str(old_item.get('telegram_state') or '').strip().lower()
+        if telegram_state not in _COMFY_TELEGRAM_STATES:
+            telegram_state = 'sent' if old_item.get('telegram_sent') or legacy_all_sent else 'pending'
+        item = {
+            'source_key': source_key,
+            'filename': str(image.get('filename') or '').strip(),
+            'subfolder': str(image.get('subfolder') or '').strip(),
+            'type': str(image.get('type') or 'output').strip() or 'output',
+            'archive_file': _comfy_archive_filename(task_id, image, source_key),
+            'archived': bool(old_item.get('archived')),
+            'telegram_state': telegram_state,
+            'telegram_sent': telegram_state == 'sent',
+        }
+        for key in ('archived_at', 'telegram_attempted_at', 'telegram_sent_at'):
+            if old_item.get(key) is not None:
+                item[key] = old_item.get(key)
+        items.append(item)
+    return {
+        'version': _COMFY_ARCHIVE_MANIFEST_VERSION,
+        'archive_date': archive_date,
+        'items': items,
+    }
+
+
+def _atomic_write_comfy_text(path, text):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, temp_name = tempfile.mkstemp(prefix=f'.{path.name}.', suffix='.tmp', dir=str(path.parent))
+    try:
+        with os.fdopen(fd, 'w', encoding='utf-8') as handle:
+            handle.write(text)
+        os.replace(temp_name, path)
+    finally:
+        try:
+            if os.path.exists(temp_name):
+                os.unlink(temp_name)
+        except Exception:
+            pass
+
+
+def _send_comfy_result(task_id, prompt, workflow, ratio, comfy_image, params):
+    if _is_task_canceled(task_id):
+        return
+    params = dict(params or {})
+    width = _normalize_comfy_dimension(params.get('width'), 1024)
+    height = _normalize_comfy_dimension(params.get('height'), 1024)
+    size_label = f'{width}×{height}'
+    comfy_images = params.get('comfy_images') if isinstance(params.get('comfy_images'), list) else []
+    if not comfy_images and isinstance(comfy_image, dict):
+        comfy_images = [comfy_image]
+    try:
+        expected_count = max(1, min(8, int(params.get('comfy_expected_output_count') or len(comfy_images) or 1)))
+    except (TypeError, ValueError):
+        expected_count = 1
+    comfy_images = [
+        item for item in comfy_images
+        if isinstance(item, dict) and str(item.get('filename') or '').strip()
+    ][:expected_count]
+    if not comfy_images:
+        raise RuntimeError('ComfyUI 输出缺少图片')
+
+    archive_date = _comfy_archive_date(params)
+    output_dir = daily_output_dir(datetime.strptime(archive_date, '%Y-%m-%d'))
+    output_dir.mkdir(parents=True, exist_ok=True)
+    manifest = _build_comfy_archive_manifest(task_id, params, comfy_images, archive_date)
+    manifest_items = manifest['items']
+    params['comfy_image'] = comfy_images[0]
+    params['comfy_images'] = comfy_images
+    params['archive_enabled'] = True
+    params['archive_dir'] = str(output_dir)
+    params['comfy_archive_date'] = archive_date
+    params['comfy_archive_manifest'] = manifest
+
+    def persist_manifest():
+        archived_names = []
+        for manifest_item in manifest_items:
+            archive_path = output_dir / manifest_item['archive_file']
+            if manifest_item.get('archived') and _comfy_archive_file_ready(archive_path):
+                archived_names.append(manifest_item['archive_file'])
+        params['archive_files'] = archived_names
+        if archived_names:
+            params['archive_file'] = archived_names[0]
+        else:
+            params.pop('archive_file', None)
+        params['comfy_archive_manifest'] = manifest
+        _save_task_params(task_id, params)
+
+    # Fix the archive date and deterministic names before touching final storage.
+    persist_manifest()
+
+    staged_files = {}
+    with tempfile.TemporaryDirectory(prefix='.comfy-stage-', dir=str(output_dir)) as stage_dir_name:
+        stage_dir = Path(stage_dir_name)
+        for item in manifest_items:
+            if _is_task_canceled(task_id):
+                return
+            archive_path = output_dir / item['archive_file']
+            if _comfy_archive_file_ready(archive_path):
+                continue
+            image_bytes, _ = _fetch_comfy_binary(item['filename'], item['subfolder'], item['type'])
+            if not isinstance(image_bytes, (bytes, bytearray)) or not image_bytes:
+                raise RuntimeError(f"ComfyUI 输出图片为空：{item['filename']}")
+            stage_path = stage_dir / f"{item['archive_file']}.tmp"
+            stage_path.write_bytes(image_bytes)
+            staged_files[item['source_key']] = stage_path
+
+        # All remote downloads succeeded. Only now expose files in the archive.
+        if _is_task_canceled(task_id):
+            return
+        for item in manifest_items:
+            stage_path = staged_files.get(item['source_key'])
+            if stage_path is not None:
+                os.replace(stage_path, output_dir / item['archive_file'])
+
+    archive_paths = []
+    archive_names = []
+    total = len(comfy_images)
+    workflow_parameters = params.get('workflow_parameters') if isinstance(params.get('workflow_parameters'), dict) else {}
+    for index, item in enumerate(manifest_items, start=1):
+        if _is_task_canceled(task_id):
+            return
+        archive_name = item['archive_file']
+        archive_path = output_dir / archive_name
+        if not _comfy_archive_file_ready(archive_path):
+            raise RuntimeError(f"ComfyUI 归档文件写入失败：{archive_name}")
+        archive_paths.append(archive_path)
+        archive_names.append(archive_name)
+
+        sidecar = archive_path.with_suffix('.txt')
+        sidecar_lines = [
+            str(prompt or '').strip(),
+            '',
+            f'workflow: {workflow}',
+            f'ratio: {ratio}',
+            f'size: {width}x{height}',
+            'provider: comfy',
+            f'candidate: {index}/{total}',
+        ]
+        if workflow_parameters:
+            sidecar_lines.append('parameters:')
+            sidecar_lines.extend(f'- {key}: {value}' for key, value in workflow_parameters.items())
+        sidecar_text = '\n'.join(sidecar_lines).strip()
+        _atomic_write_comfy_text(sidecar, sidecar_text + '\n')
+        try:
+            write_obsidian_prompt_sidecar(archive_path, sidecar_text, txt_path=sidecar)
+        except Exception as exc:
+            print(f"⚠️ 写入 ComfyUI sidecar 失败: {exc}")
+        try:
+            save_thumbnail(str(archive_path), archive_name)
+        except Exception as exc:
+            print(f"⚠️ 保存 ComfyUI 缩略图失败: {exc}")
+        item['archived'] = True
+        item.setdefault('archived_at', int(time.time()))
+        persist_manifest()
+
+    if not archive_paths:
+        raise RuntimeError('ComfyUI 输出没有可归档的图片')
+
+    telegram_enabled = _coerce_bool(params.get('telegram_enabled', params.get('telegramEnabled')), True)
+    has_pending_telegram = telegram_enabled and any(
+        item.get('telegram_state') == 'pending'
+        for item in manifest_items
+    )
+    if _is_task_canceled(task_id):
+        return
+    if has_pending_telegram:
+        update_task_status(task_id, 'processing', 'ComfyUI 已归档，正在发送到 Telegram...', stage='sending_telegram')
+        send_status_notification(task_id, 'ComfyUI 已完成，正在发送图片...', '📤')
+    for index, (item, archive_path) in enumerate(zip(manifest_items, archive_paths), start=1):
+        caption_parts = [part for part in (f'ComfyUI {workflow}'.strip(), size_label, f'{index}/{len(archive_paths)}' if len(archive_paths) > 1 else '') if part]
         caption = ' | '.join(caption_parts)
         if prompt:
             caption = f"{caption}\n{prompt}" if caption else prompt
         caption = caption[:500] + '...' if len(caption) > 500 else caption
-
-        sent = send_telegram(None, temp_path, caption)
-        params = dict(params or {})
-        params['comfy_image'] = comfy_image
-        params['comfy_telegram_sent'] = bool(sent)
-        params['comfy_telegram_sent_at'] = int(time.time()) if sent else None
-
+        if not telegram_enabled or item.get('telegram_state') != 'pending':
+            continue
+        if _is_task_canceled(task_id):
+            return
+        item['telegram_state'] = 'sending'
+        item['telegram_sent'] = False
+        item['telegram_attempted_at'] = int(time.time())
+        persist_manifest()
+        sent = bool(send_telegram(None, str(archive_path), caption))
+        item['telegram_state'] = 'sent' if sent else 'failed'
+        item['telegram_sent'] = sent
         if sent:
-            update_task(
-                task_id,
-                'succeeded',
-                result_file=filename,
-                stage='done',
-                progress_text='ComfyUI 生成成功',
-                params=json.dumps(params, ensure_ascii=False),
-            )
-            send_status_notification(task_id, '✅ ComfyUI 图片生成成功！', '🎉')
-        else:
-            update_task(
-                task_id,
-                'succeeded_no_telegram',
-                result_file=filename,
-                stage='done',
-                progress_text='ComfyUI 已生成，但 Telegram 发送失败',
-                params=json.dumps(params, ensure_ascii=False),
-            )
-            send_status_notification(task_id, '❌ ComfyUI 已生成，但 Telegram 发送失败', '⚠️')
-    finally:
-        if temp_path and os.path.exists(temp_path):
-            try:
-                os.unlink(temp_path)
-            except Exception:
-                pass
+            item['telegram_sent_at'] = int(time.time())
+        persist_manifest()
+
+    if _is_task_canceled(task_id):
+        return
+    telegram_success = telegram_enabled and all(
+        item.get('telegram_state') == 'sent'
+        for item in manifest_items
+    )
+    params['archive_file'] = archive_names[0]
+    params['archive_files'] = archive_names
+    params['telegram_enabled'] = telegram_enabled
+    params['comfy_telegram_sent'] = telegram_success
+    params['comfy_telegram_sent_at'] = int(time.time()) if telegram_success else None
+
+    if telegram_enabled and telegram_success:
+        final_status = 'succeeded'
+        progress_text = 'ComfyUI 生成成功'
+    elif telegram_enabled:
+        final_status = 'succeeded_no_telegram'
+        progress_text = 'ComfyUI 已生成，但 Telegram 发送未全部成功'
+    else:
+        final_status = 'succeeded_no_telegram'
+        progress_text = 'ComfyUI 已生成并归档，已按节点开关跳过 Telegram'
+    update_task(
+        task_id,
+        final_status,
+        result_file=archive_names[0],
+        result_files=json.dumps(archive_names, ensure_ascii=False),
+        stage='done',
+        progress_text=progress_text,
+        params=json.dumps(params, ensure_ascii=False),
+    )
+    if telegram_enabled and telegram_success:
+        send_status_notification(task_id, '✅ ComfyUI 图片生成成功！', '🎉')
+    elif telegram_enabled:
+        send_status_notification(task_id, '❌ ComfyUI 已生成，但 Telegram 发送未全部成功', '⚠️')
 
 
 def process_comfy_task(task_id, prompt, workflow, ratio):
-    deadline = time.time() + COMFY_TASK_TIMEOUT_SECONDS
+    config = get_comfy_config()
+    if _is_task_canceled(task_id):
+        return
+    deadline = time.time() + config['task_timeout_seconds']
     update_task_status(task_id, 'processing', 'ComfyUI 任务已提交，等待执行...', stage='queued')
     send_status_notification(task_id, f'已提交 ComfyUI 任务：{workflow}', '✅')
     last_notified_text = None
 
     while time.time() < deadline:
+        if _is_task_canceled(task_id):
+            return
         try:
             _, entry = _fetch_comfy_history_entry(task_id)
             if isinstance(entry, dict):
@@ -3140,6 +3914,8 @@ def process_comfy_task(task_id, prompt, workflow, ratio):
                 if sync_state.get('completed'):
                     comfy_image = sync_state.get('image')
                     if comfy_image:
+                        if _is_task_canceled(task_id):
+                            return
                         params = sync_state.get('params') or {}
                         if not params.get('comfy_telegram_sent'):
                             _send_comfy_result(task_id, prompt, workflow, ratio, comfy_image, params)
@@ -3158,8 +3934,10 @@ def process_comfy_task(task_id, prompt, workflow, ratio):
                 send_status_notification(task_id, msg, '⚠️')
                 last_notified_text = msg
 
-        time.sleep(COMFY_POLL_INTERVAL_SECONDS)
+        time.sleep(config['poll_interval_seconds'])
 
+    if _is_task_canceled(task_id):
+        return
     update_task(
         task_id,
         'failed',
@@ -3514,6 +4292,7 @@ def _collect_system_diagnostics():
     prompt_skill_cfg = get_prompt_skill_config()
     third_party_cfg = get_third_party_image_config()
     managed_codex_cfg = get_managed_codex_oauth_status()
+    comfy_cfg = get_comfy_config()
 
     return {
         "ok": True,
@@ -3559,6 +4338,12 @@ def _collect_system_diagnostics():
             "format": third_party_cfg.get("format", "png"),
             "timeout_seconds": third_party_cfg.get("timeout_seconds", 900),
         },
+        "comfy": {
+            "base_url": comfy_cfg.get("base_url", ""),
+            "configured": bool(comfy_cfg.get("base_url")),
+            "environment_managed": bool(comfy_cfg.get("environment_managed")),
+            "workflow_count": len(_collect_comfy_workflows().get("items") or []),
+        },
         "storage": {
             "image_archive_dir": _path_diagnostics(storage_cfg["image_archive_dir"], expect_dir=True),
             "source_image_dir": _path_diagnostics(storage_cfg["source_image_dir"], expect_dir=True),
@@ -3599,6 +4384,7 @@ def _collect_gpt_runtime_config():
 
 def _collect_system_settings():
     """Return editable settings without exposing secret values."""
+    ensure_pinterest_auth_storage()
     telegram_cfg = get_telegram_config()
     storage_cfg = get_storage_config()
     server_cfg = get_server_config()
@@ -3609,6 +4395,9 @@ def _collect_system_settings():
     third_party_cfg = get_third_party_image_config()
     proxy_cfg = get_proxy_config()
     prompt_source_proxy_cfg = get_proxy_config("prompt_source")
+    comfy_cfg = get_comfy_config()
+    pinterest_cfg = get_pinterest_config()
+    pinterest_browser = get_pinterest_browser_login_capability()
     return {
         "ok": True,
         "settings": {
@@ -3648,6 +4437,33 @@ def _collect_system_settings():
                 "edit_path": third_party_cfg.get("edit_path", ""),
                 "format": third_party_cfg.get("format", "png"),
                 "timeout_seconds": third_party_cfg.get("timeout_seconds", 900),
+            },
+            "comfy": {
+                "base_url": comfy_cfg.get("base_url", ""),
+                "timeout_seconds": comfy_cfg.get("timeout_seconds", 120),
+                "task_timeout_seconds": comfy_cfg.get("task_timeout_seconds", 1800),
+                "poll_interval_seconds": comfy_cfg.get("poll_interval_seconds", 2),
+                "environment_managed": bool(comfy_cfg.get("environment_managed")),
+                "environment_fields": comfy_cfg.get("environment_fields") or [],
+            },
+            "pinterest": {
+                "enabled": bool(pinterest_cfg.get("enabled")),
+                "profile_url": pinterest_cfg.get("profile_url", ""),
+                "sync_profile_url": pinterest_cfg.get("sync_profile_url", ""),
+                "auth_configured": bool(pinterest_cfg.get("auth_configured")),
+                "auth_status": pinterest_cfg.get("auth_status", "not_configured"),
+                "auth_updated_at": pinterest_cfg.get("auth_updated_at", ""),
+                "last_verified_at": pinterest_cfg.get("last_verified_at", ""),
+                "auth_source": pinterest_cfg.get("auth_source", "none"),
+                "auth_username": pinterest_cfg.get("auth_username", ""),
+                "auth_display_name": pinterest_cfg.get("auth_display_name", ""),
+                "auth_profile_url": pinterest_cfg.get("auth_profile_url", ""),
+                "browser_login_available": bool(pinterest_browser.get("available")),
+                "browser_name": pinterest_browser.get("browser", ""),
+                "sync_mode": pinterest_cfg.get("sync_mode", "auto"),
+                "download_originals": bool(pinterest_cfg.get("download_originals", True)),
+                "max_pins_per_board": pinterest_cfg.get("max_pins_per_board", 500),
+                "request_timeout_seconds": pinterest_cfg.get("request_timeout_seconds", 20),
             },
             "paths": {
                 "image_archive_dir": str(storage_cfg["image_archive_dir"]),
@@ -3700,6 +4516,26 @@ def _patch_secret(target, source, key, clear_key=None, max_len=8192):
     value = _clean_text(source.get(key), max_len=max_len)
     if value:
         target[key] = value
+
+
+def _normalize_pinterest_profile_url(value):
+    text = _clean_text(value, max_len=2048)
+    if not text:
+        return ""
+    parsed = urllib.parse.urlparse(text if "://" in text else f"https://{text}")
+    host = (parsed.hostname or "").lower().rstrip(".")
+    if parsed.scheme not in {"http", "https"} or not (host == "pinterest.com" or host.endswith(".pinterest.com")):
+        raise ValueError("Pinterest 主页地址必须使用 pinterest.com 域名")
+    path = re.sub(r"/+", "/", parsed.path or "/")
+    return urllib.parse.urlunparse(("https", host, path, "", "", ""))
+
+
+def _normalize_pinterest_cookie_header(value):
+    text = str(value or "").strip()
+    if text.lower().startswith("cookie:"):
+        text = text.split(":", 1)[1].strip()
+    text = re.sub(r"[\r\n]+", " ", text).strip()
+    return text[:65536]
 
 
 def _sanitize_system_settings_patch(payload):
@@ -3784,6 +4620,67 @@ def _sanitize_system_settings_patch(payload):
             pass
     if third_party_data:
         settings["third_party_image_api"] = third_party
+
+    comfy = _settings_dict(settings.get("comfy")).copy()
+    comfy_data = _settings_dict(data.get("comfy"))
+    _patch_text(comfy, comfy_data, "base_url", max_len=2048)
+    if "base_url" in comfy_data:
+        comfy["base_url"] = _normalize_comfy_base_url(comfy.get("base_url"))
+    for key, minimum, maximum in (
+        ("timeout_seconds", 5, 1800),
+        ("task_timeout_seconds", 60, 86400),
+    ):
+        if key in comfy_data:
+            try:
+                comfy[key] = max(minimum, min(maximum, int(comfy_data.get(key))))
+            except (TypeError, ValueError):
+                pass
+    if "poll_interval_seconds" in comfy_data:
+        try:
+            comfy["poll_interval_seconds"] = max(0.25, min(30.0, float(comfy_data.get("poll_interval_seconds"))))
+        except (TypeError, ValueError):
+            pass
+    if comfy_data:
+        settings["comfy"] = comfy
+
+    pinterest = _settings_dict(settings.get("pinterest")).copy()
+    pinterest_data = _settings_dict(data.get("pinterest"))
+    had_legacy_auth_file = "auth_file" in pinterest
+    pinterest.pop("auth_file", None)
+    if "enabled" in pinterest_data:
+        pinterest["enabled"] = _coerce_bool(pinterest_data.get("enabled"), False)
+    if "profile_url" in pinterest_data:
+        pinterest["profile_url"] = _normalize_pinterest_profile_url(pinterest_data.get("profile_url"))
+    if "sync_profile_url" in pinterest_data:
+        sync_profile_url = _normalize_pinterest_profile_url(pinterest_data.get("sync_profile_url"))
+        if sync_profile_url:
+            pinterest["sync_profile_url"] = sync_profile_url
+        else:
+            pinterest.pop("sync_profile_url", None)
+    if "sync_mode" in pinterest_data:
+        sync_mode = _clean_text(pinterest_data.get("sync_mode"), max_len=32).lower()
+        if sync_mode in {"auto", "rss", "authenticated_browser"}:
+            pinterest["sync_mode"] = sync_mode
+    if "download_originals" in pinterest_data:
+        pinterest["download_originals"] = _coerce_bool(pinterest_data.get("download_originals"), True)
+    for key, minimum, maximum in (
+        ("max_pins_per_board", 20, 5000),
+        ("request_timeout_seconds", 5, 60),
+    ):
+        if key in pinterest_data:
+            try:
+                pinterest[key] = max(minimum, min(maximum, int(pinterest_data.get(key))))
+            except (TypeError, ValueError):
+                pass
+    clear_pinterest_auth = _coerce_bool(pinterest_data.get("clear_auth_cookie"), False)
+    if clear_pinterest_auth:
+        for key in ("auth_cookie", "auth_updated_at", "last_verified_at"):
+            pinterest.pop(key, None)
+        pinterest["auth_status"] = "not_configured"
+    elif _coerce_bool(pinterest_data.get("clear_legacy_auth_cookie"), False):
+        pinterest.pop("auth_cookie", None)
+    if pinterest_data or had_legacy_auth_file:
+        settings["pinterest"] = pinterest
 
     pool = _settings_dict(settings.get("chatgpt_pool")).copy()
     pool_data = _settings_dict(data.get("chatgpt_pool"))
@@ -3873,7 +4770,8 @@ def save_thumbnail(image_path, output_filename):
         os.makedirs(google_outputs_dir, exist_ok=True)
         thumb_path = os.path.join(google_outputs_dir, f'thumb_{output_filename}')
         with Image.open(image_path) as img:
-            img.thumbnail((300, 300), Image.LANCZOS)
+            # 与 /thumb/ 的 420px 上限对齐，让 sidecar 可以直接作为图库缩略图转码源
+            img.thumbnail((THUMB_MAX_SIDE, THUMB_MAX_SIDE), Image.LANCZOS)
             img.save(thumb_path, 'PNG', quality=80)
         print(f"🖼️ 缩略图已保存：{thumb_path}")
         return True
@@ -4668,6 +5566,10 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
             if not self.require_auth():
                 return
             self.handle_assets(parsed)
+        elif path == '/api/assets/detail':
+            if not self.require_auth():
+                return
+            self.handle_asset_detail(parsed)
         elif path == '/api/assets/health':
             if not self.require_auth():
                 return
@@ -4684,6 +5586,18 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
             if not self.require_auth():
                 return
             self.handle_system_settings()
+        elif path == '/api/pinterest/library':
+            if not self.require_auth():
+                return
+            self.handle_pinterest_library(parsed)
+        elif path == '/api/pinterest/download-status':
+            if not self.require_auth():
+                return
+            self.handle_pinterest_download_status(parsed)
+        elif path == '/api/pinterest/sync-status':
+            if not self.require_auth():
+                return
+            self.handle_pinterest_sync_status(parsed)
         elif path == '/api/gpt/config':
             if not self.require_auth():
                 return
@@ -4724,6 +5638,10 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
             if not self.require_auth():
                 return
             self.handle_prompt_versions(parsed)
+        elif path == '/api/prompt/color-schemes':
+            if not self.require_auth():
+                return
+            self.handle_prompt_color_schemes()
         elif path == '/api/prompt-library/blocks/list':
             if not self.require_auth():
                 return
@@ -4815,6 +5733,14 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
             if not self.require_auth():
                 return
             self.handle_comfy_workflows()
+        elif path == '/api/comfy/health':
+            if not self.require_auth():
+                return
+            self.handle_comfy_health(parsed)
+        elif path == '/api/comfy/workflow-thumbnail':
+            if not self.require_auth():
+                return
+            self.handle_comfy_workflow_thumbnail(parsed)
         elif path == '/api/comfy/history':
             if not self.require_auth():
                 return
@@ -4920,6 +5846,38 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
             if not self.require_auth():
                 return
             self.handle_system_settings_save()
+        elif path == '/api/pinterest/auth/start':
+            if not self.require_auth():
+                return
+            self.handle_pinterest_auth_start()
+        elif path == '/api/pinterest/auth/complete':
+            if not self.require_auth():
+                return
+            self.handle_pinterest_auth_complete()
+        elif path == '/api/pinterest/auth/cancel':
+            if not self.require_auth():
+                return
+            self.handle_pinterest_auth_cancel()
+        elif path == '/api/pinterest/auth/verify':
+            if not self.require_auth():
+                return
+            self.handle_pinterest_auth_verify()
+        elif path == '/api/pinterest/auth/logout':
+            if not self.require_auth():
+                return
+            self.handle_pinterest_auth_logout()
+        elif path == '/api/pinterest/download-pin':
+            if not self.require_auth():
+                return
+            self.handle_pinterest_download_pin()
+        elif path == '/api/pinterest/prompt':
+            if not self.require_auth():
+                return
+            self.handle_pinterest_prompt_save()
+        elif path == '/api/pinterest/download-board':
+            if not self.require_auth():
+                return
+            self.handle_pinterest_download_board()
         elif path.startswith('/api/gpt-pool/'):
             if not self.require_auth():
                 return
@@ -4988,6 +5946,22 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
             if not self.require_auth():
                 return
             self.handle_prompt_version_save()
+        elif path == '/api/prompt/color-schemes/save':
+            if not self.require_auth():
+                return
+            self.handle_prompt_color_scheme_save()
+        elif path == '/api/prompt/color-schemes/delete':
+            if not self.require_auth():
+                return
+            self.handle_prompt_color_scheme_delete()
+        elif path == '/api/prompt/color-schemes/favorite':
+            if not self.require_auth():
+                return
+            self.handle_prompt_color_scheme_favorite()
+        elif path == '/api/prompt/color-schemes/migrate-legacy':
+            if not self.require_auth():
+                return
+            self.handle_prompt_color_schemes_migrate_legacy()
         elif path == '/api/prompt-library/blocks/save':
             if not self.require_auth():
                 return
@@ -5016,6 +5990,10 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
             if not self.require_auth():
                 return
             self.handle_comfy_run()
+        elif path == '/api/comfy/workflow/config':
+            if not self.require_auth():
+                return
+            self.handle_comfy_workflow_config_save()
         elif path == '/api/comfy/send_tg':
             if not self.require_auth():
                 return
@@ -5111,15 +6089,29 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
             self.send_error(404, "Not Found")
 
     def send_json(self, data, status=200, extra_headers=None):
-        """发送 JSON 响应"""
+        """发送 JSON 响应；大响应在客户端支持时做 gzip 压缩（提示词文本可压约 10x）。"""
+        body = json.dumps(data).encode()
+        content_encoding = ''
+        if len(body) > 51200:
+            accept_encoding = str(self.headers.get('Accept-Encoding') or '').lower()
+            if 'gzip' in accept_encoding:
+                try:
+                    body = gzip.compress(body, compresslevel=5)
+                    content_encoding = 'gzip'
+                except Exception:
+                    content_encoding = ''
         self.send_response(status)
         self.send_header('Content-Type', 'application/json')
+        if content_encoding:
+            self.send_header('Content-Encoding', content_encoding)
+            self.send_header('Vary', 'Accept-Encoding')
+        self.send_header('Content-Length', str(len(body)))
         self._apply_cors_headers()
         if extra_headers:
             for key, value in extra_headers.items():
                 self.send_header(key, value)
         self.end_headers()
-        self.wfile.write(json.dumps(data).encode())
+        self.wfile.write(body)
 
     def read_json_body(self, max_bytes=64 * 1024 * 1024):
         content_length = int(self.headers.get('Content-Length', 0))
@@ -5520,8 +6512,44 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
             "message": "登录成功"
         }, extra_headers={"Set-Cookie": "; ".join(cookie_parts)})
 
-    def _send_auth_success_cookie(self, message):
-        cookie_value = _build_auth_cookie_value()
+    def _presented_auth_token(self):
+        """按 is_authenticated 的优先级取出请求携带的鉴权 token。"""
+        header_token = self.headers.get(AUTH_HEADER_NAME, '')
+        if header_token:
+            return header_token
+        try:
+            query = urllib.parse.parse_qs(urllib.parse.urlparse(getattr(self, 'path', '') or '').query)
+            query_token = (
+                query.get('miniappAuth', [''])[0]
+                or query.get('authToken', [''])[0]
+                or query.get('auth_token', [''])[0]
+            )
+            if query_token:
+                return query_token
+        except Exception:
+            pass
+        return self._get_cookie_value(AUTH_COOKIE_NAME)
+
+    def _reusable_auth_token(self):
+        """仍在前半有效期内的合法 token 原样复用，保持媒体 URL 跨启动稳定（浏览器缓存命中）。"""
+        token = str(self._presented_auth_token() or '')
+        if not token or '.' not in token:
+            return ''
+        try:
+            # token 可能来自 query/header 的不可信字节（如非 ASCII），校验失败一律回退铸新
+            if not _verify_auth_cookie_value(token):
+                return ''
+        except Exception:
+            return ''
+        issued_at_raw = token.split('.', 1)[0]
+        if not issued_at_raw.isdigit():
+            return ''
+        if int(issued_at_raw) + AUTH_COOKIE_MAX_AGE // 2 < int(time.time()):
+            return ''
+        return token
+
+    def _send_auth_success_cookie(self, message, cookie_value=None):
+        cookie_value = cookie_value or _build_auth_cookie_value()
         cookie_parts = [
             f"{AUTH_COOKIE_NAME}={cookie_value}",
             f"Max-Age={AUTH_COOKIE_MAX_AGE}",
@@ -5548,7 +6576,7 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
             return
 
         if self.is_authenticated():
-            self._send_auth_success_cookie("验证成功")
+            self._send_auth_success_cookie("验证成功", cookie_value=self._reusable_auth_token() or None)
             return
 
         self.send_json({
@@ -6109,6 +7137,11 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
             favorite = filter_value == 'favorite' or str(query.get('favorite', [''])[0]).lower() in ('1', 'true', 'yes')
             hidden = filter_value == 'hidden' or str(query.get('hidden', [''])[0]).lower() in ('1', 'true', 'yes')
             include_hidden = hidden or str(query.get('include_hidden', [''])[0]).lower() in ('1', 'true', 'yes')
+            fields = str(query.get('fields', [''])[0] or '').strip().lower()
+            refresh = str(query.get('refresh', [''])[0]).lower() in ('1', 'true', 'yes')
+            if refresh:
+                # 显式刷新逃生阀：绕过成品索引缓存的 TTL/指纹判定，强制重建
+                invalidate_asset_index_cache()
 
             self.send_json(list_gallery_assets(
                 limit=limit,
@@ -6124,9 +7157,26 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
                 orientation=orientation,
                 file_format=file_format,
                 resolution=resolution,
+                fields=fields,
             ))
         except Exception as e:
             self.send_json({"error": str(e)}, 400)
+
+    def handle_asset_detail(self, parsed):
+        """按 id 返回单个资产的完整字段（瘦身列表的详情补全）。"""
+        try:
+            query = urllib.parse.parse_qs(parsed.query)
+            asset_id = str(query.get('id', [''])[0] or '').strip()
+            if not asset_id:
+                self.send_json({"ok": False, "error": "缺少 id 参数"}, 400)
+                return
+            asset = get_gallery_asset(asset_id)
+            if not asset:
+                self.send_json({"ok": False, "error": "资产不存在"}, 404)
+                return
+            self.send_json({"ok": True, "asset": asset})
+        except Exception as e:
+            self.send_json({"ok": False, "error": str(e)}, 400)
 
     def handle_asset_sets(self, parsed):
         """返回图库候选集。"""
@@ -6151,6 +7201,140 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
             self.send_json(list_prompt_sources())
         except Exception as e:
             self.send_json({"ok": False, "error": str(e)}, 500)
+
+    def handle_pinterest_library(self, parsed):
+        """Return local or remote Pinterest Pins without importing them into the asset index."""
+        try:
+            ensure_pinterest_auth_storage()
+            query = urllib.parse.parse_qs(parsed.query)
+            board_id = str(query.get("board_id", [""])[0] or "").strip()
+            limit = int(query.get("limit", [200])[0])
+            refresh = str(query.get("refresh", [""])[0] or "").strip().lower() in {"1", "true", "yes"}
+            local_only = str(query.get("local_only", [""])[0] or "").strip().lower() in {"1", "true", "yes"}
+            self.send_json(get_pinterest_library(
+                board_id=board_id,
+                limit=limit,
+                refresh=refresh,
+                local_only=local_only,
+            ))
+        except ValueError as e:
+            self.send_json({"ok": False, "error": str(e)}, 400)
+        except Exception as e:
+            print(f"❌ Pinterest 图库读取失败：{e}")
+            self.send_json({"ok": False, "error": str(e)}, 502)
+
+    @staticmethod
+    def _pinterest_board_and_pins(board_id, *, refresh=False):
+        clean_board_id = str(board_id or "").strip()
+        if not clean_board_id:
+            raise ValueError("缺少 Pinterest 图板 ID")
+        ensure_pinterest_auth_storage()
+        config = get_pinterest_config()
+        library = get_pinterest_library(
+            board_id=clean_board_id,
+            limit=int(config.get("max_pins_per_board") or 500),
+            refresh=refresh,
+        )
+        board = next(
+            (
+                item for item in library.get("boards") or []
+                if str(item.get("id") or "") == clean_board_id
+            ),
+            None,
+        )
+        if not board:
+            raise ValueError("Pinterest 图板不存在")
+        return board, list(library.get("pins") or [])
+
+    def handle_pinterest_download_pin(self):
+        """Download one Pinterest Pin into SOURCE_IMAGE_DIR/pinterest."""
+        try:
+            data = self.read_json_body(max_bytes=64 * 1024)
+            board_id = str(data.get("board_id") or "").strip()
+            pin_id = str(data.get("pin_id") or "").strip()
+            if not pin_id:
+                raise ValueError("缺少 Pinterest Pin ID")
+            board, pins = self._pinterest_board_and_pins(board_id)
+            pin = next(
+                (
+                    item for item in pins
+                    if str(item.get("pin_id") or "") == pin_id
+                    or str(item.get("id") or "") == pin_id
+                    or str(item.get("id") or "") == f"pinterest_{pin_id}"
+                ),
+                None,
+            )
+            if not pin:
+                raise ValueError("Pinterest Pin 不存在或未加载")
+            result = download_pinterest_pin(board, pin, force=bool(data.get("force")))
+            self.send_json({"ok": True, "pin_id": pin_id, "cache": result})
+        except ValueError as e:
+            self.send_json({"ok": False, "error": str(e)}, 400)
+        except Exception as e:
+            print(f"❌ Pinterest 单图下载失败：{e}")
+            self.send_json({"ok": False, "error": str(e)}, 502)
+
+    def handle_pinterest_prompt_save(self):
+        """Persist an analyzed prompt beside a synchronized Pinterest image."""
+        try:
+            data = self.read_json_body(max_bytes=320 * 1024)
+            result = save_pinterest_pin_prompt(
+                data.get("board_id"),
+                data.get("pin_id"),
+                data.get("prompt"),
+            )
+            self.send_json(result)
+        except ValueError as e:
+            self.send_json({"ok": False, "error": str(e)}, 400)
+        except Exception as e:
+            print(f"❌ Pinterest 图片提示词保存失败：{e}")
+            self.send_json({"ok": False, "error": str(e)}, 500)
+
+    def handle_pinterest_download_board(self):
+        """Create a pollable run and discover/download the board in its worker."""
+        try:
+            data = self.read_json_body(max_bytes=64 * 1024)
+            board_id = str(data.get("board_id") or "").strip()
+            refresh = bool(data.get("refresh"))
+            discover_board = type(self)._pinterest_board_and_pins
+
+            def discover():
+                return discover_board(board_id, refresh=refresh)
+
+            result = start_pinterest_board_sync(board_id, discover)
+            self.send_json(result, 202 if result.get("started") else 200)
+        except ValueError as e:
+            self.send_json({"ok": False, "error": str(e)}, 400)
+        except Exception as e:
+            print(f"❌ Pinterest 图板下载启动失败：{e}")
+            self.send_json({"ok": False, "error": str(e)}, 502)
+
+    def handle_pinterest_download_status(self, parsed):
+        """Return progress for a Pinterest board download."""
+        try:
+            query = urllib.parse.parse_qs(parsed.query)
+            run_id = str(query.get("run_id", [""])[0] or "").strip()
+            run = get_pinterest_board_download(run_id)
+            if not run:
+                self.send_json({"ok": False, "error": "Pinterest 图板下载任务不存在"}, 404)
+                return
+            self.send_json({"ok": True, "run": run})
+        except Exception as e:
+            self.send_json({"ok": False, "error": str(e)}, 500)
+
+    def handle_pinterest_sync_status(self, parsed):
+        """Return a remote/local Pinterest difference summary without remote image URLs."""
+        try:
+            ensure_pinterest_auth_storage()
+            query = urllib.parse.parse_qs(parsed.query)
+            limit = int(query.get("limit", [5000])[0])
+            refresh = str(query.get("refresh", [""])[0] or "").strip().lower() in {"1", "true", "yes"}
+            self.send_json(get_pinterest_sync_status(limit=limit, refresh=refresh))
+        except ValueError as e:
+            self.send_json({"ok": False, "error": str(e)}, 400)
+        except Exception as e:
+            print(f"❌ Pinterest 同步状态检查失败：{e}")
+            self.send_json({"ok": False, "error": str(e)}, 502)
 
     def handle_prompt_source_items(self, parsed):
         """返回远程提示词源本地化条目，不进入图库资产索引。"""
@@ -6268,12 +7452,29 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
     def handle_system_settings_save(self):
         """Persist whitelisted project settings into settings.json."""
         try:
+            ensure_pinterest_auth_storage()
             data = self.read_json_body(max_bytes=128 * 1024)
+            data = copy.deepcopy(data)
+            data_root = _settings_dict(data.get("settings")) or data
+            pinterest_data = _settings_dict(data_root.get("pinterest"))
+            cookie_to_import = _normalize_pinterest_cookie_header(pinterest_data.get("auth_cookie"))
+            clear_pinterest_auth = _coerce_bool(pinterest_data.get("clear_auth_cookie"), False)
+            if cookie_to_import:
+                pinterest_data.pop("auth_cookie", None)
+                pinterest_data["clear_legacy_auth_cookie"] = True
             settings = _sanitize_system_settings_patch(data)
             if settings is None:
                 self.send_json({"ok": False, "error": "设置格式错误"}, 400)
                 return
             save_app_settings(settings)
+            if clear_pinterest_auth:
+                delete_pinterest_auth()
+            elif cookie_to_import:
+                pinterest_cfg = get_pinterest_config()
+                import_pinterest_cookie_header(
+                    cookie_to_import,
+                    pinterest_cfg.get("profile_url", ""),
+                )
             global AUTH_PASSWORD, TELEGRAM_AUTH_BOT_TOKEN, TELEGRAM_AUTH_ALLOWED_IDS
             AUTH_PASSWORD = _load_auth_password()
             TELEGRAM_AUTH_BOT_TOKEN, TELEGRAM_AUTH_ALLOWED_IDS = _load_telegram_auth_config()
@@ -6282,6 +7483,56 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
             self.send_json({"ok": False, "error": str(e)}, 400)
         except Exception as e:
             print(f"❌ 系统设置保存失败：{e}")
+            self.send_json({"ok": False, "error": str(e)}, 500)
+
+    def handle_pinterest_auth_start(self):
+        """Open an isolated local browser for Pinterest login."""
+        try:
+            payload = self.read_json_body(max_bytes=64 * 1024)
+            profile_url = _normalize_pinterest_profile_url(payload.get("profile_url"))
+            self.send_json(start_pinterest_browser_login(profile_url))
+        except ValueError as e:
+            self.send_json({"ok": False, "error": str(e)}, 400)
+        except Exception as e:
+            print(f"❌ Pinterest 登录浏览器启动失败：{e}")
+            self.send_json({"ok": False, "error": str(e)}, 500)
+
+    def handle_pinterest_auth_complete(self):
+        """Capture the isolated browser state after the user logs in."""
+        try:
+            payload = self.read_json_body(max_bytes=64 * 1024)
+            self.send_json(complete_pinterest_browser_login(payload.get("session_id")))
+        except ValueError as e:
+            self.send_json({"ok": False, "error": str(e)}, 400)
+        except Exception as e:
+            print(f"❌ Pinterest 登录完成失败：{e}")
+            self.send_json({"ok": False, "error": str(e)}, 502)
+
+    def handle_pinterest_auth_cancel(self):
+        """Close and remove an unfinished Pinterest login browser."""
+        try:
+            payload = self.read_json_body(max_bytes=64 * 1024)
+            self.send_json(cancel_pinterest_browser_login(payload.get("session_id")))
+        except Exception as e:
+            print(f"❌ Pinterest 登录取消失败：{e}")
+            self.send_json({"ok": False, "error": str(e)}, 500)
+
+    def handle_pinterest_auth_verify(self):
+        """Verify saved Pinterest browser state without exposing it."""
+        try:
+            self.send_json(verify_pinterest_saved_auth())
+        except ValueError as e:
+            self.send_json({"ok": False, "error": str(e)}, 400)
+        except Exception as e:
+            print(f"❌ Pinterest 登录态验证失败：{e}")
+            self.send_json({"ok": False, "error": str(e)}, 502)
+
+    def handle_pinterest_auth_logout(self):
+        """Delete saved Pinterest browser authentication."""
+        try:
+            self.send_json(delete_pinterest_auth())
+        except Exception as e:
+            print(f"❌ Pinterest 退出登录失败：{e}")
             self.send_json({"ok": False, "error": str(e)}, 500)
 
     def handle_gpt_config(self):
@@ -6550,6 +7801,81 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
             self.send_json({"ok": True, "versions": list_prompt_versions(limit=limit)})
         except Exception as e:
             print(f"❌ Prompt versions 读取失败：{e}")
+            self.send_json({"ok": False, "error": str(e)}, 500)
+
+    def handle_prompt_color_schemes(self):
+        """Return active built-in and user-defined color schemes."""
+        try:
+            self.send_json({"ok": True, "color_schemes": list_color_schemes()})
+        except Exception as e:
+            print(f"❌ 色彩方案读取失败：{e}")
+            self.send_json({"ok": False, "error": str(e)}, 500)
+
+    def handle_prompt_color_scheme_save(self):
+        """Create or update one user-defined color scheme."""
+        try:
+            color_scheme = save_color_scheme(self.read_json_body(max_bytes=2 * 1024 * 1024))
+            self.send_json({"ok": True, "color_scheme": color_scheme})
+        except ColorSchemeNotFoundError as e:
+            self.send_json({"ok": False, "error": str(e)}, 404)
+        except ValueError as e:
+            self.send_json({"ok": False, "error": str(e)}, 400)
+        except Exception as e:
+            print(f"❌ 色彩方案保存失败：{e}")
+            self.send_json({"ok": False, "error": str(e)}, 500)
+
+    def handle_prompt_color_scheme_delete(self):
+        """Soft-delete one user-defined color scheme."""
+        try:
+            data = self.read_json_body(max_bytes=64 * 1024)
+            if not isinstance(data, dict):
+                raise ValueError("请求体格式错误")
+            color_scheme = delete_color_scheme(data.get('id') or data.get('color_scheme_id'))
+            self.send_json({"ok": True, "color_scheme": color_scheme})
+        except ColorSchemeNotFoundError as e:
+            self.send_json({"ok": False, "error": str(e)}, 404)
+        except ValueError as e:
+            self.send_json({"ok": False, "error": str(e)}, 400)
+        except Exception as e:
+            print(f"❌ 色彩方案删除失败：{e}")
+            self.send_json({"ok": False, "error": str(e)}, 500)
+
+    def handle_prompt_color_scheme_favorite(self):
+        """Persist an explicit favorite state for one color scheme."""
+        try:
+            data = self.read_json_body(max_bytes=64 * 1024)
+            if not isinstance(data, dict):
+                raise ValueError("请求体格式错误")
+            if 'favorite' not in data:
+                raise ValueError("缺少 favorite")
+            color_scheme = set_color_scheme_favorite(
+                data.get('id') or data.get('color_scheme_id'),
+                data.get('favorite'),
+            )
+            self.send_json({"ok": True, "color_scheme": color_scheme})
+        except ColorSchemeNotFoundError as e:
+            self.send_json({"ok": False, "error": str(e)}, 404)
+        except ValueError as e:
+            self.send_json({"ok": False, "error": str(e)}, 400)
+        except Exception as e:
+            print(f"❌ 色彩方案收藏状态保存失败：{e}")
+            self.send_json({"ok": False, "error": str(e)}, 500)
+
+    def handle_prompt_color_schemes_migrate_legacy(self):
+        """Import color schemes and favorites from the former localStorage keys."""
+        try:
+            data = self.read_json_body(max_bytes=4 * 1024 * 1024)
+            if not isinstance(data, dict):
+                raise ValueError("请求体格式错误")
+            result = migrate_legacy_color_schemes(
+                data.get('custom_schemes'),
+                data.get('favorite_ids'),
+            )
+            self.send_json({"ok": True, **result})
+        except ValueError as e:
+            self.send_json({"ok": False, "error": str(e)}, 400)
+        except Exception as e:
+            print(f"❌ 旧版色彩方案迁移失败：{e}")
             self.send_json({"ok": False, "error": str(e)}, 500)
 
     def handle_prompt_library_blocks_list(self, parsed):
@@ -7358,10 +8684,55 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
     def handle_comfy_workflows(self):
         """返回可用的 ComfyUI 工作流列表"""
         try:
-            workflows = sorted(p.name for p in COMFY_WORKFLOW_DIR.glob('*.json'))
-            self.send_json({"workflows": workflows})
+            parsed = urllib.parse.urlparse(self.path)
+            query = urllib.parse.parse_qs(parsed.query)
+            include_disabled = _coerce_bool((query.get('include_disabled') or ['0'])[0], False)
+            self.send_json({"ok": True, **_collect_comfy_workflows(include_disabled=include_disabled)})
         except Exception as e:
             self.send_json({"error": str(e)}, 500)
+
+    def handle_comfy_health(self, parsed=None):
+        """测试 ComfyUI 服务连接。"""
+        try:
+            query = urllib.parse.parse_qs(parsed.query) if parsed else {}
+            overrides = {
+                'base_url': (query.get('base_url') or [''])[0],
+                'timeout_seconds': (query.get('timeout_seconds') or [''])[0],
+            }
+            self.send_json(_collect_comfy_health(overrides))
+        except Exception as e:
+            self.send_json({"ok": False, "online": False, "error": str(e)}, 502)
+
+    def handle_comfy_workflow_thumbnail(self, parsed):
+        """返回经过目录白名单解析的工作流缩略图。"""
+        query = urllib.parse.parse_qs(parsed.query)
+        workflow_id = Path(str((query.get('id') or [''])[0])).name
+        if not workflow_id or not (COMFY_WORKFLOW_DIR / workflow_id).exists():
+            self.send_error(404, 'Not Found')
+            return
+        preview = _comfy_workflow_preview_path(workflow_id)
+        if not preview.exists():
+            self.send_error(404, 'Not Found')
+            return
+        data = preview.read_bytes()
+        self.send_response(200)
+        self.send_header('Content-Type', 'image/webp')
+        self.send_header('Content-Length', str(len(data)))
+        self.send_header('Cache-Control', 'private, max-age=300')
+        self._apply_cors_headers()
+        self.end_headers()
+        self.wfile.write(data)
+
+    def handle_comfy_workflow_config_save(self):
+        """保存工作流展示元信息和缩略图。"""
+        try:
+            data = self.read_json_body(max_bytes=12 * 1024 * 1024)
+            item = _save_comfy_workflow_config(data)
+            self.send_json({"ok": True, "item": item, **_collect_comfy_workflows(include_disabled=True)})
+        except FileNotFoundError as e:
+            self.send_json({"ok": False, "error": str(e)}, 404)
+        except Exception as e:
+            self.send_json({"ok": False, "error": str(e)}, 400)
 
     def handle_comfy_run(self):
         """将前端请求转发到远端 ComfyUI /prompt"""
@@ -7372,12 +8743,45 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
 
             workflow_name = data.get('workflow', '')
             prompt = data.get('prompt', '')
-            ratio = data.get('ratio', '1:1')
-            image_data = data.get('image')
+            ratio = str(data.get('ratio') or '').strip()
+            resolution = str(data.get('resolution') or '1k').strip().lower()
+            if resolution not in COMFY_RESOLUTION_LONG_EDGES:
+                resolution = '1k'
+            archive_enabled = True
+            telegram_enabled = _coerce_bool(data.get('telegram_enabled', data.get('telegramEnabled')), True)
 
             workflow, normalized_name = _load_comfy_workflow(workflow_name)
-            uploaded_image_name = _upload_comfy_image(image_data) if image_data else None
-            prepared_prompt = _prepare_comfy_workflow(workflow, prompt, ratio, uploaded_image_name)
+            workflow_parameters = data.get('workflow_parameters') if isinstance(data.get('workflow_parameters'), dict) else {}
+            workflow, applied_workflow_parameters = _apply_comfy_parameter_overrides(workflow, workflow_parameters)
+            catalog_item = next((item for item in _collect_comfy_workflows(include_disabled=True)['items'] if item['id'] == normalized_name), None)
+            if catalog_item and not catalog_item.get('enabled'):
+                raise ValueError('当前 ComfyUI 工作流已停用')
+            legacy_ratio = ratio or str((catalog_item or {}).get('default_ratio') or '1:1')
+            legacy_width, legacy_height = _resolve_comfy_size(legacy_ratio, resolution)
+            width = _normalize_comfy_dimension(data.get('width'), (catalog_item or {}).get('default_width', legacy_width))
+            height = _normalize_comfy_dimension(data.get('height'), (catalog_item or {}).get('default_height', legacy_height))
+            ratio = ratio or _comfy_ratio_from_size(width, height)
+            raw_images = data.get('images') if isinstance(data.get('images'), list) else []
+            if not raw_images and data.get('image'):
+                raw_images = [data.get('image')]
+            max_images = int(catalog_item.get('max_images') or 0) if catalog_item and catalog_item.get('accepts_image') else 0
+            image_payloads = [item for item in raw_images if isinstance(item, str) and item.strip()][:max_images]
+            if catalog_item and catalog_item.get('accepts_image') and not image_payloads:
+                raise ValueError('当前 ComfyUI 工作流需要至少一张参考图')
+            if catalog_item and not catalog_item.get('accepts_text'):
+                prompt = ''
+            uploaded_image_names = [_upload_comfy_image(image_data) for image_data in image_payloads]
+            uploaded_image_name = uploaded_image_names[0] if uploaded_image_names else None
+            prepared_prompt = _prepare_comfy_workflow(
+                workflow,
+                prompt,
+                ratio,
+                uploaded_image_name,
+                uploaded_image_names,
+                resolution=resolution,
+                width=width,
+                height=height,
+            )
 
             result = _proxy_comfy_json(
                 'POST',
@@ -7394,8 +8798,16 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
                 {
                     'workflow': normalized_name,
                     'ratio': ratio,
+                    'resolution': resolution,
+                    'width': width,
+                    'height': height,
                     'comfy_prompt_id': prompt_id,
                     'comfy_uploaded_image': uploaded_image_name,
+                    'comfy_uploaded_images': uploaded_image_names,
+                    'comfy_expected_output_count': int(catalog_item.get('output_count') or 1) if catalog_item else 1,
+                    'workflow_parameters': applied_workflow_parameters,
+                    'archive_enabled': archive_enabled,
+                    'telegram_enabled': telegram_enabled,
                 },
                 status='queued',
                 task_type='comfy',
@@ -7414,6 +8826,10 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
                 'task_id': prompt_id,
                 'workflow': normalized_name,
             })
+        except FileNotFoundError as e:
+            self.send_json({"error": str(e)}, 404)
+        except ValueError as e:
+            self.send_json({"error": str(e)}, 400)
         except Exception as e:
             print(f"❌ Comfy run failed: {e}")
             self.send_json({"error": str(e)}, 500)

@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""SQLite-backed reusable prompt blocks and type templates."""
+"""SQLite-backed prompt blocks, split rules, and color schemes."""
 
 from __future__ import annotations
 
+import colorsys
+import hashlib
 import json
 import re
 import sqlite3
@@ -19,9 +21,11 @@ from .app_config import APP_DATA_DIR
 
 DB_PATH = APP_DATA_DIR / "prompt_library.db"
 DB_TIMEOUT = 30
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 TAG_SPLIT_RE = re.compile(r"[,，;；\n]+")
 RULE_MODULE_KEY_RE = re.compile(r"^[a-z][a-z0-9_]{1,63}$")
+COLOR_SCHEME_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
+HEX_COLOR_RE = re.compile(r"^#[0-9A-Fa-f]{6}$")
 _STORE_INIT_LOCK = threading.RLock()
 _INITIALIZED_STORE_PATHS: set[str] = set()
 
@@ -219,6 +223,104 @@ TYPE_SPECS: list[dict[str, Any]] = [
 ]
 
 
+BUILT_IN_COLOR_SCHEMES: list[dict[str, Any]] = [
+    {
+        "id": "coral-sunrise", "name": "珊瑚日出", "description": "珊瑚红与明亮金黄组成有亲和力的活力暖调。",
+        "colors": ["#EF476F", "#FF7F50", "#FFD166", "#FFF1D6", "#22333B"],
+        "categories": ["warm", "vivid"], "scenes": ["美妆海报", "夏日活动", "生活方式"], "tags": ["暖色", "活力", "商业"],
+        "prompt": "色彩方案采用珊瑚红、暖橙与明亮金黄，奶油白作为大面积留白，深青灰稳定文字和阴影；整体明快、热情、有亲和力，保持暖色主导与清晰层级。",
+    },
+    {
+        "id": "amber-theater", "name": "琥珀剧场", "description": "深酒红、焦糖与琥珀金营造浓郁戏剧光感。",
+        "colors": ["#321B1B", "#7A2525", "#C15F2A", "#E6A756", "#F5E3C3"],
+        "categories": ["warm", "cinematic"], "scenes": ["电影海报", "餐饮品牌", "复古肖像"], "tags": ["暖色", "戏剧", "质感"],
+        "prompt": "色彩方案以深酒红和暗棕为阴影基底，焦糖橙与琥珀金作为主要光色，浅香槟色控制高光；形成浓郁、克制的戏剧氛围和电影级明暗层次。",
+    },
+    {
+        "id": "citrus-market", "name": "柑橘市集", "description": "橘黄、青柠和叶绿构成清爽直接的消费视觉。",
+        "colors": ["#FF6B35", "#FFB703", "#D9ED92", "#52B788", "#1B4332"],
+        "categories": ["warm", "vivid"], "scenes": ["食品包装", "市集活动", "社媒物料"], "tags": ["清新", "食物", "高饱和"],
+        "prompt": "色彩方案使用鲜橙与金黄建立食欲和活力，以青柠浅绿过渡，叶绿和深森林绿平衡画面；色彩清爽、明亮、自然，适合年轻化消费视觉。",
+    },
+    {
+        "id": "vintage-film", "name": "复古胶片", "description": "褪色砖红、芥末黄与灰青复现温和胶片质感。",
+        "colors": ["#9E4F3F", "#D29B52", "#E7D9B4", "#6F8A82", "#303B3A"],
+        "categories": ["warm", "muted", "cinematic"], "scenes": ["人文纪实", "咖啡品牌", "旅行画面"], "tags": ["复古", "胶片", "低饱和"],
+        "prompt": "色彩方案采用褪色砖红、芥末黄和灰青色，搭配旧纸米白与深灰绿；降低整体饱和度和对比，保留温暖颗粒感，呈现自然、怀旧的胶片色彩。",
+    },
+    {
+        "id": "porcelain-mist", "name": "青瓷薄雾", "description": "雾青、浅瓷白和墨绿组成安静通透的东方冷调。",
+        "colors": ["#DDEBE7", "#A7C7C0", "#5F8F86", "#2F5D57", "#F7F8F4"],
+        "categories": ["cool", "muted"], "scenes": ["东方美学", "护肤产品", "静物摄影"], "tags": ["冷色", "东方", "克制"],
+        "prompt": "色彩方案以雾青和浅青瓷色为主，墨绿用于细节与文字，柔和瓷白承担留白；整体低饱和、通透、安静，强调东方审美和细腻材质。",
+    },
+    {
+        "id": "deep-sea-neon", "name": "深海电光", "description": "深海蓝与高亮青绿形成锐利的数字视觉。",
+        "colors": ["#071A2B", "#0B3C5D", "#00A8A8", "#4DEEEA", "#D8FFFF"],
+        "categories": ["cool", "vivid", "cinematic"], "scenes": ["科技发布", "游戏视觉", "音乐封面"], "tags": ["科技", "霓虹", "高对比"],
+        "prompt": "色彩方案以深海蓝和藏青作为大面积暗部，高亮青绿与电光蓝用于发光边缘和关键焦点，冰白点亮信息；整体冷峻、锐利，具有深海般纵深与数字霓虹质感。",
+    },
+    {
+        "id": "alpine-lake", "name": "高山湖泊", "description": "湖蓝、松针绿和雪白构成清冽自然的层次。",
+        "colors": ["#EAF4F4", "#A8DADC", "#4D908E", "#2D6A4F", "#1D3557"],
+        "categories": ["cool", "muted"], "scenes": ["户外品牌", "风景摄影", "健康生活"], "tags": ["自然", "清冽", "户外"],
+        "prompt": "色彩方案使用雪白与浅湖蓝表现空气感，中层采用灰青色，松针绿和深山蓝稳住远景与文字；整体清冽、自然、层次分明，避免过度饱和。",
+    },
+    {
+        "id": "arctic-tech", "name": "极地科技", "description": "冰白、冷灰蓝与深靛蓝适合清晰精密的信息表达。",
+        "colors": ["#F5F9FC", "#C9D8E6", "#7EA3C4", "#24527A", "#102A43"],
+        "categories": ["cool", "neutral"], "scenes": ["科技产品", "数据界面", "企业视觉"], "tags": ["理性", "专业", "科技"],
+        "prompt": "色彩方案以冰白和冷灰蓝构成干净背景，中蓝建立信息层级，深靛蓝用于核心文字和结构；整体理性、精密、清晰，呈现可信赖的现代科技气质。",
+    },
+    {
+        "id": "concrete-silver", "name": "水泥银灰", "description": "多层次银灰搭配炭黑，呈现冷静的工业秩序。",
+        "colors": ["#F2F3F4", "#CACFD2", "#909497", "#515A5A", "#1C2833"],
+        "categories": ["neutral", "muted"], "scenes": ["建筑画册", "工业产品", "极简版式"], "tags": ["中性", "工业", "极简"],
+        "prompt": "色彩方案使用从银白到水泥灰的连续层次，并以炭黑建立最大对比；不引入明显色相，突出结构、材质和留白，整体冷静、精确、具有工业秩序。",
+    },
+    {
+        "id": "graphite-mono", "name": "石墨单色", "description": "石墨黑、纸白和中间灰构成高识别度的单色系统。",
+        "colors": ["#111111", "#343434", "#737373", "#BDBDBD", "#F4F4F2"],
+        "categories": ["neutral"], "scenes": ["时尚大片", "字体海报", "作品集"], "tags": ["黑白", "单色", "高对比"],
+        "prompt": "色彩方案限定为石墨黑、炭灰、中灰、浅灰和纸白，通过明度而非色相建立层级；保持轮廓利落、留白明确，呈现经典、克制的高对比单色视觉。",
+    },
+    {
+        "id": "morandi-garden", "name": "莫兰迪花园", "description": "灰粉、鼠尾草与雾蓝组合出温柔平衡的低饱和色域。",
+        "colors": ["#C9A9A6", "#D8C7B5", "#A8B5A2", "#8FA3AD", "#545B62"],
+        "categories": ["neutral", "muted"], "scenes": ["家居软装", "女性品牌", "生活摄影"], "tags": ["柔和", "低饱和", "生活感"],
+        "prompt": "色彩方案采用灰粉、浅灰褐、鼠尾草绿与雾蓝，深灰仅用于必要的视觉锚点；统一降低饱和度和反差，营造温柔、耐看、平衡的生活美学。",
+    },
+    {
+        "id": "cream-black-gold", "name": "奶油黑金", "description": "柔和象牙白、墨黑与克制金色形成高级商业对比。",
+        "colors": ["#F7F1E3", "#D6C6A5", "#B08D57", "#34312D", "#111111"],
+        "categories": ["neutral", "warm"], "scenes": ["奢侈品", "珠宝静物", "高端邀请函"], "tags": ["高级", "金色", "商业"],
+        "prompt": "色彩方案以象牙白和柔和米色承担大面积背景，墨黑建立清晰结构，古金色仅用于小面积高光和关键细节；整体克制、精致，避免金色泛滥。",
+    },
+    {
+        "id": "urban-red-blue", "name": "都市红蓝", "description": "信号红与深蓝在冷灰背景上形成直接的现代张力。",
+        "colors": ["#E63946", "#F1FAEE", "#A8DADC", "#457B9D", "#1D3557"],
+        "categories": ["neutral", "vivid"], "scenes": ["品牌海报", "体育视觉", "信息图表"], "tags": ["现代", "对比", "品牌"],
+        "prompt": "色彩方案使用信号红作为小面积强焦点，深蓝构成稳定主色，浅灰蓝与暖白负责背景和信息分区；整体清晰、现代、有节奏，保持红蓝面积比例克制。",
+    },
+    {
+        "id": "violet-noir", "name": "紫夜金属", "description": "暗紫、蓝黑与冷银高光呈现神秘的夜间质感。",
+        "colors": ["#12101C", "#2D1E46", "#654A8E", "#A7A3C2", "#E8E7F0"],
+        "categories": ["cool", "cinematic"], "scenes": ["香水广告", "音乐视觉", "夜景时尚"], "tags": ["神秘", "夜色", "金属"],
+        "prompt": "色彩方案以蓝黑和暗紫构成大面积夜色，中紫控制层次，冷银灰与微亮白塑造金属高光；整体神秘、精致、具有电影夜景的纵深感。",
+    },
+    {
+        "id": "desert-cinema", "name": "荒漠电影", "description": "沙岩、铁锈与深青阴影组成宽银幕式的大地色。",
+        "colors": ["#E2C290", "#C67C4E", "#8C3F2B", "#35524A", "#172A2A"],
+        "categories": ["warm", "muted", "cinematic"], "scenes": ["旅行电影", "汽车广告", "叙事概念图"], "tags": ["大地色", "宽银幕", "叙事"],
+        "prompt": "色彩方案以沙岩浅褐和铁锈红表现受光区域，深青绿与近黑青色压住阴影；降低高光饱和度，保留冷暖对照，形成辽阔、粗粝的宽银幕电影感。",
+    },
+]
+
+
+class ColorSchemeNotFoundError(ValueError):
+    """Raised when a requested active color scheme does not exist."""
+
+
 def _now() -> int:
     return int(time.time())
 
@@ -369,6 +471,42 @@ def _initialize_prompt_library_store() -> None:
                 updated_at INTEGER
             );
             CREATE INDEX IF NOT EXISTS idx_prompt_templates_type ON prompt_templates(primary_type);
+
+            CREATE TABLE IF NOT EXISTS prompt_color_schemes (
+                color_scheme_id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                description TEXT DEFAULT '',
+                colors_json TEXT DEFAULT '[]',
+                categories_json TEXT DEFAULT '[]',
+                scenes_json TEXT DEFAULT '[]',
+                tags_json TEXT DEFAULT '[]',
+                prompt TEXT DEFAULT '',
+                industry TEXT DEFAULT '',
+                formula TEXT DEFAULT '',
+                base_color TEXT DEFAULT '',
+                contrast TEXT DEFAULT 'balanced',
+                temperature TEXT DEFAULT 'auto',
+                neutral_balance INTEGER DEFAULT 1,
+                use_ratio INTEGER DEFAULT 1,
+                favorite INTEGER DEFAULT 0,
+                system INTEGER DEFAULT 0,
+                sort_order INTEGER DEFAULT 0,
+                status TEXT DEFAULT 'active',
+                deleted_at INTEGER DEFAULT 0,
+                legacy_source_id TEXT DEFAULT '',
+                created_at INTEGER,
+                updated_at INTEGER
+            );
+            CREATE INDEX IF NOT EXISTS idx_prompt_color_schemes_favorite ON prompt_color_schemes(favorite);
+            CREATE INDEX IF NOT EXISTS idx_prompt_color_schemes_system ON prompt_color_schemes(system, sort_order);
+            CREATE INDEX IF NOT EXISTS idx_prompt_color_schemes_status ON prompt_color_schemes(status);
+
+            CREATE TABLE IF NOT EXISTS prompt_color_scheme_migrations (
+                migration_key TEXT PRIMARY KEY,
+                source TEXT NOT NULL,
+                target_id TEXT DEFAULT '',
+                imported_at INTEGER
+            );
             """
         )
         block_columns = {
@@ -429,6 +567,73 @@ def _initialize_prompt_library_store() -> None:
                     int(template["sort_order"]), now, now,
                 ),
             )
+        built_in_color_ids = {str(scheme["id"]) for scheme in BUILT_IN_COLOR_SCHEMES}
+        for sort_order, scheme in enumerate(BUILT_IN_COLOR_SCHEMES):
+            existing_scheme = conn.execute(
+                "SELECT system FROM prompt_color_schemes WHERE color_scheme_id=?",
+                (scheme["id"],),
+            ).fetchone()
+            if existing_scheme and not bool(existing_scheme["system"]):
+                print(f"⚠️ 内置色彩方案 ID 与用户方案冲突，已保留用户数据：{scheme['id']}")
+                continue
+            colors = [str(color).upper() for color in scheme["colors"]]
+            categories = list(scheme["categories"])
+            formula = (
+                "monochromatic" if "neutral" in categories
+                else "split_complementary" if "vivid" in categories
+                else "analogous"
+            )
+            conn.execute(
+                """
+                INSERT INTO prompt_color_schemes(
+                    color_scheme_id, name, description, colors_json,
+                    categories_json, scenes_json, tags_json, prompt,
+                    industry, formula, base_color, contrast, temperature,
+                    neutral_balance, use_ratio, favorite, system, sort_order,
+                    status, deleted_at, created_at, updated_at
+                ) VALUES(?, ?, ?, ?, ?, ?, ?, ?, '', ?, ?, 'balanced', 'auto', 1, 1, 0, 1, ?, 'active', 0, ?, ?)
+                ON CONFLICT(color_scheme_id) DO UPDATE SET
+                    name=excluded.name,
+                    description=excluded.description,
+                    colors_json=excluded.colors_json,
+                    categories_json=excluded.categories_json,
+                    scenes_json=excluded.scenes_json,
+                    tags_json=excluded.tags_json,
+                    prompt=excluded.prompt,
+                    formula=excluded.formula,
+                    base_color=excluded.base_color,
+                    system=1,
+                    sort_order=excluded.sort_order,
+                    status='active',
+                    deleted_at=0,
+                    updated_at=excluded.updated_at
+                """,
+                (
+                    scheme["id"], scheme["name"], scheme["description"], _json(colors, []),
+                    _json(categories, []), _json(scheme["scenes"], []), _json(scheme["tags"], []),
+                    scheme["prompt"], formula, colors[0], sort_order, now, now,
+                ),
+            )
+        if built_in_color_ids:
+            placeholders = ",".join("?" for _ in built_in_color_ids)
+            conn.execute(
+                f"""
+                UPDATE prompt_color_schemes
+                SET status='deleted', deleted_at=?, updated_at=?
+                WHERE system=1 AND status='active'
+                  AND color_scheme_id NOT IN ({placeholders})
+                """,
+                (now, now, *sorted(built_in_color_ids)),
+            )
+        else:
+            conn.execute(
+                """
+                UPDATE prompt_color_schemes
+                SET status='deleted', deleted_at=?, updated_at=?
+                WHERE system=1 AND status='active'
+                """,
+                (now, now),
+            )
 
 
 def init_prompt_library_store(
@@ -486,6 +691,420 @@ def _row_template(row: sqlite3.Row) -> dict[str, Any]:
         "deleted_at": int(row["deleted_at"] or 0),
         "created_at": int(row["created_at"] or 0),
         "updated_at": int(row["updated_at"] or 0),
+    }
+
+
+def _string_list(value: Any, *, max_items: int, max_length: int) -> list[str]:
+    if isinstance(value, str):
+        raw_items = TAG_SPLIT_RE.split(value)
+    elif isinstance(value, (list, tuple, set)):
+        raw_items = list(value)
+    else:
+        raw_items = []
+    result: list[str] = []
+    seen: set[str] = set()
+    for raw in raw_items:
+        item = str(raw or "").strip()[:max_length]
+        key = item.casefold()
+        if not item or key in seen:
+            continue
+        seen.add(key)
+        result.append(item)
+        if len(result) >= max_items:
+            break
+    return result
+
+
+def _normalize_color_scheme_id(value: Any, *, required: bool = False) -> str:
+    color_scheme_id = str(value or "").strip()
+    if not color_scheme_id and not required:
+        return ""
+    if not COLOR_SCHEME_ID_RE.fullmatch(color_scheme_id):
+        raise ValueError("色彩方案 ID 无效")
+    return color_scheme_id
+
+
+def _normalize_colors(value: Any) -> list[str]:
+    raw_colors = value if isinstance(value, (list, tuple)) else []
+    colors = [str(color or "").strip().upper() for color in raw_colors[:5]]
+    if len(colors) < 3 or any(not HEX_COLOR_RE.fullmatch(color) for color in colors):
+        raise ValueError("色彩方案至少需要 3 个有效的 HEX 色值")
+    while len(colors) < 5:
+        colors.append(colors[-1])
+    return colors
+
+
+def _infer_color_categories(colors: list[str]) -> list[str]:
+    values: list[tuple[float, float, float]] = []
+    for color in colors:
+        channels = tuple(int(color[index:index + 2], 16) / 255 for index in (1, 3, 5))
+        hue, lightness, saturation = colorsys.rgb_to_hls(*channels)
+        values.append((hue * 360, saturation * 100, lightness * 100))
+    average_saturation = sum(value[1] for value in values) / max(1, len(values))
+    warm = sum(1 for hue, _, _ in values if hue <= 75 or hue >= 330)
+    cool = sum(1 for hue, _, _ in values if 150 <= hue <= 285)
+    categories = ["warm" if warm > cool else "cool" if cool > warm else "neutral"]
+    if average_saturation >= 58:
+        categories.append("vivid")
+    if average_saturation <= 42:
+        categories.append("muted")
+    lightness_values = [value[2] for value in values]
+    if min(lightness_values) <= 22 and max(lightness_values) >= 78 and average_saturation >= 32:
+        categories.append("cinematic")
+    return categories
+
+
+def _row_color_scheme(row: sqlite3.Row) -> dict[str, Any]:
+    system = bool(row["system"])
+    return {
+        "id": row["color_scheme_id"],
+        "name": row["name"],
+        "description": row["description"],
+        "colors": _loads(row["colors_json"], []),
+        "categories": _loads(row["categories_json"], []),
+        "scenes": _loads(row["scenes_json"], []),
+        "tags": _loads(row["tags_json"], []),
+        "prompt": row["prompt"],
+        "industry": row["industry"],
+        "formula": row["formula"],
+        "base_color": row["base_color"],
+        "contrast": row["contrast"] or "balanced",
+        "temperature": row["temperature"] or "auto",
+        "neutral_balance": bool(row["neutral_balance"]),
+        "use_ratio": bool(row["use_ratio"]),
+        "custom": not system,
+        "favorite": bool(row["favorite"]),
+        "system": system,
+        "sort_order": int(row["sort_order"] or 0),
+        "status": row["status"] or "active",
+        "deleted_at": int(row["deleted_at"] or 0),
+        "created_at": int(row["created_at"] or 0),
+        "updated_at": int(row["updated_at"] or 0),
+    }
+
+
+def _normalize_color_scheme_payload(data: dict[str, Any], existing: sqlite3.Row | None = None) -> dict[str, Any]:
+    current = _row_color_scheme(existing) if existing else {}
+
+    def field(name: str, fallback: Any = None) -> Any:
+        return data[name] if name in data else current.get(name, fallback)
+
+    name = str(field("name") or "").strip()[:100]
+    if not name:
+        raise ValueError("请输入色彩方案名称")
+    colors = _normalize_colors(field("colors", []))
+    prompt = str(field("prompt") or "").strip()[:4000]
+    if not prompt:
+        raise ValueError("请输入色彩方案提示词")
+    base_color = str(field("base_color") or colors[0]).strip().upper()
+    if not HEX_COLOR_RE.fullmatch(base_color):
+        raise ValueError("基色必须使用完整的 HEX 格式")
+    category_source = data.get("categories") if "categories" in data else ([] if "colors" in data else current.get("categories"))
+    categories = _string_list(category_source, max_items=12, max_length=32)
+    if not categories:
+        categories = _infer_color_categories(colors)
+    contrast = str(field("contrast") or "balanced").strip().lower()
+    if contrast not in {"soft", "balanced", "high"}:
+        contrast = "balanced"
+    temperature = str(field("temperature") or "auto").strip().lower()
+    if temperature not in {"auto", "warm", "cool"}:
+        temperature = "auto"
+    return {
+        "name": name,
+        "description": str(field("description") or "手动创建的自定义配色方案。").strip()[:500],
+        "colors": colors,
+        "categories": categories,
+        "scenes": _string_list(field("scenes"), max_items=8, max_length=80),
+        "tags": _string_list(field("tags"), max_items=12, max_length=32),
+        "prompt": prompt,
+        "industry": str(field("industry") or "").strip()[:64],
+        "formula": str(field("formula") or "").strip()[:64],
+        "base_color": base_color,
+        "contrast": contrast,
+        "temperature": temperature,
+        "neutral_balance": bool(_bool(field("neutral_balance", True))),
+        "use_ratio": bool(_bool(field("use_ratio", True))),
+    }
+
+
+def _write_custom_color_scheme(
+    conn: sqlite3.Connection,
+    color_scheme_id: str,
+    payload: dict[str, Any],
+    *,
+    existing: sqlite3.Row | None,
+    legacy_source_id: str = "",
+) -> sqlite3.Row:
+    now = _now()
+    favorite = int(existing["favorite"] or 0) if existing else 0
+    created_at = int(existing["created_at"] or now) if existing else now
+    sort_order = int(existing["sort_order"] or 0) if existing else 0
+    conn.execute(
+        """
+        INSERT INTO prompt_color_schemes(
+            color_scheme_id, name, description, colors_json, categories_json,
+            scenes_json, tags_json, prompt, industry, formula, base_color,
+            contrast, temperature, neutral_balance, use_ratio, favorite,
+            system, sort_order, status, deleted_at, legacy_source_id,
+            created_at, updated_at
+        ) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, 'active', 0, ?, ?, ?)
+        ON CONFLICT(color_scheme_id) DO UPDATE SET
+            name=excluded.name,
+            description=excluded.description,
+            colors_json=excluded.colors_json,
+            categories_json=excluded.categories_json,
+            scenes_json=excluded.scenes_json,
+            tags_json=excluded.tags_json,
+            prompt=excluded.prompt,
+            industry=excluded.industry,
+            formula=excluded.formula,
+            base_color=excluded.base_color,
+            contrast=excluded.contrast,
+            temperature=excluded.temperature,
+            neutral_balance=excluded.neutral_balance,
+            use_ratio=excluded.use_ratio,
+            status='active',
+            deleted_at=0,
+            updated_at=excluded.updated_at
+        """,
+        (
+            color_scheme_id, payload["name"], payload["description"], _json(payload["colors"], []),
+            _json(payload["categories"], []), _json(payload["scenes"], []), _json(payload["tags"], []),
+            payload["prompt"], payload["industry"], payload["formula"], payload["base_color"],
+            payload["contrast"], payload["temperature"], int(payload["neutral_balance"]),
+            int(payload["use_ratio"]), favorite, sort_order, legacy_source_id, created_at, now,
+        ),
+    )
+    return conn.execute(
+        "SELECT * FROM prompt_color_schemes WHERE color_scheme_id=?",
+        (color_scheme_id,),
+    ).fetchone()
+
+
+def list_color_schemes() -> list[dict[str, Any]]:
+    init_prompt_library_store()
+    with _db() as conn:
+        rows = conn.execute(
+            """
+            SELECT * FROM prompt_color_schemes
+            WHERE status='active'
+            ORDER BY system ASC,
+                CASE WHEN system=0 THEN updated_at END DESC,
+                sort_order ASC,
+                name ASC
+            """
+        ).fetchall()
+    return [_row_color_scheme(row) for row in rows]
+
+
+def save_color_scheme(data: dict[str, Any]) -> dict[str, Any]:
+    if not isinstance(data, dict):
+        raise ValueError("请求体格式错误")
+    init_prompt_library_store()
+    requested_id = _normalize_color_scheme_id(data.get("id") or data.get("color_scheme_id"))
+    color_scheme_id = requested_id or _id("color")
+    with _db() as conn:
+        # Keep the status check and UPSERT in one write transaction. Otherwise
+        # a concurrent delete could commit between them and be resurrected.
+        conn.execute("BEGIN IMMEDIATE")
+        existing = conn.execute(
+            "SELECT * FROM prompt_color_schemes WHERE color_scheme_id=?",
+            (color_scheme_id,),
+        ).fetchone()
+        if existing and bool(existing["system"]):
+            raise ValueError("内置色彩方案不能修改")
+        if existing and str(existing["status"] or "active") != "active":
+            raise ColorSchemeNotFoundError("色彩方案已删除，不能继续修改")
+        payload = _normalize_color_scheme_payload(data, existing)
+        row = _write_custom_color_scheme(conn, color_scheme_id, payload, existing=existing)
+    return _row_color_scheme(row)
+
+
+def delete_color_scheme(color_scheme_id: str) -> dict[str, Any]:
+    clean_id = _normalize_color_scheme_id(color_scheme_id, required=True)
+    init_prompt_library_store()
+    with _db() as conn:
+        row = conn.execute(
+            "SELECT * FROM prompt_color_schemes WHERE color_scheme_id=? AND status='active'",
+            (clean_id,),
+        ).fetchone()
+        if not row:
+            raise ColorSchemeNotFoundError("色彩方案不存在")
+        if bool(row["system"]):
+            raise ValueError("内置色彩方案不能删除")
+        deleted_at = _now()
+        conn.execute(
+            "UPDATE prompt_color_schemes SET status='deleted', deleted_at=?, updated_at=? WHERE color_scheme_id=?",
+            (deleted_at, deleted_at, clean_id),
+        )
+        deleted = conn.execute(
+            "SELECT * FROM prompt_color_schemes WHERE color_scheme_id=?",
+            (clean_id,),
+        ).fetchone()
+    return _row_color_scheme(deleted)
+
+
+def set_color_scheme_favorite(color_scheme_id: str, favorite: Any) -> dict[str, Any]:
+    clean_id = _normalize_color_scheme_id(color_scheme_id, required=True)
+    if not isinstance(favorite, bool):
+        raise ValueError("favorite 必须是布尔值")
+    init_prompt_library_store()
+    with _db() as conn:
+        cursor = conn.execute(
+            """
+            UPDATE prompt_color_schemes
+            SET favorite=?
+            WHERE color_scheme_id=? AND status='active'
+            """,
+            (int(favorite), clean_id),
+        )
+        if not cursor.rowcount:
+            raise ColorSchemeNotFoundError("色彩方案不存在")
+        row = conn.execute(
+            "SELECT * FROM prompt_color_schemes WHERE color_scheme_id=?",
+            (clean_id,),
+        ).fetchone()
+    return _row_color_scheme(row)
+
+
+def migrate_legacy_color_schemes(custom_schemes: Any, favorite_ids: Any) -> dict[str, Any]:
+    if not isinstance(custom_schemes, list) or not isinstance(favorite_ids, list):
+        raise ValueError("迁移数据格式错误")
+    custom_items = custom_schemes
+    favorite_items = favorite_ids
+    if len(custom_items) > 1000 or len(favorite_items) > 2000:
+        raise ValueError("迁移数据过多")
+    init_prompt_library_store()
+    imported_custom_schemes = 0
+    imported_favorites = 0
+    skipped_items = 0
+    failed_custom_schemes = 0
+    failed_favorites = 0
+    unresolved_custom_ids: set[str] = set()
+    with _db() as conn:
+        # Serialize the check-and-insert migration with normal saves so legacy
+        # payloads can never overwrite a concurrently-created scheme.
+        conn.execute("BEGIN IMMEDIATE")
+        for raw in custom_items:
+            if not isinstance(raw, dict):
+                skipped_items += 1
+                failed_custom_schemes += 1
+                continue
+            try:
+                legacy_id = _normalize_color_scheme_id(
+                    raw.get("id") or raw.get("color_scheme_id"),
+                    required=True,
+                )
+                payload = _normalize_color_scheme_payload(raw)
+            except ValueError:
+                skipped_items += 1
+                failed_custom_schemes += 1
+                continue
+            payload_digest = hashlib.sha256(_json(payload, {}).encode("utf-8")).hexdigest()[:16]
+            migration_key = f"custom:{legacy_id}:{payload_digest}"
+            if conn.execute(
+                "SELECT 1 FROM prompt_color_scheme_migrations WHERE migration_key=?",
+                (migration_key,),
+            ).fetchone():
+                skipped_items += 1
+                continue
+            existing = conn.execute(
+                "SELECT * FROM prompt_color_schemes WHERE color_scheme_id=?",
+                (legacy_id,),
+            ).fetchone()
+            if existing:
+                if str(existing["status"] or "active") != "active":
+                    conn.execute(
+                        """
+                        INSERT INTO prompt_color_scheme_migrations(
+                            migration_key, source, target_id, imported_at
+                        ) VALUES(?, 'local_storage_v1', ?, ?)
+                        """,
+                        (migration_key, legacy_id, _now()),
+                    )
+                    skipped_items += 1
+                    continue
+                if bool(existing["system"]):
+                    unresolved_custom_ids.add(legacy_id)
+                    skipped_items += 1
+                    failed_custom_schemes += 1
+                    continue
+                existing_payload = _normalize_color_scheme_payload({}, existing)
+                if existing_payload != payload:
+                    unresolved_custom_ids.add(legacy_id)
+                    skipped_items += 1
+                    failed_custom_schemes += 1
+                    continue
+            else:
+                _write_custom_color_scheme(
+                    conn,
+                    legacy_id,
+                    payload,
+                    existing=None,
+                    legacy_source_id=legacy_id,
+                )
+                imported_custom_schemes += 1
+            conn.execute(
+                """
+                INSERT INTO prompt_color_scheme_migrations(
+                    migration_key, source, target_id, imported_at
+                ) VALUES(?, 'local_storage_v1', ?, ?)
+                """,
+                (migration_key, legacy_id, _now()),
+            )
+
+        for raw_id in favorite_items:
+            try:
+                color_scheme_id = _normalize_color_scheme_id(raw_id, required=True)
+            except ValueError:
+                skipped_items += 1
+                failed_favorites += 1
+                continue
+            migration_key = f"favorite:{color_scheme_id}"
+            if conn.execute(
+                "SELECT 1 FROM prompt_color_scheme_migrations WHERE migration_key=?",
+                (migration_key,),
+            ).fetchone():
+                skipped_items += 1
+                continue
+            if color_scheme_id in unresolved_custom_ids:
+                skipped_items += 1
+                failed_favorites += 1
+                continue
+            existing = conn.execute(
+                "SELECT * FROM prompt_color_schemes WHERE color_scheme_id=?",
+                (color_scheme_id,),
+            ).fetchone()
+            if not existing:
+                skipped_items += 1
+                failed_favorites += 1
+                continue
+            conn.execute(
+                """
+                INSERT INTO prompt_color_scheme_migrations(
+                    migration_key, source, target_id, imported_at
+                ) VALUES(?, 'local_storage_v1', ?, ?)
+                """,
+                (migration_key, color_scheme_id, _now()),
+            )
+            if str(existing["status"] or "active") != "active":
+                skipped_items += 1
+                continue
+            if not bool(existing["favorite"]):
+                conn.execute(
+                    "UPDATE prompt_color_schemes SET favorite=1 WHERE color_scheme_id=?",
+                    (color_scheme_id,),
+                )
+                imported_favorites += 1
+
+    return {
+        "imported_custom_schemes": imported_custom_schemes,
+        "imported_favorites": imported_favorites,
+        "skipped_items": skipped_items,
+        "failed_custom_schemes": failed_custom_schemes,
+        "failed_favorites": failed_favorites,
+        "migration_complete": failed_custom_schemes == 0 and failed_favorites == 0,
+        "color_schemes": list_color_schemes(),
     }
 
 
