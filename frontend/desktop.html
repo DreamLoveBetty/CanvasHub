@@ -3,15 +3,16 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="canvashub-version" content="V26.2.1">
+  <meta name="canvashub-version" content="V26.2.2">
   <title>图像画布</title>
-  <link rel="stylesheet" href="styles/desktop-liquid.css?v=20260713-app-update-bell1-canvas-zoom75-20260715-prompt-tokens6-20260717-prompt-color-token1-prompt-block-module-mark1-20260722-comfy-node1-settings-tabs-fold1-comfy-params1-comfy-resize1-sizeparams1-resize-line2-ondemand-params1-remove-dot3-compare-underlay1-drawer-genie1-pinterest-browser-auth1-pinterest-gallery3-download1-pinterest-node-progress1-logo2-pinterest-sync-ui3-pinterest-sync-capsule2-pinterest-header-nav1-pinterest-progress-red1-pinterest-analysis1-pinterest-analysis-glass2-pinterest-analysis-persist1-gallery-scroll-reuse1-custom-updater1">
+  <link rel="stylesheet" href="styles/desktop-liquid.css?v=20260810-prompt-task-rail1">
+  <link rel="stylesheet" href="styles/desktop-video.css?v=20260809-video-aspect1">
   <link rel="stylesheet" href="styles/desktop-layout.css?v=20260629-desk-select1">
   <link rel="stylesheet" href="styles/desktop-pose.css?v=20260703-pose-reference1">
   <link rel="stylesheet" href="styles/desktop-file-results.css?v=20260711-file-board-list4">
   <link rel="stylesheet" href="styles/desktop-prompt-library.css?v=20260719-color-image-analysis12">
 </head>
-<body class="desk-app" data-app-version="V26.2.1">
+<body class="desk-app" data-app-version="V26.2.2">
   <div id="authOverlay" class="auth-overlay">
     <div class="auth-card desk-glass">
       <div class="auth-title" data-i18n="authTitle">需要身份验证</div>
@@ -67,7 +68,7 @@
             <div class="desk-release__list" id="deskReleaseList"></div>
             <footer class="desk-release__footer">
               <span id="deskReleaseCurrentLabel">当前版本</span>
-              <strong id="deskReleaseCurrentVersion">V26.2.1</strong>
+              <strong id="deskReleaseCurrentVersion">V26.2.2</strong>
             </footer>
           </section>
         </div>
@@ -258,7 +259,7 @@
           </span>
         </button>
       </div>
-      <button type="button" class="desk-rail__item" data-tool="gallery" title="图库">
+      <button type="button" class="desk-rail__item" data-tool="gallery" title="资产库">
         <span class="desk-rail__glyph desk-rail__glyph--gallery" aria-hidden="true">
           <svg class="desk-rail-icon desk-rail-icon--gallery" viewBox="0 0 24 24">
             <g class="desk-rail-icon__image">
@@ -269,7 +270,7 @@
             <path class="desk-rail-icon__play" d="M15 15.003a1 1 0 0 1 1.517-.859l4.997 2.997a1 1 0 0 1 0 1.718l-4.997 2.997a1 1 0 0 1-1.517-.86z"></path>
           </svg>
         </span>
-        <span>图库</span>
+        <span>资产库</span>
       </button>
       <button type="button" class="desk-rail__item" data-tool="prompts" title="提示词" aria-controls="deskPromptLibraryPanel" aria-expanded="false">
         <span class="desk-rail__glyph desk-rail__glyph--prompts" aria-hidden="true">
@@ -600,30 +601,42 @@
     </aside>
     <canvas class="desk-history-genie-canvas" id="deskHistoryGenieCanvas" aria-hidden="true"></canvas>
 
-    <section class="desk-gallery desk-glass" id="deskGalleryPanel" aria-label="图库工作台" aria-hidden="true">
+    <section class="desk-gallery desk-glass" id="deskGalleryPanel" aria-label="资产库工作台" aria-hidden="true">
       <div class="desk-gallery__header">
         <div>
-          <h2>图库工作台</h2>
+          <h2>资产库工作台</h2>
         </div>
         <div class="desk-gallery__actions">
-          <button type="button" id="deskGalleryRefreshBtn" title="刷新图库" aria-label="刷新图库">
+          <button type="button" id="deskGalleryRefreshBtn" title="刷新资产库" aria-label="刷新资产库">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 0 1 15.4-6.4"></path><path d="M18.4 5.6H14"></path><path d="M18.4 5.6V1.2"></path><path d="M21 12A9 9 0 0 1 5.6 18.4"></path><path d="M5.6 18.4H10"></path><path d="M5.6 18.4v4.4"></path></svg>
           </button>
-          <button type="button" id="deskGalleryHealthBtn" title="图库体检" aria-label="图库体检">
+          <button type="button" id="deskGalleryHealthBtn" title="资产库体检" aria-label="资产库体检">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 19 6v5c0 4.4-2.8 8.4-7 10-4.2-1.6-7-5.6-7-10V6l7-3Z"></path><path d="m8.6 12.2 2.2 2.2 4.8-5"></path></svg>
           </button>
-          <button type="button" id="deskGalleryCloseBtn" title="关闭图库" aria-label="关闭图库">
+          <button type="button" id="deskGalleryCloseBtn" title="关闭资产库" aria-label="关闭资产库">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7 17 17"></path><path d="M17 7 7 17"></path></svg>
           </button>
         </div>
       </div>
       <div class="desk-gallery__toolbar">
-        <div class="desk-gallery-tabs" role="tablist" aria-label="图库视图">
-          <button type="button" class="is-active" data-gallery-view="images">图片</button>
-          <button type="button" data-gallery-view="pinterest">Pinterest</button>
-          <button type="button" data-gallery-view="files">文件</button>
-          <button type="button" data-gallery-view="sources">远程源</button>
-          <button type="button" data-gallery-view="sets">候选集</button>
+        <div class="desk-gallery-tabs" role="tablist" aria-label="资产库视图">
+          <button type="button" id="deskGalleryTabImages" class="is-active" role="tab" aria-selected="true" aria-controls="deskGalleryGrid" data-gallery-view="images">图片</button>
+          <button type="button" id="deskGalleryTabVideos" role="tab" aria-selected="false" aria-controls="deskGalleryGrid" tabindex="-1" data-gallery-view="videos">视频</button>
+          <button type="button" id="deskGalleryTabFiles" role="tab" aria-selected="false" aria-controls="deskGalleryGrid" tabindex="-1" data-gallery-view="files">文件</button>
+          <button type="button" id="deskGalleryTabPinterest" role="tab" aria-selected="false" aria-controls="deskGalleryGrid" tabindex="-1" data-gallery-view="pinterest">Pinterest</button>
+          <button type="button" id="deskGalleryTabSources" role="tab" aria-selected="false" aria-controls="deskGalleryGrid" tabindex="-1" data-gallery-view="sources">远程源</button>
+          <button type="button" id="deskGalleryTabSets" role="tab" aria-selected="false" aria-controls="deskGalleryGrid" tabindex="-1" data-gallery-view="sets">候选集</button>
+        </div>
+        <div class="desk-gallery-video-source" id="deskGalleryVideoSource" role="group" aria-label="视频来源" hidden>
+          <button type="button" class="is-active" data-gallery-video-source="generated" aria-pressed="true">
+            <span>生成视频</span><em data-gallery-video-source-count="generated">--</em>
+          </button>
+          <button type="button" data-gallery-video-source="imported" aria-pressed="false">
+            <span>导入素材</span><em data-gallery-video-source-count="imported">--</em>
+          </button>
+          <button type="button" data-gallery-video-source="all" aria-pressed="false">
+            <span>全部</span><em data-gallery-video-source-count="all">--</em>
+          </button>
         </div>
         <label class="desk-gallery-search">
           <span aria-hidden="true">
@@ -631,7 +644,7 @@
           </span>
           <input id="deskGallerySearchInput" type="search" placeholder="搜索提示词 / 文件名 / 16:9 / PNG">
         </label>
-        <select id="deskGalleryFilterSelect" class="desk-gallery-filter" aria-label="图库筛选">
+        <select id="deskGalleryFilterSelect" class="desk-gallery-filter" aria-label="资产筛选">
           <option value="all">全部资产</option>
           <option value="today">今天</option>
           <option value="ppt">PPT 文件</option>
@@ -663,16 +676,16 @@
       </div>
       <div class="desk-gallery-stats" id="deskGalleryStats" aria-live="polite">
         <span>Obsidian --</span>
-        <span>图库 --</span>
+        <span>资产库 --</span>
         <span>有记录 --</span>
         <span>孤儿 --</span>
         <span>有尺寸 --</span>
       </div>
       <div class="desk-gallery__body">
-        <div class="desk-gallery-grid" id="deskGalleryGrid" aria-label="图库资产列表">
-          <div class="desk-gallery-empty">打开图库后会同步最近图片资产</div>
+        <div class="desk-gallery-grid" id="deskGalleryGrid" role="tabpanel" aria-labelledby="deskGalleryTabImages" aria-label="资产列表">
+          <div class="desk-gallery-empty">打开资产库后会同步最近资产</div>
         </div>
-        <aside class="desk-gallery-inspector" id="deskGalleryInspector" aria-label="图库选择篮">
+        <aside class="desk-gallery-inspector" id="deskGalleryInspector" aria-label="资产选择篮">
           <div class="desk-gallery-inspector__head">
             <strong>选择篮</strong>
             <span id="deskGallerySelectedCount">0 张</span>
@@ -728,6 +741,39 @@
           <div>
             <button type="button" id="deskPinterestAnalysisCopyBtn">复制提示词</button>
             <button type="button" class="is-primary" id="deskPinterestAnalysisSendBtn">发送到文本节点</button>
+          </div>
+        </footer>
+      </section>
+    </div>
+
+    <div class="desk-pinterest-split-modal" id="deskPinterestSplitModal" aria-hidden="true" hidden>
+      <div class="desk-pinterest-split-modal__backdrop" data-pinterest-split-backdrop aria-hidden="true"></div>
+      <section class="desk-pinterest-split-modal__panel desk-glass" role="dialog" aria-modal="true" aria-labelledby="deskPinterestSplitHeading">
+        <header class="desk-pinterest-split-modal__header">
+          <div class="desk-pinterest-split-modal__identity">
+            <span class="desk-pinterest-split-modal__mark" aria-hidden="true">P</span>
+            <div>
+              <span>提示词助手 · 素材块拆分</span>
+              <h2 id="deskPinterestSplitHeading">选择提示词素材</h2>
+            </div>
+          </div>
+          <button type="button" class="desk-pinterest-split-modal__close" id="deskPinterestSplitCloseBtn" title="关闭素材块拆分" aria-label="关闭素材块拆分">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg>
+          </button>
+        </header>
+        <div class="desk-pinterest-split-modal__body">
+          <aside class="desk-pinterest-split-modal__source">
+            <img id="deskPinterestSplitImg" alt="">
+            <strong id="deskPinterestSplitTitle">Pinterest 图片</strong>
+            <span id="deskPinterestSplitMeta">按高保真模块拆分</span>
+          </aside>
+          <div class="desk-pinterest-split-modal__results" id="deskPinterestSplitResults" aria-live="polite"></div>
+        </div>
+        <footer class="desk-pinterest-split-modal__footer">
+          <p id="deskPinterestSplitStatus">正在准备素材块拆分。</p>
+          <div>
+            <button type="button" id="deskPinterestSplitCopyBtn">直接复制</button>
+            <button type="button" class="is-primary" id="deskPinterestSplitSaveBtn">存储到素材块</button>
           </div>
         </footer>
       </section>
@@ -808,7 +854,7 @@
       <div class="desk-settings__header">
         <div class="desk-settings__title">
           <h2>设置中心</h2>
-          <span class="desk-settings__version" aria-label="版本 V26.2.1">V26.2.1</span>
+          <span class="desk-settings__version" aria-label="版本 V26.2.2">V26.2.2</span>
         </div>
         <div class="desk-settings__actions">
           <button type="button" id="deskSettingsInfoBtn" class="desk-settings-info-trigger" title="查看当前页说明" aria-label="查看当前页说明" aria-haspopup="dialog" aria-expanded="false" aria-controls="deskSettingsInfoTip" hidden>
@@ -838,6 +884,7 @@
           <button type="button" data-settings-tab="prompt">润色</button>
           <button type="button" data-settings-tab="paths">路径</button>
           <button type="button" data-settings-tab="comfy">ComfyUI</button>
+          <button type="button" data-settings-tab="video-inference">视频推理</button>
         </div>
       </div>
       <div class="desk-settings__summary" id="deskSettingsSummary">
@@ -1045,19 +1092,35 @@
       <div class="desk-prompt-drawer__body">
         <div class="desk-prompt-drawer__header">
           <div class="desk-prompt-drawer__title">
-            <strong>提示词助手</strong>
-            <div class="desk-prompt-drawer__control-row">
-              <label class="desk-prompt-node-picker">
-                <span id="deskPromptDrawerMeta">选择文本节点</span>
-                <select id="deskPromptNodeSelect" aria-label="选择文本节点">
-                  <option value="">请选择文本节点</option>
-                </select>
-              </label>
-              <button type="button" id="deskPromptDrawerClear" aria-label="清空提示词助手" title="清空">清空</button>
-            </div>
+            <strong id="deskPromptWorkbenchTitle">提示词助手</strong>
+          </div>
+          <div class="desk-prompt-mode-switch" role="tablist" aria-label="工作模式">
+            <button type="button" id="deskPromptAssistantMode" class="is-active" role="tab" aria-selected="true">助手</button>
+            <button type="button" id="deskPromptAgentMode" role="tab" aria-selected="false">Agent</button>
+          </div>
+          <div class="desk-prompt-drawer__control-row" data-prompt-assistant-view>
+            <label class="desk-prompt-node-picker">
+              <span id="deskPromptDrawerMeta">选择文本节点</span>
+              <select id="deskPromptNodeSelect" aria-label="选择文本节点">
+                <option value="">请选择文本节点</option>
+              </select>
+            </label>
+            <button type="button" id="deskPromptDrawerClear" aria-label="清空提示词助手" title="清空">清空</button>
+          </div>
+          <div class="desk-agent-head" id="deskAgentHead" data-prompt-agent-view hidden>
+            <span class="desk-agent-status" id="deskAgentStatus" data-status="idle"><i></i><span>待命</span></span>
+            <button type="button" class="desk-agent-icon-btn" id="deskAgentPause" aria-label="暂停 Agent" title="暂停 Agent" disabled>
+              <span class="desk-icon desk-icon--pause" id="deskAgentPauseIcon" aria-hidden="true"></span>
+            </button>
+            <button type="button" class="desk-agent-icon-btn" id="deskAgentRollback" aria-label="回滚本轮画布变更" title="回滚本轮画布变更" disabled>
+              <span class="desk-icon desk-icon--rollback" aria-hidden="true"></span>
+            </button>
+            <button type="button" class="desk-agent-icon-btn is-danger" id="deskAgentCancel" aria-label="取消 Agent 运行" title="取消 Agent 运行" disabled>
+              <span class="desk-icon desk-icon--stop" aria-hidden="true"></span>
+            </button>
           </div>
         </div>
-        <div class="desk-prompt-drawer__grid">
+        <div class="desk-prompt-drawer__grid" data-prompt-assistant-view>
           <div class="desk-prompt-chat">
             <div class="desk-prompt-chat__head">
               <button type="button" class="desk-prompt-expand-btn" id="deskPromptChatExpand" aria-label="展开讨论区" title="展开讨论区">
@@ -1066,16 +1129,21 @@
             </div>
             <div class="desk-prompt-chat__messages" id="deskPromptChatMessages"></div>
             <div class="desk-prompt-chat__input">
+              <div class="desk-prompt-task-mode" id="deskPromptTaskMode" role="radiogroup" aria-label="提示词任务类型">
+                <input id="deskPromptImageAnalysisToggle" type="checkbox" hidden aria-hidden="true" tabindex="-1">
+                <span class="desk-prompt-task-mode__rail" aria-hidden="true">
+                  <span class="desk-prompt-task-mode__fill"></span>
+                  <span class="desk-prompt-task-mode__thumb"><i></i></span>
+                </span>
+                <button type="button" class="is-active" data-prompt-task-mode="conversation" role="radio" aria-checked="true">普通会话</button>
+                <button type="button" data-prompt-task-mode="image_analysis" role="radio" aria-checked="false">图片分析</button>
+                <button type="button" data-prompt-task-mode="video_prompt" role="radio" aria-checked="false">视频提示</button>
+              </div>
               <div class="desk-prompt-chat__textwrap" id="deskPromptChatTextWrap">
                 <div id="deskPromptChatInput" class="desk-prompt-editor" contenteditable="true" role="textbox" aria-multiline="true" data-placeholder="输入讨论内容，或输入 @ 选择画布图片节点。"></div>
                 <div class="desk-prompt-image-menu" id="deskPromptImageMenu" hidden></div>
               </div>
               <div class="desk-prompt-chat__actions">
-                <label class="desk-prompt-image-switch">
-                  <input id="deskPromptImageAnalysisToggle" type="checkbox">
-                  <span></span>
-                  <em>图片分析</em>
-                </label>
                 <button type="button" id="deskPromptChatSend">发送</button>
                 <button type="button" id="deskPromptGenerateVersions">生成版本</button>
               </div>
@@ -1083,7 +1151,7 @@
           </div>
           <div class="desk-prompt-candidates">
             <div class="desk-prompt-candidates__head">
-              <strong>分析结果</strong>
+              <strong id="deskPromptCandidatesTitle">分析结果</strong><!-- <strong>分析结果</strong> -->
               <div class="desk-prompt-candidates__actions">
                 <button type="button" class="desk-prompt-expand-btn" id="deskPromptVersionsExpand" aria-label="展开分析结果" title="展开分析结果">
                   <span class="desk-icon desk-icon--expand" aria-hidden="true"></span>
@@ -1093,6 +1161,157 @@
             </div>
             <div class="desk-prompt-candidates__list" id="deskPromptCandidateList"></div>
           </div>
+        </div>
+        <div class="desk-agent-workbench" id="deskAgentWorkbench" data-prompt-agent-view hidden>
+          <section class="desk-agent-pane desk-agent-pane--goal">
+            <header class="desk-agent-pane__head">
+              <strong>目标与上下文</strong>
+              <span id="deskAgentContextMeta">等待读取画布</span>
+            </header>
+            <div class="desk-agent-goal-body">
+              <div class="desk-agent-goal-editor-wrap" id="deskAgentGoalWrap">
+                <div id="deskAgentGoal" class="desk-agent-goal-editor desk-prompt-editor" contenteditable="true" role="textbox" aria-multiline="true" aria-label="Agent 目标" data-maxlength="2000" data-placeholder="描述要完成的目标，输入 @ 可引用画布图片。"></div>
+                <div class="desk-prompt-image-menu desk-agent-image-menu" id="deskAgentImageMenu" hidden></div>
+              </div>
+              <div class="desk-agent-context" id="deskAgentContext"></div>
+            </div>
+            <div class="desk-agent-compose">
+              <label class="desk-agent-field">
+                <span>作用范围</span>
+                <select id="deskAgentScope" aria-label="Agent 作用范围">
+                  <option value="selection">当前选择</option>
+                  <option value="canvas">整个画布</option>
+                </select>
+              </label>
+              <label class="desk-agent-toggle">
+                <input id="deskAgentAutoGenerate" type="checkbox" checked>
+                <span aria-hidden="true"></span>
+                <em>包含出图</em>
+              </label>
+              <button type="button" class="desk-agent-command" id="deskAgentCreatePlan">
+                <span class="desk-icon desk-icon--sparkles" aria-hidden="true"></span>
+                <span>生成计划</span>
+              </button>
+            </div>
+          </section>
+
+          <section class="desk-agent-pane desk-agent-pane--plan">
+            <header class="desk-agent-pane__head">
+              <strong>执行计划</strong>
+              <span id="deskAgentPlanMeta">尚未创建</span>
+            </header>
+            <div class="desk-agent-steps" id="deskAgentSteps"></div>
+            <footer class="desk-agent-approval" id="deskAgentApproval">
+              <div class="desk-agent-approval__meta">
+                <strong id="deskAgentApprovalTitle">先生成计划</strong>
+                <span id="deskAgentApprovalHint">执行前会再次确认</span>
+              </div>
+              <div class="desk-agent-decision" id="deskAgentDecision" hidden>
+                <div class="desk-agent-decision__main">
+                  <div class="desk-agent-decision__copy">
+                    <span>Agent 决策</span>
+                    <strong id="deskAgentDecisionText">等待生成方案</strong>
+                  </div>
+                  <button type="button" class="desk-agent-icon-btn desk-agent-decision__settings" id="deskAgentParamsToggle" aria-label="调整高级生成参数" title="调整高级生成参数" aria-expanded="false" aria-controls="deskAgentParams">
+                    <span class="desk-icon desk-icon--sliders" aria-hidden="true"></span>
+                  </button>
+                </div>
+                <div class="desk-agent-decision__meta">
+                  <span id="deskAgentDecisionBasis">沿用当前模型节点设置</span>
+                  <em id="deskAgentDecisionAttention" hidden></em>
+                </div>
+              </div>
+              <form class="desk-agent-revision" id="deskAgentRevisionForm" hidden>
+                <input id="deskAgentRevisionInput" type="text" maxlength="1000" autocomplete="off" placeholder="补充要求" aria-label="用自然语言调整 Agent 生成决策">
+                <button type="submit" id="deskAgentRevisionSubmit">
+                  <span class="desk-icon desk-icon--sparkles" aria-hidden="true"></span>
+                  <span id="deskAgentRevisionSubmitLabel">更新</span>
+                </button>
+              </form>
+              <div class="desk-agent-params" id="deskAgentParams" hidden>
+                <div class="desk-agent-param desk-agent-param--provider">
+                  <span>提供方</span>
+                  <div class="desk-agent-provider" role="radiogroup" aria-label="图片生成提供方">
+                    <button type="button" id="deskAgentProviderGpt" data-agent-provider="gpt" role="radio" aria-checked="true">GPT</button>
+                    <button type="button" id="deskAgentProviderGoogle" data-agent-provider="google" role="radio" aria-checked="false">Google</button>
+                  </div>
+                </div>
+                <label class="desk-agent-param">
+                  <span>画幅</span>
+                  <select id="deskAgentRatio" aria-label="图片画幅">
+                    <option value="1:1">1:1</option>
+                    <option value="2:3">2:3</option>
+                    <option value="3:2">3:2</option>
+                    <option value="3:4">3:4</option>
+                    <option value="4:3">4:3</option>
+                    <option value="4:5">4:5</option>
+                    <option value="5:4">5:4</option>
+                    <option value="9:16">9:16</option>
+                    <option value="16:9">16:9</option>
+                    <option value="9:21">9:21</option>
+                    <option value="21:9">21:9</option>
+                  </select>
+                </label>
+                <label class="desk-agent-param">
+                  <span>分辨率</span>
+                  <select id="deskAgentResolution" aria-label="图片分辨率">
+                    <option value="1k">1K</option>
+                    <option value="2k">2K</option>
+                    <option value="4k">4K</option>
+                  </select>
+                </label>
+                <label class="desk-agent-param" data-agent-gpt-only>
+                  <span>质量</span>
+                  <select id="deskAgentQuality" aria-label="GPT 图片质量">
+                    <option value="auto">自动</option>
+                    <option value="low">低</option>
+                    <option value="medium">中</option>
+                    <option value="high">高</option>
+                  </select>
+                </label>
+                <label class="desk-agent-param" data-agent-gpt-only>
+                  <span>数量</span>
+                  <select id="deskAgentImageCount" aria-label="生成图片数量">
+                    <option value="1">1 张</option>
+                    <option value="2">2 张</option>
+                    <option value="3">3 张</option>
+                    <option value="4">4 张</option>
+                    <option value="5">5 张</option>
+                    <option value="6">6 张</option>
+                    <option value="7">7 张</option>
+                    <option value="8">8 张</option>
+                  </select>
+                </label>
+                <label class="desk-agent-param-toggle">
+                  <input id="deskAgentArchiveEnabled" type="checkbox" checked>
+                  <span aria-hidden="true"></span>
+                  <em>自动归档</em>
+                </label>
+                <label class="desk-agent-param-toggle">
+                  <input id="deskAgentTelegramEnabled" type="checkbox" checked>
+                  <span aria-hidden="true"></span>
+                  <em>Telegram</em>
+                </label>
+              </div>
+              <button type="button" class="desk-agent-command is-primary" id="deskAgentApprove" disabled>
+                <span class="desk-icon desk-icon--play" aria-hidden="true"></span>
+                <span>批准并运行</span>
+              </button>
+            </footer>
+          </section>
+
+          <section class="desk-agent-pane desk-agent-pane--activity">
+            <header class="desk-agent-pane__head">
+              <strong>运行记录</strong>
+              <span id="deskAgentEventMeta">0 条</span>
+            </header>
+            <div class="desk-agent-events" id="deskAgentEvents"></div>
+            <footer class="desk-agent-artifact" id="deskAgentArtifact">
+              <span>本轮产物</span>
+              <strong id="deskAgentArtifactTitle">尚无产物</strong>
+              <p id="deskAgentArtifactText">批准计划后，提示词和生成任务会在这里更新。</p>
+            </footer>
+          </section>
         </div>
       </div>
     </section>
@@ -1415,21 +1634,23 @@
   <script src="vendor/fabric.min.js?v=5.3.0"></script>
   <script src="vendor/fabric-eraser.mixin.js?v=20260628-image-editor-pin16"></script>
   <script src="scripts/desktop-state.js?v=20260713-canvas-zoom75"></script>
-  <script src="scripts/desktop-preferences.js?v=20260730-custom-updater2"></script>
-  <script src="scripts/desktop-select.js?v=20260702-upscale-flow12"></script>
-  <script src="scripts/desktop-api.js?v=20260720-prompt-colors-sqlite3-20260722-comfy-node1-comfy-params1-sizeparams1-ondemand-params1-gallery-paging2-pinterest-browser-auth1-pinterest-gallery2-download1-pinterest-sync-status1-pinterest-sync-ui3-pinterest-analysis-persist1-pinterest-account-identity1"></script>
-  <script src="scripts/desktop-canvas.js?v=20260712-node-groups2-20260715-prompt-system2-canvas-zoom75-upscale-component1-20260715-prompt-tokens6-20260717-prompt-color-token1-prompt-block-module-mark1-20260722-comfy-node1-comfy-params1-comfy-resize1-sizeparams1-ondemand-params2-remove-dot3"></script>
+  <script src="scripts/desktop-preferences.js?v=20260730-custom-updater2-droplet1"></script>
+  <script src="scripts/desktop-select.js?v=20260809-hidden-sync1"></script>
+  <script src="scripts/desktop-api.js?v=20260811-image-transfer1"></script>
+  <script src="scripts/desktop-video-config.js?v=20260808-video-4x2-controls1"></script>
+  <script src="scripts/desktop-canvas.js?v=20260811-image-transfer3"></script>
   <script type="module" src="scripts/desktop-pose-studio.js?v=20260705-pose-legacy-skeleton1"></script>
   <script src="scripts/desktop-layout-editor.js?v=20260621-websearch1"></script>
   <script src="scripts/desktop-file-results.js?v=20260711-file-board-list3"></script>
-  <script src="scripts/desktop-results.js?v=20260710-file-output-redesign3"></script>
-  <script src="scripts/desktop-history.js?v=20260715-prompt-system2-gallery-preview-counter1-file-layer-composite1-gallery-fastopen1-gallery-paging4-compare-underlay1-genie-real3-pinterest-gallery2-download1-pinterest-node-progress1-logo2-allboards1-pinterest-local-first1-pinterest-sync-ui3-pinterest-sync-capsule2-pinterest-header-nav1-pinterest-analysis1-pinterest-analysis-persist1-gallery-scroll-reuse1"></script>
-  <script src="scripts/desktop-settings.js?v=20260719-prompt-system2-pool-deadline1-20260722-comfy-settings1-tabs-fold1-comfy-params1-ondemand-params1-pinterest-browser-auth2-pinterest-auth-fixed1-pinterest-account-identity1"></script>
-  <script src="scripts/desktop-prompt-editor.js?v=20260704-prompt-clear-position1"></script>
-  <script src="scripts/desktop-prompt-drawer.js?v=20260706-prompt-drawer-session1-eyes-raf1-genie1"></script>
+  <script src="scripts/desktop-results.js?v=20260807-h3-node3"></script>
+  <script src="scripts/desktop-history.js?v=20260810-video-folder-svgface2"></script>
+  <script src="scripts/desktop-settings.js?v=20260807-h3-node3"></script>
+  <script src="scripts/desktop-prompt-editor.js?v=20260810-prompt-task-modes2"></script>
+  <script src="scripts/desktop-prompt-drawer.js?v=20260810-prompt-task-rail1"></script>
+  <script src="scripts/desktop-prompt-agent.js?v=20260810-h3-phase1"></script>
   <script src="scripts/desktop-color-extractor.js?v=20260719-color-image-analysis10"></script>
-  <script src="scripts/desktop-prompt-library.js?v=20260720-prompt-colors-sqlite3"></script>
-  <script src="scripts/desktop-prompt-insert.js?v=20260720-prompt-colors-sqlite3"></script>
-  <script src="scripts/desktop-bootstrap.js?v=20260713-prompt-system1"></script>
+  <script src="scripts/desktop-prompt-library.js?v=20260801-pinterest-fidelity1-bodyshape2"></script>
+  <script src="scripts/desktop-prompt-insert.js?v=20260720-prompt-colors-sqlite3-bodyshape1"></script>
+  <script src="scripts/desktop-bootstrap.js?v=20260805-agent-workbench1"></script>
 </body>
 </html>

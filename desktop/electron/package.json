@@ -1,6 +1,6 @@
 {
   "name": "canvashub-desktop",
-  "version": "26.2.1",
+  "version": "26.2.2",
   "description": "CanvasHub desktop application",
   "main": "app-dist/main.js",
   "private": true,
@@ -94,6 +94,7 @@
     },
     "win": {
       "icon": "assets/canvashub-app-icon.ico",
+      "requestedExecutionLevel": "asInvoker",
       "target": [
         "nsis"
       ]

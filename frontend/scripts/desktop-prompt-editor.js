@@ -209,6 +209,45 @@
       dispatchInput();
     }
 
+    function setDocument(text = '', items = []) {
+      const source = String(text || '');
+      const byId = new Map(
+        (Array.isArray(items) ? items : [])
+          .map(item => [String(item?.id || '').trim(), item])
+          .filter(([id]) => id)
+      );
+      const ids = Array.from(byId.keys()).sort((a, b) => b.length - a.length);
+      attachments.clear();
+      root.innerHTML = '';
+      ids.forEach(id => attachments.set(id, byId.get(id)));
+
+      if (!ids.length) {
+        root.textContent = source;
+      } else {
+        const escapedIds = ids.map(id => id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+        const tokenPattern = new RegExp(`(^|\\s)(${escapedIds.join('|')})(?=\\s|$)`, 'g');
+        let cursor = 0;
+        let matched = false;
+        let match;
+        while ((match = tokenPattern.exec(source))) {
+          matched = true;
+          const prefixEnd = match.index + match[1].length;
+          if (prefixEnd > cursor) root.append(document.createTextNode(source.slice(cursor, prefixEnd)));
+          root.append(buildChip(byId.get(match[2])), document.createTextNode(' '));
+          cursor = match.index + match[0].length;
+        }
+        if (cursor < source.length) root.append(document.createTextNode(source.slice(cursor)));
+        if (!matched) {
+          const original = root.textContent;
+          root.innerHTML = '';
+          ids.forEach(id => root.append(buildChip(byId.get(id)), document.createTextNode(' ')));
+          if (original) root.append(document.createTextNode(original));
+        }
+      }
+      clearMention();
+      dispatchInput();
+    }
+
     function clear() {
       root.innerHTML = '';
       clearMention();
@@ -233,7 +272,10 @@
       root.focus({ preventScroll: true });
     }
 
-    root.addEventListener('input', detectMention);
+    root.addEventListener('input', () => {
+      detectMention();
+      dispatchInput();
+    });
     root.addEventListener('keyup', detectMention);
     root.addEventListener('mouseup', detectMention);
     root.addEventListener('keydown', event => {
@@ -269,6 +311,7 @@
       insertAttachment,
       removeAttachment,
       setAttachments,
+      setDocument,
       setText
     };
     return api;

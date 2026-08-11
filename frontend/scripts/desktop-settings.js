@@ -7,6 +7,8 @@
   let lastGptModelCatalog = null;
   let lastComfyWorkflows = null;
   let lastComfyHealth = null;
+  let lastVideoRuntimeStatus = null;
+  let lastVideoRuntimeCapabilities = null;
   let activeComfyWorkflowId = '';
   let pinterestAuthSessionId = window.sessionStorage?.getItem('deskPinterestAuthSessionId') || '';
   let pinterestAuthActivity = null;
@@ -25,7 +27,7 @@
   let managedCodexOAuthPollDeadline = 0;
   const MANAGED_CODEX_OAUTH_POLL_INTERVAL_MS = 1500;
   const MANAGED_CODEX_OAUTH_POLL_TIMEOUT_MS = 15 * 60 * 1000;
-  const EXTRA_SETTINGS_TABS = new Set(['third-party', 'chatgpt-pool', 'prompt', 'paths', 'comfy']);
+  const EXTRA_SETTINGS_TABS = new Set(['third-party', 'chatgpt-pool', 'prompt', 'paths', 'comfy', 'video-inference']);
   const SETTINGS_TAB_HELP = {
     system: {
       title: '系统配置',
@@ -182,6 +184,27 @@
           '节点只显示已启用工作流；停用不会删除 JSON，也不会破坏旧画布引用。',
           '缩略图会压缩成 WebP 保存，工作流 JSON 本身仍保留在后端 workflows 目录。',
           '画布节点会自动解析 JSON 中的数字、开关、文本和常用枚举参数；节点修改只作为本次运行覆盖，不会改写原工作流。'
+        ]]
+      ]
+    },
+    'video-inference': {
+      title: '视频推理配置',
+      subtitle: '独立 MiniMax H3 Runtime',
+      summary: '选择主程序调用本机或局域网中的独立 H3 Runtime；画布不保存服务地址和密钥。',
+      sections: [
+        ['运行方式', [
+          '自动检测会先尝试本机 Runtime，再尝试已配置的局域网 Runtime。',
+          '本机 H3 适合主程序和 RTX 显卡部署在同一台 Windows 设备；局域网 H3 适合 Mac 或其他设备调用 Windows 推理机。',
+          'H3_Runtime_Server 独立启动，不依赖 ComfyUI 前端和工作流 JSON。'
+        ]],
+        ['参数边界', [
+          '节点中的画幅只决定宽高比，质量表示像素量，并由两者映射到实际分辨率。',
+          '实际尺寸始终按 Runtime 的 dimension_multiple 对齐，并受 max_pixels 限制。',
+          'FirstBlockCache 与 Sol-Attn 属于近似加速；Sol-Attn 和组合模式继续标记为实验性。'
+        ]],
+        ['安全与保存', [
+          '局域网 API Key 只保存在后端 settings.json，不会返回前端或写入画布工作流。',
+          '服务地址只允许本机或局域网地址；连接检测不经过系统代理。'
         ]]
       ]
     }
@@ -430,6 +453,21 @@
         ${renderSystemSaveButton('system', '保存系统配置')}
       </div>`
     ], !publicMode || Boolean(auth?.miniapp_access_password_configured));
+  }
+
+  function renderCanvasInteractionSettings() {
+    const style = window.DesktopPreferences?.normalizeConnectionSwellStyle?.(
+      window.DesktopPreferences?.state?.connectionSwellStyle
+    ) || 'liquid';
+    return renderCard('画布交互', [
+      `<div class="desk-settings-canvas-interaction">
+        <span class="desk-settings-canvas-interaction__label">连接端点</span>
+        <div class="desk-settings-canvas-interaction__segment" role="group" aria-label="连接端点样式">
+          <button type="button" class="${style === 'liquid' ? 'is-active' : ''}" data-connection-swell-style="liquid" aria-pressed="${style === 'liquid' ? 'true' : 'false'}">液化</button>
+          <button type="button" class="${style === 'droplet' ? 'is-active' : ''}" data-connection-swell-style="droplet" aria-pressed="${style === 'droplet' ? 'true' : 'false'}">水滴</button>
+        </div>
+      </div>`
+    ], true);
   }
 
   function pinterestAuthLabel(status, configured) {
@@ -696,6 +734,75 @@
       </div>`
     ], Boolean((catalog.items || []).some(item => item.enabled)));
     return serviceCard + workflowsCard;
+  }
+
+  function renderVideoInferenceSettings(config = {}, status = null, capabilitiesPayload = null) {
+    const runtimeMode = ['auto', 'local', 'lan'].includes(config.runtime_mode) ? config.runtime_mode : 'auto';
+    const local = config.local || {};
+    const lan = config.lan || {};
+    const defaults = config.defaults || {};
+    const component = status?.component || {};
+    const capabilityData = capabilitiesPayload?.capabilities || capabilitiesPayload || {};
+    const constraints = capabilityData.constraints || {};
+    const environmentFields = Array.isArray(config.environment_fields) ? config.environment_fields : [];
+    const isManaged = field => environmentFields.includes(field);
+    const statusText = status?.online
+      ? `H3 Runtime ${status.version || ''} · 在线 · ${Number(status.latency_ms || 0)}ms`
+      : (status?.checked
+        ? `离线${status?.error ? ` · ${status.error}` : ''}`
+        : '尚未检测连接');
+    const componentText = component.exists
+      ? `组件已发现${component.start_script ? ` · ${component.start_script}` : ''}`
+      : (component.supported ? '组件目录未发现' : '当前设备仅可作为远程调用端');
+    const maxPixels = Number(constraints.max_pixels || 0);
+    const maxPixelsLabel = maxPixels ? `${(maxPixels / 1_000_000).toFixed(2)} MP` : '等待 Runtime';
+    const localVisible = runtimeMode !== 'lan';
+    const lanVisible = runtimeMode !== 'local';
+    return renderCard('视频推理运行方式', [
+      `<div class="desk-settings-form desk-video-runtime-settings" data-system-settings-card="video-inference">
+        <input type="hidden" data-system-setting-field="video_inference.runtime_mode" value="${escapeHtml(runtimeMode)}">
+        <div class="desk-video-runtime-mode" role="tablist" aria-label="H3 Runtime 运行方式">
+          ${[
+            ['auto', '自动检测'],
+            ['local', '本机 H3'],
+            ['lan', '局域网 H3']
+          ].map(([value, label]) => `<button type="button" data-video-runtime-mode="${value}" class="${runtimeMode === value ? 'is-active' : ''}" aria-pressed="${runtimeMode === value ? 'true' : 'false'}">${label}</button>`).join('')}
+        </div>
+        <div class="desk-video-runtime-status${status?.online ? ' is-online' : ''}${status?.checked && !status?.online ? ' is-offline' : ''}">
+          <span aria-hidden="true"></span>
+          <div><strong>${escapeHtml(statusText)}</strong><small>${escapeHtml(status?.base_url || (runtimeMode === 'lan' ? lan.base_url : local.base_url) || '未配置服务地址')}</small></div>
+        </div>
+        <section class="desk-video-runtime-panel" data-video-runtime-mode-panel="local"${localVisible ? '' : ' hidden'}>
+          <div class="desk-settings-form__section-title"><strong>本机服务</strong><span>${escapeHtml(componentText)}</span></div>
+          ${renderInput('组件目录', 'video_inference.local.component_dir', local.component_dir || '', { placeholder: 'D:\\Program\\H3_Runtime_Server', disabled: isManaged('local.component_dir') })}
+          ${renderInput('服务地址', 'video_inference.local.base_url', local.base_url || 'http://127.0.0.1:8190', { placeholder: 'http://127.0.0.1:8190', disabled: isManaged('local.base_url') })}
+          <label><span>启动方式</span><select class="desk-select" data-system-setting-field="video_inference.local.start_mode"${isManaged('local.start_mode') ? ' disabled aria-disabled="true"' : ''}>
+            ${optionHtml('on_demand', '按需启动', local.start_mode || 'on_demand')}
+            ${optionHtml('manual', '手动启动', local.start_mode)}
+            ${optionHtml('always', '随组件常驻', local.start_mode)}
+          </select></label>
+        </section>
+        <section class="desk-video-runtime-panel" data-video-runtime-mode-panel="lan"${lanVisible ? '' : ' hidden'}>
+          <div class="desk-settings-form__section-title"><strong>局域网服务</strong><span>主程序与推理机可部署在不同设备</span></div>
+          ${renderInput('服务地址', 'video_inference.lan.base_url', lan.base_url || '', { placeholder: 'http://192.168.3.22:8190', disabled: isManaged('lan.base_url') })}
+          ${isManaged('lan.api_key')
+            ? '<p class="desk-settings-form__hint">Runtime API Key 由环境变量 H3_RUNTIME_API_KEY 托管。</p>'
+            : renderSecretInput('Runtime API Key', 'video_inference.lan.api_key', lan.api_key_configured, { placeholder: lan.api_key_configured ? '留空则不修改' : '填写 H3 Runtime API Key' })}
+          ${renderInput('连接超时（秒）', 'video_inference.lan.connect_timeout_seconds', lan.connect_timeout_seconds || 5, { type: 'number', min: 0.5, max: 30, step: 0.5, disabled: isManaged('lan.connect_timeout_seconds') })}
+        </section>
+        <div class="desk-video-runtime-capabilities">
+          <span>尺寸对齐 <strong>${Number(constraints.dimension_multiple || 32)}</strong></span>
+          <span>像素上限 <strong>${escapeHtml(maxPixelsLabel)}</strong></span>
+          <span>默认加速 <strong>${escapeHtml(defaults.acceleration_mode === 'first_block_cache' ? `FBC ${Number(defaults.first_block_cache_threshold || 0.08).toFixed(2)}` : (defaults.acceleration_mode || '关闭'))}</strong></span>
+        </div>
+        ${config.environment_managed ? `<p class="desk-settings-form__hint">部分字段由环境变量托管：${escapeHtml(environmentFields.join('、'))}</p>` : '<p class="desk-settings-form__hint">服务地址和密钥只保存在主程序后端，不写入画布工作流。</p>'}
+        <div class="desk-settings-form__actions desk-settings-form__wide">
+          <button type="button" data-video-runtime-test>检测连接</button>
+          <button type="button" data-video-runtime-start${component.startable ? '' : ' disabled'} title="${escapeHtml(component.startable ? '启动本机 H3 Runtime' : componentText)}">启动服务</button>
+          <button type="button" class="is-primary" data-system-settings-save="video-inference">保存视频推理设置</button>
+        </div>
+      </div>`
+    ], Boolean(status?.online));
   }
 
   function renderPathSettings(storage, database) {
@@ -1179,6 +1286,10 @@
     const editableServer = { ...server, ...(setting('server', {}) || {}) };
     const editablePool = { ...pool, ...(setting('chatgpt_pool', {}) || {}) };
     const comfyConfig = { ...(data.comfy || {}), ...(setting('comfy', {}) || {}) };
+    const videoInferenceConfig = {
+      ...(data.video_inference || {}),
+      ...(setting('video_inference', {}) || {})
+    };
     const pinterest = setting('pinterest', {});
     const thirdPartyReady = Boolean(nanoBanana.api_key_configured || thirdParty.api_key_configured);
     const providerNeedsRelogin = Boolean(provider.requires_relogin);
@@ -1204,7 +1315,7 @@
       {
         tab: 'system',
         html: activeTab === 'system'
-          ? renderSystemRuntimeSettings(editableServer, setting('auth', auth)) + renderPinterestSettings(pinterest)
+          ? renderCanvasInteractionSettings() + renderSystemRuntimeSettings(editableServer, setting('auth', auth)) + renderPinterestSettings(pinterest)
           : ''
       },
       {
@@ -1296,6 +1407,16 @@
             renderKv('工作流数量', (lastComfyWorkflows?.items || []).filter(item => item.enabled).length),
             renderKv('连接状态', lastComfyHealth?.online ? '在线' : '未测试')
           ], Boolean(comfyConfig.base_url))
+      },
+      {
+        tab: 'video-inference',
+        html: activeTab === 'video-inference'
+          ? renderVideoInferenceSettings(videoInferenceConfig, lastVideoRuntimeStatus, lastVideoRuntimeCapabilities)
+          : renderCard('视频推理', [
+            renderKv('运行方式', ({ auto: '自动检测', local: '本机 H3', lan: '局域网 H3' })[videoInferenceConfig.runtime_mode] || '自动检测'),
+            renderKv('连接状态', lastVideoRuntimeStatus?.online ? '在线' : (lastVideoRuntimeStatus?.checked ? '离线' : '未检测')),
+            renderKv('Runtime 版本', lastVideoRuntimeStatus?.version || '未知')
+          ], Boolean(lastVideoRuntimeStatus?.online))
       }
     ];
 
@@ -1315,6 +1436,7 @@
         <span>第三方 ${thirdPartyReady ? '已配置' : '未配置'}</span>
         <span>账号池 ${pool.online ? '在线' : '未在线'}</span>
         <span>ComfyUI ${lastComfyHealth?.online ? '在线' : '未测试'}</span>
+        <span>H3 Runtime ${lastVideoRuntimeStatus?.online ? '在线' : (lastVideoRuntimeStatus?.checked ? '离线' : '未检测')}</span>
         <span>Pinterest ${pinterest.enabled ? pinterestAuthLabel(pinterest.auth_status, pinterest.auth_configured) : '未启用'}</span>
         <span>润色 ${promptSkill.model || promptRuntime.default_model || '未选模型'}</span>
         <span>Telegram ${telegram.bot_token_configured && telegram.chat_id_configured ? '可用' : '未就绪'}</span>
@@ -1535,22 +1657,28 @@
       throw new Error('诊断 API 未加载');
     }
     renderLoading();
-    const [data, systemSettings, promptConfig, gptModels, comfyWorkflows] = await Promise.all([
+    const [data, systemSettings, promptConfig, gptModels, comfyWorkflows, videoRuntimeStatus, videoRuntimeCapabilities] = await Promise.all([
       window.DesktopApi.getSystemDiagnostics(),
       window.DesktopApi.getSystemSettings ? window.DesktopApi.getSystemSettings().catch(error => ({ ok: false, error: error.message })) : Promise.resolve(null),
       window.DesktopApi.getPromptConfig ? window.DesktopApi.getPromptConfig().catch(error => ({ ok: false, error: error.message })) : Promise.resolve(null),
       window.DesktopApi.getGptModels ? window.DesktopApi.getGptModels().catch(error => ({ ok: false, error: error.message })) : Promise.resolve(null),
-      window.DesktopApi.getComfyWorkflows ? window.DesktopApi.getComfyWorkflows(true).catch(error => ({ ok: false, error: error.message })) : Promise.resolve(null)
+      window.DesktopApi.getComfyWorkflows ? window.DesktopApi.getComfyWorkflows(true).catch(error => ({ ok: false, error: error.message })) : Promise.resolve(null),
+      window.DesktopApi.getVideoRuntimeStatus ? window.DesktopApi.getVideoRuntimeStatus(true).catch(error => ({ ok: false, online: false, checked: true, error: error.message })) : Promise.resolve(null),
+      window.DesktopApi.getVideoRuntimeCapabilities ? window.DesktopApi.getVideoRuntimeCapabilities().catch(error => ({ ok: false, runtime_online: false, error: error.message })) : Promise.resolve(null)
     ]);
     lastDiagnostics = data;
     lastSystemSettings = systemSettings?.ok ? systemSettings : null;
     lastPromptConfig = promptConfig?.ok ? promptConfig : null;
     lastGptModelCatalog = gptModels?.ok ? gptModels : lastGptModelCatalog;
     lastComfyWorkflows = comfyWorkflows?.ok ? comfyWorkflows : lastComfyWorkflows;
+    lastVideoRuntimeStatus = videoRuntimeStatus || lastVideoRuntimeStatus;
+    lastVideoRuntimeCapabilities = videoRuntimeCapabilities?.capabilities ? videoRuntimeCapabilities : lastVideoRuntimeCapabilities;
     if (lastGptModelCatalog) window.DesktopCanvas?.applyGptModelCatalog?.(lastGptModelCatalog);
     if (comfyWorkflows?.ok) {
       window.dispatchEvent(new CustomEvent('desktop:comfy-workflows-updated', { detail: comfyWorkflows }));
     }
+    if (videoRuntimeStatus) window.DesktopVideoConfig?.setRuntimeStatus?.(videoRuntimeStatus);
+    if (videoRuntimeCapabilities?.capabilities) window.DesktopVideoConfig?.setCapabilities?.(videoRuntimeCapabilities);
     renderDiagnostics(data);
     return data;
   }
@@ -1822,6 +1950,37 @@
     if (lastDiagnostics) renderDiagnostics(lastDiagnostics);
     window.DesktopResults?.showTransientMessage?.(`ComfyUI 已连接，延迟 ${Number(lastComfyHealth.latency_ms || 0)}ms。`, 'success');
     return lastComfyHealth;
+  }
+
+  async function testVideoRuntimeConnection() {
+    if (!window.DesktopApi?.testVideoRuntime) throw new Error('H3 Runtime 连接测试 API 未加载');
+    const card = els.deskSettingsBody?.querySelector('[data-system-settings-card="video-inference"]');
+    const payload = collectSystemSettingsForm(card)?.video_inference || {};
+    lastVideoRuntimeStatus = await window.DesktopApi.testVideoRuntime(payload);
+    window.DesktopVideoConfig?.setRuntimeStatus?.(lastVideoRuntimeStatus);
+    if (lastVideoRuntimeStatus?.online && window.DesktopApi.getVideoRuntimeCapabilities) {
+      lastVideoRuntimeCapabilities = await window.DesktopApi.getVideoRuntimeCapabilities();
+      window.DesktopVideoConfig?.setCapabilities?.(lastVideoRuntimeCapabilities);
+    }
+    if (lastDiagnostics) renderDiagnostics(lastDiagnostics);
+    if (!lastVideoRuntimeStatus?.online) {
+      throw new Error(lastVideoRuntimeStatus?.error || lastVideoRuntimeStatus?.message || 'H3 Runtime 离线');
+    }
+    window.DesktopResults?.showTransientMessage?.(`H3 Runtime 已连接，延迟 ${Number(lastVideoRuntimeStatus.latency_ms || 0)}ms。`, 'success');
+    return lastVideoRuntimeStatus;
+  }
+
+  async function startVideoRuntimeService() {
+    if (!window.DesktopApi?.startVideoRuntime || !window.DesktopApi?.saveSystemSettings) {
+      throw new Error('H3 Runtime 启动 API 未加载');
+    }
+    const card = els.deskSettingsBody?.querySelector('[data-system-settings-card="video-inference"]');
+    const payload = collectSystemSettingsForm(card);
+    await window.DesktopApi.saveSystemSettings(payload);
+    const result = await window.DesktopApi.startVideoRuntime();
+    window.DesktopResults?.showTransientMessage?.(result.message || 'H3 Runtime 启动命令已发送。', 'success');
+    window.setTimeout(() => refresh().catch(() => {}), 1800);
+    return result;
   }
 
   function readFileAsDataUrl(file) {
@@ -2424,6 +2583,58 @@
       }
     });
     els.deskSettingsBody?.addEventListener('click', event => {
+      const videoRuntimeMode = event.target.closest('[data-video-runtime-mode]');
+      if (videoRuntimeMode) {
+        event.preventDefault();
+        const card = videoRuntimeMode.closest('[data-system-settings-card="video-inference"]');
+        const mode = videoRuntimeMode.dataset.videoRuntimeMode || 'auto';
+        const hiddenInput = card?.querySelector('[data-system-setting-field="video_inference.runtime_mode"]');
+        if (hiddenInput) hiddenInput.value = mode;
+        card?.querySelectorAll('[data-video-runtime-mode]').forEach(button => {
+          const active = button.dataset.videoRuntimeMode === mode;
+          button.classList.toggle('is-active', active);
+          button.setAttribute('aria-pressed', active ? 'true' : 'false');
+        });
+        card?.querySelectorAll('[data-video-runtime-mode-panel]').forEach(panel => {
+          const panelMode = panel.dataset.videoRuntimeModePanel;
+          panel.hidden = mode === 'local' ? panelMode !== 'local' : (mode === 'lan' ? panelMode !== 'lan' : false);
+        });
+        return;
+      }
+      const videoRuntimeTest = event.target.closest('[data-video-runtime-test]');
+      if (videoRuntimeTest) {
+        event.preventDefault();
+        runButtonAction(videoRuntimeTest, testVideoRuntimeConnection, {
+          loadingText: '检测中...',
+          doneText: '已连接',
+          errorMessage: 'H3 Runtime 连接失败'
+        });
+        return;
+      }
+      const videoRuntimeStart = event.target.closest('[data-video-runtime-start]');
+      if (videoRuntimeStart) {
+        event.preventDefault();
+        runButtonAction(videoRuntimeStart, startVideoRuntimeService, {
+          loadingText: '启动中...',
+          doneText: '已启动',
+          errorMessage: 'H3 Runtime 启动失败'
+        });
+        return;
+      }
+      const swellStyleButton = event.target.closest('[data-connection-swell-style]');
+      if (swellStyleButton) {
+        event.preventDefault();
+        const style = window.DesktopPreferences?.normalizeConnectionSwellStyle?.(
+          swellStyleButton.dataset.connectionSwellStyle
+        ) || 'liquid';
+        window.DesktopPreferences?.setConnectionSwellStyle?.(style);
+        swellStyleButton.parentElement?.querySelectorAll('[data-connection-swell-style]').forEach(button => {
+          const active = button.dataset.connectionSwellStyle === style;
+          button.classList.toggle('is-active', active);
+          button.setAttribute('aria-pressed', active ? 'true' : 'false');
+        });
+        return;
+      }
       const comfyWorkflowCard = event.target.closest('[data-comfy-workflow-edit]');
       if (comfyWorkflowCard) {
         event.preventDefault();

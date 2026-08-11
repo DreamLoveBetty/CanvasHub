@@ -2,10 +2,12 @@
   const PREF_KEY = 'desktop_ui_preferences_v1';
   const SUPPORTED_LANGUAGES = new Set(['zh', 'en']);
   const SUPPORTED_THEMES = new Set(['light', 'dark']);
+  const SUPPORTED_CONNECTION_SWELL_STYLES = new Set(['liquid', 'droplet']);
 
   const state = {
     theme: 'light',
     language: 'zh',
+    connectionSwellStyle: 'liquid',
   };
   let themeTransitionTimer = null;
   let themeRevealInProgress = false;
@@ -21,14 +23,21 @@
     return window.DesktopI18n?.normalizeLanguage?.(language) || (SUPPORTED_LANGUAGES.has(language) ? language : 'zh');
   }
 
+  function normalizeConnectionSwellStyle(value) {
+    const style = String(value || '').trim().toLowerCase();
+    return SUPPORTED_CONNECTION_SWELL_STYLES.has(style) ? style : 'liquid';
+  }
+
   function readPreferences() {
     try {
       const parsed = JSON.parse(localStorage.getItem(PREF_KEY) || '{}');
       state.theme = normalizeTheme(parsed.theme);
       state.language = normalizeLanguage(parsed.language);
+      state.connectionSwellStyle = normalizeConnectionSwellStyle(parsed.connectionSwellStyle);
     } catch (e) {
       state.theme = 'light';
       state.language = 'zh';
+      state.connectionSwellStyle = 'liquid';
     }
   }
 
@@ -37,6 +46,7 @@
       localStorage.setItem(PREF_KEY, JSON.stringify({
         theme: state.theme,
         language: state.language,
+        connectionSwellStyle: state.connectionSwellStyle,
       }));
     } catch (e) {}
   }
@@ -59,6 +69,12 @@
     document.body?.setAttribute('data-theme', state.theme);
     document.documentElement.setAttribute('data-theme', state.theme);
     updateThemeButton();
+  }
+
+  function applyConnectionSwellStyle(style = state.connectionSwellStyle) {
+    state.connectionSwellStyle = normalizeConnectionSwellStyle(style);
+    document.body?.setAttribute('data-connection-swell-style', state.connectionSwellStyle);
+    document.documentElement.setAttribute('data-connection-swell-style', state.connectionSwellStyle);
   }
 
   function startThemeTransition() {
@@ -223,6 +239,14 @@
     }));
   }
 
+  function setConnectionSwellStyle(style) {
+    applyConnectionSwellStyle(style);
+    savePreferences();
+    window.dispatchEvent(new CustomEvent('desktop:connection-swell-style-change', {
+      detail: { style: state.connectionSwellStyle },
+    }));
+  }
+
   function toggleTheme(event) {
     setTheme(state.theme === 'dark' ? 'light' : 'dark', {
       event,
@@ -241,6 +265,7 @@
     readPreferences();
     applyTheme(state.theme);
     applyLanguage(state.language);
+    applyConnectionSwellStyle(state.connectionSwellStyle);
     bindControls();
   }
 
@@ -250,7 +275,9 @@
     init,
     setTheme,
     setLanguage,
+    setConnectionSwellStyle,
     toggleTheme,
+    normalizeConnectionSwellStyle,
   };
 
   if (document.readyState === 'loading') {

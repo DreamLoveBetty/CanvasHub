@@ -56,6 +56,16 @@ DEFAULT_COMFY_BASE_URL = "http://192.168.179.111:28188"
 DEFAULT_COMFY_TIMEOUT_SECONDS = 120
 DEFAULT_COMFY_TASK_TIMEOUT_SECONDS = 1800
 DEFAULT_COMFY_POLL_INTERVAL_SECONDS = 2.0
+DEFAULT_VIDEO_RUNTIME_MODE = "auto"
+DEFAULT_VIDEO_RUNTIME_LOCAL_BASE_URL = "http://127.0.0.1:8190"
+DEFAULT_VIDEO_RUNTIME_COMPONENT_DIR = r"D:\Program\H3_Runtime_Server" if os.name == "nt" else ""
+DEFAULT_VIDEO_RUNTIME_START_MODE = "on_demand"
+DEFAULT_VIDEO_RUNTIME_CONNECT_TIMEOUT_SECONDS = 5.0
+DEFAULT_VIDEO_ASPECT_RATIO = "3:4"
+DEFAULT_VIDEO_PIXEL_BUDGET_MP = 0.8
+DEFAULT_VIDEO_DURATION_SECONDS = 15
+DEFAULT_VIDEO_ACCELERATION_MODE = "first_block_cache"
+DEFAULT_VIDEO_FIRST_BLOCK_CACHE_THRESHOLD = 0.08
 DEFAULT_PINTEREST_PROFILE_URL = ""
 DEFAULT_PINTEREST_SYNC_MODE = "auto"
 DEFAULT_PINTEREST_MAX_PINS_PER_BOARD = 500
@@ -392,6 +402,104 @@ def get_comfy_config() -> dict[str, Any]:
             )
             if value
         ],
+    }
+
+
+def get_video_inference_config() -> dict[str, Any]:
+    """Return private MiniMax H3 Runtime routing settings."""
+    settings = load_app_settings()
+    section = settings.get("video_inference") or {}
+    if not isinstance(section, dict):
+        section = {}
+    local = section.get("local") if isinstance(section.get("local"), dict) else {}
+    lan = section.get("lan") if isinstance(section.get("lan"), dict) else {}
+    defaults = section.get("defaults") if isinstance(section.get("defaults"), dict) else {}
+
+    env_mode = _as_str(os.environ.get("H3_RUNTIME_MODE"))
+    env_local_url = _as_str(os.environ.get("H3_RUNTIME_LOCAL_URL"))
+    env_component_dir = _as_str(os.environ.get("H3_RUNTIME_COMPONENT_DIR"))
+    env_start_mode = _as_str(os.environ.get("H3_RUNTIME_LOCAL_START_MODE"))
+    env_lan_url = _as_str(os.environ.get("H3_RUNTIME_LAN_URL"))
+    env_api_key = _as_str(os.environ.get("H3_RUNTIME_API_KEY"))
+    env_timeout = _as_str(os.environ.get("H3_RUNTIME_CONNECT_TIMEOUT_SECONDS"))
+
+    runtime_mode = _as_str(env_mode or section.get("runtime_mode") or DEFAULT_VIDEO_RUNTIME_MODE).lower()
+    if runtime_mode not in {"auto", "local", "lan"}:
+        runtime_mode = DEFAULT_VIDEO_RUNTIME_MODE
+    start_mode = _as_str(env_start_mode or local.get("start_mode") or DEFAULT_VIDEO_RUNTIME_START_MODE).lower()
+    if start_mode not in {"manual", "on_demand", "always"}:
+        start_mode = DEFAULT_VIDEO_RUNTIME_START_MODE
+    try:
+        connect_timeout = float(env_timeout or lan.get("connect_timeout_seconds") or DEFAULT_VIDEO_RUNTIME_CONNECT_TIMEOUT_SECONDS)
+    except (TypeError, ValueError):
+        connect_timeout = DEFAULT_VIDEO_RUNTIME_CONNECT_TIMEOUT_SECONDS
+
+    aspect_ratio = _as_str(defaults.get("aspect_ratio") or DEFAULT_VIDEO_ASPECT_RATIO)
+    if aspect_ratio not in {"16:9", "9:16", "3:4", "4:3", "2:3", "3:2", "1:1", "21:9", "9:21"}:
+        aspect_ratio = DEFAULT_VIDEO_ASPECT_RATIO
+    acceleration_mode = _as_str(defaults.get("acceleration_mode") or DEFAULT_VIDEO_ACCELERATION_MODE).lower()
+    if acceleration_mode not in {"off", "first_block_cache", "sol_attn", "combined"}:
+        acceleration_mode = DEFAULT_VIDEO_ACCELERATION_MODE
+    try:
+        pixel_budget_mp = max(0.1, min(8.0, float(defaults.get("pixel_budget_mp", DEFAULT_VIDEO_PIXEL_BUDGET_MP))))
+    except (TypeError, ValueError):
+        pixel_budget_mp = DEFAULT_VIDEO_PIXEL_BUDGET_MP
+    try:
+        duration_seconds = max(1, min(120, int(defaults.get("duration_seconds", DEFAULT_VIDEO_DURATION_SECONDS))))
+    except (TypeError, ValueError):
+        duration_seconds = DEFAULT_VIDEO_DURATION_SECONDS
+    try:
+        fbc_threshold = max(0.001, min(1.0, float(defaults.get("first_block_cache_threshold", DEFAULT_VIDEO_FIRST_BLOCK_CACHE_THRESHOLD))))
+    except (TypeError, ValueError):
+        fbc_threshold = DEFAULT_VIDEO_FIRST_BLOCK_CACHE_THRESHOLD
+
+    environment_fields = [
+        name
+        for name, value in (
+            ("runtime_mode", env_mode),
+            ("local.base_url", env_local_url),
+            ("local.component_dir", env_component_dir),
+            ("local.start_mode", env_start_mode),
+            ("lan.base_url", env_lan_url),
+            ("lan.api_key", env_api_key),
+            ("lan.connect_timeout_seconds", env_timeout),
+        )
+        if value
+    ]
+    return {
+        "runtime_mode": runtime_mode,
+        "local": {
+            "base_url": _as_str(env_local_url or local.get("base_url") or DEFAULT_VIDEO_RUNTIME_LOCAL_BASE_URL).rstrip("/"),
+            "component_dir": _as_str(env_component_dir or local.get("component_dir") or DEFAULT_VIDEO_RUNTIME_COMPONENT_DIR),
+            "start_mode": start_mode,
+        },
+        "lan": {
+            "base_url": _as_str(env_lan_url or lan.get("base_url")).rstrip("/"),
+            "api_key": _as_str(env_api_key or lan.get("api_key")),
+            "connect_timeout_seconds": max(0.5, min(30.0, connect_timeout)),
+        },
+        "defaults": {
+            "aspect_ratio": aspect_ratio,
+            "pixel_budget_mp": pixel_budget_mp,
+            "duration_seconds": duration_seconds,
+            "acceleration_mode": acceleration_mode,
+            "first_block_cache_threshold": fbc_threshold,
+        },
+        "environment_managed": bool(environment_fields),
+        "environment_fields": environment_fields,
+    }
+
+
+def get_video_inference_public_config() -> dict[str, Any]:
+    """Return H3 Runtime settings without exposing the LAN API key."""
+    config = get_video_inference_config()
+    lan = dict(config.get("lan") or {})
+    api_key = _as_str(lan.pop("api_key", ""))
+    lan["api_key_configured"] = bool(api_key)
+    return {
+        **config,
+        "local": dict(config.get("local") or {}),
+        "lan": lan,
     }
 
 

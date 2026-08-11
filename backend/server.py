@@ -45,9 +45,11 @@ import subprocess
 import sys
 import hmac
 import hashlib
+import ipaddress
 import re
 import copy
 import queue
+import io
 from datetime import datetime
 from pathlib import Path
 from http.cookies import SimpleCookie
@@ -82,6 +84,8 @@ from .app_config import (
     get_telegram_auth_config,
     get_telegram_config,
     get_third_party_image_config,
+    get_video_inference_config,
+    get_video_inference_public_config,
     get_yunwu_api_base_url,
     get_yunwu_api_key,
     load_app_settings,
@@ -125,10 +129,12 @@ from .prompt_skill_client import (
     extract_reusable_prompt_blocks,
     extract_reusable_prompt_blocks_from_image,
     extract_style_preset,
+    generic_19_prompt_block_split_rule,
     list_prompt_providers,
     polish_prompt,
     safe_rewrite_prompt,
 )
+from .h3_prompt_compiler import H3PromptCompileError, compile_h3_prompt
 from .storage_paths import IMAGE_ARCHIVE_DIR, SOURCE_IMAGE_DIR, archive_scan_roots, daily_output_dir, image_lookup_roots, source_image_roots, write_obsidian_prompt_sidecar
 from .upscale_runtime import (
     UPSCALE_MODELS,
@@ -214,9 +220,34 @@ from .pinterest_storage import (
     save_pinterest_pin_prompt,
     start_pinterest_board_sync,
 )
-from .thumb_cache import THUMB_MAX_SIDE, ensure_webp_thumbnail, parse_thumb_request, resolve_media_path
+from .thumb_cache import (
+    THUMB_MAX_SIDE,
+    ensure_video_webp_thumbnail,
+    ensure_webp_thumbnail,
+    parse_thumb_request,
+    resolve_media_path,
+    thumb_url_for_media_url,
+)
 from .pose_service import pose_assets_status
 from .app_updates import get_app_update_status
+from .agent_store import init_agent_store
+from .agent_runtime import (
+    AgentRunConflict,
+    AgentRunNotFound,
+    AgentRuntimeError,
+    get_agent_runtime,
+)
+from .video_runtime import (
+    cancel_runtime_job as cancel_video_runtime_job,
+    collect_component_status as collect_video_runtime_component_status,
+    collect_runtime_capabilities as collect_video_runtime_capabilities,
+    collect_runtime_status as collect_video_runtime_status,
+    download_runtime_result as download_video_runtime_result,
+    get_runtime_job as get_video_runtime_job,
+    normalize_runtime_base_url,
+    start_local_runtime as start_local_video_runtime,
+    submit_runtime_job as submit_video_runtime_job,
+)
 
 SERVER_CONFIG = get_server_config()
 SERVER_HOST = SERVER_CONFIG["host"]
@@ -277,6 +308,24 @@ def _coerce_prompt_mode(value):
     if mode in ('web_search', 'search', 'research', '联网检索', '联网搜索'):
         return 'web_search'
     return 'smart'
+
+
+GENERIC_19_FIDELITY_MARKER = '【同图忠实复现｜高保真模块】'
+GENERIC_19_LEGACY_FIDELITY_MARKERS = ('【同图忠实复现｜19模块】',)
+
+
+def _is_generic_19_fidelity_prompt(prompt):
+    prompt_text = str(prompt or '')
+    return any(
+        marker in prompt_text
+        for marker in (GENERIC_19_FIDELITY_MARKER, *GENERIC_19_LEGACY_FIDELITY_MARKERS)
+    )
+
+
+def _effective_prompt_mode(prompt, value):
+    if _is_generic_19_fidelity_prompt(prompt):
+        return 'faithful'
+    return _coerce_prompt_mode(value)
 
 
 def _coerce_gpt_task_type(value):
@@ -635,6 +684,9 @@ def _finalize_generation_task(
 def _status_response_task(task):
     task = dict(task or {})
     params = task.get('params') if isinstance(task.get('params'), dict) else {}
+    if task.get('type') == H3_VIDEO_TASK_TYPE:
+        params = _public_h3_task_params(params)
+        task['params'] = params
     provider_failure = params.get('provider_failure') if isinstance(params.get('provider_failure'), dict) else {}
     for key in ('timed_out', 'partial_errors', 'completed_image_count', 'requested_image_count'):
         if provider_failure.get(key) is not None:
@@ -644,7 +696,19 @@ def _status_response_task(task):
         task['result_file'] = primary_output
         task['result_files'] = result_files
         task['output_files'] = result_files
-        if task.get('type') == 'gpt-file':
+        if task.get('type') == H3_VIDEO_TASK_TYPE:
+            video_paths = [f"/video/{urllib.parse.quote(safe_basename(name))}" for name in result_files]
+            task['image_paths'] = []
+            task['image_count'] = 0
+            task['video_paths'] = video_paths
+            task['video_path'] = video_paths[0] if video_paths else ''
+            task['video_count'] = len(video_paths)
+            task['video_metadata'] = {
+                key: params.get(key)
+                for key in ('width', 'height', 'fps', 'frame_count', 'duration_seconds', 'video_size_bytes', 'seed', 'elapsed_seconds', 'acceleration')
+                if params.get(key) is not None
+            }
+        elif task.get('type') == 'gpt-file':
             task['image_paths'] = []
             params = task.get('params') if isinstance(task.get('params'), dict) else {}
             if isinstance(params.get('file_manifest'), dict):
@@ -658,6 +722,10 @@ def _status_response_task(task):
         task.setdefault('output_files', [])
         task.setdefault('image_paths', [])
         task.setdefault('image_count', 0)
+        if task.get('type') == H3_VIDEO_TASK_TYPE:
+            task.setdefault('video_paths', [])
+            task.setdefault('video_path', '')
+            task.setdefault('video_count', 0)
     task.setdefault('display_error', task.get('error') or '')
     task.setdefault('error_code', '')
     task.setdefault('error_category', '')
@@ -677,6 +745,18 @@ VALID_IMAGE_RATIOS = {
 def _coerce_image_ratio(value, default='1:1'):
     ratio = str(value or '').strip().lower()
     return ratio if ratio in VALID_IMAGE_RATIOS else default
+
+
+def _effective_image_ratio(prompt, value, default='1:1'):
+    """Honor the source ratio embedded by a complete generic_19 bundle."""
+    selected = _coerce_image_ratio(value, default)
+    if not _is_generic_19_fidelity_prompt(prompt):
+        return selected
+    match = re.search(r'【原图比例\s*[：:]\s*([0-9]+\s*:\s*[0-9]+)】', str(prompt or ''))
+    if not match:
+        return selected
+    locked_ratio = re.sub(r'\s+', '', match.group(1))
+    return locked_ratio if locked_ratio in VALID_IMAGE_RATIOS else selected
 
 
 def _coerce_gpt_resolution(value):
@@ -1018,8 +1098,15 @@ def _chatgpt_pool_failure_metadata(error):
 
 def _prepare_chatgpt_pool_generation_prompt(task_id, prompt, prompt_mode):
     """Use the configured prompt skill before Web-conversation image generation."""
+    raw_prompt = str(prompt or '')
+    if _is_generic_19_fidelity_prompt(raw_prompt):
+        return raw_prompt, {
+            'prompt_fidelity_locked': True,
+            'prompt_optimized': False,
+            'prompt_optimized_by': 'generic_19_fidelity_bundle',
+        }
     if _coerce_prompt_mode(prompt_mode) != 'smart':
-        return str(prompt or ''), {}
+        return raw_prompt, {}
     try:
         update_task_status(task_id, 'processing', '正在调用提示词润色模型...', stage='polishing_prompt')
         result = polish_prompt(str(prompt or ''), {})
@@ -1496,9 +1583,14 @@ def _collect_renderable_history_tasks():
 def _format_history_task(task):
     result_files, primary_output = _history_task_result_files(task)
     params = task.get('params') if isinstance(task.get('params'), dict) else {}
+    if task.get('type') == H3_VIDEO_TASK_TYPE:
+        params = _public_h3_task_params(params)
     image_paths = []
+    video_paths = []
     if task.get('type') == 'gpt-file':
         image_paths = []
+    elif task.get('type') == H3_VIDEO_TASK_TYPE:
+        video_paths = [f"/video/{urllib.parse.quote(safe_basename(name))}" for name in result_files]
     elif task.get('type') in ('gpt', 'gpt-edit'):
         image_paths = [f"/gpt_outputs/{name}" for name in result_files]
     elif result_files:
@@ -1520,7 +1612,15 @@ def _format_history_task(task):
         'output_files': result_files,
         'result_files': result_files,
         'image_paths': image_paths,
-        'image_count': len(result_files),
+        'image_count': 0 if task.get('type') == H3_VIDEO_TASK_TYPE else len(result_files),
+        'video_paths': video_paths,
+        'video_path': video_paths[0] if video_paths else '',
+        'video_count': len(video_paths),
+        'video_metadata': {
+            key: params.get(key)
+            for key in ('width', 'height', 'fps', 'frame_count', 'duration_seconds', 'video_size_bytes', 'seed', 'elapsed_seconds', 'acceleration')
+            if params.get(key) is not None
+        } if task.get('type') == H3_VIDEO_TASK_TYPE else None,
         'file_manifest': params.get('file_manifest') if isinstance(params.get('file_manifest'), dict) else None,
         'artifact_type': params.get('artifact_type') or params.get('task_type'),
         'error': task.get('error'),
@@ -1765,7 +1865,7 @@ def _make_batch_task_params(provider, incoming_params, prompt, batch_id, index, 
         archive_enabled = _coerce_bool(incoming_params.get('archiveEnabled', incoming_params.get('archive_enabled')), True)
         telegram_enabled = _coerce_bool(incoming_params.get('telegramEnabled', incoming_params.get('telegram_enabled')), True)
         params = {
-            'ratio': _coerce_image_ratio(incoming_params.get('ratio'), '1:1'),
+            'ratio': _effective_image_ratio(prompt, incoming_params.get('ratio'), '1:1'),
             'quality': _coerce_google_quality(incoming_params.get('resolution', incoming_params.get('quality', '2k')), '2k'),
             'model': _coerce_model(incoming_params.get('model', DEFAULT_GOOGLE_IMAGE_MODEL)),
             'max_tokens': _coerce_google_max_tokens(incoming_params.get('maxTokens', incoming_params.get('max_tokens'))),
@@ -1783,7 +1883,7 @@ def _make_batch_task_params(provider, incoming_params, prompt, batch_id, index, 
             incoming_params.get('use_third_party_api'),
         )
         params = {
-            'ratio': _coerce_image_ratio(incoming_params.get('ratio'), '1:1'),
+            'ratio': _effective_image_ratio(prompt, incoming_params.get('ratio'), '1:1'),
             'resolution': _coerce_gpt_resolution(incoming_params.get('resolution')),
             'quality': _coerce_gpt_quality(incoming_params.get('quality', 'auto')),
             'image_count': _coerce_gpt_image_count({'image_count': incoming_params.get('imageCount', incoming_params.get('image_count'))}, prompt),
@@ -3603,6 +3703,551 @@ def process_upscale_task(task_id, prompt, image_data, params):
                 pass
 
 
+H3_VIDEO_TASK_TYPE = 'minimax-h3-video'
+
+
+def _sanitize_h3_prompt_metadata(value):
+    source = value if isinstance(value, dict) else {}
+    string_keys = {
+        'skill_id', 'source_repository', 'source_commit', 'source_path',
+        'compiler_version', 'schema_version', 'mode', 'provider', 'model',
+        'reasoning_effort',
+    }
+    boolean_keys = {'reference_image_used', 'repair_applied', 'bilingual_output'}
+    integer_keys = {'verified_files', 'minimum_shot_count'}
+    clean = {}
+    for key in string_keys:
+        text = str(source.get(key) or '').strip()
+        if text:
+            clean[key] = text[:500]
+    for key in boolean_keys:
+        if key in source:
+            clean[key] = bool(source.get(key))
+    for key in integer_keys:
+        try:
+            number = int(source.get(key))
+        except (TypeError, ValueError):
+            continue
+        if number >= 0:
+            clean[key] = min(number, 1000)
+    return clean
+H3_VIDEO_MAX_REFERENCE_BYTES = 64 * 1024 * 1024
+H3_VIDEO_DEFAULT_TASK_TIMEOUT_SECONDS = 6 * 60 * 60
+_H3_PUBLIC_TASK_PARAM_KEYS = frozenset({
+    'provider',
+    'mode',
+    'aspect_ratio',
+    'pixel_budget_mp',
+    'actual_megapixels',
+    'width',
+    'height',
+    'duration_seconds',
+    'steps',
+    'denoise',
+    'crf',
+    'seed',
+    'acceleration_mode',
+    'first_block_cache_threshold',
+    'archive_enabled',
+    'telegram_enabled',
+    'runtime_capability_source',
+    'dimension_multiple',
+    'max_pixels',
+    'runtime_job_id',
+    'runtime_mode',
+    'runtime_version',
+    'video_filename',
+    'video_url',
+    'video_size_bytes',
+    'fps',
+    'frame_count',
+    'elapsed_seconds',
+    'acceleration',
+    'archive_date',
+    'sidecar_files',
+    'reference_image_filename',
+})
+_H3_PUBLIC_RUNTIME_OUTPUT_KEYS = (
+    'width',
+    'height',
+    'fps',
+    'frame_count',
+    'duration_seconds',
+    'seed',
+    'elapsed_seconds',
+)
+_H3_PUBLIC_ACCELERATION_KEYS = frozenset({
+    'mode',
+    'first_block_cache',
+    'first_block_cache_threshold',
+    'sol_attn',
+    'sol_attn_enabled',
+    'cache_hits',
+    'cache_misses',
+    'cached_steps',
+    'skipped_steps',
+    'total_steps',
+})
+
+
+def _public_h3_acceleration(value):
+    if not isinstance(value, dict):
+        return {}
+    public = {}
+    for key in _H3_PUBLIC_ACCELERATION_KEYS:
+        item = value.get(key)
+        if item is None or isinstance(item, (dict, list, tuple, set, bytes, bytearray)):
+            continue
+        if isinstance(item, str):
+            item = item[:200]
+        public[key] = item
+    return public
+
+
+def _public_h3_runtime_output(runtime_job):
+    raw = runtime_job.get('output') if isinstance(runtime_job, dict) and isinstance(runtime_job.get('output'), dict) else {}
+    public = {
+        key: raw.get(key)
+        for key in _H3_PUBLIC_RUNTIME_OUTPUT_KEYS
+        if raw.get(key) is not None and not isinstance(raw.get(key), (dict, list, tuple, set, bytes, bytearray))
+    }
+    acceleration = _public_h3_acceleration(raw.get('acceleration'))
+    if acceleration:
+        public['acceleration'] = acceleration
+    return public
+
+
+def _public_h3_task_params(params):
+    if not isinstance(params, dict):
+        return {}
+    public = {
+        key: value
+        for key, value in params.items()
+        if key in _H3_PUBLIC_TASK_PARAM_KEYS
+    }
+    seed = public.get('seed')
+    if isinstance(seed, int) and abs(seed) > 9_007_199_254_740_991:
+        public['seed'] = str(seed)
+    if 'acceleration' in public:
+        public['acceleration'] = _public_h3_acceleration(public.get('acceleration'))
+    if isinstance(public.get('sidecar_files'), dict):
+        public['sidecar_files'] = {
+            str(key)[:40]: safe_basename(value)
+            for key, value in public['sidecar_files'].items()
+            if value
+        }
+    return public
+
+
+def _write_text_atomic(path, content):
+    path = Path(path)
+    temporary_path = path.with_name(f'.{path.name}.{uuid.uuid4().hex}.tmp')
+    try:
+        temporary_path.write_text(str(content or ''), encoding='utf-8')
+        os.replace(temporary_path, path)
+    finally:
+        if temporary_path.exists():
+            try:
+                temporary_path.unlink()
+            except OSError:
+                pass
+
+
+def _decode_h3_reference_image(data):
+    raw = str(data or '').strip()
+    if not raw:
+        raise ValueError('缺少首帧图片数据')
+    if len(raw) > H3_VIDEO_MAX_REFERENCE_BYTES * 2:
+        raise ValueError('首帧图片过大')
+    image_bytes, mime_type, extension = _decode_data_uri_image(raw)
+    if len(image_bytes) > H3_VIDEO_MAX_REFERENCE_BYTES:
+        raise ValueError('首帧图片不能超过 64 MB')
+    if not str(mime_type or '').lower().startswith('image/'):
+        raise ValueError('首帧必须是图片文件')
+    try:
+        with Image.open(io.BytesIO(image_bytes)) as image:
+            image.verify()
+    except Exception as exc:
+        raise ValueError('首帧图片无法识别或文件已损坏') from exc
+    return {
+        'filename': f'first_frame{extension or ".png"}',
+        'content': image_bytes,
+        'content_type': mime_type or 'image/png',
+    }
+
+
+def _h3_phase_label(phase, fallback=''):
+    labels = {
+        'receiving': '正在接收任务',
+        'queued': '已进入 GPU 队列',
+        'starting': '正在启动 H3 推理',
+        'loading_models': '正在加载 H3 模型',
+        'conditioning': '正在编码提示词与参考图',
+        'sampling': '正在进行音视频联合采样',
+        'decoding_video': '正在解码视频',
+        'decoding_audio': '正在解码音频',
+        'muxing': '正在封装 MP4',
+        'completed': 'H3 视频生成完成',
+        'cancelled': '任务已取消',
+        'failed': 'H3 推理失败',
+    }
+    return str(fallback or labels.get(str(phase or '').strip().lower()) or 'H3 视频生成中...')
+
+
+def _archive_h3_reference_image(output_path, upload):
+    """Persist the verified H3 input image beside a new output when available."""
+    if not isinstance(upload, dict):
+        return None
+    content = upload.get('content')
+    if not isinstance(content, (bytes, bytearray)) or not content:
+        return None
+    suffix = Path(str(upload.get('filename') or '')).suffix.lower()
+    if suffix not in _ARCHIVE_IMAGE_EXTENSIONS:
+        content_type = str(upload.get('content_type') or '').lower()
+        suffix = {
+            'image/jpeg': '.jpg',
+            'image/jpg': '.jpg',
+            'image/webp': '.webp',
+        }.get(content_type, '.png')
+    reference_path = Path(output_path).with_name(f'{Path(output_path).stem}_reference{suffix}')
+    temporary_path = reference_path.with_name(f'.{reference_path.name}.{uuid.uuid4().hex}.tmp')
+    try:
+        if reference_path.exists():
+            if reference_path.is_symlink() or not reference_path.is_file():
+                return None
+            return reference_path
+        temporary_path.write_bytes(bytes(content))
+        os.replace(temporary_path, reference_path)
+        if reference_path.stat().st_size != len(content):
+            return None
+    except OSError as exc:
+        print(f'⚠️ H3 参考图归档失败（视频仍保留）：{exc}')
+        return None
+    finally:
+        if temporary_path.exists():
+            try:
+                temporary_path.unlink()
+            except OSError:
+                pass
+    return reference_path
+
+
+def _write_h3_video_sidecars(output_path, prompt, params, runtime_job, task_id='', reference_image_name=''):
+    output_path = Path(output_path)
+    runtime_output = _public_h3_runtime_output(runtime_job)
+    details = {
+        'task_type': H3_VIDEO_TASK_TYPE,
+        'runtime_job_id': runtime_job.get('id'),
+        'task_id': str(task_id or '').strip(),
+        'mode': params.get('mode'),
+        'aspect_ratio': params.get('aspect_ratio'),
+        'pixel_budget_mp': params.get('pixel_budget_mp'),
+        'actual_megapixels': params.get('actual_megapixels'),
+        'width': params.get('width'),
+        'height': params.get('height'),
+        'size': f"{params.get('width')}x{params.get('height')}",
+        'duration_seconds': params.get('duration_seconds'),
+        'steps': params.get('steps'),
+        'denoise': params.get('denoise'),
+        'crf': params.get('crf'),
+        'seed': (runtime_job.get('params') or {}).get('seed', params.get('seed')),
+        'acceleration_mode': params.get('acceleration_mode'),
+        'first_block_cache_threshold': params.get('first_block_cache_threshold'),
+        'prompt_metadata': _sanitize_h3_prompt_metadata(params.get('prompt_metadata')),
+        'runtime_output': runtime_output,
+    }
+    if reference_image_name:
+        details['reference_image'] = str(reference_image_name)
+    txt_path = output_path.with_suffix('.txt')
+    txt_lines = [str(prompt or '').strip(), '', json.dumps(details, ensure_ascii=False, indent=2)]
+    _write_text_atomic(txt_path, '\n'.join(txt_lines).rstrip() + '\n')
+
+    prompt_text = str(prompt or '').strip()
+    longest = max((len(match.group(0)) for match in re.finditer(r'`+', prompt_text)), default=0)
+    fence = '`' * max(3, longest + 1)
+    md_path = output_path.with_suffix('.md')
+    _write_text_atomic(md_path, '\n'.join([
+        '---',
+        'source: tg-mini-app-img-gen',
+        'type: video_prompt',
+        f'generated_date: {json.dumps(output_path.parent.name, ensure_ascii=False)}',
+        f'task_id: {json.dumps(str(task_id or output_path.stem), ensure_ascii=False)}',
+        f'video: {json.dumps(output_path.name, ensure_ascii=False)}',
+        f'txt_file: {json.dumps(txt_path.name, ensure_ascii=False)}',
+        *( [f'reference_image: {json.dumps(str(reference_image_name), ensure_ascii=False)}'] if reference_image_name else [] ),
+        '---',
+        '',
+        f'![[{output_path.name}]]',
+        *( [f'![[{str(reference_image_name)}]]', ''] if reference_image_name else [] ),
+        '',
+        '## Prompt',
+        '',
+        f'{fence}text',
+        prompt_text,
+        fence,
+        '',
+        '## Parameters',
+        '',
+        '```json',
+        json.dumps(details, ensure_ascii=False, indent=2),
+        '```',
+        '',
+    ]))
+    sidecars = {'txt': str(txt_path), 'markdown': str(md_path)}
+    if reference_image_name:
+        sidecars['reference_image'] = str(output_path.with_name(reference_image_name))
+    return sidecars
+
+
+def process_h3_video_task(task_id, prompt, upload, params):
+    """Background bridge from the main task system to H3_Runtime_Server."""
+    run_id = ''
+    target = None
+    runtime_job_id = ''
+    task_provider = 'minimax_h3'
+    task_route = 'h3_runtime'
+    params = dict(params or {})
+    try:
+        run_id = _start_generation_audit(
+            task_id,
+            H3_VIDEO_TASK_TYPE,
+            prompt,
+            params,
+            provider=task_provider,
+            route=task_route,
+            stage='preparing',
+        )
+        update_task_status(task_id, 'preparing', '正在连接 H3 Runtime...', stage='runtime_connecting', progress=2)
+        runtime_params = {
+            'mode': params.get('mode', 'image_to_video'),
+            'prompt': prompt,
+            'width': params.get('width'),
+            'height': params.get('height'),
+            'duration_seconds': params.get('duration_seconds'),
+            'steps': params.get('steps'),
+            'denoise': params.get('denoise'),
+            'crf': params.get('crf'),
+            'seed': params.get('seed'),
+            'acceleration_mode': params.get('acceleration_mode'),
+            'first_block_cache_threshold': params.get('first_block_cache_threshold'),
+        }
+        runtime_uploads = {
+            'first_frame' if params.get('mode') == 'image_to_video' else 'reference_images': upload,
+        }
+        _record_generation_event(task_id, 'provider_call_started', '开始提交 H3 Runtime 任务', stage='runtime_submitting', payload={
+            'provider': task_provider,
+            'route': task_route,
+            'width': params.get('width'),
+            'height': params.get('height'),
+            'duration_seconds': params.get('duration_seconds'),
+            'acceleration_mode': params.get('acceleration_mode'),
+        })
+        target, runtime_job = submit_video_runtime_job(runtime_params, runtime_uploads)
+        runtime_job_id = str(runtime_job.get('id') or '')
+        _merge_task_params(task_id, {
+            'runtime_job_id': runtime_job_id,
+            'runtime_mode': target.get('mode'),
+            'runtime_base_url': target.get('base_url'),
+            'runtime_version': target.get('version'),
+        })
+        update_task_status(task_id, 'processing', 'H3 任务已进入 GPU 队列', stage='queued', progress=5)
+
+        timeout_seconds = max(300, min(24 * 60 * 60, int(params.get('task_timeout_seconds') or H3_VIDEO_DEFAULT_TASK_TIMEOUT_SECONDS)))
+        deadline = time.monotonic() + timeout_seconds
+        last_success_at = time.monotonic()
+        last_phase = ''
+        while time.monotonic() < deadline:
+            if _is_task_canceled(task_id):
+                try:
+                    cancel_video_runtime_job(target, runtime_job_id)
+                except Exception as exc:
+                    print(f'⚠️ 取消 H3 Runtime 任务失败：{exc}')
+                _finalize_generation_task(
+                    task_id,
+                    'canceled',
+                    run_id=run_id,
+                    provider=task_provider,
+                    route=task_route,
+                    task_type=H3_VIDEO_TASK_TYPE,
+                    stage='canceled',
+                    progress_text='H3 视频任务已取消',
+                )
+                return
+            try:
+                runtime_job = get_video_runtime_job(target, runtime_job_id)
+                last_success_at = time.monotonic()
+            except Exception as exc:
+                if time.monotonic() - last_success_at > 120:
+                    raise RuntimeError(f'H3 Runtime 状态连续 120 秒不可达：{exc}') from exc
+                update_task_status(task_id, 'processing', 'H3 Runtime 暂时不可达，正在重试...', stage='runtime_reconnecting')
+                time.sleep(3)
+                continue
+
+            runtime_status = str(runtime_job.get('status') or '').strip().lower()
+            phase = str(runtime_job.get('phase') or runtime_status or 'processing').strip().lower()
+            try:
+                runtime_progress = max(0.0, min(1.0, float(runtime_job.get('progress') or 0)))
+            except Exception:
+                runtime_progress = 0.0
+            progress = min(95, max(5, round(5 + runtime_progress * 90)))
+            message = _h3_phase_label(phase, runtime_job.get('message'))
+            update_task_status(task_id, 'processing', message, stage=phase, progress=progress)
+            if phase != last_phase:
+                _record_generation_event(task_id, 'runtime_phase', message, stage=phase, payload={
+                    'runtime_job_id': runtime_job_id,
+                    'progress': runtime_progress,
+                })
+                last_phase = phase
+
+            if runtime_status == 'succeeded':
+                break
+            if runtime_status in {'cancelled', 'canceled'}:
+                _finalize_generation_task(
+                    task_id,
+                    'canceled',
+                    run_id=run_id,
+                    provider=task_provider,
+                    route=task_route,
+                    task_type=H3_VIDEO_TASK_TYPE,
+                    stage='canceled',
+                    progress_text='H3 Runtime 已取消任务',
+                )
+                return
+            if runtime_status == 'failed':
+                raise RuntimeError(str(runtime_job.get('error') or runtime_job.get('message') or 'H3 Runtime 推理失败'))
+            time.sleep(2)
+        else:
+            try:
+                cancel_video_runtime_job(target, runtime_job_id)
+            except Exception:
+                pass
+            raise TimeoutError(f'H3 视频任务超过 {timeout_seconds} 秒仍未完成')
+
+        update_task_status(task_id, 'processing', '正在下载并归档 H3 视频...', stage='saving', progress=97)
+        now = datetime.now()
+        timestamp = now.strftime('%Y%m%d_%H%M%S')
+        suffix = re.sub(r'[^A-Za-z0-9]+', '', runtime_job_id)[-8:] or f'{random.randint(1000, 9999)}'
+        filename = f'h3_{timestamp}_{suffix}.mp4'
+        output_dir = daily_output_dir(now)
+        output_dir.mkdir(parents=True, exist_ok=True)
+        output_path = output_dir / filename
+        download_meta = download_video_runtime_result(target, runtime_job_id, output_path)
+        reference_path = _archive_h3_reference_image(output_path, upload)
+        sidecars = {}
+        try:
+            sidecars = _write_h3_video_sidecars(
+                output_path,
+                prompt,
+                params,
+                runtime_job,
+                task_id=task_id,
+                reference_image_name=reference_path.name if reference_path else '',
+            )
+        except Exception as exc:
+            print(f'⚠️ H3 提示词侧车写入失败（MP4 已保留）：{exc}')
+            _record_generation_event(
+                task_id,
+                'artifact_sidecar_warning',
+                'H3 MP4 已归档，但提示词侧车写入失败',
+                stage='saving',
+                payload={'filename': filename, 'error_type': type(exc).__name__},
+            )
+        runtime_output = _public_h3_runtime_output(runtime_job)
+        result_meta = {
+            'runtime_job_id': runtime_job_id,
+            'video_filename': filename,
+            'video_url': f'/video/{urllib.parse.quote(filename)}',
+            'video_size_bytes': int(download_meta.get('bytes') or output_path.stat().st_size),
+            'width': int(runtime_output.get('width') or params.get('width') or 0),
+            'height': int(runtime_output.get('height') or params.get('height') or 0),
+            'fps': int(runtime_output.get('fps') or 24),
+            'frame_count': int(runtime_output.get('frame_count') or 0),
+            'duration_seconds': float(runtime_output.get('duration_seconds') or params.get('duration_seconds') or 0),
+            'seed': runtime_output.get('seed', (runtime_job.get('params') or {}).get('seed', params.get('seed'))),
+            'elapsed_seconds': runtime_output.get('elapsed_seconds'),
+            'acceleration': runtime_output.get('acceleration') if isinstance(runtime_output.get('acceleration'), dict) else {},
+            'archive_date': output_dir.name,
+            'sidecar_files': {
+                key: Path(value).name
+                for key, value in sidecars.items()
+                if key in {'txt', 'markdown'} and value
+            },
+        }
+        if reference_path:
+            result_meta['reference_image_filename'] = reference_path.name
+        _merge_task_params(task_id, result_meta)
+        _record_generation_event(task_id, 'artifact_saved', 'H3 MP4 已归档', stage='saving', payload={
+            'filename': filename,
+            'bytes': result_meta['video_size_bytes'],
+        })
+
+        telegram_enabled = _coerce_bool(params.get('telegram_enabled', params.get('telegramEnabled')), False)
+        telegram_success = False
+        if telegram_enabled:
+            update_task_status(task_id, 'processing', '正在发送 H3 视频到 Telegram...', stage='sending_telegram', progress=99)
+            caption = f"MiniMax H3 | {result_meta['width']}×{result_meta['height']} | {result_meta['duration_seconds']:.2f}s"
+            if prompt:
+                caption += f"\n{str(prompt)[:700]}"
+            try:
+                send_tg_document(output_path, caption=caption[:1000])
+                telegram_success = True
+            except Exception as exc:
+                print(f'❌ H3 视频 Telegram 发送失败：{exc}')
+
+        if telegram_enabled and not telegram_success:
+            final_status = 'succeeded_no_telegram'
+            progress_text = 'H3 视频生成并归档完成，但 Telegram 发送失败'
+        elif telegram_enabled:
+            final_status = 'succeeded'
+            progress_text = 'H3 视频生成、归档并发送完成'
+        else:
+            final_status = 'succeeded_no_telegram'
+            progress_text = 'H3 视频生成并归档完成'
+
+        _finalize_generation_task(
+            task_id,
+            final_status,
+            run_id=run_id,
+            provider=task_provider,
+            route=task_route,
+            task_type=H3_VIDEO_TASK_TYPE,
+            result_file=filename,
+            result_files=[filename],
+            image_count=0,
+            stage='done',
+            progress_text=progress_text,
+            extra={'runtime_job_id': runtime_job_id, **result_meta},
+        )
+        _record_generation_event(task_id, 'run_succeeded', progress_text, stage='done', payload=result_meta)
+    except Exception as exc:
+        raw_error = str(exc)
+        error_type = type(exc).__name__
+        error_info = _translate_generation_failure(
+            task_id,
+            raw_error,
+            provider=task_provider,
+            route=task_route,
+            task_type=H3_VIDEO_TASK_TYPE,
+            stage='failed',
+            exception_name=error_type,
+        )
+        # Runtime messages are generally already suitable for direct display.
+        error_info['display_error'] = raw_error[:500] or 'H3 视频生成失败'
+        _finalize_generation_task(
+            task_id,
+            'failed',
+            run_id=run_id,
+            provider=task_provider,
+            route=task_route,
+            task_type=H3_VIDEO_TASK_TYPE,
+            stage='failed',
+            progress_text=error_info['display_error'],
+            error_info=error_info,
+            error_type=error_type,
+        )
+        print(f'❌ H3 视频任务失败：{task_id} - {raw_error}')
+
+
 _COMFY_ARCHIVE_MANIFEST_VERSION = 1
 _COMFY_TELEGRAM_STATES = frozenset(('pending', 'sending', 'sent', 'failed'))
 
@@ -3978,30 +4623,862 @@ def _resolve_download_file(filename):
     return None
 
 
-def _resolve_archive_image_file(rel_path):
-    raw = urllib.parse.unquote(str(rel_path or '').strip()).lstrip('/\\')
-    if not raw:
+_ARCHIVE_IMAGE_EXTENSIONS = frozenset({'.png', '.jpg', '.jpeg', '.webp'})
+_ARCHIVE_VIDEO_EXTENSIONS = frozenset({'.mp4', '.webm', '.mov', '.m4v'})
+_ARCHIVE_VIDEO_TEXT_EXTENSIONS = frozenset({'.txt', '.md'})
+_ARCHIVE_VIDEO_SOURCE_TYPES = frozenset({'generated', 'imported', 'all'})
+_ARCHIVE_VIDEO_SOURCE_LABELS = {
+    'generated': '生成视频',
+    'imported': '导入素材',
+}
+_ARCHIVE_VIDEO_SIDECAR_MAX_BYTES = 1024 * 1024
+_ARCHIVE_VIDEO_METADATA_CACHE = {}
+_ARCHIVE_VIDEO_METADATA_CACHE_LOCK = threading.Lock()
+_ARCHIVE_VIDEO_METADATA_CACHE_LIMIT = 512
+
+
+def _resolve_archive_resource_file(rel_path, extensions):
+    """Resolve a regular archive file while rejecting traversal and symlink hops."""
+    raw = urllib.parse.unquote(str(rel_path or '').strip()).replace('\\', '/')
+    if not raw or raw.startswith('/') or '\x00' in raw:
         return None
-    normalized = raw.replace("\\", "/")
-    parts = normalized.split("/", 1)
-    requested_key = parts[0] if len(parts) == 2 else ""
-    requested_rel = parts[1] if len(parts) == 2 else normalized
-    for root_key, root_path in archive_scan_roots():
-        candidate_rel = requested_rel if requested_key == root_key else normalized
-        candidate = (root_path / candidate_rel).expanduser()
+    path_parts = raw.split('/')
+    if any(not part or part in {'.', '..'} for part in path_parts):
+        return None
+
+    roots = archive_scan_roots()
+    root_map = {key: path for key, path in roots}
+    if path_parts[0] in root_map:
+        if len(path_parts) < 2:
+            return None
+        candidates = [(root_map[path_parts[0]], path_parts[1:])]
+    else:
+        candidates = [(root_path, path_parts) for _, root_path in roots]
+
+    allowed_extensions = {str(extension or '').lower() for extension in (extensions or ())}
+    for root_path, relative_parts in candidates:
+        try:
+            root = root_path.expanduser().resolve()
+            candidate = root.joinpath(*relative_parts)
+        except Exception:
+            continue
+        cursor = root
+        unsafe = False
+        for part in relative_parts:
+            cursor = cursor / part
+            try:
+                if cursor.is_symlink():
+                    unsafe = True
+                    break
+            except OSError:
+                unsafe = True
+                break
+        if unsafe:
+            continue
         try:
             resolved = candidate.resolve()
-            root = root_path.expanduser().resolve()
         except Exception:
             continue
         if resolved != root and root not in resolved.parents:
             continue
-        if not resolved.is_file():
+        if not resolved.is_file() or resolved.is_symlink():
             continue
-        if resolved.suffix.lower() not in ('.png', '.jpg', '.jpeg', '.webp'):
+        if allowed_extensions and resolved.suffix.lower() not in allowed_extensions:
             continue
         return resolved
     return None
+
+
+def _resolve_archive_image_file(rel_path):
+    return _resolve_archive_resource_file(rel_path, _ARCHIVE_IMAGE_EXTENSIONS)
+
+
+def _coerce_archive_video_source(value, default='generated'):
+    source = str(value or default).strip().lower()
+    return source if source in _ARCHIVE_VIDEO_SOURCE_TYPES else default
+
+
+def _read_archive_video_sidecar(path):
+    """Read a bounded, regular sibling sidecar without following symlinks."""
+    sidecar = Path(path)
+    try:
+        if sidecar.is_symlink() or not sidecar.is_file():
+            return ''
+        with sidecar.open('rb') as stream:
+            payload = stream.read(_ARCHIVE_VIDEO_SIDECAR_MAX_BYTES + 1)
+    except OSError:
+        return ''
+    if len(payload) > _ARCHIVE_VIDEO_SIDECAR_MAX_BYTES:
+        return ''
+    return payload.decode('utf-8', errors='replace')
+
+
+def _decode_archive_sidecar_value(value):
+    raw = str(value or '').strip()
+    try:
+        return json.loads(raw)
+    except (TypeError, ValueError, json.JSONDecodeError):
+        return raw.split(' #', 1)[0].strip().strip("'\"")
+
+
+def _parse_archive_markdown_frontmatter(content):
+    text = str(content or '').lstrip('\ufeff')
+    lines = text.splitlines()
+    if not lines or lines[0].strip() != '---':
+        return {}, text
+    closing_index = next(
+        (index for index, line in enumerate(lines[1:], start=1) if line.strip() in {'---', '...'}),
+        None,
+    )
+    if closing_index is None:
+        return {}, text
+    metadata = {}
+    for line in lines[1:closing_index]:
+        key, separator, value = line.partition(':')
+        key = key.strip()
+        if separator and key:
+            metadata[key] = _decode_archive_sidecar_value(value)
+    return metadata, '\n'.join(lines[closing_index + 1:])
+
+
+def _archive_markdown_section(content, title):
+    heading = re.search(
+        rf'(?im)^#{{1,6}}[ \t]+{re.escape(str(title or "").strip())}[ \t]*$',
+        str(content or ''),
+    )
+    if not heading:
+        return ''
+    tail = str(content or '')[heading.end():]
+    next_heading = re.search(r'(?m)^#{1,6}[ \t]+\S.*$', tail)
+    section = tail[:next_heading.start()] if next_heading else tail
+    return section.strip()
+
+
+def _strip_archive_markdown_fence(content):
+    lines = str(content or '').strip().splitlines()
+    if len(lines) < 2:
+        return '\n'.join(lines).strip()
+    opening = re.fullmatch(r'[ \t]*(`{3,}|~{3,})[^`~]*[ \t]*', lines[0])
+    if not opening:
+        return '\n'.join(lines).strip()
+    fence = opening.group(1)
+    closing_index = next(
+        (
+            index
+            for index in range(len(lines) - 1, 0, -1)
+            if re.fullmatch(rf'[ \t]*{re.escape(fence[0])}{{{len(fence)},}}[ \t]*', lines[index])
+        ),
+        None,
+    )
+    if closing_index is None:
+        return '\n'.join(lines).strip()
+    return '\n'.join(lines[1:closing_index]).strip()
+
+
+def _extract_archive_json_object(content, preferred_task_type=''):
+    text = str(content or '')
+    decoder = json.JSONDecoder()
+    best = None
+    for match in re.finditer(r'\{', text):
+        start = match.start()
+        try:
+            payload, end = decoder.raw_decode(text, start)
+        except (TypeError, ValueError, json.JSONDecodeError):
+            continue
+        if not isinstance(payload, dict):
+            continue
+        task_type = str(payload.get('task_type') or '').strip()
+        score = (
+            int(bool(preferred_task_type and task_type == preferred_task_type)),
+            int(bool(task_type)),
+            end - start,
+            start,
+        )
+        if best is None or score > best[0]:
+            best = (score, payload, start, end)
+    if best is None:
+        return {}, None, None
+    return dict(best[1]), best[2], best[3]
+
+
+def _parse_archive_video_text_sidecar(video_path):
+    content = _read_archive_video_sidecar(Path(video_path).with_suffix('.txt'))
+    if not content:
+        return {'prompt': '', 'parameters': {}}
+    parameters, json_start, json_end = _extract_archive_json_object(
+        content,
+        preferred_task_type=H3_VIDEO_TASK_TYPE,
+    )
+    if json_start is None:
+        prompt = content.strip()
+    else:
+        prompt_parts = [content[:json_start].strip(), content[json_end:].strip()]
+        prompt = '\n\n'.join(part for part in prompt_parts if part)
+    return {
+        'prompt': _strip_archive_markdown_fence(prompt)[:20_000],
+        'parameters': parameters,
+    }
+
+
+def _parse_archive_video_markdown_sidecar(video_path):
+    content = _read_archive_video_sidecar(Path(video_path).with_suffix('.md'))
+    if not content:
+        return {'frontmatter': {}, 'prompt': '', 'parameters': {}, 'links': []}
+    frontmatter, body = _parse_archive_markdown_frontmatter(content)
+    prompt = _strip_archive_markdown_fence(_archive_markdown_section(body, 'Prompt'))[:20_000]
+    parameters_section = _archive_markdown_section(body, 'Parameters')
+    parameters, _, _ = _extract_archive_json_object(
+        parameters_section,
+        preferred_task_type=H3_VIDEO_TASK_TYPE,
+    )
+    links = []
+    links.extend(match.group(1).strip() for match in re.finditer(r'!\[\[([^\]|#]+)', body))
+    for match in re.finditer(r'!\[[^\]]*\]\((?:<([^>]+)>|([^\)]+))\)', body):
+        links.append(str(match.group(1) or match.group(2) or '').strip())
+    return {
+        'frontmatter': frontmatter,
+        'prompt': prompt,
+        'parameters': parameters,
+        'links': links,
+    }
+
+
+def _parse_archive_video_sidecars(video_path):
+    text_data = _parse_archive_video_text_sidecar(video_path)
+    markdown_data = _parse_archive_video_markdown_sidecar(video_path)
+    parameters = dict(markdown_data.get('parameters') or {})
+    parameters.update(text_data.get('parameters') or {})
+    markdown_generated = str((markdown_data.get('frontmatter') or {}).get('type') or '').strip().casefold() == 'video_prompt'
+    text_generated = str(parameters.get('task_type') or '').strip() == H3_VIDEO_TASK_TYPE
+    if text_generated and text_data.get('prompt'):
+        prompt = text_data.get('prompt')
+    else:
+        prompt = markdown_data.get('prompt') or text_data.get('prompt') or ''
+    return {
+        'prompt': str(prompt or '')[:20_000],
+        'parameters': parameters,
+        'frontmatter': dict(markdown_data.get('frontmatter') or {}),
+        'links': list(markdown_data.get('links') or []),
+        'markdown_generated': markdown_generated,
+        'text_generated': text_generated,
+    }
+
+
+def _archive_video_markdown_is_generated(video_path):
+    return bool(_parse_archive_video_sidecars(video_path).get('markdown_generated'))
+
+
+def _archive_video_text_is_generated(video_path):
+    return bool(_parse_archive_video_sidecars(video_path).get('text_generated'))
+
+
+def _classify_archive_video_source(video_path, sidecar_data=None):
+    sidecar_data = sidecar_data or _parse_archive_video_sidecars(video_path)
+    is_generated = bool(sidecar_data.get('markdown_generated') or sidecar_data.get('text_generated'))
+    source_type = 'generated' if is_generated else 'imported'
+    return source_type, _ARCHIVE_VIDEO_SOURCE_LABELS[source_type], is_generated
+
+
+_ARCHIVE_REFERENCE_PARAM_KEYS = frozenset({
+    'first_frame',
+    'first_frame_image',
+    'input_image',
+    'reference_image',
+    'reference_images',
+    'reference_file',
+    'reference_files',
+    'source_image',
+    'source_images',
+})
+_ARCHIVE_ASSOCIATED_IMAGE_TOKENS = frozenset({
+    'reference',
+    'reference_image',
+    'first_frame',
+    'source',
+    'input',
+    'poster',
+    'thumbnail',
+    'cover',
+})
+
+
+def _archive_resource_url(resource_type, public_path):
+    encoded = urllib.parse.quote(public_path, safe='/')
+    if resource_type == 'video':
+        return f'/video/{encoded}'
+    if resource_type == 'image':
+        return f'/archive_image/{encoded}'
+    return f'/archive_resource/{encoded}'
+
+
+def _archive_resource_entry(filepath, root_key, root, resource_type, role, label):
+    filepath = Path(filepath)
+    try:
+        if filepath.is_symlink() or not filepath.is_file():
+            return None
+        resolved = filepath.resolve()
+        if resolved != root and root not in resolved.parents:
+            return None
+        stat_result = resolved.stat()
+        relative_path = resolved.relative_to(root).as_posix()
+    except (OSError, ValueError):
+        return None
+    public_path = f'{root_key}/{relative_path}'
+    mime_type = mimetypes.guess_type(resolved.name)[0] or 'application/octet-stream'
+    modified_at = datetime.fromtimestamp(stat_result.st_mtime).astimezone().isoformat(timespec='seconds')
+    resource_id = hashlib.sha256(f'{role}:{public_path}'.encode('utf-8')).hexdigest()[:24]
+    return {
+        'id': resource_id,
+        'type': resource_type,
+        'kind': resource_type,
+        'role': role,
+        'label': label,
+        'name': resolved.name,
+        'file_name': resolved.name,
+        'path': public_path,
+        'relative_path': relative_path,
+        'root_key': root_key,
+        'url': _archive_resource_url(resource_type, public_path),
+        'resource_url': _archive_resource_url(resource_type, public_path),
+        'mime_type': mime_type,
+        'file_size_bytes': stat_result.st_size,
+        'modified_at': modified_at,
+    }
+
+
+def _iter_archive_reference_values(value, key=''):
+    key_name = re.sub(r'[^a-z0-9_]+', '_', str(key or '').strip().casefold()).strip('_')
+    if isinstance(value, dict):
+        for child_key, child_value in value.items():
+            yield from _iter_archive_reference_values(child_value, child_key)
+        return
+    if isinstance(value, (list, tuple)):
+        for child_value in value:
+            yield from _iter_archive_reference_values(child_value, key)
+        return
+    if key_name in _ARCHIVE_REFERENCE_PARAM_KEYS and isinstance(value, str):
+        text = value.strip()
+        if text:
+            yield text
+
+
+def _resolve_same_directory_archive_image(reference, video_path):
+    """Resolve an explicitly referenced image and require the video's directory."""
+    raw = str(reference or '').strip().strip('<>')
+    if not raw or raw.startswith(('data:', 'http://', 'https://')):
+        return None
+    raw = raw.split('|', 1)[0].split('#', 1)[0].strip()
+    if not raw or raw.startswith(('/', '\\')) or '\x00' in raw:
+        return None
+    raw = urllib.parse.unquote(raw).replace('\\', '/')
+    basename = raw.rsplit('/', 1)[-1]
+    if not basename or basename in {'.', '..'}:
+        return None
+    if '/' not in raw or raw.startswith('./'):
+        candidate = Path(video_path).parent / basename
+        try:
+            if candidate.is_symlink() or not candidate.is_file():
+                return None
+            resolved = candidate.resolve()
+        except OSError:
+            return None
+    else:
+        resolved = _resolve_archive_resource_file(raw, _ARCHIVE_IMAGE_EXTENSIONS)
+        if not resolved:
+            return None
+    if resolved.suffix.lower() not in _ARCHIVE_IMAGE_EXTENSIONS:
+        return None
+    try:
+        if resolved.parent != Path(video_path).parent.resolve() or resolved.is_symlink():
+            return None
+    except OSError:
+        return None
+    return resolved
+
+
+def _archive_image_name_looks_associated(video_stem, image_name):
+    stem = str(video_stem or '').casefold()
+    image_stem = Path(image_name).stem.casefold()
+    if not stem or image_stem == stem:
+        return bool(stem and image_stem == stem)
+    if not image_stem.startswith(stem):
+        return False
+    suffix = image_stem[len(stem):].lstrip('_-. ')
+    return any(token in suffix for token in _ARCHIVE_ASSOCIATED_IMAGE_TOKENS)
+
+
+def _archive_video_folder_info(root_key, relative_path):
+    relative = Path(relative_path)
+    directory = relative.parent.as_posix()
+    if directory == '.':
+        directory = ''
+    public_path = f'{root_key}/{relative.as_posix()}'
+    return {
+        'id': hashlib.sha256(public_path.encode('utf-8')).hexdigest()[:24],
+        'name': relative.stem,
+        'path': public_path,
+        'relative_path': relative.as_posix(),
+        'directory': directory,
+        'root_key': root_key,
+    }
+
+
+def _collect_archive_video_resources(filepath, root_key, relative_path, sidecar_data):
+    filepath = Path(filepath)
+    try:
+        root = next(
+            root_path.expanduser().resolve()
+            for key, root_path in archive_scan_roots()
+            if key == root_key
+        )
+    except (StopIteration, OSError):
+        return []
+
+    resources = []
+    seen_paths = set()
+
+    def add(path, resource_type, role, label):
+        try:
+            key = str(Path(path).resolve())
+        except OSError:
+            return
+        if key in seen_paths:
+            return
+        resource = _archive_resource_entry(path, root_key, root, resource_type, role, label)
+        if not resource:
+            return
+        seen_paths.add(key)
+        resources.append(resource)
+
+    add(filepath, 'video', 'output_video', '视频')
+    txt_path = filepath.with_suffix('.txt')
+    md_path = filepath.with_suffix('.md')
+    add(txt_path, 'text', 'prompt_text', '提示词 TXT')
+    add(md_path, 'markdown', 'prompt_markdown', '提示词 Markdown')
+
+    references = []
+    parameters = sidecar_data.get('parameters') if isinstance(sidecar_data, dict) else {}
+    references.extend(_iter_archive_reference_values(parameters))
+    frontmatter = sidecar_data.get('frontmatter') if isinstance(sidecar_data, dict) else {}
+    references.extend(_iter_archive_reference_values(frontmatter))
+    references.extend(sidecar_data.get('links') or [] if isinstance(sidecar_data, dict) else [])
+    for reference in references:
+        resolved = _resolve_same_directory_archive_image(reference, filepath)
+        if resolved:
+            add(resolved, 'image', 'reference_image', '参考图片')
+
+    try:
+        directory_entries = list(filepath.parent.iterdir())
+    except OSError:
+        directory_entries = []
+    for entry in directory_entries:
+        try:
+            if entry.is_symlink() or not entry.is_file() or entry.suffix.lower() not in _ARCHIVE_IMAGE_EXTENSIONS:
+                continue
+        except OSError:
+            continue
+        if not _archive_image_name_looks_associated(filepath.stem, entry.name):
+            continue
+        role = 'reference_image' if any(
+            token in entry.stem.casefold() for token in ('reference', 'first_frame', 'source', 'input')
+        ) else 'associated_image'
+        label = '参考图片' if role == 'reference_image' else '关联图片'
+        add(entry, 'image', role, label)
+    return resources
+
+
+def _resolve_ffprobe_executable():
+    executable_name = 'ffprobe.exe' if os.name == 'nt' else 'ffprobe'
+    candidates = [
+        os.environ.get('FFPROBE_PATH'),
+        os.environ.get('FFPROBE_BINARY'),
+        shutil.which(executable_name),
+        Path(sys.executable).resolve().parent / executable_name,
+        Path(BASE_DIR) / executable_name,
+    ]
+    if os.name != 'nt':
+        candidates.extend((
+            '/opt/homebrew/bin/ffprobe',
+            '/usr/local/bin/ffprobe',
+            '/usr/bin/ffprobe',
+        ))
+    for candidate in candidates:
+        if not candidate:
+            continue
+        try:
+            path = Path(candidate).expanduser().resolve()
+        except (OSError, RuntimeError):
+            continue
+        if path.is_file() and os.access(path, os.X_OK):
+            return str(path)
+    return ''
+
+
+def _resolve_archive_video_file(rel_path):
+    """Resolve a public archive-relative video path without escaping its root."""
+    return _resolve_archive_resource_file(rel_path, _ARCHIVE_VIDEO_EXTENSIONS)
+
+
+def _parse_video_frame_rate(value):
+    raw = str(value or '').strip()
+    if not raw or raw in {'0/0', 'N/A'}:
+        return None
+    try:
+        if '/' in raw:
+            numerator, denominator = raw.split('/', 1)
+            rate = float(numerator) / float(denominator)
+        else:
+            rate = float(raw)
+    except (TypeError, ValueError, ZeroDivisionError):
+        return None
+    if not math.isfinite(rate) or rate <= 0:
+        return None
+    return round(rate, 3)
+
+
+def _positive_archive_media_number(value, integer=False):
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return None
+    if not math.isfinite(number) or number <= 0:
+        return None
+    return int(number) if integer else number
+
+
+def _probe_archive_video_metadata(filepath, stat_result=None):
+    """Read video metadata when ffprobe is available; failures are non-fatal."""
+    filepath = Path(filepath)
+    try:
+        stat_result = stat_result or filepath.stat()
+        cache_key = (str(filepath.resolve()), stat_result.st_mtime_ns, stat_result.st_size)
+    except OSError:
+        return {}
+
+    with _ARCHIVE_VIDEO_METADATA_CACHE_LOCK:
+        cached = _ARCHIVE_VIDEO_METADATA_CACHE.get(cache_key)
+        if cached is not None:
+            return dict(cached)
+
+    metadata = {}
+    ffprobe = _resolve_ffprobe_executable()
+    if ffprobe:
+        try:
+            result = subprocess.run(
+                [
+                    ffprobe,
+                    '-v', 'error',
+                    '-select_streams', 'v:0',
+                    '-show_entries',
+                    'stream=width,height,avg_frame_rate,r_frame_rate,duration:format=duration',
+                    '-of', 'json',
+                    str(filepath),
+                ],
+                capture_output=True,
+                text=True,
+                timeout=8,
+                check=False,
+            )
+            if result.returncode == 0:
+                payload = json.loads(result.stdout or '{}')
+                streams = payload.get('streams') if isinstance(payload, dict) else []
+                stream = streams[0] if isinstance(streams, list) and streams else {}
+                format_data = payload.get('format') if isinstance(payload, dict) else {}
+                width = int(stream.get('width') or 0)
+                height = int(stream.get('height') or 0)
+                fps = _parse_video_frame_rate(stream.get('avg_frame_rate') or stream.get('r_frame_rate'))
+                duration_raw = stream.get('duration') or (
+                    format_data.get('duration') if isinstance(format_data, dict) else None
+                )
+                duration = float(duration_raw or 0)
+                if width > 0:
+                    metadata['width'] = width
+                if height > 0:
+                    metadata['height'] = height
+                if fps is not None:
+                    metadata['fps'] = fps
+                if math.isfinite(duration) and duration > 0:
+                    metadata['duration_seconds'] = round(duration, 3)
+        except (OSError, subprocess.SubprocessError, TypeError, ValueError, json.JSONDecodeError):
+            pass
+
+    with _ARCHIVE_VIDEO_METADATA_CACHE_LOCK:
+        stale_keys = [key for key in _ARCHIVE_VIDEO_METADATA_CACHE if key[0] == cache_key[0]]
+        for key in stale_keys:
+            _ARCHIVE_VIDEO_METADATA_CACHE.pop(key, None)
+        _ARCHIVE_VIDEO_METADATA_CACHE[cache_key] = dict(metadata)
+        while len(_ARCHIVE_VIDEO_METADATA_CACHE) > _ARCHIVE_VIDEO_METADATA_CACHE_LIMIT:
+            _ARCHIVE_VIDEO_METADATA_CACHE.pop(next(iter(_ARCHIVE_VIDEO_METADATA_CACHE)))
+    return metadata
+
+
+def _archive_video_task_map():
+    """Map archived H3 result basenames to an unambiguous persisted task."""
+    mapping = {}
+    try:
+        tasks = get_all_tasks(limit=5000, offset=0)
+    except Exception:
+        return mapping
+    for task in tasks or []:
+        if str(task.get('type') or '').strip() != H3_VIDEO_TASK_TYPE:
+            continue
+        task_id = str(task.get('task_id') or '').strip()
+        if not task_id:
+            continue
+        result_files = task.get('result_files') if isinstance(task.get('result_files'), list) else []
+        result_files = list(result_files)
+        if task.get('result_file'):
+            result_files.append(task.get('result_file'))
+        params = task.get('params') if isinstance(task.get('params'), dict) else {}
+        if params.get('video_filename'):
+            result_files.append(params.get('video_filename'))
+        for result_file in result_files:
+            name = Path(str(result_file or '')).name
+            if not name:
+                continue
+            previous = mapping.get(name)
+            if previous is None or str(previous.get('task_id') or '') == task_id:
+                mapping[name] = task
+            else:
+                mapping[name] = {}
+    return {name: task for name, task in mapping.items() if task}
+
+
+_ARCHIVE_VIDEO_PUBLIC_PARAMETER_KEYS = (
+    'mode',
+    'aspect_ratio',
+    'pixel_budget_mp',
+    'actual_megapixels',
+    'width',
+    'height',
+    'duration_seconds',
+    'steps',
+    'denoise',
+    'crf',
+    'seed',
+    'acceleration_mode',
+    'first_block_cache_threshold',
+    'fps',
+    'frame_count',
+    'elapsed_seconds',
+)
+
+
+def _public_archive_video_parameters(sidecar_parameters, task=None, metadata=None):
+    """Return only generation controls and measured media values to the UI."""
+    combined = {}
+    if isinstance(sidecar_parameters, dict):
+        combined.update(sidecar_parameters)
+        runtime_output = sidecar_parameters.get('runtime_output')
+        if isinstance(runtime_output, dict):
+            for key in ('width', 'height', 'fps', 'frame_count', 'duration_seconds', 'seed', 'elapsed_seconds'):
+                if runtime_output.get(key) is not None:
+                    combined[key] = runtime_output.get(key)
+    if isinstance(task, dict) and isinstance(task.get('params'), dict):
+        for key, value in task.get('params').items():
+            if value is not None and value != '':
+                combined[key] = value
+    if isinstance(metadata, dict):
+        for key in ('width', 'height', 'fps', 'duration_seconds'):
+            if combined.get(key) in (None, '', 0) and metadata.get(key) is not None:
+                combined[key] = metadata.get(key)
+    if (not combined.get('width') or not combined.get('height')) and combined.get('size'):
+        match = re.fullmatch(r'\s*(\d+)\s*[x×]\s*(\d+)\s*', str(combined.get('size')))
+        if match:
+            combined.setdefault('width', int(match.group(1)))
+            combined.setdefault('height', int(match.group(2)))
+    public = {}
+    for key in _ARCHIVE_VIDEO_PUBLIC_PARAMETER_KEYS:
+        value = combined.get(key)
+        if value is None or value == '' or isinstance(value, (dict, list, tuple)):
+            continue
+        if key == 'seed' and isinstance(value, int) and abs(value) > 9_007_199_254_740_991:
+            value = str(value)
+        public[key] = value
+    return public
+
+
+def _list_archive_videos(limit=200, offset=0, query='', source='generated'):
+    """List archived videos using only public root-relative path information."""
+    search = str(query or '').strip().casefold()
+    source_filter = _coerce_archive_video_source(source)
+    task_map = _archive_video_task_map()
+    seen_files = set()
+    candidates = []
+    for root_key, root_path in archive_scan_roots():
+        try:
+            root = root_path.expanduser().resolve()
+        except Exception:
+            continue
+        try:
+            walker = os.walk(root, followlinks=False)
+            for directory, _, filenames in walker:
+                for filename in filenames:
+                    if Path(filename).suffix.lower() not in _ARCHIVE_VIDEO_EXTENSIONS:
+                        continue
+                    candidate = Path(directory) / filename
+                    try:
+                        if candidate.is_symlink():
+                            continue
+                        resolved = candidate.resolve()
+                        if resolved != root and root not in resolved.parents:
+                            continue
+                        stat_result = resolved.stat()
+                        relative_path = resolved.relative_to(root).as_posix()
+                    except (OSError, ValueError):
+                        continue
+                    physical_key = (
+                        ('inode', stat_result.st_dev, stat_result.st_ino)
+                        if stat_result.st_ino
+                        else ('path', str(resolved))
+                    )
+                    if physical_key in seen_files:
+                        continue
+                    public_path = f'{root_key}/{relative_path}'
+                    sidecar_data = _parse_archive_video_sidecars(resolved)
+                    task = task_map.get(filename)
+                    task_prompt = str(task.get('prompt') or '') if isinstance(task, dict) else ''
+                    if search:
+                        search_parameters = _public_archive_video_parameters(
+                            sidecar_data.get('parameters'),
+                            task=task,
+                        )
+                        search_text = '\n'.join((
+                            filename,
+                            public_path,
+                            str(sidecar_data.get('prompt') or ''),
+                            task_prompt,
+                            json.dumps(search_parameters, ensure_ascii=False),
+                        )).casefold()
+                        if search not in search_text:
+                            continue
+                    seen_files.add(physical_key)
+                    if isinstance(task, dict):
+                        source_type, source_label, is_generated = 'generated', _ARCHIVE_VIDEO_SOURCE_LABELS['generated'], True
+                    else:
+                        source_type, source_label, is_generated = _classify_archive_video_source(resolved, sidecar_data)
+                    candidates.append((
+                        stat_result.st_mtime,
+                        public_path,
+                        root_key,
+                        relative_path,
+                        resolved,
+                        stat_result,
+                        source_type,
+                        source_label,
+                        is_generated,
+                        sidecar_data,
+                    ))
+        except OSError:
+            continue
+
+    candidates.sort(key=lambda item: (-item[0], item[1].casefold()))
+    source_counts = {
+        'generated': sum(1 for item in candidates if item[6] == 'generated'),
+        'imported': sum(1 for item in candidates if item[6] == 'imported'),
+        'all': len(candidates),
+    }
+    filtered_candidates = (
+        candidates
+        if source_filter == 'all'
+        else [item for item in candidates if item[6] == source_filter]
+    )
+    total = len(filtered_candidates)
+    format_counts = {}
+    total_file_size_bytes = 0
+    for _, _, _, _, filepath, stat_result, _, _, _, _ in filtered_candidates:
+        extension = filepath.suffix.lower().lstrip('.') or 'unknown'
+        format_counts[extension] = format_counts.get(extension, 0) + 1
+        total_file_size_bytes += stat_result.st_size
+    page = filtered_candidates[offset:offset + limit]
+    videos = []
+    for (
+        modified_timestamp,
+        public_path,
+        root_key,
+        relative_path,
+        filepath,
+        stat_result,
+        source_type,
+        source_label,
+        is_generated,
+        sidecar_data,
+    ) in page:
+        metadata = _probe_archive_video_metadata(filepath, stat_result)
+        mime_type = mimetypes.guess_type(filepath.name)[0] or 'application/octet-stream'
+        modified_at = datetime.fromtimestamp(modified_timestamp).astimezone().isoformat(timespec='seconds')
+        video_url = f"/video/{urllib.parse.quote(public_path, safe='/')}"
+        resources = _collect_archive_video_resources(filepath, root_key, relative_path, sidecar_data)
+        folder = _archive_video_folder_info(root_key, relative_path)
+        task = task_map.get(filepath.name)
+        task_id = str(task.get('task_id') or '').strip() if isinstance(task, dict) else ''
+        if not task_id:
+            candidate_task_id = str((sidecar_data.get('frontmatter') or {}).get('task_id') or '').strip()
+            task_id = candidate_task_id if candidate_task_id.startswith('h3v_') else ''
+        prompt = str(task.get('prompt') or '').strip() if isinstance(task, dict) else ''
+        prompt = prompt or str(sidecar_data.get('prompt') or '')
+        parameters = _public_archive_video_parameters(
+            sidecar_data.get('parameters'),
+            task=task,
+            metadata=metadata,
+        )
+        media_width = _positive_archive_media_number(metadata.get('width'), integer=True) or _positive_archive_media_number(parameters.get('width'), integer=True)
+        media_height = _positive_archive_media_number(metadata.get('height'), integer=True) or _positive_archive_media_number(parameters.get('height'), integer=True)
+        media_duration = _positive_archive_media_number(metadata.get('duration_seconds')) or _positive_archive_media_number(parameters.get('duration_seconds'))
+        media_fps = _positive_archive_media_number(metadata.get('fps')) or _positive_archive_media_number(parameters.get('fps'))
+        reference_images = [resource for resource in resources if resource.get('type') == 'image']
+        videos.append({
+            'id': hashlib.sha256(public_path.encode('utf-8')).hexdigest()[:24],
+            'name': filepath.name,
+            'file_name': filepath.name,
+            'url': video_url,
+            'video_url': video_url,
+            'poster_url': thumb_url_for_media_url(video_url, size=480),
+            'path': public_path,
+            'relative_path': relative_path,
+            'root_key': root_key,
+            'mime_type': mime_type,
+            'file_size': stat_result.st_size,
+            'file_size_bytes': stat_result.st_size,
+            'created_at': modified_at,
+            'modified_at': modified_at,
+            'width': media_width,
+            'height': media_height,
+            'duration_seconds': media_duration,
+            'fps': media_fps,
+            'task_id': task_id,
+            'prompt': prompt[:20_000],
+            'parameters': parameters,
+            'resources': resources,
+            'resource_count': len(resources),
+            'resource_folder': folder,
+            'reference_images': reference_images,
+            'has_prompt': bool(prompt),
+            'has_parameters': bool(parameters),
+            'has_reference_images': bool(reference_images),
+            'source_type': source_type,
+            'source_label': source_label,
+            'is_generated': is_generated,
+        })
+    return {
+        'ok': True,
+        'videos': videos,
+        'count': len(videos),
+        'total': total,
+        'stats': {
+            'total': total,
+            'all': source_counts['all'],
+            'generated': source_counts['generated'],
+            'imported': source_counts['imported'],
+            'by_source': dict(source_counts),
+            'total_file_size_bytes': total_file_size_bytes,
+            'by_format': format_counts,
+        },
+        'limit': limit,
+        'offset': offset,
+        'source': source_filter,
+        'has_more': offset + len(videos) < total,
+    }
 
 
 def _resolve_download_image(filename):
@@ -4293,6 +5770,7 @@ def _collect_system_diagnostics():
     third_party_cfg = get_third_party_image_config()
     managed_codex_cfg = get_managed_codex_oauth_status()
     comfy_cfg = get_comfy_config()
+    video_inference_cfg = get_video_inference_public_config()
 
     return {
         "ok": True,
@@ -4343,6 +5821,14 @@ def _collect_system_diagnostics():
             "configured": bool(comfy_cfg.get("base_url")),
             "environment_managed": bool(comfy_cfg.get("environment_managed")),
             "workflow_count": len(_collect_comfy_workflows().get("items") or []),
+        },
+        "video_inference": {
+            "runtime_mode": video_inference_cfg.get("runtime_mode", "auto"),
+            "local_base_url": (video_inference_cfg.get("local") or {}).get("base_url", ""),
+            "lan_base_url": (video_inference_cfg.get("lan") or {}).get("base_url", ""),
+            "lan_api_key_configured": bool((video_inference_cfg.get("lan") or {}).get("api_key_configured")),
+            "environment_managed": bool(video_inference_cfg.get("environment_managed")),
+            "component": collect_video_runtime_component_status(),
         },
         "storage": {
             "image_archive_dir": _path_diagnostics(storage_cfg["image_archive_dir"], expect_dir=True),
@@ -4396,6 +5882,7 @@ def _collect_system_settings():
     proxy_cfg = get_proxy_config()
     prompt_source_proxy_cfg = get_proxy_config("prompt_source")
     comfy_cfg = get_comfy_config()
+    video_inference_cfg = get_video_inference_public_config()
     pinterest_cfg = get_pinterest_config()
     pinterest_browser = get_pinterest_browser_login_capability()
     return {
@@ -4446,6 +5933,7 @@ def _collect_system_settings():
                 "environment_managed": bool(comfy_cfg.get("environment_managed")),
                 "environment_fields": comfy_cfg.get("environment_fields") or [],
             },
+            "video_inference": video_inference_cfg,
             "pinterest": {
                 "enabled": bool(pinterest_cfg.get("enabled")),
                 "profile_url": pinterest_cfg.get("profile_url", ""),
@@ -4643,6 +6131,65 @@ def _sanitize_system_settings_patch(payload):
     if comfy_data:
         settings["comfy"] = comfy
 
+    video_inference = _settings_dict(settings.get("video_inference")).copy()
+    video_inference_data = _settings_dict(data.get("video_inference"))
+    runtime_mode = _clean_text(video_inference_data.get("runtime_mode"), max_len=16).lower()
+    if runtime_mode in {"auto", "local", "lan"}:
+        video_inference["runtime_mode"] = runtime_mode
+
+    video_local = _settings_dict(video_inference.get("local")).copy()
+    video_local_data = _settings_dict(video_inference_data.get("local"))
+    if "base_url" in video_local_data:
+        raw_url = _clean_text(video_local_data.get("base_url"), max_len=2048)
+        video_local["base_url"] = normalize_runtime_base_url(raw_url) if raw_url else ""
+    _patch_text(video_local, video_local_data, "component_dir", max_len=2048)
+    start_mode = _clean_text(video_local_data.get("start_mode"), max_len=24).lower()
+    if start_mode in {"manual", "on_demand", "always"}:
+        video_local["start_mode"] = start_mode
+    if video_local_data:
+        video_inference["local"] = video_local
+
+    video_lan = _settings_dict(video_inference.get("lan")).copy()
+    video_lan_data = _settings_dict(video_inference_data.get("lan"))
+    if "base_url" in video_lan_data:
+        raw_url = _clean_text(video_lan_data.get("base_url"), max_len=2048)
+        video_lan["base_url"] = normalize_runtime_base_url(raw_url, allow_empty=True)
+    _patch_secret(video_lan, video_lan_data, "api_key")
+    if "connect_timeout_seconds" in video_lan_data:
+        try:
+            video_lan["connect_timeout_seconds"] = max(0.5, min(30.0, float(video_lan_data.get("connect_timeout_seconds"))))
+        except (TypeError, ValueError):
+            pass
+    if video_lan_data:
+        video_inference["lan"] = video_lan
+
+    video_defaults = _settings_dict(video_inference.get("defaults")).copy()
+    video_defaults_data = _settings_dict(video_inference_data.get("defaults"))
+    aspect_ratio = _clean_text(video_defaults_data.get("aspect_ratio"), max_len=16)
+    if aspect_ratio in {"16:9", "9:16", "3:4", "4:3", "2:3", "3:2", "1:1", "21:9", "9:21"}:
+        video_defaults["aspect_ratio"] = aspect_ratio
+    acceleration_mode = _clean_text(video_defaults_data.get("acceleration_mode"), max_len=32).lower()
+    if acceleration_mode in {"off", "first_block_cache", "sol_attn", "combined"}:
+        video_defaults["acceleration_mode"] = acceleration_mode
+    for key, minimum, maximum in (
+        ("pixel_budget_mp", 0.1, 8.0),
+        ("first_block_cache_threshold", 0.001, 1.0),
+    ):
+        if key in video_defaults_data:
+            try:
+                video_defaults[key] = max(minimum, min(maximum, float(video_defaults_data.get(key))))
+            except (TypeError, ValueError):
+                pass
+    if "duration_seconds" in video_defaults_data:
+        try:
+            video_defaults["duration_seconds"] = max(1, min(120, int(video_defaults_data.get("duration_seconds"))))
+        except (TypeError, ValueError):
+            pass
+    if video_defaults_data:
+        video_inference["defaults"] = video_defaults
+    if video_inference_data:
+        settings["video_inference"] = video_inference
+
     pinterest = _settings_dict(settings.get("pinterest")).copy()
     pinterest_data = _settings_dict(data.get("pinterest"))
     had_legacy_auth_file = "auth_file" in pinterest
@@ -4781,6 +6328,178 @@ def save_thumbnail(image_path, output_filename):
 
 def safe_basename(filename):
     return os.path.basename(str(filename or '').strip())
+
+
+REMOTE_IMAGE_IMPORT_MAX_BYTES = 32 * 1024 * 1024
+REMOTE_IMAGE_IMPORT_MAX_REDIRECTS = 4
+REMOTE_IMAGE_IMPORT_TIMEOUT = (10, 35)
+REMOTE_IMAGE_PROXY_FAKE_NETWORK = ipaddress.ip_network('198.18.0.0/15')
+_REMOTE_IMAGE_FORMAT_MIME = {
+    'PNG': 'image/png',
+    'JPEG': 'image/jpeg',
+    'WEBP': 'image/webp',
+    'GIF': 'image/gif',
+    'BMP': 'image/bmp',
+    'ICO': 'image/x-icon',
+    'AVIF': 'image/avif',
+}
+_REMOTE_IMAGE_MIME_EXTENSION = {
+    'image/png': '.png',
+    'image/jpeg': '.jpg',
+    'image/webp': '.webp',
+    'image/gif': '.gif',
+    'image/bmp': '.bmp',
+    'image/x-icon': '.ico',
+    'image/avif': '.avif',
+    'image/svg+xml': '.svg',
+}
+
+
+def _validated_remote_image_url(value):
+    """Allow public HTTP(S) image sources while blocking local-network fetches."""
+    raw_url = str(value or '').strip()
+    if not raw_url or len(raw_url) > 8192:
+        raise ValueError('图片地址无效')
+    try:
+        parsed = urllib.parse.urlparse(raw_url)
+        port = parsed.port
+    except ValueError as exc:
+        raise ValueError('图片地址端口无效') from exc
+    if parsed.scheme.lower() not in {'http', 'https'}:
+        raise ValueError('仅支持 HTTP 或 HTTPS 图片地址')
+    if parsed.username or parsed.password:
+        raise ValueError('图片地址不能包含登录信息')
+    hostname = str(parsed.hostname or '').strip().rstrip('.')
+    if not hostname:
+        raise ValueError('图片地址缺少主机名')
+    if hostname.lower() == 'localhost' or hostname.lower().endswith('.localhost'):
+        raise ValueError('不能导入本机或局域网图片地址')
+    try:
+        addresses = socket.getaddrinfo(hostname, port or (443 if parsed.scheme.lower() == 'https' else 80), type=socket.SOCK_STREAM)
+    except OSError as exc:
+        raise ValueError('图片地址无法解析') from exc
+    if not addresses:
+        raise ValueError('图片地址无法解析')
+    for entry in addresses:
+        address_text = str(entry[4][0] or '').split('%', 1)[0]
+        try:
+            address = ipaddress.ip_address(address_text)
+        except ValueError as exc:
+            raise ValueError('图片地址解析结果无效') from exc
+        if not address.is_global and address not in REMOTE_IMAGE_PROXY_FAKE_NETWORK:
+            raise ValueError('不能导入本机或局域网图片地址')
+    return parsed.geturl()
+
+
+def _sniff_remote_image_mime(image_bytes):
+    head = bytes(image_bytes[:4096])
+    if head.startswith(b'\x89PNG\r\n\x1a\n'):
+        return 'image/png'
+    if head.startswith(b'\xff\xd8\xff'):
+        return 'image/jpeg'
+    if head.startswith((b'GIF87a', b'GIF89a')):
+        return 'image/gif'
+    if len(head) >= 12 and head.startswith(b'RIFF') and head[8:12] == b'WEBP':
+        return 'image/webp'
+    if head.startswith(b'BM'):
+        return 'image/bmp'
+    if head.startswith(b'\x00\x00\x01\x00'):
+        return 'image/x-icon'
+    if len(head) >= 16 and head[4:8] == b'ftyp' and (b'avif' in head[:32] or b'avis' in head[:32]):
+        return 'image/avif'
+    text_head = head.lstrip(b'\xef\xbb\xbf\x00\t\r\n ')
+    if text_head.startswith(b'<svg') or (text_head.startswith(b'<?xml') and b'<svg' in text_head[:2048]):
+        return 'image/svg+xml'
+    try:
+        with Image.open(io.BytesIO(image_bytes)) as image:
+            image.verify()
+            return _REMOTE_IMAGE_FORMAT_MIME.get(str(image.format or '').upper(), '')
+    except Exception:
+        return ''
+
+
+def _remote_image_filename(url, mime_type):
+    parsed = urllib.parse.urlparse(str(url or ''))
+    raw_name = safe_basename(urllib.parse.unquote(parsed.path or ''))
+    clean_name = re.sub(r'[\x00-\x1f<>:"/\\|?*]+', '_', raw_name).strip(' ._')[:180]
+    extension = _REMOTE_IMAGE_MIME_EXTENSION.get(mime_type, '.png')
+    if not clean_name:
+        return f'imported-image{extension}'
+    accepted_extensions = set(_REMOTE_IMAGE_MIME_EXTENSION.values()) | {'.jpeg', '.jfif'}
+    if Path(clean_name).suffix.lower() not in accepted_extensions:
+        clean_name = f'{clean_name}{extension}'
+    return clean_name
+
+
+def _download_remote_image_for_import(url):
+    current_url = _validated_remote_image_url(url)
+    headers = {
+        'Accept': 'image/avif,image/webp,image/png,image/jpeg,image/gif,image/svg+xml,image/*;q=0.8,*/*;q=0.2',
+        'User-Agent': 'CanvasHub/1.0 image-import',
+    }
+    with requests.Session() as client:
+        client.trust_env = False
+        proxy_config = get_proxy_config('prompt_source')
+        if not proxy_config.get('enabled') or not proxy_config.get('proxy_url'):
+            proxy_config = get_proxy_config()
+        proxy_url = str(proxy_config.get('proxy_url') or '').strip() if proxy_config.get('enabled') else ''
+        if proxy_url:
+            client.proxies.update({'http': proxy_url, 'https': proxy_url})
+        for redirect_index in range(REMOTE_IMAGE_IMPORT_MAX_REDIRECTS + 1):
+            try:
+                response = client.get(
+                    current_url,
+                    headers=headers,
+                    stream=True,
+                    timeout=REMOTE_IMAGE_IMPORT_TIMEOUT,
+                    allow_redirects=False,
+                )
+            except requests.RequestException as exc:
+                raise ValueError(f'图片下载失败：{exc}') from exc
+            with response:
+                if response.status_code in {301, 302, 303, 307, 308}:
+                    if redirect_index >= REMOTE_IMAGE_IMPORT_MAX_REDIRECTS:
+                        raise ValueError('图片地址重定向次数过多')
+                    location = str(response.headers.get('Location') or '').strip()
+                    if not location:
+                        raise ValueError('图片地址重定向缺少目标')
+                    current_url = _validated_remote_image_url(urllib.parse.urljoin(current_url, location))
+                    continue
+                if response.status_code < 200 or response.status_code >= 300:
+                    raise ValueError(f'图片服务器返回 HTTP {response.status_code}')
+                declared_length = str(response.headers.get('Content-Length') or '').strip()
+                if declared_length:
+                    try:
+                        declared_size = int(declared_length)
+                    except ValueError:
+                        declared_size = 0
+                    if declared_size > REMOTE_IMAGE_IMPORT_MAX_BYTES:
+                        raise ValueError('远程图片不能超过 32 MB')
+                chunks = []
+                total = 0
+                try:
+                    for chunk in response.iter_content(chunk_size=128 * 1024):
+                        if not chunk:
+                            continue
+                        total += len(chunk)
+                        if total > REMOTE_IMAGE_IMPORT_MAX_BYTES:
+                            raise ValueError('远程图片不能超过 32 MB')
+                        chunks.append(chunk)
+                except requests.RequestException as exc:
+                    raise ValueError(f'图片下载中断：{exc}') from exc
+                image_bytes = b''.join(chunks)
+                if not image_bytes:
+                    raise ValueError('图片内容为空')
+                mime_type = _sniff_remote_image_mime(image_bytes)
+                if not mime_type:
+                    raise ValueError('远程内容不是支持的图片格式')
+                return {
+                    'content': image_bytes,
+                    'content_type': mime_type,
+                    'filename': _remote_image_filename(current_url, mime_type),
+                    'source_url': current_url,
+                }
+    raise ValueError('图片下载失败')
 
 def ensure_gpt_preview_image(filename, max_side=2048):
     """为 GPT 原图生成查看页用 2K 预览图，并缓存到 gpt_outputs。"""
@@ -5566,6 +7285,10 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
             if not self.require_auth():
                 return
             self.handle_assets(parsed)
+        elif path == '/api/assets/videos':
+            if not self.require_auth():
+                return
+            self.handle_asset_videos(parsed)
         elif path == '/api/assets/detail':
             if not self.require_auth():
                 return
@@ -5586,6 +7309,14 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
             if not self.require_auth():
                 return
             self.handle_system_settings()
+        elif path == '/api/video/runtime/status':
+            if not self.require_auth():
+                return
+            self.handle_video_runtime_status(parsed)
+        elif path == '/api/video/capabilities':
+            if not self.require_auth():
+                return
+            self.handle_video_runtime_capabilities()
         elif path == '/api/pinterest/library':
             if not self.require_auth():
                 return
@@ -5650,6 +7381,14 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
             if not self.require_auth():
                 return
             self.handle_prompt_library_templates_list()
+        elif path == '/api/agent/runs':
+            if not self.require_auth():
+                return
+            self.handle_agent_runs(parsed)
+        elif path.startswith('/api/agent/runs/'):
+            if not self.require_auth():
+                return
+            self.handle_agent_run_get(parsed)
         elif path == '/api/assets/sets':
             if not self.require_auth():
                 return
@@ -5700,11 +7439,21 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
                 return
             filename = urllib.parse.unquote(path.split('/')[-1])
             self.handle_image(filename)
+        elif path.startswith('/video/'):
+            if not self.require_auth():
+                return
+            rel_path = path[len('/video/'):]
+            self.handle_video(rel_path)
         elif path.startswith('/archive_image/'):
             if not self.require_auth():
                 return
-            rel_path = urllib.parse.unquote(path[len('/archive_image/'):])
+            rel_path = path[len('/archive_image/'):]
             self.handle_archive_image(rel_path)
+        elif path.startswith('/archive_resource/'):
+            if not self.require_auth():
+                return
+            rel_path = path[len('/archive_resource/'):]
+            self.handle_archive_resource(rel_path)
         elif path.startswith('/editable_file/'):
             if not self.require_auth():
                 return
@@ -5802,7 +7551,11 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
         path = parsed.path
         
         # API 路由
-        if path == '/generate':
+        if path == '/api/images/import-url':
+            if not self.require_auth():
+                return
+            self.handle_image_import_url()
+        elif path == '/generate':
             if not self.require_auth():
                 return
             self.handle_generate()
@@ -5846,6 +7599,22 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
             if not self.require_auth():
                 return
             self.handle_system_settings_save()
+        elif path == '/api/video/runtime/test':
+            if not self.require_auth():
+                return
+            self.handle_video_runtime_test()
+        elif path == '/api/video/runtime/start':
+            if not self.require_auth():
+                return
+            self.handle_video_runtime_start()
+        elif path == '/api/video/prompt-compile':
+            if not self.require_auth():
+                return
+            self.handle_video_prompt_compile()
+        elif path == '/api/video/generate':
+            if not self.require_auth():
+                return
+            self.handle_video_generate()
         elif path == '/api/pinterest/auth/start':
             if not self.require_auth():
                 return
@@ -5986,6 +7755,10 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
             if not self.require_auth():
                 return
             self.handle_prompt_library_template_delete()
+        elif path == '/api/agent/runs' or path.startswith('/api/agent/runs/'):
+            if not self.require_auth():
+                return
+            self.handle_agent_run_post(parsed)
         elif path == '/api/comfy/run':
             if not self.require_auth():
                 return
@@ -6119,6 +7892,101 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
             raise ValueError('请求体过大')
         body = self.rfile.read(content_length)
         return json.loads(body or b'{}')
+
+    def _agent_run_route_parts(self, parsed):
+        return [urllib.parse.unquote(part) for part in parsed.path.strip('/').split('/')]
+
+    def _send_agent_error(self, error):
+        if isinstance(error, AgentRunNotFound):
+            self.send_json({"ok": False, "error": str(error)}, 404)
+        elif isinstance(error, AgentRunConflict):
+            self.send_json({"ok": False, "error": str(error)}, 409)
+        elif isinstance(error, (ValueError, AgentRuntimeError)):
+            self.send_json({"ok": False, "error": str(error)}, 400)
+        else:
+            print(f"❌ Agent API 失败：{error}")
+            self.send_json({"ok": False, "error": str(error)}, 500)
+
+    def handle_agent_runs(self, parsed):
+        """List persisted Agent runs without exposing server configuration."""
+        try:
+            query = urllib.parse.parse_qs(parsed.query)
+            limit = int(query.get('limit', [20])[0])
+            offset = int(query.get('offset', [0])[0])
+            status = str(query.get('status', [''])[0] or '').strip()
+            self.send_json(get_agent_runtime().list_runs(limit=limit, offset=offset, status=status))
+        except Exception as error:
+            self._send_agent_error(error)
+
+    def handle_agent_run_get(self, parsed):
+        """Return one run plus incremental audit events."""
+        try:
+            parts = self._agent_run_route_parts(parsed)
+            if len(parts) != 4 or parts[:3] != ['api', 'agent', 'runs'] or not parts[3]:
+                self.send_json({"ok": False, "error": "Agent 运行路径不存在"}, 404)
+                return
+            query = urllib.parse.parse_qs(parsed.query)
+            events_since = int(query.get('events_since', query.get('since', [0]))[0])
+            event_limit = int(query.get('event_limit', query.get('limit', [240]))[0])
+            self.send_json(get_agent_runtime().get_run(
+                parts[3],
+                events_since=events_since,
+                event_limit=event_limit,
+            ))
+        except Exception as error:
+            self._send_agent_error(error)
+
+    def handle_agent_run_post(self, parsed):
+        """Create or control a supervised Agent run."""
+        try:
+            parts = self._agent_run_route_parts(parsed)
+            if parts == ['api', 'agent', 'runs']:
+                payload = self.read_json_body(max_bytes=64 * 1024 * 1024)
+                self.send_json(get_agent_runtime().create_run(payload), 201)
+                return
+            if len(parts) < 5 or parts[:3] != ['api', 'agent', 'runs'] or not parts[3]:
+                self.send_json({"ok": False, "error": "Agent 操作路径不存在"}, 404)
+                return
+
+            run_id = parts[3]
+            action = parts[4]
+            payload = self.read_json_body(max_bytes=2 * 1024 * 1024)
+            runtime = get_agent_runtime()
+            if len(parts) == 5 and action == 'approve':
+                approval = payload.get('approval') if isinstance(payload.get('approval'), dict) else payload
+                self.send_json(runtime.approve_run(run_id, approval))
+                return
+            if len(parts) == 5 and action == 'revise':
+                instruction = str(payload.get('instruction') or payload.get('message') or '').strip()
+                self.send_json(runtime.revise_run(run_id, instruction))
+                return
+            if len(parts) == 5 and action == 'pause':
+                self.send_json(runtime.pause_run(run_id))
+                return
+            if len(parts) == 5 and action == 'resume':
+                self.send_json(runtime.resume_run(run_id))
+                return
+            if len(parts) == 5 and action == 'cancel':
+                self.send_json(runtime.cancel_run(run_id))
+                return
+            if len(parts) == 5 and action == 'rollback':
+                self.send_json(runtime.request_rollback(run_id))
+                return
+            if len(parts) == 6 and action == 'actions' and parts[5]:
+                error = str(payload.get('error') or '').strip()
+                if payload.get('ok') is False and not error:
+                    error = '桌面动作执行失败'
+                result = payload.get('result') if isinstance(payload.get('result'), dict) else {}
+                self.send_json(runtime.submit_action_result(
+                    run_id,
+                    parts[5],
+                    result=result,
+                    error=error,
+                ))
+                return
+            self.send_json({"ok": False, "error": "Agent 操作不存在"}, 404)
+        except Exception as error:
+            self._send_agent_error(error)
 
     def handle_desktop_workflow_save(self):
         """Save a desktop workflow JSON file to a user-provided local path."""
@@ -6596,7 +8464,7 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
             prompt = data.get('prompt', '')
             incoming_params = data.get('params', {}) if isinstance(data.get('params'), dict) else {}
             params = {
-                'ratio': _coerce_image_ratio(data.get('ratio', incoming_params.get('ratio', '1:1')), '1:1'),
+                'ratio': _effective_image_ratio(prompt, data.get('ratio', incoming_params.get('ratio', '1:1')), '1:1'),
                 'style': str(data.get('style', incoming_params.get('style', 'raw')) or 'raw').strip() or 'raw',
                 'quality': _coerce_google_quality(data.get('quality', incoming_params.get('quality', '2k')), '2k'),
                 'model': _coerce_model(data.get('model', incoming_params.get('model', DEFAULT_GOOGLE_IMAGE_MODEL))),
@@ -6689,7 +8557,7 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
 
             # 兼容前端顶层字段 + params 字段
             params = {
-                'ratio': _coerce_image_ratio(data.get('ratio', incoming_params.get('ratio', '1:1')), '1:1'),
+                'ratio': _effective_image_ratio(prompt, data.get('ratio', incoming_params.get('ratio', '1:1')), '1:1'),
                 'quality': _coerce_google_edit_quality(data.get('quality', incoming_params.get('quality', 'hd'))),
                 'model': _coerce_model(data.get('model', incoming_params.get('model', DEFAULT_GOOGLE_IMAGE_MODEL))),
                 'max_tokens': _coerce_google_max_tokens(data.get('max_tokens', data.get('maxTokens', incoming_params.get('max_tokens', incoming_params.get('maxTokens'))))),
@@ -6776,7 +8644,7 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
             data = json.loads(body)
             
             prompt = data.get('prompt', '')
-            ratio = _coerce_image_ratio(data.get('ratio'), '1:1')
+            ratio = _effective_image_ratio(prompt, data.get('ratio'), '1:1')
             resolution = _coerce_gpt_resolution(data.get('resolution'))
             quality = _coerce_gpt_quality(data.get('quality', 'auto'))
             moderation = _coerce_gpt_moderation(data.get('moderation', 'auto'))
@@ -6855,7 +8723,7 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
 
             prompt = data.get('prompt', '')
             images = data.get('images', [])
-            ratio = _coerce_image_ratio(data.get('ratio'), '1:1')
+            ratio = _effective_image_ratio(prompt, data.get('ratio'), '1:1')
             resolution = _coerce_gpt_resolution(data.get('resolution'))
             quality = _coerce_gpt_quality(data.get('quality', 'auto'))
             moderation = _coerce_gpt_moderation(data.get('moderation', 'auto'))
@@ -7161,6 +9029,23 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
             ))
         except Exception as e:
             self.send_json({"error": str(e)}, 400)
+
+    def handle_asset_videos(self, parsed):
+        """返回归档目录中的视频资产，不暴露本机绝对路径。"""
+        try:
+            query = urllib.parse.parse_qs(parsed.query or '')
+            limit = _history_page_int((query.get('limit') or ['200'])[0], 200, minimum=1, maximum=500)
+            offset = _history_page_int((query.get('offset') or ['0'])[0], 0, minimum=0, maximum=100000)
+            search = str((query.get('query') or [''])[0] or '').strip()
+            source_value = str((query.get('source') or [''])[0] or '').strip().lower()
+            filter_alias = str((query.get('filter') or [''])[0] or '').strip().lower()
+            if not source_value and filter_alias in _ARCHIVE_VIDEO_SOURCE_TYPES:
+                source_value = filter_alias
+            source = _coerce_archive_video_source(source_value)
+            self.send_json(_list_archive_videos(limit=limit, offset=offset, query=search, source=source))
+        except Exception as e:
+            print(f'❌ video assets list failed: {e}')
+            self.send_json({'ok': False, 'error': '视频资产列表读取失败'}, 500)
 
     def handle_asset_detail(self, parsed):
         """按 id 返回单个资产的完整字段（瘦身列表的详情补全）。"""
@@ -7484,6 +9369,162 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
         except Exception as e:
             print(f"❌ 系统设置保存失败：{e}")
             self.send_json({"ok": False, "error": str(e)}, 500)
+
+    def handle_video_runtime_status(self, parsed=None):
+        """Return H3 Runtime routing and optionally perform a live probe."""
+        try:
+            query = urllib.parse.parse_qs(parsed.query) if parsed else {}
+            probe = _coerce_bool((query.get("probe") or ["0"])[0], False)
+            self.send_json(collect_video_runtime_status(probe=probe))
+        except ValueError as e:
+            self.send_json({"ok": False, "online": False, "error": str(e)}, 400)
+        except Exception as e:
+            print(f"❌ H3 Runtime 状态读取失败：{e}")
+            self.send_json({"ok": False, "online": False, "error": str(e)}, 500)
+
+    def handle_video_runtime_capabilities(self):
+        """Return live H3 capabilities, or a bounded offline fallback."""
+        try:
+            self.send_json(collect_video_runtime_capabilities())
+        except Exception as e:
+            print(f"❌ H3 Runtime 能力读取失败：{e}")
+            self.send_json({"ok": False, "runtime_online": False, "error": str(e)}, 500)
+
+    def handle_video_runtime_test(self):
+        """Probe unsaved local/LAN fields from the settings panel."""
+        try:
+            payload = self.read_json_body(max_bytes=64 * 1024)
+            self.send_json(collect_video_runtime_status(probe=True, overrides=payload))
+        except ValueError as e:
+            self.send_json({"ok": False, "online": False, "error": str(e)}, 400)
+        except Exception as e:
+            self.send_json({"ok": False, "online": False, "error": str(e)}, 502)
+
+    def handle_video_runtime_start(self):
+        """Start a separately installed local H3 Runtime component on Windows."""
+        try:
+            result = start_local_video_runtime()
+            self.send_json(result, 202 if result.get("ok") else 409)
+        except Exception as e:
+            print(f"❌ H3 Runtime 启动失败：{e}")
+            self.send_json({"ok": False, "started": False, "error": str(e)}, 500)
+
+    def handle_video_prompt_compile(self):
+        """Compile an I2VA request with the pinned official MiniMax H3 skill."""
+        try:
+            payload = self.read_json_body(max_bytes=64 * 1024 * 1024)
+            self.send_json(compile_h3_prompt(payload))
+        except ValueError as e:
+            self.send_json({"ok": False, "error": str(e)}, 400)
+        except H3PromptCompileError as e:
+            self.send_json({"ok": False, "error": str(e)}, 502)
+        except RuntimeError as e:
+            print(f"❌ H3 提示词模型调用失败：{e}")
+            self.send_json({"ok": False, "error": str(e)}, 502)
+        except Exception as e:
+            print(f"❌ H3 提示词编译失败：{e}")
+            self.send_json({"ok": False, "error": str(e)}, 500)
+
+    def handle_video_generate(self):
+        """Create a tracked MiniMax H3 video task without exposing Runtime secrets."""
+        try:
+            data = self.read_json_body(max_bytes=140 * 1024 * 1024)
+            prompt = str(data.get('prompt') or '').strip()
+            if not prompt:
+                raise ValueError('请连接一个包含提示词的文本节点')
+            if len(prompt) > 20_000:
+                raise ValueError('提示词不能超过 20000 字符')
+
+            mode = str(data.get('mode') or 'image_to_video').strip().lower()
+            if mode not in {'image_to_video', 'reference_to_video'}:
+                raise ValueError('mode 必须是 image_to_video 或 reference_to_video')
+            aspect_ratio = str(data.get('aspect_ratio') or '3:4').strip()
+            if aspect_ratio not in {'16:9', '9:16', '3:4', '4:3', '2:3', '3:2', '1:1', '21:9', '9:21'}:
+                raise ValueError('不支持的 H3 画幅比例')
+
+            capabilities_payload = collect_video_runtime_capabilities()
+            capabilities = capabilities_payload.get('capabilities') if isinstance(capabilities_payload, dict) else {}
+            constraints = capabilities.get('constraints') if isinstance(capabilities, dict) and isinstance(capabilities.get('constraints'), dict) else {}
+            dimension_multiple = max(1, int(constraints.get('dimension_multiple') or 32))
+            max_pixels = max(1, int(constraints.get('max_pixels') or 1_032_192))
+            duration_range = constraints.get('duration_seconds') if isinstance(constraints.get('duration_seconds'), dict) else {}
+            min_duration = max(1.0, float(duration_range.get('min') or 1))
+            max_duration = max(min_duration, float(duration_range.get('max') or 15))
+
+            width = int(float(data.get('width') or 0))
+            height = int(float(data.get('height') or 0))
+            if width <= 0 or height <= 0:
+                raise ValueError('视频宽高必须大于 0')
+            if width % dimension_multiple or height % dimension_multiple:
+                raise ValueError(f'视频宽高必须都是 {dimension_multiple} 的倍数')
+            if width * height > max_pixels:
+                raise ValueError(f'当前 H3 Runtime 最大允许 {max_pixels:,} 像素')
+            try:
+                pixel_budget_mp = float(data.get('pixel_budget_mp'))
+            except (TypeError, ValueError):
+                pixel_budget_mp = round(width * height / 1_000_000, 3)
+            if not 0.1 <= pixel_budget_mp <= 8:
+                raise ValueError('质量（像素量）参数无效')
+
+            duration_seconds = float(data.get('duration_seconds') or 15)
+            if not min_duration <= duration_seconds <= max_duration:
+                raise ValueError(f'视频时长必须在 {min_duration:g} 到 {max_duration:g} 秒之间')
+            steps = int(float(data.get('steps') or 20))
+            if not 1 <= steps <= 100:
+                raise ValueError('采样步数必须在 1 到 100 之间')
+            denoise = 1.0
+            crf = int(float(data.get('crf') if data.get('crf') is not None else 23))
+            if not 0 <= crf <= 51:
+                raise ValueError('视频 CRF 必须在 0 到 51 之间')
+            acceleration_mode = str(data.get('acceleration_mode') or 'first_block_cache').strip().lower()
+            if acceleration_mode not in {'off', 'first_block_cache', 'sol_attn', 'combined'}:
+                raise ValueError('不支持的 H3 加速模式')
+            first_block_cache_threshold = float(data.get('first_block_cache_threshold') or 0.08)
+            if not 0 < first_block_cache_threshold <= 1:
+                raise ValueError('FirstBlockCache 阈值必须大于 0 且不超过 1')
+            seed = ''
+            prompt_metadata = _sanitize_h3_prompt_metadata(data.get('prompt_metadata'))
+
+            first_frame = data.get('first_frame') or data.get('reference_image')
+            upload = _decode_h3_reference_image(first_frame)
+            params = {
+                'provider': 'minimax_h3',
+                'mode': mode,
+                'aspect_ratio': aspect_ratio,
+                'pixel_budget_mp': pixel_budget_mp,
+                'actual_megapixels': round(width * height / 1_000_000, 3),
+                'width': width,
+                'height': height,
+                'duration_seconds': duration_seconds,
+                'steps': steps,
+                'denoise': denoise,
+                'crf': crf,
+                'seed': seed,
+                'acceleration_mode': acceleration_mode,
+                'first_block_cache_threshold': first_block_cache_threshold,
+                'archive_enabled': True,
+                'telegram_enabled': _coerce_bool(data.get('telegram_enabled'), False),
+                'runtime_capability_source': capabilities_payload.get('source') if isinstance(capabilities_payload, dict) else 'fallback',
+                'prompt_metadata': prompt_metadata,
+                'dimension_multiple': dimension_multiple,
+                'max_pixels': max_pixels,
+            }
+            task_id = f"h3v_{int(time.time())}_{random.randint(1000, 9999)}"
+            create_task(task_id, prompt, params, status='queued', task_type=H3_VIDEO_TASK_TYPE)
+            if not self.start_generation_task(task_id, process_h3_video_task, (task_id, prompt, upload, params)):
+                return
+            self.send_json({
+                'ok': True,
+                'task_id': task_id,
+                'status': 'queued',
+                'progress': 0,
+                'message': 'MiniMax H3 视频任务已提交',
+            }, 202)
+        except ValueError as e:
+            self.send_json({'ok': False, 'error': str(e)}, 400)
+        except Exception as e:
+            print(f'❌ H3 视频任务提交失败：{e}')
+            self.send_json({'ok': False, 'error': str(e)}, 500)
 
     def handle_pinterest_auth_start(self):
         """Open an isolated local browser for Pinterest login."""
@@ -8054,21 +10095,41 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
 
     def handle_prompt_library_blocks_extract(self):
         """Extract editable prompt-block candidates from text or one uploaded image."""
+        started_at = time.time()
+        request_label = f"split_{int(started_at)}_{random.randint(1000, 9999)}"
         try:
             data = self.read_json_body(max_bytes=64 * 1024 * 1024)
             mode = str(data.get('mode') or 'text').strip().lower()
             primary_type = str(data.get('primary_type') or '').strip()
             rule_id = str(data.get('rule_id') or '').strip()
-            split_rule = resolve_prompt_template(rule_id, primary_type)
-            if rule_id and not split_rule:
-                raise ValueError("拆分规则不存在或已删除")
+            module_scope = str(data.get('module_scope') or '').strip().lower()
+            if module_scope == 'generic_19':
+                split_rule = generic_19_prompt_block_split_rule()
+            elif module_scope:
+                raise ValueError("不支持的素材块模块范围")
+            else:
+                split_rule = resolve_prompt_template(rule_id, primary_type)
+                if rule_id and not split_rule:
+                    raise ValueError("拆分规则不存在或已删除")
             if split_rule:
                 primary_type = str(split_rule.get('primary_type') or primary_type).strip()
+            default_reasoning_effort = (
+                "medium"
+                if mode == "image" and module_scope == "generic_19"
+                else ("medium" if mode == "image" else "low")
+            )
+            default_model = "gpt-5.6-sol" if mode == "image" and module_scope == "generic_19" else None
             options = {
                 "provider": data.get("provider"),
-                "model": data.get("model"),
-                "reasoning_effort": data.get("reasoning_effort") or data.get("reasoningEffort") or ("medium" if mode == "image" else "low"),
+                "model": data.get("model") or default_model,
+                "reasoning_effort": data.get("reasoning_effort") or data.get("reasoningEffort") or default_reasoning_effort,
             }
+            print(
+                f"🧩 素材块拆分开始：{request_label} "
+                f"mode={mode} scope={module_scope or 'template'} "
+                f"model={options.get('model') or 'configured'} effort={options['reasoning_effort']}",
+                flush=True,
+            )
             if mode == 'image':
                 images = data.get('images') if isinstance(data.get('images'), list) else []
                 result = extract_reusable_prompt_blocks_from_image(
@@ -8088,11 +10149,18 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
             else:
                 self.send_json({"ok": False, "error": "不支持的素材块提取模式"}, 400)
                 return
+            print(
+                f"✅ 素材块拆分完成：{request_label} "
+                f"elapsed={time.time() - started_at:.2f}s provider={result.get('provider') or '-'} "
+                f"model={result.get('model') or '-'} blocks={len(result.get('blocks') or [])}",
+                flush=True,
+            )
             self.send_json(result)
         except ValueError as e:
+            print(f"❌ 素材块拆分失败：{request_label} elapsed={time.time() - started_at:.2f}s error={e}", flush=True)
             self.send_json({"ok": False, "error": str(e)}, 400)
         except Exception as e:
-            print(f"❌ 提示词素材块提取失败：{e}")
+            print(f"❌ 提示词素材块提取失败：{request_label} elapsed={time.time() - started_at:.2f}s error={e}", flush=True)
             self.send_json({"ok": False, "error": str(e)}, 500)
 
     def handle_prompt_assistant_chat(self):
@@ -8107,6 +10175,7 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
                 "reasoning_effort": data.get("reasoning_effort") or data.get("reasoningEffort") or "low",
                 "style": data.get("style") if isinstance(data.get("style"), dict) else {},
                 "history": data.get("history") if isinstance(data.get("history"), list) else [],
+                "task_context": data.get("task_context") if isinstance(data.get("task_context"), dict) else {},
             })
             self.send_json({
                 **result,
@@ -8140,6 +10209,7 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
                 "reasoning_effort": data.get("reasoning_effort") or data.get("reasoningEffort") or "low",
                 "style": data.get("style") if isinstance(data.get("style"), dict) else {},
                 "history": data.get("history") if isinstance(data.get("history"), list) else [],
+                "task_context": data.get("task_context") if isinstance(data.get("task_context"), dict) else {},
             }
             self.send_response(200)
             self.send_header("Content-Type", "application/x-ndjson; charset=utf-8")
@@ -9129,6 +11199,92 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
         else:
             self.send_error(404, "Image not found")
 
+    def handle_image_import_url(self):
+        """Download a public remote image for a canvas drag/drop import."""
+        try:
+            data = self.read_json_body(max_bytes=16 * 1024)
+            imported = _download_remote_image_for_import(data.get('url'))
+            content = imported['content']
+            filename = imported['filename']
+            encoded_filename = urllib.parse.quote(filename, safe='')
+            self.send_response(200)
+            self.send_header('Content-Type', imported['content_type'])
+            self.send_header('Content-Length', str(len(content)))
+            self.send_header('Content-Disposition', f"inline; filename*=UTF-8''{encoded_filename}")
+            self.send_header('X-CanvasHub-Filename', encoded_filename)
+            self._apply_cors_headers()
+            self.end_headers()
+            self.wfile.write(content)
+        except ValueError as error:
+            self.send_json({"ok": False, "error": str(error)}, 400)
+        except Exception as error:
+            print(f"❌ 远程图片导入失败：{error}")
+            self.send_json({"ok": False, "error": "远程图片导入失败"}, 502)
+
+    def handle_video(self, filename):
+        """Serve an archived video with byte-range support for the canvas player."""
+        raw_path = urllib.parse.unquote(str(filename or '').strip()).lstrip('/\\')
+        safe_name = safe_basename(raw_path)
+        if Path(safe_name).suffix.lower() not in _ARCHIVE_VIDEO_EXTENSIONS:
+            self.send_error(404, 'Video not found')
+            return
+        filepath = _resolve_archive_video_file(raw_path)
+        if not filepath and '/' not in raw_path.replace('\\', '/'):
+            filepath = _resolve_download_file(safe_name)
+        if not filepath or not os.path.isfile(filepath):
+            self.send_error(404, 'Video not found')
+            return
+
+        file_size = os.path.getsize(filepath)
+        start = 0
+        end = max(0, file_size - 1)
+        range_header = str(self.headers.get('Range') or '').strip()
+        partial = False
+        if range_header:
+            match = re.fullmatch(r'bytes=(\d*)-(\d*)', range_header)
+            if not match:
+                self.send_error(416, 'Invalid Range')
+                return
+            raw_start, raw_end = match.groups()
+            if raw_start:
+                start = int(raw_start)
+                end = int(raw_end) if raw_end else end
+            elif raw_end:
+                suffix_length = int(raw_end)
+                start = max(0, file_size - suffix_length)
+            if start >= file_size or start > end:
+                self.send_response(416)
+                self.send_header('Content-Range', f'bytes */{file_size}')
+                self.end_headers()
+                return
+            end = min(end, file_size - 1)
+            partial = True
+
+        content_length = max(0, end - start + 1)
+        self.send_response(206 if partial else 200)
+        self.send_header('Content-Type', mimetypes.guess_type(str(filepath))[0] or 'video/mp4')
+        self.send_header('Accept-Ranges', 'bytes')
+        self.send_header('Content-Length', str(content_length))
+        if partial:
+            self.send_header('Content-Range', f'bytes {start}-{end}/{file_size}')
+        self._apply_cors_headers()
+        self.end_headers()
+        if self.command == 'HEAD' or content_length <= 0:
+            return
+        try:
+            with open(filepath, 'rb') as stream:
+                stream.seek(start)
+                remaining = content_length
+                while remaining > 0:
+                    chunk = stream.read(min(1024 * 1024, remaining))
+                    if not chunk:
+                        break
+                    self.wfile.write(chunk)
+                    remaining -= len(chunk)
+        except (BrokenPipeError, ConnectionResetError):
+            # Native video players routinely close Range requests after reading metadata.
+            return
+
     def handle_archive_image(self, rel_path):
         """按 Obsidian 归档相对路径读取图片，避免同名文件冲突。"""
         filepath = _resolve_archive_image_file(rel_path)
@@ -9143,6 +11299,37 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
                 self.wfile.write(f.read())
         else:
             self.send_error(404, "Image not found")
+
+    def handle_archive_resource(self, rel_path):
+        """Read a prompt TXT/Markdown sidecar from the archive roots only."""
+        filepath = _resolve_archive_resource_file(rel_path, _ARCHIVE_VIDEO_TEXT_EXTENSIONS)
+        if not filepath:
+            self.send_error(404, 'Archive resource not found')
+            return
+        try:
+            file_size = filepath.stat().st_size
+            if file_size > _ARCHIVE_VIDEO_SIDECAR_MAX_BYTES:
+                self.send_error(413, 'Archive resource is too large')
+                return
+            payload = filepath.read_bytes()
+        except OSError:
+            self.send_error(404, 'Archive resource not found')
+            return
+        self.send_response(200)
+        self.send_header('Content-Type', 'text/plain; charset=utf-8')
+        self.send_header('Content-Length', str(len(payload)))
+        fallback_name = filepath.name.encode('ascii', errors='ignore').decode('ascii') or 'archive-resource.txt'
+        fallback_name = fallback_name.replace('"', '_').replace('\\', '_').replace('\r', '_').replace('\n', '_')
+        encoded_name = urllib.parse.quote(filepath.name, safe='')
+        self.send_header(
+            'Content-Disposition',
+            f'inline; filename="{fallback_name}"; filename*=UTF-8\'\'{encoded_name}',
+        )
+        self.send_header('X-Content-Type-Options', 'nosniff')
+        self._apply_cors_headers()
+        self.end_headers()
+        if self.command != 'HEAD':
+            self.wfile.write(payload)
 
     def handle_editable_file(self, rel_path):
         """读取 PPT/PSD 文件产物目录下的文件。"""
@@ -9232,6 +11419,7 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
         media_path = parse_thumb_request(parsed.path)
         filepath = resolve_media_path(media_path, {
             "archive": _resolve_archive_image_file,
+            "video": _resolve_archive_video_file,
             "source": resolve_source_image,
             "image": _resolve_download_file,
         })
@@ -9239,7 +11427,10 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
             self.send_error(404, "Thumbnail source not found")
             return
         try:
-            thumb_path = ensure_webp_thumbnail(filepath, size=size)
+            if filepath.suffix.lower() in _ARCHIVE_VIDEO_EXTENSIONS:
+                thumb_path = ensure_video_webp_thumbnail(filepath, size=size)
+            else:
+                thumb_path = ensure_webp_thumbnail(filepath, size=size)
         except Exception as exc:
             print(f"⚠️ WebP 缩略图生成失败：{exc}")
             self.send_error(500, "Thumbnail generation failed")
@@ -9396,6 +11587,14 @@ def process_task(task_id, prompt, params):
     task_provider = 'google'
     task_route = 'google_gen'
     try:
+        params = dict(params or {})
+        params['ratio'] = _effective_image_ratio(prompt, params.get('ratio'), '1:1')
+        if _is_generic_19_fidelity_prompt(prompt):
+            _merge_task_params(task_id, {
+                'ratio': params['ratio'],
+                'prompt_fidelity_locked': True,
+                'source_ratio_locked': True,
+            })
         print(f"🎨 开始处理任务：{task_id}")
 
         model = params.get('model', DEFAULT_GOOGLE_IMAGE_MODEL)
@@ -9752,6 +11951,14 @@ def process_edit_task(task_id, prompt, images, params):
     task_provider = 'google'
     task_route = 'google_edit'
     try:
+        params = dict(params or {})
+        params['ratio'] = _effective_image_ratio(prompt, params.get('ratio'), '1:1')
+        if _is_generic_19_fidelity_prompt(prompt):
+            _merge_task_params(task_id, {
+                'ratio': params['ratio'],
+                'prompt_fidelity_locked': True,
+                'source_ratio_locked': True,
+            })
         print(f"✏️ 开始处理编辑任务：{task_id}")
         print(f"📋 完整 params: {json.dumps(params, ensure_ascii=False)}")
 
@@ -10058,8 +12265,13 @@ def _generate_gpt_with_pool_fallback(task_id, prompt, ratio, resolution, quality
     pool_error = None
     pool_result = None
     prompt = str(prompt or '')
-    prompt_mode = _coerce_prompt_mode(prompt_mode)
-    prompt_meta = {}
+    fidelity_locked = _is_generic_19_fidelity_prompt(prompt)
+    prompt_mode = _effective_prompt_mode(prompt, prompt_mode)
+    prompt_meta = {
+        'prompt_fidelity_locked': True,
+        'prompt_optimized': False,
+        'prompt_optimized_by': 'generic_19_fidelity_bundle',
+    } if fidelity_locked else {}
     if prompt_mode == 'web_search':
         prompt, prompt_meta = _prepare_web_search_generation_prompt(task_id, prompt)
     requested_main_model = _coerce_gpt_main_model(main_model)
@@ -10373,6 +12585,16 @@ def _third_party_download_progress_percent(event):
         total_bytes = 0
 
     name = str(event.get('event') or '')
+    if name.startswith('response_'):
+        if name == 'response_complete':
+            response_ratio = 1.0
+        elif total_bytes > 0:
+            response_ratio = max(0.0, min(0.98, bytes_received / total_bytes))
+        elif bytes_received > 0:
+            response_ratio = max(0.0, min(0.9, bytes_received / (16 * 1024 * 1024)))
+        else:
+            return 54 if name == 'response_headers' else (55 if name == 'response_first_byte' else 52)
+        return max(52, min(69, round(55 + response_ratio * 14)))
     if name == 'download_complete':
         item_ratio = 1.0
     elif total_bytes > 0:
@@ -10387,6 +12609,7 @@ def _third_party_download_progress_percent(event):
 
 def _make_third_party_download_progress_callback(task_id):
     recorded_events = set()
+    recorded_request_ids = set()
 
     def on_progress(event):
         if _is_task_canceled(task_id):
@@ -10416,7 +12639,8 @@ def _make_third_party_download_progress_callback(task_id):
         size_text = _format_download_bytes(bytes_received)
         total_text = _format_download_bytes(total_bytes) if total_bytes else ''
         image_suffix = f' {index}/{count}' if count > 1 else ''
-        stage = 'downloading_third_party_image'
+        is_response_event = name.startswith('response_')
+        stage = 'receiving_third_party_response' if is_response_event else 'downloading_third_party_image'
         extra = {
             'progress': progress,
             'bytes_received': bytes_received,
@@ -10424,7 +12648,32 @@ def _make_third_party_download_progress_callback(task_id):
         severity = 'info'
         event_type = ''
 
-        if name == 'download_start':
+        request_id = str(event.get('request_id') or '').strip()
+        if request_id and request_id not in recorded_request_ids:
+            recorded_request_ids.add(request_id)
+            _merge_task_params(task_id, {'third_party_request_id': request_id})
+
+        if name == 'response_start':
+            message = '正在连接并发送第三方请求，等待生成结果...'
+            event_type = 'third_party_response_started'
+        elif name == 'response_headers':
+            message = '第三方 API 已建立响应，正在等待结果数据...'
+            event_type = 'third_party_response_headers'
+        elif name == 'response_first_byte':
+            message = '第三方 API 已返回首字节，正在接收结果...'
+            extra['first_byte_at'] = int(time.time())
+            if event.get('ttfb_ms') is not None:
+                extra['ttfb_ms'] = max(0, int(event.get('ttfb_ms') or 0))
+            event_type = 'third_party_response_first_byte'
+        elif name == 'response_progress':
+            if total_text:
+                message = f'正在接收第三方 API 结果：{size_text}/{total_text}'
+            else:
+                message = f'正在接收第三方 API 结果：已接收 {size_text}'
+        elif name == 'response_complete':
+            message = '第三方 API 结果已完整接收，正在解析并保存...'
+            event_type = 'third_party_response_completed'
+        elif name == 'download_start':
             message = f'正在下载第三方图片{image_suffix}...'
             event_type = 'third_party_download_started'
         elif name == 'download_first_byte':
@@ -10464,6 +12713,12 @@ def _make_third_party_download_progress_callback(task_id):
                         'bytes_received',
                         'total_bytes',
                         'error_type',
+                        'request_id',
+                        'content_type',
+                        'deadline_seconds',
+                        'headers_elapsed_ms',
+                        'ttfb_ms',
+                        'completed_before_eof',
                     )
                     if event.get(key) is not None
                 }
@@ -10659,6 +12914,8 @@ def process_gpt_task(task_id, prompt, ratio, resolution, quality='auto', image_c
     task_provider = 'codex'
     task_route = 'codex'
     try:
+        ratio = _effective_image_ratio(prompt, ratio, '1:1')
+        prompt_mode = _effective_prompt_mode(prompt, prompt_mode)
         requested_main_model = _coerce_gpt_main_model(main_model)
         main_model = requested_main_model
         requested_reasoning_effort = _coerce_gpt_reasoning_effort(reasoning_effort)
@@ -10668,8 +12925,13 @@ def process_gpt_task(task_id, prompt, ratio, resolution, quality='auto', image_c
         archive_enabled = _coerce_bool(archive_enabled, True)
         telegram_enabled = _coerce_bool(telegram_enabled, True)
         _merge_task_params(task_id, {
+            'ratio': ratio,
             'archive_enabled': archive_enabled,
             'telegram_enabled': telegram_enabled,
+            **({
+                'prompt_fidelity_locked': True,
+                'source_ratio_locked': True,
+            } if _is_generic_19_fidelity_prompt(prompt) else {}),
         })
         task_route = 'third_party_image_api' if use_third_party_api else _coerce_gpt_provider_route(gpt_provider_route)
         task_provider = 'third_party_image_api' if use_third_party_api else ('chatgpt_pool' if task_route == 'chatgpt_pool' else 'codex')
@@ -10900,6 +13162,8 @@ def process_gpt_edit_task(task_id, prompt, images, ratio, resolution, quality='a
     task_provider = 'codex'
     task_route = 'codex_edit'
     try:
+        ratio = _effective_image_ratio(prompt, ratio, '1:1')
+        prompt_mode = _effective_prompt_mode(prompt, prompt_mode)
         requested_main_model = _coerce_gpt_main_model(main_model)
         requested_reasoning_effort = _coerce_gpt_reasoning_effort(reasoning_effort)
         gpt_provider_route = _coerce_gpt_provider_route(gpt_provider_route)
@@ -10930,8 +13194,13 @@ def process_gpt_edit_task(task_id, prompt, images, ratio, resolution, quality='a
         task_route = 'third_party_image_api_edit' if use_third_party_api else ('chatgpt_pool_edit' if use_chatgpt_pool else 'codex_edit')
         task_provider = 'third_party_image_api' if use_third_party_api else ('chatgpt_pool' if use_chatgpt_pool else 'codex')
         _merge_task_params(task_id, {
+            'ratio': ratio,
             'archive_enabled': archive_enabled,
             'telegram_enabled': telegram_enabled,
+            **({
+                'prompt_fidelity_locked': True,
+                'source_ratio_locked': True,
+            } if _is_generic_19_fidelity_prompt(prompt) else {}),
         })
         run_id = _start_generation_audit(
             task_id,
@@ -11198,6 +13467,11 @@ def run_server():
         print(f"⚠️ 已标记 {orphan_prompt_runs} 个重启后遗留的远程源同步任务为停止")
     init_prompt_library_store(legacy_style_presets_file=STYLE_PRESETS_FILE)
     print(f"✅ 提示词素材库初始化完成：{APP_DATA_DIR / 'prompt_library.db'}")
+    init_agent_store()
+    interrupted_agent_runs = get_agent_runtime().recover_after_restart()
+    print("✅ Agent 运行库初始化完成")
+    if interrupted_agent_runs:
+        print(f"⚠️ 已暂停 {interrupted_agent_runs} 个服务重启前未完成的 Agent 运行")
     _ensure_db_file_permissions()
     SOURCE_IMAGE_DIR.mkdir(parents=True, exist_ok=True)
     print(f"✅ 远程源素材库初始化完成：{SOURCE_IMAGE_DIR}")

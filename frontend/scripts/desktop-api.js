@@ -26,6 +26,40 @@
     return blobToDataUrl(blob);
   }
 
+  async function importImageUrl(url) {
+    const sourceUrl = String(url || '').trim();
+    if (!/^https?:\/\//i.test(sourceUrl)) throw new Error('仅支持 HTTP 或 HTTPS 图片地址');
+    const response = await requireApi().request('/api/images/import-url', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: sourceUrl })
+    });
+    if (!response.ok) {
+      let message = `HTTP ${response.status}`;
+      try {
+        const payload = await response.json();
+        message = payload?.error || message;
+      } catch (error) {}
+      throw new Error(message);
+    }
+    const blob = await response.blob();
+    const rawFilename = String(response.headers.get('X-CanvasHub-Filename') || '').trim();
+    let filename = '';
+    if (rawFilename) {
+      try {
+        filename = decodeURIComponent(rawFilename);
+      } catch (error) {
+        filename = rawFilename;
+      }
+    }
+    return {
+      blob,
+      filename,
+      mimeType: blob.type || response.headers.get('Content-Type') || '',
+      sourceUrl
+    };
+  }
+
   async function normalizeImages(images) {
     const converted = await Promise.all((images || []).map(async item => {
       const raw = item?.base64 || item?.url || '';
@@ -254,6 +288,54 @@
     return requireApi().json(`/api/status/${encodeURIComponent(taskId)}`);
   }
 
+  function listAgentRuns(options = {}) {
+    const query = new URLSearchParams();
+    query.set('limit', Math.max(1, Math.min(100, Number(options.limit || 20))));
+    query.set('offset', Math.max(0, Number(options.offset || 0)));
+    if (options.status) query.set('status', String(options.status));
+    return requireApi().json(`/api/agent/runs?${query.toString()}`);
+  }
+
+  function createAgentRun(payload = {}) {
+    return requireApi().json('/api/agent/runs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+  }
+
+  function getAgentRun(runId, options = {}) {
+    const id = String(runId || '').trim();
+    if (!id) return Promise.reject(new Error('缺少 agent run_id'));
+    const query = new URLSearchParams();
+    query.set('events_since', Math.max(0, Number(options.eventsSince ?? options.events_since ?? 0)));
+    query.set('event_limit', Math.max(1, Math.min(1000, Number(options.eventLimit ?? options.event_limit ?? 240))));
+    return requireApi().json(`/api/agent/runs/${encodeURIComponent(id)}?${query.toString()}`);
+  }
+
+  function controlAgentRun(runId, action, payload = {}) {
+    const id = String(runId || '').trim();
+    const allowed = new Set(['approve', 'revise', 'pause', 'resume', 'cancel', 'rollback']);
+    if (!id) return Promise.reject(new Error('缺少 agent run_id'));
+    if (!allowed.has(String(action || ''))) return Promise.reject(new Error('无效的 Agent 操作'));
+    return requireApi().json(`/api/agent/runs/${encodeURIComponent(id)}/${action}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload || {})
+    });
+  }
+
+  function submitAgentAction(runId, actionId, payload = {}) {
+    const id = String(runId || '').trim();
+    const action = String(actionId || '').trim();
+    if (!id || !action) return Promise.reject(new Error('缺少 Agent 动作标识'));
+    return requireApi().json(`/api/agent/runs/${encodeURIComponent(id)}/actions/${encodeURIComponent(action)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload || {})
+    });
+  }
+
   function getUpscaleModels() {
     return requireApi().json('/api/upscale/models');
   }
@@ -394,6 +476,17 @@
     return requireApi().json('/api/assets/health');
   }
 
+  function listVideoAssets(options = {}) {
+    const params = new URLSearchParams();
+    params.set('limit', options.limit || 500);
+    params.set('offset', options.offset || 0);
+    if (options.query) params.set('query', options.query);
+    if (options.source) params.set('source', options.source);
+    if (options.filter) params.set('filter', options.filter);
+    if (options.refresh) params.set('refresh', '1');
+    return requireApi().json(`/api/assets/videos?${params.toString()}`);
+  }
+
   function listEditableFiles(options = {}) {
     const params = new URLSearchParams();
     params.set('limit', options.limit || 200);
@@ -441,6 +534,59 @@
     if (String(config.timeout_seconds || '').trim()) query.set('timeout_seconds', String(config.timeout_seconds).trim());
     const suffix = query.toString();
     return requireApi().json(`/api/comfy/health${suffix ? `?${suffix}` : ''}`);
+  }
+
+  function getVideoRuntimeStatus(probe = false) {
+    return requireApi().json(`/api/video/runtime/status${probe ? '?probe=1' : ''}`);
+  }
+
+  function getVideoRuntimeCapabilities() {
+    return requireApi().json('/api/video/capabilities');
+  }
+
+  function testVideoRuntime(config = {}) {
+    return requireApi().json('/api/video/runtime/test', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(config)
+    });
+  }
+
+  function startVideoRuntime() {
+    return requireApi().json('/api/video/runtime/start', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({})
+    });
+  }
+
+  async function submitVideoTask(config = {}) {
+    const prompt = String(config.prompt || '').trim();
+    if (!prompt) throw new Error('请连接一个包含提示词的文本节点');
+    const firstFrame = config.firstFrame || config.first_frame;
+    const images = firstFrame ? await normalizeImages([firstFrame]) : [];
+    if (!images.length) throw new Error('请连接一张可读取的首帧图片');
+    const params = config.params && typeof config.params === 'object' ? config.params : {};
+    return requireApi().json('/api/video/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        prompt,
+        prompt_metadata: config.promptMeta || config.prompt_meta || {},
+        first_frame: images[0],
+        mode: params.mode || 'image_to_video',
+        aspect_ratio: params.aspectRatio || params.aspect_ratio || '3:4',
+        pixel_budget_mp: Number(params.pixelBudgetMp ?? params.pixel_budget_mp ?? 0.8),
+        width: Number(params.width || 768),
+        height: Number(params.height || 1024),
+        duration_seconds: Number(params.durationSeconds ?? params.duration_seconds ?? 15),
+        acceleration_mode: params.accelerationMode || params.acceleration_mode || 'first_block_cache',
+        first_block_cache_threshold: Number(params.firstBlockCacheThreshold ?? params.first_block_cache_threshold ?? 0.08),
+        steps: Number(params.steps || 20),
+        crf: Number(params.crf ?? 23),
+        telegram_enabled: params.telegramEnabled === true || params.telegram_enabled === true
+      })
+    });
   }
 
   function saveComfyWorkflowConfig(config = {}) {
@@ -869,6 +1015,14 @@
     });
   }
 
+  function compileVideoPrompt(payload = {}) {
+    return requireApi().json('/api/video/prompt-compile', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+  }
+
   function getStylePresets() {
     return requireApi().json('/api/prompt/style-presets');
   }
@@ -1174,6 +1328,11 @@
     submitBatchConfig,
     submitCurrentTask,
     getStatus,
+    listAgentRuns,
+    createAgentRun,
+    getAgentRun,
+    controlAgentRun,
+    submitAgentAction,
     getUpscaleModels,
     getUpscaleComponentStatus,
     installUpscaleComponent,
@@ -1189,6 +1348,7 @@
     deleteAsset,
     deleteAssets,
     getAssetHealth,
+    listVideoAssets,
     listEditableFiles,
     sendEditableFile,
     deleteEditableFile,
@@ -1210,6 +1370,11 @@
     getComfyWorkflows,
     testComfyConnection,
     saveComfyWorkflowConfig,
+    getVideoRuntimeStatus,
+    getVideoRuntimeCapabilities,
+    testVideoRuntime,
+    startVideoRuntime,
+    submitVideoTask,
     getGptConfig,
     getGptModels,
     saveGptConfig,
@@ -1244,6 +1409,7 @@
     safeRewritePrompt,
     analyzePromptImage,
     generatePromptVersions,
+    compileVideoPrompt,
     getStylePresets,
     saveStylePreset,
     extractStylePreset,
@@ -1283,6 +1449,7 @@
     publishLayoutDraft,
     getPoseAssetsStatus,
     saveWorkflowFileToPath,
-    imageUrlToDataUri
+    imageUrlToDataUri,
+    importImageUrl
   };
 })();

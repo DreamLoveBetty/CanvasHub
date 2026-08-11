@@ -127,7 +127,7 @@
     three_d: '3D 视觉', pattern: '图案纹理'
   };
   const MODULE_LABELS = {
-    raw: '原始提示词', custom: '自定义', identity: '身份', appearance: '外貌', pose: '动作姿态', expression: '表情视线',
+    raw: '原始提示词', custom: '自定义', identity: '身份', appearance: '外貌', body_shape: '体形身材', pose: '动作姿态', expression: '表情视线',
     clothing: '服装造型', makeup_hair: '妆发', accessories: '配饰', subject: '主体', scene: '场景环境', composition: '构图',
     camera: '视角与镜头', lighting: '光线', color: '色彩', style: '视觉风格', material: '材质细节', quality: '质量要求',
     constraints: '负面约束', goal: '生成目标'
@@ -499,11 +499,16 @@
     if (!els.deskPromptLibraryNav) return;
     if (state.workspace === 'blocks') {
       const counts = countsBy(state.blocks, 'module_type');
-      const preferred = ['identity', 'appearance', 'pose', 'expression', 'clothing', 'makeup_hair', 'accessories', 'subject', 'scene', 'composition', 'camera', 'lighting', 'color', 'style', 'material', 'quality', 'constraints', 'custom'];
-      const keys = Object.keys(counts).sort((a, b) => (preferred.indexOf(a) < 0 ? 99 : preferred.indexOf(a)) - (preferred.indexOf(b) < 0 ? 99 : preferred.indexOf(b)) || moduleLabel(a).localeCompare(moduleLabel(b), 'zh-CN'));
+      const preferred = ['identity', 'appearance', 'body_shape', 'pose', 'expression', 'clothing', 'makeup_hair', 'accessories', 'subject', 'scene', 'composition', 'camera', 'lighting', 'color', 'style', 'material', 'quality', 'constraints', 'custom'];
+      // body_shape is a supported portrait dimension even before the user has
+      // saved the first such block. Keep it visible so the taxonomy does not
+      // appear to be missing the newly introduced module.
+      const alwaysVisible = ['body_shape'];
+      const keys = [...new Set([...Object.keys(counts), ...alwaysVisible])]
+        .sort((a, b) => (preferred.indexOf(a) < 0 ? 99 : preferred.indexOf(a)) - (preferred.indexOf(b) < 0 ? 99 : preferred.indexOf(b)) || moduleLabel(a).localeCompare(moduleLabel(b), 'zh-CN'));
       els.deskPromptLibraryNav.innerHTML = `<div class="desk-prompt-library__nav-group"><div class="desk-prompt-library__nav-label">素材模块</div>
         ${navButton('all', '全部素材块', state.blocks.length, '/')}
-        ${keys.map(key => navButton(key, moduleLabel(key), counts[key], moduleLabel(key).slice(0, 1))).join('')}</div>`;
+        ${keys.map(key => navButton(key, moduleLabel(key), counts[key] || 0, moduleLabel(key).slice(0, 1))).join('')}</div>`;
       return;
     }
     if (state.workspace === 'templates') {
@@ -1630,11 +1635,24 @@
   function syncBlockDraftFromForm() {
     const form = els.deskPromptLibraryEditor?.querySelector('[data-prompt-block-form]');
     if (!form) throw new Error('素材块编辑器未加载');
+    const previous = state.blockDraft && typeof state.blockDraft === 'object'
+      ? state.blockDraft
+      : {};
     const draft = {
       id: cleanText(form.querySelector('[name="id"]')?.value), name: cleanText(form.querySelector('[name="name"]')?.value),
       module_type: cleanText(form.querySelector('[name="module_type"]')?.value) || 'custom', content: cleanText(form.querySelector('[name="content"]')?.value),
       compact_content: cleanText(form.querySelector('[name="compact_content"]')?.value), english_content: cleanText(form.querySelector('[name="english_content"]')?.value),
-      applicable_types: parseTags(form.querySelector('[name="applicable_types"]')?.value), tags: parseTags(form.querySelector('[name="tags"]')?.value), favorite: !!state.blockDraft?.favorite
+      applicable_types: parseTags(form.querySelector('[name="applicable_types"]')?.value), tags: parseTags(form.querySelector('[name="tags"]')?.value), favorite: !!previous.favorite,
+      // Provenance is not editable in this form, but it is required when a
+      // saved Pinterest 19-module bundle is inserted into the canvas later.
+      // Rebuilding the form payload without it silently disabled fidelity and
+      // source-ratio locking on the normal library "/ insert" path.
+      source: previous.source || '',
+      source_rule_id: previous.source_rule_id || '',
+      source_rule_version: Number(previous.source_rule_version || 0),
+      source_rule_snapshot: previous.source_rule_snapshot && typeof previous.source_rule_snapshot === 'object'
+        ? JSON.parse(JSON.stringify(previous.source_rule_snapshot))
+        : {}
     };
     state.blockDraft = draft;
     return draft;

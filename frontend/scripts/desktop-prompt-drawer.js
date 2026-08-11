@@ -3,7 +3,8 @@
   const MAX_IMAGE_ATTACHMENTS = 4;
   const HIDDEN_ANALYSIS_MODULE_IDS = new Set(['main', 'visual_summary', 'text_markdown']);
   const SESSION_STORAGE_KEY = 'desktop_prompt_drawer_session_v2';
-  const SESSION_SCHEMA_VERSION = 2;
+  const SESSION_SCHEMA_VERSION = 4;
+  const ASSISTANT_TASK_MODES = new Set(['conversation', 'image_analysis', 'video_prompt']);
   const MAX_SESSION_MESSAGES = 80;
   const MAX_SESSION_CANDIDATES = 40;
   let promptEditor = null;
@@ -17,7 +18,8 @@
     candidates: [],
     messages: [],
     imageAttachments: [],
-    imageAnalysisMode: false,
+    taskMode: 'conversation',
+    resultMode: '',
     imageAnalysis: null,
     analysisModules: [],
     ocrText: '',
@@ -26,6 +28,7 @@
     mentionQuery: '',
     expandedCandidateId: '',
     modalMode: '',
+    modalCandidateLanguage: 'zh',
     modalOffsetX: 0,
     modalOffsetY: 0
   };
@@ -71,9 +74,11 @@
       'deskPromptChatTextWrap',
       'deskPromptImageMenu',
       'deskPromptChatInput',
+      'deskPromptTaskMode',
       'deskPromptImageAnalysisToggle',
       'deskPromptChatSend',
       'deskPromptGenerateVersions',
+      'deskPromptCandidatesTitle',
       'deskPromptChatExpand',
       'deskPromptVersionsExpand',
       'deskPromptChatRefresh',
@@ -87,6 +92,29 @@
     });
     els.deskPromptModalPanel = els.deskPromptModal?.querySelector('.desk-prompt-modal__panel') || null;
     els.deskPromptModalDragHandle = els.deskPromptModal?.querySelector('[data-prompt-modal-drag-handle]') || null;
+  }
+
+  function normalizeAssistantTaskMode(value) {
+    const mode = String(value || '').trim().toLowerCase();
+    return ASSISTANT_TASK_MODES.has(mode) ? mode : 'conversation';
+  }
+
+  function isImageAnalysisMode() {
+    return state.taskMode === 'image_analysis';
+  }
+
+  function isVideoPromptMode() {
+    return state.taskMode === 'video_prompt';
+  }
+
+  function inferResultTaskMode(candidates = state.candidates, analysisModules = state.analysisModules) {
+    if (state.imageAnalysis || (analysisModules || []).length || (candidates || []).some(item => item?.kind === 'image_analysis_main')) {
+      return 'image_analysis';
+    }
+    if ((candidates || []).some(item => /^h3(?:_|$)/i.test(String(item?.kind || '')) || String(item?.mode || '').toUpperCase() === 'I2VA')) {
+      return 'video_prompt';
+    }
+    return (candidates || []).length ? 'conversation' : '';
   }
 
   function getTarget() {
@@ -125,6 +153,106 @@
 
   function getImageNodes() {
     return window.DesktopCanvas?.listPromptImageNodes?.() || [];
+  }
+
+  function canvasState() {
+    return window.DesktopState?.state?.canvas || { nodes: {}, edges: [] };
+  }
+
+  function selectedCanvasNodeIds(canvas = canvasState()) {
+    const ids = Array.isArray(canvas.selectedNodeIds) ? canvas.selectedNodeIds.filter(Boolean) : [];
+    if (!ids.length && canvas.selectedNodeId) ids.push(canvas.selectedNodeId);
+    return [...new Set(ids.map(id => String(id || '')).filter(Boolean))];
+  }
+
+  function isMiniMaxH3VideoNode(node = {}) {
+    if (node?.type !== 'video_inference') return false;
+    const provider = String(node.provider || 'minimax_h3').trim().toLowerCase();
+    return provider === 'minimax_h3';
+  }
+
+  function videoInputRole(edge = {}, sourceNode = {}) {
+    const explicit = String(edge.inputRole || edge.input_role || '').trim();
+    if (explicit) return explicit;
+    if (sourceNode.type === 'text') return 'prompt';
+    if (['image', 'layout', 'pose'].includes(sourceNode.type)) return 'first_frame';
+    if (sourceNode.type === 'video') return 'reference_video';
+    return '';
+  }
+
+  function h3VideoNodeForTarget(target = getTarget()) {
+    if (target?.type !== 'text' || !target.nodeId) return null;
+    const canvas = canvasState();
+    const nodes = canvas.nodes || {};
+    const candidates = (Array.isArray(canvas.edges) ? canvas.edges : [])
+      .filter(edge => edge?.from === target.nodeId)
+      .map(edge => nodes[edge.to])
+      .filter(isMiniMaxH3VideoNode);
+    if (!candidates.length) return null;
+    const selected = new Set(selectedCanvasNodeIds(canvas));
+    return candidates.find(node => selected.has(node.id)) || candidates[0];
+  }
+
+  function preferredH3VideoNode() {
+    const canvas = canvasState();
+    const nodes = canvas.nodes || {};
+    const candidates = Object.values(nodes).filter(isMiniMaxH3VideoNode);
+    if (!candidates.length) return null;
+    const selected = new Set(selectedCanvasNodeIds(canvas));
+    return candidates.find(node => selected.has(node.id))
+      || (candidates.length === 1 ? candidates[0] : null);
+  }
+
+  function h3FirstFrameNode(videoNodeId) {
+    if (!videoNodeId) return null;
+    const canvas = canvasState();
+    const nodes = canvas.nodes || {};
+    const incoming = (Array.isArray(canvas.edges) ? canvas.edges : [])
+      .filter(edge => edge?.to === videoNodeId)
+      .map(edge => ({ edge, node: nodes[edge.from] }))
+      .filter(item => item.node);
+    return incoming.find(item => videoInputRole(item.edge, item.node) === 'first_frame')?.node || null;
+  }
+
+  function h3ReferenceMetadata(item = {}, source = 'canvas') {
+    const sourceNodeId = String(item.sourceNodeId || item.nodeId || item.source_node_id || item.id || '').trim();
+    const label = String(item.label || item.imageName || item.sourceTitle || item.name || '首帧').trim();
+    return {
+      role: 'first_frame',
+      source,
+      source_node_id: sourceNodeId,
+      reference_id: String(item.id || sourceNodeId || 'first_frame').trim(),
+      label,
+      mime_type: String(item.mimeType || item.mime_type || 'image/png').trim()
+    };
+  }
+
+  function h3TaskContext(target = getTarget(), options = {}) {
+    const standalone = !!options.standalone;
+    const videoNode = h3VideoNodeForTarget(target) || (standalone ? preferredH3VideoNode() : null);
+    if (!videoNode && !standalone) return null;
+    const attachedFirstFrame = state.imageAttachments[0] || null;
+    const connectedFirstFrame = h3FirstFrameNode(videoNode?.id);
+    const firstFrame = attachedFirstFrame
+      ? h3ReferenceMetadata(attachedFirstFrame, 'mention')
+      : (connectedFirstFrame ? h3ReferenceMetadata(connectedFirstFrame, 'canvas') : null);
+    return {
+      task_domain: 'video',
+      target_model: 'minimax_h3',
+      provider: 'minimax_h3',
+      mode: 'I2VA',
+      inference_mode: String(videoNode?.mode || 'image_to_video'),
+      video_node_id: String(videoNode?.id || ''),
+      text_node_id: String(target.nodeId || ''),
+      duration_seconds: Number(videoNode?.durationSeconds || videoNode?.duration_seconds || 15),
+      aspect_ratio: String(videoNode?.aspectRatio || videoNode?.aspect_ratio || '3:4'),
+      first_frame_node_id: String(firstFrame?.source_node_id || ''),
+      first_frame: firstFrame
+    };
+  }
+
+  function activeH3TaskContext(target = getTarget()) {
+    return isVideoPromptMode() ? h3TaskContext(target, { standalone: true }) : null;
   }
 
   function imageAttachmentKey(item = {}) {
@@ -169,10 +297,12 @@
 
   function sanitizeSessionCandidate(candidate = {}) {
     const keys = [
-      'id', 'kind', 'label', 'badge', 'text', 'base_text', 'baseText',
+      'id', 'kind', 'label', 'badge', 'text', 'text_en', 'text_zh',
+      'textEn', 'textZh', 'display_text', 'displayText', 'base_text', 'baseText',
       'language', 'task_type', 'taskType', 'intent', 'risk_score',
       'riskScore', 'risk_level', 'riskLevel', 'risk_flags', 'riskFlags',
-      'changed_terms', 'changedTerms', 'warnings', 'adapter'
+      'changed_terms', 'changedTerms', 'warnings', 'adapter', 'meta',
+      'mode', 'skill', 'validation', 'provenance'
     ];
     const output = {};
     keys.forEach(key => {
@@ -205,7 +335,9 @@
       messages: state.messages.slice(-MAX_SESSION_MESSAGES).map(sanitizeSessionMessage),
       candidates: state.candidates.slice(0, MAX_SESSION_CANDIDATES).map(sanitizeSessionCandidate),
       imageAttachments: state.imageAttachments.map(sanitizeSessionAttachment).filter(item => item.id),
-      imageAnalysisMode: !!state.imageAnalysisMode,
+      taskMode: normalizeAssistantTaskMode(state.taskMode),
+      resultMode: state.resultMode ? normalizeAssistantTaskMode(state.resultMode) : '',
+      imageAnalysisMode: isImageAnalysisMode(),
       imageAnalysis: safeSessionClone(state.imageAnalysis),
       analysisModules: safeSessionClone(state.analysisModules || []),
       ocrText: truncateForSession(state.ocrText || ''),
@@ -224,7 +356,8 @@
         || snapshot.candidates.length
         || snapshot.analysisModules.length
         || snapshot.editorText
-        || snapshot.imageAttachments.length;
+        || snapshot.imageAttachments.length
+        || snapshot.taskMode !== 'conversation';
       if (!hasContent && !snapshot.open && !snapshot.boundTextNodeId) {
         window.localStorage.removeItem(SESSION_STORAGE_KEY);
         return;
@@ -275,13 +408,18 @@
       state.imageAttachments = Array.isArray(parsed.imageAttachments)
         ? parsed.imageAttachments.map(sanitizeSessionAttachment).filter(item => item.id)
         : [];
-      state.imageAnalysisMode = !!parsed.imageAnalysisMode;
+      state.taskMode = normalizeAssistantTaskMode(
+        parsed.taskMode || (parsed.imageAnalysisMode ? 'image_analysis' : 'conversation')
+      );
       state.imageAnalysis = parsed.imageAnalysis || null;
       state.analysisModules = Array.isArray(parsed.analysisModules) ? parsed.analysisModules : [];
       state.ocrText = String(parsed.ocrText || '');
       state.textRegions = Array.isArray(parsed.textRegions) ? normalizeTextRegions(parsed.textRegions) : [];
       state.keepImageText = !!parsed.keepImageText;
       state.expandedCandidateId = String(parsed.expandedCandidateId || '');
+      state.resultMode = parsed.resultMode
+        ? normalizeAssistantTaskMode(parsed.resultMode)
+        : inferResultTaskMode(state.candidates, state.analysisModules);
       if (parsed.editorText && promptEditor?.setText) {
         promptEditor.setText(parsed.editorText);
       }
@@ -519,7 +657,9 @@
     els.deskPromptDrawer?.classList.toggle('is-open', state.open);
     els.deskPromptDrawer?.setAttribute('aria-expanded', state.open ? 'true' : 'false');
     resetPromptDrawerHandleEyes();
-    if (state.open) window.setTimeout(focusEditor, 40);
+    if (state.open && !els.deskPromptDrawer?.classList.contains('is-agent')) {
+      window.setTimeout(focusEditor, 40);
+    }
     render();
   }
 
@@ -606,15 +746,75 @@
     }
   }
 
+  function taskModeCopy(mode = state.taskMode) {
+    if (mode === 'image_analysis') {
+      return {
+        candidateTitle: '图片分析',
+        placeholder: '输入分析要求，并用 @ 选择要分析的图片。',
+        emptyMessage: '用 @ 引用一张画布图片开始分析。',
+        emptyCandidate: '分析结果会显示在这里。',
+        sendLabel: '分析图片',
+        sendTitle: '调用图片分析 Skill',
+        generateLabel: '',
+        meta: '参考图分析'
+      };
+    }
+    if (mode === 'video_prompt') {
+      return {
+        candidateTitle: 'H3 视频提示词',
+        placeholder: '描述视频动作、镜头与声音，输入 @ 可引用首帧。',
+        emptyMessage: '开始讨论 MiniMax H3 视频方向。',
+        emptyCandidate: '生成的视频提示词会显示在这里。',
+        sendLabel: '讨论',
+        sendTitle: '发送消息，与助手讨论 MiniMax H3 视频方向；不会直接生成正式提示词',
+        generateLabel: '生成视频提示词',
+        meta: 'MiniMax H3 · I2VA'
+      };
+    }
+    return {
+      candidateTitle: '图片提示词',
+      placeholder: '输入讨论内容，或输入 @ 选择画布图片节点。',
+      emptyMessage: '开始讨论图片提示词方向。',
+      emptyCandidate: '生成的图片提示词会显示在这里。',
+      sendLabel: '发送',
+      sendTitle: '讨论图片提示词方向',
+      generateLabel: '生成图片提示词',
+      meta: '普通会话'
+    };
+  }
+
+  function setAssistantTaskMode(mode, options = {}) {
+    const nextMode = normalizeAssistantTaskMode(mode);
+    if (nextMode === state.taskMode) return;
+    state.taskMode = nextMode;
+    closeImageMentionMenu();
+    render();
+    if (options.focus !== false) window.setTimeout(focusEditor, 0);
+  }
+
+  function hasGenerationSeed(target = getTarget()) {
+    return [
+      editorText(),
+      target?.type === 'text' ? currentPromptText(target) : '',
+      latestUserMessage('')
+    ].some(value => !!String(value || '').trim());
+  }
+
   function renderTarget() {
     const target = getTarget();
     const active = target.type === 'text' && target.nodeId;
+    const taskContext = activeH3TaskContext(target);
+    const modeCopy = taskModeCopy();
     const nodes = getTextNodes();
     if (els.deskPromptDrawerTarget) els.deskPromptDrawerTarget.textContent = active ? target.label : '未选择文本节点';
-    if (els.deskPromptDrawerMeta) els.deskPromptDrawerMeta.textContent = '选择文本节点';
+    if (els.deskPromptDrawerMeta) {
+      els.deskPromptDrawerMeta.textContent = taskContext
+        ? `MiniMax H3 · ${taskContext.mode} · ${taskContext.duration_seconds}s · ${taskContext.aspect_ratio}`
+        : (active ? modeCopy.meta : `${modeCopy.meta} · 无需文本节点`);
+    }
     if (els.deskPromptNodeSelect) {
       els.deskPromptNodeSelect.innerHTML = [
-        `<option value="">${nodes.length ? '请选择文本节点' : '画布中没有文本节点'}</option>`,
+        `<option value="">${nodes.length ? '不绑定文本节点' : '画布中没有文本节点'}</option>`,
         ...nodes.map(node => `<option value="${escapeHtml(node.nodeId)}">${escapeHtml(node.alias || node.label || '文本节点')}</option>`)
       ].join('');
       els.deskPromptNodeSelect.value = active ? target.nodeId : '';
@@ -630,16 +830,17 @@
       els.deskPromptChatMessages.scrollTop = els.deskPromptChatMessages.scrollHeight;
       return;
     }
+    const modeCopy = taskModeCopy();
+    let createButton = '';
     if (!hasTextTarget()) {
-      els.deskPromptChatMessages.innerHTML = `
-        <div class="desk-prompt-chat__empty">
-          <span>${state.imageAttachments.length ? '可打开图片分析并发送；应用结果时会自动新建文本节点。' : '选择文本节点继续讨论，或用 @ 引用画布图片节点进行分析。'}</span>
-          <button type="button" data-prompt-create-text>新建文本节点</button>
-        </div>
-      `;
-      return;
+      createButton = '<button type="button" data-prompt-create-text title="可选">新建文本节点</button>';
     }
-    els.deskPromptChatMessages.innerHTML = '<div class="desk-prompt-chat__empty">先讨论方向；确定后再生成正式提示词版本。</div>';
+    els.deskPromptChatMessages.innerHTML = `
+      <div class="desk-prompt-chat__empty">
+        <span>${escapeHtml(modeCopy.emptyMessage)}</span>
+        ${createButton}
+      </div>
+    `;
   }
 
   function chatMessagesHtml(messages, startIndex = 0) {
@@ -657,7 +858,73 @@
       : '<div class="desk-prompt-chat__empty">还没有讨论记录。</div>';
   }
 
+  function isH3PromptCandidate(item = {}) {
+    const meta = item.meta && typeof item.meta === 'object' ? item.meta : {};
+    return /^h3(?:_|$)/i.test(String(item.kind || ''))
+      || String(item.kind || '').toLowerCase().includes('minimax_h3')
+      || String(item.mode || meta.mode || '').toUpperCase() === 'I2VA';
+  }
+
+  function candidateTextForLanguage(item = {}, language = 'zh') {
+    const canonical = String(item.text_en || item.textEn || item.text || '').trim();
+    if (language === 'en') return canonical;
+    if (!isH3PromptCandidate(item)) return String(item.text || canonical).trim();
+    return String(
+      item.text_zh
+      || item.textZh
+      || item.display_text
+      || item.displayText
+      || canonical
+    ).trim();
+  }
+
+  function candidateLanguageSwitchHtml(item = {}, index = 0, options = {}) {
+    if (!options.forceExpanded || !isH3PromptCandidate(item)) return '';
+    const textZh = candidateTextForLanguage(item, 'zh');
+    const textEn = candidateTextForLanguage(item, 'en');
+    if (!textZh || !textEn || textZh === textEn) return '';
+    const language = options.displayLanguage === 'en' ? 'en' : 'zh';
+    return `
+      <span class="desk-prompt-candidate__language-switch" role="radiogroup" aria-label="提示词显示语言">
+        <button type="button" data-candidate-language="zh" data-candidate-index="${index}" role="radio" aria-checked="${language === 'zh' ? 'true' : 'false'}" class="${language === 'zh' ? 'is-active' : ''}" title="显示中文">中文</button>
+        <button type="button" data-candidate-language="en" data-candidate-index="${index}" role="radio" aria-checked="${language === 'en' ? 'true' : 'false'}" class="${language === 'en' ? 'is-active' : ''}" title="Display English">EN</button>
+      </span>
+    `;
+  }
+
   function candidateAdapterMetaHtml(item = {}) {
+    const meta = item.meta && typeof item.meta === 'object' ? item.meta : {};
+    const provenance = item.provenance && typeof item.provenance === 'object'
+      ? item.provenance
+      : (meta.provenance && typeof meta.provenance === 'object' ? meta.provenance : {});
+    const isH3 = isH3PromptCandidate(item);
+    if (isH3) {
+      const validation = item.validation && typeof item.validation === 'object'
+        ? item.validation
+        : (meta.validation && typeof meta.validation === 'object' ? meta.validation : {});
+      const warnings = Array.isArray(validation.warnings) ? validation.warnings : [];
+      const errors = Array.isArray(validation.errors) ? validation.errors : [];
+      const skill = String(
+        item.skill
+        || meta.skill
+        || meta.skill_id
+        || provenance.skill_id
+        || provenance.skill
+        || 'MiniMax 官方 Skill'
+      ).trim();
+      const mode = String(item.mode || meta.mode || 'I2VA').trim().toUpperCase();
+      const duration = Number(meta.duration_seconds || meta.timeline_end_seconds || 0);
+      const shotCount = Number(meta.shot_count || 0);
+      const validationLabel = validation.valid === true
+        ? (warnings.length ? `校验通过（${warnings.length} 条提示）` : '校验通过')
+        : (validation.valid === false
+          ? `校验未通过${errors.length ? `（${errors.length} 项）` : ''}`
+          : (warnings.length ? `校验提示 ${warnings.length}` : '已校验'));
+      const timelineLabel = duration > 0
+        ? `${Number.isInteger(duration) ? duration : duration.toFixed(2)}s${shotCount > 0 ? ` · ${shotCount} Shot` : ''}`
+        : '';
+      return `<small class="desk-prompt-candidate__meta">${[skill, mode, timelineLabel, validationLabel].filter(Boolean).map(escapeHtml).join(' · ')}</small>`;
+    }
     const hasAdapterMeta = item.kind === 'safe_rewrite' || item.risk_score !== undefined || item.riskScore !== undefined;
     if (!hasAdapterMeta) return '';
     const taskType = item.task_type || item.taskType || {};
@@ -678,18 +945,30 @@
   function candidateCard(item, index, canApply = true, options = {}) {
     const forceExpanded = !!options.forceExpanded;
     const expanded = forceExpanded || state.expandedCandidateId === (item.id || String(index));
+    const applyLabel = hasTextTarget() ? '应用到文本节点' : '新建文本节点';
+    const displayLanguage = forceExpanded
+      ? (options.displayLanguage === 'en' ? 'en' : 'zh')
+      : (isH3PromptCandidate(item) ? 'zh' : 'en');
+    const displayText = candidateTextForLanguage(item, displayLanguage);
+    const languageSwitch = candidateLanguageSwitchHtml(item, index, {
+      forceExpanded,
+      displayLanguage
+    });
     return `
       <article class="desk-prompt-candidate ${expanded ? 'is-expanded' : ''}" data-candidate-index="${index}">
         <header>
           <strong>${escapeHtml(item.label || '提示词版本')}</strong>
-          ${item.badge ? `<em>${escapeHtml(item.badge)}</em>` : ''}
+          <span class="desk-prompt-candidate__head-tools">
+            ${languageSwitch}
+            ${item.badge ? `<em>${escapeHtml(item.badge)}</em>` : ''}
+          </span>
         </header>
         ${candidateAdapterMetaHtml(item)}
-        <p>${escapeHtml(item.text)}</p>
+        <p class="desk-prompt-candidate__prompt" data-prompt-language="${escapeHtml(displayLanguage)}">${escapeHtml(displayText)}</p>
         <div>
           ${forceExpanded ? '' : `<button type="button" data-candidate-action="toggle" data-candidate-index="${index}" aria-expanded="${expanded ? 'true' : 'false'}">${expanded ? '收起' : '展开'}</button>`}
-          <button type="button" data-candidate-action="apply-text" data-candidate-index="${index}" ${canApply ? '' : 'disabled'}>应用到文本节点</button>
-          <button type="button" data-candidate-action="copy" data-candidate-index="${index}">复制</button>
+          <button type="button" data-candidate-action="apply-text" data-candidate-index="${index}" ${canApply ? '' : 'disabled'}>${applyLabel}</button>
+          <button type="button" data-candidate-action="copy" data-candidate-index="${index}" data-candidate-view-language="${escapeHtml(displayLanguage)}">复制</button>
           <button type="button" data-candidate-action="save-style" data-candidate-index="${index}">另存风格</button>
         </div>
       </article>
@@ -832,7 +1111,7 @@
   }
 
   function updateImageTextCandidate() {
-    const candidate = state.candidates.find(item => item.kind === 'image_analysis_main') || state.candidates[0];
+    const candidate = state.candidates.find(item => item.kind === 'image_analysis_main');
     if (!candidate) return;
     const rawBase = String(candidate.base_text || candidate.baseText || candidate.text || '').trim();
     const base = stripTrailingNegativePrompt(rawBase) || rawBase;
@@ -849,28 +1128,35 @@
 
   function renderCandidates() {
     if (!els.deskPromptCandidateList) return;
+    const showsCurrentMode = !state.resultMode || state.resultMode === state.taskMode;
     if (state.candidates.length) {
-      els.deskPromptCandidateList.innerHTML = [
-        ...state.candidates.map((candidate, index) => candidateCard(candidate, index)),
-        analysisModulesHtml()
-      ].filter(Boolean).join('');
-      return;
+      if (showsCurrentMode) {
+        els.deskPromptCandidateList.innerHTML = [
+          ...state.candidates.map((candidate, index) => candidateCard(candidate, index)),
+          analysisModulesHtml()
+        ].filter(Boolean).join('');
+        return;
+      }
     }
-    if (state.analysisModules.length) {
+    if (showsCurrentMode && state.analysisModules.length) {
       els.deskPromptCandidateList.innerHTML = analysisModulesHtml({ includeMain: true });
       return;
     }
     if (!hasTextTarget()) {
-      els.deskPromptCandidateList.innerHTML = '<div class="desk-prompt-candidates__empty">用 @ 引用画布图片节点并打开“图片分析”，或绑定文本节点生成版本。</div>';
+      els.deskPromptCandidateList.innerHTML = `<div class="desk-prompt-candidates__empty">${escapeHtml(taskModeCopy().emptyCandidate)}</div>`;
       return;
     }
-    els.deskPromptCandidateList.innerHTML = '<div class="desk-prompt-candidates__empty">点击“生成版本”后，正式提示词会以卡片形式出现在这里。</div>';
+    els.deskPromptCandidateList.innerHTML = `<div class="desk-prompt-candidates__empty">${escapeHtml(taskModeCopy().emptyCandidate)}</div>`;
   }
 
   function modalCandidatesHtml() {
-    if (state.candidates.length || state.analysisModules.length) {
+    const showsCurrentMode = !state.resultMode || state.resultMode === state.taskMode;
+    if (showsCurrentMode && (state.candidates.length || state.analysisModules.length)) {
       const candidateHtml = state.candidates
-        .map((candidate, index) => candidateCard(candidate, index, true, { forceExpanded: true }))
+        .map((candidate, index) => candidateCard(candidate, index, true, {
+          forceExpanded: true,
+          displayLanguage: state.modalCandidateLanguage
+        }))
         .join('');
       const analysisControls = state.analysisModules.length ? `
         <section class="desk-prompt-analysis-editor">
@@ -888,31 +1174,61 @@
         analysisModulesHtml({ includeMain: true })
       ].filter(Boolean).join('');
     }
-    if (!hasTextTarget()) {
-      return '<div class="desk-prompt-candidates__empty">用 @ 引用画布图片节点并打开“图片分析”，或绑定文本节点生成版本。</div>';
-    }
-    return '<div class="desk-prompt-candidates__empty">点击“生成版本”后，正式提示词会以卡片形式出现在这里。</div>';
+    return `<div class="desk-prompt-candidates__empty">${escapeHtml(taskModeCopy().emptyCandidate)}</div>`;
   }
 
   function renderBusy() {
     syncImageAttachmentsFromEditor();
     const busy = state.busyChat || state.busyVersions;
-    const imageMode = !!state.imageAnalysisMode;
-    if (els.deskPromptChatSend) {
-      els.deskPromptChatSend.disabled = busy || (imageMode ? !state.imageAttachments.length : !hasTextTarget());
-      els.deskPromptChatSend.textContent = state.busyChat ? (imageMode ? '分析中' : '思考中') : '发送';
-    }
-    if (els.deskPromptGenerateVersions) {
-      els.deskPromptGenerateVersions.disabled = busy || imageMode || !hasTextTarget();
-      els.deskPromptGenerateVersions.textContent = state.busyVersions ? '生成中' : '生成版本';
-    }
-    if (els.deskPromptChatRefresh) {
-      els.deskPromptChatRefresh.disabled = busy || imageMode || !hasTextTarget();
-      els.deskPromptChatRefresh.textContent = state.busyVersions ? '生成中' : '重新生成';
+    const imageMode = isImageAnalysisMode();
+    const modeCopy = taskModeCopy();
+    const target = getTarget();
+    const canGenerate = hasGenerationSeed(target);
+    if (els.deskPromptTaskMode) {
+      els.deskPromptTaskMode.dataset.mode = state.taskMode;
+      els.deskPromptTaskMode.querySelectorAll('[data-prompt-task-mode]').forEach(button => {
+        const active = button.dataset.promptTaskMode === state.taskMode;
+        button.classList.toggle('is-active', active);
+        button.setAttribute('aria-checked', active ? 'true' : 'false');
+        button.tabIndex = active ? 0 : -1;
+        button.disabled = busy;
+      });
     }
     if (els.deskPromptImageAnalysisToggle) {
       els.deskPromptImageAnalysisToggle.checked = imageMode;
       els.deskPromptImageAnalysisToggle.disabled = busy;
+    }
+    if (els.deskPromptChatInput) {
+      els.deskPromptChatInput.dataset.placeholder = modeCopy.placeholder;
+      els.deskPromptChatInput.setAttribute('aria-label', modeCopy.placeholder);
+    }
+    if (els.deskPromptCandidatesTitle) {
+      els.deskPromptCandidatesTitle.textContent = modeCopy.candidateTitle;
+    }
+    if (els.deskPromptChatSend) {
+      els.deskPromptChatSend.disabled = busy || (imageMode ? !state.imageAttachments.length : !editorText().trim());
+      els.deskPromptChatSend.textContent = state.busyChat
+        ? (imageMode ? '分析中' : '思考中')
+        : modeCopy.sendLabel;
+      els.deskPromptChatSend.title = modeCopy.sendTitle;
+    }
+    if (els.deskPromptGenerateVersions) {
+      els.deskPromptGenerateVersions.hidden = imageMode;
+      els.deskPromptGenerateVersions.disabled = busy || imageMode || !canGenerate;
+      els.deskPromptGenerateVersions.textContent = state.busyVersions
+        ? '生成中'
+        : modeCopy.generateLabel;
+      els.deskPromptGenerateVersions.title = isVideoPromptMode()
+        ? '调用 MiniMax H3 官方 Skill 编译视频提示词'
+        : '生成图片提示词版本';
+      els.deskPromptGenerateVersions.parentElement?.classList.toggle('is-single-action', imageMode);
+      if (els.deskPromptGenerateVersions.parentElement) {
+        els.deskPromptGenerateVersions.parentElement.dataset.taskMode = state.taskMode;
+      }
+    }
+    if (els.deskPromptChatRefresh) {
+      els.deskPromptChatRefresh.disabled = busy || (imageMode ? !state.imageAttachments.length : !canGenerate);
+      els.deskPromptChatRefresh.textContent = (state.busyChat || state.busyVersions) ? '生成中' : '重新生成';
     }
   }
 
@@ -930,7 +1246,9 @@
   function renderModal() {
     if (!els.deskPromptModal || !state.modalMode) return;
     if (els.deskPromptModalTitle) {
-      els.deskPromptModalTitle.textContent = state.modalMode === 'chat' ? '讨论记录' : '分析结果';
+      els.deskPromptModalTitle.textContent = state.modalMode === 'chat'
+        ? '讨论记录'
+        : taskModeCopy().candidateTitle;
     }
     if (!els.deskPromptModalContent) return;
     els.deskPromptModalContent.classList.toggle('is-chat', state.modalMode === 'chat');
@@ -938,8 +1256,18 @@
     els.deskPromptModalContent.innerHTML = state.modalMode === 'chat' ? modalChatHtml() : modalCandidatesHtml();
   }
 
+  function setModalCandidateLanguage(language) {
+    const nextLanguage = language === 'en' ? 'en' : 'zh';
+    if (state.modalCandidateLanguage === nextLanguage) return;
+    const scrollTop = els.deskPromptModalContent?.scrollTop || 0;
+    state.modalCandidateLanguage = nextLanguage;
+    renderModal();
+    if (els.deskPromptModalContent) els.deskPromptModalContent.scrollTop = scrollTop;
+  }
+
   function openModal(mode) {
     state.modalMode = mode;
+    if (mode === 'versions') state.modalCandidateLanguage = 'zh';
     state.modalOffsetX = 0;
     state.modalOffsetY = 0;
     applyModalPosition();
@@ -1136,6 +1464,121 @@
     return payloads;
   }
 
+  function h3CompileReference(image = {}) {
+    const dataUrl = String(image.dataUrl || image.data_url || image.imageData || '').trim();
+    if (!dataUrl) return null;
+    return {
+      id: String(image.id || 'first_frame'),
+      role: 'first_frame',
+      label: String(image.label || image.id || '首帧'),
+      source_node_id: String(image.sourceNodeId || image.source_node_id || ''),
+      mime_type: String(image.mimeType || image.mime_type || 'image/png'),
+      data_url: dataUrl
+    };
+  }
+
+  async function h3CompileFirstFrame(taskContext = {}) {
+    const mentioned = await imageAttachmentPayloads();
+    if (mentioned.length) return h3CompileReference(mentioned[0]);
+    const sourceNodeId = String(taskContext.first_frame_node_id || '').trim();
+    if (!sourceNodeId) return null;
+    const image = getImageNodes().find(item => String(item.nodeId || item.sourceNodeId || item.id || '') === sourceNodeId);
+    if (!image) return null;
+    let dataUrl = String(image.dataUrl || image.imageData || '').trim();
+    const source = String(image.imageUrl || image.url || '').trim();
+    if (!dataUrl && source && window.DesktopApi?.imageUrlToDataUri) {
+      dataUrl = await window.DesktopApi.imageUrlToDataUri(source);
+    }
+    return h3CompileReference({
+      ...image,
+      id: image.id || sourceNodeId,
+      sourceNodeId,
+      dataUrl
+    });
+  }
+
+  function normalizeH3PromptCandidates(result = {}, taskContext = {}) {
+    const rootValidation = result.validation && typeof result.validation === 'object' ? result.validation : {};
+    const rootProvenance = result.provenance && typeof result.provenance === 'object' ? result.provenance : {};
+    const rawCandidates = Array.isArray(result.candidates) && result.candidates.length
+      ? result.candidates
+      : (result.candidate ? [result.candidate] : (result.prompt ? [{
+          text: result.prompt,
+          text_en: result.prompt_en || result.prompt,
+          text_zh: result.prompt_zh || ''
+        }] : []));
+    return rawCandidates
+      .map((candidate, index) => {
+        const textEn = String(
+          candidate?.text_en
+          || candidate?.textEn
+          || candidate?.text
+          || candidate?.prompt
+          || result.prompt_en
+          || result.prompt
+          || ''
+        ).trim();
+        const textZh = String(
+          candidate?.text_zh
+          || candidate?.textZh
+          || candidate?.display_text
+          || candidate?.displayText
+          || result.prompt_zh
+          || ''
+        ).trim();
+        if (!textEn) return null;
+        const candidateMeta = candidate.meta && typeof candidate.meta === 'object' ? candidate.meta : {};
+        const validation = candidate.validation && typeof candidate.validation === 'object'
+          ? candidate.validation
+          : (candidateMeta.validation && typeof candidateMeta.validation === 'object' ? candidateMeta.validation : rootValidation);
+        const provenance = candidate.provenance && typeof candidate.provenance === 'object'
+          ? candidate.provenance
+          : (candidateMeta.provenance && typeof candidateMeta.provenance === 'object' ? candidateMeta.provenance : rootProvenance);
+        const mode = String(candidate.mode || candidateMeta.mode || result.mode || taskContext.mode || 'I2VA').toUpperCase();
+        const skill = String(
+          candidate.skill
+          || candidateMeta.skill
+          || candidateMeta.skill_id
+          || provenance.skill_id
+          || provenance.skill
+          || 'MiniMax 官方 Skill'
+        );
+        return {
+          ...candidate,
+          id: candidate.id || `h3_prompt_${Date.now()}_${index + 1}`,
+          kind: candidate.kind || 'h3_i2va',
+          label: candidate.label || `MiniMax H3 · ${mode}`,
+          badge: candidate.badge || 'H3',
+          text: textEn,
+          text_en: textEn,
+          text_zh: textZh || textEn,
+          display_text: textZh || textEn,
+          mode,
+          skill,
+          validation,
+          provenance,
+          meta: {
+            ...candidateMeta,
+            mode,
+            skill,
+            duration_seconds: candidateMeta.duration_seconds ?? taskContext.duration_seconds,
+            aspect_ratio: candidateMeta.aspect_ratio || taskContext.aspect_ratio,
+            validation,
+            provenance
+          },
+          adapter: {
+            ...(candidate.adapter || {}),
+            target_model: 'minimax_h3',
+            mode,
+            skill,
+            validation,
+            provenance
+          }
+        };
+      })
+      .filter(Boolean);
+  }
+
   function normalizeAnalysisResult(result = {}) {
     const candidates = Array.isArray(result.candidates)
       ? result.candidates.filter(item => item?.text)
@@ -1156,8 +1599,8 @@
     state.expandedCandidateId = first ? (first.id || '0') : '';
   }
 
-  async function submitImageAnalysis() {
-    const message = editorText();
+  async function submitImageAnalysis(messageOverride = '') {
+    const message = String(messageOverride || editorText() || '').trim();
     const images = await imageAttachmentPayloads();
     if (!images.length) {
       window.DesktopResults?.showTransientMessage?.('请先用 @ 选择画布图片节点。', 'warning');
@@ -1176,6 +1619,7 @@
         keep_text: false
       });
       normalizeAnalysisResult(result);
+      state.resultMode = 'image_analysis';
       persistPromptVersions(state.candidates, {
         message: message || '图片分析',
         target: target?.type === 'text' ? target : {},
@@ -1203,14 +1647,14 @@
   }
 
   async function submitAssistantChat(messageOverride = '') {
-    if (state.imageAnalysisMode) {
-      await submitImageAnalysis();
+    if (isImageAnalysisMode()) {
+      await submitImageAnalysis(messageOverride);
       return;
     }
-    if (!ensureTextTarget()) return;
     const target = getTarget();
+    const targetPayload = target?.type === 'text' ? target : {};
     const message = String(messageOverride || editorText() || '').trim();
-    const prompt = String(currentPromptText(target) || '').trim();
+    const prompt = String(target?.type === 'text' ? currentPromptText(target) : '').trim();
     if (!message) {
       window.DesktopResults?.showTransientMessage?.('请输入要讨论的方向。', 'warning');
       return;
@@ -1223,12 +1667,15 @@
     render();
     let streamedText = '';
     let streamStarted = false;
+    syncImageAttachmentsFromEditor();
+    const taskContext = activeH3TaskContext(target);
     const payload = {
       message,
       prompt,
-      target,
+      target: targetPayload,
       style: {},
-      history: state.messages.slice(0, -2).slice(-8)
+      history: state.messages.slice(0, -2).slice(-8),
+      ...(taskContext ? { task_context: taskContext } : {})
     };
     try {
       const result = await DesktopApi.promptAssistantChatStream(payload, {
@@ -1276,25 +1723,58 @@
   }
 
   async function generatePromptVersions(messageOverride = '') {
-    if (!ensureTextTarget()) return;
-    const target = getTarget();
-    const message = String(messageOverride || editorText() || latestUserMessage('按当前讨论方向整理成正式提示词版本')).trim();
-    const prompt = String(currentPromptText(target) || '').trim();
-    if (!message && !prompt) {
-      window.DesktopResults?.showTransientMessage?.('文本节点为空，请先输入内容或讨论方向。', 'warning');
+    if (isImageAnalysisMode()) {
+      await submitImageAnalysis(messageOverride);
       return;
     }
+    const target = getTarget();
+    const targetPayload = target?.type === 'text' ? target : {};
+    const prompt = String(target?.type === 'text' ? currentPromptText(target) : '').trim();
+    const directMessage = String(messageOverride || editorText() || '').trim();
+    const previousMessage = String(latestUserMessage('') || '').trim();
+    if (!directMessage && !previousMessage && !prompt) {
+      window.DesktopResults?.showTransientMessage?.('请先输入内容或讨论方向。', 'warning');
+      return;
+    }
+    const message = directMessage || previousMessage || (isVideoPromptMode()
+      ? '按当前内容生成 MiniMax H3 视频提示词。'
+      : '按当前内容生成图片提示词。');
     state.busyVersions = true;
     render();
     try {
-      const result = await DesktopApi.generatePromptVersions({
-        message,
-        prompt,
-        target,
-        style: {}
-      });
-      state.candidates = (Array.isArray(result.candidates) ? result.candidates : [])
-        .filter(item => item?.kind !== 'original');
+      syncImageAttachmentsFromEditor();
+      const taskContext = activeH3TaskContext(target);
+      let result;
+      if (taskContext) {
+        const firstFrame = await h3CompileFirstFrame(taskContext);
+        result = await DesktopApi.compileVideoPrompt({
+          target_model: 'minimax_h3',
+          operation: 'compose',
+          mode: 'I2VA',
+          instruction: message,
+          message,
+          user_prompt: prompt,
+          prompt,
+          target: targetPayload,
+          task_context: taskContext,
+          duration_seconds: taskContext.duration_seconds,
+          aspect_ratio: taskContext.aspect_ratio,
+          first_frame: firstFrame,
+          history: state.messages.slice(-8)
+        });
+        state.candidates = normalizeH3PromptCandidates(result, taskContext);
+      } else {
+        result = await DesktopApi.generatePromptVersions({
+          message,
+          prompt,
+          target: targetPayload,
+          style: {}
+        });
+        state.candidates = (Array.isArray(result.candidates) ? result.candidates : [])
+          .filter(item => item?.kind !== 'original');
+      }
+      if (!state.candidates.length) throw new Error(taskContext ? 'H3 提示词编译没有返回有效结果。' : '没有返回有效提示词版本。');
+      state.resultMode = taskContext ? 'video_prompt' : 'conversation';
       state.imageAnalysis = null;
       state.analysisModules = [];
       state.ocrText = '';
@@ -1303,15 +1783,26 @@
       state.expandedCandidateId = '';
       persistPromptVersions(state.candidates, {
         message,
-        target,
+        target: targetPayload,
         style: {}
       });
+      const validation = taskContext
+        ? ((result.validation && typeof result.validation === 'object' ? result.validation : null)
+          || (state.candidates[0]?.validation && typeof state.candidates[0].validation === 'object' ? state.candidates[0].validation : null))
+        : null;
+      const validationWarnings = Array.isArray(validation?.warnings) ? validation.warnings.length : 0;
       state.messages.push({
         role: 'assistant',
-        text: result.warning ? `正式版本已生成，但润色链路有降级：${result.warning}` : `已生成 ${state.candidates.length} 个正式提示词版本。`
+        text: taskContext
+          ? (validation?.valid === false
+            ? `H3 · I2VA 提示词已生成，但未通过格式校验。`
+            : (validation?.valid === true
+              ? `H3 · I2VA 提示词已生成${validationWarnings ? `，有 ${validationWarnings} 条校验提示` : '并通过校验'}。`
+              : `H3 · I2VA 提示词已生成。`))
+          : (result.warning ? `正式版本已生成，但润色链路有降级：${result.warning}` : `已生成 ${state.candidates.length} 个正式提示词版本。`)
       });
       clearEditor({ keepAttachments: true });
-      window.DesktopResults?.showTransientMessage?.('提示词版本已生成。', 'success');
+      window.DesktopResults?.showTransientMessage?.(taskContext ? 'H3 视频提示词已生成。' : '图片提示词已生成。', 'success');
     } catch (error) {
       window.DesktopResults?.showError?.(error);
     } finally {
@@ -1331,6 +1822,7 @@
 
   async function generateSafeRewrite(messageOverride = '') {
     if (!ensureTextTarget()) return;
+    state.taskMode = 'conversation';
     const target = getTarget();
     const prompt = String(currentPromptText(target) || '').trim();
     if (!prompt) {
@@ -1358,6 +1850,7 @@
       state.textRegions = [];
       state.keepImageText = false;
       candidates.slice().reverse().forEach(candidate => prependCandidate(candidate));
+      state.resultMode = 'conversation';
       persistPromptVersions(candidates, {
         message,
         target,
@@ -1458,7 +1951,7 @@
     return preset || null;
   }
 
-  async function handleCandidateAction(action, index) {
+  async function handleCandidateAction(action, index, options = {}) {
     const candidate = candidateByIndex(index);
     if (!candidate?.text) return;
     if (action === 'toggle') {
@@ -1468,17 +1961,25 @@
       return;
     }
     if (action === 'copy') {
-      await copyText(candidate.text);
+      const language = options.viewLanguage === 'en' ? 'en' : 'zh';
+      await copyText(candidateTextForLanguage(candidate, language));
       return;
     }
     if (action === 'apply-text') {
       const textForNode = candidateTextForTextNode(candidate);
+      const promptMeta = candidate.provenance || candidate.meta?.provenance || {};
       if (hasTextTarget()) {
-        window.DesktopCanvas?.fillPromptTarget?.(textForNode, { target: getTarget() });
+        if (Object.keys(promptMeta).length) {
+          window.DesktopCanvas?.fillPromptTarget?.(textForNode, { target: getTarget(), promptMeta });
+        } else {
+          window.DesktopCanvas?.fillPromptTarget?.(textForNode, { target: getTarget() });
+        }
         window.DesktopResults?.showTransientMessage?.('已应用到文本节点。', 'success');
         return;
       }
-      const nodeId = window.DesktopCanvas?.createTextNodeWithText?.(textForNode);
+      const nodeId = Object.keys(promptMeta).length
+        ? window.DesktopCanvas?.createTextNodeWithText?.(textForNode, null, { promptMeta })
+        : window.DesktopCanvas?.createTextNodeWithText?.(textForNode);
       if (!nodeId) {
         window.DesktopResults?.showTransientMessage?.('无法新建文本节点。', 'warning');
         return;
@@ -1547,6 +2048,7 @@
     els.deskPromptDrawerClear?.addEventListener('click', () => {
       state.messages = [];
       state.candidates = [];
+      state.resultMode = '';
       state.imageAttachments = [];
       state.imageAnalysis = null;
       state.analysisModules = [];
@@ -1561,16 +2063,42 @@
     });
     els.deskPromptNodeSelect?.addEventListener('change', () => {
       const nodeId = String(els.deskPromptNodeSelect.value || '');
-      if (!nodeId) return;
+      if (!nodeId) {
+        state.boundTextNodeId = '';
+        render();
+        return;
+      }
       if (bindTextNode(nodeId)) window.DesktopCanvas?.selectNode?.(nodeId);
     });
     els.deskPromptChatSend?.addEventListener('click', () => submitAssistantChat());
     els.deskPromptGenerateVersions?.addEventListener('click', () => generatePromptVersions());
-    els.deskPromptChatRefresh?.addEventListener('click', () => generatePromptVersions(latestUserMessage('重新生成正式提示词版本')));
+    els.deskPromptChatRefresh?.addEventListener('click', () => {
+      const fallback = isImageAnalysisMode()
+        ? '重新分析当前图片。'
+        : (isVideoPromptMode() ? '重新生成视频提示词。' : '重新生成图片提示词。');
+      generatePromptVersions(latestUserMessage(fallback));
+    });
+    els.deskPromptTaskMode?.addEventListener('click', event => {
+      const button = event.target.closest('[data-prompt-task-mode]');
+      if (!button || button.disabled) return;
+      setAssistantTaskMode(button.dataset.promptTaskMode);
+    });
+    els.deskPromptTaskMode?.addEventListener('keydown', event => {
+      if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+      const buttons = Array.from(els.deskPromptTaskMode.querySelectorAll('[data-prompt-task-mode]:not(:disabled)'));
+      if (!buttons.length) return;
+      const currentIndex = Math.max(0, buttons.findIndex(button => button.dataset.promptTaskMode === state.taskMode));
+      const nextIndex = event.key === 'Home'
+        ? 0
+        : (event.key === 'End'
+          ? buttons.length - 1
+          : (currentIndex + (event.key === 'ArrowRight' ? 1 : -1) + buttons.length) % buttons.length);
+      setAssistantTaskMode(buttons[nextIndex].dataset.promptTaskMode, { focus: false });
+      buttons[nextIndex].focus();
+      event.preventDefault();
+    });
     els.deskPromptImageAnalysisToggle?.addEventListener('change', () => {
-      state.imageAnalysisMode = !!els.deskPromptImageAnalysisToggle?.checked;
-      renderBusy();
-      schedulePromptDrawerSessionSave();
+      setAssistantTaskMode(els.deskPromptImageAnalysisToggle.checked ? 'image_analysis' : 'conversation');
     });
     els.deskPromptImageMenu?.addEventListener('click', event => {
       const button = event.target.closest('[data-prompt-pick-image-node]');
@@ -1585,7 +2113,9 @@
     els.deskPromptCandidateList?.addEventListener('click', event => {
       const button = event.target.closest('[data-candidate-action]');
       if (button) {
-        handleCandidateAction(button.dataset.candidateAction, button.dataset.candidateIndex).catch(error => window.DesktopResults?.showError?.(error));
+        handleCandidateAction(button.dataset.candidateAction, button.dataset.candidateIndex, {
+          viewLanguage: button.dataset.candidateViewLanguage
+        }).catch(error => window.DesktopResults?.showError?.(error));
         return;
       }
       const keepText = event.target.closest('[data-analysis-keep-text]');
@@ -1616,9 +2146,16 @@
     });
     document.addEventListener('pointermove', updatePromptDrawerHandleEyes, { passive: true });
     els.deskPromptModal?.addEventListener('click', event => {
+      const languageButton = event.target.closest('[data-candidate-language]');
+      if (languageButton) {
+        setModalCandidateLanguage(languageButton.dataset.candidateLanguage);
+        return;
+      }
       const button = event.target.closest('[data-candidate-action]');
       if (!button) return;
-      handleCandidateAction(button.dataset.candidateAction, button.dataset.candidateIndex).catch(error => window.DesktopResults?.showError?.(error));
+      handleCandidateAction(button.dataset.candidateAction, button.dataset.candidateIndex, {
+        viewLanguage: button.dataset.candidateViewLanguage
+      }).catch(error => window.DesktopResults?.showError?.(error));
     });
     els.deskPromptModalClose?.addEventListener('click', event => {
       event.preventDefault();

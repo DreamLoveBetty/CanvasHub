@@ -25,6 +25,7 @@ DEFAULT_API_BASE = ''
 DEFAULT_OPENAI_CHAT_IMAGE_MODEL = 'gemini-3.1-flash-image'
 TIMEOUT = 1800
 CONNECT_TIMEOUT = 15
+EDIT_UPLOAD_SOCKET_TIMEOUT = 100
 READ_TIMEOUT = 900
 RETRYABLE_HTTP_STATUS = {429, 500, 502, 503, 504}
 MAX_HTTP_RETRIES = 2
@@ -438,7 +439,15 @@ def _extract_image_from_openai_chat(data: dict):
     raise Exception(f"API 响应未包含图片数据：{detail}")
 
 
-def _perform_request(url, payload, progress_cb=None, action='generate', extractor=None, stream_response=True):
+def _perform_request(
+    url,
+    payload,
+    progress_cb=None,
+    action='generate',
+    extractor=None,
+    stream_response=True,
+    connect_timeout=CONNECT_TIMEOUT,
+):
     _ensure_api_key()
     progress_cb = progress_cb or _default_progress_cb
     extractor = extractor or _extract_image_from_json
@@ -454,7 +463,9 @@ def _perform_request(url, payload, progress_cb=None, action='generate', extracto
         attempt_started_ms = _now_ms()
         try:
             response = _session.post(url, json=payload,
-                timeout=(CONNECT_TIMEOUT, READ_TIMEOUT), stream=bool(stream_response))
+                # requests/urllib3 also applies the first timeout while writing
+                # the request body. Image-edit JSON can contain large base64 data.
+                timeout=(connect_timeout, READ_TIMEOUT), stream=bool(stream_response))
         except Exception as e:
             err_type = _classify_transport_error(e, bytes_received)
             print(f"❌ 请求发送失败: {e}")
@@ -565,6 +576,7 @@ def _perform_request_with_model_aliases(
     *,
     progress_cb=None,
     action='generate',
+    connect_timeout=CONNECT_TIMEOUT,
 ):
     """Try equivalent provider model names and remember the one accepted by this key."""
     progress_cb = progress_cb or _default_progress_cb
@@ -583,6 +595,7 @@ def _perform_request_with_model_aliases(
                 action=action,
                 extractor=extractor,
                 stream_response=stream_response,
+                connect_timeout=connect_timeout,
             )
         except ModelUnavailableError:
             if index + 1 >= len(candidates):
@@ -807,6 +820,7 @@ def edit_image(
             request_builder,
             progress_cb=progress_cb,
             action='edit',
+            connect_timeout=EDIT_UPLOAD_SOCKET_TIMEOUT,
         )
         print(f"✅ 编辑成功，图片大小：{len(image_data) / 1024 / 1024:.1f} MB")
         return image_data, meta

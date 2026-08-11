@@ -28,6 +28,20 @@
   const MIN_COMFY_NODE_HEIGHT = 480;
   const MAX_COMFY_NODE_WIDTH = 900;
   const MAX_COMFY_NODE_HEIGHT = 960;
+  const DEFAULT_VIDEO_INFERENCE_NODE_WIDTH = 720;
+  const DEFAULT_VIDEO_INFERENCE_NODE_HEIGHT = 380;
+  const MIN_VIDEO_INFERENCE_NODE_WIDTH = 660;
+  const MIN_VIDEO_INFERENCE_NODE_HEIGHT = 320;
+  const MAX_VIDEO_INFERENCE_NODE_WIDTH = 960;
+  const MAX_VIDEO_INFERENCE_NODE_HEIGHT = 720;
+  const VIDEO_INFERENCE_LAYOUT_VERSION = 2;
+  const DEFAULT_VIDEO_NODE_WIDTH = 320;
+  const DEFAULT_VIDEO_NODE_HEIGHT = 470;
+  const MIN_VIDEO_NODE_WIDTH = 220;
+  const MIN_VIDEO_NODE_HEIGHT = 180;
+  const MAX_VIDEO_NODE_WIDTH = 720;
+  const MAX_VIDEO_NODE_HEIGHT = 960;
+  const VIDEO_NODE_LAYOUT_VERSION = 1;
   const DEFAULT_COMFY_PIXEL_WIDTH = 1024;
   const DEFAULT_COMFY_PIXEL_HEIGHT = 1024;
   const MIN_COMFY_PIXEL_SIZE = 64;
@@ -42,15 +56,64 @@
   const MIN_INPUT_NODE_WIDTH = 560;
   const MAX_INPUT_NODE_WIDTH = 920;
   const DEFAULT_IMAGE_LONGEST_SIDE = 520;
+  const MAX_EXTERNAL_IMAGE_IMPORTS = 8;
+  const LOCAL_IMAGE_EXTENSION_MIME = Object.freeze({
+    png: 'image/png',
+    jpg: 'image/jpeg',
+    jpeg: 'image/jpeg',
+    jfif: 'image/jpeg',
+    webp: 'image/webp',
+    gif: 'image/gif',
+    bmp: 'image/bmp',
+    avif: 'image/avif',
+    svg: 'image/svg+xml',
+    ico: 'image/x-icon'
+  });
+  const LOCAL_IMAGE_MIME_EXTENSION = Object.freeze({
+    'image/png': 'png',
+    'image/jpeg': 'jpg',
+    'image/jpg': 'jpg',
+    'image/webp': 'webp',
+    'image/gif': 'gif',
+    'image/bmp': 'bmp',
+    'image/avif': 'avif',
+    'image/svg+xml': 'svg',
+    'image/x-icon': 'ico',
+    'image/vnd.microsoft.icon': 'ico'
+  });
+  const SUPPORTED_LOCAL_IMAGE_TEXT = 'PNG、JPG、WebP、GIF、BMP、AVIF、SVG 或 ICO';
   const TEXT_NODE_DRAG_EDGE_PX = 6;
   const TEXT_NODE_ALIAS_MAX_LENGTH = 24;
   const LINK_VIEWBOX = '-3000 -3000 8000 8000';
   const SNAP_THRESHOLD_PX = 9;
-  const PORT_RADIUS = 7;
+  const CONNECTION_LEAD_LENGTH = 30;
+  const CONNECTION_CORNER_RADIUS = 10;
+  const FLOATING_PORT_TRACKING_MARGIN_PX = 36;
+  const FLOATING_SWELL_BORDER_PADDING_PX = 36;
+  const FLOATING_SWELL_SAMPLE_SPACING_PX = 1;
+  const FLOATING_SWELL_PEAK_PX = 7;
+  const FLOATING_SWELL_LENGTH_PX = 38;
+  const FLOATING_SWELL_PLATEAU_RATIO = 0.4;
+  const FLOATING_SWELL_SHOULDER_RATIO = 0.3;
+  const FLOATING_SWELL_VISIBLE_THRESHOLD_PX = 0.25;
+  const FLOATING_SWELL_EDGE_INSET_PX = 12;
+  const FLOATING_SWELL_EDGE_OUTSET_PX = 20;
+  const FLOATING_SWELL_SPRING_STIFFNESS = 300;
+  const FLOATING_SWELL_SPRING_DAMPING = 32;
+  const FLOATING_SWELL_MAX_FRAME_DELTA_SECONDS = 1 / 30;
+  const FLOATING_DROPLET_PEAK_PX = 9;
+  const FLOATING_DROPLET_BASE_HALF_LENGTH_PX = 15;
+  const FLOATING_DROPLET_GRAVITY_PULL_PX = 7.2;
+  const FLOATING_DROPLET_MOTION_PULL_PX = 4;
+  const FLOATING_DROPLET_FLOW_EXTENSION_PX = 8;
+  const FLOATING_DROPLET_ACTIVE_PADDING_PX = 5;
+  const FLOATING_DROPLET_VELOCITY_NORMALIZER = 520;
   const CANVAS_PAN_DRAG_THRESHOLD_PX = 3;
   const CANVAS_CONTEXTMENU_SUPPRESS_MS = 450;
   const CANVAS_INTERACTION_BLOCK_SELECTOR = [
     '.desk-node',
+    '.desk-link-interaction',
+    '.desk-edge-menu',
     '.desk-node-palette',
     '.desk-gallery-panel',
     '.desk-settings',
@@ -61,6 +124,8 @@
     '.desk-workflow-dock-panel'
   ].join(', ');
   const CANVAS_RIGHT_PAN_BLOCK_SELECTOR = [
+    '.desk-link-interaction',
+    '.desk-edge-menu',
     '.desk-node-palette',
     '.desk-gallery-panel',
     '.desk-settings',
@@ -85,7 +150,7 @@
   const IMAGE_EDIT_MAX_ZOOM = 4;
   const IMAGE_EDIT_ZOOM_STEP = 1.2;
   const WORKFLOW_SCHEMA = 'tg-mini-app-img-gen.desktop-workflow';
-  const WORKFLOW_VERSION = 2;
+  const WORKFLOW_VERSION = 3;
   const PROMPT_DOCUMENT_SCHEMA = 'tg-mini-app-img-gen.prompt-document';
   const PROMPT_DOCUMENT_VERSION = 1;
   const PROMPT_DOCUMENT_MAX_SEGMENTS = 2000;
@@ -99,6 +164,7 @@
     custom: '自定义',
     identity: '身份',
     appearance: '外貌',
+    body_shape: '体形身材',
     pose: '动作姿态',
     expression: '表情视线',
     clothing: '服装造型',
@@ -201,6 +267,12 @@
       icon: '<svg class="desk-node-icon desk-node-icon--comfy" viewBox="0 0 24 24"><path d="M7 4h10a3 3 0 0 1 3 3v10a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3V7a3 3 0 0 1 3-3Z"></path><path d="M8 9h8M8 13h5M8 17h7"></path><circle cx="17" cy="13" r="1.5"></circle></svg>'
     },
     {
+      type: 'video_inference',
+      title: '视频生成',
+      subtitle: 'MiniMax H3 推理',
+      icon: '<svg class="desk-node-icon desk-node-icon--video-inference" viewBox="0 0 24 24"><rect x="3" y="5" width="14" height="14" rx="3"></rect><path d="m17 10 4-2v8l-4-2"></path><path d="m9 9 4 3-4 3z"></path></svg>'
+    },
+    {
       type: 'file_output',
       title: '文件结果',
       subtitle: 'PPT / PSD',
@@ -211,6 +283,12 @@
       title: '图片节点',
       subtitle: '参考图输入',
       icon: '<svg class="desk-node-icon desk-node-icon--image" viewBox="0 0 24 24"><g class="desk-node-icon__image-body"><path d="M21 11.5V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7.5"></path><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"></path><circle cx="9" cy="9" r="2"></circle></g><g class="desk-node-icon__plus"><path d="M16 5h6"></path><path d="M19 2v6"></path></g></svg>'
+    },
+    {
+      type: 'video',
+      title: '视频节点',
+      subtitle: '视频素材与结果',
+      icon: '<svg class="desk-node-icon desk-node-icon--video" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="3"></rect><path d="m10 9 5 3-5 3z"></path></svg>'
     },
     {
       type: 'upscale',
@@ -256,6 +334,13 @@
   let contextMenuPoint = null;
   let contextMenuEl = null;
   let contextMenuConnectionSourceId = '';
+  let contextMenuConnectionSourceSide = 'right';
+  let contextMenuConnectionSourceAnchor = null;
+  let contextMenuConnectionEndPoint = null;
+  let selectedEdgeId = '';
+  let hoveredEdgeId = '';
+  let edgeMenuEl = null;
+  let edgeMenuAnchorWorld = null;
   let suppressCanvasContextMenuUntil = 0;
   let imageEditorEl = null;
   let imageEditorCanvas = null;
@@ -265,8 +350,10 @@
   let gptModelCatalog = null;
   let nodeGroupSequence = 0;
   let promptBlockInstanceSequence = 0;
+  let lastCanvasPointer = null;
   const promptDocumentHistories = new Map();
   const promptDocumentVersions = new Map();
+  const videoTaskPollTimers = new Map();
 
   function $(id) {
     return document.getElementById(id);
@@ -363,6 +450,101 @@
     if (moduleType === 'color' && !colorSnapshot.length) {
       colorSnapshot.push(...(content.match(/#[0-9A-F]{6}/ig) || []).map(value => value.toUpperCase()).slice(0, 5));
     }
+    const sourceRuleSnapshot = (
+      source.source_rule_snapshot
+      ?? source.sourceRuleSnapshot
+      ?? base.source_rule_snapshot
+      ?? base.sourceRuleSnapshot
+      ?? {}
+    );
+    const sourceRule = sourceRuleSnapshot && typeof sourceRuleSnapshot === 'object'
+      ? sourceRuleSnapshot
+      : {};
+    const sourceKind = truncatePromptValue(
+      source.source_kind
+      ?? source.sourceKind
+      ?? source.source
+      ?? base.source_kind
+      ?? base.sourceKind
+      ?? base.source
+      ?? sourceRule.source_kind
+      ?? '',
+      PROMPT_BLOCK_MAX_ID_LENGTH
+    );
+    const fidelityMarker = truncatePromptValue(
+      source.fidelity_marker
+      ?? source.fidelityMarker
+      ?? base.fidelity_marker
+      ?? base.fidelityMarker
+      ?? sourceRule.fidelity_marker
+      ?? '',
+      PROMPT_BLOCK_MAX_LABEL_LENGTH
+    ).trim();
+    const bundleId = truncatePromptValue(
+      source.bundle_id
+      ?? source.bundleId
+      ?? base.bundle_id
+      ?? base.bundleId
+      ?? sourceRule.bundle_id
+      ?? '',
+      PROMPT_BLOCK_MAX_ID_LENGTH
+    );
+    const rawBundleModules = (
+      source.bundle_modules
+      ?? source.bundleModules
+      ?? base.bundle_modules
+      ?? base.bundleModules
+      ?? sourceRule.selected_modules
+      ?? sourceRule.selectedModules
+      ?? []
+    );
+    const bundleModules = [...new Set(
+      (Array.isArray(rawBundleModules) ? rawBundleModules : [])
+        .map(value => truncatePromptValue(value, PROMPT_BLOCK_MAX_ID_LENGTH).trim())
+        .filter(Boolean)
+    )].slice(0, 19);
+    const rawBundleSize = Number(
+      source.bundle_size
+      ?? source.bundleSize
+      ?? base.bundle_size
+      ?? base.bundleSize
+      ?? sourceRule.module_count
+      ?? sourceRule.moduleCount
+      ?? bundleModules.length
+      ?? 0
+    );
+    const bundleSize = Number.isFinite(rawBundleSize)
+      ? Math.max(0, Math.min(19, Math.round(rawBundleSize)))
+      : bundleModules.length;
+    const rawSourceGeometry = (
+      source.source_geometry
+      ?? source.sourceGeometry
+      ?? base.source_geometry
+      ?? base.sourceGeometry
+      ?? sourceRule.source_geometry
+      ?? {}
+    );
+    const sourceWidth = Number(rawSourceGeometry?.width || 0);
+    const sourceHeight = Number(rawSourceGeometry?.height || 0);
+    const sourceGeometry = rawSourceGeometry && typeof rawSourceGeometry === 'object'
+      ? {
+          width: Number.isFinite(sourceWidth) ? Math.max(0, sourceWidth) : 0,
+          height: Number.isFinite(sourceHeight) ? Math.max(0, sourceHeight) : 0,
+          recommended_ratio: truncatePromptValue(
+            rawSourceGeometry.recommended_ratio ?? rawSourceGeometry.recommendedRatio ?? '',
+            24
+          )
+        }
+      : {};
+    const explicitFidelityLocked = (
+      source.fidelity_locked
+      ?? source.fidelityLocked
+      ?? base.fidelity_locked
+      ?? base.fidelityLocked
+    );
+    const fidelityLocked = explicitFidelityLocked === undefined || explicitFidelityLocked === null
+      ? Boolean(fidelityMarker || sourceKind === 'pinterest_split')
+      : Boolean(explicitFidelityLocked);
     return {
       type: 'prompt_block',
       instance_id: truncatePromptValue(
@@ -374,7 +556,14 @@
       label_snapshot: label,
       content_snapshot: content,
       color_snapshot: colorSnapshot,
-      block_version: (typeof rawBlockVersion === 'number' || typeof rawBlockVersion === 'string') ? rawBlockVersion : 1
+      block_version: (typeof rawBlockVersion === 'number' || typeof rawBlockVersion === 'string') ? rawBlockVersion : 1,
+      source_kind: sourceKind,
+      bundle_id: bundleId,
+      bundle_size: bundleSize,
+      bundle_modules: bundleModules,
+      fidelity_locked: fidelityLocked,
+      fidelity_marker: fidelityMarker,
+      source_geometry: sourceGeometry
     };
   }
 
@@ -438,6 +627,67 @@
         ? String(segment.content_snapshot || '')
         : String(segment?.text || ''))
       .join('');
+  }
+
+  function promptDocumentFidelityHeader(promptDocument) {
+    const lockedSegments = (Array.isArray(promptDocument?.segments) ? promptDocument.segments : [])
+      .filter(segment => (
+        segment?.type === 'prompt_block'
+        && segment.fidelity_locked
+        && String(segment.bundle_id || '').trim()
+      ));
+    if (!lockedSegments.length) return '';
+    const groups = new Map();
+    lockedSegments.forEach(segment => {
+      const bundleId = String(segment.bundle_id || '').trim();
+      if (!groups.has(bundleId)) groups.set(bundleId, []);
+      groups.get(bundleId).push(segment);
+    });
+    // A single generated prompt must never claim that two different source
+    // images are "the same reference image" or inherit an arbitrary ratio.
+    if (groups.size !== 1) return '';
+    const completeBundle = [...groups.values()].find(segments => {
+      const expectedModules = [...new Set(
+        segments.flatMap(segment => Array.isArray(segment.bundle_modules) ? segment.bundle_modules : [])
+          .map(value => String(value || '').trim())
+          .filter(Boolean)
+      )];
+      const expectedSize = Math.max(
+        expectedModules.length,
+        ...segments.map(segment => Math.max(0, Number(segment.bundle_size || 0)))
+      );
+      const presentModules = new Set(
+        segments.map(segment => String(segment.module_type || '').trim()).filter(Boolean)
+      );
+      if (expectedSize < 3) return false;
+      if (expectedModules.length) return expectedModules.every(moduleType => presentModules.has(moduleType));
+      return presentModules.size >= expectedSize;
+    });
+    if (!completeBundle) return '';
+    const marker = completeBundle
+      .map(segment => String(segment.fidelity_marker || '').trim())
+      .find(Boolean)
+      || '【同图忠实复现｜高保真模块】';
+    const geometry = completeBundle
+      .map(segment => segment.source_geometry)
+      .find(value => value && typeof value === 'object')
+      || {};
+    const width = Math.max(0, Number(geometry.width || 0));
+    const height = Math.max(0, Number(geometry.height || 0));
+    const recommendedRatio = String(geometry.recommended_ratio || geometry.recommendedRatio || '').trim();
+    const geometryConstraint = recommendedRatio
+      ? `保持原图${width > 0 && height > 0 ? ` ${width}×${height}` : ''}的画幅、主体占比和边缘裁切关系，生成参数优先使用 ${recommendedRatio}。`
+      : '保持原图画幅、主体占比和边缘裁切关系。';
+    const ratioLock = recommendedRatio ? `【原图比例：${recommendedRatio}】` : '';
+    return [
+      marker,
+      ratioLock,
+      '以下素材块共同描述同一张参考图，必须作为一个完整提示词整体执行。',
+      '每个素材块都是可见事实硬约束，不是创作灵感；优先执行具体的数量、年龄范围、几何比例、坐标、裁切、类别、材质和纹理，不得改写成常见近似款。',
+      '忠实保持主体数量、身份与年龄感、脸部或物体几何比例、服装或产品结构、材质纹理、姿态、构图、镜头、光线、色彩和背景空间关系。',
+      '禁止自动美化、年轻化、瘦身、改脸、替换服装或材质、简化背景、新增对象或改变关键空间关系；近距离人像不得自动补出伸向镜头的自拍前臂、手掌或手机。',
+      geometryConstraint
+    ].join('');
   }
 
   function clonePromptDocument(promptDocument, fallbackText = '') {
@@ -1401,6 +1651,14 @@
       }
     }
     if (isEditingSelectedNode(event.target)) return;
+    if (selectedEdgeId) {
+      const edgeId = selectedEdgeId;
+      event.preventDefault();
+      event.stopPropagation();
+      removeEdgesById([edgeId]);
+      focusCanvasViewport();
+      return;
+    }
     const nodeIds = nodeIdsForKeyboardDelete(event);
     if (!nodeIds.length) return;
     event.preventDefault();
@@ -1440,6 +1698,11 @@
     const uniqueIds = expandNodeIdsToGroups(
       [...new Set((nodeIds || []).filter(nodeId => !!DesktopState.state.canvas.nodes[nodeId]))]
     );
+    if (uniqueIds.length && selectedEdgeId) {
+      selectedEdgeId = '';
+      hoveredEdgeId = '';
+      hideEdgeMenu();
+    }
     DesktopState.state.canvas.selectedNodeIds = uniqueIds;
     DesktopState.state.canvas.selectedNodeId = uniqueIds[0] || '';
     blurEditableFocusOutsideSelection(uniqueIds);
@@ -1479,6 +1742,7 @@
     if (els.deskCanvasWorld) {
       els.deskCanvasWorld.style.transform = `translate3d(${canvas.x}px, ${canvas.y}px, 0) scale(${canvas.scale})`;
     }
+    positionEdgeMenu();
     if (els.deskZoomLabel) {
       els.deskZoomLabel.textContent = `${Math.round(canvas.scale * 100)}%`;
     }
@@ -1538,6 +1802,12 @@
     Object.values(DesktopState.state.canvas.nodes)
       .filter(node => node.type === 'comfy')
       .forEach(node => refreshComfyNode(node.id));
+    Object.values(DesktopState.state.canvas.nodes)
+      .filter(node => node.type === 'video_inference')
+      .forEach(node => refreshVideoInferenceNode(node.id));
+    Object.values(DesktopState.state.canvas.nodes)
+      .filter(node => node.type === 'video')
+      .forEach(node => refreshVideoNode(node.id));
     applyNodeSelection();
     updateLinkPath();
     updateInputProgressOverlay();
@@ -1657,8 +1927,9 @@
   }
 
   function nodeMenuButtonHtml(item) {
+    const searchValue = `${item.title || ''} ${item.subtitle || ''} ${item.type || ''}`.toLowerCase();
     return `
-      <button type="button" data-add-node="${escapeHtml(item.type)}">
+      <button type="button" data-add-node="${escapeHtml(item.type)}" data-node-menu-search="${escapeHtml(searchValue)}">
         <span class="desk-node-palette__icon" aria-hidden="true">${item.icon}</span>
         <span>
           <strong>${escapeHtml(item.title)}</strong>
@@ -1668,29 +1939,66 @@
     `;
   }
 
+  function renderNodePaletteItems() {
+    if (!els.deskNodePalette) return;
+    els.deskNodePalette.innerHTML = NODE_MENU_ITEMS.map(nodeMenuButtonHtml).join('');
+  }
+
+  function filterContextMenuItems(menu, query = '') {
+    const normalized = String(query || '').trim().toLowerCase();
+    let visibleCount = 0;
+    menu?.querySelectorAll?.('[data-add-node]').forEach(button => {
+      const visible = !normalized || String(button.dataset.nodeMenuSearch || '').includes(normalized);
+      button.hidden = !visible;
+      if (visible) visibleCount += 1;
+    });
+    const empty = menu?.querySelector?.('[data-node-context-empty]');
+    if (empty) empty.hidden = visibleCount > 0;
+    return visibleCount;
+  }
+
   function getConnectableNodeMenuItems(fromNodeId) {
     const fromType = DesktopState.state.canvas.nodes[fromNodeId]?.type;
     const targetTypes = fromType === 'input'
       ? ['image', 'file_output', 'upscale']
       : (fromType === 'comfy'
         ? ['image', 'upscale']
+      : (fromType === 'video_inference'
+        ? ['video']
+        : (fromType === 'video'
+          ? ['video_inference']
       : (fromType === 'output'
         ? ['image']
         : (fromType === 'image'
-          ? ['input', 'comfy', 'layout', 'pose', 'upscale']
+          ? ['input', 'comfy', 'video_inference', 'layout', 'pose', 'upscale']
           : (fromType === 'upscale'
             ? ['image']
-            : ((fromType === 'layout' || fromType === 'pose') ? ['input', 'comfy', 'upscale'] : (fromType === 'text' ? ['input', 'comfy'] : []))))));
+            : ((fromType === 'layout' || fromType === 'pose') ? ['input', 'comfy', 'video_inference', 'upscale'] : (fromType === 'text' ? ['input', 'comfy', 'video_inference'] : []))))))));
     return NODE_MENU_ITEMS.filter(item => targetTypes.includes(item.type));
   }
 
   function renderContextMenuItems(items, title = '') {
     const menu = ensureContextMenu();
-    const safeItems = items?.length ? items : NODE_MENU_ITEMS;
-    menu.innerHTML = `${title ? `<div class="desk-node-context-menu__title">${escapeHtml(title)}</div>` : ''}${safeItems.map(nodeMenuButtonHtml).join('')}`;
+    const safeItems = Array.isArray(items) ? items : NODE_MENU_ITEMS;
+    const isConnectionMenu = Boolean(contextMenuConnectionSourceId);
+    menu.classList.toggle('is-connection-menu', isConnectionMenu);
+    menu.innerHTML = `
+      <div class="desk-node-context-menu__cap" aria-hidden="true">
+        <strong>${escapeHtml(title || '添加节点')}</strong>
+        ${isConnectionMenu ? '<span>自动连接</span>' : ''}
+      </div>
+      <label class="desk-node-context-menu__search">
+        <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="8.5" cy="8.5" r="4.75"></circle><path d="m12 12 4 4"></path></svg>
+        <input type="search" autocomplete="off" spellcheck="false" placeholder="搜索节点…" aria-label="搜索可添加节点" data-node-context-search>
+      </label>
+      <div class="desk-node-context-menu__items" data-node-context-items>${safeItems.map(nodeMenuButtonHtml).join('')}</div>
+      <div class="desk-node-context-menu__empty" data-node-context-empty hidden>没有匹配节点</div>
+    `;
     menu.querySelectorAll('[data-add-node]').forEach(button => {
       button.draggable = false;
     });
+    const search = menu.querySelector('[data-node-context-search]');
+    search?.addEventListener('input', () => filterContextMenuItems(menu, search.value));
   }
 
   function ensureContextMenu() {
@@ -1706,36 +2014,206 @@
       if (!button) return;
       event.preventDefault();
       event.stopPropagation();
-      const nodeId = addNodeFromMenu(button.dataset.addNode || 'input', contextMenuPoint || getViewportCenterWorldPoint());
-      if (contextMenuConnectionSourceId) {
-        connectNodes(contextMenuConnectionSourceId, nodeId);
+      const worldPoint = contextMenuPoint || getViewportCenterWorldPoint();
+      const connectionSourceId = contextMenuConnectionSourceId;
+      hideContextMenu({ updateLinks: false });
+      const nodeId = addNodeFromMenu(button.dataset.addNode || 'input', worldPoint);
+      if (connectionSourceId) connectNodes(connectionSourceId, nodeId);
+    });
+    contextMenuEl.addEventListener('keydown', event => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        hideContextMenu();
+        focusCanvasViewport();
+        return;
       }
-      hideContextMenu();
+      const buttons = Array.from(contextMenuEl.querySelectorAll('[data-add-node]')).filter(button => !button.hidden);
+      if (!buttons.length) return;
+      if (event.key === 'Enter' && event.target.matches('[data-node-context-search]')) {
+        event.preventDefault();
+        buttons[0].click();
+        return;
+      }
+      if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
+      event.preventDefault();
+      const currentIndex = buttons.indexOf(document.activeElement);
+      const direction = event.key === 'ArrowDown' ? 1 : -1;
+      const nextIndex = currentIndex < 0
+        ? (direction > 0 ? 0 : buttons.length - 1)
+        : (currentIndex + direction + buttons.length) % buttons.length;
+      buttons[nextIndex].focus();
     });
     return contextMenuEl;
   }
 
-  function hideContextMenu() {
+  function hideContextMenu(options = {}) {
+    const hadPendingConnection = Boolean(contextMenuConnectionSourceId && contextMenuPoint);
+    const pendingSourceNode = contextMenuConnectionSourceId
+      ? getNodeElement(contextMenuConnectionSourceId)
+      : null;
     contextMenuEl?.classList.remove('is-open');
+    document.querySelectorAll('.desk-port.is-pending').forEach(item => item.classList.remove('is-pending'));
+    releaseFloatingSwell(pendingSourceNode);
     contextMenuPoint = null;
     contextMenuConnectionSourceId = '';
+    contextMenuConnectionSourceSide = 'right';
+    contextMenuConnectionSourceAnchor = null;
+    contextMenuConnectionEndPoint = null;
+    if (hadPendingConnection && options.updateLinks !== false) updateLinkPath();
   }
 
   function openContextMenu(event, options = {}) {
+    clearSelectedEdge({ update: false });
     const menu = ensureContextMenu();
     const rect = els.deskCanvasViewport?.getBoundingClientRect();
     if (!rect) return;
     contextMenuConnectionSourceId = options.connectionSourceId || '';
+    contextMenuConnectionSourceSide = normalizePortSide(options.connectionSourceSide, 'right');
+    contextMenuConnectionSourceAnchor = options.connectionSourceAnchor
+      ? { x: Number(options.connectionSourceAnchor.x || 0), y: Number(options.connectionSourceAnchor.y || 0) }
+      : null;
     contextMenuPoint = screenToWorld(event.clientX, event.clientY);
     const items = contextMenuConnectionSourceId ? getConnectableNodeMenuItems(contextMenuConnectionSourceId) : NODE_MENU_ITEMS;
-    renderContextMenuItems(items, options.title || '');
+    renderContextMenuItems(items, options.title || '添加节点');
     menu.classList.add('is-open');
-    const menuWidth = menu.offsetWidth || 168;
-    const menuHeight = menu.offsetHeight || 260;
-    const x = Math.min(window.innerWidth - menuWidth - 10, Math.max(10, event.clientX + 6));
-    const y = Math.min(window.innerHeight - menuHeight - 10, Math.max(10, event.clientY + 6));
+    const menuWidth = menu.offsetWidth || 224;
+    const menuHeight = menu.offsetHeight || 320;
+    const x = Math.min(window.innerWidth - menuWidth - 10, Math.max(10, event.clientX - 12));
+    const y = Math.min(window.innerHeight - menuHeight - 10, Math.max(34, event.clientY - 12));
     menu.style.left = `${x}px`;
     menu.style.top = `${y}px`;
+    menu.style.setProperty('--desk-context-origin-x', `${Math.max(0, event.clientX - x)}px`);
+    if (contextMenuConnectionSourceId) {
+      const coveredHeadX = Math.max(x + 12, Math.min(x + menuWidth - 12, event.clientX));
+      const coveredHeadY = Math.max(y + 12, Math.min(y + menuHeight - 12, event.clientY));
+      contextMenuConnectionEndPoint = screenToWorld(coveredHeadX, coveredHeadY);
+    }
+    if (contextMenuConnectionSourceId) {
+      const sourceNode = getNodeElement(contextMenuConnectionSourceId);
+      const sourcePort = sourceNode?.querySelector?.(`.desk-port[data-edge-handle][data-port-side="${contextMenuConnectionSourceSide}"]`)
+        || sourceNode?.querySelector?.(`.desk-port[data-port="out"][data-port-side="${contextMenuConnectionSourceSide}"]`)
+        || sourceNode?.querySelector?.('.desk-port[data-port="out"]');
+      sourcePort?.classList.add('is-pending');
+      holdFloatingSwell(sourcePort);
+    }
+    updateLinkPath();
+    requestAnimationFrame(() => menu.querySelector('[data-node-context-search]')?.focus?.({ preventScroll: true }));
+  }
+
+  function getCanvasEdge(edgeId) {
+    const normalized = String(edgeId || '').trim();
+    if (!normalized) return null;
+    return (DesktopState.state.canvas.edges || []).find(edge => edge.id === normalized) || null;
+  }
+
+  function ensureEdgeMenu() {
+    if (edgeMenuEl) return edgeMenuEl;
+    edgeMenuEl = document.createElement('div');
+    edgeMenuEl.id = 'deskEdgeMenu';
+    edgeMenuEl.className = 'desk-edge-menu desk-glass';
+    edgeMenuEl.setAttribute('role', 'menu');
+    edgeMenuEl.setAttribute('aria-label', '连线操作');
+    edgeMenuEl.setAttribute('aria-hidden', 'true');
+    edgeMenuEl.innerHTML = `
+      <button type="button" class="desk-edge-menu__delete" data-edge-delete role="menuitem">
+        <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3.5 5.5h13"></path><path d="M7 5.5V3.8h6v1.7"></path><path d="m5.5 5.5.7 10.2h7.6l.7-10.2"></path><path d="M8.2 8.2v4.9M11.8 8.2v4.9"></path></svg>
+        <span>删除连线</span>
+      </button>
+    `;
+    edgeMenuEl.addEventListener('pointerdown', event => {
+      event.stopPropagation();
+    });
+    edgeMenuEl.addEventListener('click', event => {
+      const button = event.target.closest('[data-edge-delete]');
+      if (!button) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const edgeId = edgeMenuEl.dataset.edgeId || selectedEdgeId;
+      if (edgeId) {
+        removeEdgesById([edgeId]);
+        focusCanvasViewport();
+      }
+    });
+    edgeMenuEl.addEventListener('keydown', event => {
+      if (event.key !== 'Escape') return;
+      event.preventDefault();
+      event.stopPropagation();
+      clearSelectedEdge();
+      focusCanvasViewport();
+    });
+    document.body.appendChild(edgeMenuEl);
+    return edgeMenuEl;
+  }
+
+  function hideEdgeMenu() {
+    if (!edgeMenuEl) return;
+    edgeMenuEl.classList.remove('is-open');
+    edgeMenuEl.setAttribute('aria-hidden', 'true');
+    delete edgeMenuEl.dataset.edgeId;
+    edgeMenuAnchorWorld = null;
+  }
+
+  function clearSelectedEdge(options = {}) {
+    const hadSelection = Boolean(selectedEdgeId || hoveredEdgeId || edgeMenuEl?.classList.contains('is-open'));
+    selectedEdgeId = '';
+    hoveredEdgeId = '';
+    hideEdgeMenu();
+    if (hadSelection && options.update !== false) updateLinkPath();
+  }
+
+  function positionEdgeMenu(edgeId = selectedEdgeId) {
+    if (!edgeMenuEl?.classList.contains('is-open') || !edgeId) return;
+    const viewportRect = els.deskCanvasViewport?.getBoundingClientRect();
+    const canvas = DesktopState.state.canvas;
+    let anchorX = 0;
+    let anchorY = 0;
+    if (edgeMenuAnchorWorld && viewportRect) {
+      anchorX = viewportRect.left + canvas.x + edgeMenuAnchorWorld.x * canvas.scale;
+      anchorY = viewportRect.top + canvas.y + edgeMenuAnchorWorld.y * canvas.scale;
+    } else {
+      const path = Array.from(document.querySelectorAll('.desk-link-path[data-edge-id]'))
+        .find(item => item.dataset.edgeId === edgeId);
+      if (!path) return;
+      try {
+        const point = path.getPointAtLength(path.getTotalLength() / 2);
+        const screenPoint = new DOMPoint(point.x, point.y).matrixTransform(path.getScreenCTM());
+        anchorX = screenPoint.x;
+        anchorY = screenPoint.y;
+      } catch (e) {
+        return;
+      }
+    }
+    const menuWidth = edgeMenuEl.offsetWidth || 112;
+    const menuHeight = edgeMenuEl.offsetHeight || 38;
+    const below = anchorY + 6;
+    const above = anchorY - menuHeight - 6;
+    const x = clamp(anchorX - menuWidth / 2, 10, window.innerWidth - menuWidth - 10);
+    const y = below + menuHeight <= window.innerHeight - 10 ? below : Math.max(10, above);
+    edgeMenuEl.style.left = `${x}px`;
+    edgeMenuEl.style.top = `${y}px`;
+    edgeMenuEl.style.setProperty('--desk-edge-menu-anchor-x', `${clamp(anchorX - x, 9, menuWidth - 9)}px`);
+    edgeMenuEl.classList.toggle('is-above', y < anchorY);
+  }
+
+  function openEdgeMenu(edgeId, anchorEvent = null) {
+    const edge = getCanvasEdge(edgeId);
+    if (!edge) return;
+    hideContextMenu();
+    setSelectedNodes([], false);
+    selectedEdgeId = edge.id;
+    hoveredEdgeId = edge.id;
+    edgeMenuAnchorWorld = Number.isFinite(anchorEvent?.clientX) && Number.isFinite(anchorEvent?.clientY)
+      ? screenToWorld(anchorEvent.clientX, anchorEvent.clientY)
+      : null;
+    const menu = ensureEdgeMenu();
+    menu.dataset.edgeId = edge.id;
+    menu.classList.add('is-open');
+    menu.setAttribute('aria-hidden', 'false');
+    updateLinkPath();
+    requestAnimationFrame(() => {
+      positionEdgeMenu(edge.id);
+      menu.querySelector('[data-edge-delete]')?.focus?.({ preventScroll: true });
+    });
   }
 
   function selectNode(nodeId) {
@@ -1765,6 +2243,40 @@
     return '';
   }
 
+  function normalizePromptGenerationMeta(value) {
+    const source = value && typeof value === 'object' ? value : {};
+    const allowed = [
+      'skill_id', 'source_repository', 'source_commit', 'source_path',
+      'compiler_version', 'schema_version', 'mode', 'reference_image_used',
+      'provider', 'model', 'reasoning_effort', 'repair_applied', 'verified_files',
+      'bilingual_output', 'minimum_shot_count'
+    ];
+    return Object.fromEntries(allowed
+      .filter(key => source[key] !== undefined && source[key] !== null && source[key] !== '')
+      .map(key => [key, source[key]]));
+  }
+
+  function promptTextFingerprint(value) {
+    let hash = 2166136261;
+    for (const char of String(value || '')) {
+      hash ^= char.codePointAt(0);
+      hash = Math.imul(hash, 16777619);
+    }
+    return (hash >>> 0).toString(16).padStart(8, '0');
+  }
+
+  function setTextNodePromptMeta(nodeState, value, promptText = '') {
+    if (!nodeState) return;
+    const meta = normalizePromptGenerationMeta(value);
+    if (Object.keys(meta).length) {
+      nodeState.promptMeta = meta;
+      nodeState.promptMetaFingerprint = promptTextFingerprint(promptText);
+    } else {
+      delete nodeState.promptMeta;
+      delete nodeState.promptMetaFingerprint;
+    }
+  }
+
   function fillPromptTarget(text, options = {}) {
     const target = options.target || getPromptTargetInfo(options.nodeId || '');
     const next = String(text || '');
@@ -1773,29 +2285,47 @@
       const nodeState = DesktopState.state.canvas.nodes[target.nodeId];
       if (!node || !nodeState) throw new Error('文本节点不存在');
       setTextNodeValue(node, nodeState, next);
+      if (options.promptMeta) setTextNodePromptMeta(nodeState, options.promptMeta, next);
       selectNode(target.nodeId);
       return target;
     }
     throw new Error('请先选择文本节点');
   }
 
-  function fillNearestInputPrompt(text) {
+  function fillNearestInputPrompt(text, options = {}) {
     const next = String(text || '');
-    const firstInput = Object.values(DesktopState.state.canvas.nodes).find(node => node.type === 'input');
-    if (!firstInput) throw new Error('画布里没有模型节点');
-    setPromptTextForInputNode(firstInput.id, next);
-    if (firstInput.id === 'input') DesktopState.state.prompt = '';
+    const nodes = DesktopState.state.canvas.nodes || {};
+    const requestedId = String(options.inputNodeId || options.nodeId || '');
+    const acceptsPrompt = node => ['input', 'comfy', 'video_inference'].includes(node?.type);
+    const selectedInput = getSelectedNodeIds()
+      .map(nodeId => nodes[nodeId])
+      .find(acceptsPrompt);
+    const connectedInput = (DesktopState.state.canvas.edges || [])
+      .map(edge => nodes[edge.to])
+      .find(acceptsPrompt);
+    const inputNode = acceptsPrompt(nodes[requestedId])
+      ? nodes[requestedId]
+      : (selectedInput
+        || connectedInput
+        || Object.values(nodes).find(node => node?.type === 'input' && node.id !== 'input')
+        || nodes.input);
+    if (!inputNode) throw new Error('画布里没有模型节点');
+    const textNodeId = setPromptTextForInputNode(inputNode.id, next, options);
+    if (inputNode.id === 'input') DesktopState.state.prompt = '';
     DesktopState.saveSettings();
     DesktopState.saveDraft();
-    selectNode(firstInput.id);
-    return { nodeId: firstInput.id, type: 'input', label: '模型节点' };
+    selectNode(inputNode.id);
+    return { nodeId: inputNode.id, textNodeId, type: inputNode.type, label: '模型节点' };
   }
 
-  function createTextNodeWithText(text, worldPoint = null) {
+  function createTextNodeWithText(text, worldPoint = null, options = {}) {
     const id = addNode('text', worldPoint || getViewportCenterWorldPoint(0, 120));
     const node = getNodeElement(id);
     const nodeState = DesktopState.state.canvas.nodes[id];
-    if (node && nodeState) setTextNodeValue(node, nodeState, text);
+    if (node && nodeState) {
+      setTextNodeValue(node, nodeState, text);
+      if (options.promptMeta) setTextNodePromptMeta(nodeState, options.promptMeta, text);
+    }
     selectNode(id);
     return id;
   }
@@ -1808,7 +2338,9 @@
 
   function setPromptTextForInputNode(inputNodeId, text, options = {}) {
     const inputNode = DesktopState.state.canvas.nodes[inputNodeId];
-    if (!inputNode || inputNode.type !== 'input') throw new Error('模型节点不存在');
+    if (!inputNode || !['input', 'comfy', 'video_inference'].includes(inputNode.type)) {
+      throw new Error('模型节点不存在');
+    }
     const next = String(text || '');
     const connectedTextId = findConnectedTextNodeId(inputNodeId);
     if (connectedTextId) {
@@ -1816,6 +2348,7 @@
       const nodeState = DesktopState.state.canvas.nodes[connectedTextId];
       if (node && nodeState) {
         setTextNodeValue(node, nodeState, next);
+        if (options.promptMeta) setTextNodePromptMeta(nodeState, options.promptMeta, next);
         return connectedTextId;
       }
     }
@@ -1824,6 +2357,7 @@
       y: inputNode.y + Math.min(160, Math.max(70, (inputNode.height || 360) * 0.38))
     });
     connectNodes(textNodeId, inputNodeId, { quiet: !!options.quiet });
+    if (options.promptMeta) setTextNodePromptMeta(DesktopState.state.canvas.nodes[textNodeId], options.promptMeta, next);
     return textNodeId;
   }
 
@@ -1909,16 +2443,70 @@
     requestAnimationFrame(updateLinkPath);
   }
 
-  function getAnchor(nodeId, side) {
+  function normalizePortSide(value, fallback = 'right') {
+    const normalized = String(value || '').toLowerCase();
+    return ['left', 'right', 'top', 'bottom'].includes(normalized) ? normalized : fallback;
+  }
+
+  function oppositePortSide(side) {
+    return ({ left: 'right', right: 'left', top: 'bottom', bottom: 'top' })[normalizePortSide(side)] || 'left';
+  }
+
+  function getNodeGeometry(nodeId) {
     const node = getNodeState(nodeId);
-    if (!node) return { x: 0, y: 0 };
+    if (!node) return { x: 0, y: 0, width: 0, height: 0, centerX: 0, centerY: 0 };
     const el = getNodeElement(nodeId);
-    const width = el?.offsetWidth || node.width;
-    const height = el?.offsetHeight || node.height;
-    return {
-      x: side === 'right' ? node.x + width - PORT_RADIUS - 8 : node.x + PORT_RADIUS + 8,
-      y: node.y + height * 0.5
-    };
+    const width = el?.offsetWidth || Number(node.width) || 0;
+    const height = el?.offsetHeight || Number(node.height) || 0;
+    return { x: node.x, y: node.y, width, height, centerX: node.x + width / 2, centerY: node.y + height / 2 };
+  }
+
+  function getAnchor(nodeId, side = 'right') {
+    const geometry = getNodeGeometry(nodeId);
+    const normalizedSide = normalizePortSide(side);
+    if (normalizedSide === 'left') return { x: geometry.x, y: geometry.centerY };
+    if (normalizedSide === 'top') return { x: geometry.centerX, y: geometry.y };
+    if (normalizedSide === 'bottom') return { x: geometry.centerX, y: geometry.y + geometry.height };
+    return { x: geometry.x + geometry.width, y: geometry.centerY };
+  }
+
+  function dominantPortSide(fromPoint, toPoint) {
+    const dx = Number(toPoint?.x || 0) - Number(fromPoint?.x || 0);
+    const dy = Number(toPoint?.y || 0) - Number(fromPoint?.y || 0);
+    if (Math.abs(dx) >= Math.abs(dy)) return dx >= 0 ? 'right' : 'left';
+    return dy >= 0 ? 'bottom' : 'top';
+  }
+
+  function resolveConnectionSides() {
+    // Once committed, an edge keeps its workflow direction regardless of where
+    // either node is moved: source output on the right, target input on the left.
+    return { fromSide: 'right', toSide: 'left' };
+  }
+
+  function updateSettledConnectionPorts(edges = []) {
+    document.querySelectorAll('.desk-node[data-node-id]').forEach(nodeElement => {
+      nodeElement.classList.remove('has-settled-port-left', 'has-settled-port-right');
+      nodeElement.querySelectorAll('.desk-port[data-semantic-port]').forEach(port => port.classList.remove('is-settled'));
+    });
+    edges.forEach(edge => {
+      const sides = resolveConnectionSides(edge.from, edge.to);
+      const fromNode = getNodeElement(edge.from);
+      const toNode = getNodeElement(edge.to);
+      syncNodeEdgeStroke(fromNode);
+      syncNodeEdgeStroke(toNode);
+      fromNode?.classList.add(`has-settled-port-${sides.fromSide}`);
+      toNode?.classList.add(`has-settled-port-${sides.toSide}`);
+      const outputPort = fromNode?.querySelector('.desk-port[data-semantic-port][data-port="out"]');
+      const inputPort = toNode?.querySelector('.desk-port[data-semantic-port][data-port="in"]');
+      if (outputPort) {
+        outputPort.dataset.portSide = sides.fromSide;
+        outputPort.classList.add('is-settled');
+      }
+      if (inputPort) {
+        inputPort.dataset.portSide = sides.toSide;
+        inputPort.classList.add('is-settled');
+      }
+    });
   }
 
   function updateLinkPath() {
@@ -1926,21 +2514,96 @@
     if (!svg) return;
     svg.setAttribute('viewBox', LINK_VIEWBOX);
     const edges = DesktopState.state.canvas.edges || [];
+    if (selectedEdgeId && !edges.some(edge => edge.id === selectedEdgeId)) {
+      selectedEdgeId = '';
+      hideEdgeMenu();
+    }
+    if (hoveredEdgeId && !edges.some(edge => edge.id === hoveredEdgeId)) hoveredEdgeId = '';
+    updateSettledConnectionPorts(edges);
     const selectedNodeId = DesktopState.state.canvas.selectedNodeId || '';
-    svg.innerHTML = edges.map((edge, index) => {
-      const from = getAnchor(edge.from, 'right');
-      const to = getAnchor(edge.to, 'left');
-      const d = makeCurvePath(from, to);
+    const edgeMarkup = edges.map(edge => {
+      const sides = resolveConnectionSides(edge.from, edge.to);
+      const from = getAnchor(edge.from, sides.fromSide);
+      const to = getAnchor(edge.to, sides.toSide);
+      const d = makeSmoothStepPath(from, to, sides.fromSide, sides.toSide, {
+        fromGeometry: getNodeGeometry(edge.from),
+        toGeometry: getNodeGeometry(edge.to)
+      });
       const isRelated = selectedNodeId && (edge.from === selectedNodeId || edge.to === selectedNodeId);
       const relatedClass = isRelated ? ' is-related' : '';
+      const selectedClass = selectedEdgeId === edge.id ? ' is-selected' : '';
+      const hoveredClass = hoveredEdgeId === edge.id ? ' is-hovered' : '';
+      const safeEdgeId = escapeHtml(edge.id);
       return `
-        <path class="desk-link-path${relatedClass}" data-edge-id="${edge.id}" d="${d}"></path>
-        <circle class="desk-link-pulse${relatedClass}" r="5">
-          <animateMotion dur="${2.4 + index * 0.2}s" repeatCount="indefinite" path="${d}"></animateMotion>
-        </circle>
+        <path class="desk-link-path${relatedClass}${selectedClass}${hoveredClass}" data-edge-id="${safeEdgeId}" d="${d}"></path>
+        <path class="desk-link-hit desk-link-interaction${selectedClass}" data-edge-id="${safeEdgeId}" data-edge-interaction d="${d}"></path>
       `;
     }).join('');
+    let pendingMarkup = '';
+    if (contextMenuConnectionSourceId && contextMenuPoint && contextMenuEl?.classList.contains('is-open')) {
+      const from = contextMenuConnectionSourceAnchor
+        || getAnchor(contextMenuConnectionSourceId, contextMenuConnectionSourceSide);
+      const connectionEndPoint = contextMenuConnectionEndPoint || contextMenuPoint;
+      const sourceGeometry = getNodeGeometry(contextMenuConnectionSourceId);
+      const toSide = oppositePortSide(dominantPortSide(
+        { x: sourceGeometry.centerX, y: sourceGeometry.centerY },
+        connectionEndPoint
+      ));
+      const d = makeSmoothStepPath(from, connectionEndPoint, contextMenuConnectionSourceSide, toSide);
+      pendingMarkup = `<path class="desk-link-path is-preview is-pending" d="${d}"></path>`;
+    }
+    svg.innerHTML = `${edgeMarkup}${pendingMarkup}`;
+    if (edgeMenuEl?.classList.contains('is-open')) requestAnimationFrame(() => positionEdgeMenu());
     renderMiniMap();
+  }
+
+  function setHoveredEdge(edgeId = '') {
+    const normalized = getCanvasEdge(edgeId)?.id || '';
+    if (hoveredEdgeId === normalized) return;
+    hoveredEdgeId = normalized;
+    const svg = document.querySelector('.desk-link-layer');
+    svg?.querySelectorAll('[data-edge-id]').forEach(element => {
+      element.classList.toggle('is-hovered', Boolean(normalized && element.dataset.edgeId === normalized));
+    });
+  }
+
+  function bindLinkLayerInteractions() {
+    const svg = document.querySelector('.desk-link-layer');
+    if (!svg || svg.dataset.edgeInteractionsBound === 'true') return;
+    svg.dataset.edgeInteractionsBound = 'true';
+    const interactiveForEvent = event => event.target?.closest?.('[data-edge-interaction][data-edge-id]') || null;
+    svg.addEventListener('pointerdown', event => {
+      const interactive = interactiveForEvent(event);
+      if (!interactive || (event.button !== 0 && event.button !== 2)) return;
+      event.preventDefault();
+      event.stopPropagation();
+    });
+    svg.addEventListener('click', event => {
+      const interactive = interactiveForEvent(event);
+      if (!interactive) return;
+      event.preventDefault();
+      event.stopPropagation();
+      openEdgeMenu(interactive.dataset.edgeId || '', event);
+    });
+    svg.addEventListener('contextmenu', event => {
+      const interactive = interactiveForEvent(event);
+      if (!interactive) return;
+      event.preventDefault();
+      event.stopPropagation();
+      openEdgeMenu(interactive.dataset.edgeId || '', event);
+    });
+    svg.addEventListener('pointerover', event => {
+      const interactive = interactiveForEvent(event);
+      if (!interactive) return;
+      setHoveredEdge(interactive.dataset.edgeId || '');
+    });
+    svg.addEventListener('pointerout', event => {
+      const interactive = interactiveForEvent(event);
+      if (!interactive) return;
+      const nextInteractive = event.relatedTarget?.closest?.('[data-edge-interaction][data-edge-id]');
+      if (nextInteractive?.dataset.edgeId === interactive.dataset.edgeId) return;
+      if (selectedEdgeId !== interactive.dataset.edgeId) setHoveredEdge('');
+    });
   }
 
   function getNodeBounds(nodeState) {
@@ -2223,7 +2886,13 @@
       const rect = toMapRect(getNodeBounds(node));
       const typeClass = node.type === 'output'
         ? 'is-output'
-        : (node.type === 'file_output' ? 'is-output' : (node.type === 'image' ? 'is-image' : (node.type === 'pose' ? 'is-pose' : (node.type === 'text' ? 'is-text' : 'is-input'))));
+        : (node.type === 'file_output'
+          ? 'is-output'
+          : (node.type === 'video'
+            ? 'is-video'
+            : (node.type === 'video_inference'
+              ? 'is-video-inference'
+              : (node.type === 'image' ? 'is-image' : (node.type === 'pose' ? 'is-pose' : (node.type === 'text' ? 'is-text' : 'is-input'))))));
       return `<span class="desk-minimap__node ${typeClass}" style="left:${rect.left}px;top:${rect.top}px;width:${rect.width}px;height:${rect.height}px"></span>`;
     }).join('');
 
@@ -2359,24 +3028,217 @@
     };
   }
 
-  function makeCurvePath(from, to) {
-    const distance = Math.max(110, Math.abs(to.x - from.x) * 0.48);
-    return `M ${from.x} ${from.y} C ${from.x + distance} ${from.y}, ${to.x - distance} ${to.y}, ${to.x} ${to.y}`;
+  function offsetPointForPort(point, side, distance = CONNECTION_LEAD_LENGTH) {
+    const normalizedSide = normalizePortSide(side);
+    if (normalizedSide === 'left') return { x: point.x - distance, y: point.y };
+    if (normalizedSide === 'top') return { x: point.x, y: point.y - distance };
+    if (normalizedSide === 'bottom') return { x: point.x, y: point.y + distance };
+    return { x: point.x + distance, y: point.y };
   }
 
-  function renderConnectionPreview(fromNodeId, pointer) {
+  function compactOrthogonalPoints(points) {
+    const compact = [];
+    points.forEach(point => {
+      const previous = compact[compact.length - 1];
+      if (!previous || previous.x !== point.x || previous.y !== point.y) compact.push(point);
+    });
+    let index = 1;
+    while (index < compact.length - 1) {
+      const before = compact[index - 1];
+      const current = compact[index];
+      const after = compact[index + 1];
+      if ((before.x === current.x && current.x === after.x) || (before.y === current.y && current.y === after.y)) {
+        compact.splice(index, 1);
+      } else {
+        index += 1;
+      }
+    }
+    return compact;
+  }
+
+  function roundedOrthogonalPath(points, radius = CONNECTION_CORNER_RADIUS) {
+    const compact = compactOrthogonalPoints(points);
+    if (compact.length < 2) return '';
+    let path = `M ${compact[0].x} ${compact[0].y}`;
+    for (let index = 1; index < compact.length - 1; index += 1) {
+      const before = compact[index - 1];
+      const corner = compact[index];
+      const after = compact[index + 1];
+      const beforeLength = Math.hypot(corner.x - before.x, corner.y - before.y);
+      const afterLength = Math.hypot(after.x - corner.x, after.y - corner.y);
+      const cornerRadius = Math.min(radius, beforeLength / 2, afterLength / 2);
+      if (!cornerRadius) {
+        path += ` L ${corner.x} ${corner.y}`;
+        continue;
+      }
+      const beforePoint = {
+        x: corner.x - ((corner.x - before.x) / beforeLength) * cornerRadius,
+        y: corner.y - ((corner.y - before.y) / beforeLength) * cornerRadius
+      };
+      const afterPoint = {
+        x: corner.x + ((after.x - corner.x) / afterLength) * cornerRadius,
+        y: corner.y + ((after.y - corner.y) / afterLength) * cornerRadius
+      };
+      path += ` L ${beforePoint.x} ${beforePoint.y} Q ${corner.x} ${corner.y} ${afterPoint.x} ${afterPoint.y}`;
+    }
+    const last = compact[compact.length - 1];
+    return `${path} L ${last.x} ${last.y}`;
+  }
+
+  function getBackwardConnectionDetourY(fromGeometry, toGeometry, fromLead, toLead) {
+    const fromTop = fromGeometry.y;
+    const fromBottom = fromGeometry.y + fromGeometry.height;
+    const toTop = toGeometry.y;
+    const toBottom = toGeometry.y + toGeometry.height;
+    const minimumGap = CONNECTION_CORNER_RADIUS * 2 + 4;
+
+    if (toTop - fromBottom >= minimumGap) return (fromBottom + toTop) / 2;
+    if (fromTop - toBottom >= minimumGap) return (toBottom + fromTop) / 2;
+
+    const topY = Math.min(fromTop, toTop) - CONNECTION_LEAD_LENGTH;
+    const bottomY = Math.max(fromBottom, toBottom) + CONNECTION_LEAD_LENGTH;
+    const topCost = Math.abs(fromLead.y - topY) + Math.abs(toLead.y - topY);
+    const bottomCost = Math.abs(fromLead.y - bottomY) + Math.abs(toLead.y - bottomY);
+    return topCost <= bottomCost ? topY : bottomY;
+  }
+
+  function makeSmoothStepPath(from, to, fromSide = 'right', toSide = 'left', route = null) {
+    const normalizedFromSide = normalizePortSide(fromSide, 'right');
+    const normalizedToSide = normalizePortSide(toSide, 'left');
+    const fromLead = offsetPointForPort(from, normalizedFromSide);
+    const toLead = offsetPointForPort(to, normalizedToSide);
+    const fromHorizontal = normalizedFromSide === 'left' || normalizedFromSide === 'right';
+    const toHorizontal = normalizedToSide === 'left' || normalizedToSide === 'right';
+    const points = [from, fromLead];
+
+    if (fromHorizontal && toHorizontal) {
+      const isBackward = (
+        normalizedFromSide === 'right'
+        && normalizedToSide === 'left'
+        && fromLead.x > toLead.x
+      ) || (
+        normalizedFromSide === 'left'
+        && normalizedToSide === 'right'
+        && fromLead.x < toLead.x
+      );
+      const fromGeometry = route?.fromGeometry;
+      const toGeometry = route?.toGeometry;
+      if (isBackward && fromGeometry && toGeometry) {
+        const leftCorridorX = Math.min(fromGeometry.x, toGeometry.x) - CONNECTION_LEAD_LENGTH;
+        const rightCorridorX = Math.max(
+          fromGeometry.x + fromGeometry.width,
+          toGeometry.x + toGeometry.width
+        ) + CONNECTION_LEAD_LENGTH;
+        const fromCorridorX = normalizedFromSide === 'right' ? rightCorridorX : leftCorridorX;
+        const toCorridorX = normalizedToSide === 'right' ? rightCorridorX : leftCorridorX;
+        const detourY = getBackwardConnectionDetourY(fromGeometry, toGeometry, fromLead, toLead);
+        points.push(
+          { x: fromCorridorX, y: fromLead.y },
+          { x: fromCorridorX, y: detourY },
+          { x: toCorridorX, y: detourY },
+          { x: toCorridorX, y: toLead.y }
+        );
+      } else {
+        let middleX = (fromLead.x + toLead.x) / 2;
+        if (normalizedFromSide === normalizedToSide) {
+          middleX = normalizedFromSide === 'right'
+            ? Math.max(fromLead.x, toLead.x) + CONNECTION_LEAD_LENGTH
+            : Math.min(fromLead.x, toLead.x) - CONNECTION_LEAD_LENGTH;
+        }
+        points.push({ x: middleX, y: fromLead.y }, { x: middleX, y: toLead.y });
+      }
+    } else if (!fromHorizontal && !toHorizontal) {
+      let middleY = (fromLead.y + toLead.y) / 2;
+      if (normalizedFromSide === normalizedToSide) {
+        middleY = normalizedFromSide === 'bottom'
+          ? Math.max(fromLead.y, toLead.y) + CONNECTION_LEAD_LENGTH
+          : Math.min(fromLead.y, toLead.y) - CONNECTION_LEAD_LENGTH;
+      }
+      points.push({ x: fromLead.x, y: middleY }, { x: toLead.x, y: middleY });
+    } else if (fromHorizontal) {
+      points.push({ x: toLead.x, y: fromLead.y });
+    } else {
+      points.push({ x: fromLead.x, y: toLead.y });
+    }
+
+    points.push(toLead, to);
+    return roundedOrthogonalPath(points);
+  }
+
+  function renderConnectionPreview(fromNodeId, pointer, fromSide = 'right', fromAnchor = null) {
     const svg = document.querySelector('.desk-link-layer');
     if (!svg) return;
     updateLinkPath();
-    const from = getAnchor(fromNodeId, 'right');
-    const d = makeCurvePath(from, pointer);
+    const normalizedFromSide = normalizePortSide(fromSide, 'right');
+    const sourceGeometry = getNodeGeometry(fromNodeId);
+    const toSide = oppositePortSide(dominantPortSide(
+      { x: sourceGeometry.centerX, y: sourceGeometry.centerY },
+      pointer
+    ));
+    const from = fromAnchor || getAnchor(fromNodeId, normalizedFromSide);
+    const d = makeSmoothStepPath(from, pointer, normalizedFromSide, toSide);
     svg.insertAdjacentHTML('beforeend', `<path class="desk-link-path is-preview" d="${d}"></path>`);
+  }
+
+  function videoConfigApi() {
+    return window.DesktopVideoConfig || null;
+  }
+
+  function migrateVideoInferenceNodeLayout(node = {}) {
+    let changed = false;
+    if (Number(node.videoLayoutVersion || 0) < VIDEO_INFERENCE_LAYOUT_VERSION) {
+      const width = Number(node.width);
+      const height = Number(node.height);
+      const usesLegacyLayout = !Number.isFinite(width)
+        || !Number.isFinite(height)
+        || (width <= 620 && height >= 540);
+      if (usesLegacyLayout) {
+        node.width = DEFAULT_VIDEO_INFERENCE_NODE_WIDTH;
+        node.height = DEFAULT_VIDEO_INFERENCE_NODE_HEIGHT;
+      }
+      node.videoLayoutVersion = VIDEO_INFERENCE_LAYOUT_VERSION;
+      changed = true;
+    }
+    const normalizedWidth = clamp(Number(node.width) || DEFAULT_VIDEO_INFERENCE_NODE_WIDTH, MIN_VIDEO_INFERENCE_NODE_WIDTH, MAX_VIDEO_INFERENCE_NODE_WIDTH);
+    const normalizedHeight = clamp(Number(node.height) || DEFAULT_VIDEO_INFERENCE_NODE_HEIGHT, MIN_VIDEO_INFERENCE_NODE_HEIGHT, MAX_VIDEO_INFERENCE_NODE_HEIGHT);
+    if (node.width !== normalizedWidth || node.height !== normalizedHeight) changed = true;
+    node.width = normalizedWidth;
+    node.height = normalizedHeight;
+    return changed;
+  }
+
+  function normalizeVideoInferenceNodeState(node = {}) {
+    if (videoConfigApi()?.normalizeNode) {
+      videoConfigApi().normalizeNode(node);
+    } else {
+      node.provider = 'minimax_h3';
+      node.mode = node.mode === 'reference_to_video' ? 'reference_to_video' : 'image_to_video';
+      node.durationSeconds = Number(node.durationSeconds || 15);
+      node.aspectRatio = node.aspectRatio || '3:4';
+      node.pixelBudgetMp = Number(node.pixelBudgetMp || 0.8);
+      node.pixelWidth = Number(node.pixelWidth || 768);
+      node.pixelHeight = Number(node.pixelHeight || 1024);
+      node.accelerationMode = node.accelerationMode || 'first_block_cache';
+      node.firstBlockCacheThreshold = Number(node.firstBlockCacheThreshold || 0.08);
+      node.steps = Number(node.steps || 20);
+      node.crf = Number(node.crf || 23);
+      delete node.denoise;
+      delete node.seed;
+    }
+    migrateVideoInferenceNodeLayout(node);
+    return node;
   }
 
   function nextNodeId(type) {
     const prefix = type === 'file_output'
       ? 'file_output'
-      : (type === 'comfy' ? 'comfy' : (type === 'image' ? 'image' : (type === 'upscale' ? 'upscale' : (type === 'pose' ? 'pose' : (type === 'layout' ? 'layout' : (type === 'text' ? 'text' : 'input'))))));
+      : (type === 'comfy'
+        ? 'comfy'
+        : (type === 'video_inference'
+          ? 'video_inference'
+          : (type === 'video'
+            ? 'video'
+            : (type === 'image' ? 'image' : (type === 'upscale' ? 'upscale' : (type === 'pose' ? 'pose' : (type === 'layout' ? 'layout' : (type === 'text' ? 'text' : 'input'))))))));
     let id = '';
     do {
       const unique = globalThis.crypto?.randomUUID?.()?.replaceAll('-', '')
@@ -2392,10 +3254,22 @@
     const count = Object.keys(DesktopState.state.canvas.nodes).length;
     const defaultWidth = type === 'file_output'
       ? DEFAULT_FILE_OUTPUT_NODE_WIDTH
-      : (type === 'comfy' ? DEFAULT_COMFY_NODE_WIDTH : (type === 'upscale' ? DEFAULT_UPSCALE_NODE_WIDTH : (type === 'layout' ? 320 : (type === 'pose' ? 340 : (type === 'text' ? DEFAULT_TEXT_NODE_WIDTH : DEFAULT_INPUT_NODE_WIDTH)))));
+      : (type === 'comfy'
+        ? DEFAULT_COMFY_NODE_WIDTH
+        : (type === 'video_inference'
+          ? DEFAULT_VIDEO_INFERENCE_NODE_WIDTH
+          : (type === 'video'
+            ? DEFAULT_VIDEO_NODE_WIDTH
+            : (type === 'upscale' ? DEFAULT_UPSCALE_NODE_WIDTH : (type === 'layout' ? 320 : (type === 'pose' ? 340 : (type === 'text' ? DEFAULT_TEXT_NODE_WIDTH : DEFAULT_INPUT_NODE_WIDTH)))))));
     const defaultHeight = type === 'file_output'
       ? DEFAULT_FILE_OUTPUT_NODE_HEIGHT
-      : (type === 'comfy' ? DEFAULT_COMFY_NODE_HEIGHT : (type === 'upscale' ? DEFAULT_UPSCALE_NODE_HEIGHT : (type === 'layout' ? 300 : (type === 'pose' ? 300 : (type === 'text' ? DEFAULT_TEXT_NODE_HEIGHT : DEFAULT_INPUT_NODE_HEIGHT)))));
+      : (type === 'comfy'
+        ? DEFAULT_COMFY_NODE_HEIGHT
+        : (type === 'video_inference'
+          ? DEFAULT_VIDEO_INFERENCE_NODE_HEIGHT
+          : (type === 'video'
+            ? DEFAULT_VIDEO_NODE_HEIGHT
+            : (type === 'upscale' ? DEFAULT_UPSCALE_NODE_HEIGHT : (type === 'layout' ? 300 : (type === 'pose' ? 300 : (type === 'text' ? DEFAULT_TEXT_NODE_HEIGHT : DEFAULT_INPUT_NODE_HEIGHT)))))));
     const node = {
       id,
       type,
@@ -2419,6 +3293,12 @@
       node.workflowParameters = {};
       node.output = { archiveEnabled: true, telegramEnabled: true };
     }
+    if (type === 'video_inference') {
+      normalizeVideoInferenceNodeState(node);
+      node.width = DEFAULT_VIDEO_INFERENCE_NODE_WIDTH;
+      node.height = DEFAULT_VIDEO_INFERENCE_NODE_HEIGHT;
+      node.output = { archiveEnabled: true, telegramEnabled: false };
+    }
     if (type === 'text') {
       node.text = '';
       node.promptDocument = createTextPromptDocument('');
@@ -2433,6 +3313,21 @@
       node.imageUrl = '';
       node.imageName = '空图片节点';
       node.mimeType = 'image/png';
+    }
+    if (type === 'video') {
+      node.width = DEFAULT_VIDEO_NODE_WIDTH;
+      node.height = DEFAULT_VIDEO_NODE_HEIGHT;
+      node.mediaUrl = '';
+      node.posterUrl = '';
+      node.mediaName = '视频结果';
+      node.mimeType = 'video/mp4';
+      node.sourceTaskId = '';
+      node.durationSeconds = 0;
+      node.mediaWidth = 0;
+      node.mediaHeight = 0;
+      node.fps = 24;
+      node.fileSize = 0;
+      node.status = 'idle';
     }
     if (type === 'layout') {
       node.layoutTitle = '新排版画布';
@@ -2467,7 +3362,7 @@
       node.output = { archiveEnabled: true, telegramEnabled: false };
     }
     DesktopState.state.canvas.nodes[id] = node;
-    if (type === 'input' || type === 'comfy' || type === 'file_output' || type === 'upscale') {
+    if (type === 'input' || type === 'comfy' || type === 'file_output' || type === 'upscale' || type === 'video_inference') {
       DesktopState.state.outputs[id] = {
         status: 'idle',
         stage: '',
@@ -2477,7 +3372,7 @@
         imagePaths: [],
         primaryFile: '',
         primaryImagePath: '',
-        type: type === 'upscale' ? 'upscale' : (type === 'comfy' ? 'comfy' : 'gpt'),
+        type: type === 'upscale' ? 'upscale' : (type === 'comfy' ? 'comfy' : (type === 'video_inference' ? 'video' : 'gpt')),
         error: '',
         taskId: '',
         fileManifest: null,
@@ -2860,6 +3755,593 @@
     return comfyWorkflowCatalog;
   }
 
+  function videoInputRoleForSource(sourceType) {
+    if (sourceType === 'text') return 'prompt';
+    if (sourceType === 'video') return 'reference_video';
+    if (['image', 'layout', 'pose'].includes(sourceType)) return 'first_frame';
+    return '';
+  }
+
+  function videoInferenceInputSummary(nodeId) {
+    const incoming = (DesktopState.state.canvas.edges || [])
+      .filter(edge => edge.to === nodeId)
+      .map(edge => ({ edge, node: DesktopState.state.canvas.nodes[edge.from] }))
+      .filter(item => item.node);
+    const byRole = role => incoming.find(item => (item.edge.inputRole || videoInputRoleForSource(item.node.type)) === role);
+    return {
+      prompt: byRole('prompt') || null,
+      firstFrame: byRole('first_frame') || null,
+      referenceVideo: byRole('reference_video') || null,
+      incoming
+    };
+  }
+
+  function videoRuntimePresentation() {
+    const status = videoConfigApi()?.getRuntimeStatus?.() || null;
+    if (!status || status.checked === false) return { tone: 'unknown', label: '服务未检测' };
+    if (status.online) return { tone: 'online', label: `服务在线${status.version ? ` · ${status.version}` : ''}` };
+    return { tone: 'offline', label: '服务离线' };
+  }
+
+  function videoTaskTimerLabel(output = {}) {
+    const startedAt = Number(output.startedAt || 0);
+    if (!startedAt) return '00:00';
+    const startedMs = startedAt < 10_000_000_000 ? startedAt * 1000 : startedAt;
+    const finishedAt = Number(output.finishedAt || 0);
+    const finishedMs = finishedAt ? (finishedAt < 10_000_000_000 ? finishedAt * 1000 : finishedAt) : Date.now();
+    const totalSeconds = Math.max(0, Math.floor((finishedMs - startedMs) / 1000));
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    return hours > 0
+      ? `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+      : `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+  }
+
+  function videoDurationOptions(node) {
+    const range = videoConfigApi()?.getDurationRange?.() || { minimum: 1, maximum: 15 };
+    const candidates = [5, 10, 15].filter(value => value >= range.minimum && value <= range.maximum);
+    const current = Number(node.durationSeconds || 15);
+    if (!candidates.includes(current) && current >= range.minimum && current <= range.maximum) candidates.push(current);
+    return candidates.sort((a, b) => a - b).map(value => ({ value, label: `${value} 秒` }));
+  }
+
+  function videoAspectOptions() {
+    const ratios = videoConfigApi()?.ASPECT_RATIOS || ['16:9', '9:16', '3:4', '4:3', '2:3', '3:2', '1:1', '21:9', '9:21'];
+    return ratios.map(value => ({ value, label: value }));
+  }
+
+  function videoQualityOptions(node) {
+    const presets = videoConfigApi()?.availablePresets?.(node.aspectRatio) || [{ megapixels: 0.8, width: 768, height: 1024 }];
+    return presets.map(item => ({
+      value: String(item.megapixels),
+      label: `${Number(item.megapixels).toFixed(1)} MP · ${item.width}×${item.height}`
+    }));
+  }
+
+  function videoAccelerationOptions() {
+    return [
+      { value: 'off', label: '标准模式 · 不加速' },
+      { value: 'first_block_cache', label: '快速模式 · FirstBlockCache' },
+      { value: 'sol_attn', label: '实验模式 · Sol-Attn' },
+      { value: 'combined', label: '实验模式 · 组合加速' }
+    ];
+  }
+
+  function videoInferenceNodeHtml(rawNode) {
+    const node = normalizeVideoInferenceNodeState(rawNode);
+    const inputs = videoInferenceInputSummary(node.id);
+    const runtime = videoRuntimePresentation();
+    const output = DesktopState.state.outputs?.[node.id] || {};
+    const taskStatus = String(output.status || 'idle');
+    const isBusy = DesktopState.isInFlight?.(taskStatus) === true;
+    const statusLabel = DesktopState.getStatusLabel?.(taskStatus) || '空闲';
+    const progress = Math.max(0, Math.min(100, Number(output.progress || 0)));
+    const progressStage = String(output.progressText || output.stage || (isBusy ? 'H3 视频生成中...' : '等待 H3 Runtime'));
+    const promptLabel = inputs.prompt?.node?.alias || (inputs.prompt ? '已连接文本节点' : '等待文本节点');
+    const frameLabel = inputs.firstFrame ? '已连接' : '等待图片节点';
+    const dimensionMultiple = videoConfigApi()?.getDimensionMultiple?.() || 32;
+    const accelerationLabel = videoConfigApi()?.accelerationLabel?.(node) || '快速模式 · FBC 0.08';
+    return `
+      <section class="desk-node desk-node--video-inference desk-glass" data-node-id="${node.id}" aria-label="MiniMax H3 视频生成节点">
+        <div class="desk-node__header" data-node-drag-handle>
+          <div class="desk-video-node__heading">
+            <span class="desk-video-node__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="14" height="14" rx="3"></rect><path d="m17 10 4-2v8l-4-2"></path><path d="m9 9 4 3-4 3z"></path></svg></span>
+            <div><p class="desk-node__eyebrow">视频生成</p><h2>MiniMax H3</h2></div>
+          </div>
+          <div class="desk-node-tools">
+            <span class="desk-video-runtime-pill is-${runtime.tone}" data-video-runtime-status>${escapeHtml(runtime.label)}</span>
+            <span class="desk-status-pill" data-output-status>${escapeHtml(statusLabel)}</span>
+            <button type="button" class="desk-node-delete" data-node-delete title="删除节点" aria-label="删除节点">删</button>
+          </div>
+        </div>
+        <button type="button" class="desk-port desk-port--in desk-port--video-in" data-port="in" data-node-id="${node.id}" title="连接提示词、首帧或参考视频" aria-label="连接视频生成输入"></button>
+        <button type="button" class="desk-port desk-port--out desk-port--video-out" data-port="out" data-node-id="${node.id}" title="连接到视频结果节点" aria-label="连接视频输出"></button>
+        <div class="desk-video-node__inputs" aria-label="视频生成输入">
+          <div class="${inputs.prompt ? 'is-connected' : ''}"><i></i><span>提示词</span><strong>${escapeHtml(promptLabel)}</strong></div>
+          <div class="${inputs.firstFrame ? 'is-connected' : ''}"><i></i><span>首帧</span><strong>${escapeHtml(frameLabel)}</strong></div>
+        </div>
+        <div class="desk-video-node__fields">
+          <label><span>模式</span><select class="desk-select" data-video-field="mode">${optionListHtml([
+            { value: 'image_to_video', label: '图生视频' },
+            { value: 'reference_to_video', label: '参考驱动' }
+          ], node.mode)}</select></label>
+          <label><span>时长</span><select class="desk-select" data-video-field="durationSeconds">${optionListHtml(videoDurationOptions(node), node.durationSeconds)}</select></label>
+          <label><span>画幅</span><select class="desk-select" data-video-field="aspectRatio">${optionListHtml(videoAspectOptions(), node.aspectRatio)}</select></label>
+          <label class="desk-video-node__quality"><span>质量（像素量）<small data-video-actual-size title="宽高均为 ${dimensionMultiple} 倍数">${node.pixelWidth}×${node.pixelHeight}</small></span><select class="desk-select" data-video-field="pixelBudgetMp">${optionListHtml(videoQualityOptions(node), node.pixelBudgetMp)}</select></label>
+        </div>
+        <div class="desk-video-node__advanced" data-video-advanced aria-label="高级参数">
+          <label><span>采样步数</span><input class="desk-input" type="number" min="1" max="100" step="1" value="${node.steps}" data-video-field="steps"></label>
+          <label><span>视频 CRF</span><input class="desk-input" type="number" min="0" max="51" step="1" value="${node.crf}" data-video-field="crf"></label>
+          <label class="desk-video-node__threshold"><span>FBC 阈值</span><input class="desk-input" type="number" min="0.001" max="1" step="0.01" value="${node.firstBlockCacheThreshold}" data-video-field="firstBlockCacheThreshold"${node.accelerationMode === 'first_block_cache' || node.accelerationMode === 'combined' ? '' : ' disabled'}></label>
+          <label><span>加速模式</span><select class="desk-select" data-video-field="accelerationMode" title="${escapeHtml(accelerationLabel)}">${optionListHtml(videoAccelerationOptions(), node.accelerationMode)}</select></label>
+        </div>
+        <div class="desk-progress-float desk-video-node__progress${isBusy ? ' is-visible' : ''}" aria-label="视频生成进度" aria-hidden="${isBusy ? 'false' : 'true'}">
+          <div class="desk-progress-float__panel">
+            <div class="desk-progress-float__bar" style="--progress-percent:${progress}%">
+              <span data-progress-bar style="width:${progress}%"></span>
+              <strong class="desk-progress-float__percent" data-progress-percent>
+                <span data-progress-percent-value>${Math.round(progress)}%</span>
+                <span class="desk-progress-float__timer" data-progress-timer>${videoTaskTimerLabel(output)}</span>
+              </strong>
+            </div>
+            <span class="desk-progress-float__stage" data-progress-stage>${escapeHtml(progressStage)}</span>
+          </div>
+        </div>
+        <div class="desk-video-node__footer">
+          <span data-video-node-hint>${escapeHtml(isBusy ? progressStage : (output.error || (inputs.prompt && inputs.firstFrame ? '输入已就绪' : '连接提示词与首帧后生成')))}</span>
+          <div class="desk-video-node__action">
+            ${isBusy
+              ? `<button type="button" class="desk-status-stop desk-video-node__run desk-video-node__run--cancel" data-video-run data-video-cancel="true" title="取消正在生成的视频任务" aria-label="取消正在生成的视频任务">
+                  <span class="desk-status-stop__icon" aria-hidden="true"></span>
+                  <span class="desk-status-stop__text">取消任务</span>
+                </button>`
+              : `<button type="button" class="desk-button desk-button--generate desk-video-node__run desk-video-node__run--generate" data-video-run title="生成视频" aria-label="生成视频">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 3 5 14h6l-1 7 8-11h-6l1-7Z"></path></svg>
+                </button>`}
+          </div>
+        </div>
+        <span class="desk-resize-handle" data-node-resize-handle title="缩放视频生成节点" aria-hidden="true"></span>
+      </section>
+    `;
+  }
+
+  function videoNodeSource(node) {
+    return String(node?.mediaUrl || '').trim();
+  }
+
+  function videoMediaAspectRatio(node) {
+    const mediaWidth = Number(node?.mediaWidth || 0);
+    const mediaHeight = Number(node?.mediaHeight || 0);
+    if (mediaWidth > 0 && mediaHeight > 0) return mediaWidth / mediaHeight;
+    const storedRatio = Number(node?.aspectRatio || 0);
+    if (storedRatio > 0) return storedRatio;
+    const width = Number(node?.width || 0);
+    const height = Number(node?.height || 0);
+    return width > 0 && height > 0 ? width / height : DEFAULT_VIDEO_NODE_WIDTH / DEFAULT_VIDEO_NODE_HEIGHT;
+  }
+
+  function fitVideoNodeToMedia(node, options = {}) {
+    const mediaWidth = Number(node?.mediaWidth || 0);
+    const mediaHeight = Number(node?.mediaHeight || 0);
+    if (!node || mediaWidth <= 0 || mediaHeight <= 0) return false;
+
+    const aspectRatio = mediaWidth / mediaHeight;
+    const oldWidth = Math.max(1, Number(node.width || DEFAULT_VIDEO_NODE_WIDTH));
+    const oldHeight = Math.max(1, Number(node.height || DEFAULT_VIDEO_NODE_HEIGHT));
+    const currentRatio = oldWidth / oldHeight;
+    node.aspectRatio = aspectRatio;
+    node.videoLayoutVersion = VIDEO_NODE_LAYOUT_VERSION;
+    if (!options.force && Math.abs(currentRatio - aspectRatio) < 0.001) return false;
+
+    const longestSide = Math.max(oldWidth, oldHeight);
+    let width = aspectRatio >= 1 ? longestSide : longestSide * aspectRatio;
+    let height = aspectRatio >= 1 ? longestSide / aspectRatio : longestSide;
+    const growScale = Math.max(MIN_VIDEO_NODE_WIDTH / width, MIN_VIDEO_NODE_HEIGHT / height, 1);
+    width *= growScale;
+    height *= growScale;
+    const shrinkScale = Math.min(MAX_VIDEO_NODE_WIDTH / width, MAX_VIDEO_NODE_HEIGHT / height, 1);
+    width *= shrinkScale;
+    height *= shrinkScale;
+    width = Math.round(width * 100) / 100;
+    height = Math.round(height * 100) / 100;
+
+    if (options.preserveCenter !== false) {
+      node.x = Number(node.x || 0) + (oldWidth - width) / 2;
+      node.y = Number(node.y || 0) + (oldHeight - height) / 2;
+    }
+    node.width = width;
+    node.height = height;
+    return true;
+  }
+
+  function formatVideoDuration(seconds) {
+    const value = Number(seconds || 0);
+    return value > 0 ? `${value.toFixed(value % 1 ? 2 : 0)} 秒` : '等待视频';
+  }
+
+  function videoNodeHtml(node) {
+    const rawSource = videoNodeSource(node);
+    const source = escapeHtml(typeof window.miniappMediaUrl === 'function' ? window.miniappMediaUrl(rawSource) : rawSource);
+    const poster = escapeHtml(typeof window.miniappMediaUrl === 'function' ? window.miniappMediaUrl(node.posterUrl || '') : (node.posterUrl || ''));
+    const dimensions = node.mediaWidth && node.mediaHeight ? `${node.mediaWidth}×${node.mediaHeight}` : '尺寸待定';
+    const nodeStatus = String(node.status || 'idle');
+    const busy = DesktopState.isInFlight?.(nodeStatus) === true;
+    const emptyTitle = nodeStatus === 'failed' ? '视频生成失败' : (busy ? 'MiniMax H3 正在生成' : '视频会出现在这里');
+    const emptyHint = nodeStatus === 'failed'
+      ? (node.error || '请返回生成节点查看错误')
+      : (busy ? (node.progressText || '任务进度会自动同步') : '连接 MiniMax H3 节点作为输出');
+    return `
+      <section class="desk-node desk-node--video ${rawSource ? 'has-video' : 'is-empty'}" data-node-id="${node.id}" data-node-drag-handle aria-label="视频结果节点">
+        <div class="desk-video-result__preview">
+          ${source
+            ? `<video controls preload="metadata" data-node-drag-ignore${poster ? ` poster="${poster}"` : ''} src="${source}"></video>`
+            : `<div class="desk-video-result__empty${busy ? ' is-busy' : ''}"><span aria-hidden="true">▶</span><strong>${escapeHtml(emptyTitle)}</strong><small>${escapeHtml(emptyHint)}</small></div>`}
+        </div>
+        ${rawSource ? `<div class="desk-video-result__meta" title="${escapeHtml(formatVideoDuration(node.durationSeconds))} · ${escapeHtml(dimensions)} · ${Number(node.fps || 24)}fps" aria-label="视频信息：${escapeHtml(formatVideoDuration(node.durationSeconds))}，${escapeHtml(dimensions)}，${Number(node.fps || 24)}fps"><span>${escapeHtml(dimensions)}</span><i></i><span>${Number(node.fps || 24)}fps</span></div>` : ''}
+        <button type="button" class="desk-port desk-port--in desk-port--video-result-in" data-port="in" data-node-id="${node.id}" title="连接视频生成输出" aria-label="连接视频输入"></button>
+        <button type="button" class="desk-port desk-port--out desk-port--video-result-out" data-port="out" data-node-id="${node.id}" title="作为参考视频连接到其他节点" aria-label="连接视频输出"></button>
+        <span class="desk-resize-handle" data-node-resize-handle title="缩放视频节点" aria-hidden="true"></span>
+      </section>
+    `;
+  }
+
+  function refreshVideoInferenceNode(nodeId) {
+    const state = DesktopState.state.canvas.nodes[nodeId];
+    const element = getNodeElement(nodeId);
+    if (!state || state.type !== 'video_inference' || !element) return;
+    const wasSelected = element.classList.contains('is-selected');
+    discardFloatingSwellState(element);
+    element.outerHTML = videoInferenceNodeHtml(state);
+    const replacement = getNodeElement(nodeId);
+    if (wasSelected) replacement?.classList.add('is-selected');
+    ensureNodeEdgeHandles(replacement);
+    applyNodeLayout(nodeId);
+    updateLinkPath();
+  }
+
+  function refreshVideoNode(nodeId) {
+    const state = DesktopState.state.canvas.nodes[nodeId];
+    const element = getNodeElement(nodeId);
+    if (!state || state.type !== 'video' || !element) return;
+    fitVideoNodeToMedia(state);
+    const wasSelected = element.classList.contains('is-selected');
+    discardFloatingSwellState(element);
+    element.outerHTML = videoNodeHtml(state);
+    const replacement = getNodeElement(nodeId);
+    if (wasSelected) replacement?.classList.add('is-selected');
+    ensureNodeEdgeHandles(replacement);
+    applyNodeLayout(nodeId);
+    updateLinkPath();
+    const video = replacement?.querySelector('video');
+    if (!video) return;
+    const syncMetadata = () => {
+      if (!video.isConnected || getNodeElement(nodeId)?.querySelector('video') !== video) return;
+      const current = DesktopState.state.canvas.nodes[nodeId];
+      if (!current || current.type !== 'video') return;
+      const mediaWidth = Number(video.videoWidth || 0);
+      const mediaHeight = Number(video.videoHeight || 0);
+      const duration = Number(video.duration || 0);
+      let changed = false;
+      if (mediaWidth > 0 && mediaHeight > 0 && (current.mediaWidth !== mediaWidth || current.mediaHeight !== mediaHeight)) {
+        current.mediaWidth = mediaWidth;
+        current.mediaHeight = mediaHeight;
+        changed = true;
+      }
+      if (Number.isFinite(duration) && duration > 0 && !current.durationSeconds) {
+        current.durationSeconds = duration;
+        changed = true;
+      }
+      const geometryChanged = fitVideoNodeToMedia(current);
+      if (!changed && !geometryChanged) return;
+      refreshVideoNode(nodeId);
+      DesktopState.saveSettings();
+    };
+    if (video.readyState >= 1) syncMetadata();
+    else video.addEventListener('loadedmetadata', syncMetadata, { once: true });
+  }
+
+  function syncVideoInferenceNodeStateFromDom(element) {
+    const nodeId = element?.dataset?.nodeId || '';
+    const node = nodeId ? DesktopState.state.canvas.nodes[nodeId] : null;
+    if (!element || !node || node.type !== 'video_inference') return null;
+    node.mode = element.querySelector('[data-video-field="mode"]')?.value || node.mode || 'image_to_video';
+    node.durationSeconds = Number(element.querySelector('[data-video-field="durationSeconds"]')?.value || node.durationSeconds || 15);
+    node.aspectRatio = element.querySelector('[data-video-field="aspectRatio"]')?.value || node.aspectRatio || '3:4';
+    node.pixelBudgetMp = Number(element.querySelector('[data-video-field="pixelBudgetMp"]')?.value || node.pixelBudgetMp || 0.8);
+    node.accelerationMode = element.querySelector('[data-video-field="accelerationMode"]')?.value || node.accelerationMode || 'first_block_cache';
+    node.steps = Number(element.querySelector('[data-video-field="steps"]')?.value || node.steps || 20);
+    node.crf = Number(element.querySelector('[data-video-field="crf"]')?.value || node.crf || 23);
+    node.firstBlockCacheThreshold = Number(
+      element.querySelector('[data-video-field="firstBlockCacheThreshold"]')?.value
+      || node.firstBlockCacheThreshold
+      || 0.08
+    );
+    normalizeVideoInferenceNodeState(node);
+    const actualSize = element.querySelector('[data-video-actual-size]');
+    if (actualSize) actualSize.textContent = `${node.pixelWidth}×${node.pixelHeight}`;
+    return node;
+  }
+
+  function connectedVideoFirstFrame(nodeId) {
+    const input = videoInferenceInputSummary(nodeId).firstFrame?.node;
+    if (!input) return null;
+    return getConnectedImageReferences(nodeId)
+      .find(reference => reference?.sourceNodeId === input.id)
+      || null;
+  }
+
+  function readVideoInferenceNodeConfig(nodeId) {
+    const element = getNodeElement(nodeId);
+    const node = syncVideoInferenceNodeStateFromDom(element);
+    if (!node) throw new Error('MiniMax H3 视频生成节点不存在');
+    const prompt = String(getVisibleInputPrompt(nodeId) || '').trim();
+    if (!prompt) throw new Error('请连接一个包含提示词的文本节点');
+    const firstFrame = connectedVideoFirstFrame(nodeId);
+    if (!firstFrame) {
+      throw new Error(node.mode === 'reference_to_video'
+        ? '参考驱动模式当前至少需要连接一张参考图片'
+        : '图生视频模式需要连接一张首帧图片');
+    }
+    const promptTextNodeId = findConnectedTextNodeId(nodeId);
+    const promptTextNode = DesktopState.state.canvas.nodes[promptTextNodeId];
+    const promptMeta = promptTextNode?.promptMetaFingerprint === promptTextFingerprint(prompt)
+      ? normalizePromptGenerationMeta(promptTextNode.promptMeta)
+      : {};
+    return {
+      nodeId,
+      provider: 'minimax_h3',
+      prompt,
+      firstFrame,
+      promptMeta,
+      params: {
+        mode: node.mode,
+        durationSeconds: node.durationSeconds,
+        aspectRatio: node.aspectRatio,
+        pixelBudgetMp: node.pixelBudgetMp,
+        width: node.pixelWidth,
+        height: node.pixelHeight,
+        accelerationMode: node.accelerationMode,
+        firstBlockCacheThreshold: node.firstBlockCacheThreshold,
+        steps: node.steps,
+        crf: node.crf
+      }
+    };
+  }
+
+  function ensureVideoResultForInference(nodeId) {
+    const existing = (DesktopState.state.canvas.edges || [])
+      .find(edge => edge.from === nodeId && DesktopState.state.canvas.nodes[edge.to]?.type === 'video');
+    if (existing) return existing.to;
+    const source = DesktopState.state.canvas.nodes[nodeId];
+    const targetId = addNode('video', {
+      x: Number(source?.x || 0) + Number(source?.width || DEFAULT_VIDEO_INFERENCE_NODE_WIDTH) + 220,
+      y: Number(source?.y || 0) + Number(source?.height || DEFAULT_VIDEO_INFERENCE_NODE_HEIGHT) / 2
+    });
+    const target = DesktopState.state.canvas.nodes[targetId];
+    if (source && target) {
+      target.x = source.x + source.width + 80;
+      target.y = source.y + 32;
+      applyNodeLayout(targetId);
+    }
+    connectNodes(nodeId, targetId, { quiet: true });
+    return targetId;
+  }
+
+  function videoTaskOutputState(nodeId) {
+    if (!DesktopState.state.outputs || typeof DesktopState.state.outputs !== 'object') {
+      DesktopState.state.outputs = {};
+    }
+    if (!DesktopState.state.outputs[nodeId] || typeof DesktopState.state.outputs[nodeId] !== 'object') {
+      DesktopState.state.outputs[nodeId] = {
+        status: 'idle',
+        stage: '',
+        progressText: '',
+        progress: 0,
+        error: '',
+        taskId: '',
+        type: 'video'
+      };
+    }
+    return DesktopState.state.outputs[nodeId];
+  }
+
+  function connectedVideoResultNodeId(nodeId) {
+    return (DesktopState.state.canvas.edges || [])
+      .find(edge => edge.from === nodeId && DesktopState.state.canvas.nodes[edge.to]?.type === 'video')?.to || '';
+  }
+
+  function isVideoTaskTerminal(status) {
+    return ['succeeded', 'succeeded_no_telegram', 'failed', 'canceled', 'cancelled'].includes(String(status || '').toLowerCase());
+  }
+
+  function stopVideoTaskPolling(nodeId) {
+    const timer = videoTaskPollTimers.get(nodeId);
+    if (timer) window.clearTimeout(timer);
+    videoTaskPollTimers.delete(nodeId);
+  }
+
+  function applyVideoTaskState(nodeId, task = {}, explicitResultId = '') {
+    const output = videoTaskOutputState(nodeId);
+    const status = String(task.status || output.status || 'idle');
+    const params = task.params && typeof task.params === 'object' ? task.params : (output.params || {});
+    output.taskId = String(task.task_id || output.taskId || '');
+    output.status = status;
+    output.stage = String(task.stage || output.stage || '');
+    output.progressText = String(task.progress_text || task.message || output.progressText || '');
+    output.progress = Math.max(0, Math.min(100, Number(task.progress ?? output.progress ?? 0)));
+    output.error = String(task.display_error || task.error || (status === 'failed' ? output.progressText : '') || '');
+    output.params = params;
+    output.startedAt = Number(task.started_at || output.startedAt || 0);
+    output.finishedAt = Number(task.finished_at || output.finishedAt || 0);
+
+    const resultNodeId = explicitResultId || connectedVideoResultNodeId(nodeId);
+    const resultNode = resultNodeId ? DesktopState.state.canvas.nodes[resultNodeId] : null;
+    if (resultNode?.type === 'video') {
+      resultNode.sourceTaskId = output.taskId;
+      resultNode.status = ['succeeded', 'succeeded_no_telegram'].includes(status) ? 'succeeded' : status;
+      resultNode.progress = output.progress;
+      resultNode.progressText = output.progressText;
+      resultNode.error = output.error;
+      const metadata = task.video_metadata && typeof task.video_metadata === 'object' ? task.video_metadata : params;
+      const resultFile = String(task.result_file || task.output_file || params.video_filename || '').trim();
+      const videoPath = String(task.video_path || params.video_url || '').trim();
+      if (videoPath || (resultFile && ['succeeded', 'succeeded_no_telegram'].includes(status))) {
+        resultNode.mediaUrl = videoPath || `/video/${encodeURIComponent(resultFile)}`;
+        resultNode.mediaName = resultFile || 'MiniMax H3 视频';
+        resultNode.mimeType = 'video/mp4';
+        resultNode.durationSeconds = Number(metadata.duration_seconds || resultNode.durationSeconds || 0);
+        resultNode.mediaWidth = Number(metadata.width || resultNode.mediaWidth || 0);
+        resultNode.mediaHeight = Number(metadata.height || resultNode.mediaHeight || 0);
+        resultNode.fps = Number(metadata.fps || resultNode.fps || 24);
+        resultNode.fileSize = Number(metadata.video_size_bytes || resultNode.fileSize || 0);
+        fitVideoNodeToMedia(resultNode);
+      }
+      refreshVideoNode(resultNodeId);
+    }
+    refreshVideoInferenceNode(nodeId);
+    DesktopState.saveSettings();
+    return { output, resultNodeId, status };
+  }
+
+  function scheduleVideoTaskPoll(nodeId, taskId, delay = 2000) {
+    stopVideoTaskPolling(nodeId);
+    videoTaskPollTimers.set(nodeId, window.setTimeout(() => {
+      pollVideoTask(nodeId, taskId).catch(() => {});
+    }, delay));
+  }
+
+  async function pollVideoTask(nodeId, taskId) {
+    if (!nodeId || !taskId || !DesktopState.state.canvas.nodes[nodeId]) return null;
+    try {
+      const task = await window.DesktopApi.getStatus(taskId);
+      const applied = applyVideoTaskState(nodeId, task);
+      if (DesktopState.isInFlight?.(applied.status)) {
+        scheduleVideoTaskPoll(nodeId, taskId, applied.status === 'queued' ? 2500 : 1800);
+      } else {
+        stopVideoTaskPolling(nodeId);
+        if (['succeeded', 'succeeded_no_telegram'].includes(applied.status)) {
+          DesktopResults.showTransientMessage('MiniMax H3 视频已生成并归档。', 'success');
+          window.DesktopHistory?.loadHistory?.().catch(() => {});
+        } else if (applied.status === 'failed') {
+          DesktopResults.showTransientMessage(task.display_error || task.error || 'H3 视频生成失败', 'error');
+        }
+      }
+      return task;
+    } catch (error) {
+      const output = videoTaskOutputState(nodeId);
+      if (DesktopState.isInFlight?.(output.status)) {
+        output.progressText = '任务状态同步失败，正在重试...';
+        refreshVideoInferenceNode(nodeId);
+        scheduleVideoTaskPoll(nodeId, taskId, 5000);
+      }
+      throw error;
+    }
+  }
+
+  async function cancelVideoInferenceTask(nodeId) {
+    const output = videoTaskOutputState(nodeId);
+    const taskId = String(output.taskId || '').trim();
+    if (!taskId || !DesktopState.isInFlight?.(output.status)) return null;
+    output.progressText = '正在取消 H3 视频任务...';
+    refreshVideoInferenceNode(nodeId);
+    const task = await window.DesktopApi.cancelTask(taskId);
+    stopVideoTaskPolling(nodeId);
+    applyVideoTaskState(nodeId, { ...task, status: task.status || 'canceled', task_id: taskId });
+    DesktopResults.showTransientMessage('H3 视频任务已取消。', 'warning');
+    return task;
+  }
+
+  async function runVideoInferenceNode(nodeId) {
+    const currentOutput = videoTaskOutputState(nodeId);
+    if (DesktopState.isInFlight?.(currentOutput.status)) {
+      return cancelVideoInferenceTask(nodeId);
+    }
+    const config = readVideoInferenceNodeConfig(nodeId);
+    if (!window.DesktopApi?.getVideoRuntimeStatus) throw new Error('视频 Runtime API 尚未加载');
+    const status = await window.DesktopApi.getVideoRuntimeStatus(true);
+    videoConfigApi()?.setRuntimeStatus?.(status);
+    Object.values(DesktopState.state.canvas.nodes || {})
+      .filter(node => node.type === 'video_inference')
+      .forEach(node => refreshVideoInferenceNode(node.id));
+    if (!status?.online) {
+      throw new Error(status?.message || status?.error || 'H3 Runtime 离线，请在设置中心配置本机或局域网服务');
+    }
+    const resultNodeId = ensureVideoResultForInference(nodeId);
+    const output = videoTaskOutputState(nodeId);
+    output.taskId = '';
+    output.status = 'queued';
+    output.stage = 'submitting';
+    output.progressText = '正在上传首帧并提交 H3 任务...';
+    output.progress = 1;
+    output.error = '';
+    output.startedAt = Date.now();
+    output.finishedAt = 0;
+    output.params = { ...(config.params || {}) };
+    const resultNode = DesktopState.state.canvas.nodes[resultNodeId];
+    if (resultNode) {
+      resultNode.status = 'queued';
+      resultNode.progress = 1;
+      resultNode.progressText = output.progressText;
+      resultNode.error = '';
+    }
+    refreshVideoInferenceNode(nodeId);
+    refreshVideoNode(resultNodeId);
+    DesktopState.saveSettings();
+    try {
+      const response = await window.DesktopApi.submitVideoTask(config);
+      const taskId = String(response?.task_id || '').trim();
+      if (!taskId) throw new Error('后端没有返回 H3 task_id');
+      output.taskId = taskId;
+      output.status = response.status || 'queued';
+      output.progressText = response.message || 'H3 视频任务已提交';
+      if (resultNode) resultNode.sourceTaskId = taskId;
+      applyVideoTaskState(nodeId, { ...response, task_id: taskId }, resultNodeId);
+      scheduleVideoTaskPoll(nodeId, taskId, 900);
+      DesktopResults.showTransientMessage('MiniMax H3 视频任务已提交，节点会持续显示进度。', 'success');
+      return response;
+    } catch (error) {
+      applyVideoTaskState(nodeId, {
+        status: 'failed',
+        stage: 'submit_failed',
+        progress: 100,
+        progress_text: error?.message || 'H3 视频任务提交失败',
+        error: error?.message || String(error || '')
+      }, resultNodeId);
+      throw error;
+    }
+  }
+
+  function restoreVideoTaskPolling() {
+    Object.values(DesktopState.state.canvas.nodes || {})
+      .filter(node => node?.type === 'video_inference')
+      .forEach(node => {
+        const output = videoTaskOutputState(node.id);
+        const taskId = String(output.taskId || '').trim();
+        if (taskId && DesktopState.isInFlight?.(output.status)) {
+          scheduleVideoTaskPoll(node.id, taskId, 250);
+        }
+      });
+  }
+
+  async function loadVideoRuntimeContext() {
+    if (!window.DesktopApi) return null;
+    const [capabilities, status] = await Promise.all([
+      window.DesktopApi.getVideoRuntimeCapabilities?.().catch(() => null),
+      window.DesktopApi.getVideoRuntimeStatus?.(true).catch(() => null)
+    ]);
+    if (capabilities) videoConfigApi()?.setCapabilities?.(capabilities);
+    if (status) videoConfigApi()?.setRuntimeStatus?.(status);
+    Object.values(DesktopState.state.canvas.nodes || {})
+      .filter(node => node.type === 'video_inference')
+      .forEach(node => {
+        normalizeVideoInferenceNodeState(node);
+        refreshVideoInferenceNode(node.id);
+      });
+    DesktopState.saveSettings();
+    return { capabilities, status };
+  }
+
   function fileOutputNodeHtml(nodeId) {
     return `
       <section class="desk-node desk-node--file-output desk-glass" data-node-id="${nodeId}" aria-label="文件结果节点">
@@ -3219,22 +4701,768 @@
     `;
   }
 
+  const floatingSwellStates = new Set();
+  let floatingSwellFrameId = 0;
+  let floatingSwellLastFrame = 0;
+
+  function floatingSwellModulo(value, length) {
+    return ((value % length) + length) % length;
+  }
+
+  function floatingSwellShortestArcDelta(from, to, length) {
+    const direct = floatingSwellModulo(to - from, length);
+    return direct > length / 2 ? direct - length : direct;
+  }
+
+  function floatingSwellSmootherstep(value) {
+    const clamped = Math.min(1, Math.max(0, value));
+    return clamped * clamped * clamped * (clamped * (clamped * 6 - 15) + 10);
+  }
+
+  function floatingSwellSpringStep(spring, deltaSeconds) {
+    const safeDelta = Math.min(
+      FLOATING_SWELL_MAX_FRAME_DELTA_SECONDS,
+      Math.max(0, Number.isFinite(deltaSeconds) ? deltaSeconds : 0)
+    );
+    const force = FLOATING_SWELL_SPRING_STIFFNESS * (spring.target - spring.value)
+      - FLOATING_SWELL_SPRING_DAMPING * spring.velocity;
+    spring.velocity += force * safeDelta;
+    spring.value += spring.velocity * safeDelta;
+    if (!Number.isFinite(spring.value) || !Number.isFinite(spring.velocity)) {
+      spring.value = spring.target;
+      spring.velocity = 0;
+    }
+  }
+
+  function floatingSwellSpringAtRest(spring) {
+    return Math.abs(spring.target - spring.value) < 0.001 && Math.abs(spring.velocity) < 0.001;
+  }
+
+  function buildFloatingSwellPerimeter(width, height, requestedRadius) {
+    const radius = Math.max(0, Math.min(requestedRadius, width / 2, height / 2));
+    const horizontal = Math.max(0, width - radius * 2);
+    const vertical = Math.max(0, height - radius * 2);
+    const quarterArc = Math.PI * radius / 2;
+    const segments = [];
+    let arcLength = 0;
+    const addLine = (length, startX, startY, tx, ty, nx, ny) => {
+      if (length <= 0) return;
+      segments.push({
+        kind: 'line',
+        startS: arcLength,
+        length,
+        pointAt: distance => ({
+          x: startX + tx * distance,
+          y: startY + ty * distance,
+          nx,
+          ny,
+          tx,
+          ty
+        })
+      });
+      arcLength += length;
+    };
+    const addArc = (centerX, centerY, startAngle) => {
+      if (quarterArc <= 0) return;
+      segments.push({
+        kind: 'arc',
+        startS: arcLength,
+        length: quarterArc,
+        radius,
+        pointAt: distance => {
+          const angle = startAngle + distance / radius;
+          return {
+            x: centerX + Math.cos(angle) * radius,
+            y: centerY + Math.sin(angle) * radius,
+            nx: Math.cos(angle),
+            ny: Math.sin(angle),
+            tx: -Math.sin(angle),
+            ty: Math.cos(angle)
+          };
+        }
+      });
+      arcLength += quarterArc;
+    };
+
+    if (radius > 0) {
+      addLine(horizontal, radius, 0, 1, 0, 0, -1);
+      addArc(width - radius, radius, -Math.PI / 2);
+      addLine(vertical, width, radius, 0, 1, 1, 0);
+      addArc(width - radius, height - radius, 0);
+      addLine(horizontal, width - radius, height, -1, 0, 0, 1);
+      addArc(radius, height - radius, Math.PI / 2);
+      addLine(vertical, 0, height - radius, 0, -1, -1, 0);
+      addArc(radius, radius, Math.PI);
+    } else {
+      addLine(width, 0, 0, 1, 0, 0, -1);
+      addLine(height, width, 0, 0, 1, 1, 0);
+      addLine(width, width, height, -1, 0, 0, 1);
+      addLine(height, 0, height, 0, -1, -1, 0);
+    }
+
+    const samples = [];
+    segments.forEach(segment => {
+      const count = Math.max(1, Math.ceil(segment.length / FLOATING_SWELL_SAMPLE_SPACING_PX));
+      for (let index = 0; index < count; index += 1) {
+        const distance = index / count * segment.length;
+        samples.push({ s: segment.startS + distance, ...segment.pointAt(distance) });
+      }
+    });
+    return { samples, segments, length: arcLength };
+  }
+
+  function closestFloatingSwellSample(samples, x, y) {
+    let closest = samples[0];
+    let closestDistance = Number.POSITIVE_INFINITY;
+    samples.forEach(sample => {
+      const distance = (sample.x - x) ** 2 + (sample.y - y) ** 2;
+      if (distance < closestDistance) {
+        closest = sample;
+        closestDistance = distance;
+      }
+    });
+    return { sample: closest, distance: Math.sqrt(closestDistance) };
+  }
+
+  function floatingSwellPointAt(geometry, arcLength) {
+    const normalized = floatingSwellModulo(arcLength, geometry.length);
+    const segment = geometry.segments.find(candidate => (
+      normalized >= candidate.startS && normalized < candidate.startS + candidate.length
+    )) || geometry.segments[geometry.segments.length - 1];
+    const local = normalized - segment.startS;
+    return { segment, local, point: segment.pointAt(local) };
+  }
+
+  function floatingSwellDisplacementAt(arcLength, center, peak, perimeterLength) {
+    const distance = Math.abs(floatingSwellShortestArcDelta(arcLength, center, perimeterLength));
+    const plateauHalf = FLOATING_SWELL_LENGTH_PX * FLOATING_SWELL_PLATEAU_RATIO / 2;
+    if (distance <= plateauHalf) return peak;
+    const shoulder = FLOATING_SWELL_LENGTH_PX * FLOATING_SWELL_SHOULDER_RATIO;
+    if (distance >= plateauHalf + shoulder) return 0;
+    const progress = (distance - plateauHalf) / shoulder;
+    const displacement = peak * (1 - floatingSwellSmootherstep(progress));
+    return displacement < FLOATING_SWELL_VISIBLE_THRESHOLD_PX ? 0 : displacement;
+  }
+
+  function appendFloatingSwellExactPath(commands, geometry, startS, from, to) {
+    let cursor = from;
+    let iterations = 0;
+    const maxIterations = Math.max(32, geometry.segments.length * 4);
+    while (cursor < to - 0.0001 && iterations < maxIterations) {
+      iterations += 1;
+      const located = floatingSwellPointAt(geometry, startS + cursor);
+      const available = located.segment.length - located.local;
+      const step = Math.min(to - cursor, available);
+      if (!Number.isFinite(step) || step <= 0) break;
+      const nextCursor = cursor + step;
+      if (nextCursor <= cursor) {
+        cursor = Math.min(to, cursor + 0.0001);
+        continue;
+      }
+      const end = located.segment.pointAt(located.local + step);
+      commands.push(located.segment.kind === 'line'
+        ? `L${end.x.toFixed(2)} ${end.y.toFixed(2)}`
+        : `A${located.segment.radius.toFixed(2)} ${located.segment.radius.toFixed(2)} 0 0 1 ${end.x.toFixed(2)} ${end.y.toFixed(2)}`);
+      cursor = nextCursor;
+    }
+  }
+
+  function appendFloatingSwellActivePath(commands, geometry, center, peak, startS, from, to) {
+    const length = to - from;
+    const count = Math.max(2, Math.ceil(length / FLOATING_SWELL_SAMPLE_SPACING_PX));
+    const points = Array.from({ length: count + 1 }, (_, index) => {
+      const relative = from + index / count * length;
+      const located = floatingSwellPointAt(geometry, startS + relative);
+      const displacement = floatingSwellDisplacementAt(
+        floatingSwellModulo(startS + relative, geometry.length),
+        center,
+        peak,
+        geometry.length
+      );
+      return {
+        x: located.point.x + located.point.nx * displacement,
+        y: located.point.y + located.point.ny * displacement,
+        tx: located.point.tx,
+        ty: located.point.ty
+      };
+    });
+    for (let index = 0; index < points.length - 1; index += 1) {
+      const previous = points[Math.max(0, index - 1)];
+      const current = points[index];
+      const next = points[index + 1];
+      const after = points[Math.min(points.length - 1, index + 2)];
+      const chord = Math.hypot(next.x - current.x, next.y - current.y);
+      const control1 = index === 0
+        ? { x: current.x + current.tx * chord / 3, y: current.y + current.ty * chord / 3 }
+        : { x: current.x + (next.x - previous.x) / 6, y: current.y + (next.y - previous.y) / 6 };
+      const control2 = index === points.length - 2
+        ? { x: next.x - next.tx * chord / 3, y: next.y - next.ty * chord / 3 }
+        : { x: next.x - (after.x - current.x) / 6, y: next.y - (after.y - current.y) / 6 };
+      commands.push(
+        `C${control1.x.toFixed(2)} ${control1.y.toFixed(2)} ${control2.x.toFixed(2)} ${control2.y.toFixed(2)} ${next.x.toFixed(2)} ${next.y.toFixed(2)}`
+      );
+    }
+  }
+
+  // The source interaction deforms the rounded-rectangle perimeter itself;
+  // inactive spans remain exact lines/arcs and only the swell span is sampled.
+  function buildFloatingSwellPath(geometry, center, peak) {
+    if (!geometry?.segments?.length || geometry.length <= 0) return '';
+    if (peak < FLOATING_SWELL_VISIBLE_THRESHOLD_PX) {
+      const start = floatingSwellPointAt(geometry, 0).point;
+      const commands = [`M${start.x.toFixed(2)} ${start.y.toFixed(2)}`];
+      appendFloatingSwellExactPath(commands, geometry, 0, 0, geometry.length);
+      commands.push('Z');
+      return commands.join(' ');
+    }
+    const plateauHalf = FLOATING_SWELL_LENGTH_PX * FLOATING_SWELL_PLATEAU_RATIO / 2;
+    const shoulder = FLOATING_SWELL_LENGTH_PX * FLOATING_SWELL_SHOULDER_RATIO;
+    const activeHalf = plateauHalf + shoulder + 4;
+    const startS = floatingSwellModulo(center + geometry.length / 2, geometry.length);
+    const relativeCenter = floatingSwellModulo(center - startS, geometry.length);
+    const intervalStart = Math.max(0, relativeCenter - activeHalf);
+    const intervalEnd = Math.min(geometry.length, relativeCenter + activeHalf);
+    const start = floatingSwellPointAt(geometry, startS).point;
+    const commands = [`M${start.x.toFixed(2)} ${start.y.toFixed(2)}`];
+    appendFloatingSwellExactPath(commands, geometry, startS, 0, intervalStart);
+    appendFloatingSwellActivePath(commands, geometry, center, peak, startS, intervalStart, intervalEnd);
+    appendFloatingSwellExactPath(commands, geometry, startS, intervalEnd, geometry.length);
+    commands.push('Z');
+    return commands.join(' ');
+  }
+
+  function connectionSwellStyle() {
+    return window.DesktopPreferences?.state?.connectionSwellStyle === 'droplet'
+      ? 'droplet'
+      : 'liquid';
+  }
+
+  function buildFloatingDropletProfile(geometry, center, positionVelocity) {
+    const frame = floatingSwellPointAt(geometry, center).point;
+    const gravityNormal = Math.max(-1, Math.min(1, frame.ny));
+    const gravityTangent = Math.max(-1, Math.min(1, frame.ty));
+    const sideGravity = 1 - Math.abs(gravityNormal);
+    const motion = Math.max(-1, Math.min(
+      1,
+      Number(positionVelocity || 0) / FLOATING_DROPLET_VELOCITY_NORMALIZER
+    ));
+    const halfLength = Math.max(
+      10,
+      FLOATING_DROPLET_BASE_HALF_LENGTH_PX - gravityNormal
+    );
+    return {
+      center,
+      frame,
+      gravityNormal,
+      gravityTangent,
+      motion,
+      halfLength,
+      heightFactor: 0.78 + gravityNormal * 0.22 + sideGravity * 0.2,
+      crownExponent: 0.82 + gravityNormal * 0.08,
+      flow: Math.max(-1, Math.min(1, gravityTangent * 0.86 - motion * 0.72)),
+      activeHalf: halfLength + FLOATING_DROPLET_FLOW_EXTENSION_PX + FLOATING_DROPLET_ACTIVE_PADDING_PX
+    };
+  }
+
+  function floatingDropletPointAt(geometry, arcLength, peak, profile) {
+    const located = floatingSwellPointAt(geometry, arcLength);
+    const signedDistance = floatingSwellShortestArcDelta(
+      profile.center,
+      floatingSwellModulo(arcLength, geometry.length),
+      geometry.length
+    );
+    const flowMagnitude = Math.abs(profile.flow);
+    const flowsWithPoint = signedDistance * profile.flow >= 0;
+    const directionalHalfLength = Math.max(
+      6,
+      profile.halfLength + (flowsWithPoint
+        ? FLOATING_DROPLET_FLOW_EXTENSION_PX * flowMagnitude
+        : -FLOATING_DROPLET_FLOW_EXTENSION_PX * 0.24 * flowMagnitude)
+    );
+    const normalizedDistance = Math.abs(signedDistance) / directionalHalfLength;
+    if (!Number.isFinite(normalizedDistance) || normalizedDistance >= 1 || peak <= 0) {
+      return {
+        x: located.point.x,
+        y: located.point.y,
+        tx: located.point.tx,
+        ty: located.point.ty,
+        weight: 0
+      };
+    }
+    const shoulder = Math.max(0, Math.min(
+      1,
+      1 - floatingSwellSmootherstep(normalizedDistance)
+    ));
+    const rawWeight = Math.pow(shoulder, profile.crownExponent);
+    const weight = Number.isFinite(rawWeight) ? rawWeight : 0;
+    const normalDisplacement = peak
+      * profile.heightFactor
+      * (1 + Math.abs(profile.motion) * 0.08)
+      * weight;
+    const tangentDisplacement = (
+      profile.gravityTangent * FLOATING_DROPLET_GRAVITY_PULL_PX
+      - profile.motion * FLOATING_DROPLET_MOTION_PULL_PX
+    ) * weight;
+    return {
+      x: located.point.x
+        + located.point.nx * normalDisplacement
+        + profile.frame.tx * tangentDisplacement,
+      y: located.point.y
+        + located.point.ny * normalDisplacement
+        + profile.frame.ty * tangentDisplacement,
+      tx: located.point.tx,
+      ty: located.point.ty,
+      weight
+    };
+  }
+
+  function appendFloatingDropletActivePath(commands, geometry, peak, profile, startS, from, to) {
+    const length = to - from;
+    const count = Math.max(2, Math.ceil(length / FLOATING_SWELL_SAMPLE_SPACING_PX));
+    const points = Array.from({ length: count + 1 }, (_, index) => {
+      const relative = from + index / count * length;
+      return floatingDropletPointAt(geometry, startS + relative, peak, profile);
+    });
+    for (let index = 0; index < points.length - 1; index += 1) {
+      const previous = points[Math.max(0, index - 1)];
+      const current = points[index];
+      const next = points[index + 1];
+      const after = points[Math.min(points.length - 1, index + 2)];
+      const chord = Math.hypot(next.x - current.x, next.y - current.y);
+      const control1 = index === 0
+        ? { x: current.x + current.tx * chord / 3, y: current.y + current.ty * chord / 3 }
+        : { x: current.x + (next.x - previous.x) / 6, y: current.y + (next.y - previous.y) / 6 };
+      const control2 = index === points.length - 2
+        ? { x: next.x - next.tx * chord / 3, y: next.y - next.ty * chord / 3 }
+        : { x: next.x - (after.x - current.x) / 6, y: next.y - (after.y - current.y) / 6 };
+      commands.push(
+        `C${control1.x.toFixed(2)} ${control1.y.toFixed(2)} ${control2.x.toFixed(2)} ${control2.y.toFixed(2)} ${next.x.toFixed(2)} ${next.y.toFixed(2)}`
+      );
+    }
+  }
+
+  function buildFloatingDropletPath(geometry, center, peak, positionVelocity) {
+    if (!geometry?.segments?.length || geometry.length <= 0) return { path: '', anchor: null };
+    const profile = buildFloatingDropletProfile(geometry, center, positionVelocity);
+    const anchor = floatingDropletPointAt(geometry, center, peak, profile);
+    if (peak < FLOATING_SWELL_VISIBLE_THRESHOLD_PX) {
+      return { path: buildFloatingSwellPath(geometry, center, 0), anchor };
+    }
+    const startS = floatingSwellModulo(center + geometry.length / 2, geometry.length);
+    const relativeCenter = floatingSwellModulo(center - startS, geometry.length);
+    const intervalStart = Math.max(0, relativeCenter - profile.activeHalf);
+    const intervalEnd = Math.min(geometry.length, relativeCenter + profile.activeHalf);
+    const start = floatingSwellPointAt(geometry, startS).point;
+    const commands = [`M${start.x.toFixed(2)} ${start.y.toFixed(2)}`];
+    appendFloatingSwellExactPath(commands, geometry, startS, 0, intervalStart);
+    appendFloatingDropletActivePath(commands, geometry, peak, profile, startS, intervalStart, intervalEnd);
+    appendFloatingSwellExactPath(commands, geometry, startS, intervalEnd, geometry.length);
+    commands.push('Z');
+    return { path: commands.join(' '), anchor };
+  }
+
+  function floatingSwellSide(point) {
+    return Math.abs(point.nx) > Math.abs(point.ny)
+      ? (point.nx < 0 ? 'left' : 'right')
+      : (point.ny < 0 ? 'top' : 'bottom');
+  }
+
+  function updateFloatingSwellGeometry(state) {
+    const nodeElement = state.nodeElement;
+    const width = nodeElement.offsetWidth || Number(getNodeState(nodeElement.dataset.nodeId)?.width || 0);
+    const height = nodeElement.offsetHeight || Number(getNodeState(nodeElement.dataset.nodeId)?.height || 0);
+    const radius = Math.max(0, parseFloat(getComputedStyle(nodeElement).borderTopLeftRadius) || 0);
+    if (
+      state.geometry
+      && state.width === width
+      && state.height === height
+      && Math.abs(state.radius - radius) < 0.01
+    ) return;
+    state.width = width;
+    state.height = height;
+    state.radius = radius;
+    state.geometry = buildFloatingSwellPerimeter(width, height, radius);
+    const padding = FLOATING_SWELL_BORDER_PADDING_PX;
+    state.svg.setAttribute('viewBox', `${-padding} ${-padding} ${width + padding * 2} ${height + padding * 2}`);
+    state.svg.style.width = `calc(100% + ${padding * 2}px)`;
+    state.svg.style.height = `calc(100% + ${padding * 2}px)`;
+    state.paintRect.setAttribute('x', String(-padding));
+    state.paintRect.setAttribute('y', String(-padding));
+    state.paintRect.setAttribute('width', String(width + padding * 2));
+    state.paintRect.setAttribute('height', String(height + padding * 2));
+    state.innerRect.setAttribute('x', '0.75');
+    state.innerRect.setAttribute('y', '0.75');
+    state.innerRect.setAttribute('width', String(Math.max(0, width - 1.5)));
+    state.innerRect.setAttribute('height', String(Math.max(0, height - 1.5)));
+    state.innerRect.setAttribute('rx', String(Math.max(0, radius - 0.75)));
+    if (!Number.isFinite(state.position.value) || state.position.value < 0 || state.position.value >= state.geometry.length) {
+      const initial = closestFloatingSwellSample(state.geometry.samples, width, height / 2).sample;
+      state.position.value = initial.s;
+      state.position.target = initial.s;
+      state.position.velocity = 0;
+    } else {
+      state.position.value = floatingSwellModulo(state.position.value, state.geometry.length);
+      state.position.target = floatingSwellModulo(state.position.target, state.geometry.length);
+    }
+  }
+
+  function ensureFloatingSwellState(nodeElement, floatingPort) {
+    let state = nodeElement._floatingSwellState;
+    if (!state) {
+      const maskId = `desk-node-swell-mask-${String(nodeElement.dataset.nodeId || 'node').replace(/[^a-zA-Z0-9_-]/g, '-')}`;
+      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      svg.classList.add('desk-node-swell-border');
+      svg.setAttribute('aria-hidden', 'true');
+      svg.setAttribute('focusable', 'false');
+      svg.innerHTML = `
+        <defs>
+          <mask id="${maskId}" maskUnits="userSpaceOnUse" mask-type="luminance">
+            <path data-swell-mask-path fill="#ffffff"></path>
+            <rect data-swell-inner fill="#000000"></rect>
+          </mask>
+        </defs>
+        <rect class="desk-node-swell-border__paint" data-swell-paint mask="url(#${maskId})"></rect>
+        <path class="desk-node-swell-border__outline" data-swell-outline></path>
+      `;
+      nodeElement.insertBefore(svg, nodeElement.firstChild);
+      state = {
+        nodeElement,
+        floatingPort,
+        svg,
+        maskPath: svg.querySelector('[data-swell-mask-path]'),
+        innerRect: svg.querySelector('[data-swell-inner]'),
+        paintRect: svg.querySelector('[data-swell-paint]'),
+        outlinePath: svg.querySelector('[data-swell-outline]'),
+        geometry: null,
+        width: 0,
+        height: 0,
+        radius: 0,
+        amplitude: { value: 0, velocity: 0, target: 0 },
+        position: { value: Number.NaN, velocity: 0, target: Number.NaN }
+      };
+      nodeElement._floatingSwellState = state;
+      floatingSwellStates.add(state);
+    } else {
+      state.floatingPort = floatingPort;
+    }
+    updateFloatingSwellGeometry(state);
+    return state;
+  }
+
+  function syncFloatingDropletConnectionAnchor(state, side, anchorX, anchorY) {
+    const nodeId = state.nodeElement.dataset.nodeId || '';
+    const node = getNodeState(nodeId);
+    if (!node) return;
+    const worldAnchor = { x: node.x + anchorX, y: node.y + anchorY };
+    if (
+      activeInteraction?.type === 'connect'
+      && activeInteraction.fromNodeId === nodeId
+      && state.floatingPort.classList.contains('is-connecting')
+    ) {
+      activeInteraction.fromSide = side;
+      activeInteraction.fromAnchor = worldAnchor;
+      if (activeInteraction.pointer) {
+        renderConnectionPreview(nodeId, activeInteraction.pointer, side, worldAnchor);
+      }
+    }
+    if (
+      contextMenuConnectionSourceId === nodeId
+      && contextMenuEl?.classList.contains('is-open')
+      && state.floatingPort.classList.contains('is-pending')
+    ) {
+      contextMenuConnectionSourceSide = side;
+      contextMenuConnectionSourceAnchor = worldAnchor;
+      updateLinkPath();
+    }
+  }
+
+  function renderFloatingSwellState(state) {
+    updateFloatingSwellGeometry(state);
+    const geometry = state.geometry;
+    if (!geometry?.samples?.length) return;
+    const style = connectionSwellStyle();
+    const amplitude = Math.max(0, Math.min(1, state.amplitude.value));
+    const peak = amplitude * (style === 'droplet' ? FLOATING_DROPLET_PEAK_PX : FLOATING_SWELL_PEAK_PX);
+    const located = floatingSwellPointAt(geometry, state.position.value).point;
+    const droplet = style === 'droplet'
+      ? buildFloatingDropletPath(geometry, state.position.value, peak, state.position.velocity)
+      : null;
+    const path = droplet?.path || buildFloatingSwellPath(geometry, state.position.value, peak);
+    state.maskPath.setAttribute('d', path);
+    state.outlinePath.setAttribute('d', path);
+    const visible = state.amplitude.target > 0 || peak >= FLOATING_SWELL_VISIBLE_THRESHOLD_PX;
+    state.nodeElement.classList.toggle('is-swell-visible', visible);
+    state.nodeElement.dataset.connectionSwellStyle = style;
+    const anchorX = droplet?.anchor?.x ?? (located.x + located.nx * FLOATING_SWELL_PEAK_PX);
+    const anchorY = droplet?.anchor?.y ?? (located.y + located.ny * FLOATING_SWELL_PEAK_PX);
+    const side = floatingSwellSide(located);
+    state.floatingPort.dataset.portSide = side;
+    state.floatingPort.dataset.anchorX = String(anchorX);
+    state.floatingPort.dataset.anchorY = String(anchorY);
+    state.floatingPort.style.setProperty('--desk-floating-x', `${anchorX}px`);
+    state.floatingPort.style.setProperty('--desk-floating-y', `${anchorY}px`);
+    const sideLabel = { left: '左侧', right: '右侧', top: '上方', bottom: '下方' }[side];
+    state.floatingPort.title = `从节点${sideLabel}创建连接`;
+    state.floatingPort.setAttribute('aria-label', state.floatingPort.title);
+    if (style === 'droplet') {
+      syncFloatingDropletConnectionAnchor(state, side, anchorX, anchorY);
+    }
+  }
+
+  function animateFloatingSwells(timestamp) {
+    floatingSwellFrameId = 0;
+    const deltaSeconds = floatingSwellLastFrame
+      ? Math.min(FLOATING_SWELL_MAX_FRAME_DELTA_SECONDS, Math.max(0, (timestamp - floatingSwellLastFrame) / 1000))
+      : 1 / 60;
+    floatingSwellLastFrame = timestamp;
+    let moving = false;
+    floatingSwellStates.forEach(state => {
+      if (!state.nodeElement.isConnected) {
+        floatingSwellStates.delete(state);
+        return;
+      }
+      const restingHidden = state.amplitude.target === 0
+        && state.amplitude.value < 0.001
+        && Math.abs(state.amplitude.velocity) < 0.001
+        && !state.nodeElement.classList.contains('is-swell-visible');
+      if (restingHidden) return;
+      floatingSwellSpringStep(state.amplitude, deltaSeconds);
+      state.amplitude.value = Math.min(1, Math.max(0, state.amplitude.value));
+      if ((state.amplitude.value === 0 && state.amplitude.velocity < 0)
+        || (state.amplitude.value === 1 && state.amplitude.velocity > 0)) {
+        state.amplitude.velocity = 0;
+      }
+      const originalTarget = state.position.target;
+      const delta = floatingSwellShortestArcDelta(state.position.value, originalTarget, state.geometry.length);
+      state.position.target = state.position.value + delta;
+      floatingSwellSpringStep(state.position, deltaSeconds);
+      state.position.value = floatingSwellModulo(state.position.value, state.geometry.length);
+      state.position.target = originalTarget;
+      renderFloatingSwellState(state);
+      const positionMoving = Math.abs(floatingSwellShortestArcDelta(
+        state.position.value,
+        state.position.target,
+        state.geometry.length
+      )) >= 0.001 || Math.abs(state.position.velocity) >= 0.001;
+      moving = moving || !floatingSwellSpringAtRest(state.amplitude) || positionMoving;
+    });
+    if (moving) {
+      floatingSwellFrameId = requestAnimationFrame(animateFloatingSwells);
+    } else {
+      floatingSwellLastFrame = 0;
+    }
+  }
+
+  function scheduleFloatingSwellFrame() {
+    if (!floatingSwellFrameId) floatingSwellFrameId = requestAnimationFrame(animateFloatingSwells);
+  }
+
+  function refreshFloatingSwellStyle() {
+    floatingSwellStates.forEach(state => {
+      if (state.nodeElement.isConnected) renderFloatingSwellState(state);
+    });
+    scheduleFloatingSwellFrame();
+  }
+
+  function setFloatingSwellTarget(state, sample, visible) {
+    if (!state || !sample) return;
+    if (visible && state.amplitude.value < 0.005 && state.amplitude.target === 0) {
+      state.position.value = sample.s;
+      state.position.velocity = 0;
+    }
+    state.position.target = sample.s;
+    state.amplitude.target = visible ? 1 : 0;
+    scheduleFloatingSwellFrame();
+  }
+
+  function releaseFloatingSwell(nodeElement) {
+    const state = nodeElement?._floatingSwellState;
+    if (!state) return;
+    const held = state.floatingPort.classList.contains('is-connecting')
+      || state.floatingPort.classList.contains('is-pending');
+    if (!held) state.amplitude.target = 0;
+    scheduleFloatingSwellFrame();
+  }
+
+  function holdFloatingSwell(floatingPort) {
+    const nodeElement = floatingPort?.closest?.('.desk-node[data-node-id]');
+    const state = nodeElement?._floatingSwellState;
+    if (!state) return;
+    if (!floatingPort.dataset.edgeHandle) {
+      const side = normalizePortSide(floatingPort.dataset.portSide, 'right');
+      const target = side === 'left'
+        ? { x: 0, y: state.height / 2 }
+        : { x: state.width, y: state.height / 2 };
+      const sample = closestFloatingSwellSample(state.geometry.samples, target.x, target.y).sample;
+      if (state.amplitude.value < 0.005) {
+        state.position.value = sample.s;
+        state.position.velocity = 0;
+      }
+      state.position.target = sample.s;
+    }
+    state.amplitude.target = 1;
+    scheduleFloatingSwellFrame();
+  }
+
+  function discardFloatingSwellState(nodeElement) {
+    const state = nodeElement?._floatingSwellState;
+    if (!state) return;
+    floatingSwellStates.delete(state);
+    delete nodeElement._floatingSwellState;
+  }
+
+  function ensureNodeEdgeHandles(nodeElement) {
+    if (!nodeElement?.dataset?.nodeId) return;
+    const nodeId = nodeElement.dataset.nodeId;
+    // Remove the first implementation's fixed top/bottom handles if an already
+    // mounted page is refreshed through hot replacement.
+    nodeElement.querySelectorAll('.desk-port[data-edge-handle]:not(.desk-port--floating)').forEach(port => port.remove());
+    const inputPorts = Array.from(nodeElement.querySelectorAll('.desk-port[data-port="in"]'));
+    const outputPorts = Array.from(nodeElement.querySelectorAll('.desk-port[data-port="out"]:not([data-edge-handle])'));
+    inputPorts.forEach(port => {
+      port.dataset.portSide = normalizePortSide(port.dataset.portSide, 'left');
+      port.dataset.semanticPort = 'true';
+    });
+    outputPorts.forEach(port => {
+      port.dataset.portSide = normalizePortSide(port.dataset.portSide, 'right');
+      port.dataset.semanticPort = 'true';
+    });
+    if (!inputPorts.length && !outputPorts.length) return;
+    nodeElement.classList.add('desk-node--edge-handles');
+    ['left', 'right'].forEach(side => {
+      if (nodeElement.querySelector(`.desk-node-settled-port[data-settled-side="${side}"]`)) return;
+      const settledPort = document.createElement('span');
+      settledPort.className = `desk-node-settled-port desk-node-settled-port--${side}`;
+      settledPort.dataset.settledSide = side;
+      settledPort.setAttribute('aria-hidden', 'true');
+      nodeElement.appendChild(settledPort);
+    });
+    if (!outputPorts.length) return;
+    let floatingPort = nodeElement.querySelector('.desk-port--floating[data-edge-handle]');
+    if (!floatingPort) {
+      floatingPort = document.createElement('button');
+      floatingPort.type = 'button';
+      floatingPort.className = 'desk-port desk-port--floating';
+      floatingPort.dataset.port = 'out';
+      floatingPort.dataset.portSide = 'right';
+      floatingPort.dataset.nodeId = nodeId;
+      floatingPort.dataset.edgeHandle = 'true';
+      floatingPort.title = '从节点边缘创建连接';
+      floatingPort.setAttribute('aria-label', floatingPort.title);
+      nodeElement.appendChild(floatingPort);
+    }
+    const state = ensureFloatingSwellState(nodeElement, floatingPort);
+    renderFloatingSwellState(state);
+  }
+
+  function syncNodeEdgeStroke(nodeElement) {
+    if (!nodeElement) return;
+    nodeElement.style.setProperty('--desk-node-edge-stroke', 'var(--desk-node-selection-stroke)');
+  }
+
+  function clearFloatingConnectionPort(exceptNodeId = '') {
+    document.querySelectorAll('.desk-node.is-port-proximity').forEach(nodeElement => {
+      if (nodeElement.dataset.nodeId === exceptNodeId) return;
+      nodeElement.classList.remove('is-port-proximity');
+    });
+    floatingSwellStates.forEach(state => {
+      if (state.nodeElement.dataset.nodeId !== exceptNodeId) releaseFloatingSwell(state.nodeElement);
+    });
+  }
+
+  function updateFloatingConnectionPort(clientX, clientY) {
+    if (activeInteraction || contextMenuEl?.classList.contains('is-open')) return;
+    const viewportRect = els.deskCanvasViewport?.getBoundingClientRect();
+    if (
+      !viewportRect
+      || clientX < viewportRect.left
+      || clientX > viewportRect.right
+      || clientY < viewportRect.top
+      || clientY > viewportRect.bottom
+    ) {
+      clearFloatingConnectionPort();
+      return;
+    }
+    let best = null;
+    document.querySelectorAll('.desk-node--edge-handles[data-node-id]').forEach(nodeElement => {
+      const floatingPort = nodeElement.querySelector('.desk-port--floating[data-edge-handle]');
+      if (!floatingPort) return;
+      const rect = nodeElement.getBoundingClientRect();
+      if (
+        clientX < rect.left - FLOATING_PORT_TRACKING_MARGIN_PX
+        || clientX > rect.right + FLOATING_PORT_TRACKING_MARGIN_PX
+        || clientY < rect.top - FLOATING_PORT_TRACKING_MARGIN_PX
+        || clientY > rect.bottom + FLOATING_PORT_TRACKING_MARGIN_PX
+      ) return;
+      const localWidth = nodeElement.offsetWidth || 1;
+      const localHeight = nodeElement.offsetHeight || 1;
+      const state = ensureFloatingSwellState(nodeElement, floatingPort);
+      const scaleX = rect.width / localWidth;
+      const scaleY = rect.height / localHeight;
+      const localX = (clientX - rect.left) / scaleX;
+      const localY = (clientY - rect.top) / scaleY;
+      const nearest = closestFloatingSwellSample(state.geometry.samples, localX, localY);
+      const screenScale = Math.min(scaleX, scaleY);
+      const outwardDistance = (localX - nearest.sample.x) * nearest.sample.nx
+        + (localY - nearest.sample.y) * nearest.sample.ny;
+      const edgeDepth = outwardDistance > 0
+        ? FLOATING_SWELL_EDGE_OUTSET_PX
+        : FLOATING_SWELL_EDGE_INSET_PX;
+      if (nearest.distance * screenScale > edgeDepth) return;
+      const screenDistance = nearest.distance * screenScale;
+      if (!best || screenDistance < best.distance) {
+        best = { nodeElement, floatingPort, state, sample: nearest.sample, distance: screenDistance };
+      }
+    });
+    if (!best) {
+      clearFloatingConnectionPort();
+      return;
+    }
+    clearFloatingConnectionPort(best.nodeElement.dataset.nodeId);
+    const { nodeElement, state, sample } = best;
+    setFloatingSwellTarget(state, sample, true);
+    syncNodeEdgeStroke(nodeElement);
+    nodeElement.classList.add('is-port-proximity');
+  }
+
+  function getConnectionPortAnchor(nodeId, port, side = 'right') {
+    const node = getNodeState(nodeId);
+    if (!node || !port?.dataset?.edgeHandle) return getAnchor(nodeId, side);
+    const anchorX = Number(port.dataset.anchorX);
+    const anchorY = Number(port.dataset.anchorY);
+    if (!Number.isFinite(anchorX) || !Number.isFinite(anchorY)) return getAnchor(nodeId, side);
+    return { x: node.x + anchorX, y: node.y + anchorY };
+  }
+
+  function nodeHtmlForState(nodeId, node) {
+    if (node.type === 'file_output') return fileOutputNodeHtml(nodeId);
+    if (node.type === 'image') return imageNodeHtml(node);
+    if (node.type === 'video') return videoNodeHtml(node);
+    if (node.type === 'video_inference') return videoInferenceNodeHtml(node);
+    if (node.type === 'comfy') return comfyNodeHtml(node);
+    if (node.type === 'upscale') return upscaleNodeHtml(node);
+    if (node.type === 'pose') return poseNodeHtml(node);
+    if (node.type === 'layout') return layoutNodeHtml(node);
+    if (node.type === 'text') return textNodeHtml(node);
+    return inputNodeHtml(nodeId);
+  }
+
   function ensureGraphDom() {
     const world = els.deskCanvasWorld;
     if (!world) return;
     world.querySelectorAll('.desk-node[data-node-id]').forEach(node => {
-      if (!DesktopState.state.canvas.nodes[node.dataset.nodeId]) node.remove();
+      if (!DesktopState.state.canvas.nodes[node.dataset.nodeId]) {
+        discardFloatingSwellState(node);
+        node.remove();
+      }
     });
     Object.entries(DesktopState.state.canvas.nodes).forEach(([nodeId, node]) => {
       if (getNodeElement(nodeId)) return;
       if (node.type === 'output') return;
-      const html = node.type === 'file_output'
-        ? fileOutputNodeHtml(nodeId)
-        : (node.type === 'image'
-          ? imageNodeHtml(node)
-          : (node.type === 'comfy' ? comfyNodeHtml(node) : (node.type === 'upscale' ? upscaleNodeHtml(node) : (node.type === 'pose' ? poseNodeHtml(node) : (node.type === 'layout' ? layoutNodeHtml(node) : (node.type === 'text' ? textNodeHtml(node) : inputNodeHtml(nodeId)))))));
+      const html = nodeHtmlForState(nodeId, node);
       world.insertAdjacentHTML('beforeend', html);
     });
+    world.querySelectorAll('.desk-node[data-node-id]').forEach(ensureNodeEdgeHandles);
   }
 
   function screenToWorld(clientX, clientY) {
@@ -3603,6 +5831,7 @@
     event.preventDefault();
     event.stopPropagation();
     hideContextMenu();
+    clearSelectedEdge();
     if (isLeftButton && isSelectToolActive() && !event.altKey && !event.metaKey && !event.ctrlKey && !event.shiftKey) {
       const pointer = screenToWorld(event.clientX, event.clientY);
       activeInteraction = {
@@ -3687,9 +5916,26 @@
     );
   }
 
+  function shouldIgnoreNodeDragTarget(event) {
+    const target = event.target;
+    if (target.closest('button, input, textarea, select, audio, [contenteditable="true"]')) return true;
+    const video = target.closest('video');
+    if (!video) return Boolean(target.closest('[data-node-drag-ignore]'));
+    const videoNode = video.closest('.desk-node--video');
+    if (!videoNode) return true;
+
+    const videoRect = video.getBoundingClientRect();
+    const nodeRect = videoNode.getBoundingClientRect();
+    const visibleTop = Math.max(videoRect.top, nodeRect.top);
+    const visibleBottom = Math.min(videoRect.bottom, nodeRect.bottom);
+    const visibleHeight = Math.max(0, visibleBottom - visibleTop);
+    const nativeControlsHeight = Math.min(54, Math.max(36, visibleHeight * 0.14));
+    return event.clientY >= visibleBottom - nativeControlsHeight;
+  }
+
   function startNodeDrag(event, options = {}) {
     if (event.button !== 0) return;
-    if (!options.force && event.target.closest('button, input, textarea, select, [contenteditable="true"]')) return;
+    if (!options.force && shouldIgnoreNodeDragTarget(event)) return;
     const node = event.target.closest('.desk-node[data-node-id]');
     if (!node) return;
     event.preventDefault();
@@ -3723,6 +5969,7 @@
     if (nodeState?.type === 'input') return;
     event.preventDefault();
     event.stopPropagation();
+    clearFloatingConnectionPort();
     const nodeId = node.dataset.nodeId;
     const resizeState = getNodeState(nodeId);
     const pointer = screenToWorld(event.clientX, event.clientY);
@@ -3733,13 +5980,20 @@
       startWorldY: pointer.y,
       width: resizeState.width,
       height: resizeState.height,
-      aspectRatio: resizeState.aspectRatio || (resizeState.width / Math.max(1, resizeState.height))
+      aspectRatio: resizeState.type === 'image'
+        ? (resizeState.aspectRatio || (resizeState.width / Math.max(1, resizeState.height)))
+        : (resizeState.type === 'video'
+          ? videoMediaAspectRatio(resizeState)
+          : (resizeState.width / Math.max(1, resizeState.height)))
     };
     node.classList.add('is-resizing');
   }
 
   function moveInteraction(event) {
-    if (!activeInteraction) return;
+    if (!activeInteraction) {
+      updateFloatingConnectionPort(event.clientX, event.clientY);
+      return;
+    }
     event.preventDefault();
 
     if (activeInteraction.type === 'pan') {
@@ -3757,7 +6011,13 @@
 
     if (activeInteraction.type === 'connect') {
       activeInteraction.pointer = screenToWorld(event.clientX, event.clientY);
-      renderConnectionPreview(activeInteraction.fromNodeId, activeInteraction.pointer);
+      renderConnectionPreview(
+        activeInteraction.fromNodeId,
+        activeInteraction.pointer,
+        activeInteraction.fromSide,
+        activeInteraction.fromAnchor
+      );
+      updateConnectionDropTarget(event.clientX, event.clientY);
       return;
     }
 
@@ -3813,6 +6073,19 @@
       } else if (nodeState.type === 'comfy') {
         nodeState.width = clamp(activeInteraction.width + pointer.x - activeInteraction.startWorldX, MIN_COMFY_NODE_WIDTH, MAX_COMFY_NODE_WIDTH);
         nodeState.height = clamp(activeInteraction.height + pointer.y - activeInteraction.startWorldY, MIN_COMFY_NODE_HEIGHT, MAX_COMFY_NODE_HEIGHT);
+      } else if (nodeState.type === 'video_inference') {
+        nodeState.width = clamp(activeInteraction.width + pointer.x - activeInteraction.startWorldX, MIN_VIDEO_INFERENCE_NODE_WIDTH, MAX_VIDEO_INFERENCE_NODE_WIDTH);
+        nodeState.height = clamp(activeInteraction.height + pointer.y - activeInteraction.startWorldY, MIN_VIDEO_INFERENCE_NODE_HEIGHT, MAX_VIDEO_INFERENCE_NODE_HEIGHT);
+      } else if (nodeState.type === 'video') {
+        const dx = pointer.x - activeInteraction.startWorldX;
+        const dy = pointer.y - activeInteraction.startWorldY;
+        const aspectRatio = Math.max(0.05, activeInteraction.aspectRatio || videoMediaAspectRatio(nodeState));
+        const delta = Math.abs(dx) >= Math.abs(dy) ? dx : dy * aspectRatio;
+        const minWidth = Math.max(MIN_VIDEO_NODE_WIDTH, MIN_VIDEO_NODE_HEIGHT * aspectRatio);
+        const maxWidth = Math.min(MAX_VIDEO_NODE_WIDTH, MAX_VIDEO_NODE_HEIGHT * aspectRatio);
+        nodeState.width = clamp(activeInteraction.width + delta, Math.min(minWidth, maxWidth), Math.max(minWidth, maxWidth));
+        nodeState.height = nodeState.width / aspectRatio;
+        nodeState.aspectRatio = aspectRatio;
       } else if (nodeState.type === 'input') {
         nodeState.width = LOCKED_INPUT_NODE_WIDTH;
         nodeState.height = LOCKED_INPUT_NODE_HEIGHT;
@@ -4231,11 +6504,10 @@
       segment.type === 'prompt_block' && segment.instance_id === requestedInstanceId
     ));
     if (index < 0) throw new Error('素材块实例不存在');
-    const previous = promptDocument.segments[index];
     promptDocument.segments[index] = normalizePromptBlockSegment({
       ...(block && typeof block === 'object' ? block : {}),
       instance_id: requestedInstanceId
-    }, previous);
+    });
     setTextNodePromptDocument(node, nodeState, promptDocument);
     selectNode(nodeState.id);
     const nextToken = findPromptBlockTokenElement(requestedInstanceId);
@@ -4933,17 +7205,27 @@
   function getBatchPromptItems(inputNodeId) {
     const textNodes = getConnectedTextNodes(inputNodeId);
     const nodePrompts = textNodes
-      .map(node => ({
-        text: materializeTextNode(node).trim(),
-        styleId: node.stylePresetId || ''
-      }))
+      .map(node => {
+        const promptDocument = ensureTextNodePromptDocument(node);
+        return {
+          text: promptDocument ? materializePromptDocument(promptDocument).trim() : '',
+          fidelityHeader: promptDocumentFidelityHeader(promptDocument),
+          styleId: node.stylePresetId || ''
+        };
+      })
       .filter(item => item.text);
     if (nodePrompts.length > 1) {
-      return nodePrompts.map(item => composePromptWithTextStyles(item.text, [item.styleId].filter(Boolean)));
+      return nodePrompts.map(item => composePromptWithTextStyles(
+        [item.fidelityHeader, item.text].filter(Boolean).join('\n\n'),
+        [item.styleId].filter(Boolean)
+      ));
     }
     if (nodePrompts.length === 1) {
       const parts = splitBatchPromptItems(nodePrompts[0].text);
-      return parts.map(part => composePromptWithTextStyles(part, [nodePrompts[0].styleId].filter(Boolean)));
+      return parts.map(part => composePromptWithTextStyles(
+        [nodePrompts[0].fidelityHeader, part].filter(Boolean).join('\n\n'),
+        [nodePrompts[0].styleId].filter(Boolean)
+      ));
     }
     return [];
   }
@@ -4951,7 +7233,14 @@
   function mergePromptWithConnectedText(prompt, inputNodeId) {
     const textNodes = getConnectedTextNodes(inputNodeId);
     const styleIds = textNodes.map(node => node.stylePresetId || '').filter(Boolean);
+    const promptDocuments = textNodes
+      .map(node => ensureTextNodePromptDocument(node))
+      .filter(Boolean);
+    const combinedFidelityHeader = promptDocumentFidelityHeader({
+      segments: promptDocuments.flatMap(document => Array.isArray(document.segments) ? document.segments : [])
+    });
     const basePrompt = [
+      combinedFidelityHeader,
       ...textNodes.map(node => materializeTextNode(node).trim()).filter(Boolean),
       String(prompt || '').trim()
     ]
@@ -5388,7 +7677,7 @@
   }
 
   function normalizeNodeMenuType(type) {
-    return ['input', 'comfy', 'file_output', 'layout', 'text', 'image', 'pose', 'upscale'].includes(type) ? type : 'input';
+    return ['input', 'comfy', 'video_inference', 'video', 'file_output', 'layout', 'text', 'image', 'pose', 'upscale'].includes(type) ? type : 'input';
   }
 
   function addNodeFromMenu(type, worldPoint) {
@@ -5401,10 +7690,12 @@
   function removeNode(nodeId, options = {}) {
     const node = DesktopState.state.canvas.nodes[nodeId];
     if (!node) return;
+    if (node.type === 'video_inference') stopVideoTaskPolling(nodeId);
     const nodeEl = getNodeElement(nodeId);
     if (nodeEl?.contains(document.activeElement)) {
       document.activeElement?.blur?.();
     }
+    discardFloatingSwellState(nodeEl);
     nodeEl?.remove();
     clearPromptDocumentHistory(nodeId);
     delete DesktopState.state.canvas.nodes[nodeId];
@@ -5427,12 +7718,22 @@
       .filter(edge => edge.from === nodeId || edge.to === nodeId)
       .flatMap(edge => [edge.from, edge.to])
       .filter(id => DesktopState.state.canvas.nodes[id]?.type === 'upscale');
+    const affectedVideoInferenceIds = (DesktopState.state.canvas.edges || [])
+      .filter(edge => edge.from === nodeId || edge.to === nodeId)
+      .flatMap(edge => [edge.from, edge.to])
+      .filter(id => DesktopState.state.canvas.nodes[id]?.type === 'video_inference');
+    const affectedVideoIds = (DesktopState.state.canvas.edges || [])
+      .filter(edge => edge.from === nodeId || edge.to === nodeId)
+      .flatMap(edge => [edge.from, edge.to])
+      .filter(id => DesktopState.state.canvas.nodes[id]?.type === 'video');
     DesktopState.state.canvas.edges = (DesktopState.state.canvas.edges || []).filter(edge => edge.from !== nodeId && edge.to !== nodeId);
     window.dispatchEvent(new CustomEvent('desktop:canvas-node-removed', { detail: { nodeId } }));
     if (node.type === 'text') notifyTextNodeListChange(nodeId);
     affectedLayoutIds.forEach(updateLayoutInputCount);
     affectedPoseIds.forEach(refreshPoseNode);
     affectedUpscaleIds.forEach(updateUpscaleInputCount);
+    affectedVideoInferenceIds.forEach(refreshVideoInferenceNode);
+    affectedVideoIds.forEach(refreshVideoNode);
     updateLinkPath();
     DesktopState.saveSettings();
     if (options.focusCanvas) focusCanvasViewport();
@@ -5459,15 +7760,29 @@
     const poseToUpscale = from?.type === 'pose' && to?.type === 'upscale';
     const textToInput = from?.type === 'text' && to?.type === 'input';
     const textToComfy = from?.type === 'text' && to?.type === 'comfy';
+    const textToVideoInference = from?.type === 'text' && to?.type === 'video_inference';
+    const imageToVideoInference = from?.type === 'image' && to?.type === 'video_inference';
+    const layoutToVideoInference = from?.type === 'layout' && to?.type === 'video_inference';
+    const poseToVideoInference = from?.type === 'pose' && to?.type === 'video_inference';
+    const videoToVideoInference = from?.type === 'video' && to?.type === 'video_inference';
+    const videoInferenceToVideo = from?.type === 'video_inference' && to?.type === 'video';
     const outputToImage = from?.type === 'output' && to?.type === 'image';
     const upscaleToImage = from?.type === 'upscale' && to?.type === 'image';
-    if (!from || !to || (!modelToResult && !modelToImage && !modelToUpscale && !comfyToImage && !comfyToUpscale && !imageToInput && !imageToComfy && !imageToLayout && !imageToPoseReference && !imageToUpscale && !layoutToInput && !layoutToComfy && !layoutToUpscale && !poseToInput && !poseToComfy && !poseToUpscale && !textToInput && !textToComfy && !outputToImage && !upscaleToImage)) {
-      if (!options.quiet) DesktopResults.showTransientMessage('当前支持：模型/Comfy 到图片或高清放大，图片/排版/姿态/文本到模型或 Comfy。');
+    const videoInputConnection = textToVideoInference || imageToVideoInference || layoutToVideoInference || poseToVideoInference || videoToVideoInference;
+    if (!from || !to || (!modelToResult && !modelToImage && !modelToUpscale && !comfyToImage && !comfyToUpscale && !imageToInput && !imageToComfy && !imageToLayout && !imageToPoseReference && !imageToUpscale && !layoutToInput && !layoutToComfy && !layoutToUpscale && !poseToInput && !poseToComfy && !poseToUpscale && !textToInput && !textToComfy && !videoInputConnection && !videoInferenceToVideo && !outputToImage && !upscaleToImage)) {
+      if (!options.quiet) DesktopResults.showTransientMessage('当前节点类型不能这样连接。视频生成可接入文本、图片、姿态、排版或视频节点。');
       return '';
     }
+    const inputRole = String(options.inputRole || (videoInputConnection ? videoInputRoleForSource(from.type) : '')).trim();
     DesktopState.state.canvas.edges = (DesktopState.state.canvas.edges || []).filter(edge => {
       if (modelToResult) return edge.to !== toNodeId;
       if (modelToImage || comfyToImage) return edge.to !== toNodeId;
+      if (videoInferenceToVideo) return edge.to !== toNodeId;
+      if (videoInputConnection && inputRole) {
+        const edgeSource = DesktopState.state.canvas.nodes[edge.from];
+        const edgeRole = edge.inputRole || videoInputRoleForSource(edgeSource?.type);
+        return !(edge.to === toNodeId && edgeRole === inputRole);
+      }
       if (outputToImage) return edge.to !== toNodeId;
       if (upscaleToImage) return edge.to !== toNodeId;
       return !(edge.from === fromNodeId && edge.to === toNodeId);
@@ -5477,6 +7792,8 @@
       id: edgeId,
       from: fromNodeId,
       to: toNodeId,
+      inputRole: inputRole || undefined,
+      outputRole: videoInferenceToVideo ? 'video' : undefined,
       outputSlot: Number.isFinite(Number(options.outputSlot)) ? Number(options.outputSlot) : undefined
     });
     document.querySelectorAll('.desk-port.is-connecting').forEach(item => item.classList.remove('is-connecting'));
@@ -5498,6 +7815,20 @@
     } else if (imageToUpscale || layoutToUpscale || poseToUpscale) {
       updateUpscaleInputCount(toNodeId);
       DesktopResults.showTransientMessage('图片已接入高清放大节点。');
+      DesktopState.saveSettings();
+      return edgeId;
+    } else if (videoInputConnection) {
+      refreshVideoInferenceNode(toNodeId);
+      if (!options.quiet) {
+        const label = inputRole === 'prompt' ? '提示词' : (inputRole === 'first_frame' ? '首帧' : '参考视频');
+        DesktopResults.showTransientMessage(`${label}已接入 MiniMax H3 节点。`);
+      }
+      DesktopState.saveSettings();
+      return edgeId;
+    } else if (videoInferenceToVideo) {
+      refreshVideoInferenceNode(fromNodeId);
+      refreshVideoNode(toNodeId);
+      if (!options.quiet) DesktopResults.showTransientMessage('视频结果节点已接入 MiniMax H3 输出。');
       DesktopState.saveSettings();
       return edgeId;
     } else if (imageToComfy || layoutToComfy || poseToComfy || textToComfy) {
@@ -5558,6 +7889,8 @@
     const upscaleIds = new Set();
     const modelOutputIds = new Set();
     const comfyIds = new Set();
+    const videoInferenceIds = new Set();
+    const videoIds = new Set();
     removedEdges.forEach(edge => {
       const from = DesktopState.state.canvas.nodes[edge.from];
       const to = DesktopState.state.canvas.nodes[edge.to];
@@ -5567,17 +7900,27 @@
       if (from?.type === 'upscale') upscaleIds.add(edge.from);
       if ((from?.type === 'input' || from?.type === 'comfy') && to?.type === 'image') modelOutputIds.add(edge.from);
       if (to?.type === 'comfy') comfyIds.add(edge.to);
+      if (to?.type === 'video_inference') videoInferenceIds.add(edge.to);
+      if (from?.type === 'video_inference') videoInferenceIds.add(edge.from);
+      if (to?.type === 'video') videoIds.add(edge.to);
     });
     modelOutputIds.forEach(assignImageOutputSlots);
     layoutIds.forEach(updateLayoutInputCount);
     poseIds.forEach(refreshPoseNode);
     upscaleIds.forEach(updateUpscaleInputCount);
     comfyIds.forEach(refreshComfyNode);
+    videoInferenceIds.forEach(refreshVideoInferenceNode);
+    videoIds.forEach(refreshVideoNode);
   }
 
   function removeEdgesById(edgeIds = [], options = {}) {
     const ids = new Set(edgeIds.filter(Boolean));
     if (!ids.size) return [];
+    if (ids.has(selectedEdgeId)) {
+      selectedEdgeId = '';
+      hideEdgeMenu();
+    }
+    if (ids.has(hoveredEdgeId)) hoveredEdgeId = '';
     const removed = [];
     DesktopState.state.canvas.edges = (DesktopState.state.canvas.edges || []).filter(edge => {
       if (!ids.has(edge.id)) return true;
@@ -5598,27 +7941,73 @@
       .find(edge => edge.to === toNodeId && DesktopState.state.canvas.nodes[edge.from] && DesktopState.state.canvas.nodes[edge.to]);
   }
 
+  function clearConnectionDragVisuals() {
+    document.querySelectorAll('.desk-port.is-connecting, .desk-port.is-drop-target').forEach(item => {
+      item.classList.remove('is-connecting', 'is-drop-target');
+    });
+    document.querySelectorAll('.desk-node.is-connection-drop-target').forEach(item => item.classList.remove('is-connection-drop-target'));
+    document.querySelectorAll('.desk-node.is-compatible-target').forEach(item => item.classList.remove('is-compatible-target'));
+    document.querySelectorAll('.desk-port[data-semantic-port][data-port="in"]').forEach(port => {
+      port.dataset.portSide = 'left';
+    });
+    clearFloatingConnectionPort();
+    els.deskCanvasViewport?.classList.remove('is-connecting');
+  }
+
+  function markCompatibleConnectionTargets(fromNodeId) {
+    const compatibleTypes = new Set(getConnectableNodeMenuItems(fromNodeId).map(item => item.type));
+    document.querySelectorAll('.desk-node[data-node-id]').forEach(nodeElement => {
+      const nodeState = DesktopState.state.canvas.nodes[nodeElement.dataset.nodeId];
+      const isCompatible = nodeElement.dataset.nodeId !== fromNodeId && compatibleTypes.has(nodeState?.type);
+      nodeElement.classList.toggle('is-compatible-target', isCompatible);
+      if (isCompatible) {
+        syncNodeEdgeStroke(nodeElement);
+        const inputPort = nodeElement.querySelector('.desk-port[data-semantic-port][data-port="in"]');
+        if (inputPort) inputPort.dataset.portSide = resolveConnectionSides(fromNodeId, nodeElement.dataset.nodeId).toSide;
+      }
+    });
+  }
+
+  function updateConnectionDropTarget(clientX, clientY) {
+    document.querySelectorAll('.desk-port.is-drop-target').forEach(item => item.classList.remove('is-drop-target'));
+    document.querySelectorAll('.desk-node.is-connection-drop-target').forEach(item => item.classList.remove('is-connection-drop-target'));
+    const target = document.elementFromPoint(clientX, clientY);
+    const compatibleNode = target?.closest?.('.desk-node.is-compatible-target[data-node-id]');
+    if (!compatibleNode) return;
+    compatibleNode.classList.add('is-connection-drop-target');
+    compatibleNode.querySelector('.desk-port[data-semantic-port][data-port="in"]')?.classList.add('is-drop-target');
+  }
+
   function startConnectionDrag(event, button) {
     if (event.button !== 0) return;
     const nodeId = button.dataset.nodeId;
     const port = button.dataset.port;
     if (port !== 'out') return;
+    const fromSide = normalizePortSide(button.dataset.portSide, 'right');
+    const fromAnchor = getConnectionPortAnchor(nodeId, button, fromSide);
+    syncNodeEdgeStroke(getNodeElement(nodeId));
     event.preventDefault();
     event.stopPropagation();
-    document.querySelectorAll('.desk-port.is-connecting').forEach(item => item.classList.remove('is-connecting'));
+    hideContextMenu();
+    clearConnectionDragVisuals();
     button.classList.add('is-connecting');
+    holdFloatingSwell(button);
+    els.deskCanvasViewport?.classList.add('is-connecting');
     activeInteraction = {
       type: 'connect',
       fromNodeId: nodeId,
+      fromSide,
+      fromAnchor,
       pointer: screenToWorld(event.clientX, event.clientY)
     };
-    renderConnectionPreview(nodeId, activeInteraction.pointer);
+    markCompatibleConnectionTargets(nodeId);
+    renderConnectionPreview(nodeId, activeInteraction.pointer, activeInteraction.fromSide, activeInteraction.fromAnchor);
     const nodeType = DesktopState.state.canvas.nodes[nodeId]?.type;
     DesktopResults.showTransientMessage(nodeType === 'image'
-      ? '拖到模型、排版或姿态参考节点左侧圆点后松开。'
+      ? '拖到兼容的模型、排版或姿态参考节点后松开。'
       : (nodeType === 'output'
         ? '拖到图片节点上后松开。'
-        : (nodeType === 'layout' || nodeType === 'text' || nodeType === 'pose' ? '拖到模型节点左侧圆点后松开。' : '拖到图片节点左侧圆点，或空白处创建输出图片。')));
+        : (nodeType === 'layout' || nodeType === 'text' || nodeType === 'pose' ? '拖到兼容的模型节点后松开。' : '拖到兼容节点，或空白处创建并自动连接。')));
   }
 
   function startConnectionDetachDrag(event, button) {
@@ -5631,16 +8020,24 @@
     event.preventDefault();
     event.stopPropagation();
     removeEdgesById([edge.id], { quiet: true });
-    document.querySelectorAll('.desk-port.is-connecting').forEach(item => item.classList.remove('is-connecting'));
-    button.classList.add('is-connecting');
+    hideContextMenu();
+    clearConnectionDragVisuals();
+    const sides = resolveConnectionSides(edge.from, edge.to);
+    const sourcePort = getNodeElement(edge.from)?.querySelector?.(`.desk-port[data-port="out"][data-port-side="${sides.fromSide}"]`)
+      || getNodeElement(edge.from)?.querySelector?.('.desk-port[data-port="out"]');
+    sourcePort?.classList.add('is-connecting');
+    els.deskCanvasViewport?.classList.add('is-connecting');
     activeInteraction = {
       type: 'connect',
       fromNodeId: edge.from,
+      fromSide: sides.fromSide,
+      fromAnchor: getAnchor(edge.from, sides.fromSide),
       detachedEdge: edge,
       reconnecting: true,
       pointer: screenToWorld(event.clientX, event.clientY)
     };
-    renderConnectionPreview(edge.from, activeInteraction.pointer);
+    markCompatibleConnectionTargets(edge.from);
+    renderConnectionPreview(edge.from, activeInteraction.pointer, activeInteraction.fromSide, activeInteraction.fromAnchor);
     DesktopResults.showTransientMessage('连接已拉开，拖到其它输入端点可重连，松开空白处则解除。');
   }
 
@@ -5816,9 +8213,13 @@
 
   function finishConnectionDrag(event) {
     const target = document.elementFromPoint(event.clientX, event.clientY);
+    const compatibleNode = target?.closest?.('.desk-node.is-compatible-target[data-node-id]');
+    const compatibleNodeId = compatibleNode?.dataset?.nodeId || '';
     const port = target?.closest?.('.desk-port[data-port="in"]');
-    if (port) {
-      connectNodes(activeInteraction.fromNodeId, port.dataset.nodeId);
+    const portNodeId = port?.closest?.('.desk-node.is-compatible-target[data-node-id]')?.dataset?.nodeId || '';
+    clearConnectionDragVisuals();
+    if (portNodeId || compatibleNodeId) {
+      connectNodes(activeInteraction.fromNodeId, portNodeId || compatibleNodeId);
       return;
     }
     const sourceNode = DesktopState.state.canvas.nodes[activeInteraction.fromNodeId];
@@ -5829,7 +8230,6 @@
         return;
       }
     }
-    document.querySelectorAll('.desk-port.is-connecting').forEach(item => item.classList.remove('is-connecting'));
     updateLinkPath();
     if (activeInteraction.reconnecting) {
       DesktopResults.showTransientMessage('连接已解除。');
@@ -5846,7 +8246,9 @@
     if (items.length && isInsideViewport && isBlankCanvas) {
       openContextMenu(event, {
         connectionSourceId: activeInteraction.fromNodeId,
-        title: '可接入节点'
+        connectionSourceSide: activeInteraction.fromSide,
+        connectionSourceAnchor: activeInteraction.fromAnchor,
+        title: '添加节点'
       });
       DesktopResults.showTransientMessage('选择一个节点继续连接。');
       return;
@@ -5888,6 +8290,107 @@
       img.onerror = () => resolve({ width: 1, height: 1 });
       img.src = dataUrl;
     });
+  }
+
+  function readImageMetaStrict(dataUrl, filename = '') {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        const width = Number(img.naturalWidth || 0);
+        const height = Number(img.naturalHeight || 0);
+        if (width > 0 && height > 0) {
+          resolve({ width, height });
+          return;
+        }
+        reject(new Error(`无法读取“${filename || '图片'}”，请使用 ${SUPPORTED_LOCAL_IMAGE_TEXT}。`));
+      };
+      img.onerror = () => reject(new Error(`无法读取“${filename || '图片'}”，请使用 ${SUPPORTED_LOCAL_IMAGE_TEXT}。`));
+      img.src = dataUrl;
+    });
+  }
+
+  function localImageExtension(filename = '') {
+    const match = String(filename || '').trim().toLowerCase().match(/\.([a-z0-9]+)$/);
+    return match ? match[1] : '';
+  }
+
+  function localImageMimeFromName(filename = '') {
+    return LOCAL_IMAGE_EXTENSION_MIME[localImageExtension(filename)] || '';
+  }
+
+  function localImageFilename(file, mimeType, fallbackPrefix = '图片') {
+    const originalName = String(file?.name || '')
+      .replace(/[\x00-\x1f<>:"/\\|?*]+/g, '_')
+      .trim()
+      .slice(0, 180);
+    const originalExtension = localImageExtension(originalName);
+    const normalizedMime = String(mimeType || '').toLowerCase() === 'image/jpg' ? 'image/jpeg' : String(mimeType || '').toLowerCase();
+    if (originalName && LOCAL_IMAGE_EXTENSION_MIME[originalExtension] === normalizedMime) return originalName;
+    const extension = LOCAL_IMAGE_MIME_EXTENSION[String(mimeType || '').toLowerCase()] || 'png';
+    const stem = originalName
+      ? originalName.replace(/\.[^.]+$/, '').trim()
+      : `${fallbackPrefix}-${new Date().toISOString().replace(/[:.]/g, '-').replace('T', '-').replace('Z', '')}`;
+    return `${stem || fallbackPrefix}.${extension}`;
+  }
+
+  async function sniffLocalImageMime(blob) {
+    if (!blob || typeof blob.slice !== 'function') return '';
+    let head;
+    try {
+      head = new Uint8Array(await blob.slice(0, 4096).arrayBuffer());
+    } catch (error) {
+      return '';
+    }
+    const hasBytes = (...bytes) => bytes.every((value, index) => head[index] === value);
+    if (head.length >= 8 && hasBytes(0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a)) return 'image/png';
+    if (head.length >= 3 && hasBytes(0xff, 0xd8, 0xff)) return 'image/jpeg';
+    if (head.length >= 6) {
+      const signature = String.fromCharCode(...head.slice(0, 6));
+      if (signature === 'GIF87a' || signature === 'GIF89a') return 'image/gif';
+    }
+    if (head.length >= 12) {
+      const riff = String.fromCharCode(...head.slice(0, 4));
+      const webp = String.fromCharCode(...head.slice(8, 12));
+      if (riff === 'RIFF' && webp === 'WEBP') return 'image/webp';
+    }
+    if (head.length >= 2 && hasBytes(0x42, 0x4d)) return 'image/bmp';
+    if (head.length >= 4 && hasBytes(0x00, 0x00, 0x01, 0x00)) return 'image/x-icon';
+    if (head.length >= 16) {
+      const box = String.fromCharCode(...head.slice(4, 8));
+      const brands = String.fromCharCode(...head.slice(8, 32));
+      if (box === 'ftyp' && /avif|avis/.test(brands)) return 'image/avif';
+    }
+    try {
+      const text = new TextDecoder('utf-8').decode(head).replace(/^\uFEFF/, '').trimStart().toLowerCase();
+      if (text.startsWith('<svg') || (text.startsWith('<?xml') && text.slice(0, 2048).includes('<svg'))) {
+        return 'image/svg+xml';
+      }
+    } catch (error) {}
+    return '';
+  }
+
+  async function prepareLocalImageFile(file, fallbackPrefix = '图片') {
+    if (!file || typeof file.slice !== 'function') {
+      throw new Error(`请选择 ${SUPPORTED_LOCAL_IMAGE_TEXT} 文件。`);
+    }
+    const declaredMime = String(file.type || '').trim().toLowerCase();
+    const namedMime = localImageMimeFromName(file.name);
+    const sniffedMime = await sniffLocalImageMime(file);
+    const mimeType = sniffedMime || (declaredMime.startsWith('image/') ? declaredMime : namedMime);
+    if (!mimeType || !mimeType.startsWith('image/')) {
+      throw new Error(`“${file.name || '拖入的内容'}”不是支持的图片文件。`);
+    }
+    const filename = localImageFilename(file, mimeType, fallbackPrefix);
+    const typedBlob = declaredMime === mimeType ? file : file.slice(0, file.size, mimeType);
+    const imageData = await fileToDataUrl(typedBlob);
+    const meta = await readImageMetaStrict(imageData, filename);
+    return {
+      file,
+      filename,
+      mimeType,
+      imageData,
+      meta
+    };
   }
 
   async function imageUrlToDataUrl(url) {
@@ -6555,8 +9058,24 @@
     if (!clean.groupId) delete clean.groupId;
     clean.x = Number.isFinite(Number(clean.x)) ? Number(clean.x) : 56;
     clean.y = Number.isFinite(Number(clean.y)) ? Number(clean.y) : 72;
-    clean.width = Number.isFinite(Number(clean.width)) ? Number(clean.width) : (clean.type === 'input' ? DEFAULT_INPUT_NODE_WIDTH : (clean.type === 'comfy' ? DEFAULT_COMFY_NODE_WIDTH : (clean.type === 'upscale' ? DEFAULT_UPSCALE_NODE_WIDTH : DEFAULT_IMAGE_NODE_WIDTH)));
-    clean.height = Number.isFinite(Number(clean.height)) ? Number(clean.height) : (clean.type === 'input' ? DEFAULT_INPUT_NODE_HEIGHT : (clean.type === 'comfy' ? DEFAULT_COMFY_NODE_HEIGHT : (clean.type === 'upscale' ? DEFAULT_UPSCALE_NODE_HEIGHT : DEFAULT_IMAGE_NODE_HEIGHT)));
+    clean.width = Number.isFinite(Number(clean.width))
+      ? Number(clean.width)
+      : (clean.type === 'input'
+        ? DEFAULT_INPUT_NODE_WIDTH
+        : (clean.type === 'comfy'
+          ? DEFAULT_COMFY_NODE_WIDTH
+          : (clean.type === 'video_inference'
+            ? DEFAULT_VIDEO_INFERENCE_NODE_WIDTH
+            : (clean.type === 'video' ? DEFAULT_VIDEO_NODE_WIDTH : (clean.type === 'upscale' ? DEFAULT_UPSCALE_NODE_WIDTH : DEFAULT_IMAGE_NODE_WIDTH)))));
+    clean.height = Number.isFinite(Number(clean.height))
+      ? Number(clean.height)
+      : (clean.type === 'input'
+        ? DEFAULT_INPUT_NODE_HEIGHT
+        : (clean.type === 'comfy'
+          ? DEFAULT_COMFY_NODE_HEIGHT
+          : (clean.type === 'video_inference'
+            ? DEFAULT_VIDEO_INFERENCE_NODE_HEIGHT
+            : (clean.type === 'video' ? DEFAULT_VIDEO_NODE_HEIGHT : (clean.type === 'upscale' ? DEFAULT_UPSCALE_NODE_HEIGHT : DEFAULT_IMAGE_NODE_HEIGHT)))));
     if (clean.type === 'input') {
       clean.width = DEFAULT_INPUT_NODE_WIDTH;
       clean.height = DEFAULT_INPUT_NODE_HEIGHT;
@@ -6591,6 +9110,15 @@
         telegramEnabled: clean.output?.telegramEnabled !== false
       };
     }
+    if (clean.type === 'video_inference') {
+      clean.width = clamp(clean.width, MIN_VIDEO_INFERENCE_NODE_WIDTH, MAX_VIDEO_INFERENCE_NODE_WIDTH);
+      clean.height = clamp(clean.height, MIN_VIDEO_INFERENCE_NODE_HEIGHT, MAX_VIDEO_INFERENCE_NODE_HEIGHT);
+      normalizeVideoInferenceNodeState(clean);
+      clean.output = {
+        archiveEnabled: true,
+        telegramEnabled: clean.output?.telegramEnabled === true
+      };
+    }
     if (clean.type === 'text') {
       clean.promptDocument = normalizePromptDocument(clean.promptDocument, clean.text || '');
       clean.text = materializePromptDocument(clean.promptDocument);
@@ -6604,6 +9132,24 @@
       clean.imageName = String(clean.imageName || clean.title || '图片节点');
       clean.mimeType = String(clean.mimeType || (dataUrl ? dataUrl.slice(5, dataUrl.indexOf(';')) : 'image/png') || 'image/png');
       clean.aspectRatio = Number(clean.aspectRatio) > 0 ? Number(clean.aspectRatio) : DEFAULT_IMAGE_NODE_WIDTH / DEFAULT_IMAGE_NODE_HEIGHT;
+    }
+    if (clean.type === 'video') {
+      clean.width = clamp(clean.width, MIN_VIDEO_NODE_WIDTH, MAX_VIDEO_NODE_WIDTH);
+      clean.height = Math.max(180, Number(clean.height || DEFAULT_VIDEO_NODE_HEIGHT));
+      const mediaUrl = String(clean.mediaUrl || clean.videoUrl || '').trim();
+      const posterUrl = String(clean.posterUrl || '').trim();
+      clean.mediaUrl = mediaUrl.startsWith('blob:') || mediaUrl.startsWith('data:') ? '' : mediaUrl;
+      clean.posterUrl = posterUrl.startsWith('blob:') || posterUrl.startsWith('data:') ? '' : posterUrl;
+      clean.mediaName = String(clean.mediaName || clean.title || '视频结果');
+      clean.mimeType = String(clean.mimeType || 'video/mp4');
+      clean.sourceTaskId = String(clean.sourceTaskId || clean.source_task_id || '');
+      clean.durationSeconds = Math.max(0, Number(clean.durationSeconds || clean.duration_seconds || 0));
+      clean.mediaWidth = Math.max(0, Number(clean.mediaWidth || clean.media_width || 0));
+      clean.mediaHeight = Math.max(0, Number(clean.mediaHeight || clean.media_height || 0));
+      clean.fps = Math.max(1, Number(clean.fps || 24));
+      clean.fileSize = Math.max(0, Number(clean.fileSize || clean.file_size || 0));
+      clean.status = DesktopState.isInFlight?.(clean.status) ? 'idle' : String(clean.status || (clean.mediaUrl ? 'succeeded' : 'idle'));
+      fitVideoNodeToMedia(clean);
     }
     if (clean.type === 'layout' && Array.isArray(clean.layoutInputImages)) {
       clean.layoutInputImages = clean.layoutInputImages.map(normalizeWorkflowReference).filter(Boolean);
@@ -6636,9 +9182,15 @@
     }
     normalizeNodeGroups(nodes);
     const edges = (Array.isArray(source.edges) ? source.edges : [])
-      .map(edge => ({
+      .map((edge, index) => ({
+        id: String(edge?.id || `${edge?.from || 'from'}_${edge?.to || 'to'}_${index}`),
         from: String(edge?.from || ''),
-        to: String(edge?.to || '')
+        to: String(edge?.to || ''),
+        inputRole: String(edge?.inputRole || edge?.input_role || '') || undefined,
+        outputRole: String(edge?.outputRole || edge?.output_role || '') || undefined,
+        outputSlot: Number.isFinite(Number(edge?.outputSlot ?? edge?.output_slot))
+          ? Number(edge.outputSlot ?? edge.output_slot)
+          : undefined
       }))
       .filter(edge => edge.from && edge.to && edge.from !== edge.to && nodes[edge.from] && nodes[edge.to]);
     const selectedNodeIds = expandNodeIdsToGroups(
@@ -8329,12 +10881,13 @@
   function insertImageNode(source, center, options = {}) {
     const size = getImageNodeSize(source.meta);
     const count = Object.keys(DesktopState.state.canvas.nodes).length;
+    const placementIndex = options.exactCenter ? 0 : count;
     const id = nextNodeId('image');
     const node = {
       id,
       type: 'image',
-      x: center.x - size.width / 2 + count * 14,
-      y: center.y - size.height / 2 + count * 10,
+      x: center.x - size.width / 2 + placementIndex * 14,
+      y: center.y - size.height / 2 + placementIndex * 10,
       width: size.width,
       height: size.height,
       aspectRatio: size.aspectRatio,
@@ -8360,32 +10913,203 @@
     return id;
   }
 
-  async function createImageNodeFromFiles(files, center = null) {
-    const file = Array.from(files || []).find(item => item.type.startsWith('image/'));
-    if (!file) return '';
-    const imageData = await fileToDataUrl(file);
-    const meta = await readImageMeta(imageData);
-    return insertImageNode({
-      imageData,
-      imageName: file.name,
-      mimeType: file.type || 'image/png',
-      meta
-    }, center || getImageNodeCenter());
+  async function createImageNodeFromFiles(files, center = null, options = {}) {
+    const candidates = Array.from(files || []);
+    if (!candidates.length) return '';
+    let lastError = null;
+    for (const file of candidates) {
+      try {
+        const prepared = await prepareLocalImageFile(file, options.fallbackPrefix || '本地图片');
+        return insertImageNode({
+          imageData: prepared.imageData,
+          imageName: prepared.filename,
+          mimeType: prepared.mimeType,
+          title: prepared.filename,
+          file: prepared.filename,
+          source: options.source || 'upload',
+          imageUrl: options.imageUrl || '',
+          meta: prepared.meta
+        }, center || getImageNodeCenter(), options);
+      } catch (error) {
+        lastError = error;
+      }
+    }
+    if (lastError) throw lastError;
+    return '';
+  }
+
+  async function createImageNodesFromFiles(files, clientX, clientY, options = {}) {
+    const allFiles = Array.from(files || []);
+    if (!allFiles.length) return [];
+    const origin = getImageNodeCenter(clientX, clientY);
+    const hasScreenPoint = Number.isFinite(clientX) && Number.isFinite(clientY);
+    const createdNodeIds = [];
+    const errors = [];
+    for (let index = 0; index < allFiles.length; index += 1) {
+      const center = hasScreenPoint
+        ? getImageNodeCenter(clientX + createdNodeIds.length * 28, clientY + createdNodeIds.length * 24)
+        : { x: origin.x + createdNodeIds.length * 36, y: origin.y + createdNodeIds.length * 30 };
+      try {
+        const nodeId = await createImageNodeFromFiles([allFiles[index]], center, {
+          ...options,
+          exactCenter: true,
+          popIndex: createdNodeIds.length
+        });
+        if (nodeId) createdNodeIds.push(nodeId);
+      } catch (error) {
+        errors.push(error);
+      }
+    }
+    if (createdNodeIds.length && !options.silent) {
+      const ignoredCount = errors.length;
+      const successLabel = options.successLabel || '本地图片';
+      const createdText = createdNodeIds.length === 1
+        ? `${successLabel}已创建为图片节点。`
+        : `${createdNodeIds.length} 张${successLabel}已创建为图片节点。`;
+      DesktopResults.showTransientMessage(ignoredCount ? `${createdText} 其他文件未导入。` : createdText);
+    }
+    if (!createdNodeIds.length && errors.length && !options.suppressErrors) throw errors[0];
+    return createdNodeIds;
+  }
+
+  function externalImageNameFromUrl(source) {
+    if (/^(?:data|blob):/i.test(String(source || '').trim())) return '';
+    try {
+      const parsed = new URL(String(source || ''), window.location.href);
+      const name = decodeURIComponent(parsed.pathname.split('/').pop() || '').trim();
+      return name.slice(0, 180) || '';
+    } catch (error) {
+      return '';
+    }
+  }
+
+  async function prepareExternalImageSource(source, fallbackPrefix = '拖入图片') {
+    const normalizedSource = normalizeExternalImageUrl(source);
+    if (!normalizedSource) throw new Error('拖入内容中没有可读取的图片地址。');
+    let blob = null;
+    let filename = externalImageNameFromUrl(normalizedSource);
+    if (/^data:image\//i.test(normalizedSource) || /^blob:/i.test(normalizedSource)) {
+      try {
+        const response = await fetch(normalizedSource);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        blob = await response.blob();
+      } catch (error) {
+        throw new Error('这个虚拟图片地址无法直接读取，请复制图片后在画布按 Ctrl+V。');
+      }
+    } else {
+      const parsed = new URL(normalizedSource);
+      if (parsed.origin === window.location.origin) {
+        const dataUrl = await DesktopApi.imageUrlToDataUri(`${parsed.pathname}${parsed.search}${parsed.hash}`);
+        blob = await (await fetch(dataUrl)).blob();
+      } else {
+        if (typeof DesktopApi.importImageUrl !== 'function') throw new Error('当前版本不支持远程图片拖入。');
+        const imported = await DesktopApi.importImageUrl(normalizedSource);
+        blob = imported.blob;
+        filename = imported.filename || filename;
+      }
+    }
+    const file = new File([blob], filename || fallbackPrefix, {
+      type: blob.type || '',
+      lastModified: Date.now()
+    });
+    const prepared = await prepareLocalImageFile(file, fallbackPrefix);
+    return {
+      ...prepared,
+      sourceUrl: /^https?:\/\//i.test(normalizedSource) ? normalizedSource : ''
+    };
+  }
+
+  async function createImageNodesFromExternalSources(sources, clientX, clientY, options = {}) {
+    const candidates = Array.from(sources || []).slice(0, MAX_EXTERNAL_IMAGE_IMPORTS);
+    const createdNodeIds = [];
+    const errors = [];
+    const origin = getImageNodeCenter(clientX, clientY);
+    const hasScreenPoint = Number.isFinite(clientX) && Number.isFinite(clientY);
+    for (const source of candidates) {
+      try {
+        const prepared = await prepareExternalImageSource(source, options.fallbackPrefix || '拖入图片');
+        const center = hasScreenPoint
+          ? getImageNodeCenter(clientX + createdNodeIds.length * 28, clientY + createdNodeIds.length * 24)
+          : { x: origin.x + createdNodeIds.length * 36, y: origin.y + createdNodeIds.length * 30 };
+        const nodeId = insertImageNode({
+          imageData: prepared.imageData,
+          imageUrl: prepared.sourceUrl,
+          imageName: prepared.filename,
+          mimeType: prepared.mimeType,
+          title: prepared.filename,
+          file: prepared.filename,
+          source: options.source || 'external-drop',
+          meta: prepared.meta
+        }, center, {
+          exactCenter: true,
+          popIndex: createdNodeIds.length
+        });
+        createdNodeIds.push(nodeId);
+      } catch (error) {
+        errors.push(error);
+      }
+    }
+    if (!createdNodeIds.length && errors.length) throw errors[0];
+    if (createdNodeIds.length && !options.silent) {
+      const label = options.successLabel || '拖入图片';
+      const text = createdNodeIds.length === 1
+        ? `${label}已创建为图片节点。`
+        : `${createdNodeIds.length} 张${label}已创建为图片节点。`;
+      DesktopResults.showTransientMessage(errors.length ? `${text} 其他内容未导入。` : text);
+    }
+    return createdNodeIds;
+  }
+
+  async function addExternalImageSourcesToNode(nodeId, sources, options = {}) {
+    const refs = getNodeReferenceImages(nodeId);
+    const remaining = Math.max(0, 8 - refs.length);
+    if (!remaining) {
+      DesktopResults.showTransientMessage('最多支持 8 张参考图。');
+      return 0;
+    }
+    const preparedImages = [];
+    const errors = [];
+    for (const source of Array.from(sources || []).slice(0, remaining)) {
+      try {
+        preparedImages.push(await prepareExternalImageSource(source, options.fallbackPrefix || '拖入参考图'));
+      } catch (error) {
+        errors.push(error);
+      }
+    }
+    preparedImages.forEach((prepared, index) => {
+      refs.push({
+        id: `external:${prepared.sourceUrl || prepared.filename}:${Date.now()}:${index}`,
+        name: prepared.filename,
+        title: prepared.filename,
+        type: prepared.mimeType,
+        url: prepared.imageData,
+        base64: prepared.imageData,
+        imageData: prepared.imageData,
+        imageUrl: prepared.sourceUrl,
+        source: options.source || 'external-drop',
+        file: prepared.filename
+      });
+    });
+    if (!preparedImages.length && errors.length) throw errors[0];
+    if (preparedImages.length) {
+      renderNodeReferenceThumbs(nodeId);
+      DesktopState.saveSettings();
+    }
+    return preparedImages.length;
   }
 
   async function replaceImageNodeFromFiles(nodeId, files) {
     const node = DesktopState.state.canvas.nodes[nodeId];
-    const file = Array.from(files || []).find(item => item.type.startsWith('image/'));
+    const file = Array.from(files || [])[0];
     if (!node || node.type !== 'image' || !file) return '';
-    const imageData = await fileToDataUrl(file);
-    const meta = await readImageMeta(imageData);
-    node.imageData = imageData;
+    const prepared = await prepareLocalImageFile(file, '替换图片');
+    node.imageData = prepared.imageData;
     node.imageUrl = '';
-    node.imageName = file.name || '图片节点';
-    node.mimeType = file.type || 'image/png';
-    node.aspectRatio = Math.max(0.08, (meta.width || 1) / Math.max(1, meta.height || 1));
+    node.imageName = prepared.filename || '图片节点';
+    node.mimeType = prepared.mimeType;
+    node.aspectRatio = Math.max(0.08, (prepared.meta.width || 1) / Math.max(1, prepared.meta.height || 1));
     if (!node.width || !node.height) {
-      const size = getImageNodeSize(meta);
+      const size = getImageNodeSize(prepared.meta);
       node.width = size.width;
       node.height = size.height;
     } else {
@@ -8395,8 +11119,8 @@
     node.sourceTaskId = '';
     node.sourceAssetId = '';
     node.sourcePrompt = '';
-    node.sourceTitle = file.name || '';
-    node.sourceFile = file.name || '';
+    node.sourceTitle = prepared.filename || '';
+    node.sourceFile = prepared.filename || '';
     node.sourceProvider = '';
     node.editState = {};
     refreshImageNodeContent(nodeId);
@@ -8783,28 +11507,244 @@
   }
 
   async function addFilesToNode(nodeId, files) {
-    const nextFiles = Array.from(files || []).filter(file => file.type.startsWith('image/'));
-    if (!nextFiles.length) return;
+    const nextFiles = Array.from(files || []);
+    if (!nextFiles.length) return 0;
     const refs = getNodeReferenceImages(nodeId);
     const remaining = Math.max(0, 8 - refs.length);
     if (!remaining) {
       DesktopResults.showTransientMessage('最多支持 8 张参考图。');
-      return;
+      return 0;
     }
-    const selected = nextFiles.slice(0, remaining);
-    const images = await Promise.all(selected.map(async file => ({
-      id: `upload:${file.name}:${file.size}:${file.lastModified || Date.now()}`,
-      name: file.name,
-      type: file.type,
-      url: URL.createObjectURL(file),
-      base64: await fileToDataUrl(file),
-      imageData: '',
-      imageUrl: '',
-      source: 'upload'
-    })));
+    const images = [];
+    const errors = [];
+    for (const file of nextFiles) {
+      if (images.length >= remaining) break;
+      try {
+        const prepared = await prepareLocalImageFile(file, '参考图');
+        images.push({
+          id: `upload:${prepared.filename}:${file.size}:${file.lastModified || Date.now()}`,
+          name: prepared.filename,
+          title: prepared.filename,
+          type: prepared.mimeType,
+          url: prepared.imageData,
+          base64: prepared.imageData,
+          imageData: prepared.imageData,
+          imageUrl: '',
+          source: 'upload',
+          file: prepared.filename
+        });
+      } catch (error) {
+        errors.push(error);
+      }
+    }
+    if (!images.length && errors.length) throw errors[0];
     refs.push(...images);
     renderNodeReferenceThumbs(nodeId);
     DesktopState.saveSettings();
+    return images.length;
+  }
+
+  function isLocalImageFile(file) {
+    const type = String(file?.type || '').toLowerCase();
+    return type.startsWith('image/') || !!localImageMimeFromName(file?.name);
+  }
+
+  function hasLocalFileDragPayload(dataTransfer) {
+    const types = Array.from(dataTransfer?.types || []);
+    if (types.includes('Files')) return true;
+    return Array.from(dataTransfer?.items || []).some(item => item?.kind === 'file');
+  }
+
+  function hasLocalImageDragPayload(dataTransfer) {
+    return hasLocalFileDragPayload(dataTransfer);
+  }
+
+  function getLocalDragFiles(dataTransfer) {
+    const files = Array.from(dataTransfer?.files || []);
+    Array.from(dataTransfer?.items || []).forEach(item => {
+      if (item?.kind !== 'file' || typeof item.getAsFile !== 'function') return;
+      const file = item.getAsFile();
+      if (file) files.push(file);
+    });
+    const seen = new Set();
+    return files.filter(file => {
+      const key = [file?.name || '', file?.size || 0, file?.lastModified || 0, file?.type || ''].join(':');
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }
+
+  function hasExternalImageTextDragPayload(dataTransfer) {
+    const types = Array.from(dataTransfer?.types || []).map(type => String(type || '').toLowerCase());
+    return types.includes('text/uri-list') || types.includes('text/html') || types.includes('text/plain');
+  }
+
+  function hasExternalImageDragPayload(dataTransfer) {
+    return hasLocalFileDragPayload(dataTransfer) || hasExternalImageTextDragPayload(dataTransfer);
+  }
+
+  function readDroppedString(dataTransfer, mimeType) {
+    const direct = String(dataTransfer?.getData?.(mimeType) || '').trim();
+    if (direct) return Promise.resolve(direct);
+    const item = Array.from(dataTransfer?.items || []).find(candidate => (
+      candidate?.kind === 'string' && String(candidate?.type || '').toLowerCase() === mimeType
+    ));
+    if (!item || typeof item.getAsString !== 'function') return Promise.resolve('');
+    return new Promise(resolve => item.getAsString(value => resolve(String(value || '').trim())));
+  }
+
+  function normalizeExternalImageUrl(value, allowRelative = false) {
+    const raw = String(value || '').trim().replace(/^['"]|['"]$/g, '');
+    if (!raw) return '';
+    if (/^data:image\//i.test(raw) || /^blob:/i.test(raw)) return raw;
+    if (!/^https?:\/\//i.test(raw) && !allowRelative) return '';
+    try {
+      const resolved = new URL(raw, window.location.href);
+      return /^https?:$/i.test(resolved.protocol) ? resolved.href : '';
+    } catch (error) {
+      return '';
+    }
+  }
+
+  function imageSourcesFromHtml(html) {
+    if (!html) return [];
+    try {
+      const documentFragment = new DOMParser().parseFromString(html, 'text/html');
+      const sources = [];
+      documentFragment.querySelectorAll('img').forEach(image => {
+        const source = image.getAttribute('src') || image.getAttribute('data-src') || '';
+        if (source) sources.push(source);
+        const srcset = String(image.getAttribute('srcset') || '').trim();
+        if (srcset && !source) sources.push(srcset.split(',')[0].trim().split(/\s+/)[0]);
+      });
+      return sources;
+    } catch (error) {
+      return [];
+    }
+  }
+
+  async function getExternalImageSources(dataTransfer) {
+    const [html, uriList, plainText] = await Promise.all([
+      readDroppedString(dataTransfer, 'text/html'),
+      readDroppedString(dataTransfer, 'text/uri-list'),
+      readDroppedString(dataTransfer, 'text/plain')
+    ]);
+    const candidates = [
+      ...imageSourcesFromHtml(html).map(value => ({ value, allowRelative: true })),
+      ...String(uriList || '').split(/\r?\n/).map(line => line.trim()).filter(line => line && !line.startsWith('#')).map(value => ({ value, allowRelative: false })),
+      { value: String(plainText || '').trim(), allowRelative: false }
+    ];
+    const seen = new Set();
+    const sources = [];
+    candidates.forEach(candidate => {
+      const source = normalizeExternalImageUrl(candidate.value, candidate.allowRelative);
+      if (!source || seen.has(source) || sources.length >= MAX_EXTERNAL_IMAGE_IMPORTS) return;
+      seen.add(source);
+      sources.push(source);
+    });
+    return sources;
+  }
+
+  function captureExternalImageTransfer(dataTransfer) {
+    return {
+      files: getLocalDragFiles(dataTransfer),
+      sourcesPromise: getExternalImageSources(dataTransfer)
+    };
+  }
+
+  async function importCapturedImages(captured, options = {}) {
+    const files = Array.from(captured?.files || []);
+    const sourcesPromise = captured?.sourcesPromise || Promise.resolve([]);
+    let fileError = null;
+    if (options.referenceNodeId) {
+      if (files.length) {
+        try {
+          const added = await addFilesToNode(options.referenceNodeId, files);
+          if (added) {
+            DesktopResults.showTransientMessage(added > 1 ? `${added} 张图片已添加为参考图。` : '图片已添加为参考图。');
+            return added;
+          }
+        } catch (error) {
+          fileError = error;
+        }
+      }
+      const sources = await sourcesPromise;
+      if (sources.length) {
+        const added = await addExternalImageSourcesToNode(options.referenceNodeId, sources, {
+          source: options.source || 'external-upload',
+          fallbackPrefix: options.fallbackPrefix || '拖入参考图'
+        });
+        if (added) {
+          DesktopResults.showTransientMessage(added > 1 ? `${added} 张图片已添加为参考图。` : '图片已添加为参考图。');
+          return added;
+        }
+      }
+      if (fileError) throw fileError;
+      throw new Error(`没有找到可读取的图片，请使用 ${SUPPORTED_LOCAL_IMAGE_TEXT}，或复制图片后按 Ctrl+V。`);
+    }
+
+    if (files.length) {
+      try {
+        const nodeIds = await createImageNodesFromFiles(files, options.clientX, options.clientY, {
+          source: options.fileSource || 'upload',
+          suppressErrors: true,
+          fallbackPrefix: options.fallbackPrefix,
+          successLabel: options.successLabel
+        });
+        if (nodeIds.length) return nodeIds;
+      } catch (error) {
+        fileError = error;
+      }
+    }
+    const sources = await sourcesPromise;
+    if (sources.length) {
+      return createImageNodesFromExternalSources(sources, options.clientX, options.clientY, {
+        source: options.source || 'external-drop',
+        fallbackPrefix: options.fallbackPrefix || '拖入图片',
+        successLabel: options.successLabel || '拖入图片'
+      });
+    }
+    if (fileError) throw fileError;
+    throw new Error(`没有找到可读取的图片，请使用 ${SUPPORTED_LOCAL_IMAGE_TEXT}，或复制图片后按 Ctrl+V。`);
+  }
+
+  function hasClipboardImagePayload(dataTransfer) {
+    if (!dataTransfer) return false;
+    const files = getLocalDragFiles(dataTransfer);
+    if (files.some(isLocalImageFile)) return true;
+    const fileItems = Array.from(dataTransfer.items || []).filter(item => item?.kind === 'file');
+    if (fileItems.some(item => !item.type || String(item.type).toLowerCase().startsWith('image/'))) return true;
+    const html = String(dataTransfer.getData?.('text/html') || '');
+    if (/<img\b/i.test(html)) return true;
+    const uriList = String(dataTransfer.getData?.('text/uri-list') || '').split(/\r?\n/).find(line => line && !line.startsWith('#')) || '';
+    if (normalizeExternalImageUrl(uriList)) return true;
+    return !!normalizeExternalImageUrl(dataTransfer.getData?.('text/plain') || '');
+  }
+
+  function isEditablePasteTarget(target) {
+    return !!target?.closest?.('input, textarea, select, [contenteditable="true"], [contenteditable="plaintext-only"]');
+  }
+
+  function handleCanvasImagePaste(event) {
+    if (isEditablePasteTarget(event.target) || !hasClipboardImagePayload(event.clipboardData)) return;
+    const viewport = els.deskCanvasViewport;
+    const targetIsCanvas = !!viewport?.contains(event.target);
+    if (!targetIsCanvas && !lastCanvasPointer) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const captured = captureExternalImageTransfer(event.clipboardData);
+    const rect = viewport?.getBoundingClientRect();
+    const clientX = Number.isFinite(lastCanvasPointer?.x) ? lastCanvasPointer.x : (rect ? rect.left + rect.width / 2 : undefined);
+    const clientY = Number.isFinite(lastCanvasPointer?.y) ? lastCanvasPointer.y : (rect ? rect.top + rect.height / 2 : undefined);
+    importCapturedImages(captured, {
+      clientX,
+      clientY,
+      source: 'clipboard',
+      fileSource: 'clipboard',
+      fallbackPrefix: '粘贴图片',
+      successLabel: '粘贴图片'
+    }).catch(error => DesktopResults.showError(error));
   }
 
   function clearDraft() {
@@ -8886,6 +11826,33 @@
     return created;
   }
 
+  function createVideoNodeFromAsset(item, clientX, clientY) {
+    const mediaUrl = String(item?.mediaUrl || item?.videoUrl || item?.url || '').trim();
+    if (!mediaUrl) throw new Error('视频资产没有可播放地址');
+    const worldPoint = Number.isFinite(clientX) && Number.isFinite(clientY)
+      ? screenToWorld(clientX, clientY)
+      : getViewportCenterWorldPoint();
+    const nodeId = addNode('video', worldPoint);
+    const node = DesktopState.state.canvas.nodes[nodeId];
+    if (!node) throw new Error('视频节点创建失败');
+    node.mediaUrl = mediaUrl;
+    node.posterUrl = String(item?.posterUrl || item?.poster_url || '').trim();
+    node.mediaName = String(item?.mediaName || item?.name || item?.filename || '视频资产');
+    node.mimeType = String(item?.mimeType || item?.mime_type || 'video/mp4');
+    node.sourceTaskId = String(item?.sourceTaskId || item?.source_task_id || item?.taskId || item?.task_id || '');
+    node.durationSeconds = Math.max(0, Number(item?.durationSeconds || item?.duration_seconds || 0));
+    node.mediaWidth = Math.max(0, Number(item?.mediaWidth || item?.media_width || item?.width || 0));
+    node.mediaHeight = Math.max(0, Number(item?.mediaHeight || item?.media_height || item?.height || 0));
+    node.fps = Math.max(1, Number(item?.fps || 24));
+    node.fileSize = Math.max(0, Number(item?.fileSize || item?.file_size || item?.size_bytes || 0));
+    node.status = 'succeeded';
+    fitVideoNodeToMedia(node);
+    refreshVideoNode(nodeId);
+    selectNode(nodeId);
+    DesktopState.saveSettings();
+    return nodeId;
+  }
+
   function hasAddNodeDragPayload(dataTransfer) {
     const types = Array.from(dataTransfer?.types || []);
     return types.includes('application/x-desktop-add-node');
@@ -8916,8 +11883,21 @@
   }
 
   function bindEvents() {
+    bindLinkLayerInteractions();
+    document.addEventListener('pointerdown', event => {
+      if (els.deskCanvasViewport?.contains(event.target)) {
+        lastCanvasPointer = { x: event.clientX, y: event.clientY };
+      } else {
+        lastCanvasPointer = null;
+      }
+    }, true);
+    els.deskCanvasViewport?.addEventListener('pointermove', event => {
+      lastCanvasPointer = { x: event.clientX, y: event.clientY };
+    });
+    document.addEventListener('paste', handleCanvasImagePaste);
     document.querySelectorAll('.desk-rail__item[data-tool]').forEach(button => {
       button.addEventListener('click', () => {
+        clearSelectedEdge();
         document.querySelectorAll('.desk-rail__item[data-tool]').forEach(item => item.classList.toggle('is-active', item === button));
         const tool = button.dataset.tool;
         updateCanvasToolCursor(tool === 'select');
@@ -8975,7 +11955,8 @@
     });
 
     document.addEventListener('pointerdown', event => {
-      if (event.target.closest('#deskNodePalette, #deskNodeContextMenu, #deskNodeToolBtn')) return;
+      if (event.target.closest('#deskNodePalette, #deskNodeContextMenu, #deskNodeToolBtn, #deskEdgeMenu, [data-edge-interaction]')) return;
+      clearSelectedEdge();
       setNodePaletteOpen(false);
       hideContextMenu();
       if (!event.target.closest('.desk-node--text, #deskPromptDrawer')) {
@@ -8990,6 +11971,29 @@
     });
 
     els.deskCanvasWorld?.addEventListener('click', event => {
+      const videoRunButton = event.target.closest('[data-video-run]');
+      if (videoRunButton) {
+        const nodeElement = videoRunButton.closest('.desk-node--video-inference[data-node-id]');
+        if (!nodeElement) return;
+        event.preventDefault();
+        event.stopPropagation();
+        selectNode(nodeElement.dataset.nodeId);
+        const originalTitle = videoRunButton.getAttribute('title') || '';
+        videoRunButton.disabled = true;
+        videoRunButton.classList.add('is-pending');
+        videoRunButton.setAttribute('aria-busy', 'true');
+        videoRunButton.setAttribute('title', videoRunButton.dataset.videoCancel === 'true' ? '正在取消视频任务…' : '正在检测视频服务…');
+        runVideoInferenceNode(nodeElement.dataset.nodeId)
+          .catch(error => DesktopResults.showError(error, nodeElement.dataset.nodeId))
+          .finally(() => {
+            if (!videoRunButton.isConnected) return;
+            videoRunButton.disabled = false;
+            videoRunButton.classList.remove('is-pending');
+            videoRunButton.removeAttribute('aria-busy');
+            videoRunButton.setAttribute('title', originalTitle);
+          });
+        return;
+      }
       const comfyParamsReset = event.target.closest('[data-comfy-params-reset]');
       if (comfyParamsReset) {
         const nodeElement = comfyParamsReset.closest('.desk-node--comfy[data-node-id]');
@@ -9314,6 +12318,12 @@
     });
 
     els.deskCanvasWorld?.addEventListener('input', event => {
+      const videoField = event.target.closest('.desk-node--video-inference[data-node-id] [data-video-field]');
+      if (videoField) {
+        syncVideoInferenceNodeStateFromDom(videoField.closest('.desk-node--video-inference[data-node-id]'));
+        DesktopState.saveSettings();
+        return;
+      }
       const taskTypeSelect = event.target.closest('select[data-field="gptTaskType"]');
       if (taskTypeSelect) {
         const inputNode = taskTypeSelect.closest('.desk-node--input[data-node-id]');
@@ -9410,6 +12420,14 @@
     });
 
     els.deskCanvasWorld?.addEventListener('change', event => {
+      const videoField = event.target.closest('.desk-node--video-inference[data-node-id] [data-video-field]');
+      if (videoField) {
+        const nodeElement = videoField.closest('.desk-node--video-inference[data-node-id]');
+        const nodeState = syncVideoInferenceNodeStateFromDom(nodeElement);
+        if (nodeState) refreshVideoInferenceNode(nodeState.id);
+        DesktopState.saveSettings();
+        return;
+      }
       const outputToggle = event.target.closest('[data-output-archive], [data-output-telegram]');
       if (outputToggle) {
         syncOutputControlsFromNode(outputToggle.closest('.desk-node[data-node-id]'));
@@ -9506,8 +12524,8 @@
       addNode('input');
     });
     els.deskConnectModeBtn?.addEventListener('click', () => {
-      document.querySelectorAll('.desk-port.is-connecting').forEach(item => item.classList.remove('is-connecting'));
-      DesktopResults.showTransientMessage('按住模型节点右侧圆点，拖到图片节点左侧圆点。');
+      clearConnectionDragVisuals();
+      DesktopResults.showTransientMessage('按住节点边缘胶囊拖动；落在空白处可新建节点并自动连接。');
     });
 
     els.deskImportBtn?.addEventListener('click', () => {
@@ -9542,8 +12560,14 @@
     });
     els.deskUploadDrop?.addEventListener('drop', event => {
       event.preventDefault();
+      event.stopPropagation();
       els.deskUploadDrop.classList.remove('is-dragover');
-      addFilesToNode('input', event.dataTransfer.files).catch(error => DesktopResults.showError(error));
+      const captured = captureExternalImageTransfer(event.dataTransfer);
+      importCapturedImages(captured, {
+        referenceNodeId: 'input',
+        source: 'external-upload',
+        fallbackPrefix: '拖入参考图'
+      }).catch(error => DesktopResults.showError(error));
     });
 
     els.deskPromptClearBtn?.addEventListener('click', clearDraft);
@@ -9569,10 +12593,17 @@
     });
     els.deskCanvasViewport?.addEventListener('wheel', handleCanvasWheel, { passive: false });
     els.deskCanvasViewport?.addEventListener('dragover', event => {
-      if (!hasHistoryDragPayload(event.dataTransfer) && !hasGalleryDragPayload(event.dataTransfer) && !hasAddNodeDragPayload(event.dataTransfer)) return;
+      const hasKnownCanvasPayload = hasHistoryDragPayload(event.dataTransfer)
+        || hasGalleryDragPayload(event.dataTransfer)
+        || hasAddNodeDragPayload(event.dataTransfer);
+      const hasExternalImages = hasExternalImageDragPayload(event.dataTransfer);
+      if (!hasKnownCanvasPayload && !hasExternalImages) return;
       event.preventDefault();
-      event.dataTransfer.dropEffect = 'copy';
-      els.deskCanvasViewport.classList.add('is-history-dragover');
+      const acceptsDrop = hasKnownCanvasPayload
+        || hasLocalImageDragPayload(event.dataTransfer)
+        || hasExternalImageTextDragPayload(event.dataTransfer);
+      event.dataTransfer.dropEffect = acceptsDrop ? 'copy' : 'none';
+      els.deskCanvasViewport.classList.toggle('is-history-dragover', acceptsDrop);
     });
     els.deskCanvasViewport?.addEventListener('dragleave', event => {
       if (els.deskCanvasViewport.contains(event.relatedTarget)) return;
@@ -9589,7 +12620,7 @@
           els.deskFileInput?.click();
           return;
         }
-        const type = ['file_output', 'layout', 'text', 'pose', 'upscale'].includes(addNodePayload.type) ? addNodePayload.type : 'input';
+        const type = ['file_output', 'video_inference', 'video', 'layout', 'text', 'pose', 'upscale'].includes(addNodePayload.type) ? addNodePayload.type : 'input';
         const pointer = screenToWorld(event.clientX, event.clientY);
         selectNode(addNode(type, pointer));
         setNodePaletteOpen(false);
@@ -9615,21 +12646,40 @@
       }
 
       const payload = getHistoryDragPayload(event.dataTransfer);
-      if (!payload) return;
+      if (payload) {
+        event.preventDefault();
+        event.stopPropagation();
+        els.deskCanvasViewport.classList.remove('is-history-dragover');
+        const targetInput = document.elementFromPoint(event.clientX, event.clientY)?.closest?.('.desk-node--input[data-node-id]');
+        if (targetInput) {
+          attachHistoryImagesToInput(payload, targetInput.dataset.nodeId).catch(error => DesktopResults.showError(error));
+          return;
+        }
+        const targetLayout = document.elementFromPoint(event.clientX, event.clientY)?.closest?.('.desk-node--layout[data-node-id]');
+        if (targetLayout) {
+          attachHistoryImageToLayout(payload, targetLayout.dataset.nodeId).catch(error => DesktopResults.showError(error));
+          return;
+        }
+        createImageNodeFromHistoryItem(payload, event.clientX, event.clientY).catch(error => DesktopResults.showError(error));
+        return;
+      }
+
+      if (!hasExternalImageDragPayload(event.dataTransfer)) return;
       event.preventDefault();
       event.stopPropagation();
       els.deskCanvasViewport.classList.remove('is-history-dragover');
-      const targetInput = document.elementFromPoint(event.clientX, event.clientY)?.closest?.('.desk-node--input[data-node-id]');
-      if (targetInput) {
-        attachHistoryImagesToInput(payload, targetInput.dataset.nodeId).catch(error => DesktopResults.showError(error));
-        return;
-      }
-      const targetLayout = document.elementFromPoint(event.clientX, event.clientY)?.closest?.('.desk-node--layout[data-node-id]');
-      if (targetLayout) {
-        attachHistoryImageToLayout(payload, targetLayout.dataset.nodeId).catch(error => DesktopResults.showError(error));
-        return;
-      }
-      createImageNodeFromHistoryItem(payload, event.clientX, event.clientY).catch(error => DesktopResults.showError(error));
+      const captured = captureExternalImageTransfer(event.dataTransfer);
+      const uploadTarget = event.target.closest?.('[data-upload-drop], #deskUploadDrop');
+      const inputNode = uploadTarget?.closest?.('.desk-node--input[data-node-id]');
+      importCapturedImages(captured, {
+        clientX: event.clientX,
+        clientY: event.clientY,
+        referenceNodeId: uploadTarget ? (inputNode?.dataset.nodeId || 'input') : '',
+        source: uploadTarget ? 'external-upload' : 'external-drop',
+        fileSource: 'upload',
+        fallbackPrefix: uploadTarget ? '拖入参考图' : '拖入图片',
+        successLabel: '拖入图片'
+      }).catch(error => DesktopResults.showError(error));
     });
     els.deskSelectionToolbar?.addEventListener('pointerdown', event => {
       event.stopPropagation();
@@ -9666,6 +12716,14 @@
           return;
         }
       }
+      const resizeHandle = event.target.closest('[data-node-resize-handle]');
+      if (resizeHandle) {
+        const node = resizeHandle.closest('.desk-node[data-node-id]');
+        if (node) selectNode(node.dataset.nodeId);
+        if (DesktopState.state.canvas.nodes[node?.dataset.nodeId || '']?.type === 'input') return;
+        startNodeResize(event);
+        return;
+      }
       const detachPortButton = event.target.closest('.desk-port[data-port="in"]');
       if (detachPortButton && getDetachableIncomingEdge(detachPortButton.dataset.nodeId)) {
         selectNode(detachPortButton.dataset.nodeId);
@@ -9674,16 +12732,10 @@
       }
       const portButton = event.target.closest('.desk-port[data-port="out"]');
       if (portButton) {
-        selectNode(portButton.dataset.nodeId);
+        const sourceNode = getNodeElement(portButton.dataset.nodeId);
+        if (!sourceNode?.classList.contains('desk-node--text')) selectNode(portButton.dataset.nodeId);
         startConnectionDrag(event, portButton);
         return;
-      }
-    if (event.target.closest('[data-node-resize-handle]')) {
-      const node = event.target.closest('.desk-node[data-node-id]');
-      if (node) selectNode(node.dataset.nodeId);
-      if (DesktopState.state.canvas.nodes[node?.dataset.nodeId || '']?.type === 'input') return;
-      startNodeResize(event);
-      return;
       }
       if (event.target.closest('[data-node-drag-handle]')) {
         const node = event.target.closest('.desk-node[data-node-id]');
@@ -9694,9 +12746,15 @@
     window.addEventListener('pointermove', moveInteraction);
     window.addEventListener('pointerup', endInteraction);
     window.addEventListener('pointercancel', endInteraction);
+    els.deskCanvasViewport?.addEventListener('pointerleave', () => {
+      if (!activeInteraction) clearFloatingConnectionPort();
+    });
     window.addEventListener('mousemove', moveMouseInteractionFallback, true);
     window.addEventListener('mouseup', endMouseInteractionFallback, true);
-    window.addEventListener('resize', renderMiniMap);
+    window.addEventListener('resize', () => {
+      renderMiniMap();
+      positionEdgeMenu();
+    });
     document.addEventListener('keydown', handleCanvasDeleteKeydown, true);
 
     els.deskZoomOutBtn?.addEventListener('click', () => {
@@ -9872,7 +12930,11 @@
 
   function init() {
     collectElements();
+    renderNodePaletteItems();
     const comfyMigrated = migrateLegacyComfyProviders();
+    const videoLayoutMigrated = Object.values(DesktopState.state.canvas.nodes || {}).reduce((changed, node) => (
+      node?.type === 'video_inference' ? migrateVideoInferenceNodeLayout(node) || changed : changed
+    ), false);
     migrateResultNodesToModelOutputs();
     const promptDocumentsChanged = ensureTextNodePromptDocuments();
     migrateLegacyPromptDraftToTextNode();
@@ -9889,14 +12951,33 @@
       applyCanvasTransform();
     }
     loadComfyWorkflowCatalog().catch(() => {});
+    loadVideoRuntimeContext().catch(() => {});
+    restoreVideoTaskPolling();
     window.addEventListener('desktop:comfy-workflows-updated', event => {
       if (event.detail) comfyWorkflowCatalog = event.detail;
       Object.values(DesktopState.state.canvas.nodes || {}).filter(node => node.type === 'comfy').forEach(node => refreshComfyNode(node.id));
     });
-    window.addEventListener('miniapp:auth-state-change', event => {
-      if (event.detail?.authenticated) loadComfyWorkflowCatalog().catch(() => {});
+    window.addEventListener('desktop:connection-swell-style-change', refreshFloatingSwellStyle);
+    window.addEventListener('desktop:video-runtime-status-updated', () => {
+      Object.values(DesktopState.state.canvas.nodes || {})
+        .filter(node => node.type === 'video_inference')
+        .forEach(node => refreshVideoInferenceNode(node.id));
     });
-    if (groupsChanged || promptDocumentsChanged || comfyMigrated) DesktopState.saveSettings();
+    window.addEventListener('desktop:video-capabilities-updated', () => {
+      Object.values(DesktopState.state.canvas.nodes || {})
+        .filter(node => node.type === 'video_inference')
+        .forEach(node => {
+          normalizeVideoInferenceNodeState(node);
+          refreshVideoInferenceNode(node.id);
+        });
+    });
+    window.addEventListener('miniapp:auth-state-change', event => {
+      if (event.detail?.authenticated) {
+        loadComfyWorkflowCatalog().catch(() => {});
+        loadVideoRuntimeContext().catch(() => {});
+      }
+    });
+    if (groupsChanged || promptDocumentsChanged || comfyMigrated || videoLayoutMigrated) DesktopState.saveSettings();
   }
 
   window.DesktopCanvas = {
@@ -9914,6 +12995,10 @@
     loadWorkflowFile,
     resolveResultNodeIdForRun,
     readConfigForResult,
+    readVideoInferenceNodeConfig,
+    runVideoInferenceNode,
+    refreshVideoInferenceNode,
+    refreshVideoNode,
     updateInputProgressOverlay,
     connectNodes,
     addNode,
@@ -9938,6 +13023,7 @@
     createImageNodeFromHistoryItem,
     continueEditFromHistoryItem,
     createImageNodesFromHistoryItems,
+    createVideoNodeFromAsset,
     attachHistoryImagesToInput,
     applyAssetConfigToInput,
     attachHistoryImagesToLayout,

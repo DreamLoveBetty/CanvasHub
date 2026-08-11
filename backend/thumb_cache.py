@@ -7,6 +7,8 @@ from __future__ import annotations
 import hashlib
 import os
 import re
+import shutil
+import subprocess
 import tempfile
 import threading
 import urllib.parse
@@ -23,6 +25,7 @@ THUMB_CACHE_ROOT = APP_DATA_DIR / "cache" / "thumb"
 THUMB_MAX_SIDE = 420
 THUMB_QUALITY = 76
 IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp"}
+VIDEO_EXTENSIONS = {".mp4", ".webm", ".mov", ".m4v"}
 
 
 class _GenerationLockEntry:
@@ -94,6 +97,9 @@ def resolve_media_path(media_path: str, resolvers: dict[str, Resolver]) -> Path 
         path = "/" + path.lstrip("/")
     if path.startswith("/archive_image/"):
         return resolvers["archive"](path[len("/archive_image/"):])
+    if path.startswith("/video/"):
+        resolver = resolvers.get("video")
+        return resolver(path[len("/video/"):]) if resolver else None
     if path.startswith("/source_image/"):
         return resolvers["source"](path[len("/source_image/"):])
     if path.startswith("/image/"):
@@ -151,6 +157,95 @@ def ensure_webp_thumbnail(source: Path, *, size: int = THUMB_MAX_SIDE) -> Path:
                         tmp_path.unlink(missing_ok=True)
                     except Exception:
                         pass
+    finally:
+        with _GEN_LOCKS_GUARD:
+            entry.users -= 1
+            if entry.users == 0 and _GEN_LOCKS.get(lock_key) is entry:
+                _GEN_LOCKS.pop(lock_key, None)
+    return cache_path
+
+
+def _resolve_ffmpeg() -> str:
+    executable_name = "ffmpeg.exe" if os.name == "nt" else "ffmpeg"
+    candidates = (
+        os.environ.get("FFMPEG_PATH"),
+        os.environ.get("FFMPEG_BINARY"),
+        shutil.which(executable_name),
+        "/opt/homebrew/bin/ffmpeg",
+        "/usr/local/bin/ffmpeg",
+        "/usr/bin/ffmpeg",
+    )
+    for candidate in candidates:
+        if not candidate:
+            continue
+        try:
+            path = Path(candidate).expanduser().resolve()
+        except (OSError, RuntimeError):
+            continue
+        if path.is_file() and os.access(path, os.X_OK):
+            return str(path)
+    return ""
+
+
+def ensure_video_webp_thumbnail(source: Path, *, size: int = THUMB_MAX_SIDE) -> Path:
+    """Extract and cache the first decoded video frame as a WebP thumbnail."""
+    source = Path(source).expanduser()
+    if not source.is_file() or source.suffix.lower() not in VIDEO_EXTENSIONS:
+        raise FileNotFoundError(str(source))
+
+    safe_size = _safe_int(size, THUMB_MAX_SIDE)
+    cache_path = thumb_cache_path(source, size=safe_size)
+    if cache_path.is_file():
+        return cache_path
+
+    lock_key = str(cache_path)
+    with _GEN_LOCKS_GUARD:
+        entry = _GEN_LOCKS.get(lock_key)
+        if entry is None:
+            entry = _GenerationLockEntry()
+            _GEN_LOCKS[lock_key] = entry
+        entry.users += 1
+    try:
+        with entry.lock:
+            if cache_path.is_file():
+                return cache_path
+            ffmpeg = _resolve_ffmpeg()
+            if not ffmpeg:
+                raise FileNotFoundError("ffmpeg")
+            cache_path.parent.mkdir(parents=True, exist_ok=True)
+            with tempfile.NamedTemporaryFile(dir=str(cache_path.parent), suffix=".png", delete=False) as tmp:
+                frame_path = Path(tmp.name)
+            try:
+                result = subprocess.run(
+                    [
+                        ffmpeg,
+                        "-hide_banner",
+                        "-loglevel", "error",
+                        "-y",
+                        "-i", str(source),
+                        "-frames:v", "1",
+                        "-f", "image2",
+                        str(frame_path),
+                    ],
+                    capture_output=True,
+                    timeout=25,
+                    check=False,
+                )
+                if result.returncode != 0 or not frame_path.is_file() or frame_path.stat().st_size <= 0:
+                    detail = (result.stderr or b"").decode("utf-8", errors="replace").strip()
+                    raise RuntimeError(detail or "ffmpeg failed to extract the first frame")
+                with Image.open(frame_path) as image:
+                    frame = image.convert("RGBA" if "A" in image.getbands() else "RGB")
+                    frame.thumbnail((safe_size, safe_size), Image.LANCZOS)
+                    with tempfile.NamedTemporaryFile(dir=str(cache_path.parent), suffix=".webp", delete=False) as output:
+                        output_path = Path(output.name)
+                    try:
+                        frame.save(output_path, "WEBP", quality=THUMB_QUALITY, method=5)
+                        os.replace(output_path, cache_path)
+                    finally:
+                        output_path.unlink(missing_ok=True)
+            finally:
+                frame_path.unlink(missing_ok=True)
     finally:
         with _GEN_LOCKS_GUARD:
             entry.users -= 1

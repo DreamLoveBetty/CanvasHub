@@ -265,6 +265,18 @@ def translate_generation_error(
             "raw_error": text,
         }
 
+    if "第三方 api 结果回传" in lower and "未自动重新提交" in text:
+        timed_out = "超过" in text and "总期限" in text
+        return {
+            "error_code": _error_code(
+                provider_key or "third_party_image_api",
+                "result_delivery_timeout" if timed_out else "result_delivery_interrupted",
+            ),
+            "error_category": "transport",
+            "display_error": _short(text, 320),
+            "raw_error": text,
+        }
+
     if "chunkedencodingerror" in lower or "response ended prematurely" in lower or "stream disconnected" in lower:
         if "before first event" in lower:
             display = "连接在收到模型响应前中断，请检查网络或代理"

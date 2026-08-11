@@ -48,7 +48,8 @@ TYPE_SPECS: list[dict[str, Any]] = [
         "id": "portrait", "label": "人像人物", "icon": "person",
         "modules": [
             ("identity", "身份", "年龄、职业、角色身份与人物关系。"),
-            ("appearance", "外貌", "脸型、五官、肤质、发色与稳定特征。"),
+            ("appearance", "外貌", "脸型、五官、肤色、肤质与稳定面部特征。"),
+            ("body_shape", "体形身材", "可见肩宽、颈长、锁骨、胸腰与躯干体量、身体轮廓和头身比例。"),
             ("pose", "动作姿态", "身体姿态、手势、重心与动作。"),
             ("expression", "表情视线", "情绪、眼神、视线方向与互动感。"),
             ("clothing", "服装造型", "服装版型、配色、面料和搭配。"),
@@ -114,6 +115,7 @@ TYPE_SPECS: list[dict[str, Any]] = [
         "modules": [
             ("character_identity", "角色身份", "阵营、职业、年龄和叙事职责。"),
             ("worldbuilding", "世界观", "时代、文明、科技或魔法规则。"),
+            ("body_shape", "体形身材", "角色可见骨架、肩腰比例、躯干与四肢体量及头身比例。"),
             ("silhouette", "角色轮廓", "体型、视觉重心和辨识度。"),
             ("equipment", "装备道具", "武器、防具、工具和功能。"),
             ("turnaround", "设定视图", "正面、侧面、背面和表情视图要求。"),
@@ -141,6 +143,7 @@ TYPE_SPECS: list[dict[str, Any]] = [
     {
         "id": "fashion", "label": "服装时尚", "icon": "fashion",
         "modules": [
+            ("body_shape", "体形身材", "模特可见肩腰比例、躯干和四肢体量及整体身体轮廓。"),
             ("garment_shape", "服装版型", "廓形、剪裁、层次和结构。"),
             ("fabric", "面料", "织法、垂坠、光泽和透明度。"),
             ("craft", "工艺", "缝线、刺绣、褶皱、印花和装饰。"),

@@ -1617,6 +1617,8 @@
         display_error: message || DEFAULT_STATUS_MESSAGE,
         raw_error: message || ''
       });
+    } else if (tone === 'success') {
+      statusTipTask = null;
     }
     els.deskStatusMessage.textContent = message || DEFAULT_STATUS_MESSAGE;
     els.deskStatusMessage.dataset.tone = tone;

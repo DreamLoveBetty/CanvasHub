@@ -29,7 +29,7 @@
     return String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
   }
   function moduleLabel(value) {
-    const labels = { identity: '身份', appearance: '外貌', pose: '姿态', expression: '表情', clothing: '服装', makeup_hair: '妆发', accessories: '配饰', subject: '主体', style: '风格', lighting: '光线', composition: '构图', camera: '镜头', color: '色彩', scene: '场景', material: '材质', quality: '质量', constraints: '约束', goal: '生成目标', custom: '自定义' };
+    const labels = { identity: '身份', appearance: '外貌', body_shape: '体形身材', pose: '姿态', expression: '表情', clothing: '服装', makeup_hair: '妆发', accessories: '配饰', subject: '主体', style: '风格', lighting: '光线', composition: '构图', camera: '镜头', color: '色彩', scene: '场景', material: '材质', quality: '质量', constraints: '约束', goal: '生成目标', custom: '自定义' };
     return state.moduleLabels[value] || window.DesktopPromptLibrary?.getModuleLabel?.(value) || labels[value] || value || '素材';
   }
   function ensureMenu() {

@@ -368,6 +368,8 @@
   function refresh(select) {
     const state = getState(select);
     if (!state) return;
+    state.shell.hidden = !!select.hidden;
+    if (select.hidden && state.open) close(state);
     renderTrigger(state);
     if (state.open) {
       renderMenu(state);
@@ -401,6 +403,7 @@
     const anchorRoot = menuMode === 'anchored' ? select.closest('label') : null;
     const stackRoot = menuMode === 'anchored'
       ? select.closest('.desk-param-grid, .desk-prompt-mode, .desk-prompt-panel, .desk-upload-panel, .desk-node__drawer')
+        || select.closest('.desk-video-node__fields, .desk-video-node__advanced')
       : null;
     const shell = document.createElement('span');
     shell.className = 'desk-select-shell';
@@ -480,7 +483,7 @@
       subtree: true,
       characterData: true,
       attributes: true,
-      attributeFilter: ['disabled', 'aria-label', 'class', 'style'],
+      attributeFilter: ['disabled', 'hidden', 'aria-label', 'class', 'style'],
     });
 
     return state;

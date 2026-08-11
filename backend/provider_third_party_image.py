@@ -32,12 +32,27 @@ _DEFAULT_DOWNLOAD_RETRIES = 2
 _DOWNLOAD_CHUNK_SIZE = 256 * 1024
 _DOWNLOAD_PROGRESS_INTERVAL_BYTES = 1024 * 1024
 _DOWNLOAD_PROGRESS_INTERVAL_SECONDS = 1.0
+_EDIT_UPLOAD_SOCKET_TIMEOUT_SECONDS = 100
+_PROVIDER_RESPONSE_CHUNK_SIZE = 256 * 1024
+_PROVIDER_RESPONSE_PROGRESS_INTERVAL_BYTES = 1024 * 1024
+_PROVIDER_RESPONSE_PROGRESS_INTERVAL_SECONDS = 1.0
+_PROVIDER_RESPONSE_MAX_BYTES = 128 * 1024 * 1024
+_PROVIDER_RESPONSE_TOTAL_TIMEOUT_SECONDS = 900
+_JSON_INCOMPLETE = object()
 
 ProgressCallback = Callable[[dict[str, Any]], None]
 
 
 class _RetryableDownloadError(RuntimeError):
     pass
+
+
+class ThirdPartyResponseDeliveryError(RuntimeError):
+    """The provider finished the request but did not deliver a complete result."""
+
+
+class ThirdPartyResponseDeadlineError(TimeoutError):
+    """The provider result did not finish within the absolute response deadline."""
 
 
 def _emit_progress(progress_callback: ProgressCallback | None, **payload: Any) -> None:
@@ -590,6 +605,353 @@ def _raise_http_error(response: requests.Response, data: Any) -> None:
     raise RuntimeError(f"第三方 API HTTP {response.status_code}: {detail}")
 
 
+def _response_request_id(response: requests.Response) -> str:
+    headers = getattr(response, "headers", {}) or {}
+    normalized_headers = {str(key).lower(): value for key, value in headers.items()}
+    for name in (
+        "x-request-id",
+        "request-id",
+        "x-oneapi-request-id",
+        "new-api-request-id",
+        "cf-ray",
+    ):
+        value = str(normalized_headers.get(name) or "").strip()
+        if value:
+            return re.sub(r"[^A-Za-z0-9_.:-]", "", value)[:160]
+    return ""
+
+
+def _set_response_content(response: requests.Response, content: bytes) -> None:
+    """Make a streamed requests.Response behave like a normally buffered one."""
+    try:
+        response._content = bytes(content)
+        response._content_consumed = True
+    except Exception:
+        pass
+
+
+def _complete_json_payload(buffer: bytearray) -> Any:
+    stripped = bytes(buffer).rstrip()
+    if not stripped or stripped[-1:] not in (b"}", b"]"):
+        return _JSON_INCOMPLETE
+    try:
+        return json.loads(stripped)
+    except (json.JSONDecodeError, UnicodeDecodeError, ValueError):
+        return _JSON_INCOMPLETE
+
+
+def _set_response_socket_timeout(response: requests.Response, seconds: float) -> bool:
+    """Shorten the live socket timeout to the remaining absolute deadline."""
+    raw = getattr(response, "raw", None)
+    candidates = []
+    connection = getattr(raw, "_connection", None) or getattr(raw, "connection", None)
+    if connection is not None:
+        candidates.append(getattr(connection, "sock", None))
+    try:
+        candidates.append(raw._fp.fp.raw._sock)
+    except Exception:
+        pass
+    for candidate in candidates:
+        if candidate is None or not hasattr(candidate, "settimeout"):
+            continue
+        try:
+            candidate.settimeout(max(0.05, float(seconds)))
+            return True
+        except Exception:
+            continue
+    return False
+
+
+def _abort_response_stream(response: requests.Response) -> None:
+    """Discard a response that was intentionally accepted before HTTP EOF."""
+    raw = getattr(response, "raw", None)
+    candidates = []
+    connection = getattr(raw, "_connection", None) or getattr(raw, "connection", None)
+    if connection is not None:
+        candidates.append(getattr(connection, "sock", None))
+    try:
+        candidates.append(raw._fp.fp.raw._sock)
+    except Exception:
+        pass
+    for candidate in candidates:
+        if candidate is None:
+            continue
+        try:
+            candidate.shutdown(2)
+        except Exception:
+            pass
+        try:
+            candidate.close()
+        except Exception:
+            pass
+    try:
+        raw.close()
+    except Exception:
+        pass
+    try:
+        response.close()
+    except Exception:
+        pass
+
+
+def _response_delivery_message(
+    *,
+    deadline_seconds: int | None,
+    bytes_received: int,
+    total_bytes: int,
+    request_id: str,
+) -> str:
+    if deadline_seconds is not None:
+        lead = f"第三方 API 结果回传超过 {deadline_seconds} 秒总期限"
+    else:
+        lead = "第三方 API 结果回传中断"
+    received = f"已接收 {bytes_received}"
+    if total_bytes:
+        received += f"/{total_bytes}"
+    received += " 字节"
+    request = f"，request_id={request_id}" if request_id else ""
+    return (
+        f"{lead}（{received}{request}）。上游可能已经生成并计费，但本地没有收到完整图片；"
+        "为避免重复扣费，本地未自动重新提交。请优先在中转后台查找本次结果。"
+    )
+
+
+def _post_json_response(
+    session: requests.Session,
+    url: str,
+    *,
+    connect_timeout: int,
+    timeout: int,
+    progress_callback: ProgressCallback | None = None,
+    **request_kwargs: Any,
+) -> tuple[requests.Response, Any]:
+    """POST once and stream its JSON body without ever retrying generation.
+
+    Image providers can return a 10-20 MiB ``b64_json`` object. ``requests``
+    normally buffers that entire body and waits for EOF, so a chunked gateway
+    that keeps the connection alive can leave the task at 52% indefinitely.
+    This reader reports byte progress, accepts a syntactically complete JSON
+    value before EOF, and enforces an absolute response deadline.
+    """
+    try:
+        configured_timeout = max(1, int(timeout or _PROVIDER_RESPONSE_TOTAL_TIMEOUT_SECONDS))
+    except (TypeError, ValueError):
+        configured_timeout = _PROVIDER_RESPONSE_TOTAL_TIMEOUT_SECONDS
+    deadline_seconds = min(configured_timeout, _PROVIDER_RESPONSE_TOTAL_TIMEOUT_SECONDS)
+    started = time.monotonic()
+    deadline = started + deadline_seconds
+    _emit_progress(
+        progress_callback,
+        event="response_start",
+        bytes_received=0,
+        total_bytes=0,
+        deadline_seconds=deadline_seconds,
+    )
+
+    post_kwargs = dict(request_kwargs)
+    request_headers = dict(post_kwargs.get("headers") or {})
+    request_headers.setdefault("Connection", "close")
+    # Base64-encoded PNG/JPEG data barely benefits from compression. Asking
+    # for identity keeps byte accounting exact and avoids accepting decoded
+    # JSON before a compressed stream's integrity trailer has been consumed.
+    request_headers.setdefault("Accept-Encoding", "identity")
+    post_kwargs["headers"] = request_headers
+    post_kwargs["timeout"] = (connect_timeout, deadline_seconds)
+    post_kwargs["stream"] = True
+    try:
+        while True:
+            try:
+                response = session.post(url, **post_kwargs)
+                break
+            except TypeError as exc:
+                # Keep simple duck-typed session adapters usable. Argument
+                # binding fails before such adapters can send a request, so
+                # removing an explicitly unsupported compatibility keyword
+                # cannot duplicate a provider generation. Production uses
+                # requests.Session and always keeps both options.
+                message = str(exc)
+                unsupported = next(
+                    (
+                        name
+                        for name in ("headers", "stream")
+                        if f"unexpected keyword argument '{name}'" in message
+                    ),
+                    None,
+                )
+                if unsupported is None or unsupported not in post_kwargs:
+                    raise
+                post_kwargs.pop(unsupported, None)
+    except requests.exceptions.ReadTimeout as exc:
+        raise ThirdPartyResponseDeadlineError(
+            _response_delivery_message(
+                deadline_seconds=deadline_seconds,
+                bytes_received=0,
+                total_bytes=0,
+                request_id="",
+            )
+        ) from exc
+
+    if not hasattr(response, "iter_content"):
+        data = _parse_response_json(response)
+        _emit_progress(
+            progress_callback,
+            event="response_complete",
+            bytes_received=len(str(getattr(response, "text", "") or "").encode("utf-8")),
+            total_bytes=_content_length(response),
+            request_id=_response_request_id(response),
+            completed_before_eof=False,
+            deadline_seconds=deadline_seconds,
+        )
+        return response, data
+
+    request_id = _response_request_id(response)
+    content_encoding = str((getattr(response, "headers", {}) or {}).get("Content-Encoding") or "").strip().lower()
+    total_bytes = _content_length(response) if content_encoding in ("", "identity") else 0
+    content_type = str((getattr(response, "headers", {}) or {}).get("Content-Type") or "").strip()
+    _emit_progress(
+        progress_callback,
+        event="response_headers",
+        bytes_received=0,
+        total_bytes=total_bytes,
+        request_id=request_id,
+        content_type=content_type,
+        headers_elapsed_ms=max(0, int((time.monotonic() - started) * 1000)),
+        deadline_seconds=deadline_seconds,
+    )
+
+    buffer = bytearray()
+    bytes_received = 0
+    first_byte_reported = False
+    last_emit_time = started
+    last_emit_bytes = 0
+    iterator = iter(response.iter_content(chunk_size=_PROVIDER_RESPONSE_CHUNK_SIZE))
+
+    try:
+        while True:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise ThirdPartyResponseDeadlineError(
+                    _response_delivery_message(
+                        deadline_seconds=deadline_seconds,
+                        bytes_received=bytes_received,
+                        total_bytes=total_bytes,
+                        request_id=request_id,
+                    )
+                )
+            _set_response_socket_timeout(response, remaining)
+            try:
+                chunk = next(iterator)
+            except StopIteration:
+                break
+            except ThirdPartyResponseDeadlineError:
+                raise
+            except Exception as exc:
+                if time.monotonic() >= deadline - 0.05:
+                    raise ThirdPartyResponseDeadlineError(
+                        _response_delivery_message(
+                            deadline_seconds=deadline_seconds,
+                            bytes_received=bytes_received,
+                            total_bytes=total_bytes,
+                            request_id=request_id,
+                        )
+                    ) from exc
+                raise ThirdPartyResponseDeliveryError(
+                    _response_delivery_message(
+                        deadline_seconds=None,
+                        bytes_received=bytes_received,
+                        total_bytes=total_bytes,
+                        request_id=request_id,
+                    )
+                ) from exc
+
+            now = time.monotonic()
+            if now >= deadline:
+                raise ThirdPartyResponseDeadlineError(
+                    _response_delivery_message(
+                        deadline_seconds=deadline_seconds,
+                        bytes_received=bytes_received,
+                        total_bytes=total_bytes,
+                        request_id=request_id,
+                    )
+                )
+            if not chunk:
+                continue
+            if not first_byte_reported:
+                first_byte_reported = True
+                _emit_progress(
+                    progress_callback,
+                    event="response_first_byte",
+                    bytes_received=0,
+                    total_bytes=total_bytes,
+                    request_id=request_id,
+                    ttfb_ms=max(0, int((now - started) * 1000)),
+                    deadline_seconds=deadline_seconds,
+                )
+            buffer.extend(chunk)
+            bytes_received += len(chunk)
+            if bytes_received > _PROVIDER_RESPONSE_MAX_BYTES:
+                raise ThirdPartyResponseDeliveryError(
+                    f"第三方 API 结果响应超过 {_PROVIDER_RESPONSE_MAX_BYTES} 字节安全上限"
+                    f"（request_id={request_id or 'unknown'}）；为避免重复扣费，本地未自动重新提交。"
+                )
+            if (
+                bytes_received - last_emit_bytes >= _PROVIDER_RESPONSE_PROGRESS_INTERVAL_BYTES
+                or now - last_emit_time >= _PROVIDER_RESPONSE_PROGRESS_INTERVAL_SECONDS
+                or (total_bytes and bytes_received >= total_bytes)
+            ):
+                _emit_progress(
+                    progress_callback,
+                    event="response_progress",
+                    bytes_received=bytes_received,
+                    total_bytes=total_bytes,
+                    request_id=request_id,
+                    deadline_seconds=deadline_seconds,
+                )
+                last_emit_time = now
+                last_emit_bytes = bytes_received
+
+            data = _complete_json_payload(buffer)
+            if data is not _JSON_INCOMPLETE:
+                _set_response_content(response, bytes(buffer))
+                _emit_progress(
+                    progress_callback,
+                    event="response_complete",
+                    bytes_received=bytes_received,
+                    total_bytes=total_bytes,
+                    request_id=request_id,
+                    completed_before_eof=True,
+                    deadline_seconds=deadline_seconds,
+                )
+                _abort_response_stream(response)
+                return response, data
+
+        if total_bytes and bytes_received < total_bytes:
+            raise ThirdPartyResponseDeliveryError(
+                _response_delivery_message(
+                    deadline_seconds=None,
+                    bytes_received=bytes_received,
+                    total_bytes=total_bytes,
+                    request_id=request_id,
+                )
+            )
+        _set_response_content(response, bytes(buffer))
+        data = _parse_response_json(response)
+        _emit_progress(
+            progress_callback,
+            event="response_complete",
+            bytes_received=bytes_received,
+            total_bytes=total_bytes,
+            request_id=request_id,
+            completed_before_eof=False,
+            deadline_seconds=deadline_seconds,
+        )
+        response.close()
+        return response, data
+    except Exception:
+        _abort_response_stream(response)
+        raise
+
+
 def generate_image_third_party(
     prompt: str,
     ratio: str = "1:1",
@@ -614,13 +976,15 @@ def generate_image_third_party(
         "quality": _normalize_quality(quality),
         "format": output_format,
     }
-    response = session.post(
+    response, data = _post_json_response(
+        session,
         _endpoint(cfg, "generate_path"),
+        connect_timeout=15,
+        timeout=timeout,
+        progress_callback=progress_callback,
         headers={"Content-Type": "application/json"},
         json=payload,
-        timeout=(15, timeout),
     )
-    data = _parse_response_json(response)
     _raise_http_error(response, data)
     items = _extract_items(data)
     return _save_outputs(
@@ -673,13 +1037,17 @@ def edit_image_third_party(
         "quality": _normalize_quality(quality),
         "moderation": "low" if str(moderation or "").lower() == "low" else "auto",
     }
-    response = session.post(
+    response, data = _post_json_response(
+        session,
         _endpoint(cfg, "edit_path"),
+        # requests/urllib3 also applies the first timeout while writing the
+        # multipart request body. Large 4K references can need more than 15s.
+        connect_timeout=_EDIT_UPLOAD_SOCKET_TIMEOUT_SECONDS,
+        timeout=timeout,
+        progress_callback=progress_callback,
         data=form,
         files=files,
-        timeout=(15, timeout),
     )
-    data = _parse_response_json(response)
     _raise_http_error(response, data)
     items = _extract_items(data)
     return _save_outputs(

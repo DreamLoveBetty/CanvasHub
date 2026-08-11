@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "skill_id": "minimax_h3/h3-prompt-writing",
+  "upstream": {
+    "repository": "https://github.com/MiniMax-AI/MiniMax-H3",
+    "commit": "b7227fa6a6206e9fb30562383d39e53cf3866a48",
+    "commit_date": "2026-08-09T18:40:41+08:00",
+    "path": "skills/h3-prompt-writing",
+    "license_url": "https://huggingface.co/MiniMaxAI/MiniMax-H3/blob/main/LICENSE"
+  },
+  "synced_at": "2026-08-10",
+  "enabled_modes": [
+    "I2VA"
+  ],
+  "files": [
+    {
+      "path": "upstream/h3-prompt-writing/SKILL.md",
+      "sha256": "003b9dac9785df5207a88581629c51c1747c061282c7d48f7032618bd141a93d"
+    },
+    {
+      "path": "upstream/h3-prompt-writing/references/base-en.txt",
+      "sha256": "2cfebc096a6e08370f288d468d90b60f7f9bcb938f94bf090816e910e48e75fc"
+    },
+    {
+      "path": "upstream/h3-prompt-writing/agents/openai.yaml",
+      "sha256": "7770c9d784b7251ab882ee29a738219a3f01811e57ba7fc7822fa83eb8438c1a"
+    }
+  ]
+}

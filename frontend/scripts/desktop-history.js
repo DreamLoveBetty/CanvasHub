@@ -7,6 +7,13 @@
   let galleryTag = '';
   let galleryAssets = [];
   let gallerySets = [];
+  let galleryVideos = [];
+  let galleryVideoStats = {};
+  let galleryVideoSource = 'generated';
+  let galleryVideosLoading = false;
+  let galleryVideosError = '';
+  let galleryVideoRequestId = 0;
+  let expandedGalleryVideoId = '';
   let galleryFiles = [];
   let galleryFileStats = {};
   let pinterestBoards = [];
@@ -27,12 +34,50 @@
   let pinterestBoardDownloadHideTimer = null;
   const pinterestPinDownloads = new Set();
   const pinterestAnalyzingPins = new Set();
+  const pinterestSplittingPins = new Set();
   let pinterestAnalysisAsset = null;
   let pinterestAnalysisPrompt = '';
   let pinterestAnalysisReturnFocus = null;
+  let pinterestSplitAsset = null;
+  let pinterestSplitCandidates = [];
+  let pinterestSplitBusy = false;
+  let pinterestSplitAction = '';
+  let pinterestSplitMode = 'text';
+  let pinterestSplitStatus = '';
+  let pinterestSplitAnalysisId = '';
+  let pinterestSplitRule = null;
+  let pinterestSplitSourceGeometry = null;
+  let pinterestSplitPrimaryType = '';
+  let pinterestSplitSaveManifest = null;
+  let pinterestSplitProgressTimer = null;
+  let pinterestSplitStartedAt = 0;
+  let pinterestSplitReturnFocus = null;
+  let pinterestSplitRequestId = 0;
   const PINTEREST_LIBRARY_LIMIT = 5000;
   const PINTEREST_TERMINAL_HIDE_MS = 1100;
   const PINTEREST_SYNC_TIP_STORAGE_PREFIX = 'desk_pinterest_sync_tip_seen_v1:';
+  const PINTEREST_SPLIT_MODULE_LABELS = {
+    goal: '生成目标',
+    identity: '身份',
+    appearance: '外貌',
+    body_shape: '体形身材',
+    pose: '动作姿态',
+    expression: '表情视线',
+    clothing: '服装造型',
+    makeup_hair: '妆发',
+    accessories: '配饰',
+    subject: '主体',
+    scene: '场景环境',
+    composition: '构图',
+    camera: '视角与镜头',
+    lighting: '光线',
+    color: '色彩',
+    style: '视觉风格',
+    material: '材质细节',
+    quality: '质量要求',
+    constraints: '负面约束',
+    custom: '自定义素材'
+  };
   let promptSources = [];
   let promptSourceItems = [];
   let promptSourceFilter = 'all';
@@ -186,6 +231,13 @@
   function coercePositiveNumber(value) {
     const number = Number(value || 0);
     return Number.isFinite(number) && number > 0 ? number : 0;
+  }
+
+  function normalizeEpochSeconds(value) {
+    const numeric = Number(value || 0);
+    if (Number.isFinite(numeric) && numeric > 0) return numeric > 1e12 ? numeric / 1000 : numeric;
+    const parsed = Date.parse(String(value || ''));
+    return Number.isFinite(parsed) && parsed > 0 ? parsed / 1000 : 0;
   }
 
   function coerceBooleanFlag(value) {
@@ -484,6 +536,82 @@
     };
   }
 
+  function normalizeGalleryVideoResource(item, index = 0) {
+    const type = String(item?.type || item?.kind || 'file').trim().toLowerCase();
+    const name = String(item?.file_name || item?.fileName || item?.name || `资源 ${index + 1}`);
+    const url = String(item?.resource_url || item?.resourceUrl || item?.url || '');
+    return {
+      ...item,
+      id: String(item?.id || item?.resource_id || item?.resourceId || `${type}:${name}:${index}`),
+      type,
+      role: String(item?.role || ''),
+      label: String(item?.label || (type === 'video' ? '视频' : (type === 'image' ? '参考图片' : '附件'))),
+      name,
+      url,
+      mimeType: String(item?.mime_type || item?.mimeType || ''),
+      fileSize: coercePositiveNumber(item?.file_size_bytes || item?.fileSizeBytes || item?.file_size || item?.fileSize),
+      modifiedAt: normalizeEpochSeconds(item?.modified_at || item?.modifiedAt || item?.created_at || item?.createdAt)
+    };
+  }
+
+  function normalizeGalleryVideo(item) {
+    const mediaName = String(item?.media_name || item?.mediaName || item?.file_name || item?.filename || item?.name || item?.file || '视频资产');
+    const relativePath = String(item?.relative_path || item?.relativePath || item?.archive_rel_path || item?.archiveRelPath || '');
+    const mediaUrl = String(item?.media_url || item?.mediaUrl || item?.video_url || item?.videoUrl || item?.url || '');
+    const rawSourceType = String(item?.source_type || item?.sourceType || item?.asset_source || item?.assetSource || '').trim().toLowerCase();
+    const sourceType = rawSourceType === 'imported' || rawSourceType === 'generated'
+      ? rawSourceType
+      : (item?.is_generated === true || item?.isGenerated === true ? 'generated' : 'imported');
+    const sourceLabel = String(item?.source_label || item?.sourceLabel || (sourceType === 'generated' ? '生成视频' : '导入素材'));
+    const mediaWidth = coercePositiveNumber(item?.media_width || item?.mediaWidth || item?.width);
+    const mediaHeight = coercePositiveNumber(item?.media_height || item?.mediaHeight || item?.height);
+    const fileSize = coercePositiveNumber(item?.file_size || item?.fileSize || item?.size_bytes || item?.size);
+    const durationSeconds = coercePositiveNumber(item?.duration_seconds || item?.durationSeconds || item?.duration);
+    const fps = coercePositiveNumber(item?.fps || item?.frame_rate) || 24;
+    const orientation = inferOrientation(mediaWidth, mediaHeight, item?.orientation);
+    const resources = (Array.isArray(item?.resources) ? item.resources : [])
+      .map(normalizeGalleryVideoResource)
+      .filter(resource => resource.id && resource.name);
+    const parameters = item?.parameters && typeof item.parameters === 'object' && !Array.isArray(item.parameters)
+      ? { ...item.parameters }
+      : {};
+    const resourceFolder = item?.resource_folder && typeof item.resource_folder === 'object'
+      ? { ...item.resource_folder }
+      : {};
+    return {
+      ...item,
+      id: String(item?.video_id || item?.videoId || item?.id || relativePath || mediaName),
+      mediaUrl,
+      posterUrl: String(item?.poster_url || item?.posterUrl || ''),
+      mediaName,
+      mimeType: String(item?.mime_type || item?.mimeType || 'video/mp4'),
+      sourceTaskId: String(item?.source_task_id || item?.sourceTaskId || item?.task_id || item?.taskId || ''),
+      createdAt: normalizeEpochSeconds(item?.created_at || item?.createdAt || item?.modified_at || item?.modifiedAt || item?.timestamp),
+      durationSeconds,
+      mediaWidth,
+      mediaHeight,
+      fps,
+      fileSize,
+      fileSizeLabel: String(item?.file_size_label || item?.fileSizeLabel || formatFileSize(fileSize)),
+      relativePath,
+      prompt: String(item?.prompt || ''),
+      subject: String(item?.subject || item?.prompt_subject || item?.promptSubject || ''),
+      parameters,
+      resources,
+      resourceCount: Math.max(resources.length, Number(item?.resource_count || item?.resourceCount || 0)),
+      resourceFolder,
+      hasPrompt: item?.has_prompt === true || item?.hasPrompt === true || Boolean(item?.prompt),
+      hasParameters: item?.has_parameters === true || item?.hasParameters === true || Boolean(Object.keys(parameters).length),
+      hasReferenceImages: item?.has_reference_images === true || item?.hasReferenceImages === true || resources.some(resource => resource.type === 'image'),
+      sourceType,
+      sourceLabel,
+      isGenerated: sourceType === 'generated',
+      orientation,
+      orientationLabel: orientationLabel(orientation),
+      format: normalizeImageFormat(item?.format, mediaName) || 'VIDEO'
+    };
+  }
+
   function normalizePromptSourceItem(item) {
     const taxonomy = normalizeTaxonomy(item?.taxonomy || item?.promptTaxonomy);
     return normalizeGalleryAsset({
@@ -745,7 +873,7 @@
     }
   }
 
-  function galleryError(error, fallback = '图库操作失败') {
+  function galleryError(error, fallback = '资产库操作失败') {
     const message = error?.message || String(error || fallback);
     console.error('[Gallery]', message, error);
     galleryMessage(`${fallback}：${message}`);
@@ -769,6 +897,7 @@
       'deskGallerySearchInput',
       'deskGalleryFilterSelect',
       'deskGalleryTagInput',
+      'deskGalleryVideoSource',
       'deskGalleryStats',
       'deskGallerySelectedCount',
       'deskGallerySelectedList',
@@ -790,6 +919,15 @@
       'deskPinterestAnalysisCopyBtn',
       'deskPinterestAnalysisSendBtn',
       'deskPinterestAnalysisCloseBtn',
+      'deskPinterestSplitModal',
+      'deskPinterestSplitImg',
+      'deskPinterestSplitTitle',
+      'deskPinterestSplitMeta',
+      'deskPinterestSplitResults',
+      'deskPinterestSplitStatus',
+      'deskPinterestSplitCopyBtn',
+      'deskPinterestSplitSaveBtn',
+      'deskPinterestSplitCloseBtn',
       'deskGalleryPreviewModal',
       'deskGalleryPreviewStage',
       'deskGalleryPreviewImg',
@@ -1579,8 +1717,15 @@
       || taskType === 'psd';
   }
 
+  function isVideoHistoryItem(item) {
+    const type = String(item?.type || '').toLowerCase();
+    return type === 'minimax-h3-video' || type.includes('h3-video');
+  }
+
   function shouldShowHistoryItem(item) {
-    if (isFileHistoryItem(item)) return false;
+    // Video history will get a dedicated player view; never feed MP4 files into
+    // the image-card pipeline in the meantime.
+    if (isFileHistoryItem(item) || isVideoHistoryItem(item)) return false;
     if (flattenHistoryItems([item]).length) return true;
     return DesktopState.isInFlight(item?.status);
   }
@@ -1622,7 +1767,7 @@
       taskId: activeAsset.taskId || '',
       imageUrl: activeAsset.imageUrl || '',
       imagePath: activeAsset.imagePath || activeAsset.imageUrl || '',
-      title: activeAsset.title || '图库图片',
+      title: activeAsset.title || '资产库图片',
       prompt: activeAsset.prompt || '',
       type: activeAsset.type || '',
       provider: activeAsset.provider || '',
@@ -1886,6 +2031,27 @@
     });
   }
 
+  function getVisibleGalleryVideos() {
+    const query = galleryQuery.trim().toLowerCase();
+    return galleryVideos.filter(item => {
+      if (!query) return true;
+      const haystack = [
+        item.mediaName,
+        item.relativePath,
+        item.prompt,
+        JSON.stringify(item.parameters || {}),
+        ...(item.resources || []).flatMap(resource => [resource.name, resource.label]),
+        item.sourceTaskId,
+        item.mimeType,
+        item.format,
+        item.orientationLabel,
+        item.mediaWidth && item.mediaHeight ? `${item.mediaWidth}x${item.mediaHeight}` : '',
+        item.mediaWidth && item.mediaHeight ? `${item.mediaWidth}×${item.mediaHeight}` : ''
+      ].filter(Boolean).join(' ').toLowerCase();
+      return haystack.includes(query);
+    });
+  }
+
   function getVisibleAssetSets() {
     const query = galleryQuery.trim().toLowerCase();
     const tagQuery = galleryTag.trim().replace(/^#/, '').toLowerCase();
@@ -2007,11 +2173,10 @@
       card.classList.toggle('is-selected', selected);
       card.classList.toggle('is-focus-active', focused);
       card.classList.toggle('is-favorite', !!asset?.favorite);
-      const selectButton = card.querySelector('[data-gallery-select]');
-      if (selectButton) {
-        selectButton.setAttribute('aria-pressed', selected ? 'true' : 'false');
-        selectButton.title = selected ? '取消选择' : '选择图片';
-        selectButton.setAttribute('aria-label', selected ? '取消选择' : '选择');
+      const selectionRegion = card.querySelector('[data-gallery-select-card]');
+      if (selectionRegion) {
+        selectionRegion.setAttribute('aria-pressed', selected ? 'true' : 'false');
+        selectionRegion.setAttribute('aria-label', selected ? '取消选择图片' : '选择图片');
       }
       const favoriteButton = card.querySelector('[data-gallery-favorite]');
       if (favoriteButton) {
@@ -2632,11 +2797,22 @@
     const pinterestPinId = asset.pinId || asset.taskId || String(asset.id || '').replace(/^pinterest_/, '');
     const pinterestDownloading = isPinterest && pinterestPinDownloads.has(pinterestPinId);
     const pinterestAnalyzing = isPinterest && pinterestAnalyzingPins.has(pinterestPinId);
+    const pinterestSplitting = isPinterest && pinterestSplittingPins.has(pinterestPinId);
     const pinterestAnalyzed = isPinterest && Boolean(asset.analyzed && String(asset.analysisPrompt || '').trim());
+    const pinterestSplitHasImage = isPinterest && Boolean(pinterestSplitSourceImage(asset));
+    const pinterestSplitReady = isPinterest && pinterestSplitCanRun(asset);
     const pinterestAnalyzeLabel = pinterestAnalyzing ? '分析中' : (pinterestAnalyzed ? '已分析' : '分析');
+    const pinterestSplitLabel = pinterestSplitting ? '拆分中' : '拆分';
     const pinterestAnalyzeTitle = pinterestAnalyzing
       ? '正在生成主提示词'
       : (pinterestAnalyzed ? '已生成主提示词，点击可重新分析' : '分析图片并生成主提示词');
+    const pinterestSplitTitle = pinterestSplitting
+      ? '正在按高保真模块分析图片'
+      : (!pinterestSplitReady
+        ? '这张图片没有可用于拆分的提示词或图片资源'
+        : (pinterestSplitHasImage
+          ? '直接分析图片并按高保真模块提取素材'
+          : '图片不可用，按高保真模块拆分现有提示词'));
     const imageHtml = activeAsset.imageUrl
       ? `<img src="${escapeHtml(mediaUrl(activeAsset.thumbUrl || activeAsset.imageUrl))}" data-fallback="${escapeHtml(mediaUrl(activeAsset.imageUrl))}" alt="" draggable="false" loading="lazy" decoding="async" fetchpriority="${index < 8 ? 'high' : 'low'}">`
       : '<div class="desk-gallery-card__missing">记录缺图</div>';
@@ -2650,10 +2826,10 @@
       ? (asset.title || 'Pinterest Pin')
       : `比例 ${ratioLabel} · 分辨率 ${resolutionLabel}`;
     const detailLine = isPinterest
-      ? [sourceBadge, asset.localCached ? '已下载' : '远程', asset.dimensions || '', asset.format].filter(Boolean).join(' · ')
+      ? [sourceBadge, asset.localCached ? '已同步到本地' : '远程', asset.dimensions || '', asset.format].filter(Boolean).join(' · ')
       : [modelLabel, sourceBadge, asset.format].filter(Boolean).join(' · ');
     return `
-      <article class="desk-gallery-card${selected ? ' is-selected' : ''}${focused ? ' is-focus-active' : ''}${asset.favorite ? ' is-favorite' : ''}${isRemote ? ' is-remote-source' : ''}${hasSwitcher ? ' has-gallery-switcher' : ''}${hasIndexBadge ? ' has-gallery-count' : ''}${asset.hidden ? ' is-hidden-asset' : ''}${asset.missingArchive ? ' is-missing-archive' : ''}${asset.stale ? ' is-stale-remote' : ''}" data-asset-id="${escapeHtml(asset.id)}" draggable="${asset.imageUrl ? 'true' : 'false'}" tabindex="-1">
+      <article class="desk-gallery-card${selected ? ' is-selected' : ''}${focused ? ' is-focus-active' : ''}${asset.favorite ? ' is-favorite' : ''}${isPinterest ? ' is-pinterest' : ''}${isRemote ? ' is-remote-source' : ''}${hasSwitcher ? ' has-gallery-switcher' : ''}${hasIndexBadge ? ' has-gallery-count' : ''}${asset.hidden ? ' is-hidden-asset' : ''}${asset.missingArchive ? ' is-missing-archive' : ''}${asset.stale ? ' is-stale-remote' : ''}" data-asset-id="${escapeHtml(asset.id)}" draggable="${asset.imageUrl ? 'true' : 'false'}" tabindex="-1">
         <div class="desk-gallery-card__image">
           ${imageHtml}
           ${asset.stale ? '<div class="desk-gallery-card__remote-state">远程已删</div>' : ''}
@@ -2666,7 +2842,7 @@
           ` : (hasIndexBadge ? `<span>${asset.index + 1}/${asset.total}</span>` : '')}
         </div>
         <div class="desk-gallery-card__meta">
-          <div class="desk-gallery-card__meta-copy">
+          <div class="desk-gallery-card__meta-copy${isPinterest && asset.localCached ? ' is-pinterest-local' : ''}" data-gallery-select-card="${escapeHtml(asset.id)}" role="button" tabindex="0" aria-pressed="${selected ? 'true' : 'false'}" aria-label="${selected ? '取消选择图片' : '选择图片'}">
             <div class="desk-gallery-card__meta-head">
               <strong>${escapeHtml(modelLabel)}</strong>
             </div>
@@ -2685,16 +2861,16 @@
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5 14.7 9l6 .9-4.3 4.2 1 5.9-5.4-2.8L6.6 20l1-5.9L3.3 9.9l6-.9L12 3.5Z"></path></svg>
               </button>
             `}
-            ${isPinterest ? `
-              <button type="button" class="desk-gallery-card__download${asset.localCached ? ' is-cached' : ''}" data-pinterest-download-pin="${escapeHtml(pinterestPinId)}" ${asset.localCached || pinterestDownloading ? 'disabled' : ''} title="${asset.localCached ? '已下载到本地' : (pinterestDownloading ? '正在下载' : '下载到本地')}" aria-label="${asset.localCached ? '已下载到本地' : (pinterestDownloading ? '正在下载' : '下载到本地')}">
-                ${asset.localCached
-                  ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4 10-10"></path></svg>'
-                  : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 19h14"></path></svg>'}
+            ${isPinterest && !asset.localCached ? `
+              <button type="button" class="desk-gallery-card__download" data-pinterest-download-pin="${escapeHtml(pinterestPinId)}" ${pinterestDownloading ? 'disabled' : ''} title="${pinterestDownloading ? '正在下载' : '下载到本地'}" aria-label="${pinterestDownloading ? '正在下载' : '下载到本地'}">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 19h14"></path></svg>
               </button>
             ` : ''}
-            <button type="button" class="desk-gallery-card__select" data-gallery-select="${escapeHtml(asset.id)}" aria-pressed="${selected ? 'true' : 'false'}" title="${selected ? '取消选择' : '选择图片'}" aria-label="${selected ? '取消选择' : '选择'}">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4 10-10"></path></svg>
-            </button>
+            ${isPinterest && asset.localCached ? `
+              <button type="button" class="desk-gallery-card__split${pinterestSplitting ? ' is-splitting' : ''}" data-pinterest-split-asset="${escapeHtml(asset.id)}" data-pinterest-split-pin="${escapeHtml(pinterestPinId)}" ${pinterestSplitting || !pinterestSplitReady ? 'disabled' : ''} aria-busy="${pinterestSplitting ? 'true' : 'false'}" title="${escapeHtml(pinterestSplitTitle)}" aria-label="${escapeHtml(pinterestSplitTitle)}">
+                <span>${pinterestSplitLabel}</span>
+              </button>
+            ` : ''}
             ${isPinterest ? `
               <button type="button" class="desk-gallery-card__analyze${pinterestAnalyzing ? ' is-analyzing' : ''}${pinterestAnalyzed ? ' is-analyzed' : ''}" data-pinterest-analyze-asset="${escapeHtml(asset.id)}" data-pinterest-analyze-pin="${escapeHtml(pinterestPinId)}" ${pinterestAnalyzing || !asset.imageUrl ? 'disabled' : ''} aria-busy="${pinterestAnalyzing ? 'true' : 'false'}" title="${escapeHtml(pinterestAnalyzeTitle)}" aria-label="${escapeHtml(pinterestAnalyzeTitle)}">
                 <span>${pinterestAnalyzeLabel}</span>
@@ -2713,6 +2889,40 @@
         向下滚动加载剩余 ${remaining} 张
       </div>
     `;
+  }
+
+  function galleryVideoSourceCounts() {
+    const stats = galleryVideoStats || {};
+    const raw = stats.by_source && typeof stats.by_source === 'object'
+      ? stats.by_source
+      : (stats.source_counts && typeof stats.source_counts === 'object' ? stats.source_counts : {});
+    const generated = Number(raw.generated ?? stats.generated_count ?? galleryVideos.filter(item => item.isGenerated).length);
+    const imported = Number(raw.imported ?? stats.imported_count ?? galleryVideos.filter(item => !item.isGenerated).length);
+    const all = Number(raw.all ?? stats.total_all ?? stats.all_count ?? (generated + imported));
+    return {
+      generated: Number.isFinite(generated) ? generated : 0,
+      imported: Number.isFinite(imported) ? imported : 0,
+      all: Number.isFinite(all) ? all : 0
+    };
+  }
+
+  function renderGalleryVideoSourceSwitch() {
+    const control = els.deskGalleryVideoSource;
+    if (!control) return;
+    const visible = galleryView === 'videos';
+    control.hidden = !visible;
+    if (!visible) return;
+    const counts = galleryVideoSourceCounts();
+    control.querySelectorAll('[data-gallery-video-source]').forEach(button => {
+      const source = button.dataset.galleryVideoSource || 'generated';
+      const active = source === galleryVideoSource;
+      button.classList.toggle('is-active', active);
+      button.setAttribute('aria-pressed', active ? 'true' : 'false');
+    });
+    control.querySelectorAll('[data-gallery-video-source-count]').forEach(output => {
+      const source = output.dataset.galleryVideoSourceCount || 'all';
+      output.textContent = Number(counts[source] || 0).toLocaleString('zh-CN');
+    });
   }
 
   function renderGalleryStats() {
@@ -2769,6 +2979,28 @@
       ].filter(Boolean).map(item => `<span>${escapeHtml(item)}</span>`).join('');
       return;
     }
+    if (galleryView === 'videos') {
+      const visible = getVisibleGalleryVideos();
+      const stats = galleryVideoStats || {};
+      const sourceCounts = galleryVideoSourceCounts();
+      const formats = stats.by_format && typeof stats.by_format === 'object' ? stats.by_format : {};
+      const totalBytes = Number(stats.total_file_size_bytes || stats.total_size_bytes || stats.totalSizeBytes || galleryVideos.reduce((sum, item) => sum + Number(item.fileSize || 0), 0));
+      const total = Number(stats.total ?? galleryVideos.length).toLocaleString('zh-CN');
+      const mp4Count = Number(formats.mp4 ?? galleryVideos.filter(item => item.format === 'MP4').length).toLocaleString('zh-CN');
+      const landscapeCount = galleryVideos.filter(item => item.orientation === 'landscape').length.toLocaleString('zh-CN');
+      const portraitCount = galleryVideos.filter(item => item.orientation === 'portrait').length.toLocaleString('zh-CN');
+      els.deskGalleryStats.innerHTML = [
+        `${galleryVideoSource === 'generated' ? '生成视频' : (galleryVideoSource === 'imported' ? '导入素材' : '全部视频')} ${total}`,
+        `当前 ${visible.length.toLocaleString('zh-CN')}`,
+        `生成 ${sourceCounts.generated.toLocaleString('zh-CN')}`,
+        `导入 ${sourceCounts.imported.toLocaleString('zh-CN')}`,
+        `MP4 ${mp4Count}`,
+        `横屏 ${landscapeCount}`,
+        `竖屏 ${portraitCount}`,
+        totalBytes ? `总计 ${formatFileSize(totalBytes)}` : null
+      ].filter(Boolean).map(item => `<span>${escapeHtml(item)}</span>`).join('');
+      return;
+    }
     if (galleryView === 'files') {
       const stats = galleryFileStats || {};
       const value = key => Number(stats[key] || 0).toLocaleString('zh-CN');
@@ -2785,7 +3017,7 @@
     const value = key => Number(stats[key] || 0).toLocaleString('zh-CN');
     els.deskGalleryStats.innerHTML = [
       `Obsidian ${value('obsidian_image_count')}`,
-      `图库 ${value('gallery_asset_count')}`,
+      `资产库 ${value('gallery_asset_count')}`,
       `有记录 ${value('task_record_image_count')}`,
       `孤儿 ${value('orphan_asset_count')}`,
       `有尺寸 ${value('metadata_image_count')}`,
@@ -3072,6 +3304,319 @@
         </div>
       </article>
     `;
+  }
+
+  function formatGalleryVideoDuration(seconds) {
+    const total = Math.max(0, Math.round(Number(seconds || 0)));
+    if (!total) return '';
+    const hours = Math.floor(total / 3600);
+    const minutes = Math.floor((total % 3600) / 60);
+    const remainder = total % 60;
+    return hours
+      ? `${hours}:${String(minutes).padStart(2, '0')}:${String(remainder).padStart(2, '0')}`
+      : `${minutes}:${String(remainder).padStart(2, '0')}`;
+  }
+
+  function galleryVideoAccelerationLabel(value) {
+    return ({
+      off: '标准模式',
+      first_block_cache: 'FirstBlockCache',
+      sol_attn: 'Sol-Attn',
+      combined: 'FirstBlockCache + Sol-Attn'
+    })[String(value || '')] || String(value || '');
+  }
+
+  function galleryVideoParameterEntries(video) {
+    const params = video.parameters || {};
+    const width = Number(params.width || video.mediaWidth || 0);
+    const height = Number(params.height || video.mediaHeight || 0);
+    const pixelBudget = Number(params.pixel_budget_mp || 0);
+    const actualMp = Number(params.actual_megapixels || 0);
+    const duration = Number(params.duration_seconds || video.durationSeconds || 0);
+    const fps = Number(params.fps || video.fps || 0);
+    const elapsed = Number(params.elapsed_seconds || 0);
+    const mode = ({ image_to_video: '图生视频', reference_to_video: '参考驱动' })[params.mode] || params.mode;
+    const quality = pixelBudget
+      ? `${pixelBudget.toFixed(1)} MP${actualMp ? ` · 实际 ${actualMp.toFixed(3)} MP` : ''}`
+      : '';
+    return [
+      ['模式', mode],
+      ['画幅', params.aspect_ratio],
+      ['质量', quality],
+      ['分辨率', width && height ? `${width}×${height}` : ''],
+      ['时长', duration ? `${Number(duration.toFixed(3))} 秒` : ''],
+      ['采样步数', params.steps],
+      ['去噪强度', params.denoise],
+      ['CRF', params.crf],
+      ['随机种子', params.seed],
+      ['加速模式', galleryVideoAccelerationLabel(params.acceleration_mode)],
+      ['缓存阈值', params.first_block_cache_threshold],
+      ['帧率', fps ? `${Number(fps.toFixed(2))} fps` : ''],
+      ['帧数', params.frame_count],
+      ['生成用时', elapsed ? formatGalleryVideoDuration(elapsed) : '']
+    ].filter(([, value]) => value !== '' && value !== null && value !== undefined);
+  }
+
+  function renderGalleryVideoResource(resource) {
+    const rawType = String(resource.type || 'file');
+    const type = ['video', 'image', 'text', 'markdown'].includes(rawType) ? rawType : 'file';
+    const url = mediaUrl(resource.url);
+    const extension = String(resource.name || '').split('.').pop()?.slice(0, 5).toUpperCase() || '文件';
+    const preview = type === 'image' && url
+      ? `<img src="${escapeHtml(url)}" alt="" loading="lazy">`
+      : `<strong>${escapeHtml(extension)}</strong>`;
+    const body = `
+      <span class="desk-gallery-video-resource__preview" data-resource-type="${escapeHtml(type)}">${preview}</span>
+      <span class="desk-gallery-video-resource__copy">
+        <strong>${escapeHtml(resource.label || '资源文件')}</strong>
+        <span title="${escapeHtml(resource.name)}">${escapeHtml(resource.name)}</span>
+        <em>${escapeHtml(formatFileSize(resource.fileSize) || resource.mimeType || '')}</em>
+      </span>`;
+    return url
+      ? `<a class="desk-gallery-video-resource" href="${escapeHtml(url)}" target="_blank" rel="noopener">${body}</a>`
+      : `<div class="desk-gallery-video-resource">${body}</div>`;
+  }
+
+  function galleryVideoSubject(video) {
+    const prompt = String(video?.prompt || '').replace(/\s+/g, ' ').trim();
+    const commonSubjects = [
+      '机甲女战士', '机甲男战士', '东亚成熟女性', '东亚成年女性', '成熟女性',
+      '成年女性', '年轻女性', '年轻男子', '女战士', '男战士', '机器人', '机械角色',
+      '女性角色', '男性角色', '少女', '少年', '女性', '男性', '人物', '角色',
+      '橘猫', '黑猫', '白猫', '猫', '狗', '汽车', '建筑', '城市', '产品'
+    ];
+    const compact = value => {
+      let subject = String(value || '')
+        .replace(/[“”"'`]/g, '')
+        .replace(/^(?:参考图|图中|画面中|镜头中|视频中|同一位|一位|一名|一个|一只|一台|一辆)\s*/i, '')
+        .replace(/^(?:气质优雅的|漂亮的|美丽的|年轻的|年长的|可爱的|高大的|身材高挑的)/, '')
+        .replace(/(?:的)?(?:脚部|手部|脸部|面部|头部|胸部|腰部|身体|全身|背部|眼睛|动作|姿态|服装|周围|身后|面前|特写).*$/, '')
+        .replace(/^[\s，。；：,:;!！?？]+|[\s，。；：,:;!！?？]+$/g, '')
+        .trim();
+      if (!subject) return '';
+      if (Array.from(subject).length > 12) {
+        const known = commonSubjects.find(candidate => subject.includes(candidate));
+        if (known) subject = known;
+      }
+      return Array.from(subject).slice(0, 12).join('');
+    };
+    const explicit = compact(video?.subject);
+    if (explicit) return explicit;
+    if (prompt) {
+      const contextualPatterns = [
+        /(?:参考图|图中|画面中|镜头中|视频中)\s*([^，。；！？,:;!\n]{2,24}?)(?=的(?:脚|手|脸|面部|头|胸|腰|身体|全身|背|眼|动作|姿态|服装|周围|身后|面前|特写)|正在|穿着|站在|坐在|走在|跑向|[，。；！？,:;!\n]|$)/i,
+        /(?:主体|主角)\s*(?:为|是|：|:)\s*([^，。；！？,:;!\n]{2,24})/i,
+        /(?:一位|一名|一个|一只|一台|一辆)\s*([^，。；！？,:;!\n]{2,24}?)(?=正在|穿着|站在|坐在|走在|跑向|[，。；！？,:;!\n]|$)/i,
+        /\b(?:a|an|the)\s+([a-z][a-z -]{2,32}?)(?=\s+(?:in|with|wearing|standing|sitting)|[,.;!?]|$)/i
+      ];
+      for (const pattern of contextualPatterns) {
+        const match = prompt.match(pattern);
+        const subject = compact(match?.[1]);
+        if (subject) return subject;
+      }
+      const known = commonSubjects.find(candidate => prompt.includes(candidate));
+      if (known) return known;
+    }
+    if (!video?.isGenerated) {
+      const name = String(video?.mediaName || '').replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ');
+      const fallback = compact(name);
+      if (fallback && !/^h3\b/i.test(fallback)) return fallback;
+    }
+    return video?.isGenerated ? '视频任务' : '视频素材';
+  }
+
+  function renderGalleryVideoFolderVisual(video) {
+    const posterUrl = mediaUrl(video.posterUrl);
+    const sourceUrl = mediaUrl(video.mediaUrl);
+    const folderTitle = galleryVideoSubject(video);
+    const coverLabel = video.isGenerated ? 'MiniMax H3' : 'Video asset';
+    const listIndex = galleryVideos.findIndex(item => item.id === video.id);
+    const caseNumber = String(listIndex >= 0 ? listIndex + 1 : 1).padStart(2, '0').slice(-2);
+    const frame = posterUrl
+      ? `<img src="${escapeHtml(posterUrl)}" alt="" loading="lazy" decoding="async">`
+      : (sourceUrl
+        ? `<video src="${escapeHtml(sourceUrl)}" muted playsinline preload="metadata" tabindex="-1" aria-hidden="true"></video>`
+        : '<i></i>');
+    return `
+      <span class="desk-gallery-video-folder__visual" aria-hidden="true">
+        <span class="desk-gallery-video-folder__back">
+          ${frame}
+          <em>${escapeHtml(coverLabel)}</em>
+        </span>
+        <span class="desk-gallery-video-folder__face">
+          <svg class="desk-gallery-video-folder__face-shape" viewBox="0 0 100 77" preserveAspectRatio="none" shape-rendering="geometricPrecision" aria-hidden="true" focusable="false">
+            <path d="M0 12.32H58.6Q59.4 12.32 59.8 11.627L65.8 .77Q66.2 0 67.2 0H100V77H0Z" shape-rendering="geometricPrecision"></path>
+          </svg>
+          <span class="desk-gallery-video-folder__case"><i>CASE</i><b>${escapeHtml(caseNumber)}</b></span>
+          <strong title="${escapeHtml(folderTitle)}">${escapeHtml(folderTitle)}</strong>
+          <span>${video.resourceCount || 1} 个文件 · ${escapeHtml(video.sourceLabel || '视频资产')}</span>
+        </span>
+      </span>`;
+  }
+
+  function renderGalleryVideoDetails(video) {
+    const source = mediaUrl(video.mediaUrl);
+    const poster = mediaUrl(video.posterUrl);
+    const parameters = galleryVideoParameterEntries(video);
+    const resources = video.resources || [];
+    const detailId = `desk-gallery-video-detail-${video.id}`;
+    const resourceNote = video.isGenerated && !video.hasReferenceImages
+      ? '该历史任务未归档参考图'
+      : (resources.length === 1 ? '仅视频文件' : '');
+    return `
+      <section class="desk-gallery-video-detail" id="${escapeHtml(detailId)}" aria-label="${escapeHtml(video.mediaName)} 资源详情">
+        <div class="desk-gallery-video-detail__content">
+          <div class="desk-gallery-video-detail__media">
+            ${source
+              ? `<video controls playsinline preload="metadata" src="${escapeHtml(source)}"${poster ? ` poster="${escapeHtml(poster)}"` : ''} aria-label="播放 ${escapeHtml(video.mediaName)}"></video>`
+              : '<div class="desk-gallery-video__missing">视频不可用</div>'}
+            <div class="desk-gallery-video__actions">
+              <button type="button" data-gallery-video-canvas="${escapeHtml(video.id)}"${source ? '' : ' disabled'}>到画布</button>
+              ${source ? `<a href="${escapeHtml(source)}" target="_blank" rel="noopener">打开视频</a>` : ''}
+            </div>
+          </div>
+          <div class="desk-gallery-video-detail__info">
+            <section class="desk-gallery-video-prompt">
+              <header><strong>提示词</strong>${video.prompt ? `<button type="button" data-gallery-video-copy-prompt="${escapeHtml(video.id)}">复制</button>` : ''}</header>
+              ${video.prompt
+                ? `<p>${escapeHtml(video.prompt)}</p>`
+                : `<p class="is-empty">${video.isGenerated ? '未找到提示词侧车' : '导入素材没有提示词'}</p>`}
+            </section>
+            <section class="desk-gallery-video-parameters">
+              <header><strong>${video.isGenerated ? '生成参数' : '媒体信息'}</strong><span>${parameters.length} 项</span></header>
+              ${parameters.length
+                ? `<dl>${parameters.map(([label, value]) => `<div><dt>${escapeHtml(label)}</dt><dd title="${escapeHtml(String(value))}">${escapeHtml(String(value))}</dd></div>`).join('')}</dl>`
+                : '<p>暂无可用参数</p>'}
+            </section>
+            <section class="desk-gallery-video-resources">
+              <header><strong>资源文件</strong><span>${resources.length} 个${resourceNote ? ` · ${escapeHtml(resourceNote)}` : ''}</span></header>
+              <div>${resources.map(renderGalleryVideoResource).join('') || '<p>没有可用的归档文件</p>'}</div>
+            </section>
+          </div>
+        </div>
+      </section>`;
+  }
+
+  function renderGalleryVideoCard(video) {
+    const isExpanded = video.id === expandedGalleryVideoId;
+    const detailId = `desk-gallery-video-detail-${video.id}`;
+    const dimensions = video.mediaWidth && video.mediaHeight ? `${video.mediaWidth}×${video.mediaHeight}` : '';
+    const duration = formatGalleryVideoDuration(video.durationSeconds);
+    const primaryMeta = [dimensions, duration, video.fileSizeLabel].filter(Boolean).join(' · ') || '归档视频';
+    return `
+      <article class="desk-gallery-video${isExpanded ? ' is-expanded' : ''}" data-video-id="${escapeHtml(video.id)}">
+        <button class="desk-gallery-video-folder" type="button" data-gallery-video-toggle="${escapeHtml(video.id)}" aria-expanded="${isExpanded ? 'true' : 'false'}" aria-controls="${escapeHtml(detailId)}">
+          ${renderGalleryVideoFolderVisual(video)}
+          <span class="desk-gallery-video__body">
+            <strong title="${escapeHtml(video.mediaName)}">${escapeHtml(video.mediaName)}</strong>
+            <span>${escapeHtml(primaryMeta)}</span>
+            <em>${escapeHtml([video.sourceLabel, formatTime(video.createdAt)].filter(Boolean).join(' · '))}</em>
+          </span>
+          ${isExpanded ? '<span class="desk-gallery-video-folder__collapse">收起</span>' : ''}
+        </button>
+        ${isExpanded ? renderGalleryVideoDetails(video) : ''}
+      </article>`;
+  }
+
+  function findGalleryVideo(id) {
+    return galleryVideos.find(item => item.id === id || item.relativePath === id);
+  }
+
+  function sendGalleryVideoToCanvas(video, button) {
+    if (!video?.mediaUrl) throw new Error('视频资产没有可播放地址');
+    if (!window.DesktopCanvas?.createVideoNodeFromAsset) throw new Error('画布视频节点尚未就绪');
+    if (button) button.disabled = true;
+    window.DesktopCanvas.createVideoNodeFromAsset(video);
+    closeGallery();
+    DesktopResults.showTransientMessage('视频已发送到画布。');
+  }
+
+  function patchGalleryVideoCards(ids) {
+    const grid = els.deskGalleryGrid;
+    if (!grid) return false;
+    const uniqueIds = [...new Set((ids || []).filter(Boolean))];
+    if (!uniqueIds.length) return false;
+    let replaced = 0;
+    uniqueIds.forEach(id => {
+      const video = findGalleryVideo(id);
+      const current = grid.querySelector(`[data-video-id="${CSS.escape(id)}"]`);
+      if (!video || !current) return;
+      const template = document.createElement('template');
+      template.innerHTML = renderGalleryVideoCard(video).trim();
+      const replacement = template.content.firstElementChild;
+      if (!replacement) return;
+      current.replaceWith(replacement);
+      replaced += 1;
+    });
+    if (replaced) bindGalleryVideoEvents();
+    return replaced === uniqueIds.length;
+  }
+
+  function bindGalleryVideoEvents() {
+    els.deskGalleryGrid?.querySelectorAll('[data-gallery-video-toggle]').forEach(button => {
+      if (button.dataset.videoToggleBound === '1') return;
+      button.dataset.videoToggleBound = '1';
+      button.addEventListener('click', event => {
+        event.preventDefault();
+        event.stopPropagation();
+        const id = button.dataset.galleryVideoToggle || '';
+        const previousId = expandedGalleryVideoId;
+        expandedGalleryVideoId = expandedGalleryVideoId === id ? '' : id;
+        if (!patchGalleryVideoCards([previousId, expandedGalleryVideoId || id])) renderGalleryVideos();
+        window.requestAnimationFrame(() => {
+          const article = els.deskGalleryGrid?.querySelector(`[data-video-id="${CSS.escape(id)}"]`);
+          article?.querySelector('.desk-gallery-video-folder')?.focus?.({ preventScroll: true });
+          if (expandedGalleryVideoId) {
+            els.deskGalleryGrid?.querySelector(`[data-video-id="${CSS.escape(expandedGalleryVideoId)}"]`)?.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' });
+          }
+        });
+      });
+    });
+    els.deskGalleryGrid?.querySelectorAll('[data-gallery-video-canvas]').forEach(button => {
+      if (button.dataset.videoCanvasBound === '1') return;
+      button.dataset.videoCanvasBound = '1';
+      button.addEventListener('click', () => {
+        try {
+          sendGalleryVideoToCanvas(findGalleryVideo(button.dataset.galleryVideoCanvas || ''), button);
+        } catch (error) {
+          button.disabled = false;
+          DesktopResults.showError(error);
+        }
+      });
+    });
+    els.deskGalleryGrid?.querySelectorAll('[data-gallery-video-copy-prompt]').forEach(button => {
+      if (button.dataset.videoPromptBound === '1') return;
+      button.dataset.videoPromptBound = '1';
+      button.addEventListener('click', () => {
+        const video = findGalleryVideo(button.dataset.galleryVideoCopyPrompt || '');
+        copyPinterestSplitText(video?.prompt || '')
+          .then(() => DesktopResults.showTransientMessage('提示词已复制。'))
+          .catch(error => DesktopResults.showError(error));
+      });
+    });
+  }
+
+  function renderGalleryVideos() {
+    const grid = els.deskGalleryGrid;
+    if (!grid) return;
+    if (galleryVideosLoading && !galleryVideos.length) {
+      grid.innerHTML = '<div class="desk-gallery-empty">正在扫描视频资产...</div>';
+      return;
+    }
+    if (galleryVideosError && !galleryVideos.length) {
+      grid.innerHTML = `<div class="desk-gallery-empty">${escapeHtml(galleryVideosError)}</div>`;
+      return;
+    }
+    const videos = getVisibleGalleryVideos();
+    if (!videos.length) {
+      const emptyLabel = galleryVideoSource === 'generated'
+        ? '暂无生成视频'
+        : (galleryVideoSource === 'imported' ? '暂无导入素材' : '没有匹配的视频资产');
+      grid.innerHTML = `<div class="desk-gallery-empty">${escapeHtml(emptyLabel)}</div>`;
+      return;
+    }
+    grid.innerHTML = videos.map(renderGalleryVideoCard).join('');
+    bindGalleryVideoEvents();
   }
 
   function findEditableFile(id) {
@@ -3728,6 +4273,488 @@
       const label = button.querySelector('span');
       if (label) label.textContent = busy ? '分析中' : (analyzed ? '已分析' : '分析');
     });
+  }
+
+  function pinterestSplitSourcePrompt(asset) {
+    return String(
+      asset?.analysisPrompt
+      || asset?.analysis_prompt
+      || asset?.prompt
+      || asset?.description
+      || ''
+    ).trim();
+  }
+
+  function pinterestSplitSourceImage(asset) {
+    return String(
+      asset?.localImageUrl
+      || asset?.imageUrl
+      || asset?.remoteImageUrl
+      || ''
+    ).trim();
+  }
+
+  function pinterestSplitCanRun(asset) {
+    return Boolean(pinterestSplitSourcePrompt(asset) || pinterestSplitSourceImage(asset));
+  }
+
+  function pinterestSplitModuleLabel(moduleType) {
+    const cleanType = String(moduleType || '').trim();
+    return window.DesktopPromptLibrary?.getModuleLabel?.(cleanType)
+      || PINTEREST_SPLIT_MODULE_LABELS[cleanType]
+      || cleanType
+      || '自定义素材';
+  }
+
+  function pinterestSplitSelectedCandidates() {
+    return pinterestSplitCandidates.filter(candidate => candidate?.selected && String(candidate.content || '').trim());
+  }
+
+  function pinterestSplitGeometrySummary(geometry = pinterestSplitSourceGeometry) {
+    if (!geometry || typeof geometry !== 'object') return '';
+    const width = Number(geometry.width || 0);
+    const height = Number(geometry.height || 0);
+    const recommendedRatio = String(geometry.recommended_ratio || geometry.recommendedRatio || '').trim();
+    const sourceSize = width > 0 && height > 0 ? `${width}×${height}` : '';
+    if (sourceSize && recommendedRatio) return `原图 ${sourceSize} · 推荐生成比例 ${recommendedRatio}`;
+    if (recommendedRatio) return `推荐生成比例 ${recommendedRatio}`;
+    return sourceSize ? `原图 ${sourceSize}` : '';
+  }
+
+  function composePinterestFidelityPrompt(selected = pinterestSplitSelectedCandidates()) {
+    const blocks = (Array.isArray(selected) ? selected : [])
+      .map(block => {
+        const content = String(block?.content || '').replace(/\s+/g, ' ').trim();
+        if (!content) return '';
+        return `【${pinterestSplitModuleLabel(block?.module_type)}】${content}`;
+      })
+      .filter(Boolean);
+    if (!blocks.length) return '';
+    const geometry = pinterestSplitSourceGeometry && typeof pinterestSplitSourceGeometry === 'object'
+      ? pinterestSplitSourceGeometry
+      : {};
+    const width = Number(geometry.width || 0);
+    const height = Number(geometry.height || 0);
+    const recommendedRatio = String(geometry.recommended_ratio || geometry.recommendedRatio || '').trim();
+    const geometryConstraint = recommendedRatio
+      ? `保持原图${width > 0 && height > 0 ? ` ${width}×${height}` : ''}的画幅与裁切关系，生成参数优先使用 ${recommendedRatio}，不要改成更宽或更窄的比例。`
+      : '保持原图画幅、主体占比与边缘裁切关系，不要擅自扩宽画面。';
+    const ratioLock = recommendedRatio ? `【原图比例：${recommendedRatio}】` : '';
+    const fidelityLock = [
+      '【同图忠实复现｜高保真模块】',
+      ratioLock,
+      '以下模块共同描述同一张参考图，必须作为一个完整提示词整体执行。',
+      '每个模块都是可见事实硬约束，不是创作灵感；优先执行具体的数量、年龄范围、几何比例、坐标、裁切、类别、材质和纹理，不得改写成常见近似款。',
+      '忠实保持主体数量、可见年龄感与成熟度、脸部或物体几何比例、体型与体量、服装或产品结构、材质纹理、姿态、构图、裁切、镜头、光线、色彩、背景地标和可见文字关系。',
+      '禁止自动美化、年轻化、瘦身、改脸、替换服装或材质、简化背景、新增对象及改变关键空间关系；近距离人像不得自动补出伸向镜头的自拍前臂、手掌或手机。',
+      geometryConstraint,
+    ].join('');
+    return `${fidelityLock}${blocks.join('；')}`.replace(/\s+/g, ' ').trim();
+  }
+
+  function updatePinterestSplitButton(pinId, busy) {
+    const cleanPinId = String(pinId || '');
+    const asset = pinterestPins.find(item => (
+      String(item.pinId || item.taskId || item.id || '').replace(/^pinterest_/, '') === cleanPinId
+    ));
+    const hasPrompt = Boolean(pinterestSplitSourcePrompt(asset));
+    const hasImage = Boolean(pinterestSplitSourceImage(asset));
+    const canRun = hasPrompt || hasImage;
+    const title = busy
+      ? (hasImage ? '正在按高保真模块分析图片' : '正在按高保真模块拆分现有提示词')
+      : (!canRun
+        ? '这张图片没有可用于拆分的提示词或图片资源'
+        : (hasImage
+          ? '直接分析图片并按高保真模块提取素材'
+          : '图片不可用，按高保真模块拆分现有提示词'));
+    els.deskGalleryGrid?.querySelectorAll?.('[data-pinterest-split-pin]').forEach(button => {
+      if (button.dataset.pinterestSplitPin !== cleanPinId) return;
+      button.disabled = Boolean(busy) || !canRun;
+      button.classList.toggle('is-splitting', Boolean(busy));
+      button.setAttribute('aria-busy', busy ? 'true' : 'false');
+      button.setAttribute('aria-label', title);
+      button.title = title;
+      const label = button.querySelector('span');
+      if (label) label.textContent = busy ? '拆分中' : '拆分';
+    });
+  }
+
+  function renderPinterestSplitModal() {
+    const results = els.deskPinterestSplitResults;
+    const selectedCount = pinterestSplitSelectedCandidates().length;
+    if (results) {
+      if (pinterestSplitBusy && pinterestSplitAction === 'extract') {
+        const analyzingImage = pinterestSplitMode === 'image';
+        results.innerHTML = `
+          <div class="desk-pinterest-split-modal__loading">
+            <span aria-hidden="true"></span>
+            <strong>${analyzingImage ? '正在按模块分析图片' : '正在拆分提示词'}</strong>
+            <p>${analyzingImage ? '将直接读取图片视觉信息，并按高保真模块生成素材；人像会独立提取体形身材。' : '将按高保真模块整理可复用内容。'}</p>
+          </div>
+        `;
+      } else if (pinterestSplitCandidates.length) {
+        results.innerHTML = pinterestSplitCandidates.map((candidate, index) => `
+          <label class="desk-pinterest-split-modal__candidate${candidate.selected ? ' is-selected' : ''}">
+            <input type="checkbox" data-pinterest-split-candidate="${index}" ${candidate.selected ? 'checked' : ''} ${pinterestSplitBusy ? 'disabled' : ''}>
+            <span class="desk-pinterest-split-modal__candidate-check" aria-hidden="true"></span>
+            <span class="desk-pinterest-split-modal__candidate-copy">
+              <strong>${escapeHtml(candidate.name || pinterestSplitModuleLabel(candidate.module_type))}</strong>
+              <em>${escapeHtml(pinterestSplitModuleLabel(candidate.module_type))}</em>
+              <span>${escapeHtml(candidate.content || '')}</span>
+            </span>
+          </label>
+        `).join('');
+      } else {
+        results.innerHTML = `
+          <div class="desk-pinterest-split-modal__empty">
+            <strong>没有可用素材块</strong>
+            <span>请重新分析图片或检查当前提示词。</span>
+          </div>
+        `;
+      }
+    }
+    if (els.deskPinterestSplitStatus) {
+      els.deskPinterestSplitStatus.textContent = pinterestSplitStatus
+        || (pinterestSplitCandidates.length ? `已选 ${selectedCount} 个素材块。` : '正在准备素材块拆分。');
+    }
+    if (els.deskPinterestSplitCopyBtn) {
+      els.deskPinterestSplitCopyBtn.disabled = pinterestSplitBusy || !selectedCount;
+    }
+    if (els.deskPinterestSplitSaveBtn) {
+      els.deskPinterestSplitSaveBtn.disabled = pinterestSplitBusy || !selectedCount;
+      els.deskPinterestSplitSaveBtn.textContent = pinterestSplitBusy && pinterestSplitAction === 'save'
+        ? '正在存储…'
+        : '存储到素材块';
+    }
+  }
+
+  function stopPinterestSplitProgress() {
+    if (pinterestSplitProgressTimer) window.clearInterval(pinterestSplitProgressTimer);
+    pinterestSplitProgressTimer = null;
+    pinterestSplitStartedAt = 0;
+  }
+
+  function updatePinterestSplitProgress() {
+    if (!pinterestSplitBusy || pinterestSplitAction !== 'extract' || !pinterestSplitStartedAt) return;
+    const elapsed = Math.max(0, Math.floor((Date.now() - pinterestSplitStartedAt) / 1000));
+    const elapsedLabel = elapsed >= 60
+      ? `${Math.floor(elapsed / 60)} 分 ${String(elapsed % 60).padStart(2, '0')} 秒`
+      : `${elapsed} 秒`;
+    let message = '';
+    if (pinterestSplitMode !== 'image') {
+      message = `正在拆分提示词 · 已用 ${elapsedLabel}`;
+    } else if (elapsed < 20) {
+      message = `正在读取图片和识别主体 · 已用 ${elapsedLabel}`;
+    } else if (elapsed < 90) {
+      message = `正在建立构图、人物/物体和材质视觉锚点 · 已用 ${elapsedLabel}`;
+    } else if (elapsed < 240) {
+      message = `正在按高保真模块细化并核对防漂移约束 · 已用 ${elapsedLabel}`;
+    } else {
+      message = `模型正在输出高细节视觉蓝图，请继续等待 · 已用 ${elapsedLabel}`;
+    }
+    pinterestSplitStatus = message;
+    if (els.deskPinterestSplitStatus) els.deskPinterestSplitStatus.textContent = message;
+  }
+
+  function startPinterestSplitProgress() {
+    stopPinterestSplitProgress();
+    pinterestSplitStartedAt = Date.now();
+    updatePinterestSplitProgress();
+    pinterestSplitProgressTimer = window.setInterval(updatePinterestSplitProgress, 1000);
+  }
+
+  function openPinterestSplitModal(asset, trigger = null) {
+    pinterestSplitAsset = asset || null;
+    pinterestSplitReturnFocus = trigger || null;
+    if (els.deskPinterestSplitImg) {
+      const imageUrl = mediaUrl(asset?.thumbUrl || asset?.imageUrl || '');
+      els.deskPinterestSplitImg.src = imageUrl;
+      els.deskPinterestSplitImg.alt = asset?.title || 'Pinterest 图片';
+      els.deskPinterestSplitImg.hidden = !imageUrl;
+    }
+    if (els.deskPinterestSplitTitle) {
+      els.deskPinterestSplitTitle.textContent = asset?.title || 'Pinterest 图片';
+    }
+    if (els.deskPinterestSplitMeta) {
+      els.deskPinterestSplitMeta.textContent = [
+        asset?.boardName || 'Pinterest',
+        '按高保真模块拆分'
+      ].filter(Boolean).join(' · ');
+    }
+    if (!els.deskPinterestSplitModal) return;
+    els.deskPinterestSplitModal.hidden = false;
+    els.deskPinterestSplitModal.setAttribute('aria-hidden', 'false');
+    renderPinterestSplitModal();
+    window.requestAnimationFrame(() => {
+      els.deskPinterestSplitModal?.classList.add('is-open');
+      els.deskPinterestSplitModal?.querySelector?.('[data-pinterest-split-candidate], #deskPinterestSplitCloseBtn')?.focus?.({ preventScroll: true });
+    });
+  }
+
+  function closePinterestSplitModal(options = {}) {
+    const modal = els.deskPinterestSplitModal;
+    if (!modal || modal.hidden) return false;
+    if (pinterestSplitBusy && !options.force) return false;
+    pinterestSplitRequestId += 1;
+    modal.classList.remove('is-open');
+    modal.setAttribute('aria-hidden', 'true');
+    modal.hidden = true;
+    if (els.deskPinterestSplitImg) {
+      els.deskPinterestSplitImg.removeAttribute('src');
+      els.deskPinterestSplitImg.alt = '';
+    }
+    pinterestSplitAsset = null;
+    pinterestSplitCandidates = [];
+    pinterestSplitBusy = false;
+    pinterestSplitAction = '';
+    pinterestSplitMode = 'text';
+    pinterestSplitStatus = '';
+    pinterestSplitAnalysisId = '';
+    pinterestSplitRule = null;
+    pinterestSplitSourceGeometry = null;
+    pinterestSplitPrimaryType = '';
+    pinterestSplitSaveManifest = null;
+    stopPinterestSplitProgress();
+    if (options.restoreFocus !== false && pinterestSplitReturnFocus?.isConnected) {
+      pinterestSplitReturnFocus.focus?.({ preventScroll: true });
+    }
+    pinterestSplitReturnFocus = null;
+    return true;
+  }
+
+  async function copyPinterestSplitText(text) {
+    const value = String(text || '').trim();
+    if (!value) throw new Error('没有可复制的素材');
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(value);
+      return;
+    }
+    const textarea = document.createElement('textarea');
+    textarea.value = value;
+    textarea.setAttribute('readonly', '');
+    textarea.style.cssText = 'position:fixed;opacity:0;pointer-events:none;';
+    document.body.appendChild(textarea);
+    textarea.select();
+    const copied = document.execCommand?.('copy');
+    textarea.remove();
+    if (!copied) throw new Error('复制失败');
+  }
+
+  async function splitPinterestPrompt(asset, trigger = null) {
+    if (!asset || asset.sourceKind !== 'pinterest') throw new Error('Pinterest 图片不存在');
+    const prompt = pinterestSplitSourcePrompt(asset);
+    const imageSource = pinterestSplitSourceImage(asset);
+    if (!prompt && !imageSource) throw new Error('这张图片没有可用于拆分的提示词或图片资源');
+    const pinId = String(asset.pinId || asset.taskId || asset.id || '').replace(/^pinterest_/, '');
+    if (!pinId || pinterestSplittingPins.has(pinId)) return;
+    if (!window.DesktopApi?.extractPromptBlocks) throw new Error('素材块拆分组件尚未加载');
+
+    const requestId = ++pinterestSplitRequestId;
+    pinterestSplittingPins.add(pinId);
+    pinterestSplitCandidates = [];
+    pinterestSplitAnalysisId = '';
+    pinterestSplitRule = null;
+    pinterestSplitSourceGeometry = null;
+    pinterestSplitPrimaryType = '';
+    pinterestSplitSaveManifest = null;
+    pinterestSplitBusy = true;
+    pinterestSplitAction = 'extract';
+    pinterestSplitMode = imageSource ? 'image' : 'text';
+    pinterestSplitStatus = imageSource
+      ? '正在读取图片，并按高保真模块直接分析。'
+      : '图片不可用，正在按高保真模块拆分现有提示词。';
+    openPinterestSplitModal(asset, trigger);
+    startPinterestSplitProgress();
+    updatePinterestSplitButton(pinId, true);
+
+    try {
+      let payload;
+      if (imageSource) {
+        if (!window.DesktopApi?.imageUrlToDataUri) throw new Error('图片读取组件尚未加载');
+        const dataUrl = await window.DesktopApi.imageUrlToDataUri(mediaUrl(imageSource));
+        if (!dataUrl) throw new Error('图片读取失败');
+        payload = {
+          mode: 'image',
+          module_scope: 'generic_19',
+          message: '先完整理解这张 Pinterest 图片，再严格按高保真模块提取可独立复用的图像生成提示词素材。人物、人像、时尚或角色图片只要身体区域可见，就必须把体形身材作为独立模块，不能混入外貌或姿态。只返回模块素材，不返回普通“分析”功能的主提示词或分析报告。',
+          images: [{
+            id: `pinterest_${pinId}`,
+            label: asset.title || 'Pinterest 图片',
+            data_url: dataUrl,
+            role: 'primary'
+          }]
+        };
+      } else {
+        payload = {
+          mode: 'text',
+          module_scope: 'generic_19',
+          text: prompt
+        };
+      }
+      const result = await window.DesktopApi.extractPromptBlocks(payload);
+      if (requestId !== pinterestSplitRequestId) return;
+      pinterestSplitAnalysisId = String(result?.analysis_id || result?.analysisId || '').trim();
+      pinterestSplitRule = result?.split_rule && typeof result.split_rule === 'object'
+        ? result.split_rule
+        : null;
+      pinterestSplitSourceGeometry = result?.source_geometry && typeof result.source_geometry === 'object'
+        ? result.source_geometry
+        : null;
+      pinterestSplitPrimaryType = String(result?.primary_type || result?.primaryType || '').trim();
+      pinterestSplitCandidates = (Array.isArray(result?.blocks) ? result.blocks : [])
+        .map(block => ({
+          name: String(block?.name || '').trim().slice(0, 120),
+          module_type: String(block?.module_type || 'custom').trim() || 'custom',
+          content: String(block?.content || '').trim(),
+          compact_content: String(block?.compact_content || '').trim(),
+          english_content: String(block?.english_content || '').trim(),
+          applicable_types: Array.isArray(block?.applicable_types) ? block.applicable_types : [],
+          tags: Array.isArray(block?.tags) ? block.tags : [],
+          selected: true
+        }))
+        .filter(block => block.content);
+      if (!pinterestSplitCandidates.length) throw new Error('没有得到可保存的素材块');
+      const geometrySummary = pinterestSplitGeometrySummary();
+      const coverage = Number(result?.anchor_coverage ?? result?.fidelity_score);
+      const coverageSummary = Number.isFinite(coverage) && coverage > 0
+        ? ` · 视觉锚点覆盖 ${Math.round(coverage <= 1 ? coverage * 100 : coverage)}%`
+        : '';
+      pinterestSplitStatus = `已拆分 ${pinterestSplitCandidates.length} 个素材块${geometrySummary ? ` · ${geometrySummary}` : ''}${coverageSummary}，请选择存储或直接复制。`;
+      if (els.deskPinterestSplitMeta) {
+        els.deskPinterestSplitMeta.textContent = [
+          asset?.boardName || 'Pinterest',
+          pinterestSplitPrimaryType ? `类型 ${pinterestSplitPrimaryType}` : '',
+          geometrySummary,
+          '高保真 19 模块',
+        ].filter(Boolean).join(' · ');
+      }
+      if (result?.warning) {
+        DesktopResults.showTransientMessage(result.warning, 'warning');
+      }
+    } catch (error) {
+      if (requestId !== pinterestSplitRequestId) return;
+      pinterestSplitCandidates = [];
+      pinterestSplitStatus = error?.message || String(error);
+      throw error;
+    } finally {
+      stopPinterestSplitProgress();
+      pinterestSplittingPins.delete(pinId);
+      updatePinterestSplitButton(pinId, false);
+      if (requestId === pinterestSplitRequestId) {
+        pinterestSplitBusy = false;
+        pinterestSplitAction = '';
+        renderPinterestSplitModal();
+      }
+    }
+  }
+
+  async function copyPinterestSplitCandidates() {
+    const selected = pinterestSplitSelectedCandidates();
+    if (!selected.length) throw new Error('请选择至少一个素材块');
+    pinterestSplitBusy = true;
+    pinterestSplitAction = 'copy';
+    pinterestSplitStatus = '正在复制选中的素材块。';
+    renderPinterestSplitModal();
+    try {
+      await copyPinterestSplitText(composePinterestFidelityPrompt(selected));
+      closePinterestSplitModal({ force: true });
+      DesktopResults.showTransientMessage(`已复制 ${selected.length} 个素材块。`, 'success');
+    } catch (error) {
+      pinterestSplitBusy = false;
+      pinterestSplitAction = '';
+      pinterestSplitStatus = error?.message || String(error);
+      renderPinterestSplitModal();
+      throw error;
+    }
+  }
+
+  async function savePinterestSplitCandidates() {
+    const asset = pinterestSplitAsset;
+    const selected = pinterestSplitSelectedCandidates();
+    if (!asset || !selected.length) throw new Error('请选择至少一个素材块');
+    if (!window.DesktopApi?.savePromptBlock) throw new Error('素材块保存组件尚未加载');
+
+    pinterestSplitBusy = true;
+    pinterestSplitAction = 'save';
+    pinterestSplitStatus = `正在存储 ${selected.length} 个素材块。`;
+    renderPinterestSplitModal();
+    try {
+      const pinId = String(asset.pinId || asset.taskId || asset.id || '').replace(/^pinterest_/, '');
+      const sourceTags = ['Pinterest', asset.boardName].filter(Boolean);
+      const splitRule = pinterestSplitRule && typeof pinterestSplitRule === 'object'
+        ? pinterestSplitRule
+        : { id: 'generic_19', name: '通用高保真模块', version: 6 };
+      const sourceRuleSnapshot = {
+        ...splitRule,
+        bundle_id: pinterestSplitAnalysisId,
+        pin_id: pinId,
+        source_kind: 'pinterest',
+        source_image: pinterestSplitSourceImage(asset),
+        source_geometry: pinterestSplitSourceGeometry || {},
+        primary_type: pinterestSplitPrimaryType,
+        fidelity_marker: '【同图忠实复现｜高保真模块】',
+      };
+      if (!pinterestSplitSaveManifest) {
+        pinterestSplitSaveManifest = {
+          bundleId: pinterestSplitAnalysisId,
+          entries: selected.map((block, index) => ({ block, index })),
+          selectedModules: selected.map(block => String(block.module_type || 'custom')),
+        };
+      }
+      const manifest = pinterestSplitSaveManifest;
+      const selectedModuleTypes = manifest.selectedModules;
+      const outcomes = await Promise.allSettled(selected.map((block, moduleOrder) => window.DesktopApi.savePromptBlock({
+        ...block,
+        applicable_types: [...new Set([
+          ...(Array.isArray(block.applicable_types) ? block.applicable_types : []),
+          pinterestSplitPrimaryType,
+        ].filter(Boolean))].slice(0, 8),
+        tags: [...new Set([...(block.tags || []), ...sourceTags])].slice(0, 12),
+        source: 'pinterest_split',
+        source_rule_id: String(splitRule.id || 'generic_19'),
+        source_rule_version: Number(splitRule.version || 6),
+        source_rule_snapshot: {
+          ...sourceRuleSnapshot,
+          bundle_id: manifest.bundleId || sourceRuleSnapshot.bundle_id,
+          module_order: manifest.entries.find(entry => entry.block === block)?.index ?? moduleOrder,
+          module_count: manifest.entries.length,
+          selected_modules: selectedModuleTypes,
+        },
+      })));
+      const savedIndexes = new Set();
+      const saved = [];
+      outcomes.forEach((outcome, index) => {
+        const block = outcome.status === 'fulfilled' ? outcome.value?.block : null;
+        if (!block?.id) return;
+        saved.push(block);
+        savedIndexes.add(index);
+      });
+      if (!saved.length) {
+        throw outcomes.find(outcome => outcome.status === 'rejected')?.reason || new Error('素材块保存失败');
+      }
+      window.DesktopPromptInsert?.refresh?.();
+      const failed = selected.length - saved.length;
+      if (!failed) {
+        closePinterestSplitModal({ force: true });
+        DesktopResults.showTransientMessage(`已存储 ${saved.length} 个素材块。`, 'success');
+        return;
+      }
+      const savedCandidates = new Set(
+        [...savedIndexes].map(index => selected[index])
+      );
+      pinterestSplitCandidates = pinterestSplitCandidates.filter(candidate => !savedCandidates.has(candidate));
+      pinterestSplitStatus = `已存储 ${saved.length} 个素材块，剩余 ${failed} 个可重试。`;
+      DesktopResults.showTransientMessage(pinterestSplitStatus, 'warning');
+    } catch (error) {
+      pinterestSplitStatus = error?.message || String(error);
+      throw error;
+    } finally {
+      if (!els.deskPinterestSplitModal?.hidden) {
+        pinterestSplitBusy = false;
+        pinterestSplitAction = '';
+        renderPinterestSplitModal();
+      }
+    }
   }
 
   function currentPinterestAnalysisPrompt() {
@@ -4777,18 +5804,30 @@
     clearGalleryHoverState(els.deskGalleryGrid.querySelector('[data-prompt-source-scroll]'));
     disposeGalleryVirtualContainer(els.deskGalleryGrid.querySelector('[data-prompt-source-scroll]'));
     invalidateGalleryVirtualData();
-    if (!['images', 'sets', 'setDetail', 'sources', 'files', 'pinterest'].includes(galleryView)) galleryView = 'images';
+    if (!['images', 'videos', 'sets', 'setDetail', 'sources', 'files', 'pinterest'].includes(galleryView)) galleryView = 'images';
     document.querySelectorAll('[data-gallery-view]').forEach(button => {
       const view = button.dataset.galleryView;
-      button.classList.toggle('is-active', view === galleryView || (galleryView === 'setDetail' && view === 'sets'));
+      const isActive = view === galleryView || (galleryView === 'setDetail' && view === 'sets');
+      button.classList.toggle('is-active', isActive);
+      button.setAttribute('aria-selected', String(isActive));
+      button.tabIndex = isActive ? 0 : -1;
+      if (isActive && button.id) els.deskGalleryGrid.setAttribute('aria-labelledby', button.id);
     });
+    renderGalleryVideoSourceSwitch();
     if (els.deskGalleryFilterSelect) els.deskGalleryFilterSelect.value = galleryFilter;
     if (els.deskGalleryTagInput && els.deskGalleryTagInput.value !== galleryTag) els.deskGalleryTagInput.value = galleryTag;
-    if (els.deskGalleryFilterSelect) els.deskGalleryFilterSelect.hidden = galleryView === 'pinterest';
+    const isSimpleMediaView = ['pinterest', 'videos'].includes(galleryView);
+    if (els.deskGalleryFilterSelect) els.deskGalleryFilterSelect.hidden = isSimpleMediaView;
     const tagFilter = els.deskGalleryTagInput?.closest('.desk-gallery-tag-filter');
-    if (tagFilter) tagFilter.hidden = galleryView === 'pinterest';
+    if (tagFilter) tagFilter.hidden = isSimpleMediaView;
+    if (els.deskGallerySearchInput) {
+      els.deskGallerySearchInput.placeholder = galleryView === 'videos'
+        ? '搜索视频文件名 / 提示词 / 9:16'
+        : '搜索提示词 / 文件名 / 16:9 / PNG';
+    }
     renderGalleryStats();
     els.deskGalleryGrid.classList.toggle('is-prompt-sources', galleryView === 'sources');
+    els.deskGalleryGrid.classList.toggle('is-video-assets', galleryView === 'videos');
     els.deskGalleryGrid.classList.toggle('is-file-assets', galleryView === 'files');
     els.deskGalleryGrid.classList.toggle('is-pinterest', galleryView === 'pinterest');
     if (galleryView === 'images') {
@@ -4798,6 +5837,7 @@
     }
     if (galleryView === 'setDetail') renderAssetSetDetail();
     else if (galleryView === 'sets') renderGallerySets();
+    else if (galleryView === 'videos') renderGalleryVideos();
     else if (galleryView === 'files') renderGalleryFiles();
     else if (galleryView === 'sources') renderPromptSources();
     else if (galleryView === 'pinterest') renderPinterestLibrary();
@@ -4805,6 +5845,28 @@
   }
 
   function renderGallerySelection() {
+    if (els.deskGalleryRefreshMetaBtn) els.deskGalleryRefreshMetaBtn.disabled = galleryView === 'videos';
+    if (galleryView === 'videos') {
+      const count = getVisibleGalleryVideos().length;
+      if (els.deskGallerySelectedCount) els.deskGallerySelectedCount.textContent = `${count} 个`;
+      if (els.deskGallerySelectedList) {
+        const sourceLabel = galleryVideoSource === 'generated' ? '生成视频' : (galleryVideoSource === 'imported' ? '导入素材' : '全部视频');
+        els.deskGallerySelectedList.innerHTML = `<div class="desk-gallery-empty">${escapeHtml(sourceLabel)}可直接播放、打开或发送到画布。</div>`;
+      }
+      [
+        els.deskGalleryCompareBtn,
+        els.deskGalleryCanvasBtn,
+        els.deskGallerySaveSetBtn,
+        els.deskGalleryTagBtn,
+        els.deskGalleryHideBtn,
+        els.deskGalleryDeleteBtn,
+        els.deskGalleryUndoDeleteBtn,
+        els.deskGalleryClearBtn
+      ].forEach(button => {
+        if (button) button.disabled = true;
+      });
+      return;
+    }
     if (galleryView === 'files') {
       const count = getVisibleEditableFiles().length;
       if (els.deskGallerySelectedCount) els.deskGallerySelectedCount.textContent = `${count} 件`;
@@ -4882,6 +5944,15 @@
       }
     }, true);
     grid.addEventListener('click', event => {
+      const pinterestSplitButton = event.target?.closest?.('[data-pinterest-split-asset]');
+      if (pinterestSplitButton && grid.contains(pinterestSplitButton)) {
+        event.preventDefault();
+        event.stopPropagation();
+        const asset = findAssetById(pinterestSplitButton.dataset.pinterestSplitAsset || '');
+        splitPinterestPrompt(asset, pinterestSplitButton)
+          .catch(error => galleryError(error, 'Pinterest 提示词拆分失败'));
+        return;
+      }
       const pinterestAnalyzeButton = event.target?.closest?.('[data-pinterest-analyze-asset]');
       if (pinterestAnalyzeButton && grid.contains(pinterestAnalyzeButton)) {
         event.preventDefault();
@@ -4901,11 +5972,11 @@
         ).catch(error => DesktopResults.showError(error));
         return;
       }
-      const selectButton = event.target?.closest?.('[data-gallery-select]');
-      if (selectButton && grid.contains(selectButton)) {
+      const selectionRegion = event.target?.closest?.('[data-gallery-select-card]');
+      if (selectionRegion && grid.contains(selectionRegion)) {
         event.preventDefault();
         event.stopPropagation();
-        toggleAssetSelection(selectButton.dataset.gallerySelect || '');
+        toggleAssetSelection(selectionRegion.dataset.gallerySelectCard || '');
         return;
       }
       const stepButton = event.target?.closest?.('[data-remote-image-step]');
@@ -4933,7 +6004,23 @@
       const card = event.target?.closest?.('.desk-gallery-card');
       if (!card || !grid.contains(card)) return;
       const asset = findAssetById(card.dataset.assetId);
-      openPreview(asset);
+      if (event.target?.closest?.('.desk-gallery-card__image')) {
+        openPreview(asset);
+        return;
+      }
+      if (event.target?.closest?.('.desk-gallery-card__meta')) {
+        toggleAssetSelection(asset?.id || '');
+      }
+    });
+    grid.addEventListener('keydown', event => {
+      const selectionRegion = event.target?.closest?.('[data-gallery-select-card]');
+      if (
+        !selectionRegion
+        || !grid.contains(selectionRegion)
+        || !['Enter', ' '].includes(event.key)
+      ) return;
+      event.preventDefault();
+      toggleAssetSelection(selectionRegion.dataset.gallerySelectCard || '');
     });
     grid.addEventListener('dragstart', event => {
       const card = event.target?.closest?.('.desk-gallery-card');
@@ -5249,6 +6336,46 @@
     galleryFileStats = data.stats || {};
     if (galleryView === 'files') scheduleGalleryRender({ selection: true });
     return galleryFiles;
+  }
+
+  async function loadGalleryVideos(options = {}) {
+    if (!DesktopApi.listVideoAssets) return galleryVideos;
+    const requestId = ++galleryVideoRequestId;
+    galleryVideosLoading = true;
+    galleryVideosError = '';
+    if (options.reset === true) galleryVideos = [];
+    if (galleryView === 'videos') scheduleGalleryRender({ selection: true });
+    try {
+      const data = await DesktopApi.listVideoAssets({
+        limit: 500,
+        offset: 0,
+        query: galleryQuery,
+        source: galleryVideoSource,
+        refresh: options.refresh === true
+      });
+      if (requestId !== galleryVideoRequestId) return galleryVideos;
+      galleryVideos = (Array.isArray(data.videos) ? data.videos : (Array.isArray(data.items) ? data.items : []))
+        .map(normalizeGalleryVideo)
+        .filter(item => item.id && item.mediaUrl);
+      if (expandedGalleryVideoId && !galleryVideos.some(item => item.id === expandedGalleryVideoId)) {
+        expandedGalleryVideoId = '';
+      }
+      galleryVideoStats = {
+        ...(data.stats || {}),
+        source_counts: data.source_counts || data.stats?.source_counts || data.stats?.by_source || {},
+        source_filter: data.source || data.source_filter || galleryVideoSource
+      };
+      return galleryVideos;
+    } catch (error) {
+      if (requestId !== galleryVideoRequestId) return galleryVideos;
+      galleryVideosError = String(error?.message || error || '视频资产加载失败');
+      throw error;
+    } finally {
+      if (requestId === galleryVideoRequestId) {
+        galleryVideosLoading = false;
+        if (galleryView === 'videos') scheduleGalleryRender({ selection: true });
+      }
+    }
   }
 
   function mergePinterestBoardStatus(localBoards = pinterestBoards, statusBoards = pinterestSyncStatus.boards) {
@@ -5635,6 +6762,8 @@
     resetGalleryRenderLimit();
     if (galleryView === 'images') {
       loadGalleryAssets().catch(error => DesktopResults.showError(error));
+    } else if (galleryView === 'videos') {
+      loadGalleryVideos().catch(error => DesktopResults.showError(error));
     } else if (galleryView === 'sets' || galleryView === 'setDetail') {
       loadGallerySets().catch(error => DesktopResults.showError(error));
     } else if (galleryView === 'files') {
@@ -5664,6 +6793,7 @@
     // 首屏只等当前视图的数据；其余数据集延后到空闲时段加载，避免和关键请求争抢后端
     const primaryLoaders = {
       images: loadGalleryAssets,
+      videos: loadGalleryVideos,
       sets: loadGallerySets,
       setDetail: loadGallerySets,
       files: loadGalleryFiles,
@@ -5696,6 +6826,9 @@
 
   function closeGallery() {
     closePinterestAnalysisModal({ restoreFocus: false });
+    closePinterestSplitModal({ restoreFocus: false, force: true });
+    els.deskGalleryGrid?.querySelectorAll('.desk-gallery-video-detail video').forEach(video => video.pause?.());
+    expandedGalleryVideoId = '';
     els.deskGalleryPanel?.classList.remove('is-open');
     els.deskGalleryPanel?.setAttribute('aria-hidden', 'true');
   }
@@ -6049,7 +7182,7 @@
       });
     if (!targets.length) return;
     const label = targets.length > 1 ? `${targets.length} 张图片` : `「${targets[0].title || '这张图片'}」`;
-    const confirmed = window.confirm(`确认删除 ${label}？\n\n将把 Obsidian 归档原图、同名提示词和本地预览/缩略图移入废纸篓，并从图库和候选集中移除。`);
+    const confirmed = window.confirm(`确认删除 ${label}？\n\n将把 Obsidian 归档原图、同名提示词和本地预览/缩略图移入废纸篓，并从资产库和候选集中移除。`);
     if (!confirmed) return;
 
     const button = options.button || null;
@@ -6114,7 +7247,7 @@
     const stats = health.stats || health || {};
     const parts = [];
     parts.push(`Obsidian ${Number(stats.obsidian_image_count || 0).toLocaleString('zh-CN')} 张`);
-    parts.push(`图库 ${Number(stats.gallery_asset_count || 0).toLocaleString('zh-CN')} 张`);
+    parts.push(`资产库 ${Number(stats.gallery_asset_count || 0).toLocaleString('zh-CN')} 张`);
     parts.push(`有任务记录 ${Number(stats.task_record_image_count || 0).toLocaleString('zh-CN')} 张`);
     parts.push(`孤儿图 ${Number(stats.orphan_asset_count || 0).toLocaleString('zh-CN')} 张`);
     if (stats.history_missing_count) parts.push(`记录缺图 ${Number(stats.history_missing_count || 0).toLocaleString('zh-CN')} 条`);
@@ -6123,16 +7256,16 @@
     if (health.empty_set_count) parts.push(`空候选集 ${health.empty_set_count} 个`);
     if (health.invalid_lineage_refs) parts.push(`失效溯源 ${health.invalid_lineage_refs} 个`);
     if (health.no_image_history) parts.push(`无图历史 ${health.no_image_history} 条`);
-    return parts.length ? parts.join('、') : '图库状态正常';
+    return parts.length ? parts.join('、') : '资产库状态正常';
   }
 
   async function runGalleryHealthCheck() {
     const button = els.deskGalleryHealthBtn;
     if (button) button.disabled = true;
-    galleryMessage('正在体检图库...');
+    galleryMessage('正在体检资产库...');
     try {
       if (!DesktopApi.getAssetHealth || !DesktopApi.cleanupAssetHealth) {
-        throw new Error('图库体检接口未加载，请强制刷新页面');
+        throw new Error('资产库体检接口未加载，请强制刷新页面');
       }
       const result = await DesktopApi.getAssetHealth();
       const health = result.health || result || {};
@@ -6142,15 +7275,15 @@
         renderGalleryStats();
       }
       if (health.ok || !health.issue_count) {
-        galleryMessage(`图库状态正常：${summary}。`);
+        galleryMessage(`资产库状态正常：${summary}。`);
         return;
       }
-      const confirmed = window.confirm(`图库体检发现：${summary}。\n\n是否现在清理？`);
+      const confirmed = window.confirm(`资产库体检发现：${summary}。\n\n是否现在清理？`);
       if (!confirmed) {
         galleryMessage(summary);
         return;
       }
-      galleryMessage('正在清理图库...');
+      galleryMessage('正在清理资产库...');
       const cleanup = await DesktopApi.cleanupAssetHealth();
       await Promise.all([
         loadHistory(80),
@@ -6158,9 +7291,9 @@
         loadGallerySets()
       ]);
       const after = cleanup.after || {};
-      galleryMessage(after.ok ? '图库清理完成，状态正常。' : `图库清理完成，剩余：${formatAssetHealthSummary(after)}。`);
+      galleryMessage(after.ok ? '资产库清理完成，状态正常。' : `资产库清理完成，剩余：${formatAssetHealthSummary(after)}。`);
     } catch (error) {
-      galleryError(error, '图库体检失败');
+      galleryError(error, '资产库体检失败');
     } finally {
       if (button) button.disabled = false;
       renderGallerySelection();
@@ -6175,7 +7308,7 @@
         button.disabled = true;
         button.textContent = '刷新中';
       }
-      galleryMessage('正在刷新图库元数据...');
+      galleryMessage('正在刷新资产库元数据...');
       await Promise.all([
         loadHistory(80),
         loadGalleryAssets({ refresh: true }),
@@ -6363,6 +7496,10 @@
           .catch(error => DesktopResults.showError(error));
         return;
       }
+      if (galleryView === 'videos') {
+        loadGalleryVideos({ refresh: true }).catch(error => DesktopResults.showError(error));
+        return;
+      }
       Promise.all([
         loadHistory(80),
         loadGalleryAssets(),
@@ -6386,6 +7523,17 @@
       galleryFilter = event.target.value || 'all';
       refreshGalleryAssets();
     });
+    els.deskGalleryVideoSource?.addEventListener('click', event => {
+      const button = event.target.closest?.('[data-gallery-video-source]');
+      if (!button || galleryView !== 'videos') return;
+      const nextSource = button.dataset.galleryVideoSource || 'generated';
+      if (!['generated', 'imported', 'all'].includes(nextSource) || nextSource === galleryVideoSource) return;
+      expandedGalleryVideoId = '';
+      galleryVideoSource = nextSource;
+      renderGalleryVideoSourceSwitch();
+      renderGalleryStats();
+      loadGalleryVideos({ reset: true }).catch(error => DesktopResults.showError(error));
+    });
     els.deskGalleryTagInput?.addEventListener('input', event => {
       const value = event.target.value || '';
       if (gallerySearchTimer) window.clearTimeout(gallerySearchTimer);
@@ -6398,10 +7546,24 @@
       button.addEventListener('click', () => {
         activeGallerySet = null;
         galleryView = button.dataset.galleryView || 'images';
+        if (galleryView !== 'videos') expandedGalleryVideoId = '';
         resetGalleryRenderLimit();
         renderGallery();
         renderGallerySelection();
         refreshGalleryAssets();
+      });
+      button.addEventListener('keydown', event => {
+        if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+        const tabs = [...document.querySelectorAll('.desk-gallery-tabs [data-gallery-view]')];
+        const currentIndex = tabs.indexOf(button);
+        if (currentIndex < 0 || !tabs.length) return;
+        event.preventDefault();
+        let nextIndex = currentIndex;
+        if (event.key === 'Home') nextIndex = 0;
+        else if (event.key === 'End') nextIndex = tabs.length - 1;
+        else nextIndex = (currentIndex + (event.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
+        tabs[nextIndex]?.focus();
+        tabs[nextIndex]?.click();
       });
     });
     els.deskGalleryGrid?.addEventListener('scroll', () => {
@@ -6453,6 +7615,41 @@
         || event.target?.closest?.('[data-pinterest-analysis-backdrop]')
       ) {
         closePinterestAnalysisModal();
+      }
+    });
+    els.deskPinterestSplitResults?.addEventListener('change', event => {
+      const checkbox = event.target?.closest?.('[data-pinterest-split-candidate]');
+      if (!checkbox || pinterestSplitBusy) return;
+      const candidate = pinterestSplitCandidates[Number(checkbox.dataset.pinterestSplitCandidate)];
+      if (!candidate) return;
+      candidate.selected = checkbox.checked;
+      checkbox.closest('.desk-pinterest-split-modal__candidate')
+        ?.classList.toggle('is-selected', checkbox.checked);
+      const selectedCount = pinterestSplitSelectedCandidates().length;
+      pinterestSplitStatus = `已选 ${selectedCount} 个素材块。`;
+      if (els.deskPinterestSplitStatus) {
+        els.deskPinterestSplitStatus.textContent = pinterestSplitStatus;
+      }
+      if (els.deskPinterestSplitCopyBtn) {
+        els.deskPinterestSplitCopyBtn.disabled = !selectedCount;
+      }
+      if (els.deskPinterestSplitSaveBtn) {
+        els.deskPinterestSplitSaveBtn.disabled = !selectedCount;
+      }
+    });
+    els.deskPinterestSplitCopyBtn?.addEventListener('click', () => {
+      copyPinterestSplitCandidates().catch(error => galleryError(error, '复制素材块失败'));
+    });
+    els.deskPinterestSplitSaveBtn?.addEventListener('click', () => {
+      savePinterestSplitCandidates().catch(error => galleryError(error, '存储素材块失败'));
+    });
+    els.deskPinterestSplitCloseBtn?.addEventListener('click', () => closePinterestSplitModal());
+    els.deskPinterestSplitModal?.addEventListener('click', event => {
+      if (
+        event.target === els.deskPinterestSplitModal
+        || event.target?.closest?.('[data-pinterest-split-backdrop]')
+      ) {
+        closePinterestSplitModal();
       }
     });
 
@@ -6580,6 +7777,10 @@
         return;
       }
       if (event.key !== 'Escape') return;
+      if (els.deskPinterestSplitModal && !els.deskPinterestSplitModal.hidden) {
+        closePinterestSplitModal();
+        return;
+      }
       if (els.deskPinterestAnalysisModal && !els.deskPinterestAnalysisModal.hidden) {
         closePinterestAnalysisModal();
         return;
