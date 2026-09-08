@@ -1,0 +1,527 @@
+/*
+ * Phase 6 canvas and ordinary-node module.
+ *
+ * Theme values live in desktop-tokens.css. This layer owns the canvas surface,
+ * canvas navigation/selection chrome, connection menus, and ordinary node
+ * shells without taking over image-group or specialized workspace internals.
+ */
+
+body.desk-app[data-theme] {
+  --desk-node-selection-stroke: var(--desk-canvas-selection-stroke);
+  --desk-flow-stroke: var(--desk-canvas-selection-stroke);
+  --desk-flow-solid: var(--desk-canvas-flow-solid);
+  --desk-flow-soft: var(--desk-canvas-flow-soft);
+  --desk-flow-border-soft: var(--desk-canvas-flow-border-soft);
+}
+
+/* Canvas surface and inherited legacy bridges. */
+body.desk-app[data-theme] .desk-canvas {
+  --desk-ink: var(--desk-node-ink);
+  --desk-muted: var(--desk-node-muted-ink);
+  --desk-blue: var(--desk-canvas-control-accent);
+  --desk-blue-soft: var(--desk-canvas-control-accent-soft);
+  color: var(--desk-node-ink);
+  background-color: var(--desk-canvas-surface-background-color);
+  background-image: var(--desk-canvas-surface-background-image);
+}
+
+body.desk-app[data-theme] .desk-canvas.is-history-dragover {
+  outline-color: var(--desk-canvas-dragover-outline);
+}
+
+/* Rail node palette. The fixed context menu has a separate contract below. */
+body.desk-app[data-theme] .desk-node-palette:not(.desk-node-context-menu) {
+  --desk-ink: var(--desk-canvas-palette-ink);
+  --desk-muted: var(--desk-canvas-palette-muted-ink);
+  --desk-blue: var(--desk-canvas-control-accent);
+  color: var(--desk-canvas-palette-ink);
+  background: var(--desk-canvas-palette-background);
+  border-color: var(--desk-canvas-palette-border);
+  box-shadow: var(--desk-canvas-palette-shadow);
+  -webkit-backdrop-filter: var(--desk-canvas-palette-filter);
+  backdrop-filter: var(--desk-canvas-palette-filter);
+}
+
+body.desk-app[data-theme] .desk-node-palette:not(.desk-node-context-menu) button {
+  color: var(--desk-canvas-palette-ink);
+  background: var(--desk-canvas-palette-item-background);
+  border-color: var(--desk-canvas-palette-item-border);
+  box-shadow: var(--desk-canvas-palette-item-shadow);
+}
+
+body.desk-app[data-theme] .desk-node-palette:not(.desk-node-context-menu) button:hover {
+  color: var(--desk-canvas-palette-item-hover-ink);
+  background: var(--desk-canvas-palette-item-hover-background);
+  border-color: var(--desk-canvas-palette-item-hover-border);
+}
+
+body.desk-app[data-theme] .desk-node-palette:not(.desk-node-context-menu) button:focus-visible {
+  color: var(--desk-canvas-palette-item-focus-ink);
+  background: var(--desk-canvas-palette-item-focus-background);
+  border-color: var(--desk-canvas-palette-item-focus-border);
+  outline: 2px solid var(--desk-canvas-palette-item-focus-outline);
+  outline-offset: 2px;
+}
+
+body.desk-app[data-theme] .desk-node-palette:not(.desk-node-context-menu) .desk-node-palette__icon {
+  color: var(--desk-canvas-palette-icon-ink);
+  background: var(--desk-canvas-palette-icon-background);
+  border-color: var(--desk-canvas-palette-icon-border);
+  box-shadow: var(--desk-canvas-palette-icon-shadow);
+}
+
+body.desk-app[data-theme] .desk-node-palette:not(.desk-node-context-menu) button:is(:hover, :focus-visible) .desk-node-palette__icon {
+  color: var(--desk-canvas-palette-icon-hover-ink);
+  background: var(--desk-canvas-palette-icon-hover-background);
+  border-color: var(--desk-canvas-palette-icon-hover-border);
+}
+
+body.desk-app[data-theme] .desk-node-palette:not(.desk-node-context-menu) strong {
+  color: var(--desk-canvas-palette-ink);
+}
+
+body.desk-app[data-theme] .desk-node-palette:not(.desk-node-context-menu) em {
+  color: var(--desk-canvas-palette-muted-ink);
+}
+
+/* Marquee, smart guides, multi-selection bounds, and alignment toolbar. */
+body.desk-app[data-theme] .desk-selection-marquee {
+  background: var(--desk-canvas-marquee-background);
+  border-color: var(--desk-canvas-marquee-border);
+  box-shadow: var(--desk-canvas-marquee-shadow);
+}
+
+body.desk-app[data-theme] .desk-smart-guide--x {
+  border-left-color: var(--desk-canvas-guide-stroke);
+  filter: var(--desk-canvas-guide-filter);
+}
+
+body.desk-app[data-theme] .desk-smart-guide--y {
+  border-top-color: var(--desk-canvas-guide-stroke);
+  filter: var(--desk-canvas-guide-filter);
+}
+
+body.desk-app[data-theme] .desk-selection-bounds {
+  border-color: var(--desk-canvas-bounds-border);
+  box-shadow: var(--desk-canvas-bounds-shadow);
+}
+
+body.desk-app[data-theme] .desk-selection-bounds.is-grouped {
+  border-color: var(--desk-canvas-bounds-grouped-border);
+  box-shadow: var(--desk-canvas-bounds-grouped-shadow);
+}
+
+body.desk-app[data-theme] #deskSelectionCount {
+  color: var(--desk-canvas-selection-count-ink);
+  background: var(--desk-canvas-selection-count-background);
+  border-color: var(--desk-canvas-selection-count-border);
+  box-shadow: var(--desk-canvas-selection-count-shadow);
+}
+
+body.desk-app[data-theme] .desk-selection-group {
+  color: var(--desk-canvas-selection-action-ink);
+  background: var(--desk-canvas-selection-action-background);
+  border-color: var(--desk-canvas-selection-action-border);
+  box-shadow: var(--desk-canvas-selection-action-shadow);
+}
+
+body.desk-app[data-theme] .desk-selection-group:is(:hover, :focus-visible),
+body.desk-app[data-theme] .desk-selection-group[data-mode="ungroup"] {
+  color: var(--desk-canvas-selection-action-active-ink);
+  background: var(--desk-canvas-selection-action-active-background);
+  border-color: var(--desk-canvas-selection-action-active-border);
+  outline: none;
+}
+
+body.desk-app[data-theme] .desk-selection-group[data-mode="ungroup"]:is(:hover, :focus-visible) {
+  background: var(--desk-canvas-selection-action-hover-background);
+  border-color: var(--desk-canvas-selection-action-hover-border);
+}
+
+body.desk-app[data-theme] .desk-selection-toolbar button {
+  color: var(--desk-canvas-toolbar-button-ink);
+  background: var(--desk-canvas-toolbar-button-background);
+  border-color: var(--desk-canvas-toolbar-button-border);
+}
+
+body.desk-app[data-theme] .desk-selection-toolbar button:hover {
+  color: var(--desk-canvas-toolbar-button-hover-ink);
+  background: var(--desk-canvas-toolbar-button-hover-background);
+}
+
+body.desk-app[data-theme] .desk-selection-toolbar span:not([hidden]) {
+  background: var(--desk-canvas-toolbar-separator);
+}
+
+body.desk-app[data-theme] .desk-selection-toolbar .desk-selection-image-group {
+  color: var(--desk-canvas-toolbar-group-ink);
+  background: var(--desk-canvas-toolbar-group-background);
+  border-color: var(--desk-canvas-toolbar-group-border);
+}
+
+body.desk-app[data-theme] .desk-selection-toolbar .desk-selection-image-group:is(:hover, :focus-visible) {
+  color: var(--desk-canvas-toolbar-group-active-ink);
+  background: var(--desk-canvas-toolbar-group-active-background);
+  border-color: var(--desk-canvas-toolbar-group-active-border);
+  outline: none;
+}
+
+/* Zoom controls and minimap. */
+body.desk-app[data-theme] .desk-zoom-controls {
+  --desk-ink: var(--desk-canvas-zoom-ink);
+  --desk-muted: var(--desk-canvas-zoom-muted-ink);
+  --desk-blue: var(--desk-canvas-control-accent);
+  color: var(--desk-canvas-zoom-ink);
+  background: var(--desk-canvas-zoom-background);
+  border-color: var(--desk-canvas-zoom-border);
+  box-shadow: var(--desk-canvas-zoom-shadow);
+  -webkit-backdrop-filter: var(--desk-canvas-zoom-filter);
+  backdrop-filter: var(--desk-canvas-zoom-filter);
+}
+
+body.desk-app[data-theme] .desk-zoom-row :is(button, span) {
+  color: var(--desk-canvas-zoom-button-ink);
+  background: var(--desk-canvas-zoom-button-background);
+  border-color: var(--desk-canvas-zoom-button-border);
+  box-shadow: var(--desk-canvas-zoom-button-shadow);
+}
+
+body.desk-app[data-theme] .desk-zoom-row :is(button.desk-zoom-label, span) {
+  color: var(--desk-canvas-zoom-muted-ink);
+}
+
+body.desk-app[data-theme] .desk-zoom-row button:hover {
+  color: var(--desk-canvas-zoom-button-hover-ink);
+  background: var(--desk-canvas-zoom-button-hover-background);
+  border-color: var(--desk-canvas-zoom-button-hover-border);
+}
+
+body.desk-app[data-theme] .desk-zoom-row button[aria-pressed="true"] {
+  color: var(--desk-canvas-zoom-button-active-ink);
+  background: var(--desk-canvas-zoom-button-active-background);
+  border-color: var(--desk-canvas-zoom-button-active-border);
+}
+
+body.desk-app[data-theme] .desk-zoom-row button.desk-zoom-label[aria-expanded="true"] {
+  color: var(--desk-canvas-zoom-label-active-ink);
+  background: var(--desk-canvas-zoom-label-active-background);
+  border-color: var(--desk-canvas-zoom-label-active-border);
+}
+
+body.desk-app[data-theme] .desk-zoom-presets {
+  background: var(--desk-canvas-zoom-preset-background);
+  border-color: var(--desk-canvas-zoom-preset-border);
+  box-shadow: var(--desk-canvas-zoom-preset-shadow);
+}
+
+body.desk-app[data-theme] .desk-zoom-presets button {
+  color: var(--desk-canvas-zoom-preset-button-ink);
+  background: var(--desk-canvas-zoom-preset-button-background);
+  border-color: var(--desk-canvas-zoom-preset-button-border);
+}
+
+body.desk-app[data-theme] .desk-zoom-presets button:is(:hover, :focus-visible) {
+  color: var(--desk-canvas-zoom-preset-button-hover-ink);
+  background: var(--desk-canvas-zoom-preset-button-hover-background);
+  border-color: var(--desk-canvas-zoom-preset-button-hover-border);
+  outline: none;
+}
+
+body.desk-app[data-theme] .desk-zoom-presets button:is(.is-active, [aria-checked="true"]) {
+  color: var(--desk-canvas-zoom-preset-button-active-ink);
+  background: var(--desk-canvas-zoom-preset-button-active-background);
+  border-color: var(--desk-canvas-zoom-preset-button-active-border);
+}
+
+body.desk-app[data-theme] .desk-minimap {
+  background: var(--desk-canvas-minimap-background);
+  background-size: var(--desk-canvas-minimap-background-size);
+  border-color: var(--desk-canvas-minimap-border);
+  box-shadow: var(--desk-canvas-minimap-shadow);
+}
+
+body.desk-app[data-theme] .desk-minimap__node {
+  background: var(--desk-canvas-minimap-node-background);
+  border-color: var(--desk-canvas-minimap-node-border);
+}
+
+body.desk-app[data-theme] .desk-minimap__node.is-output {
+  background: var(--desk-canvas-minimap-output-background);
+  border-color: var(--desk-canvas-minimap-output-border);
+}
+
+body.desk-app[data-theme] .desk-minimap__node.is-image {
+  background: var(--desk-canvas-minimap-image-background);
+  border-color: var(--desk-canvas-minimap-image-border);
+}
+
+body.desk-app[data-theme] .desk-minimap__node.is-text {
+  background: var(--desk-canvas-minimap-text-background);
+  border-color: var(--desk-canvas-minimap-text-border);
+}
+
+body.desk-app[data-theme] .desk-minimap__viewport {
+  background: var(--desk-canvas-minimap-viewport-background);
+  border-color: var(--desk-canvas-minimap-viewport-border);
+  box-shadow: var(--desk-canvas-minimap-viewport-shadow);
+}
+
+/* Links, connection targets, and their fixed menus. */
+body.desk-app[data-theme] .desk-node.desk-node--edge-handles {
+  --desk-node-edge-stroke: var(--desk-canvas-selection-stroke);
+}
+
+body.desk-app[data-theme] .desk-link-path {
+  stroke: var(--desk-canvas-selection-stroke);
+}
+
+body.desk-app[data-theme] .desk-link-path:is(.is-related, .is-preview, .is-pending) {
+  stroke: var(--desk-canvas-selection-stroke);
+}
+
+body.desk-app[data-theme] .desk-link-path.is-hovered {
+  stroke: var(--desk-canvas-flow-solid);
+  filter: drop-shadow(0 0 4px var(--desk-canvas-flow-soft));
+}
+
+body.desk-app[data-theme] .desk-link-path.is-selected {
+  stroke: var(--desk-canvas-flow-solid);
+  filter: drop-shadow(0 0 6px var(--desk-canvas-flow-border-soft));
+}
+
+body.desk-app[data-theme] .desk-edge-menu {
+  color: var(--desk-canvas-menu-ink);
+  background: var(--desk-canvas-edge-menu-background);
+  border-color: var(--desk-canvas-flow-border-soft);
+  box-shadow: var(--desk-canvas-edge-menu-shadow);
+}
+
+body.desk-app[data-theme] .desk-edge-menu::before {
+  border-top-color: var(--desk-canvas-flow-border-soft);
+  border-left-color: var(--desk-canvas-flow-border-soft);
+}
+
+body.desk-app[data-theme] .desk-edge-menu.is-above::before {
+  border-right-color: var(--desk-canvas-flow-border-soft);
+  border-bottom-color: var(--desk-canvas-flow-border-soft);
+}
+
+body.desk-app[data-theme] .desk-edge-menu__delete {
+  color: var(--desk-canvas-edge-delete-ink);
+}
+
+body.desk-app[data-theme] .desk-edge-menu__delete:is(:hover, :focus-visible) {
+  color: var(--desk-canvas-edge-delete-hover-ink);
+  background: var(--desk-canvas-edge-delete-hover-background);
+  outline: none;
+}
+
+body.desk-app[data-theme] .desk-node-context-menu {
+  --desk-ink: var(--desk-canvas-menu-ink);
+  --desk-muted: var(--desk-canvas-palette-muted-ink);
+  color: var(--desk-canvas-menu-ink);
+  background: var(--desk-canvas-menu-background);
+  border-color: var(--desk-canvas-menu-border);
+  box-shadow: var(--desk-canvas-menu-shadow);
+}
+
+body.desk-app[data-theme] .desk-node-context-menu__cap {
+  color: var(--desk-canvas-menu-cap-ink);
+  background: transparent;
+  box-shadow: none;
+}
+
+body.desk-app[data-theme] .desk-node-context-menu__cap::before {
+  background: var(--desk-canvas-flow-solid);
+}
+
+body.desk-app[data-theme] .desk-node-context-menu__cap span {
+  color: var(--desk-canvas-menu-cap-meta-ink);
+}
+
+body.desk-app[data-theme] .desk-node-context-menu__search {
+  background: var(--desk-canvas-menu-search-background);
+  border-color: var(--desk-canvas-flow-border-soft);
+}
+
+body.desk-app[data-theme] .desk-node-context-menu__search:focus-within {
+  border-color: var(--desk-canvas-selection-stroke);
+  box-shadow: 0 0 0 2px var(--desk-canvas-flow-soft);
+}
+
+body.desk-app[data-theme] .desk-node-context-menu__search > svg {
+  stroke: var(--desk-canvas-selection-stroke);
+}
+
+body.desk-app[data-theme] .desk-node-context-menu__search input,
+body.desk-app[data-theme] .desk-node-context-menu button[data-add-node] strong {
+  color: var(--desk-canvas-menu-search-ink);
+}
+
+body.desk-app[data-theme] .desk-node-context-menu button[data-add-node] {
+  color: var(--desk-canvas-palette-ink);
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+body.desk-app[data-theme] .desk-node-context-menu button[data-add-node]:is(:hover, :focus-visible) {
+  color: var(--desk-canvas-menu-item-hover-ink);
+  background: var(--desk-canvas-menu-item-hover-background);
+  outline: none;
+}
+
+body.desk-app[data-theme] .desk-node-context-menu .desk-node-palette__icon {
+  color: var(--desk-canvas-selection-stroke);
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+body.desk-app[data-theme] .desk-node-context-menu button[data-add-node] em {
+  color: var(--desk-canvas-menu-item-meta-ink);
+}
+
+body.desk-app[data-theme] .desk-node-context-menu__empty,
+body.desk-app[data-theme] .desk-node-context-menu__title {
+  color: var(--desk-canvas-palette-muted-ink);
+}
+
+/* Ordinary node shells. Image-group visuals and geometry remain local. */
+body.desk-app[data-theme] .desk-canvas .desk-node.desk-glass:not(.desk-node--image-group),
+body.desk-app[data-theme] .desk-canvas .desk-node--text {
+  color: var(--desk-node-ink);
+}
+
+body.desk-app[data-theme] .desk-node--input .desk-input-footer .desk-manual-send:disabled {
+  color: var(--desk-node-manual-send-disabled-ink);
+  background: var(--desk-node-manual-send-disabled-background);
+  border-color: var(--desk-node-manual-send-disabled-border);
+  box-shadow: var(--desk-node-manual-send-disabled-shadow);
+  opacity: 1;
+}
+
+body.desk-app[data-theme] .desk-canvas .desk-node.desk-glass:not(.desk-node--image-group) {
+  border-color: var(--desk-node-glass-border);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+body.desk-app[data-theme] .desk-canvas .desk-node:not(:is(.desk-node--image, .desk-node--image-group))::before {
+  background: var(--desk-node-sheen-background);
+}
+
+body.desk-app[data-theme] .desk-canvas .desk-node:not(.desk-node--image-group) :is(h1, h2) {
+  color: var(--desk-node-ink);
+}
+
+body.desk-app[data-theme] .desk-canvas .desk-node:not(.desk-node--image-group) .desk-node__eyebrow {
+  color: var(--desk-node-eyebrow-ink);
+}
+
+body.desk-app[data-theme] .desk-canvas .desk-node:not(.desk-node--image-group) .desk-node-hint {
+  color: var(--desk-node-muted-ink);
+}
+
+body.desk-app[data-theme] .desk-node--text {
+  background: var(--desk-node-text-background);
+  border-color: var(--desk-node-text-border);
+  box-shadow: var(--desk-node-text-shadow);
+}
+
+body.desk-app[data-theme] .desk-text-node__input {
+  color: var(--desk-node-text-input-ink);
+  caret-color: var(--desk-node-text-input-caret);
+  scrollbar-color: var(--desk-node-text-input-scrollbar) transparent;
+}
+
+body.desk-app[data-theme] .desk-text-node__input::placeholder,
+body.desk-app[data-theme] .desk-text-node__input[data-placeholder][data-empty="true"]::before {
+  color: var(--desk-node-text-input-placeholder);
+}
+
+body.desk-app[data-theme] .desk-text-node__alias {
+  background: var(--desk-node-text-alias-background);
+  border-color: var(--desk-node-text-alias-border);
+  box-shadow: var(--desk-node-text-alias-shadow);
+}
+
+body.desk-app[data-theme] .desk-text-node__drawer {
+  background: var(--desk-node-text-floating-background);
+  border-color: var(--desk-node-text-floating-border);
+  box-shadow: var(--desk-node-text-floating-shadow);
+}
+
+body.desk-app[data-theme] .desk-text-style-menu {
+  background: var(--desk-node-text-menu-background);
+  border-color: var(--desk-node-text-floating-border);
+  box-shadow: var(--desk-node-text-menu-shadow);
+}
+
+body.desk-app[data-theme] .desk-node--image > img {
+  box-shadow: var(--desk-node-image-shadow);
+}
+
+body.desk-app[data-theme] .desk-image-node__placeholder {
+  color: var(--desk-node-image-placeholder-ink);
+  background: var(--desk-node-image-placeholder-background);
+  border-color: var(--desk-node-image-placeholder-border);
+  box-shadow: var(--desk-node-image-placeholder-shadow);
+}
+
+body.desk-app[data-theme] .desk-image-node__placeholder strong {
+  color: var(--desk-node-image-placeholder-title-ink);
+}
+
+body.desk-app[data-theme] .desk-image-node__empty-upload {
+  color: var(--desk-node-image-upload-ink);
+  background: var(--desk-node-image-upload-background);
+  border-color: var(--desk-node-image-upload-border);
+  box-shadow: var(--desk-node-image-upload-shadow);
+}
+
+body.desk-app[data-theme] .desk-image-node__empty-upload span {
+  color: var(--desk-node-image-upload-accent);
+}
+
+body.desk-app[data-theme] .desk-image-node__empty-upload:hover {
+  background: var(--desk-node-image-upload-hover-background);
+  border-color: var(--desk-node-image-upload-hover-border);
+  box-shadow: var(--desk-node-image-upload-hover-shadow);
+}
+
+body.desk-app[data-theme] .desk-canvas :is(
+  .desk-node.desk-glass:not(.desk-node--image-group),
+  .desk-node--text,
+  .desk-node--image
+).is-selected {
+  border-color: var(--desk-node-selected-border);
+  box-shadow: var(--desk-node-selected-shadow);
+}
+
+body.desk-app[data-theme] .desk-canvas .desk-node:not(:is(.desk-node--image, .desk-node--image-group)).is-selected::before {
+  background: var(--desk-node-selected-sheen-background);
+}
+
+body.desk-app[data-theme] .desk-node--image.is-selected > img {
+  box-shadow: var(--desk-node-image-selected-shadow);
+}
+
+body.desk-app[data-theme] .desk-canvas .desk-node:not(.desk-node--image-group).is-connection-drop-target {
+  box-shadow: var(--desk-canvas-drop-target-shadow);
+}
+
+/* Stable glass surfaces intentionally come after the drop-target rule. This
+   preserves the existing no-flash canvas behavior for movable glass nodes. */
+body.desk-app[data-theme] .desk-canvas .desk-node.desk-glass:not(.desk-node--image-group) {
+  background: var(--desk-node-glass-background);
+  box-shadow: var(--desk-node-glass-shadow);
+}
+
+body.desk-app[data-theme] .desk-canvas .desk-node.desk-glass:not(.desk-node--image-group):is(.is-dragging, .is-resizing) {
+  box-shadow: var(--desk-node-glass-active-shadow);
+}
+
+body.desk-app[data-theme] .desk-canvas .desk-node.desk-glass:not(.desk-node--image-group).is-selected {
+  box-shadow: var(--desk-node-glass-selected-shadow);
+}

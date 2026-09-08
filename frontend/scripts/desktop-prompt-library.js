@@ -2043,6 +2043,12 @@
     if (discardChanges || (state.workspace === 'blocks' && state.extractor.open)) discardBlockDraft();
     if (state.workspace === 'templates' && state.ruleDraft) discardRuleDraft();
     if (state.workspace === 'colors' && state.colorDraft) discardColorDraft();
+    const activeElement = document.activeElement;
+    if (activeElement && els.deskPromptLibraryPanel?.contains(activeElement)) {
+      const trigger = document.querySelector('.desk-rail__item[data-tool="prompts"]');
+      if (trigger instanceof HTMLElement) trigger.focus({ preventScroll: true });
+      else if (activeElement instanceof HTMLElement) activeElement.blur();
+    }
     els.deskPromptLibraryPanel?.classList.remove('is-open'); els.deskPromptLibraryPanel?.setAttribute('aria-hidden', 'true');
     document.querySelector('.desk-rail__item[data-tool="prompts"]')?.setAttribute('aria-expanded', 'false');
     return true;

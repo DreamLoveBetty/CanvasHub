@@ -329,6 +329,11 @@ def _normalize_gpt_moderation(moderation: str) -> str:
     return moderation_key if moderation_key in ("auto", "low") else "auto"
 
 
+def _normalize_gpt_background(background: str) -> str:
+    background_key = str(background or "auto").strip().lower()
+    return background_key if background_key in ("auto", "transparent", "opaque") else "auto"
+
+
 def _normalize_prompt_mode(prompt_mode: str) -> str:
     mode = str(prompt_mode or "smart").strip().lower()
     return "faithful" if mode in ("faithful", "literal", "忠实原文") else "smart"
@@ -901,6 +906,7 @@ def edit_image_gpt_codex(
     total_timeout_seconds: int | None = None,
     on_provider_wait: Optional[Callable[[str, int, int], None]] = None,
     provider_env: dict | None = None,
+    background: str = "auto",
 ) -> dict:
     """Edit image(s) through gpt-image-2 with local Codex auth."""
     result = {
@@ -919,6 +925,7 @@ def edit_image_gpt_codex(
 
         quality_key = _normalize_gpt_quality(quality)
         moderation_key = _normalize_gpt_moderation(moderation)
+        background_key = _normalize_gpt_background(background)
         prompt_mode_key = _normalize_prompt_mode(prompt_mode)
         main_model_key = _normalize_main_model(main_model)
         requested_main_model_key = main_model_key
@@ -951,7 +958,7 @@ def edit_image_gpt_codex(
                         "size": resolution or "1k",
                         "ratio": ratio or "1:1",
                         "quality": quality_key,
-                        "background": "auto",
+                        "background": background_key,
                         "moderation": moderation_key,
                         "output_format": "png",
                         "output_compression": 100,

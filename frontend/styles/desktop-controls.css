@@ -1,0 +1,998 @@
+/*
+ * Desktop controls normalization — phase 2.
+ *
+ * Loaded after feature styles so legacy components can consume the semantic
+ * root tokens without rewriting their geometry or component-owned animation.
+ */
+
+/* Bridge the legacy control variables to the semantic root contract. */
+body.desk-app {
+  --desk-ink: var(--desk-color-text-primary);
+  --desk-muted: var(--desk-color-text-secondary);
+  --desk-blue: var(--desk-color-accent);
+  --desk-blue-soft: var(--desk-color-accent-soft);
+  --desk-control-bg: var(--desk-color-control-bg);
+  --desk-control-bg-hover: var(--desk-color-control-bg-hover);
+  --desk-control-border: var(--desk-color-control-border);
+  --desk-control-ink: var(--desk-color-control-ink);
+  --desk-control-shadow: var(--desk-shadow-control);
+  --desk-jewel: var(--desk-action-primary);
+  --desk-jewel-top: var(--desk-action-primary-top);
+  --desk-jewel-bottom: var(--desk-action-primary-bottom);
+  --desk-jewel-hover-top: var(--desk-action-primary-hover-top);
+  --desk-jewel-hover-bottom: var(--desk-action-primary-hover-bottom);
+  --desk-jewel-border: var(--desk-action-primary-border);
+  --desk-jewel-hover-border: var(--desk-action-primary-hover-border);
+  --desk-jewel-shadow: var(--desk-action-primary-shadow);
+  --desk-jewel-shadow-strong: var(--desk-action-primary-shadow-strong);
+  --desk-jewel-disabled: var(--desk-action-primary-disabled-bottom);
+  --desk-jewel-gradient: var(--desk-action-primary-gradient);
+  --desk-jewel-gradient-hover: var(--desk-action-primary-gradient-hover);
+  --desk-jewel-gloss: var(--desk-action-primary-gloss);
+  --desk-jewel-gloss-hover: var(--desk-action-primary-gloss-hover);
+  --desk-jewel-gloss-active: var(--desk-action-primary-gloss-active);
+}
+
+/* Layout and pose now inherit the root semantic contract through
+   desktop-creation-tools.css; detached menus follow the same scope. */
+
+/* Legacy night skins redeclare jewel values locally; keep those consumers on
+   the same root-level action palette until their module migration in phase 6. */
+body.desk-app[data-theme="dark"] :is(
+  .desk-canvas,
+  .desk-rail,
+  .desk-node-palette,
+  .desk-history,
+  .desk-zoom-controls,
+  .desk-settings,
+  .desk-gallery
+) {
+  --desk-jewel: var(--desk-action-primary);
+  --desk-jewel-top: var(--desk-action-primary-top);
+  --desk-jewel-bottom: var(--desk-action-primary-bottom);
+  --desk-jewel-hover-top: var(--desk-action-primary-hover-top);
+  --desk-jewel-hover-bottom: var(--desk-action-primary-hover-bottom);
+  --desk-jewel-border: var(--desk-action-primary-border);
+  --desk-jewel-hover-border: var(--desk-action-primary-hover-border);
+  --desk-jewel-shadow: var(--desk-action-primary-shadow);
+  --desk-jewel-shadow-strong: var(--desk-action-primary-shadow-strong);
+  --desk-jewel-disabled: var(--desk-action-primary-disabled-bottom);
+  --desk-jewel-gradient: var(--desk-action-primary-gradient);
+  --desk-jewel-gradient-hover: var(--desk-action-primary-gradient-hover);
+  --desk-jewel-gloss: var(--desk-action-primary-gloss);
+  --desk-jewel-gloss-hover: var(--desk-action-primary-gloss-hover);
+  --desk-jewel-gloss-active: var(--desk-action-primary-gloss-active);
+}
+
+body.desk-app[data-theme] .desk-prompt-library {
+  --prompt-accent: var(--desk-color-accent);
+  --prompt-accent-soft: var(--desk-color-accent-soft);
+  --prompt-line: var(--desk-color-border-subtle);
+}
+
+/* Keyboard focus fallback. Component-specific focus geometry can override this
+   low-specificity outline while retaining a visible indicator. */
+body.desk-app :where(
+  a[href],
+  button,
+  input,
+  select,
+  textarea,
+  [role="button"],
+  [role="tab"],
+  [contenteditable="true"]
+):focus-visible {
+  outline: 2px solid var(--desk-color-accent);
+  outline-offset: 2px;
+}
+
+/* The node context search delegates its focus indication to the rounded
+   wrapper. Avoid drawing a second, square outline around the inner input. */
+body.desk-app .desk-node-context-menu__search > input:focus-visible {
+  outline: none;
+  outline-offset: 0;
+}
+
+/* Image-group focus is communicated by thumbnail lift and its local action
+   surfaces. Do not add a second rectangular outline around the liquid body. */
+body.desk-app .desk-node--image-group :where(
+  .desk-image-group__item,
+  button,
+  select,
+  [role="button"],
+  [role="option"]
+):focus-visible,
+body.desk-app .desk-select-menu[data-select-variant="image-group-role"] :where(
+  button,
+  [role="option"]
+):focus-visible {
+  outline: none;
+}
+
+body.desk-app :where(input[type="checkbox"], input[type="radio"]) {
+  accent-color: var(--desk-color-accent);
+}
+
+/* Neutral buttons. Geometry stays component-owned. */
+body.desk-app[data-theme] .desk-button:not(.desk-button--primary):not(.desk-button--danger):not(.desk-button--generate),
+body.desk-app[data-theme] .desk-mini-actions button,
+body.desk-app[data-theme] .desk-history__header button:not(.desk-history-windchime-button) {
+  color: var(--desk-color-control-ink);
+  background: var(--desk-color-control-bg);
+  border-color: var(--desk-color-control-border);
+  box-shadow: var(--desk-shadow-button);
+  transition: var(--desk-motion-control-transition);
+}
+
+body.desk-app[data-theme] .desk-button:not(.desk-button--primary):not(.desk-button--danger):not(.desk-button--generate):hover:not(:disabled),
+body.desk-app[data-theme] .desk-mini-actions button:hover:not(:disabled),
+body.desk-app[data-theme] .desk-history__header button:not(.desk-history-windchime-button):hover:not(:disabled) {
+  color: var(--desk-color-control-ink);
+  background: var(--desk-color-control-bg-hover);
+  border-color: var(--desk-color-control-border-hover);
+  box-shadow: var(--desk-shadow-control);
+  transform: translateY(calc(0px - var(--desk-motion-distance-xs)));
+}
+
+body.desk-app[data-theme] .desk-button:not(.desk-button--primary):not(.desk-button--danger):not(.desk-button--generate):active:not(:disabled),
+body.desk-app[data-theme] .desk-mini-actions button:active:not(:disabled),
+body.desk-app[data-theme] .desk-history__header button:not(.desk-history-windchime-button):active:not(:disabled) {
+  background: var(--desk-color-control-bg-active);
+  border-color: var(--desk-color-control-border-active);
+  box-shadow: none;
+  transform: translateY(0);
+}
+
+body.desk-app[data-theme] .desk-button:not(.desk-button--primary):not(.desk-button--danger):not(.desk-button--generate):disabled,
+body.desk-app[data-theme] .desk-mini-actions button:disabled,
+body.desk-app[data-theme] .desk-history__header button:not(.desk-history-windchime-button):disabled {
+  color: var(--desk-color-text-disabled);
+  background: var(--desk-color-control-bg-disabled);
+  border-color: var(--desk-color-control-border-disabled);
+  box-shadow: none;
+  opacity: 1;
+  transform: none;
+}
+
+/* Header icon buttons use the same neutral state language in both themes. */
+body.desk-app[data-theme] .desk-settings__actions button,
+body.desk-app[data-theme] .desk-gallery__actions button,
+body.desk-app[data-theme] .desk-prompt-library__header-actions button:not(.desk-prompt-library__new) {
+  color: var(--desk-color-accent);
+  background: var(--desk-color-control-bg);
+  border-color: var(--desk-color-control-border);
+  box-shadow: var(--desk-shadow-button);
+  transition: var(--desk-motion-control-transition);
+}
+
+body.desk-app[data-theme] .desk-settings__actions button:hover:not(:disabled),
+body.desk-app[data-theme] .desk-gallery__actions button:hover:not(:disabled),
+body.desk-app[data-theme] .desk-prompt-library__header-actions button:not(.desk-prompt-library__new):hover:not(:disabled) {
+  color: var(--desk-color-accent);
+  background: var(--desk-color-control-bg-hover);
+  border-color: var(--desk-color-control-border-hover);
+  box-shadow: var(--desk-shadow-control);
+  transform: translateY(calc(0px - var(--desk-motion-distance-xs)));
+}
+
+body.desk-app[data-theme] .desk-settings__actions button:active:not(:disabled),
+body.desk-app[data-theme] .desk-gallery__actions button:active:not(:disabled),
+body.desk-app[data-theme] .desk-prompt-library__header-actions button:not(.desk-prompt-library__new):active:not(:disabled) {
+  background: var(--desk-color-control-bg-active);
+  border-color: var(--desk-color-control-border-active);
+  box-shadow: none;
+  transform: translateY(0);
+}
+
+body.desk-app[data-theme] .desk-settings__actions button:disabled,
+body.desk-app[data-theme] .desk-settings__actions button.is-loading,
+body.desk-app[data-theme] .desk-gallery__actions button:disabled,
+body.desk-app[data-theme] .desk-prompt-library__header-actions button:not(.desk-prompt-library__new):disabled {
+  color: var(--desk-color-text-disabled);
+  background: var(--desk-color-control-bg-disabled);
+  border-color: var(--desk-color-control-border-disabled);
+  box-shadow: none;
+  opacity: 1;
+  transform: none;
+}
+
+/* Primary command buttons. `.is-primary` is the cross-module semantic marker;
+   the remaining selectors cover legacy commands that predate that marker. */
+body.desk-app[data-theme] :is(
+  .desk-settings,
+  .desk-layout-editor,
+  .desk-layout-create,
+  .desk-pose-studio,
+  .desk-node,
+  .desk-text-polish-modal,
+  .desk-text-copy-fallback,
+  .desk-prompt-drawer,
+  .desk-prompt-library,
+  .desk-pinterest-analysis-modal
+) button.is-primary,
+body.desk-app[data-theme] .desk-button--primary:not(.desk-button--danger),
+body.desk-app[data-theme] .desk-button--generate,
+body.desk-app[data-theme] .auth-submit-btn,
+body.desk-app[data-theme] .desk-node .desk-button[data-copy-prompt]:not(.desk-button--danger),
+body.desk-app[data-theme] .desk-release__update-action,
+body.desk-app[data-theme] .desk-prompt-library__header-actions .desk-prompt-library__new,
+body.desk-app[data-theme] .desk-gallery-inspector__actions .desk-button--primary,
+body.desk-app[data-theme] #deskGalleryCanvasBtn,
+body.desk-app[data-theme] .desk-settings .desk-settings-form__actions button:is(
+  .is-primary,
+  [data-system-settings-save],
+  [data-prompt-config-save],
+  [data-gpt-provider-save],
+  [data-managed-codex-oauth-finish],
+  [data-managed-codex-import],
+  [data-chatgpt-pool-import-local-auth],
+  [data-chatgpt-pool-oauth-finish],
+  [data-chatgpt-pool-import]
+),
+body.desk-app[data-theme] .desk-gallery-video__actions button[data-gallery-video-canvas],
+body.desk-app[data-theme] .desk-file-preview-modal__actions #deskFilePreviewSendBtn {
+  color: var(--desk-action-primary-ink);
+  background: var(--desk-action-primary-gloss);
+  background-position: var(--desk-action-primary-silk-position);
+  background-repeat: no-repeat;
+  background-size: var(--desk-action-primary-silk-background-size);
+  border-color: var(--desk-action-primary-border);
+  box-shadow:
+    inset 0 1px 0 var(--desk-action-primary-highlight),
+    inset 0 -1px 0 var(--desk-action-primary-edge-lowlight),
+    0 6px 16px var(--desk-action-primary-shadow);
+  transition:
+    var(--desk-motion-control-transition),
+    var(--desk-motion-material-transition);
+}
+
+body.desk-app[data-theme] :is(
+  .desk-settings,
+  .desk-layout-editor,
+  .desk-layout-create,
+  .desk-pose-studio,
+  .desk-node,
+  .desk-text-polish-modal,
+  .desk-text-copy-fallback,
+  .desk-prompt-drawer,
+  .desk-prompt-library,
+  .desk-pinterest-analysis-modal
+) button.is-primary:hover:not(:disabled),
+body.desk-app[data-theme] .desk-button--primary:not(.desk-button--danger):hover:not(:disabled),
+body.desk-app[data-theme] .desk-button--generate:hover:not(:disabled),
+body.desk-app[data-theme] .auth-submit-btn:hover:not(:disabled),
+body.desk-app[data-theme] .desk-node .desk-button[data-copy-prompt]:not(.desk-button--danger):hover:not(:disabled),
+body.desk-app[data-theme] .desk-release__update-action:hover:not(:disabled),
+body.desk-app[data-theme] .desk-prompt-library__header-actions .desk-prompt-library__new:hover:not(:disabled),
+body.desk-app[data-theme] .desk-gallery-inspector__actions .desk-button--primary:hover:not(:disabled),
+body.desk-app[data-theme] #deskGalleryCanvasBtn:hover:not(:disabled),
+body.desk-app[data-theme] .desk-settings .desk-settings-form__actions button:is(
+  .is-primary,
+  [data-system-settings-save],
+  [data-prompt-config-save],
+  [data-gpt-provider-save],
+  [data-managed-codex-oauth-finish],
+  [data-managed-codex-import],
+  [data-chatgpt-pool-import-local-auth],
+  [data-chatgpt-pool-oauth-finish],
+  [data-chatgpt-pool-import]
+):hover:not(:disabled),
+body.desk-app[data-theme] .desk-gallery-video__actions button[data-gallery-video-canvas]:hover:not(:disabled),
+body.desk-app[data-theme] .desk-file-preview-modal__actions #deskFilePreviewSendBtn:hover:not(:disabled) {
+  color: var(--desk-action-primary-ink);
+  background-image: var(--desk-action-primary-gloss-hover);
+  background-position: var(--desk-action-primary-silk-position-hover);
+  border-color: var(--desk-action-primary-hover-border);
+  box-shadow:
+    inset 0 1px 0 var(--desk-action-primary-highlight-hover),
+    inset 0 -1px 0 var(--desk-action-primary-edge-lowlight-hover),
+    0 8px 20px var(--desk-action-primary-shadow-strong);
+  transform: translateY(calc(0px - var(--desk-motion-distance-xs)));
+}
+
+body.desk-app[data-theme] .desk-node--input .desk-button--generate:not(:disabled) {
+  box-shadow:
+    0 20px 36px var(--desk-action-primary-shadow),
+    inset 0 1px 0 var(--desk-action-primary-highlight);
+}
+
+body.desk-app[data-theme] .desk-node--input .desk-button--generate:hover:not(:disabled) {
+  box-shadow:
+    0 22px 40px var(--desk-action-primary-shadow-strong),
+    inset 0 1px 0 var(--desk-action-primary-highlight-hover);
+}
+
+body.desk-app[data-theme] :is(
+  .desk-settings,
+  .desk-layout-editor,
+  .desk-layout-create,
+  .desk-pose-studio,
+  .desk-node,
+  .desk-text-polish-modal,
+  .desk-text-copy-fallback,
+  .desk-prompt-drawer,
+  .desk-prompt-library,
+  .desk-pinterest-analysis-modal
+) button.is-primary:active:not(:disabled),
+body.desk-app[data-theme] .desk-button--primary:not(.desk-button--danger):active:not(:disabled),
+body.desk-app[data-theme] .desk-button--generate:active:not(:disabled),
+body.desk-app[data-theme] .auth-submit-btn:active:not(:disabled),
+body.desk-app[data-theme] .desk-node .desk-button[data-copy-prompt]:not(.desk-button--danger):active:not(:disabled),
+body.desk-app[data-theme] .desk-release__update-action:active:not(:disabled),
+body.desk-app[data-theme] .desk-prompt-library__header-actions .desk-prompt-library__new:active:not(:disabled),
+body.desk-app[data-theme] .desk-gallery-inspector__actions .desk-button--primary:active:not(:disabled),
+body.desk-app[data-theme] #deskGalleryCanvasBtn:active:not(:disabled),
+body.desk-app[data-theme] .desk-settings .desk-settings-form__actions button:is(
+  .is-primary,
+  [data-system-settings-save],
+  [data-prompt-config-save],
+  [data-gpt-provider-save],
+  [data-managed-codex-oauth-finish],
+  [data-managed-codex-import],
+  [data-chatgpt-pool-import-local-auth],
+  [data-chatgpt-pool-oauth-finish],
+  [data-chatgpt-pool-import]
+):active:not(:disabled),
+body.desk-app[data-theme] .desk-gallery-video__actions button[data-gallery-video-canvas]:active:not(:disabled),
+body.desk-app[data-theme] .desk-file-preview-modal__actions #deskFilePreviewSendBtn:active:not(:disabled) {
+  color: var(--desk-action-primary-ink);
+  background-image: var(--desk-action-primary-gloss-active);
+  background-position: var(--desk-action-primary-silk-position-active);
+  background-repeat: no-repeat;
+  background-size: var(--desk-action-primary-silk-background-size);
+  border-color: var(--desk-action-primary-hover-border);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
+  transform: translateY(0);
+}
+
+body.desk-app[data-theme] .desk-node--input .desk-button--generate:active:not(:disabled) {
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+body.desk-app[data-theme] :is(
+  .desk-settings,
+  .desk-layout-editor,
+  .desk-layout-create,
+  .desk-pose-studio,
+  .desk-node,
+  .desk-text-polish-modal,
+  .desk-text-copy-fallback,
+  .desk-prompt-drawer,
+  .desk-prompt-library,
+  .desk-pinterest-analysis-modal
+) button.is-primary:disabled,
+body.desk-app[data-theme] .desk-button--primary:not(.desk-button--danger):not(.desk-manual-send):disabled,
+body.desk-app[data-theme] .desk-button--generate:disabled,
+body.desk-app[data-theme] .auth-submit-btn:disabled,
+body.desk-app[data-theme] .desk-node .desk-button[data-copy-prompt]:not(.desk-button--danger):disabled,
+body.desk-app[data-theme] .desk-release__update-action:disabled,
+body.desk-app[data-theme] .desk-prompt-library__header-actions .desk-prompt-library__new:disabled,
+body.desk-app[data-theme] .desk-gallery-inspector__actions .desk-button--primary:disabled,
+body.desk-app[data-theme] #deskGalleryCanvasBtn:disabled,
+body.desk-app[data-theme] .desk-settings .desk-settings-form__actions button:is(
+  .is-primary,
+  [data-system-settings-save],
+  [data-prompt-config-save],
+  [data-gpt-provider-save],
+  [data-managed-codex-oauth-finish],
+  [data-managed-codex-import],
+  [data-chatgpt-pool-import-local-auth],
+  [data-chatgpt-pool-oauth-finish],
+  [data-chatgpt-pool-import]
+):disabled,
+body.desk-app[data-theme] .desk-gallery-video__actions button[data-gallery-video-canvas]:disabled,
+body.desk-app[data-theme] .desk-file-preview-modal__actions #deskFilePreviewSendBtn:disabled {
+  color: var(--desk-action-primary-disabled-ink);
+  background: var(--desk-action-primary-gradient-disabled);
+  background-position: 0 0;
+  background-size: 100% 100%;
+  border-color: var(--desk-action-primary-disabled-border);
+  box-shadow: none;
+  opacity: 1;
+  transform: none;
+}
+
+body.desk-app[data-theme] .desk-prompt-library :is(
+  .desk-prompt-editor-actions button.is-primary,
+  .desk-prompt-template__create.is-primary,
+  .desk-prompt-extractor__footer button.is-primary
+) {
+  border-color: var(--desk-action-primary-border);
+}
+
+body.desk-app[data-theme] .desk-prompt-library :is(
+  .desk-prompt-editor-actions button.is-primary,
+  .desk-prompt-template__create.is-primary,
+  .desk-prompt-extractor__footer button.is-primary
+):hover:not(:disabled) {
+  border-color: var(--desk-action-primary-hover-border);
+}
+
+/* Compact result and history states share the same three semantic silks. */
+body.desk-app[data-theme] :is(
+  .desk-status-pill.is-success,
+  .desk-pill-row span.is-success
+) {
+  color: var(--desk-status-success-on-fill);
+  background: var(--desk-status-success-silk-background);
+  background-position: var(--desk-status-material-position);
+  background-repeat: no-repeat;
+  background-size: var(--desk-status-material-background-size);
+  border-color: var(--desk-status-success-silk-border);
+  box-shadow: var(--desk-status-success-silk-shadow);
+}
+
+body.desk-app[data-theme] :is(
+  .desk-status-pill.is-warning,
+  .desk-pill-row span.is-warning
+) {
+  color: var(--desk-status-warning-on-fill);
+  background: var(--desk-status-warning-silk-background);
+  background-position: var(--desk-status-material-position);
+  background-repeat: no-repeat;
+  background-size: var(--desk-status-material-background-size);
+  border-color: var(--desk-status-warning-silk-border);
+  box-shadow: var(--desk-status-warning-silk-shadow);
+}
+
+body.desk-app[data-theme] :is(
+  .desk-status-pill.is-error,
+  .desk-pill-row span.is-error
+) {
+  color: var(--desk-status-error-on-fill);
+  background: var(--desk-status-error-silk-background);
+  background-position: var(--desk-status-material-position);
+  background-repeat: no-repeat;
+  background-size: var(--desk-status-material-background-size);
+  border-color: var(--desk-status-error-silk-border);
+  box-shadow: var(--desk-status-error-silk-shadow);
+}
+
+/* Destructive controls stay quiet at rest, then reveal the Raspberry satin
+   surface on hover/press. This preserves hierarchy while keeping the semantic
+   material recognisable. */
+body.desk-app[data-theme] .desk-button--danger,
+body.desk-app[data-theme] .desk-layout-inline-actions button.is-danger,
+body.desk-app[data-theme] .desk-prompt-library button.is-danger,
+body.desk-app[data-theme] .desk-node:not(.desk-node--image-group) .desk-node-delete {
+  color: var(--desk-color-danger-ink);
+  background: var(--desk-color-danger-soft);
+  background-position: var(--desk-status-material-position);
+  background-repeat: no-repeat;
+  background-size: var(--desk-status-material-background-size);
+  border-color: var(--desk-color-danger-border);
+  box-shadow: var(--desk-status-error-soft-shadow);
+  transition:
+    var(--desk-motion-control-transition),
+    var(--desk-motion-material-transition);
+}
+
+body.desk-app[data-theme] .desk-prompt-library button.is-danger {
+  border-color: var(--desk-color-danger-border);
+}
+
+body.desk-app[data-theme] .desk-button--danger:hover:not(:disabled),
+body.desk-app[data-theme] .desk-layout-inline-actions button.is-danger:hover:not(:disabled),
+body.desk-app[data-theme] .desk-prompt-library button.is-danger:hover:not(:disabled),
+body.desk-app[data-theme] .desk-node:not(.desk-node--image-group) .desk-node-delete:hover:not(:disabled) {
+  color: var(--desk-status-error-on-fill);
+  background-image: var(--desk-status-error-silk-background);
+  background-position: var(--desk-status-material-position-hover);
+  border-color: var(--desk-status-error-silk-border);
+  box-shadow: var(--desk-status-error-silk-shadow);
+  transform: translateY(calc(0px - var(--desk-motion-distance-xs)));
+}
+
+body.desk-app[data-theme] .desk-prompt-library button.is-danger:hover:not(:disabled) {
+  border-color: var(--desk-color-danger-border-hover);
+}
+
+body.desk-app[data-theme] .desk-button--danger:active:not(:disabled),
+body.desk-app[data-theme] .desk-layout-inline-actions button.is-danger:active:not(:disabled),
+body.desk-app[data-theme] .desk-prompt-library button.is-danger:active:not(:disabled),
+body.desk-app[data-theme] .desk-node:not(.desk-node--image-group) .desk-node-delete:active:not(:disabled) {
+  color: var(--desk-color-danger-on-fill);
+  background-image: var(--desk-status-error-silk-background);
+  background-position: var(--desk-status-material-position-active);
+  border-color: var(--desk-status-error-silk-border);
+  box-shadow: inset 0 2px 4px rgba(74, 7, 35, 0.32);
+  transform: translateY(0);
+}
+
+body.desk-app[data-theme] .desk-button--danger:disabled,
+body.desk-app[data-theme] .desk-layout-inline-actions button.is-danger:disabled,
+body.desk-app[data-theme] .desk-prompt-library button.is-danger:disabled,
+body.desk-app[data-theme] .desk-node:not(.desk-node--image-group) .desk-node-delete:disabled {
+  color: var(--desk-color-text-disabled);
+  background: var(--desk-color-control-bg-disabled);
+  border-color: var(--desk-color-control-border-disabled);
+  box-shadow: none;
+  opacity: 1;
+}
+
+/* Loading is orthogonal to disabled: preserve component text/spinners and make
+   the pending state obvious without injecting layout-changing pseudo content. */
+body.desk-app :where(button, [role="button"]):is(.is-loading, [aria-busy="true"]) {
+  cursor: progress;
+  filter: saturate(0.78);
+  transform: none;
+}
+
+/* Custom selects. The language picker and image-group role picker keep their
+   component-specific silhouettes and interaction geometry. */
+body.desk-app[data-theme] .desk-select-shell:not([data-select-variant="language"]):not([data-select-variant="image-group-role"]) .desk-select-trigger {
+  color: var(--desk-color-control-ink);
+  background: var(--desk-color-control-bg);
+  border-color: var(--desk-color-control-border);
+  box-shadow: var(--desk-shadow-button);
+  transition: var(--desk-motion-field-transition);
+}
+
+body.desk-app[data-theme] .desk-select-shell:not([data-select-variant="language"]):not([data-select-variant="image-group-role"]) .desk-select-trigger:hover:not(:disabled) {
+  background: var(--desk-color-control-bg-hover);
+  border-color: var(--desk-color-control-border-hover);
+}
+
+body.desk-app[data-theme] .desk-select-shell:not([data-select-variant="language"]):not([data-select-variant="image-group-role"]) .desk-select-trigger:active:not(:disabled) {
+  background: var(--desk-color-control-bg-active);
+  border-color: var(--desk-color-control-border-active);
+}
+
+body.desk-app[data-theme] .desk-select-shell:not([data-select-variant="language"]):not([data-select-variant="image-group-role"]) .desk-select-trigger:focus-visible,
+body.desk-app[data-theme] .desk-select-shell:not([data-select-variant="language"]):not([data-select-variant="image-group-role"]).is-open .desk-select-trigger {
+  border-color: var(--desk-color-focus-border);
+  box-shadow: var(--desk-shadow-focus);
+  outline: none;
+}
+
+body.desk-app[data-theme] .desk-select-shell:not([data-select-variant="language"]):not([data-select-variant="image-group-role"]).is-disabled .desk-select-trigger,
+body.desk-app[data-theme] .desk-select-shell:not([data-select-variant="language"]):not([data-select-variant="image-group-role"]) .desk-select-trigger:disabled {
+  color: var(--desk-color-text-disabled);
+  background: var(--desk-color-control-bg-disabled);
+  border-color: var(--desk-color-control-border-disabled);
+  box-shadow: none;
+  opacity: 1;
+}
+
+/* The Agent scope picker is a field, not a primary command. Keep every state
+   on the Agent field palette so hover cannot combine a pale surface with the
+   primary button's white ink. */
+body.desk-app[data-theme] .desk-prompt-drawer.is-open .desk-agent-field .desk-select-shell[data-select-variant="default"] .desk-select-trigger {
+  color: var(--desk-prompt-assistant-ink);
+  background: var(--desk-agent-field-background-soft);
+  border-color: var(--desk-agent-field-border-soft);
+  box-shadow: none;
+}
+
+body.desk-app[data-theme] .desk-prompt-drawer.is-open .desk-agent-field .desk-select-shell[data-select-variant="default"] .desk-select-trigger:hover:not(:disabled) {
+  color: var(--desk-prompt-assistant-ink);
+  background: var(--desk-agent-field-background-strong);
+  border-color: var(--desk-agent-field-focus-border);
+  box-shadow: none;
+}
+
+body.desk-app[data-theme] .desk-prompt-drawer.is-open .desk-agent-field .desk-select-shell[data-select-variant="default"] .desk-select-trigger:active:not(:disabled) {
+  color: var(--desk-prompt-assistant-ink);
+  background: var(--desk-agent-field-background-strong);
+  border-color: var(--desk-agent-field-focus-border);
+  box-shadow: none;
+}
+
+body.desk-app[data-theme] .desk-prompt-drawer.is-open .desk-agent-field .desk-select-shell[data-select-variant="default"] .desk-select-trigger:focus-visible,
+body.desk-app[data-theme] .desk-prompt-drawer.is-open .desk-agent-field .desk-select-shell[data-select-variant="default"].is-open .desk-select-trigger {
+  color: var(--desk-prompt-assistant-ink);
+  background: var(--desk-agent-field-background-strong);
+  border-color: var(--desk-agent-field-focus-border);
+  box-shadow: var(--desk-agent-field-focus-shadow);
+}
+
+body.desk-app[data-theme] .desk-prompt-drawer.is-open .desk-agent-field .desk-select-shell[data-select-variant="default"].is-disabled .desk-select-trigger,
+body.desk-app[data-theme] .desk-prompt-drawer.is-open .desk-agent-field .desk-select-shell[data-select-variant="default"] .desk-select-trigger:disabled {
+  color: var(--desk-color-text-disabled);
+  background: var(--desk-color-control-bg-disabled);
+  border-color: var(--desk-color-control-border-disabled);
+  box-shadow: none;
+}
+
+body.desk-app[data-theme] .desk-select-shell:is(
+  [data-select-variant="language"],
+  [data-select-variant="image-group-role"]
+) .desk-select-trigger:focus-visible {
+  outline: none;
+}
+
+body.desk-app[data-theme] .desk-select-menu:not([data-select-variant="image-group-role"]) {
+  color: var(--desk-color-control-ink);
+  background: var(--desk-color-popover-bg);
+  border-color: var(--desk-color-popover-border);
+  box-shadow: var(--desk-shadow-panel-soft);
+}
+
+body.desk-app[data-theme] .desk-select-menu:not([data-select-variant="image-group-role"]) .desk-select-group-label {
+  color: var(--desk-color-text-secondary);
+}
+
+body.desk-app[data-theme] .desk-select-menu:not([data-select-variant="image-group-role"]) .desk-select-option {
+  color: var(--desk-color-control-ink);
+  transition: var(--desk-motion-control-transition);
+}
+
+body.desk-app[data-theme] .desk-select-menu:not([data-select-variant="image-group-role"]) .desk-select-option:hover:not(:disabled),
+body.desk-app[data-theme] .desk-select-menu:not([data-select-variant="image-group-role"]) .desk-select-option.is-highlighted:not(:disabled) {
+  color: var(--desk-color-accent);
+  background: var(--desk-color-accent-soft);
+}
+
+body.desk-app[data-theme] .desk-select-menu:not([data-select-variant="image-group-role"]) .desk-select-option.is-selected:not(:disabled) {
+  color: var(--desk-action-primary-ink);
+  background: var(--desk-action-primary-gradient);
+  font-weight: var(--desk-font-weight-bold);
+}
+
+body.desk-app[data-theme] .desk-select-menu:not([data-select-variant="image-group-role"]) .desk-select-option:focus-visible {
+  outline: 2px solid var(--desk-color-accent);
+  outline-offset: -2px;
+}
+
+body.desk-app[data-theme] .desk-select-menu:not([data-select-variant="image-group-role"]) .desk-select-option:disabled {
+  color: var(--desk-color-text-disabled);
+  background: transparent;
+  opacity: 1;
+}
+
+/* Image-group menus keep their compact geometry, but selected/highlighted roles
+   still use the accessible command palette in both themes. */
+body.desk-app[data-theme] .desk-image-group__item-actions .desk-select-option:is(
+  :hover,
+  .is-highlighted,
+  .is-selected
+):not(:disabled),
+body.desk-app[data-theme] .desk-select-menu[data-select-variant="image-group-role"] .desk-select-option:is(
+  :hover,
+  .is-highlighted,
+  .is-selected
+):not(:disabled) {
+  color: var(--desk-action-primary-ink);
+  background: var(--desk-action-primary-gradient);
+}
+
+/* Core text and number fields. Module layout, padding, and resize behavior are
+   deliberately left untouched. */
+body.desk-app[data-theme] .auth-password-input,
+body.desk-app[data-theme] .desk-select,
+body.desk-app[data-theme] .desk-number,
+body.desk-app[data-theme] .desk-prompt-panel textarea {
+  color: var(--desk-color-control-ink);
+  background: var(--desk-color-control-bg);
+  border-color: var(--desk-color-control-border);
+  transition: var(--desk-motion-field-transition);
+}
+
+body.desk-app[data-theme] :where(
+  .auth-password-input,
+  .desk-select,
+  .desk-number,
+  .desk-prompt-panel textarea,
+  .desk-input,
+  .desk-settings-form input:not([type="checkbox"]):not([type="radio"]),
+  .desk-settings-textarea,
+  .desk-prompt-field input,
+  .desk-prompt-field select,
+  .desk-prompt-field textarea,
+  .desk-video-node__advanced .desk-input
+) {
+  transition: var(--desk-motion-field-transition);
+}
+
+body.desk-app[data-theme] :where(
+  .auth-password-input,
+  .desk-select,
+  .desk-number,
+  .desk-prompt-panel textarea,
+  .desk-input,
+  .desk-settings-form input:not([type="checkbox"]):not([type="radio"]),
+  .desk-settings-textarea,
+  .desk-prompt-field input,
+  .desk-prompt-field select,
+  .desk-prompt-field textarea,
+  .desk-video-node__advanced .desk-input
+):focus {
+  border-color: var(--desk-color-focus-border);
+  box-shadow: var(--desk-shadow-focus);
+  outline: none;
+}
+
+body.desk-app[data-theme] :where(
+  .auth-password-input,
+  .desk-select,
+  .desk-number,
+  .desk-prompt-panel textarea,
+  .desk-input,
+  .desk-settings-form input:not([type="checkbox"]):not([type="radio"]),
+  .desk-settings-textarea,
+  .desk-prompt-field input,
+  .desk-prompt-field textarea
+)::placeholder {
+  color: var(--desk-color-text-placeholder);
+  opacity: 1;
+}
+
+body.desk-app[data-theme] :where(
+  .auth-password-input,
+  .desk-select,
+  .desk-number,
+  .desk-prompt-panel textarea,
+  .desk-input,
+  .desk-settings-form input:not([type="checkbox"]):not([type="radio"]),
+  .desk-settings-textarea,
+  .desk-prompt-field input,
+  .desk-prompt-field select,
+  .desk-prompt-field textarea
+):disabled {
+  color: var(--desk-color-text-disabled);
+  background: var(--desk-color-control-bg-disabled);
+  border-color: var(--desk-color-control-border-disabled);
+  box-shadow: none;
+  opacity: 1;
+}
+
+body.desk-app[data-theme] .desk-gallery-search,
+body.desk-app[data-theme] .desk-gallery-tag-filter,
+body.desk-app[data-theme] .desk-prompt-library__search {
+  transition: var(--desk-motion-field-transition);
+}
+
+body.desk-app[data-theme] .desk-gallery-search:focus-within,
+body.desk-app[data-theme] .desk-gallery-tag-filter:focus-within,
+body.desk-app[data-theme] .desk-prompt-library__search:focus-within {
+  border-color: var(--desk-color-focus-border);
+  box-shadow: var(--desk-shadow-focus);
+}
+
+body.desk-app[data-theme] .desk-prompt-editor:focus-visible {
+  border-color: var(--desk-color-focus-border);
+  box-shadow: var(--desk-shadow-focus);
+  outline: none;
+}
+
+/* Segmented controls and tabs share state timing, focus, and pressed behavior;
+   workspace tabs may retain their own underline/shape. */
+body.desk-app[data-theme] :where(
+  .desk-segment button,
+  .desk-settings-tabs button,
+  .desk-settings-canvas-interaction__segment button,
+  .desk-gallery-tabs button,
+  .desk-gallery-video-source button,
+  .desk-prompt-source-actions button,
+  .desk-prompt-source-tabs button,
+  .desk-prompt-source-taxonomy button,
+  .desk-prompt-mode-switch button,
+  .desk-prompt-library__tabs button,
+  .desk-agent-provider button,
+  .desk-video-runtime-mode button,
+  .desk-pose-segmented button
+) {
+  transition: var(--desk-motion-control-transition);
+}
+
+body.desk-app[data-theme] :where(
+  .desk-segment button,
+  .desk-settings-tabs button,
+  .desk-settings-canvas-interaction__segment button,
+  .desk-gallery-tabs button,
+  .desk-gallery-video-source button,
+  .desk-prompt-source-actions button,
+  .desk-prompt-source-tabs button,
+  .desk-prompt-source-taxonomy button,
+  .desk-prompt-mode-switch button,
+  .desk-prompt-library__tabs button,
+  .desk-agent-provider button,
+  .desk-video-runtime-mode button,
+  .desk-pose-segmented button
+):active:not(:disabled) {
+  transform: translateY(var(--desk-motion-distance-xs));
+}
+
+body.desk-app[data-theme] :where(
+  .desk-segment button,
+  .desk-settings-tabs button,
+  .desk-settings-canvas-interaction__segment button,
+  .desk-gallery-tabs button,
+  .desk-gallery-video-source button,
+  .desk-prompt-source-actions button,
+  .desk-prompt-source-tabs button,
+  .desk-prompt-source-taxonomy button,
+  .desk-prompt-mode-switch button,
+  .desk-prompt-library__tabs button,
+  .desk-agent-provider button,
+  .desk-video-runtime-mode button,
+  .desk-pose-segmented button
+):disabled {
+  color: var(--desk-color-text-disabled);
+  opacity: 1;
+}
+
+body.desk-app[data-theme] .desk-prompt-mode-switch::before {
+  transform: translateX(0);
+  transition: var(--desk-agent-switch-thumb-transition);
+}
+
+body.desk-app[data-theme] .desk-prompt-mode-switch[data-mode="agent"]::before {
+  transform: translateX(100%);
+}
+
+body.desk-app[data-theme] .desk-prompt-mode-switch[data-mode] button:not(:disabled),
+body.desk-app[data-theme] .desk-prompt-mode-switch[data-mode] button:not(:disabled):hover,
+body.desk-app[data-theme] .desk-prompt-mode-switch[data-mode] button:not(:disabled):active {
+  transform: none;
+}
+
+body.desk-app[data-theme] .desk-settings-tabs button:hover:not(.is-active):not(.desk-settings-tabs__toggle):not(:disabled),
+body.desk-app[data-theme] .desk-gallery-tabs button:not([data-gallery-view="pinterest"]):hover:not(.is-active):not(:disabled),
+body.desk-app[data-theme] .desk-gallery-video-source button:hover:not(.is-active):not(:disabled),
+body.desk-app[data-theme] .desk-segment button:hover:not(.is-active):not(:disabled),
+body.desk-app[data-theme] .desk-settings-canvas-interaction__segment button:hover:not(.is-active):not(:disabled),
+body.desk-app[data-theme] .desk-pose-segmented button:hover:not(.is-active):not(:disabled),
+body.desk-app[data-theme] .desk-prompt-source-actions button:hover:not(:disabled),
+body.desk-app[data-theme] .desk-prompt-source-tabs button:hover:not(.is-active):not(:disabled),
+body.desk-app[data-theme] .desk-prompt-source-taxonomy button:hover:not(.is-active):not(:disabled),
+body.desk-app[data-theme] .desk-video-runtime-mode button:hover:not(.is-active):not(:disabled) {
+  color: var(--desk-color-accent);
+  background: var(--desk-color-accent-soft);
+  border-color: var(--desk-color-control-border-hover);
+  box-shadow: none;
+}
+
+body.desk-app[data-theme] .desk-settings-tabs button.is-active:not(:disabled),
+body.desk-app[data-theme] .desk-gallery-tabs button.is-active:not([data-gallery-view="pinterest"]):not(:disabled),
+body.desk-app[data-theme] .desk-gallery-video-source button.is-active:not(:disabled),
+body.desk-app[data-theme] .desk-segment button.is-active:not(:disabled),
+body.desk-app[data-theme] .desk-settings-canvas-interaction__segment button.is-active:not(:disabled),
+body.desk-app[data-theme] .desk-pose-segmented button.is-active:not(:disabled),
+body.desk-app[data-theme] .desk-prompt-source-tabs button.is-active:not(:disabled),
+body.desk-app[data-theme] .desk-prompt-source-taxonomy button.is-active:not(:disabled),
+body.desk-app[data-theme] .desk-video-runtime-mode button.is-active:not(:disabled) {
+  color: var(--desk-action-primary-ink);
+  background: var(--desk-action-primary-gloss);
+  background-position: var(--desk-action-primary-silk-position);
+  background-repeat: no-repeat;
+  background-size: var(--desk-action-primary-silk-background-size);
+  border-color: var(--desk-action-primary-border);
+  box-shadow:
+    inset 0 1px 0 var(--desk-action-primary-highlight),
+    inset 0 -1px 0 var(--desk-action-primary-edge-lowlight),
+    0 6px 16px var(--desk-action-primary-shadow);
+  transition:
+    var(--desk-motion-control-transition),
+    var(--desk-motion-material-transition);
+}
+
+body.desk-app[data-theme] .desk-settings-tabs button.is-active:hover:not(:disabled),
+body.desk-app[data-theme] .desk-gallery-tabs button.is-active:not([data-gallery-view="pinterest"]):hover:not(:disabled),
+body.desk-app[data-theme] .desk-gallery-video-source button.is-active:hover:not(:disabled),
+body.desk-app[data-theme] .desk-segment button.is-active:hover:not(:disabled),
+body.desk-app[data-theme] .desk-settings-canvas-interaction__segment button.is-active:hover:not(:disabled),
+body.desk-app[data-theme] .desk-pose-segmented button.is-active:hover:not(:disabled),
+body.desk-app[data-theme] .desk-prompt-source-tabs button.is-active:hover:not(:disabled),
+body.desk-app[data-theme] .desk-prompt-source-taxonomy button.is-active:hover:not(:disabled),
+body.desk-app[data-theme] .desk-video-runtime-mode button.is-active:hover:not(:disabled) {
+  color: var(--desk-action-primary-ink);
+  background-image: var(--desk-action-primary-gloss-hover);
+  background-position: var(--desk-action-primary-silk-position-hover);
+  border-color: var(--desk-action-primary-hover-border);
+  box-shadow:
+    inset 0 1px 0 var(--desk-action-primary-highlight-hover),
+    inset 0 -1px 0 var(--desk-action-primary-edge-lowlight-hover),
+    0 8px 20px var(--desk-action-primary-shadow-strong);
+}
+
+body.desk-app[data-theme] :is(
+  .desk-settings-tabs,
+  .desk-gallery-tabs,
+  .desk-gallery-video-source,
+  .desk-segment,
+  .desk-settings-canvas-interaction__segment,
+  .desk-pose-segmented,
+  .desk-prompt-source-tabs,
+  .desk-prompt-source-taxonomy,
+  .desk-video-runtime-mode
+) button.is-active:disabled {
+  color: var(--desk-action-primary-disabled-ink);
+  background: var(--desk-action-primary-gradient-disabled);
+  background-position: 0 0;
+  background-size: 100% 100%;
+  border-color: var(--desk-action-primary-disabled-border);
+  box-shadow: none;
+  opacity: 1;
+  transform: none;
+}
+
+body.desk-app[data-theme] :is(
+  .desk-prompt-source-tabs,
+  .desk-prompt-source-taxonomy
+) button.is-active:not(:disabled) span {
+  color: inherit;
+}
+
+/* Gallery command buttons are authored in the legacy layout sheet, but their
+   material geometry belongs to the shared primary-silk contract. Keeping the
+   image layers oversized is what makes the narrow fold visible and movable. */
+body.desk-app[data-theme] :is(
+  .desk-gallery-card__image button[aria-pressed="true"]:not(.desk-gallery-card__favorite),
+  .desk-gallery-card__select[aria-pressed="true"],
+  .desk-gallery-file__actions button[data-gallery-file-send],
+  .desk-gallery-set__actions button[data-asset-set-open],
+  .desk-gallery-set__actions button[data-asset-set-compare],
+  .desk-gallery-set__actions button[data-asset-set-layout],
+  .desk-gallery-set-detail__actions button[data-set-detail-apply],
+  .desk-gallery-set-detail__actions button[data-set-detail-compare],
+  .desk-gallery-set-detail__actions button[data-set-detail-layout],
+  .desk-gallery-set-asset__actions button[data-set-select][aria-pressed="true"]
+) {
+  background-position: var(--desk-action-primary-silk-position);
+  background-repeat: no-repeat;
+  background-size: var(--desk-action-primary-silk-background-size);
+  transition:
+    var(--desk-motion-control-transition),
+    var(--desk-motion-material-transition);
+}
+
+body.desk-app[data-theme] :is(
+  .desk-gallery-card__image button[aria-pressed="true"]:not(.desk-gallery-card__favorite),
+  .desk-gallery-card__select[aria-pressed="true"],
+  .desk-gallery-file__actions button[data-gallery-file-send],
+  .desk-gallery-set__actions button[data-asset-set-open],
+  .desk-gallery-set__actions button[data-asset-set-compare],
+  .desk-gallery-set__actions button[data-asset-set-layout],
+  .desk-gallery-set-detail__actions button[data-set-detail-apply],
+  .desk-gallery-set-detail__actions button[data-set-detail-compare],
+  .desk-gallery-set-detail__actions button[data-set-detail-layout],
+  .desk-gallery-set-asset__actions button[data-set-select][aria-pressed="true"]
+):hover:not(:disabled) {
+  background-position: var(--desk-action-primary-silk-position-hover);
+}
+
+/* Pinterest controls retain their brand red while using contrast-safe stops. */
+body.desk-app[data-theme] .desk-gallery-tabs button[data-gallery-view="pinterest"].is-active:not(:disabled),
+body.desk-app[data-theme] .desk-gallery-tabs button[data-gallery-view="pinterest"].is-active:hover:not(:disabled),
+body.desk-app[data-theme] .desk-pinterest-split-modal__footer button.is-primary:not(:disabled) {
+  color: var(--desk-brand-pinterest-ink);
+  background: var(--desk-brand-pinterest-gradient);
+  border-color: var(--desk-brand-pinterest-border);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 6px 16px var(--desk-brand-pinterest-shadow);
+}
+
+body.desk-app[data-theme] .desk-pinterest-split-modal__footer button.is-primary:hover:not(:disabled) {
+  color: var(--desk-brand-pinterest-ink);
+  background: var(--desk-brand-pinterest-gradient-hover);
+  border-color: var(--desk-brand-pinterest-hover-border);
+}
+
+body.desk-app[data-theme] .desk-pinterest-split-modal__footer button.is-primary:active:not(:disabled) {
+  color: var(--desk-brand-pinterest-ink);
+  background: var(--desk-brand-pinterest-gradient-active);
+  border-color: var(--desk-brand-pinterest-border);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* Small supporting text must not lose the otherwise valid active-tab contrast. */
+body.desk-app[data-theme] .desk-prompt-library__tabs button[aria-selected="true"] .desk-prompt-library__tab-copy small {
+  color: inherit;
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body.desk-app :where(
+    .desk-button,
+    .desk-mini-actions button,
+    .desk-select-trigger,
+    .desk-select-option,
+    .desk-settings-tabs button,
+    .desk-gallery-tabs button,
+    .desk-prompt-library__tabs button
+  ) {
+    scroll-behavior: auto;
+  }
+}

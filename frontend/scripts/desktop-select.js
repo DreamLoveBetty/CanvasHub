@@ -6,6 +6,7 @@
   let idSeed = 0;
   let refreshScheduled = false;
   let settersPatched = false;
+  const MENU_CLOSE_FALLBACK_MS = 240;
 
   function nextId() {
     idSeed += 1;
@@ -65,9 +66,12 @@
   function inferVariant(select) {
     if (select.id === 'deskLanguageSelect' || select.closest('.desk-language-picker')) return 'language';
     if (select.classList.contains('desk-gallery-filter')) return 'gallery';
+    if (select.closest('.desk-image-group__item-actions')) return 'image-group-role';
     if (select.closest('.desk-prompt-node-picker')) return 'prompt';
     if (select.closest('.desk-layout-actions')) return 'layout-actions';
     if (select.closest('.desk-layout-inspector')) return 'layout-inspector';
+    if (select.closest('.desk-layout-editor, .desk-layout-create')) return 'layout';
+    if (select.closest('.desk-pose-studio')) return 'pose';
     if (select.closest('.desk-director-field')) return 'director';
     return 'default';
   }
@@ -203,10 +207,18 @@
     const rect = state.trigger.getBoundingClientRect();
     const margin = 8;
     const scale = inheritedScale(state.trigger);
-    const minWidth = state.variant === 'prompt' ? 160 : 132;
+    const imageGroupThumb = state.variant === 'image-group-role'
+      ? state.select.closest('.desk-image-group__item')?.querySelector('.desk-image-group__thumb')
+      : null;
+    const imageGroupMenuWidth = imageGroupThumb
+      ? Number.parseFloat(getComputedStyle(imageGroupThumb).width) || imageGroupThumb.offsetWidth
+      : 0;
+    const minWidth = state.variant === 'prompt' ? 160 : (imageGroupMenuWidth || 132);
     const shellWidth = state.shell.offsetWidth || state.trigger.offsetWidth || minWidth;
     const viewportMaxWidth = Math.max(minWidth, Math.floor((window.innerWidth - margin * 2) / scale));
-    const menuWidth = Math.min(Math.max(shellWidth, minWidth), Math.min(320, viewportMaxWidth));
+    const menuWidth = imageGroupMenuWidth
+      ? Math.min(imageGroupMenuWidth, viewportMaxWidth)
+      : Math.min(Math.max(shellWidth, minWidth), Math.min(320, viewportMaxWidth));
     const menuScreenWidth = menuWidth * scale;
     const availableBelow = window.innerHeight - rect.bottom - margin;
     const availableAbove = rect.top - margin;
@@ -215,14 +227,25 @@
     const measuredHeight = Math.min(state.menu.scrollHeight, maxHeight);
     const measuredScreenHeight = measuredHeight * scale;
     const opensUp = availableBelow < Math.min(measuredScreenHeight, 180 * scale) && availableAbove > availableBelow;
-    const alignRight = rect.left + menuScreenWidth > window.innerWidth - margin && rect.right - menuScreenWidth >= margin;
+    const alignRight = !imageGroupThumb
+      && rect.left + menuScreenWidth > window.innerWidth - margin
+      && rect.right - menuScreenWidth >= margin;
 
-    state.menu.style.width = `${Math.round(menuWidth)}px`;
-    state.menu.style.minWidth = `${Math.round(minWidth)}px`;
+    state.menu.style.width = `${imageGroupMenuWidth ? menuWidth : Math.round(menuWidth)}px`;
+    state.menu.style.minWidth = `${imageGroupMenuWidth ? menuWidth : Math.round(minWidth)}px`;
     state.menu.style.maxWidth = `${Math.round(viewportMaxWidth)}px`;
     state.menu.style.maxHeight = `${Math.round(maxHeight)}px`;
-    state.menu.style.left = alignRight ? 'auto' : '0px';
-    state.menu.style.right = alignRight ? '0px' : 'auto';
+    if (imageGroupThumb) {
+      const shellRect = state.shell.getBoundingClientRect();
+      const thumbRect = imageGroupThumb.getBoundingClientRect();
+      const centeredLeft = thumbRect.left + (thumbRect.width - menuScreenWidth) / 2;
+      const clampedLeft = Math.max(margin, Math.min(centeredLeft, window.innerWidth - margin - menuScreenWidth));
+      state.menu.style.left = `${(clampedLeft - shellRect.left) / scale}px`;
+      state.menu.style.right = 'auto';
+    } else {
+      state.menu.style.left = alignRight ? 'auto' : '0px';
+      state.menu.style.right = alignRight ? '0px' : 'auto';
+    }
     state.menu.style.top = opensUp ? 'auto' : 'calc(100% + 4px)';
     state.menu.style.bottom = opensUp ? 'calc(100% + 4px)' : 'auto';
     state.menu.classList.toggle('is-above', opensUp);
@@ -258,6 +281,25 @@
     state.menu.classList.toggle('is-above', opensUp);
   }
 
+  function cancelMenuClose(state) {
+    if (!state) return;
+    if (state.closeTimer) {
+      window.clearTimeout(state.closeTimer);
+      state.closeTimer = 0;
+    }
+    state.menu?.classList.remove('is-closing');
+  }
+
+  function finishMenuClose(state) {
+    if (!state || state.open) return;
+    if (state.closeTimer) {
+      window.clearTimeout(state.closeTimer);
+      state.closeTimer = 0;
+    }
+    state.menu.classList.remove('is-open', 'is-closing');
+    state.menu.hidden = true;
+  }
+
   function close(state, options = {}) {
     if (!state?.open) return;
     state.open = false;
@@ -266,8 +308,10 @@
     state.stackRoot?.classList.remove('is-select-open');
     state.trigger.setAttribute('aria-expanded', 'false');
     state.trigger.removeAttribute('aria-activedescendant');
-    state.menu.hidden = true;
     state.menu.classList.remove('is-open');
+    state.menu.classList.add('is-closing');
+    if (state.closeTimer) window.clearTimeout(state.closeTimer);
+    state.closeTimer = window.setTimeout(() => finishMenuClose(state), MENU_CLOSE_FALLBACK_MS);
     if (options.focus) state.trigger.focus({ preventScroll: true });
   }
 
@@ -282,16 +326,19 @@
     closeAll(state);
     refresh(state.select);
     renderMenu(state);
+    cancelMenuClose(state);
     state.open = true;
     state.shell.classList.add('is-open');
     state.anchorRoot?.classList.add('is-select-open');
     state.stackRoot?.classList.add('is-select-open');
     state.trigger.setAttribute('aria-expanded', 'true');
     state.menu.hidden = false;
-    state.menu.classList.add('is-open');
+    state.menu.classList.remove('is-open');
     const selected = state.select.selectedIndex >= 0 ? state.select.selectedIndex : enabledOptionIndexes(state)[0];
     setHighlighted(state, selected, { scroll: false });
     placeMenu(state);
+    void state.menu.offsetWidth;
+    state.menu.classList.add('is-open');
     requestAnimationFrame(() => {
       placeMenu(state);
       setHighlighted(state, state.highlightIndex, { scroll: true });
@@ -381,6 +428,7 @@
   function destroy(state) {
     if (!state) return;
     close(state);
+    cancelMenuClose(state);
     states.delete(state);
     state.observer?.disconnect();
     state.anchorRoot?.classList.remove('desk-select-anchor-root', 'is-select-open');
@@ -430,6 +478,8 @@
     const menu = document.createElement('div');
     menu.className = 'desk-select-menu';
     menu.id = `${id}-menu`;
+    menu.dataset.selectVariant = variant;
+    menu.dataset.menuMode = menuMode;
     menu.hidden = true;
     menu.setAttribute('role', 'listbox');
     if (menuMode === 'anchored') {
@@ -457,9 +507,15 @@
       highlightIndex: -1,
       searchBuffer: '',
       lastSearchAt: 0,
+      closeTimer: 0,
       originalTabindex: select.getAttribute('tabindex'),
       observer: null,
     };
+
+    menu.addEventListener('transitionend', event => {
+      if (event.target !== menu || event.propertyName !== 'opacity' || state.open) return;
+      finishMenuClose(state);
+    });
 
     trigger.addEventListener('click', event => {
       event.preventDefault();

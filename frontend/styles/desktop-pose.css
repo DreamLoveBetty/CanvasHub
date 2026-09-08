@@ -101,7 +101,6 @@
 .desk-pose-studio {
   position: fixed;
   inset: 0;
-  z-index: 88;
   display: none;
   align-items: stretch;
   justify-content: center;
@@ -176,11 +175,9 @@
   border-color: var(--desk-blue);
 }
 
-.desk-pose-studio__close {
+.desk-pose-studio__bar-actions .desk-pose-studio__close {
   width: 32px;
   padding: 0;
-  color: var(--desk-red) !important;
-  font-size: 18px !important;
 }
 
 .desk-pose-studio__body {

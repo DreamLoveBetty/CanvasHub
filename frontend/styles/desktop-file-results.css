@@ -299,8 +299,8 @@
 }
 
 .desk-file-result-empty.is-error {
-  --desk-file-accent: #d84b56;
-  --desk-file-accent-soft: rgba(216, 75, 86, 0.1);
+  --desk-file-accent: var(--desk-status-error-base);
+  --desk-file-accent-soft: var(--desk-status-error-soft-fill);
 }
 
 .desk-file-result-empty.is-canceled {

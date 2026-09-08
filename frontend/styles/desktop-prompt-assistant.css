@@ -1,0 +1,1112 @@
+/*
+ * Phase 6 Prompt Assistant and Agent theme adapter.
+ *
+ * The drawer's genie morph, Assistant/Agent mode transition, task tooltip,
+ * contenteditable behavior, candidate expansion, and Agent panel reveals stay
+ * component-owned. This layer maps only theme-dependent paint to root tokens.
+ */
+
+body.desk-app[data-theme] :is(.desk-prompt-drawer, .desk-prompt-modal) {
+  --desk-ink: var(--desk-prompt-assistant-ink);
+  --desk-muted: var(--desk-prompt-assistant-muted-ink);
+  --desk-blue: var(--desk-prompt-assistant-accent-ink);
+  --desk-blue-soft: var(--desk-prompt-assistant-accent-soft);
+  --desk-prompt-jewel: var(--desk-prompt-assistant-jewel);
+  --desk-prompt-jewel-top: var(--desk-prompt-assistant-jewel-top);
+  --desk-prompt-jewel-bottom: var(--desk-prompt-assistant-jewel-bottom);
+  --desk-prompt-jewel-hover-top: var(--desk-prompt-assistant-jewel-hover-top);
+  --desk-prompt-jewel-hover-bottom: var(--desk-prompt-assistant-jewel-hover-bottom);
+  --desk-prompt-jewel-border: var(--desk-prompt-assistant-jewel-border);
+  --desk-prompt-jewel-hover-border: var(--desk-prompt-assistant-jewel-hover-border);
+  --desk-prompt-jewel-shadow: var(--desk-prompt-assistant-jewel-shadow);
+  --desk-prompt-jewel-shadow-strong: var(--desk-prompt-assistant-jewel-shadow-strong);
+  --desk-prompt-jewel-disabled: var(--desk-prompt-assistant-jewel-disabled);
+  color: var(--desk-prompt-assistant-ink);
+  color-scheme: var(--desk-prompt-assistant-color-scheme);
+}
+
+body.desk-app[data-theme] .desk-prompt-drawer__handle {
+  color: var(--desk-prompt-assistant-handle-ink);
+  background: var(--desk-prompt-assistant-handle-background);
+  background-position: var(--desk-prompt-assistant-material-position);
+  background-repeat: no-repeat;
+  background-size: var(--desk-prompt-assistant-material-background-size);
+  border-color: var(--desk-prompt-assistant-handle-border);
+  box-shadow: var(--desk-prompt-assistant-handle-shadow);
+}
+
+body.desk-app[data-theme] .desk-prompt-drawer.is-open .desk-prompt-drawer__handle {
+  background-image: var(--desk-prompt-assistant-handle-open-background);
+}
+
+body.desk-app[data-theme] .desk-prompt-drawer__handle:hover {
+  background-image: var(--desk-prompt-assistant-handle-hover-background);
+  background-position: var(--desk-prompt-assistant-material-position-hover);
+  box-shadow: var(--desk-prompt-assistant-handle-hover-shadow);
+}
+
+body.desk-app[data-theme] .desk-prompt-drawer__handle::before {
+  background: var(--desk-prompt-assistant-handle-stem-background);
+  box-shadow: var(--desk-prompt-assistant-handle-stem-shadow);
+}
+
+body.desk-app[data-theme] .desk-prompt-drawer__handle-eye {
+  background: var(--desk-prompt-assistant-handle-eye-background);
+  box-shadow: var(--desk-prompt-assistant-handle-eye-shadow);
+}
+
+body.desk-app[data-theme] :is(
+  .desk-prompt-drawer__handle:hover,
+  .desk-prompt-drawer.is-open .desk-prompt-drawer__handle:hover
+) .desk-prompt-drawer__handle-eye {
+  background: var(--desk-prompt-assistant-handle-eye-hover-background);
+  box-shadow: var(--desk-prompt-assistant-handle-eye-hover-shadow);
+}
+
+body.desk-app[data-theme] .desk-prompt-drawer__handle em {
+  color: var(--desk-prompt-assistant-accent-ink);
+}
+
+body.desk-app[data-theme] :is(
+  .desk-prompt-drawer__body,
+  .desk-prompt-drawer.is-open .desk-prompt-drawer__body
+) {
+  color: var(--desk-prompt-assistant-ink);
+  background: var(--desk-prompt-assistant-panel-background);
+  border-color: var(--desk-prompt-assistant-panel-border);
+  box-shadow: var(--desk-prompt-assistant-panel-shadow);
+}
+
+body.desk-app[data-theme] .desk-prompt-drawer__body::before {
+  background: var(--desk-prompt-assistant-panel-sheen);
+}
+
+body.desk-app[data-theme] .desk-prompt-drawer.is-open :is(
+  .desk-prompt-chat,
+  .desk-prompt-candidates
+) {
+  background: var(--desk-prompt-assistant-section-background);
+  border-color: var(--desk-prompt-assistant-section-border);
+  box-shadow: var(--desk-prompt-assistant-section-shadow);
+}
+
+body.desk-app[data-theme] :is(
+  .desk-prompt-drawer__header span,
+  .desk-prompt-chat__empty,
+  .desk-prompt-candidates__empty,
+  .desk-prompt-candidate__meta,
+  .desk-prompt-image-menu__empty,
+  .desk-prompt-image-switch
+) {
+  color: var(--desk-prompt-assistant-muted-ink);
+}
+
+body.desk-app[data-theme] :is(
+  .desk-prompt-chat__message span,
+  .desk-prompt-candidate em,
+  .desk-prompt-analysis-module em
+) {
+  color: var(--desk-prompt-assistant-accent-emphasis-ink);
+}
+
+body.desk-app[data-theme] :is(
+  .desk-prompt-chat__message p,
+  .desk-prompt-candidate p,
+  .desk-prompt-analysis-module p,
+  .desk-prompt-analysis-module pre,
+  .desk-prompt-analysis-module strong
+) {
+  color: var(--desk-prompt-assistant-ink);
+}
+
+body.desk-app[data-theme] .desk-prompt-drawer.is-open :is(
+  .desk-prompt-chat__message,
+  .desk-prompt-candidate
+) {
+  background: var(--desk-prompt-assistant-card-background);
+  border-color: var(--desk-prompt-assistant-card-border);
+}
+
+body.desk-app[data-theme] .desk-prompt-drawer.is-open :is(
+  .desk-prompt-analysis-module,
+  .desk-prompt-analysis-editor
+) {
+  background: var(--desk-prompt-assistant-subcard-background);
+  border-color: var(--desk-prompt-assistant-subcard-border);
+}
+
+body.desk-app[data-theme] .desk-prompt-drawer.is-open :is(
+  .desk-prompt-node-picker select,
+  .desk-prompt-node-picker .desk-select-trigger
+) {
+  color: var(--desk-prompt-assistant-ink);
+  background: var(--desk-prompt-assistant-select-background);
+  border-color: var(--desk-prompt-assistant-select-border);
+}
+
+body.desk-app[data-theme] .desk-prompt-drawer.is-open :is(
+  .desk-prompt-node-picker select:focus,
+  .desk-prompt-node-picker .desk-select-trigger:focus,
+  .desk-prompt-node-picker .desk-select-shell.is-open .desk-select-trigger
+) {
+  color: var(--desk-prompt-assistant-ink);
+  border-color: var(--desk-prompt-assistant-select-focus-border);
+}
+
+body.desk-app[data-theme] .desk-select-menu[data-select-variant="prompt"] {
+  color: var(--desk-prompt-assistant-ink);
+  background: var(--desk-prompt-assistant-popover-background);
+  border-color: var(--desk-prompt-assistant-popover-border);
+  box-shadow: var(--desk-prompt-assistant-popover-shadow);
+}
+
+body.desk-app[data-theme] .desk-select-menu[data-select-variant="prompt"] .desk-select-option {
+  color: var(--desk-prompt-assistant-ink);
+}
+
+body.desk-app[data-theme] .desk-prompt-drawer.is-open .desk-prompt-editor {
+  color: var(--desk-prompt-assistant-ink);
+  background: var(--desk-prompt-assistant-field-background);
+  border-color: var(--desk-prompt-assistant-field-border);
+  box-shadow: var(--desk-prompt-assistant-field-shadow);
+}
+
+body.desk-app[data-theme] .desk-prompt-drawer.is-open .desk-prompt-editor:empty::before {
+  color: var(--desk-prompt-assistant-muted-ink);
+}
+
+body.desk-app[data-theme] .desk-prompt-drawer.is-open .desk-prompt-editor:focus {
+  color: var(--desk-prompt-assistant-ink);
+  background: var(--desk-prompt-assistant-field-focus-background);
+  border-color: var(--desk-prompt-assistant-field-focus-border);
+  box-shadow: var(--desk-prompt-assistant-field-focus-shadow);
+}
+
+body.desk-app[data-theme] .desk-prompt-image-menu {
+  color: var(--desk-prompt-assistant-ink);
+  background: var(--desk-prompt-assistant-popover-background);
+  border-color: var(--desk-prompt-assistant-popover-border);
+  box-shadow: var(--desk-prompt-assistant-popover-shadow);
+}
+
+body.desk-app[data-theme] .desk-prompt-editor__image {
+  color: var(--desk-prompt-assistant-accent-emphasis-ink);
+  background: var(--desk-prompt-assistant-mention-background);
+  border-color: var(--desk-prompt-assistant-mention-border);
+  box-shadow: var(--desk-prompt-assistant-mention-shadow);
+}
+
+body.desk-app[data-theme] .desk-prompt-editor__image:hover {
+  color: var(--desk-prompt-assistant-handle-ink);
+  background: var(--desk-prompt-assistant-mention-hover-background);
+  border-color: var(--desk-prompt-assistant-mention-hover-border);
+  box-shadow: var(--desk-prompt-assistant-mention-hover-shadow);
+}
+
+body.desk-app[data-theme] .desk-prompt-editor__remove {
+  color: var(--desk-prompt-assistant-mention-remove-ink);
+  background: var(--desk-prompt-assistant-mention-remove-background);
+}
+
+body.desk-app[data-theme] :is(
+  .desk-prompt-image-switch span,
+  .desk-agent-toggle > span,
+  .desk-agent-param-toggle > span
+) {
+  background: var(--desk-prompt-assistant-toggle-background);
+  border-color: var(--desk-prompt-assistant-toggle-border);
+}
+
+body.desk-app[data-theme] :is(
+  .desk-prompt-image-switch span::after,
+  .desk-agent-toggle > span::after,
+  .desk-agent-param-toggle > span::after
+) {
+  background: var(--desk-prompt-assistant-toggle-thumb);
+  box-shadow: var(--desk-prompt-assistant-toggle-thumb-shadow);
+}
+
+body.desk-app[data-theme] .desk-prompt-image-switch input:checked + span {
+  background: var(--desk-prompt-assistant-toggle-checked-background);
+  border-color: var(--desk-prompt-assistant-toggle-checked-border);
+}
+
+body.desk-app[data-theme] .desk-prompt-drawer.is-open button:not(.desk-prompt-drawer__handle):not(.desk-select-trigger):not(:disabled):not(.desk-agent-task-card):not(.desk-agent-task-secondary):not(.desk-prompt-mode-button) {
+  color: var(--desk-prompt-assistant-button-ink);
+  background: var(--desk-prompt-assistant-button-background);
+  background-position: var(--desk-prompt-assistant-material-position);
+  background-repeat: no-repeat;
+  background-size: var(--desk-prompt-assistant-material-background-size);
+  border-color: var(--desk-prompt-assistant-button-border);
+  box-shadow: var(--desk-prompt-assistant-button-shadow);
+}
+
+body.desk-app[data-theme] .desk-prompt-drawer.is-open button:not(.desk-prompt-drawer__handle):not(.desk-select-trigger):not(:disabled):not(.desk-agent-task-card):not(.desk-agent-task-secondary):not(.desk-prompt-mode-button):hover {
+  color: var(--desk-prompt-assistant-button-ink);
+  background-image: var(--desk-prompt-assistant-button-hover-background);
+  background-position: var(--desk-prompt-assistant-material-position-hover);
+  border-color: var(--desk-prompt-assistant-button-hover-border);
+  box-shadow: var(--desk-prompt-assistant-button-hover-shadow);
+}
+
+body.desk-app[data-theme] .desk-prompt-drawer.is-open button:not(.desk-prompt-drawer__handle):not(.desk-select-trigger):not(:disabled):not(.desk-agent-task-card):not(.desk-agent-task-secondary):not(.desk-prompt-mode-button).is-active {
+  color: var(--desk-prompt-assistant-button-ink);
+  background-image: var(--desk-prompt-assistant-button-active-background);
+  background-position: var(--desk-prompt-assistant-material-position-active);
+  border-color: var(--desk-prompt-assistant-button-active-border);
+  box-shadow: var(--desk-prompt-assistant-button-active-shadow);
+}
+
+body.desk-app[data-theme] .desk-prompt-drawer.is-open button:not(.desk-prompt-drawer__handle):not(.desk-select-trigger):not(.desk-agent-task-card):not(.desk-agent-task-secondary):not(.desk-prompt-mode-button):disabled {
+  color: var(--desk-prompt-assistant-disabled-ink);
+  background: var(--desk-prompt-assistant-button-disabled-background);
+  border-color: var(--desk-prompt-assistant-button-disabled-border);
+  box-shadow: none;
+}
+
+body.desk-app[data-theme] .desk-prompt-drawer.is-open .desk-prompt-image-menu button:not(.desk-prompt-drawer__handle):not(.desk-select-trigger):not(:disabled) {
+  color: var(--desk-prompt-assistant-accent-emphasis-ink);
+  background: var(--desk-agent-image-menu-thumb-background);
+  border-color: var(--desk-agent-image-menu-thumb-border);
+  box-shadow: none;
+}
+
+body.desk-app[data-theme] .desk-prompt-drawer.is-open .desk-prompt-image-menu button:not(.desk-prompt-drawer__handle):not(.desk-select-trigger):not(:disabled):hover {
+  color: var(--desk-prompt-assistant-handle-ink);
+  background: var(--desk-agent-image-menu-thumb-hover-background);
+  border-color: var(--desk-agent-image-menu-thumb-hover-border);
+  box-shadow: none;
+}
+
+body.desk-app[data-theme] .desk-prompt-analysis-editor textarea {
+  color: var(--desk-prompt-assistant-ink);
+  background: var(--desk-prompt-assistant-select-background);
+  border-color: var(--desk-prompt-assistant-field-border);
+}
+
+body.desk-app[data-theme] .desk-prompt-analysis-editor textarea:focus {
+  border-color: var(--desk-prompt-assistant-field-focus-border);
+  box-shadow: var(--desk-prompt-assistant-field-focus-shadow);
+}
+
+body.desk-app[data-theme] .desk-prompt-modal__panel {
+  color: var(--desk-prompt-assistant-ink);
+  background: var(--desk-prompt-assistant-modal-background);
+  border-color: var(--desk-prompt-assistant-modal-border);
+  box-shadow: var(--desk-prompt-assistant-modal-shadow);
+}
+
+body.desk-app[data-theme] .desk-prompt-modal__head {
+  background: var(--desk-prompt-assistant-modal-header-background);
+  border-bottom-color: var(--desk-prompt-assistant-modal-header-border);
+  box-shadow: var(--desk-prompt-assistant-modal-header-shadow);
+}
+
+body.desk-app[data-theme] .desk-prompt-modal__head strong {
+  color: var(--desk-prompt-assistant-ink);
+}
+
+body.desk-app[data-theme] :is(
+  .desk-prompt-modal__head button,
+  .desk-prompt-modal__content button
+) {
+  color: var(--desk-prompt-assistant-button-ink);
+  background: var(--desk-prompt-assistant-button-background);
+  background-position: var(--desk-prompt-assistant-material-position);
+  background-repeat: no-repeat;
+  background-size: var(--desk-prompt-assistant-material-background-size);
+  border-color: var(--desk-prompt-assistant-button-border);
+  box-shadow: var(--desk-prompt-assistant-button-shadow);
+}
+
+body.desk-app[data-theme] :is(
+  .desk-prompt-modal__head button:hover,
+  .desk-prompt-modal__content button:hover
+) {
+  color: var(--desk-prompt-assistant-button-ink);
+  background-image: var(--desk-prompt-assistant-button-hover-background);
+  background-position: var(--desk-prompt-assistant-material-position-hover);
+  border-color: var(--desk-prompt-assistant-button-hover-border);
+  box-shadow: var(--desk-prompt-assistant-button-hover-shadow);
+}
+
+body.desk-app[data-theme] .desk-prompt-modal__content {
+  color: var(--desk-prompt-assistant-ink);
+  background: var(--desk-prompt-assistant-modal-content-background);
+  scrollbar-color: var(--desk-prompt-assistant-modal-content-scrollbar);
+}
+
+body.desk-app[data-theme] .desk-prompt-modal__content :is(
+  .desk-prompt-chat__message,
+  .desk-prompt-candidate,
+  .desk-prompt-analysis-module,
+  .desk-prompt-analysis-editor
+) {
+  background: var(--desk-prompt-assistant-modal-card-background);
+  border-color: var(--desk-prompt-assistant-modal-card-border);
+}
+
+body.desk-app[data-theme] .desk-prompt-modal__content :is(
+  .desk-prompt-chat__message span,
+  .desk-prompt-candidate em,
+  .desk-prompt-analysis-module em
+) {
+  color: var(--desk-prompt-assistant-accent-emphasis-ink);
+}
+
+body.desk-app[data-theme] .desk-prompt-modal__content :is(
+  .desk-prompt-chat__message p,
+  .desk-prompt-candidate p,
+  .desk-prompt-candidate strong,
+  .desk-prompt-analysis-module p,
+  .desk-prompt-analysis-module pre,
+  .desk-prompt-analysis-module strong
+) {
+  color: var(--desk-prompt-assistant-ink);
+}
+
+body.desk-app[data-theme] .desk-prompt-modal__content :is(
+  .desk-prompt-chat__empty,
+  .desk-prompt-candidates__empty,
+  .desk-prompt-candidate__meta
+) {
+  color: var(--desk-prompt-assistant-muted-ink);
+}
+
+body.desk-app[data-theme] .desk-prompt-modal__content .desk-prompt-analysis-editor textarea {
+  color: var(--desk-prompt-assistant-ink);
+  background: var(--desk-prompt-assistant-modal-field-background);
+  border-color: var(--desk-prompt-assistant-field-border);
+  box-shadow: var(--desk-prompt-assistant-field-shadow);
+}
+
+body.desk-app[data-theme] .desk-prompt-modal__content .desk-prompt-analysis-editor textarea:focus {
+  border-color: var(--desk-prompt-assistant-field-focus-border);
+  box-shadow: var(--desk-prompt-assistant-field-focus-shadow);
+}
+
+body.desk-app[data-theme] .desk-prompt-mode-switch {
+  background: var(--desk-agent-switch-background);
+  border-color: var(--desk-agent-switch-border);
+}
+
+body.desk-app[data-theme] .desk-prompt-mode-switch::before {
+  background: var(--desk-agent-switch-thumb-background);
+  background-position: var(--desk-agent-switch-thumb-background-position);
+  background-repeat: no-repeat;
+  background-size: var(--desk-agent-switch-thumb-background-size);
+  border: 1px solid var(--desk-agent-switch-thumb-border);
+  box-shadow: var(--desk-agent-switch-thumb-shadow);
+}
+
+body.desk-app[data-theme] .desk-prompt-drawer.is-open .desk-prompt-mode-switch[data-mode] button:not(.desk-prompt-drawer__handle):not(:disabled) {
+  color: var(--desk-prompt-assistant-muted-ink);
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+body.desk-app[data-theme] .desk-prompt-drawer.is-open .desk-prompt-mode-switch[data-mode] button:not(.desk-prompt-drawer__handle):not(:disabled):hover {
+  color: var(--desk-prompt-assistant-ink);
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+body.desk-app[data-theme] .desk-prompt-drawer.is-open .desk-prompt-mode-switch[data-mode] button.is-active:not(.desk-prompt-drawer__handle):not(:disabled) {
+  color: var(--desk-prompt-assistant-button-ink);
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+body.desk-app[data-theme] .desk-prompt-task-mode {
+  --desk-prompt-task-accent: var(--desk-prompt-assistant-accent-ink);
+  background: var(--desk-agent-task-switch-background);
+  border-color: var(--desk-agent-task-switch-border);
+  box-shadow: var(--desk-agent-task-switch-shadow);
+}
+
+body.desk-app[data-theme] .desk-prompt-drawer.is-open .desk-prompt-task-mode button:not(.desk-prompt-drawer__handle) {
+  color: var(--desk-agent-task-idle-ink);
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+body.desk-app[data-theme] .desk-prompt-drawer.is-open .desk-prompt-task-mode button:hover:not(:disabled):not(.desk-prompt-drawer__handle) {
+  color: var(--desk-prompt-assistant-accent-ink);
+  background: var(--desk-agent-task-hover-background);
+  border-color: var(--desk-agent-task-hover-border);
+  box-shadow: none;
+}
+
+body.desk-app[data-theme] .desk-prompt-drawer.is-open .desk-prompt-task-mode button.is-active:not(.desk-prompt-drawer__handle) {
+  color: var(--desk-prompt-assistant-accent-ink);
+  background: var(--desk-agent-task-active-background);
+  border-color: var(--desk-prompt-assistant-accent-ink);
+  box-shadow: var(--desk-agent-task-active-shadow);
+}
+
+body.desk-app[data-theme] :is(
+  .desk-prompt-task-mode__label,
+  .desk-prompt-task-mode__label::after
+) {
+  color: var(--desk-agent-task-label-ink);
+  background: var(--desk-prompt-assistant-accent-ink);
+}
+
+body.desk-app[data-theme] .desk-prompt-task-mode__label {
+  box-shadow: var(--desk-agent-task-label-shadow);
+}
+
+body.desk-app[data-theme] .desk-agent-status {
+  color: var(--desk-prompt-assistant-muted-ink);
+  background: var(--desk-agent-neutral-surface);
+  border-color: var(--desk-agent-neutral-border);
+}
+
+body.desk-app[data-theme] .desk-agent-status:is(
+  [data-status="awaiting_approval"],
+  [data-status="waiting_for_action"],
+  [data-status="rolling_back"]
+) {
+  color: var(--desk-agent-waiting-ink);
+  background: var(--desk-agent-waiting-background);
+  border-color: var(--desk-agent-waiting-border);
+}
+
+body.desk-app[data-theme] .desk-agent-status:is(
+  [data-status="running"],
+  [data-status="succeeded"],
+  [data-status="rolled_back"]
+) {
+  color: var(--desk-agent-running-ink);
+  background: var(--desk-agent-running-background);
+  border-color: var(--desk-agent-running-border);
+}
+
+body.desk-app[data-theme] .desk-agent-status:is(
+  [data-status="failed"],
+  [data-status="canceled"]
+) {
+  color: var(--desk-agent-failure-ink);
+  background: var(--desk-agent-failure-background);
+  border-color: var(--desk-agent-failure-border);
+}
+
+body.desk-app[data-theme] .desk-prompt-drawer.is-open button.desk-agent-icon-btn:not(.desk-prompt-drawer__handle) {
+  color: var(--desk-prompt-assistant-muted-ink);
+  background: var(--desk-agent-neutral-surface);
+  border-color: var(--desk-agent-neutral-border);
+  box-shadow: none;
+}
+
+body.desk-app[data-theme] .desk-prompt-drawer.is-open button.desk-agent-icon-btn:hover:not(:disabled) {
+  color: var(--desk-prompt-assistant-ink);
+  background: var(--desk-agent-neutral-surface-strong);
+  border-color: var(--desk-agent-neutral-border-strong);
+  box-shadow: none;
+}
+
+body.desk-app[data-theme] .desk-prompt-drawer.is-open button.desk-agent-icon-btn.is-danger:hover:not(:disabled) {
+  color: var(--desk-prompt-assistant-on-accent-ink);
+  background: var(--desk-agent-danger-background);
+  border-color: var(--desk-agent-danger-border);
+}
+
+body.desk-app[data-theme] .desk-agent-workbench {
+  background: var(--desk-agent-workbench-background);
+  border-color: var(--desk-agent-workbench-border);
+}
+
+body.desk-app[data-theme] .desk-agent-pane {
+  background: var(--desk-agent-pane-background);
+}
+
+body.desk-app[data-theme] .desk-agent-pane + .desk-agent-pane {
+  border-left-color: var(--desk-agent-pane-divider);
+}
+
+body.desk-app[data-theme] :is(
+  .desk-agent-pane__head,
+  .desk-agent-compose,
+  .desk-agent-approval,
+  .desk-agent-artifact
+) {
+  border-color: var(--desk-agent-divider);
+}
+
+body.desk-app[data-theme] .desk-agent-pane__head strong,
+body.desk-app[data-theme] .desk-agent-step__copy strong,
+body.desk-app[data-theme] .desk-agent-approval__meta strong,
+body.desk-app[data-theme] .desk-agent-decision__copy > strong,
+body.desk-app[data-theme] .desk-agent-event__copy strong,
+body.desk-app[data-theme] .desk-agent-artifact strong {
+  color: var(--desk-prompt-assistant-ink);
+}
+
+body.desk-app[data-theme] :is(
+  .desk-agent-pane__head span,
+  .desk-agent-field > span,
+  .desk-agent-toggle,
+  .desk-agent-empty,
+  .desk-agent-step__copy span,
+  .desk-agent-step__state,
+  .desk-agent-decision__meta > span,
+  .desk-agent-param > span,
+  .desk-agent-param-toggle,
+  .desk-agent-event__copy span,
+  .desk-agent-event time,
+  .desk-agent-artifact > span,
+  .desk-agent-artifact p
+) {
+  color: var(--desk-prompt-assistant-muted-ink);
+}
+
+body.desk-app[data-theme] :is(
+  .desk-agent-goal-editor,
+  .desk-agent-field select,
+  .desk-agent-revision input,
+  .desk-agent-param select
+) {
+  color: var(--desk-prompt-assistant-ink);
+  background: var(--desk-agent-field-background-soft);
+  border-color: var(--desk-agent-field-border-soft);
+}
+
+body.desk-app[data-theme] .desk-prompt-drawer.is-open .desk-agent-workbench .desk-agent-goal-editor {
+  background: var(--desk-agent-field-background);
+  border-color: var(--desk-agent-field-border);
+  box-shadow: var(--desk-agent-field-shadow);
+}
+
+body.desk-app[data-theme] .desk-agent-param select {
+  background: var(--desk-agent-field-background-strong);
+}
+
+body.desk-app[data-theme] :is(
+  .desk-agent-goal-editor:focus,
+  .desk-agent-field select:focus,
+  .desk-agent-revision input:focus,
+  .desk-agent-param select:focus
+) {
+  border-color: var(--desk-agent-field-focus-border);
+  box-shadow: var(--desk-agent-field-focus-shadow);
+}
+
+body.desk-app[data-theme] .desk-agent-context > span {
+  color: var(--desk-prompt-assistant-muted-ink);
+  background: var(--desk-agent-context-background);
+  border-color: var(--desk-agent-context-border);
+}
+
+body.desk-app[data-theme] .desk-agent-step:not(:last-child)::after {
+  background: var(--desk-agent-step-line);
+}
+
+body.desk-app[data-theme] .desk-agent-step__dot {
+  color: var(--desk-prompt-assistant-muted-ink);
+  background: var(--desk-agent-step-dot-background);
+  border-color: var(--desk-agent-step-dot-border);
+}
+
+body.desk-app[data-theme] .desk-agent-step:is(.is-running, .is-awaiting) .desk-agent-step__dot {
+  color: var(--desk-agent-waiting-ink);
+  background: var(--desk-agent-step-waiting-background);
+  border-color: var(--desk-agent-step-waiting-border);
+  box-shadow: var(--desk-agent-step-waiting-shadow);
+}
+
+body.desk-app[data-theme] .desk-agent-step:is(.is-running, .is-awaiting) .desk-agent-step__state,
+body.desk-app[data-theme] .desk-agent-approval__meta span,
+body.desk-app[data-theme] .desk-agent-decision__meta > em {
+  color: var(--desk-agent-waiting-ink);
+}
+
+body.desk-app[data-theme] .desk-agent-step.is-succeeded .desk-agent-step__dot {
+  color: var(--desk-agent-running-ink);
+  background: var(--desk-agent-step-success-background);
+  border-color: var(--desk-agent-step-success-border);
+}
+
+body.desk-app[data-theme] .desk-agent-step.is-succeeded .desk-agent-step__state {
+  color: var(--desk-agent-running-ink);
+}
+
+body.desk-app[data-theme] .desk-agent-step.is-failed :is(.desk-agent-step__dot, .desk-agent-step__state) {
+  color: var(--desk-agent-failure-ink);
+}
+
+body.desk-app[data-theme] .desk-agent-decision {
+  background: var(--desk-agent-decision-background);
+  border-left-color: var(--desk-agent-decision-border);
+}
+
+body.desk-app[data-theme] .desk-agent-decision__copy > span {
+  color: var(--desk-agent-decision-label-ink);
+}
+
+body.desk-app[data-theme] .desk-prompt-drawer.is-open button.desk-agent-decision__settings:not(.desk-prompt-drawer__handle) {
+  color: var(--desk-agent-decision-action-ink);
+  background: var(--desk-agent-decision-action-background);
+  border-color: var(--desk-agent-field-border-soft);
+}
+
+body.desk-app[data-theme] .desk-agent-decision__meta > em {
+  border-left-color: var(--desk-agent-waiting-divider);
+}
+
+body.desk-app[data-theme] .desk-prompt-drawer.is-open .desk-agent-revision button:not(.desk-prompt-drawer__handle) {
+  color: var(--desk-agent-revision-ink);
+  background: var(--desk-agent-revision-background);
+  border-color: var(--desk-agent-revision-border);
+  box-shadow: none;
+}
+
+body.desk-app[data-theme] .desk-prompt-drawer.is-open .desk-agent-revision button:hover:not(:disabled):not(.desk-prompt-drawer__handle) {
+  color: var(--desk-agent-revision-hover-ink);
+  background: var(--desk-agent-revision-hover-background);
+  border-color: var(--desk-agent-revision-hover-border);
+  box-shadow: none;
+}
+
+body.desk-app[data-theme] .desk-agent-params {
+  background: var(--desk-agent-params-background);
+  border-top-color: var(--desk-agent-params-border);
+}
+
+body.desk-app[data-theme] .desk-prompt-drawer.is-open .desk-agent-provider button:not(.desk-prompt-drawer__handle) {
+  color: var(--desk-prompt-assistant-muted-ink);
+  background: var(--desk-agent-provider-background);
+  border-color: var(--desk-agent-provider-border);
+  box-shadow: none;
+}
+
+body.desk-app[data-theme] .desk-prompt-drawer.is-open .desk-agent-provider button.is-active:not(.desk-prompt-drawer__handle) {
+  color: var(--desk-prompt-assistant-button-ink);
+  background: var(--desk-agent-provider-active-background);
+  background-position: var(--desk-prompt-assistant-material-position);
+  background-repeat: no-repeat;
+  background-size: var(--desk-prompt-assistant-material-background-size);
+  border-color: var(--desk-agent-provider-active-border);
+  box-shadow: var(--desk-agent-provider-active-shadow);
+}
+
+body.desk-app[data-theme] :is(
+  .desk-agent-toggle > span,
+  .desk-agent-param-toggle > span
+) {
+  background: var(--desk-agent-toggle-background);
+  border-color: var(--desk-agent-toggle-border);
+}
+
+body.desk-app[data-theme] :is(
+  .desk-agent-toggle > span::after,
+  .desk-agent-param-toggle > span::after
+) {
+  background: var(--desk-agent-toggle-thumb);
+  box-shadow: var(--desk-agent-toggle-thumb-shadow);
+}
+
+body.desk-app[data-theme] :is(
+  .desk-agent-toggle input:checked + span,
+  .desk-agent-param-toggle input:checked + span
+) {
+  background: var(--desk-agent-toggle-checked-background);
+  border-color: var(--desk-agent-toggle-checked-border);
+}
+
+body.desk-app[data-theme] .desk-agent-event {
+  border-bottom-color: var(--desk-agent-event-divider);
+}
+
+body.desk-app[data-theme] .desk-agent-event > i {
+  background: var(--desk-agent-event-dot);
+}
+
+body.desk-app[data-theme] .desk-agent-event.is-succeeded > i {
+  background: var(--desk-agent-event-success);
+}
+
+body.desk-app[data-theme] .desk-agent-event:is(.is-failed, .is-canceled) > i {
+  background: var(--desk-agent-event-failure);
+}
+
+body.desk-app[data-theme] .desk-agent-event:is(
+  .is-running,
+  .is-waiting_for_action,
+  .is-awaiting_approval
+) > i {
+  background: var(--desk-agent-event-active);
+}
+
+/* Agent task rail: paint follows run state; the Navy ring only marks the
+   task whose goal, plan and activity log are currently displayed. */
+body.desk-app[data-theme] .desk-agent-task-rail {
+  color: var(--desk-prompt-assistant-ink);
+  background: var(--desk-agent-task-rail-background);
+  border-color: var(--desk-agent-task-rail-border);
+  box-shadow: var(--desk-agent-task-rail-shadow);
+}
+
+body.desk-app[data-theme] .desk-agent-task-rail__label {
+  color: var(--desk-prompt-assistant-muted-ink);
+}
+
+body.desk-app[data-theme] .desk-prompt-drawer.is-open button.desk-agent-task-card:not(.desk-prompt-drawer__handle) {
+  color: var(--desk-agent-task-card-ink);
+  background: var(--desk-agent-task-neutral-background);
+  background-position: var(--desk-agent-task-card-material-position);
+  background-repeat: no-repeat;
+  background-size: var(--desk-agent-task-card-material-size);
+  border-color: var(--desk-agent-task-neutral-border);
+  box-shadow: var(--desk-agent-task-neutral-shadow);
+}
+
+body.desk-app[data-theme] .desk-agent-task-card__copy em {
+  color: var(--desk-agent-task-card-muted-ink);
+}
+
+body.desk-app[data-theme] .desk-agent-task-card__dot {
+  background: var(--desk-agent-task-neutral-dot);
+}
+
+body.desk-app[data-theme] .desk-prompt-drawer.is-open button.desk-agent-task-card[data-task-tone="running"]:not(.desk-prompt-drawer__handle),
+body.desk-app[data-theme] .desk-prompt-drawer.is-open button.desk-agent-task-card[data-task-tone="done"]:not(.desk-prompt-drawer__handle) {
+  background: var(--desk-agent-task-running-background);
+  background-position: var(--desk-agent-task-card-material-position);
+  background-repeat: no-repeat;
+  background-size: var(--desk-agent-task-card-material-size);
+  border-color: var(--desk-agent-task-running-border);
+  box-shadow: var(--desk-agent-task-running-shadow);
+}
+
+body.desk-app[data-theme] .desk-agent-task-card:is([data-task-tone="running"], [data-task-tone="done"]) .desk-agent-task-card__dot {
+  background: var(--desk-agent-task-running-dot);
+}
+
+body.desk-app[data-theme] .desk-prompt-drawer.is-open button.desk-agent-task-card[data-task-tone="draft"]:not(.desk-prompt-drawer__handle) {
+  background: var(--desk-agent-task-draft-background);
+  background-position: var(--desk-agent-task-card-material-position);
+  background-repeat: no-repeat;
+  background-size: var(--desk-agent-task-card-material-size);
+  border-color: var(--desk-agent-task-draft-border);
+  box-shadow: var(--desk-agent-task-draft-shadow);
+}
+
+body.desk-app[data-theme] .desk-agent-task-card[data-task-tone="draft"] .desk-agent-task-card__dot {
+  background: var(--desk-agent-task-draft-dot);
+}
+
+body.desk-app[data-theme] .desk-prompt-drawer.is-open button.desk-agent-task-card[data-task-tone="waiting"]:not(.desk-prompt-drawer__handle) {
+  background: var(--desk-agent-task-waiting-background);
+  background-position: var(--desk-agent-task-card-material-position);
+  background-repeat: no-repeat;
+  background-size: var(--desk-agent-task-card-material-size);
+  border-color: var(--desk-agent-task-waiting-border);
+  box-shadow: var(--desk-agent-task-waiting-shadow);
+}
+
+body.desk-app[data-theme] .desk-agent-task-card[data-task-tone="waiting"] .desk-agent-task-card__dot {
+  background: var(--desk-agent-task-waiting-dot);
+}
+
+body.desk-app[data-theme] .desk-prompt-drawer.is-open button.desk-agent-task-card[data-task-tone="failed"]:not(.desk-prompt-drawer__handle) {
+  background: var(--desk-agent-task-failed-background);
+  background-position: var(--desk-agent-task-card-material-position);
+  background-repeat: no-repeat;
+  background-size: var(--desk-agent-task-card-material-size);
+  border-color: var(--desk-agent-task-failed-border);
+  box-shadow: var(--desk-agent-task-failed-shadow);
+}
+
+body.desk-app[data-theme] .desk-agent-task-card[data-task-tone="failed"] .desk-agent-task-card__dot {
+  background: var(--desk-agent-task-failed-dot);
+}
+
+body.desk-app[data-theme] .desk-prompt-drawer.is-open button.desk-agent-task-card.is-selected:not(.desk-prompt-drawer__handle) {
+  border-color: var(--desk-agent-task-card-selected-border);
+  box-shadow: var(--desk-agent-task-card-selected-shadow);
+}
+
+body.desk-app[data-theme] .desk-prompt-drawer.is-open button.desk-agent-task-card__menu-toggle:not(.desk-prompt-drawer__handle) {
+  color: var(--desk-agent-task-card-muted-ink);
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+body.desk-app[data-theme] .desk-prompt-drawer.is-open button.desk-agent-task-card__menu-toggle:not(.desk-prompt-drawer__handle):is(:hover, :focus-visible) {
+  color: var(--desk-agent-task-card-ink);
+  background: var(--desk-agent-task-control-hover-background);
+  border-color: var(--desk-agent-task-control-hover-border);
+  box-shadow: none;
+}
+
+body.desk-app[data-theme] .desk-agent-task-card-menu {
+  color: var(--desk-prompt-assistant-ink);
+  background: var(--desk-agent-task-drawer-background);
+  border-color: var(--desk-agent-task-drawer-border);
+  box-shadow: var(--desk-agent-task-drawer-shadow);
+}
+
+body.desk-app[data-theme] .desk-prompt-drawer.is-open button.desk-agent-task-card-menu__item:not(.desk-prompt-drawer__handle) {
+  color: var(--desk-agent-task-control-ink);
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+body.desk-app[data-theme] .desk-prompt-drawer.is-open button.desk-agent-task-card-menu__item:not(.desk-prompt-drawer__handle):is(:hover, :focus-visible):not(:disabled) {
+  color: var(--desk-agent-task-control-active-ink);
+  background: var(--desk-agent-task-control-active-background);
+  border-color: var(--desk-agent-task-control-hover-border);
+  box-shadow: none;
+}
+
+body.desk-app[data-theme] .desk-prompt-drawer.is-open button.desk-agent-task-card-menu__item.is-danger:not(.desk-prompt-drawer__handle) {
+  color: var(--desk-color-danger-ink);
+}
+
+body.desk-app[data-theme] .desk-prompt-drawer.is-open button.desk-agent-task-card-menu__item.is-danger:not(.desk-prompt-drawer__handle):is(:hover, :focus-visible):not(:disabled) {
+  color: var(--desk-color-danger-ink);
+  background: var(--desk-color-danger-soft);
+  border-color: var(--desk-color-danger-border);
+}
+
+body.desk-app[data-theme] .desk-prompt-drawer.is-open button.desk-agent-task-card:hover:not(:disabled):not(.desk-prompt-drawer__handle),
+body.desk-app[data-theme] .desk-prompt-drawer.is-open button.desk-agent-task-card:focus-visible:not(:disabled):not(.desk-prompt-drawer__handle) {
+  color: var(--desk-agent-task-card-ink);
+  background-position: var(--desk-agent-task-card-material-position-hover);
+}
+
+body.desk-app[data-theme] .desk-prompt-drawer.is-open .desk-agent-task-rail button.desk-agent-task-card:not(.desk-prompt-drawer__handle):not(.desk-select-trigger):not(:disabled),
+body.desk-app[data-theme] .desk-prompt-drawer.is-open .desk-agent-task-rail button.desk-agent-task-card:not(.desk-prompt-drawer__handle):not(.desk-select-trigger):not(:disabled):hover,
+body.desk-app[data-theme] .desk-prompt-drawer.is-open .desk-agent-task-rail button.desk-agent-task-card:not(.desk-prompt-drawer__handle):not(.desk-select-trigger):not(:disabled):focus-visible {
+  color: var(--desk-agent-task-card-ink);
+}
+
+body.desk-app[data-theme] .desk-prompt-drawer.is-open button.desk-agent-task-all:not(.desk-prompt-drawer__handle) {
+  color: var(--desk-agent-task-control-ink);
+  background: var(--desk-agent-task-control-background);
+  border-color: var(--desk-agent-task-control-border);
+  box-shadow: none;
+}
+
+body.desk-app[data-theme] .desk-prompt-drawer.is-open button.desk-agent-task-all:hover:not(:disabled),
+body.desk-app[data-theme] .desk-prompt-drawer.is-open button.desk-agent-task-all:focus-visible:not(:disabled) {
+  color: var(--desk-agent-task-control-active-ink);
+  background: var(--desk-agent-task-control-hover-background);
+  border-color: var(--desk-agent-task-control-hover-border);
+  box-shadow: var(--desk-agent-field-focus-shadow);
+}
+
+body.desk-app[data-theme] .desk-agent-task-all em {
+  color: var(--desk-agent-task-count-ink);
+  background: var(--desk-agent-task-count-background);
+}
+
+body.desk-app[data-theme] .desk-agent-task-drawer-backdrop {
+  background: var(--desk-agent-task-drawer-backdrop);
+}
+
+body.desk-app[data-theme] .desk-agent-task-drawer {
+  color: var(--desk-prompt-assistant-ink);
+  background: var(--desk-agent-task-drawer-background);
+  border-color: var(--desk-agent-task-drawer-border);
+  box-shadow: var(--desk-agent-task-drawer-shadow);
+}
+
+body.desk-app[data-theme] .desk-agent-task-drawer__head > div > span,
+body.desk-app[data-theme] .desk-agent-task-list-copy > span,
+body.desk-app[data-theme] .desk-agent-task-list-copy small,
+body.desk-app[data-theme] .desk-agent-task-empty {
+  color: var(--desk-prompt-assistant-muted-ink);
+}
+
+body.desk-app[data-theme] .desk-agent-task-search {
+  color: var(--desk-prompt-assistant-muted-ink);
+  background: var(--desk-agent-field-background-strong);
+  border-color: var(--desk-agent-field-border);
+  box-shadow: var(--desk-agent-field-shadow);
+}
+
+body.desk-app[data-theme] .desk-agent-task-search:focus-within {
+  border-color: var(--desk-agent-field-focus-border);
+  box-shadow: var(--desk-agent-field-focus-shadow);
+}
+
+body.desk-app[data-theme] .desk-agent-task-search input {
+  color: var(--desk-prompt-assistant-ink);
+}
+
+body.desk-app[data-theme] .desk-agent-task-search input::placeholder {
+  color: var(--desk-prompt-assistant-placeholder-ink);
+}
+
+body.desk-app[data-theme] .desk-prompt-drawer.is-open button.desk-agent-task-filter:not(.desk-prompt-drawer__handle) {
+  color: var(--desk-agent-task-control-ink);
+  background: var(--desk-agent-task-control-background);
+  border-color: var(--desk-agent-task-control-border);
+  box-shadow: none;
+}
+
+body.desk-app[data-theme] .desk-prompt-drawer.is-open button.desk-agent-task-filter:hover:not(:disabled),
+body.desk-app[data-theme] .desk-prompt-drawer.is-open button.desk-agent-task-filter:focus-visible:not(:disabled) {
+  color: var(--desk-agent-task-control-active-ink);
+  background: var(--desk-agent-task-control-hover-background);
+  border-color: var(--desk-agent-task-control-hover-border);
+  box-shadow: none;
+}
+
+body.desk-app[data-theme] .desk-prompt-drawer.is-open button.desk-agent-task-filter.is-active:not(.desk-prompt-drawer__handle),
+body.desk-app[data-theme] .desk-prompt-drawer.is-open button.desk-agent-task-filter.is-active:hover:not(:disabled) {
+  color: var(--desk-prompt-assistant-button-ink);
+  background: var(--desk-prompt-assistant-button-background);
+  background-position: var(--desk-prompt-assistant-material-position);
+  background-repeat: no-repeat;
+  background-size: var(--desk-prompt-assistant-material-background-size);
+  border-color: var(--desk-prompt-assistant-button-border);
+  box-shadow: var(--desk-prompt-assistant-button-shadow);
+}
+
+body.desk-app[data-theme] .desk-agent-task-list {
+  scrollbar-color: var(--desk-agent-task-drawer-scrollbar);
+}
+
+body.desk-app[data-theme] .desk-agent-task-list-row {
+  border-bottom-color: var(--desk-agent-task-drawer-divider);
+}
+
+body.desk-app[data-theme] .desk-prompt-drawer.is-open button.desk-agent-task-list-main:not(.desk-prompt-drawer__handle) {
+  color: var(--desk-prompt-assistant-ink);
+  background: var(--desk-agent-task-drawer-row-background);
+  border-color: transparent;
+  box-shadow: none;
+}
+
+body.desk-app[data-theme] .desk-prompt-drawer.is-open button.desk-agent-task-list-main:hover:not(:disabled),
+body.desk-app[data-theme] .desk-prompt-drawer.is-open button.desk-agent-task-list-main:focus-visible:not(:disabled) {
+  color: var(--desk-prompt-assistant-ink);
+  background: var(--desk-agent-task-drawer-row-hover-background);
+  border-color: var(--desk-agent-task-control-hover-border);
+  box-shadow: none;
+}
+
+body.desk-app[data-theme] .desk-agent-task-list-row.is-selected button.desk-agent-task-list-main {
+  background: var(--desk-agent-task-drawer-row-selected-background);
+  border-color: var(--desk-agent-task-drawer-row-selected-border);
+}
+
+body.desk-app[data-theme] .desk-agent-task-list-copy strong em {
+  color: var(--desk-agent-task-drawer-badge-ink);
+  background: var(--desk-agent-task-drawer-badge-background);
+}
+
+body.desk-app[data-theme] .desk-agent-task-list-dot {
+  background: var(--desk-agent-task-neutral-dot);
+}
+
+body.desk-app[data-theme] .desk-agent-task-list-row:is([data-task-tone="running"], [data-task-tone="done"]) .desk-agent-task-list-dot {
+  background: var(--desk-agent-task-running-dot);
+}
+
+body.desk-app[data-theme] .desk-agent-task-list-row[data-task-tone="draft"] .desk-agent-task-list-dot {
+  background: var(--desk-agent-task-draft-dot);
+}
+
+body.desk-app[data-theme] .desk-agent-task-list-row[data-task-tone="waiting"] .desk-agent-task-list-dot {
+  background: var(--desk-agent-task-waiting-dot);
+}
+
+body.desk-app[data-theme] .desk-agent-task-list-row[data-task-tone="failed"] .desk-agent-task-list-dot {
+  background: var(--desk-agent-task-failed-dot);
+}
+
+body.desk-app[data-theme] .desk-prompt-drawer.is-open button.desk-agent-task-row-action:not(.desk-prompt-drawer__handle) {
+  color: var(--desk-agent-task-control-ink);
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+body.desk-app[data-theme] .desk-prompt-drawer.is-open button.desk-agent-task-row-action:hover:not(:disabled),
+body.desk-app[data-theme] .desk-prompt-drawer.is-open button.desk-agent-task-row-action:focus-visible:not(:disabled),
+body.desk-app[data-theme] .desk-prompt-drawer.is-open button.desk-agent-task-row-action.is-active:not(:disabled) {
+  color: var(--desk-agent-task-control-active-ink);
+  background: var(--desk-agent-task-control-active-background);
+  border-color: var(--desk-agent-task-control-hover-border);
+  box-shadow: none;
+}
+
+body.desk-app[data-theme] .desk-prompt-drawer.is-open button.desk-agent-task-row-action.is-danger:not(.desk-prompt-drawer__handle) {
+  color: var(--desk-color-danger-ink);
+}
+
+body.desk-app[data-theme] .desk-prompt-drawer.is-open button.desk-agent-task-row-action.is-danger:not(.desk-prompt-drawer__handle):is(:hover, :focus-visible):not(:disabled) {
+  color: var(--desk-color-danger-ink);
+  background: var(--desk-color-danger-soft);
+  border-color: var(--desk-color-danger-border);
+}
+
+body.desk-app[data-theme] .desk-agent-task-dialog-backdrop {
+  background: var(--desk-agent-task-drawer-backdrop);
+}
+
+body.desk-app[data-theme] .desk-agent-task-dialog {
+  color: var(--desk-prompt-assistant-ink);
+  background: var(--desk-agent-task-drawer-background);
+  border-color: var(--desk-agent-task-drawer-border);
+  box-shadow: var(--desk-agent-task-drawer-shadow);
+}
+
+body.desk-app[data-theme] .desk-agent-task-dialog > form > p,
+body.desk-app[data-theme] .desk-agent-task-name-field small {
+  color: var(--desk-prompt-assistant-muted-ink);
+}
+
+body.desk-app[data-theme] .desk-agent-task-name-field input {
+  color: var(--desk-prompt-assistant-ink);
+  background: var(--desk-agent-field-background-strong);
+  border-color: var(--desk-agent-field-border);
+  box-shadow: var(--desk-agent-field-shadow);
+}
+
+body.desk-app[data-theme] .desk-agent-task-name-field input:focus {
+  border-color: var(--desk-agent-field-focus-border);
+  box-shadow: var(--desk-agent-field-focus-shadow);
+}
+
+body.desk-app[data-theme] .desk-agent-task-name-field input::placeholder {
+  color: var(--desk-prompt-assistant-placeholder-ink);
+}
+
+body.desk-app[data-theme] .desk-agent-task-dialog__error {
+  color: var(--desk-status-error-soft-ink);
+  background: var(--desk-status-error-soft-background);
+  border-color: var(--desk-status-error-soft-border);
+}
+
+body.desk-app[data-theme] .desk-prompt-drawer.is-open .desk-agent-task-dialog__actions button.desk-agent-task-secondary:not(.desk-prompt-drawer__handle) {
+  color: var(--desk-agent-task-control-ink);
+  background: var(--desk-agent-task-control-background);
+  border-color: var(--desk-agent-task-control-border);
+  box-shadow: none;
+}
+
+body.desk-app[data-theme] .desk-prompt-drawer.is-open .desk-agent-task-dialog__actions button.desk-agent-task-secondary:not(.desk-prompt-drawer__handle):is(:hover, :focus-visible):not(:disabled) {
+  color: var(--desk-agent-task-control-active-ink);
+  background: var(--desk-agent-task-control-hover-background);
+  border-color: var(--desk-agent-task-control-hover-border);
+}
+
+body.desk-app[data-theme] .desk-prompt-drawer.is-open .desk-agent-task-dialog__actions button.desk-agent-task-dialog__confirm.is-danger:not(.desk-prompt-drawer__handle) {
+  color: var(--desk-status-error-on-fill);
+  background: var(--desk-agent-danger-background);
+  background-position: var(--desk-prompt-assistant-material-position);
+  background-repeat: no-repeat;
+  background-size: var(--desk-prompt-assistant-material-background-size);
+  border-color: var(--desk-agent-danger-border);
+  box-shadow: var(--desk-status-error-silk-shadow);
+}

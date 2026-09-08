@@ -9,6 +9,7 @@
   let lastComfyHealth = null;
   let lastVideoRuntimeStatus = null;
   let lastVideoRuntimeCapabilities = null;
+  let lastVideoSupervisorStatus = null;
   let activeComfyWorkflowId = '';
   let pinterestAuthSessionId = window.sessionStorage?.getItem('deskPinterestAuthSessionId') || '';
   let pinterestAuthActivity = null;
@@ -204,7 +205,8 @@
         ]],
         ['安全与保存', [
           '局域网 API Key 只保存在后端 settings.json，不会返回前端或写入画布工作流。',
-          '服务地址只允许本机或局域网地址；连接检测不经过系统代理。'
+          'Runtime 与 Supervisor 地址只允许本机或局域网完整 URL；连接检测不经过系统代理。',
+          'Supervisor 管理员密码只在独立管理台登录，CanvasHub 不保存也不代理管理凭据。'
         ]]
       ]
     }
@@ -456,15 +458,23 @@
   }
 
   function renderCanvasInteractionSettings() {
-    const style = window.DesktopPreferences?.normalizeConnectionSwellStyle?.(
+    const swellStyle = window.DesktopPreferences?.normalizeConnectionSwellStyle?.(
       window.DesktopPreferences?.state?.connectionSwellStyle
     ) || 'liquid';
+    const lineStyle = window.DesktopPreferences?.normalizeConnectionLineStyle?.(
+      window.DesktopPreferences?.state?.connectionLineStyle
+    ) || 'straight';
     return renderCard('画布交互', [
       `<div class="desk-settings-canvas-interaction">
         <span class="desk-settings-canvas-interaction__label">连接端点</span>
         <div class="desk-settings-canvas-interaction__segment" role="group" aria-label="连接端点样式">
-          <button type="button" class="${style === 'liquid' ? 'is-active' : ''}" data-connection-swell-style="liquid" aria-pressed="${style === 'liquid' ? 'true' : 'false'}">液化</button>
-          <button type="button" class="${style === 'droplet' ? 'is-active' : ''}" data-connection-swell-style="droplet" aria-pressed="${style === 'droplet' ? 'true' : 'false'}">水滴</button>
+          <button type="button" class="${swellStyle === 'liquid' ? 'is-active' : ''}" data-connection-swell-style="liquid" aria-pressed="${swellStyle === 'liquid' ? 'true' : 'false'}">液化</button>
+          <button type="button" class="${swellStyle === 'droplet' ? 'is-active' : ''}" data-connection-swell-style="droplet" aria-pressed="${swellStyle === 'droplet' ? 'true' : 'false'}">水滴</button>
+        </div>
+        <span class="desk-settings-canvas-interaction__label">连线线条</span>
+        <div class="desk-settings-canvas-interaction__segment" role="group" aria-label="连线线条样式">
+          <button type="button" class="${lineStyle === 'straight' ? 'is-active' : ''}" data-connection-line-style="straight" aria-pressed="${lineStyle === 'straight' ? 'true' : 'false'}">直线</button>
+          <button type="button" class="${lineStyle === 'curve' ? 'is-active' : ''}" data-connection-line-style="curve" aria-pressed="${lineStyle === 'curve' ? 'true' : 'false'}">曲线</button>
         </div>
       </div>`
     ], true);
@@ -736,14 +746,11 @@
     return serviceCard + workflowsCard;
   }
 
-  function renderVideoInferenceSettings(config = {}, status = null, capabilitiesPayload = null) {
+  function renderVideoInferenceSettings(config = {}, status = null, supervisorStatus = null) {
     const runtimeMode = ['auto', 'local', 'lan'].includes(config.runtime_mode) ? config.runtime_mode : 'auto';
     const local = config.local || {};
     const lan = config.lan || {};
-    const defaults = config.defaults || {};
     const component = status?.component || {};
-    const capabilityData = capabilitiesPayload?.capabilities || capabilitiesPayload || {};
-    const constraints = capabilityData.constraints || {};
     const environmentFields = Array.isArray(config.environment_fields) ? config.environment_fields : [];
     const isManaged = field => environmentFields.includes(field);
     const statusText = status?.online
@@ -754,10 +761,17 @@
     const componentText = component.exists
       ? `组件已发现${component.start_script ? ` · ${component.start_script}` : ''}`
       : (component.supported ? '组件目录未发现' : '当前设备仅可作为远程调用端');
-    const maxPixels = Number(constraints.max_pixels || 0);
-    const maxPixelsLabel = maxPixels ? `${(maxPixels / 1_000_000).toFixed(2)} MP` : '等待 Runtime';
     const localVisible = runtimeMode !== 'lan';
     const lanVisible = runtimeMode !== 'local';
+    const supervisorUrl = String(config.manager_base_url || '').trim();
+    const supervisorOnline = Boolean(supervisorStatus?.online);
+    const supervisorStatusText = supervisorOnline
+      ? `Supervisor ${supervisorStatus.version || ''} · 在线`
+      : (supervisorStatus?.checked ? 'Supervisor 离线' : 'Supervisor 未检测');
+    const supervisorMeta = supervisorOnline
+      ? `${Number(supervisorStatus.latency_ms || 0)}ms · ${supervisorStatus.admin_initialized ? '管理员已初始化' : '管理员待初始化'}`
+      : (supervisorStatus?.error || supervisorUrl || '未配置管理台地址');
+    const managerOpenUrl = String(supervisorStatus?.manager_url || '').trim();
     return renderCard('视频推理运行方式', [
       `<div class="desk-settings-form desk-video-runtime-settings" data-system-settings-card="video-inference">
         <input type="hidden" data-system-setting-field="video_inference.runtime_mode" value="${escapeHtml(runtimeMode)}">
@@ -790,12 +804,22 @@
             : renderSecretInput('Runtime API Key', 'video_inference.lan.api_key', lan.api_key_configured, { placeholder: lan.api_key_configured ? '留空则不修改' : '填写 H3 Runtime API Key' })}
           ${renderInput('连接超时（秒）', 'video_inference.lan.connect_timeout_seconds', lan.connect_timeout_seconds || 5, { type: 'number', min: 0.5, max: 30, step: 0.5, disabled: isManaged('lan.connect_timeout_seconds') })}
         </section>
-        <div class="desk-video-runtime-capabilities">
-          <span>尺寸对齐 <strong>${Number(constraints.dimension_multiple || 32)}</strong></span>
-          <span>像素上限 <strong>${escapeHtml(maxPixelsLabel)}</strong></span>
-          <span>默认加速 <strong>${escapeHtml(defaults.acceleration_mode === 'first_block_cache' ? `FBC ${Number(defaults.first_block_cache_threshold || 0.08).toFixed(2)}` : (defaults.acceleration_mode || '关闭'))}</strong></span>
-        </div>
-        ${config.environment_managed ? `<p class="desk-settings-form__hint">部分字段由环境变量托管：${escapeHtml(environmentFields.join('、'))}</p>` : '<p class="desk-settings-form__hint">服务地址和密钥只保存在主程序后端，不写入画布工作流。</p>'}
+        <section class="desk-video-supervisor">
+          <div class="desk-settings-form__section-title"><strong>H3 Supervisor 管理台</strong><span>独立于 Runtime 运行</span></div>
+          ${renderInput('管理台地址', 'video_inference.manager_base_url', supervisorUrl, { placeholder: 'http://192.168.3.22:8191', disabled: isManaged('manager_base_url') })}
+          <div class="desk-video-supervisor-status${supervisorOnline ? ' is-online' : ''}${supervisorStatus?.checked && !supervisorOnline ? ' is-offline' : ''}">
+            <span class="desk-video-supervisor-status__dot" aria-hidden="true"></span>
+            <div class="desk-video-supervisor-status__copy">
+              <strong data-video-supervisor-status-label>${escapeHtml(supervisorStatusText)}</strong>
+              <small data-video-supervisor-status-meta>${escapeHtml(supervisorMeta)}</small>
+            </div>
+            <div class="desk-settings-form__actions desk-settings-form__actions--compact desk-video-supervisor-status__actions">
+              <button type="button" data-video-supervisor-refresh title="检测 H3 Supervisor 管理台"><span aria-hidden="true">&#8635;</span><span>刷新状态</span></button>
+              <button type="button" class="is-primary" data-video-supervisor-open data-video-supervisor-url="${escapeHtml(managerOpenUrl)}" title="在新窗口打开 H3 Supervisor 管理台"${managerOpenUrl ? '' : ' disabled'}><span aria-hidden="true">&#8599;</span><span>打开管理台</span></button>
+            </div>
+          </div>
+          <p class="desk-settings-form__hint">Runtime API Key 用于推理请求；Supervisor 管理员密码只在独立管理台登录。</p>
+        </section>
         <div class="desk-settings-form__actions desk-settings-form__wide">
           <button type="button" data-video-runtime-test>检测连接</button>
           <button type="button" data-video-runtime-start${component.startable ? '' : ' disabled'} title="${escapeHtml(component.startable ? '启动本机 H3 Runtime' : componentText)}">启动服务</button>
@@ -803,6 +827,61 @@
         </div>
       </div>`
     ], Boolean(status?.online));
+  }
+
+  function updateVideoRuntimeStatusView(status = null) {
+    const card = els.deskSettingsBody?.querySelector('[data-system-settings-card="video-inference"]');
+    const statusView = card?.querySelector('.desk-video-runtime-status');
+    if (!statusView || !status) return;
+    const online = Boolean(status.online);
+    const checked = Boolean(status.checked);
+    const statusText = online
+      ? `H3 Runtime ${status.version || ''} · 在线 · ${Number(status.latency_ms || 0)}ms`
+      : (checked
+        ? `离线${status.error ? ` · ${status.error}` : ''}`
+        : '尚未检测连接');
+    statusView.classList.toggle('is-online', online);
+    statusView.classList.toggle('is-offline', checked && !online);
+    const title = statusView.querySelector('strong');
+    const address = statusView.querySelector('small');
+    if (title) title.textContent = statusText;
+    if (address) {
+      const selectedMode = status.selected_mode || status.runtime_mode || 'lan';
+      const addressField = selectedMode === 'local'
+        ? 'video_inference.local.base_url'
+        : 'video_inference.lan.base_url';
+      const addressInput = card.querySelector(`[data-system-setting-field="${addressField}"]`);
+      address.textContent = status.base_url || addressInput?.value || '未配置服务地址';
+    }
+    const settingsCard = card.closest('.desk-settings-card');
+    settingsCard?.classList.toggle('is-ok', online);
+    settingsCard?.classList.toggle('is-warn', !online);
+  }
+
+  function updateVideoSupervisorStatusView(status = null) {
+    const card = els.deskSettingsBody?.querySelector('[data-system-settings-card="video-inference"]');
+    const statusView = card?.querySelector('.desk-video-supervisor-status');
+    if (!statusView || !status) return;
+    const online = Boolean(status.online);
+    const checked = Boolean(status.checked);
+    const statusText = online
+      ? `Supervisor ${status.version || ''} · 在线`
+      : (checked ? 'Supervisor 离线' : 'Supervisor 未检测');
+    const metaText = online
+      ? `${Number(status.latency_ms || 0)}ms · ${status.admin_initialized ? '管理员已初始化' : '管理员待初始化'}`
+      : (status.error || status.base_url || '未配置管理台地址');
+    statusView.classList.toggle('is-online', online);
+    statusView.classList.toggle('is-offline', checked && !online);
+    const title = statusView.querySelector('[data-video-supervisor-status-label]');
+    const meta = statusView.querySelector('[data-video-supervisor-status-meta]');
+    if (title) title.textContent = statusText;
+    if (meta) meta.textContent = metaText;
+    const openButton = statusView.querySelector('[data-video-supervisor-open]');
+    const managerUrl = String(status.manager_url || '').trim();
+    if (openButton) {
+      openButton.disabled = !managerUrl;
+      openButton.dataset.videoSupervisorUrl = managerUrl;
+    }
   }
 
   function renderPathSettings(storage, database) {
@@ -1411,11 +1490,13 @@
       {
         tab: 'video-inference',
         html: activeTab === 'video-inference'
-          ? renderVideoInferenceSettings(videoInferenceConfig, lastVideoRuntimeStatus, lastVideoRuntimeCapabilities)
+          ? renderVideoInferenceSettings(videoInferenceConfig, lastVideoRuntimeStatus, lastVideoSupervisorStatus)
           : renderCard('视频推理', [
             renderKv('运行方式', ({ auto: '自动检测', local: '本机 H3', lan: '局域网 H3' })[videoInferenceConfig.runtime_mode] || '自动检测'),
             renderKv('连接状态', lastVideoRuntimeStatus?.online ? '在线' : (lastVideoRuntimeStatus?.checked ? '离线' : '未检测')),
-            renderKv('Runtime 版本', lastVideoRuntimeStatus?.version || '未知')
+            renderKv('Runtime 版本', lastVideoRuntimeStatus?.version || '未知'),
+            renderKv('Supervisor', lastVideoSupervisorStatus?.online ? '在线' : (lastVideoSupervisorStatus?.checked ? '离线' : '未检测')),
+            renderKv('管理台地址', videoInferenceConfig.manager_base_url || '未配置')
           ], Boolean(lastVideoRuntimeStatus?.online))
       }
     ];
@@ -1437,6 +1518,7 @@
         <span>账号池 ${pool.online ? '在线' : '未在线'}</span>
         <span>ComfyUI ${lastComfyHealth?.online ? '在线' : '未测试'}</span>
         <span>H3 Runtime ${lastVideoRuntimeStatus?.online ? '在线' : (lastVideoRuntimeStatus?.checked ? '离线' : '未检测')}</span>
+        <span>Supervisor ${lastVideoSupervisorStatus?.online ? '在线' : (lastVideoSupervisorStatus?.checked ? '离线' : '未检测')}</span>
         <span>Pinterest ${pinterest.enabled ? pinterestAuthLabel(pinterest.auth_status, pinterest.auth_configured) : '未启用'}</span>
         <span>润色 ${promptSkill.model || promptRuntime.default_model || '未选模型'}</span>
         <span>Telegram ${telegram.bot_token_configured && telegram.chat_id_configured ? '可用' : '未就绪'}</span>
@@ -1657,14 +1739,15 @@
       throw new Error('诊断 API 未加载');
     }
     renderLoading();
-    const [data, systemSettings, promptConfig, gptModels, comfyWorkflows, videoRuntimeStatus, videoRuntimeCapabilities] = await Promise.all([
+    const [data, systemSettings, promptConfig, gptModels, comfyWorkflows, videoRuntimeStatus, videoRuntimeCapabilities, videoSupervisorStatus] = await Promise.all([
       window.DesktopApi.getSystemDiagnostics(),
       window.DesktopApi.getSystemSettings ? window.DesktopApi.getSystemSettings().catch(error => ({ ok: false, error: error.message })) : Promise.resolve(null),
       window.DesktopApi.getPromptConfig ? window.DesktopApi.getPromptConfig().catch(error => ({ ok: false, error: error.message })) : Promise.resolve(null),
       window.DesktopApi.getGptModels ? window.DesktopApi.getGptModels().catch(error => ({ ok: false, error: error.message })) : Promise.resolve(null),
       window.DesktopApi.getComfyWorkflows ? window.DesktopApi.getComfyWorkflows(true).catch(error => ({ ok: false, error: error.message })) : Promise.resolve(null),
       window.DesktopApi.getVideoRuntimeStatus ? window.DesktopApi.getVideoRuntimeStatus(true).catch(error => ({ ok: false, online: false, checked: true, error: error.message })) : Promise.resolve(null),
-      window.DesktopApi.getVideoRuntimeCapabilities ? window.DesktopApi.getVideoRuntimeCapabilities().catch(error => ({ ok: false, runtime_online: false, error: error.message })) : Promise.resolve(null)
+      window.DesktopApi.getVideoRuntimeCapabilities ? window.DesktopApi.getVideoRuntimeCapabilities().catch(error => ({ ok: false, runtime_online: false, error: error.message })) : Promise.resolve(null),
+      window.DesktopApi.getVideoSupervisorStatus ? window.DesktopApi.getVideoSupervisorStatus(true).catch(error => ({ ok: false, online: false, checked: true, error: error.message })) : Promise.resolve(null)
     ]);
     lastDiagnostics = data;
     lastSystemSettings = systemSettings?.ok ? systemSettings : null;
@@ -1673,6 +1756,7 @@
     lastComfyWorkflows = comfyWorkflows?.ok ? comfyWorkflows : lastComfyWorkflows;
     lastVideoRuntimeStatus = videoRuntimeStatus || lastVideoRuntimeStatus;
     lastVideoRuntimeCapabilities = videoRuntimeCapabilities?.capabilities ? videoRuntimeCapabilities : lastVideoRuntimeCapabilities;
+    lastVideoSupervisorStatus = videoSupervisorStatus || lastVideoSupervisorStatus;
     if (lastGptModelCatalog) window.DesktopCanvas?.applyGptModelCatalog?.(lastGptModelCatalog);
     if (comfyWorkflows?.ok) {
       window.dispatchEvent(new CustomEvent('desktop:comfy-workflows-updated', { detail: comfyWorkflows }));
@@ -1962,12 +2046,35 @@
       lastVideoRuntimeCapabilities = await window.DesktopApi.getVideoRuntimeCapabilities();
       window.DesktopVideoConfig?.setCapabilities?.(lastVideoRuntimeCapabilities);
     }
-    if (lastDiagnostics) renderDiagnostics(lastDiagnostics);
+    updateVideoRuntimeStatusView(lastVideoRuntimeStatus);
     if (!lastVideoRuntimeStatus?.online) {
       throw new Error(lastVideoRuntimeStatus?.error || lastVideoRuntimeStatus?.message || 'H3 Runtime 离线');
     }
     window.DesktopResults?.showTransientMessage?.(`H3 Runtime 已连接，延迟 ${Number(lastVideoRuntimeStatus.latency_ms || 0)}ms。`, 'success');
     return lastVideoRuntimeStatus;
+  }
+
+  async function testVideoSupervisorConnection() {
+    if (!window.DesktopApi?.testVideoSupervisor) throw new Error('H3 Supervisor 检测 API 未加载');
+    const card = els.deskSettingsBody?.querySelector('[data-system-settings-card="video-inference"]');
+    const managerBaseUrl = card?.querySelector('[data-system-setting-field="video_inference.manager_base_url"]')?.value || '';
+    lastVideoSupervisorStatus = await window.DesktopApi.testVideoSupervisor({ manager_base_url: managerBaseUrl });
+    updateVideoSupervisorStatusView(lastVideoSupervisorStatus);
+    if (!lastVideoSupervisorStatus?.online) {
+      throw new Error(lastVideoSupervisorStatus?.error || lastVideoSupervisorStatus?.message || 'H3 Supervisor 离线');
+    }
+    const adminText = lastVideoSupervisorStatus.admin_initialized ? '管理员已初始化' : '管理员待初始化';
+    window.DesktopResults?.showTransientMessage?.(
+      `H3 Supervisor 已连接，${adminText}。`,
+      lastVideoSupervisorStatus.admin_initialized ? 'success' : 'warning'
+    );
+    return lastVideoSupervisorStatus;
+  }
+
+  function openVideoSupervisorManager(button) {
+    const managerUrl = String(button?.dataset?.videoSupervisorUrl || '').trim();
+    if (!managerUrl) throw new Error('请先保存并检测有效的管理台地址');
+    window.open(managerUrl, '_blank', 'noopener,noreferrer');
   }
 
   async function startVideoRuntimeService() {
@@ -2504,6 +2611,12 @@
   }
 
   function close() {
+    const activeElement = document.activeElement;
+    if (activeElement && els.deskSettingsPanel?.contains(activeElement)) {
+      const trigger = document.querySelector('.desk-rail__item[data-tool="settings"]');
+      if (trigger instanceof HTMLElement) trigger.focus({ preventScroll: true });
+      else if (activeElement instanceof HTMLElement) activeElement.blur();
+    }
     els.deskSettingsPanel?.classList.remove('is-open');
     els.deskSettingsPanel?.setAttribute('aria-hidden', 'true');
     document.body.classList.remove('desk-settings-open');
@@ -2571,6 +2684,21 @@
         loadChatgptPoolAccounts().catch(error => showSettingsFeedback(error, '账号池列表读取失败'));
       }
     });
+    els.deskSettingsBody?.addEventListener('input', event => {
+      const managerField = event.target.closest('[data-system-setting-field="video_inference.manager_base_url"]');
+      if (!managerField) return;
+      const managerBaseUrl = String(managerField.value || '').trim();
+      lastVideoSupervisorStatus = {
+        ok: true,
+        online: false,
+        checked: false,
+        configured: Boolean(managerBaseUrl),
+        base_url: managerBaseUrl,
+        manager_url: '',
+        message: '管理台地址已修改，等待检测'
+      };
+      updateVideoSupervisorStatusView(lastVideoSupervisorStatus);
+    });
     els.deskSettingsBody?.addEventListener('change', event => {
       const systemField = event.target.closest('[data-system-setting-field]');
       if (systemField?.dataset.systemSettingField === 'gpt_provider.image_main_model') {
@@ -2621,7 +2749,27 @@
         });
         return;
       }
-      const swellStyleButton = event.target.closest('[data-connection-swell-style]');
+      const videoSupervisorRefresh = event.target.closest('[data-video-supervisor-refresh]');
+      if (videoSupervisorRefresh) {
+        event.preventDefault();
+        runButtonAction(videoSupervisorRefresh, testVideoSupervisorConnection, {
+          loadingText: '检测中...',
+          doneText: '已连接',
+          errorMessage: 'H3 Supervisor 连接失败'
+        });
+        return;
+      }
+      const videoSupervisorOpen = event.target.closest('[data-video-supervisor-open]');
+      if (videoSupervisorOpen) {
+        event.preventDefault();
+        try {
+          openVideoSupervisorManager(videoSupervisorOpen);
+        } catch (error) {
+          showSettingsFeedback(error, '管理台打开失败');
+        }
+        return;
+      }
+      const swellStyleButton = event.target.closest('button[data-connection-swell-style]');
       if (swellStyleButton) {
         event.preventDefault();
         const style = window.DesktopPreferences?.normalizeConnectionSwellStyle?.(
@@ -2630,6 +2778,20 @@
         window.DesktopPreferences?.setConnectionSwellStyle?.(style);
         swellStyleButton.parentElement?.querySelectorAll('[data-connection-swell-style]').forEach(button => {
           const active = button.dataset.connectionSwellStyle === style;
+          button.classList.toggle('is-active', active);
+          button.setAttribute('aria-pressed', active ? 'true' : 'false');
+        });
+        return;
+      }
+      const lineStyleButton = event.target.closest('button[data-connection-line-style]');
+      if (lineStyleButton) {
+        event.preventDefault();
+        const style = window.DesktopPreferences?.normalizeConnectionLineStyle?.(
+          lineStyleButton.dataset.connectionLineStyle
+        ) || 'straight';
+        window.DesktopPreferences?.setConnectionLineStyle?.(style);
+        lineStyleButton.parentElement?.querySelectorAll('[data-connection-line-style]').forEach(button => {
+          const active = button.dataset.connectionLineStyle === style;
           button.classList.toggle('is-active', active);
           button.setAttribute('aria-pressed', active ? 'true' : 'false');
         });

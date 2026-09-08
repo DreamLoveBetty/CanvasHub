@@ -1,0 +1,270 @@
+/*
+ * Phase 6 image-group theme adapter.
+ *
+ * The 620ms grouping dwell, liquid SVG geometry, FLIP ordering, pointer
+ * capture, and performance fallbacks remain in their component modules. This
+ * layer only maps the mother, thumbnails, role picker, actions, and temporary
+ * liquid surfaces to root semantic paint tokens.
+ */
+
+body.desk-app[data-theme] .desk-node--image-group {
+  background: var(--desk-image-group-surface-background);
+  border-color: var(--desk-image-group-surface-border);
+  box-shadow: var(--desk-image-group-surface-shadow);
+}
+
+body.desk-app[data-theme] .desk-node--image-group:is(.is-selected, .is-dragging, .is-resizing) {
+  background: var(--desk-image-group-surface-background);
+  border-color: var(--desk-image-group-surface-border);
+  box-shadow: var(--desk-image-group-surface-shadow);
+}
+
+body.desk-app[data-theme] .desk-image-group__silhouette {
+  filter: var(--desk-image-group-silhouette-filter);
+}
+
+body.desk-app[data-theme] :is(
+  .desk-image-group__liquid,
+  .desk-image-group-transition__liquid-surface
+) {
+  fill: var(--desk-image-group-liquid-fill);
+}
+
+body.desk-app[data-theme] .desk-image-group__mother::after {
+  border-color: transparent;
+}
+
+body.desk-app[data-theme] .desk-node--image-group.is-selected .desk-image-group__mother::after {
+  border-color: var(--desk-image-group-selection-border);
+  box-shadow: var(--desk-image-group-selection-shadow);
+}
+
+body.desk-app[data-theme] .desk-image-group__identity strong {
+  color: var(--desk-image-group-title-ink);
+}
+
+body.desk-app[data-theme] .desk-image-group__identity span {
+  color: var(--desk-image-group-meta-ink);
+}
+
+body.desk-app[data-theme] .desk-image-group__item {
+  background: var(--desk-image-group-item-background);
+  border-color: var(--desk-image-group-item-border);
+  box-shadow: var(--desk-image-group-item-shadow);
+}
+
+body.desk-app[data-theme] .desk-image-group__item.is-dragging {
+  filter: var(--desk-image-group-item-drag-filter);
+}
+
+body.desk-app[data-theme] .desk-image-group__thumb {
+  background: var(--desk-image-group-thumb-background);
+}
+
+body.desk-app[data-theme] .desk-image-group__thumb img {
+  border-color: var(--desk-image-group-thumb-border);
+  box-shadow: var(--desk-image-group-thumb-shadow);
+}
+
+body.desk-app[data-theme] .desk-image-group__thumb strong {
+  color: var(--desk-image-group-badge-ink);
+  background: var(--desk-image-group-badge-background);
+  border-color: var(--desk-image-group-badge-border);
+  box-shadow: var(--desk-image-group-badge-shadow);
+}
+
+body.desk-app[data-theme] .desk-image-group-transition__chip strong {
+  color: var(--desk-image-group-badge-ink);
+  background: var(--desk-image-group-badge-background);
+  border-color: var(--desk-image-group-badge-border);
+  box-shadow:
+    0 calc(var(--desk-image-group-chip-unit) * 8)
+    calc(var(--desk-image-group-chip-unit) * 24)
+    var(--desk-image-group-transition-badge-shadow-color);
+}
+
+body.desk-app[data-theme] .desk-image-group__item-actions {
+  background: var(--desk-image-group-item-actions-background);
+  border-color: var(--desk-image-group-item-actions-border);
+  box-shadow: var(--desk-image-group-item-actions-shadow);
+}
+
+body.desk-app[data-theme] :is(
+  .desk-image-group__item-actions select,
+  .desk-image-group__item-actions > button
+) {
+  color: var(--desk-image-group-control-ink);
+  background: var(--desk-image-group-control-background);
+  border-color: var(--desk-image-group-control-border);
+}
+
+body.desk-app[data-theme] .desk-image-group__item-actions > button {
+  color: var(--desk-image-group-control-accent-ink);
+}
+
+body.desk-app[data-theme] :is(
+  .desk-image-group__item-actions > button:hover,
+  .desk-image-group__item-actions > button:focus-visible,
+  .desk-image-group__item-actions select:focus-visible
+) {
+  color: var(--desk-image-group-control-hover-ink);
+  background: var(--desk-image-group-control-hover-background);
+  border-color: var(--desk-image-group-control-hover-border);
+}
+
+body.desk-app[data-theme] .desk-image-group__item-actions .desk-select-trigger {
+  color: var(--desk-image-group-role-trigger-ink);
+  background: var(--desk-image-group-role-trigger-background);
+  border-color: var(--desk-image-group-role-trigger-border);
+  box-shadow: var(--desk-image-group-role-trigger-shadow);
+}
+
+body.desk-app[data-theme] .desk-image-group__item-actions .desk-select-chev {
+  color: var(--desk-image-group-role-chevron);
+}
+
+body.desk-app[data-theme] .desk-image-group__item-actions .desk-select-trigger:hover {
+  color: var(--desk-image-group-role-trigger-hover-ink);
+  background: var(--desk-image-group-role-trigger-hover-background);
+  border-color: var(--desk-image-group-role-trigger-hover-border);
+}
+
+body.desk-app[data-theme] :is(
+  .desk-image-group__item-actions .desk-select-trigger:focus,
+  .desk-image-group__item-actions .desk-select-shell.is-open .desk-select-trigger
+) {
+  color: var(--desk-image-group-role-trigger-focus-ink);
+  background: var(--desk-image-group-role-trigger-focus-background);
+  border-color: var(--desk-image-group-role-trigger-focus-border);
+  box-shadow: var(--desk-image-group-role-trigger-focus-shadow);
+}
+
+body.desk-app[data-theme] :is(
+  .desk-image-group__item-actions .desk-select-menu,
+  .desk-select-menu[data-select-variant="image-group-role"]
+) {
+  color: var(--desk-image-group-role-menu-ink);
+  background: var(--desk-image-group-role-menu-background);
+  border-color: var(--desk-image-group-role-menu-border);
+  box-shadow: var(--desk-image-group-role-menu-shadow);
+}
+
+body.desk-app[data-theme] :is(
+  .desk-image-group__item-actions .desk-select-option,
+  .desk-select-menu[data-select-variant="image-group-role"] .desk-select-option
+) {
+  color: var(--desk-image-group-role-option-ink);
+}
+
+body.desk-app[data-theme] :is(
+  .desk-image-group__item-actions .desk-select-option,
+  .desk-select-menu[data-select-variant="image-group-role"] .desk-select-option
+):is(:hover, .is-highlighted, .is-selected):not(:disabled) {
+  color: var(--desk-image-group-role-option-active-ink);
+  background: var(--desk-image-group-role-option-active-background);
+}
+
+body.desk-app[data-theme] .desk-image-group__node-actions {
+  background: var(--desk-image-group-node-actions-background);
+  border-color: var(--desk-image-group-node-actions-border);
+  box-shadow: var(--desk-image-group-node-actions-shadow);
+}
+
+body.desk-app[data-theme] .desk-image-group__node-actions :is(button, .desk-node-delete) {
+  color: var(--desk-image-group-node-action-ink);
+  background: var(--desk-image-group-node-action-background);
+  border-color: var(--desk-image-group-node-action-border);
+}
+
+body.desk-app[data-theme] .desk-image-group__node-actions button:is(:hover, :focus-visible) {
+  color: var(--desk-image-group-node-action-hover-ink);
+  background: var(--desk-image-group-node-action-hover-background);
+  border-color: var(--desk-image-group-node-action-hover-border);
+}
+
+body.desk-app[data-theme] .desk-image-group__node-actions .desk-node-delete:is(:hover, :focus-visible) {
+  color: var(--desk-image-group-node-danger-hover-ink);
+  background: var(--desk-image-group-node-danger-hover-background);
+  border-color: var(--desk-image-group-node-danger-hover-border);
+}
+
+body.desk-app[data-theme] .desk-node:is(
+  .is-image-group-proximity-source,
+  .is-image-group-proximity-target
+) {
+  outline-color: var(--desk-image-group-proximity-outline);
+}
+
+body.desk-app[data-theme] .desk-image-group-dwell {
+  filter: var(--desk-image-group-dwell-filter);
+}
+
+body.desk-app[data-theme] .desk-image-group-dwell__track {
+  stroke: var(--desk-image-group-dwell-track);
+}
+
+body.desk-app[data-theme] .desk-image-group-dwell__progress {
+  stroke: var(--desk-image-group-dwell-progress);
+}
+
+body.desk-app[data-theme] .desk-image-group-dwell > span {
+  background: var(--desk-image-group-dwell-dot-background);
+  border-color: var(--desk-image-group-dwell-dot-border);
+}
+
+body.desk-app[data-theme] .desk-image-group-transition__goo span {
+  background: var(--desk-image-group-transition-goo-background);
+  box-shadow: var(--desk-image-group-transition-goo-shadow);
+}
+
+body.desk-app[data-theme] .desk-image-group-transition__images > img {
+  border-color: var(--desk-image-group-transition-image-border);
+  box-shadow: var(--desk-image-group-transition-image-shadow);
+}
+
+body.desk-app[data-theme] .desk-image-group-transition__liquid-svg {
+  filter: var(--desk-image-group-transition-liquid-filter);
+}
+
+body.desk-app[data-theme] .desk-image-group-transition__melt img {
+  filter: var(--desk-image-group-transition-melt-filter);
+}
+
+body.desk-app[data-theme] :is(
+  .desk-image-group-transition__bridge,
+  .desk-image-group-transition__bridge-halo,
+  .desk-image-group-transition__contact
+) {
+  fill: var(--desk-image-group-transition-contact-fill);
+}
+
+body.desk-app[data-theme] .desk-image-group-transition[data-contact-side="right"] .desk-image-group-transition__melt img {
+  -webkit-mask-image: var(--desk-image-group-transition-mask-right);
+  mask-image: var(--desk-image-group-transition-mask-right);
+}
+
+body.desk-app[data-theme] .desk-image-group-transition[data-contact-side="left"] .desk-image-group-transition__melt img {
+  -webkit-mask-image: var(--desk-image-group-transition-mask-left);
+  mask-image: var(--desk-image-group-transition-mask-left);
+}
+
+body.desk-app[data-theme] .desk-image-group-transition__identity strong {
+  color: var(--desk-image-group-transition-title-ink);
+}
+
+body.desk-app[data-theme] .desk-image-group-transition__identity span {
+  color: var(--desk-image-group-transition-meta-ink);
+}
+
+body.desk-app[data-theme] .desk-image-group-transition__chip img {
+  border-color: var(--desk-image-group-transition-chip-border);
+  box-shadow:
+    0 calc(var(--desk-image-group-chip-unit) * 20) calc(var(--desk-image-group-chip-unit) * 52) var(--desk-image-group-transition-chip-shadow-color),
+    0 0 0 calc(var(--desk-image-group-chip-unit) * 4) var(--desk-image-group-transition-chip-ring);
+}
+
+body.desk-app[data-theme] .desk-image-group-transition__chip.is-incoming img {
+  box-shadow:
+    0 calc(var(--desk-image-group-chip-unit) * 24) calc(var(--desk-image-group-chip-unit) * 56) var(--desk-image-group-transition-chip-incoming-shadow-color),
+    0 0 0 calc(var(--desk-image-group-chip-unit) * 4) var(--desk-image-group-transition-chip-incoming-ring);
+}

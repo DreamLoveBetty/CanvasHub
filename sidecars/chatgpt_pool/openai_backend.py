@@ -21,6 +21,10 @@ from urllib.parse import parse_qs, unquote, urljoin, urlparse
 import requests
 from PIL import Image, ImageChops, ImageStat
 
+from backend.psd_pipeline import (
+    PSD_TRANSPARENT_IMAGE_PROMPT,
+    build_transparent_psd_bundle,
+)
 from .pow import build_legacy_requirements_token, build_proof_token, parse_pow_resources
 from .utils import new_uuid
 
@@ -99,10 +103,7 @@ EDITABLE_FILE_PPT_PROMPT = """我需要你根据用户的需求，来制作一�
 2. 帮我把以上涉及到的所有图像和形状素材拆分成单独png，每个素材单独一张图片，不要有遗漏，让我可以直接在ppt里拼接素材还原，不要文字
 3. 利用以上所有图片和形状素材，帮我还原你第一次生成的展示ppt，我需要是可编辑的ppt格式，主要部分需要你单独还原插入，文字需要可以编辑
 最后只需要给我生成一个PPT文件，以及生成中遇到的各种素材压缩包zip文件就行。"""
-EDITABLE_FILE_PSD_PROMPT = """必须使用 Adobe (formerly Photoshop) 连接器处理上传图片。
-先调用 adobe_mandatory_init，再调用 asset_openai_file_upload 上传图片，最后调用 image_select_subject 获取主主体黑白选区蒙版。
-不要判断或解释连接器是否可用；工具已经完成授权，请在找到工具后直接调用。
-不要调用 Python，不要生成 PSD，不要创建占位文件。完成后仅简短确认蒙版已生成。"""
+EDITABLE_FILE_PSD_PROMPT = PSD_TRANSPARENT_IMAGE_PROMPT
 ASSET_POINTER_RE = re.compile(r"(?:file-service|sediment)://([A-Za-z0-9_-]+)")
 EDITABLE_ASSET_POINTER_RE = ASSET_POINTER_RE
 EDITABLE_ZIP_MIME_TYPES = {"application/zip", "application/x-zip-compressed"}
@@ -1773,37 +1774,24 @@ class OpenAIBackend:
     ) -> EditableFileExportResult:
         if not base64_images:
             raise ValueError("base64_images is empty")
-        self.session.headers["OAI-Client-Version"] = EDITABLE_FILE_CLIENT_VERSION
-        self.session.headers["OAI-Client-Build-Number"] = EDITABLE_FILE_CLIENT_BUILD_NUMBER
         output_path = Path(output_dir).expanduser().resolve()
         output_path.mkdir(parents=True, exist_ok=True)
         source_data, _, _, _, _ = self._decode_editable_base64_image(base64_images[0], 1)
-        uploaded = [self._upload_editable_base64_image(base64_images[0], 1)]
-        self._ensure_adobe_connector()
-        adobe_prompt = EDITABLE_FILE_PSD_PROMPT
-        conduit_token = self._prepare_editable_conversation(adobe_prompt, [uploaded[0]["mime_type"]])
-        conversation_id = self._run_editable_conversation(
-            adobe_prompt,
-            uploaded,
-            conduit_token,
-            connector_ids=[ADOBE_CONNECTOR_ID],
+        self.timeout_seconds = max(self.timeout_seconds, int(timeout_secs or EDITABLE_FILE_TIMEOUT_SECS))
+        image_result = self.edit_image(
+            self._editable_prompt(EDITABLE_FILE_PSD_PROMPT, prompt),
+            base64_images,
+            model="gpt-image-2",
+            quality="high",
         )
-        masks = self._wait_adobe_mask_outputs(
-            conversation_id,
-            timeout_secs=timeout_secs,
-            poll_interval_secs=poll_interval_secs,
-        )
-        masks = self._collect_additional_adobe_masks(
-            conversation_id,
-            masks,
-            max_additional=ADOBE_ADDITIONAL_MASK_COUNT,
-            poll_interval_secs=poll_interval_secs,
-        )
-        return self._build_adobe_psd_bundle(
+        generated_b64 = str(image_result.get("b64_json") or "").strip()
+        if not generated_b64:
+            raise RuntimeError("ChatGPT did not return a transparent PNG payload")
+        return self._build_transparent_psd_bundle(
+            base64.b64decode(generated_b64),
             source_data,
-            masks,
             output_path,
-            conversation_id=conversation_id,
+            conversation_id=str(image_result.get("conversation_id") or ""),
         )
 
     def _get_adobe_connector_link(self) -> dict[str, Any]:
@@ -2454,147 +2442,25 @@ class OpenAIBackend:
                 return [str(candidate_path), str(path)]
         raise RuntimeError("ImageMagick identify is required to validate layered PSD output")
 
-    def _build_adobe_psd_bundle(
+    def _build_transparent_psd_bundle(
         self,
-        source_data: bytes,
-        mask_artifacts: list[AdobeMaskArtifact],
+        generated_data: bytes,
+        reference_data: bytes,
         output_dir: Path,
         *,
         conversation_id: str,
     ) -> EditableFileExportResult:
-        source = Image.open(BytesIO(source_data)).convert("RGBA")
-        width, height = source.size
-        source = Image.alpha_composite(Image.new("RGBA", source.size, (0, 0, 0, 0)), source)
-        original_alpha = source.getchannel("A")
-        usable_masks: list[tuple[AdobeMaskArtifact, Image.Image, float]] = []
-        seen_hashes: set[str] = set()
-        for artifact in mask_artifacts[:ADOBE_MAX_MASKS]:
-            mask = self._download_adobe_mask(artifact, source.size)
-            mask = mask.point(lambda value: 255 if value >= 128 else 0)
-            digest = hashlib.sha256(mask.tobytes()).hexdigest()
-            if digest in seen_hashes:
-                continue
-            seen_hashes.add(digest)
-            coverage = float(ImageStat.Stat(mask).mean[0]) / 255.0
-            if coverage < PSD_MIN_LAYER_COVERAGE or coverage > PSD_MAX_LAYER_COVERAGE:
-                continue
-            usable_masks.append((artifact, mask, coverage))
-        if not usable_masks:
-            raise RuntimeError("Adobe connector returned masks, but none contained a usable selected region")
-
-        assigned = Image.new("L", source.size, 0)
-        semantic_regions_reversed: list[tuple[AdobeMaskArtifact, Image.Image, float]] = []
-        for artifact, mask, _ in reversed(usable_masks):
-            exclusive = ImageChops.subtract(mask, assigned)
-            assigned = ImageChops.lighter(assigned, mask)
-            coverage = float(ImageStat.Stat(exclusive).mean[0]) / 255.0
-            if coverage >= PSD_MIN_LAYER_COVERAGE:
-                semantic_regions_reversed.append((artifact, exclusive, coverage))
-        semantic_regions = list(reversed(semantic_regions_reversed))
-        if not semantic_regions:
-            raise RuntimeError("Adobe masks completely overlapped and did not produce an editable semantic layer")
-
-        layers_dir = output_dir / "layers"
-        layers_dir.mkdir(parents=True, exist_ok=True)
-        composite_path = output_dir / "composite_preview.png"
-        original_path = output_dir / "original_reference.png"
-        source.save(composite_path, "PNG")
-        source.save(original_path, "PNG")
-
-        layer_records: list[dict[str, Any]] = []
-
-        def save_layer(label: str, region_alpha: Image.Image, description: str, coverage: float) -> Path:
-            index = len(layer_records) + 1
-            file_name = f"{index:02d}_{self._psd_layer_slug(label, f'LAYER_{index:02d}')}.png"
-            path = layers_dir / file_name
-            layer_image = source.copy()
-            layer_image.putalpha(ImageChops.multiply(original_alpha, region_alpha))
-            layer_image.save(path, "PNG")
-            layer_records.append(
-                {
-                    "index": index,
-                    "name": label,
-                    "description": description,
-                    "file": f"layers/{file_name}",
-                    "coverage": round(float(coverage), 6),
-                }
-            )
-            return path
-
-        background_alpha = ImageChops.invert(assigned)
-        background_coverage = float(ImageStat.Stat(background_alpha).mean[0]) / 255.0
-        layer_paths: list[tuple[Path, str]] = [
-            (
-                save_layer("BACKGROUND", background_alpha, "All visible pixels outside Adobe semantic selections", background_coverage),
-                "01_BACKGROUND",
-            )
-        ]
-        for semantic_index, (artifact, region_alpha, coverage) in enumerate(semantic_regions):
-            semantic_label = self._psd_semantic_label(artifact.description, semantic_index)
-            path = save_layer(semantic_label, region_alpha, artifact.description, coverage)
-            layer_paths.append((path, f"{len(layer_paths) + 1:02d}_{semantic_label}"))
-        if len(layer_paths) < 2:
-            raise RuntimeError("PSD assembly requires at least background and one semantic layer")
-        reconstructed = Image.new("RGBA", source.size, (0, 0, 0, 0))
-        for path, _ in layer_paths:
-            with Image.open(path) as layer_image:
-                reconstructed = Image.alpha_composite(reconstructed, layer_image.convert("RGBA"))
-        if ImageChops.difference(reconstructed, source).getbbox() is not None:
-            raise RuntimeError("assembled PNG layers do not reconstruct the source image exactly")
-
-        manifest = {
-            "version": 1,
-            "generator": "adobe-semantic-masks+imagemagick",
-            "connector_id": ADOBE_CONNECTOR_ID,
-            "conversation_id": conversation_id,
-            "canvas": {"width": width, "height": height},
-            "layer_count": len(layer_records),
-            "reconstruction_exact": True,
-            "layers": layer_records,
-            "composite_preview": composite_path.name,
-            "original_reference": original_path.name,
-        }
-        manifest_path = output_dir / "manifest.json"
-        manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
-        readme_path = output_dir / "README.txt"
-        readme_path.write_text(
-            "Editable PSD layers generated from Adobe semantic selection masks.\n"
-            "Every PNG uses the original full canvas size and can be aligned at coordinates 0,0.\n",
-            encoding="utf-8",
+        bundle = build_transparent_psd_bundle(
+            generated_data,
+            reference_data,
+            output_dir,
+            provider_route="chatgpt_pool",
+            conversation_id=conversation_id,
         )
-
-        magick = self._find_image_magick()
-        if not magick:
-            raise RuntimeError("ImageMagick is required to assemble a layered PSD")
-        psd_path = output_dir / "layered_output.psd"
-        command = [magick]
-        for path, label in [(composite_path, "Composite"), *layer_paths]:
-            command.extend(["(", str(path), "-type", "TrueColorAlpha", "-set", "label", label, ")"])
-        command.extend(["-define", "psd:preserve-opacity-mask=true", str(psd_path)])
-        completed = subprocess.run(
-            command,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            timeout=180,
-            check=False,
-        )
-        if completed.returncode != 0:
-            detail = completed.stderr.decode("utf-8", "replace")[-1200:]
-            raise RuntimeError(f"ImageMagick layered PSD assembly failed: {detail}")
-
-        zip_path = output_dir / "layered_layers.zip"
-        with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
-            archive.write(composite_path, composite_path.name)
-            archive.write(original_path, original_path.name)
-            archive.write(manifest_path, manifest_path.name)
-            archive.write(readme_path, readme_path.name)
-            for path, _ in layer_paths:
-                archive.write(path, f"layers/{path.name}")
-        self._validate_psd_bundle(psd_path, zip_path)
         return EditableFileExportResult(
             conversation_id=conversation_id,
-            primary_path=psd_path,
-            zip_path=zip_path,
+            primary_path=bundle.primary_path,
+            zip_path=bundle.zip_path,
         )
 
     def _validate_psd_bundle(self, psd_path: Path, zip_path: Path) -> None:
@@ -2613,9 +2479,9 @@ class OpenAIBackend:
             check=False,
         )
         scenes = [line for line in identified.stdout.decode("utf-8", "replace").splitlines() if line.strip()]
-        if identified.returncode != 0 or len(scenes) < 3:
+        if identified.returncode != 0 or len(scenes) < 2:
             detail = identified.stderr.decode("utf-8", "replace")[-800:]
-            raise RuntimeError(f"generated PSD does not contain at least two editable layers: {detail}")
+            raise RuntimeError(f"generated PSD does not contain an editable layer: {detail}")
         if not zip_path.exists() or not zipfile.is_zipfile(zip_path):
             raise RuntimeError("generated layer ZIP is invalid")
         bad_markers = ("fallback", "placeholder", "automatic extraction unavailable")
@@ -2629,8 +2495,8 @@ class OpenAIBackend:
                 and Path(name).suffix.lower() == ".png"
             ]
             layer_names.sort()
-            if len(layer_names) < 2:
-                raise RuntimeError("generated layer ZIP contains fewer than two PNG layers")
+            if not layer_names:
+                raise RuntimeError("generated layer ZIP does not contain a PNG layer")
             canvas_size: tuple[int, int] | None = None
             has_transparency = False
             layer_images: list[Image.Image] = []
@@ -3419,6 +3285,7 @@ class OpenAIBackend:
         return {
             "b64_json": base64.b64encode(image_bytes).decode("ascii"),
             "revised_prompt": revised_prompt,
+            "conversation_id": conversation_id,
         }
 
     def generate_image(self, prompt: str, model: str = "gpt-image-2", size: str | None = None, quality: str = "auto") -> dict[str, str]:

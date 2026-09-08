@@ -5,14 +5,37 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="canvashub-version" content="V26.2.2">
   <title>图像画布</title>
-  <link rel="stylesheet" href="styles/desktop-liquid.css?v=20260810-prompt-task-rail1">
-  <link rel="stylesheet" href="styles/desktop-video.css?v=20260809-video-aspect1">
-  <link rel="stylesheet" href="styles/desktop-layout.css?v=20260629-desk-select1">
-  <link rel="stylesheet" href="styles/desktop-pose.css?v=20260703-pose-reference1">
-  <link rel="stylesheet" href="styles/desktop-file-results.css?v=20260711-file-board-list4">
-  <link rel="stylesheet" href="styles/desktop-prompt-library.css?v=20260719-color-image-analysis12">
+  <link rel="stylesheet" href="styles/desktop-tokens.css?v=20260901-agent-task-shelve1">
+  <link rel="stylesheet" href="styles/desktop-liquid.css?v=20260831-status-silk2">
+  <link rel="stylesheet" href="styles/desktop-video.css?v=20260816-h3-supervisor-buttons1">
+  <link rel="stylesheet" href="styles/desktop-layout.css?v=20260831-status-silk2">
+  <link rel="stylesheet" href="styles/desktop-pose.css?v=20260831-status-silk2">
+  <link rel="stylesheet" href="styles/desktop-file-results.css?v=20260831-status-silk2">
+  <link rel="stylesheet" href="styles/desktop-prompt-library.css?v=20260831-status-silk2">
+  <link rel="stylesheet" href="styles/desktop-shell.css?v=20260831-status-silk2">
+  <link rel="stylesheet" href="styles/desktop-canvas-nodes.css?v=20260831-status-silk2">
+  <link rel="stylesheet" href="styles/desktop-image-group.css?v=20260825-image-group-module3">
+  <link rel="stylesheet" href="styles/desktop-prompt-assistant.css?v=20260902-agent-task-actions1">
+  <link rel="stylesheet" href="styles/desktop-gallery.css?v=20260827-style-cleanup1">
+  <link rel="stylesheet" href="styles/desktop-settings-auth.css?v=20260827-style-cleanup1">
+  <link rel="stylesheet" href="styles/desktop-creation-tools.css?v=20260831-status-silk2">
+  <link rel="stylesheet" href="styles/desktop-controls.css?v=20260831-blue-silk1">
+  <link rel="stylesheet" href="styles/desktop-geometry.css?v=20260902-agent-task-actions1">
+  <link rel="stylesheet" href="styles/desktop-motion.css?v=20260902-agent-task-actions1">
+  <link rel="stylesheet" href="styles/desktop-performance.css?v=20260825-canvas-performance1">
 </head>
-<body class="desk-app" data-app-version="V26.2.2">
+<body class="desk-app" data-theme="light" data-app-version="V26.2.2">
+  <script>
+    (() => {
+      let theme = 'light';
+      try {
+        const saved = JSON.parse(localStorage.getItem('desktop_ui_preferences_v1') || '{}');
+        if (saved?.theme === 'dark') theme = 'dark';
+      } catch (error) {}
+      document.documentElement.dataset.theme = theme;
+      document.body.dataset.theme = theme;
+    })();
+  </script>
   <div id="authOverlay" class="auth-overlay">
     <div class="auth-card desk-glass">
       <div class="auth-title" data-i18n="authTitle">需要身份验证</div>
@@ -321,6 +344,10 @@
         </div>
       </div>
       <div class="desk-selection-toolbar desk-glass" id="deskSelectionToolbar" aria-label="节点对齐工具">
+        <button type="button" class="desk-selection-image-group" data-create-image-group title="组成图片组" aria-label="将选中图片组成图片组" hidden>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="8" height="8" rx="2"></rect><rect x="13" y="11" width="8" height="8" rx="2"></rect><path d="M9 16h6M12 13v6"></path></svg>
+        </button>
+        <span data-image-group-divider hidden></span>
         <button type="button" data-align="left" title="左对齐" aria-label="左对齐">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4v16"></path><path d="M10 7h8"></path><path d="M10 12h6"></path><path d="M10 17h10"></path></svg>
         </button>
@@ -1094,9 +1121,9 @@
           <div class="desk-prompt-drawer__title">
             <strong id="deskPromptWorkbenchTitle">提示词助手</strong>
           </div>
-          <div class="desk-prompt-mode-switch" role="tablist" aria-label="工作模式">
-            <button type="button" id="deskPromptAssistantMode" class="is-active" role="tab" aria-selected="true">助手</button>
-            <button type="button" id="deskPromptAgentMode" role="tab" aria-selected="false">Agent</button>
+          <div class="desk-prompt-mode-switch" data-mode="assistant" role="tablist" aria-label="工作模式">
+            <button type="button" id="deskPromptAssistantMode" class="desk-prompt-mode-button is-active" role="tab" aria-selected="true">助手</button>
+            <button type="button" id="deskPromptAgentMode" class="desk-prompt-mode-button" role="tab" aria-selected="false">Agent</button>
           </div>
           <div class="desk-prompt-drawer__control-row" data-prompt-assistant-view>
             <label class="desk-prompt-node-picker">
@@ -1123,22 +1150,37 @@
         <div class="desk-prompt-drawer__grid" data-prompt-assistant-view>
           <div class="desk-prompt-chat">
             <div class="desk-prompt-chat__head">
+              <div class="desk-prompt-task-mode" id="deskPromptTaskMode" role="radiogroup" aria-label="提示词任务类型">
+                <input id="deskPromptImageAnalysisToggle" type="checkbox" hidden aria-hidden="true" tabindex="-1">
+                <button type="button" class="is-active" data-prompt-task-mode="conversation" role="radio" aria-label="普通会话" aria-checked="true">
+                  <svg class="desk-prompt-task-mode__icon" viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M5 5.5h14a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-8l-4.5 3v-3H5a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2Z"></path>
+                    <path d="M8 10h8M8 13.5h5"></path>
+                  </svg>
+                  <span class="desk-prompt-task-mode__label" aria-hidden="true">普通会话</span>
+                </button>
+                <button type="button" data-prompt-task-mode="image_analysis" role="radio" aria-label="图片分析" aria-checked="false">
+                  <svg class="desk-prompt-task-mode__icon" viewBox="0 0 24 24" aria-hidden="true">
+                    <rect x="3.5" y="4.5" width="17" height="15" rx="2.5"></rect>
+                    <circle cx="9" cy="10" r="1.7"></circle>
+                    <path d="m5.5 17 4.2-4.2 3.1 3.1 2.2-2.2 3.5 3.3"></path>
+                  </svg>
+                  <span class="desk-prompt-task-mode__label" aria-hidden="true">图片分析</span>
+                </button>
+                <button type="button" data-prompt-task-mode="video_prompt" role="radio" aria-label="视频提示" aria-checked="false">
+                  <svg class="desk-prompt-task-mode__icon" viewBox="0 0 24 24" aria-hidden="true">
+                    <rect x="3.5" y="5" width="17" height="14" rx="2.5"></rect>
+                    <path class="desk-prompt-task-mode__play" d="m10 9 5 3-5 3Z"></path>
+                  </svg>
+                  <span class="desk-prompt-task-mode__label" aria-hidden="true">视频提示</span>
+                </button>
+              </div>
               <button type="button" class="desk-prompt-expand-btn" id="deskPromptChatExpand" aria-label="展开讨论区" title="展开讨论区">
                 <span class="desk-icon desk-icon--expand" aria-hidden="true"></span>
               </button>
             </div>
             <div class="desk-prompt-chat__messages" id="deskPromptChatMessages"></div>
             <div class="desk-prompt-chat__input">
-              <div class="desk-prompt-task-mode" id="deskPromptTaskMode" role="radiogroup" aria-label="提示词任务类型">
-                <input id="deskPromptImageAnalysisToggle" type="checkbox" hidden aria-hidden="true" tabindex="-1">
-                <span class="desk-prompt-task-mode__rail" aria-hidden="true">
-                  <span class="desk-prompt-task-mode__fill"></span>
-                  <span class="desk-prompt-task-mode__thumb"><i></i></span>
-                </span>
-                <button type="button" class="is-active" data-prompt-task-mode="conversation" role="radio" aria-checked="true">普通会话</button>
-                <button type="button" data-prompt-task-mode="image_analysis" role="radio" aria-checked="false">图片分析</button>
-                <button type="button" data-prompt-task-mode="video_prompt" role="radio" aria-checked="false">视频提示</button>
-              </div>
               <div class="desk-prompt-chat__textwrap" id="deskPromptChatTextWrap">
                 <div id="deskPromptChatInput" class="desk-prompt-editor" contenteditable="true" role="textbox" aria-multiline="true" data-placeholder="输入讨论内容，或输入 @ 选择画布图片节点。"></div>
                 <div class="desk-prompt-image-menu" id="deskPromptImageMenu" hidden></div>
@@ -1162,7 +1204,40 @@
             <div class="desk-prompt-candidates__list" id="deskPromptCandidateList"></div>
           </div>
         </div>
-        <div class="desk-agent-workbench" id="deskAgentWorkbench" data-prompt-agent-view hidden>
+        <nav class="desk-agent-task-rail" id="deskAgentTaskRail" data-prompt-agent-view aria-label="Agent 任务" hidden>
+          <span class="desk-agent-task-rail__label">Agent 任务</span>
+          <div class="desk-agent-task-navigator">
+            <button type="button" class="desk-agent-icon-btn desk-agent-task-nav desk-agent-task-secondary" id="deskAgentTaskPrev" aria-label="向前浏览 Agent 任务" title="向前浏览任务" disabled>
+              <span aria-hidden="true">‹</span>
+            </button>
+            <div class="desk-agent-task-track" id="deskAgentTaskTrack" role="tablist" aria-label="切换 Agent 任务"></div>
+            <button type="button" class="desk-agent-icon-btn desk-agent-task-nav desk-agent-task-secondary" id="deskAgentTaskNext" aria-label="向后浏览 Agent 任务" title="向后浏览任务" disabled>
+              <span aria-hidden="true">›</span>
+            </button>
+          </div>
+          <div class="desk-agent-task-actions">
+            <button type="button" class="desk-agent-task-all desk-agent-task-secondary" id="deskAgentTaskAll" aria-label="查看全部 Agent 任务" aria-expanded="false" aria-controls="deskAgentTaskDrawer">
+              <span>全部任务</span>
+              <em id="deskAgentTaskAllCount">1</em>
+            </button>
+            <button type="button" class="desk-agent-new-task" id="deskAgentNewTask" aria-label="新建 Agent 任务">
+              <span aria-hidden="true">＋</span>
+              <span>新建任务</span>
+            </button>
+          </div>
+        </nav>
+        <div class="desk-agent-task-card-menu" id="deskAgentTaskCardMenu" role="menu" aria-label="任务卡片操作" hidden>
+          <button type="button" class="desk-agent-task-card-menu__item desk-agent-task-secondary" id="deskAgentTaskCardShelve" data-agent-card-menu-action="shelve" role="menuitem">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16v13H4zM3 3h18v4H3zM9 12h6"></path></svg>
+            <span>收纳到任务列表</span>
+          </button>
+          <button type="button" class="desk-agent-task-card-menu__item is-danger desk-agent-task-secondary" id="deskAgentTaskCardDelete" data-agent-card-menu-action="delete" role="menuitem">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 3h6l1 4H8l1-4ZM7 7l1 14h8l1-14M10 11v6M14 11v6"></path></svg>
+            <span>删除任务</span>
+          </button>
+        </div>
+        <div class="desk-agent-stage" id="deskAgentStage" data-prompt-agent-view hidden>
+        <div class="desk-agent-workbench" id="deskAgentWorkbench" role="tabpanel">
           <section class="desk-agent-pane desk-agent-pane--goal">
             <header class="desk-agent-pane__head">
               <strong>目标与上下文</strong>
@@ -1170,7 +1245,7 @@
             </header>
             <div class="desk-agent-goal-body">
               <div class="desk-agent-goal-editor-wrap" id="deskAgentGoalWrap">
-                <div id="deskAgentGoal" class="desk-agent-goal-editor desk-prompt-editor" contenteditable="true" role="textbox" aria-multiline="true" aria-label="Agent 目标" data-maxlength="2000" data-placeholder="描述要完成的目标，输入 @ 可引用画布图片。"></div>
+                <div id="deskAgentGoal" class="desk-agent-goal-editor desk-prompt-editor" contenteditable="true" role="textbox" aria-multiline="true" aria-label="Agent 目标" data-maxlength="2000" data-placeholder="描述目标；@ 引用图片，# 选择配色，/ 插入提示词素材。"></div>
                 <div class="desk-prompt-image-menu desk-agent-image-menu" id="deskAgentImageMenu" hidden></div>
               </div>
               <div class="desk-agent-context" id="deskAgentContext"></div>
@@ -1200,12 +1275,9 @@
               <strong>执行计划</strong>
               <span id="deskAgentPlanMeta">尚未创建</span>
             </header>
-            <div class="desk-agent-steps" id="deskAgentSteps"></div>
-            <footer class="desk-agent-approval" id="deskAgentApproval">
-              <div class="desk-agent-approval__meta">
-                <strong id="deskAgentApprovalTitle">先生成计划</strong>
-                <span id="deskAgentApprovalHint">执行前会再次确认</span>
-              </div>
+            <div class="desk-agent-plan-body">
+              <div class="desk-agent-steps" id="deskAgentSteps"></div>
+              <div class="desk-agent-plan-details">
               <div class="desk-agent-decision" id="deskAgentDecision" hidden>
                 <div class="desk-agent-decision__main">
                   <div class="desk-agent-decision__copy">
@@ -1293,6 +1365,13 @@
                   <em>Telegram</em>
                 </label>
               </div>
+              </div>
+            </div>
+            <footer class="desk-agent-approval" id="deskAgentApproval">
+              <div class="desk-agent-approval__meta">
+                <strong id="deskAgentApprovalTitle">先生成计划</strong>
+                <span id="deskAgentApprovalHint">执行前会再次确认</span>
+              </div>
               <button type="button" class="desk-agent-command is-primary" id="deskAgentApprove" disabled>
                 <span class="desk-icon desk-icon--play" aria-hidden="true"></span>
                 <span>批准并运行</span>
@@ -1313,6 +1392,56 @@
             </footer>
           </section>
         </div>
+        <div class="desk-agent-task-drawer-backdrop" id="deskAgentTaskDrawerBackdrop" aria-hidden="true"></div>
+        <aside class="desk-agent-task-drawer" id="deskAgentTaskDrawer" role="dialog" aria-modal="false" aria-labelledby="deskAgentTaskDrawerTitle" aria-hidden="true">
+          <header class="desk-agent-task-drawer__head">
+            <div>
+              <strong id="deskAgentTaskDrawerTitle">全部任务</strong>
+              <span id="deskAgentTaskDrawerTotal">1 个</span>
+            </div>
+            <button type="button" class="desk-agent-icon-btn desk-agent-task-secondary" id="deskAgentTaskDrawerClose" aria-label="关闭全部任务" title="关闭全部任务">
+              <span class="desk-icon desk-icon--close" aria-hidden="true"></span>
+            </button>
+          </header>
+          <label class="desk-agent-task-search">
+            <span class="desk-agent-task-search__icon" aria-hidden="true"></span>
+            <input id="deskAgentTaskSearch" type="search" autocomplete="off" placeholder="搜索任务名、ID 或目标" aria-label="搜索 Agent 任务">
+          </label>
+          <div class="desk-agent-task-filters" id="deskAgentTaskFilters" role="group" aria-label="筛选 Agent 任务">
+            <button type="button" class="desk-agent-task-filter desk-agent-task-secondary is-active" data-agent-task-filter="all"><span>全部</span><em>0</em></button>
+            <button type="button" class="desk-agent-task-filter desk-agent-task-secondary" data-agent-task-filter="running"><span>执行中</span><em>0</em></button>
+            <button type="button" class="desk-agent-task-filter desk-agent-task-secondary" data-agent-task-filter="draft"><span>草稿</span><em>0</em></button>
+            <button type="button" class="desk-agent-task-filter desk-agent-task-secondary" data-agent-task-filter="waiting"><span>等待</span><em>0</em></button>
+            <button type="button" class="desk-agent-task-filter desk-agent-task-secondary" data-agent-task-filter="done"><span>已完成</span><em>0</em></button>
+            <button type="button" class="desk-agent-task-filter desk-agent-task-secondary" data-agent-task-filter="failed"><span>异常</span><em>0</em></button>
+            <button type="button" class="desk-agent-task-filter desk-agent-task-secondary" data-agent-task-filter="archived"><span>已归档</span><em>0</em></button>
+          </div>
+          <div class="desk-agent-task-list" id="deskAgentTaskList" role="list" aria-label="Agent 任务列表"></div>
+          <div class="desk-agent-task-empty" id="deskAgentTaskEmpty" hidden>没有符合条件的任务</div>
+        </aside>
+        </div>
+        <div class="desk-agent-task-dialog-backdrop" id="deskAgentTaskDialogBackdrop" hidden></div>
+        <section class="desk-agent-task-dialog" id="deskAgentTaskDialog" role="dialog" aria-modal="true" aria-labelledby="deskAgentTaskDialogTitle" aria-describedby="deskAgentTaskDialogDescription" hidden>
+          <form id="deskAgentTaskDialogForm">
+            <header class="desk-agent-task-dialog__head">
+              <strong id="deskAgentTaskDialogTitle">新建 Agent 任务</strong>
+              <button type="button" class="desk-agent-icon-btn desk-agent-task-secondary" id="deskAgentTaskDialogClose" aria-label="关闭任务窗口" title="关闭">
+                <span class="desk-icon desk-icon--close" aria-hidden="true"></span>
+              </button>
+            </header>
+            <p id="deskAgentTaskDialogDescription">为任务填写一个便于识别的名称。</p>
+            <label class="desk-agent-task-name-field" id="deskAgentTaskNameField">
+              <span>任务名称</span>
+              <input id="deskAgentTaskNameInput" type="text" maxlength="40" autocomplete="off" required placeholder="例如：古典眼睛风格生成">
+              <small>任务 ID 由系统自动生成，不需要手动填写。</small>
+            </label>
+            <p class="desk-agent-task-dialog__error" id="deskAgentTaskDialogError" role="alert" hidden></p>
+            <footer class="desk-agent-task-dialog__actions">
+              <button type="button" class="desk-agent-task-secondary" id="deskAgentTaskDialogCancel">取消</button>
+              <button type="submit" class="desk-agent-task-dialog__confirm" id="deskAgentTaskDialogConfirm">创建任务</button>
+            </footer>
+          </form>
+        </section>
       </div>
     </section>
 
@@ -1630,27 +1759,27 @@
   </div>
 
   <script src="scripts/desktop-i18n.js?v=20260716-user-split-rules1"></script>
-  <script src="scripts/auth-api.js?v=20260711-auth-ready1"></script>
+  <script src="scripts/auth-api.js?v=20260824-auth-debug-clean1"></script>
   <script src="vendor/fabric.min.js?v=5.3.0"></script>
   <script src="vendor/fabric-eraser.mixin.js?v=20260628-image-editor-pin16"></script>
-  <script src="scripts/desktop-state.js?v=20260713-canvas-zoom75"></script>
-  <script src="scripts/desktop-preferences.js?v=20260730-custom-updater2-droplet1"></script>
-  <script src="scripts/desktop-select.js?v=20260809-hidden-sync1"></script>
-  <script src="scripts/desktop-api.js?v=20260811-image-transfer1"></script>
+  <script src="scripts/desktop-state.js?v=20260818-canvas-persist2"></script>
+  <script src="scripts/desktop-preferences.js?v=20260825-canvas-performance1"></script>
+  <script src="scripts/desktop-select.js?v=20260825-desktop-motion1"></script>
+  <script src="scripts/desktop-api.js?v=20260902-agent-task-actions1"></script>
   <script src="scripts/desktop-video-config.js?v=20260808-video-4x2-controls1"></script>
-  <script src="scripts/desktop-canvas.js?v=20260811-image-transfer3"></script>
+  <script src="scripts/desktop-canvas.js?v=20260825-canvas-performance1"></script>
   <script type="module" src="scripts/desktop-pose-studio.js?v=20260705-pose-legacy-skeleton1"></script>
   <script src="scripts/desktop-layout-editor.js?v=20260621-websearch1"></script>
   <script src="scripts/desktop-file-results.js?v=20260711-file-board-list3"></script>
   <script src="scripts/desktop-results.js?v=20260807-h3-node3"></script>
-  <script src="scripts/desktop-history.js?v=20260810-video-folder-svgface2"></script>
-  <script src="scripts/desktop-settings.js?v=20260807-h3-node3"></script>
-  <script src="scripts/desktop-prompt-editor.js?v=20260810-prompt-task-modes2"></script>
-  <script src="scripts/desktop-prompt-drawer.js?v=20260810-prompt-task-rail1"></script>
-  <script src="scripts/desktop-prompt-agent.js?v=20260810-h3-phase1"></script>
+  <script src="scripts/desktop-history.js?v=20260829-panel-focus1"></script>
+  <script src="scripts/desktop-settings.js?v=20260829-panel-focus1"></script>
+  <script src="scripts/desktop-prompt-editor.js?v=20260830-agent-mode-slider2"></script>
+  <script src="scripts/desktop-prompt-drawer.js?v=20260825-canvas-performance1"></script>
+  <script src="scripts/desktop-prompt-agent.js?v=20260902-agent-task-actions3"></script>
   <script src="scripts/desktop-color-extractor.js?v=20260719-color-image-analysis10"></script>
-  <script src="scripts/desktop-prompt-library.js?v=20260801-pinterest-fidelity1-bodyshape2"></script>
-  <script src="scripts/desktop-prompt-insert.js?v=20260720-prompt-colors-sqlite3-bodyshape1"></script>
-  <script src="scripts/desktop-bootstrap.js?v=20260805-agent-workbench1"></script>
+  <script src="scripts/desktop-prompt-library.js?v=20260829-panel-focus1"></script>
+  <script src="scripts/desktop-prompt-insert.js?v=20260827-agent-references-fix1"></script>
+  <script src="scripts/desktop-bootstrap.js?v=20260818-canvas-persist2"></script>
 </body>
 </html>

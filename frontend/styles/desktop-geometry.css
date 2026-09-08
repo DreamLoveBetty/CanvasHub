@@ -1,0 +1,1522 @@
+/* Phase 3: desktop typography, density, geometry, and top-level layering. */
+
+body.desk-app[data-theme] {
+  /* Keep legacy modules on the same geometry/elevation scale while they migrate. */
+  --desk-radius: var(--desk-radius-control);
+  --desk-radius-lg: var(--desk-radius-surface);
+  --desk-node-radius: var(--desk-radius-node);
+  --desk-shadow: var(--desk-shadow-panel);
+  --desk-shadow-soft: var(--desk-shadow-panel-soft);
+}
+
+/* Top-level layers. Component internals continue to use local stacking contexts. */
+body.desk-app :is(.desk-rail, .desk-history, .desk-zoom-controls) {
+  z-index: var(--desk-layer-node);
+}
+
+body.desk-app :is(
+  .desk-titlebar,
+  .desk-bottombar,
+  .desk-selection-toolbar,
+  .desk-node-palette
+) {
+  z-index: var(--desk-layer-chrome);
+}
+
+body.desk-app.theme-is-transitioning::before,
+body.desk-app .desk-gallery,
+body.desk-app .desk-image-editor,
+body.desk-app .desk-layout-editor {
+  z-index: var(--desk-layer-workspace);
+}
+
+body.desk-app .desk-gallery-preview {
+  z-index: var(--desk-layer-workspace-preview);
+}
+
+body.desk-app .desk-file-preview-modal {
+  z-index: var(--desk-layer-workspace-file);
+}
+
+body.desk-app .desk-compare {
+  z-index: var(--desk-layer-workspace-compare);
+}
+
+body.desk-app .desk-pose-studio {
+  z-index: var(--desk-layer-workspace-tool);
+}
+
+body.desk-app :is(
+  .desk-release__panel,
+  .desk-settings,
+  .desk-prompt-library
+) {
+  z-index: var(--desk-layer-panel);
+}
+
+body.desk-app :is(
+  .desk-pinterest-analysis-modal,
+  .desk-pinterest-split-modal
+) {
+  z-index: var(--desk-layer-panel-dialog);
+}
+
+body.desk-app .desk-node-context-menu {
+  z-index: var(--desk-layer-context-menu);
+}
+
+body.desk-app :is(.desk-text-polish-modal, .desk-prompt-modal) {
+  z-index: var(--desk-layer-popover);
+}
+
+body.desk-app :is(.desk-text-copy-fallback, .desk-status-tip) {
+  z-index: var(--desk-layer-tooltip);
+}
+
+body.desk-app .desk-prompt-slash-menu {
+  z-index: var(--desk-layer-drawer);
+}
+
+body.desk-app .desk-prompt-drawer {
+  z-index: var(--desk-layer-floating-control);
+}
+
+body.desk-app > .desk-select-menu[data-menu-mode="fixed"] {
+  z-index: var(--desk-layer-menu);
+}
+
+body.desk-app .desk-edge-menu {
+  z-index: var(--desk-layer-canvas-menu);
+}
+
+body.desk-app .auth-overlay {
+  z-index: var(--desk-layer-modal);
+}
+
+body.desk-app .desk-image-group-transition {
+  z-index: var(--desk-layer-interaction);
+}
+
+body.desk-app .desk-image-group-dwell {
+  z-index: var(--desk-layer-interaction-indicator);
+}
+
+body.desk-app .desk-theme-reveal-overlay {
+  z-index: var(--desk-layer-theme-reveal);
+}
+
+/* Shared panel/card geometry. Image-group geometry remains component-owned. */
+body.desk-app[data-theme] :is(.desk-gallery, .desk-settings, .desk-prompt-library) {
+  border-radius: var(--desk-radius-panel);
+}
+
+body.desk-app[data-theme] :is(.desk-settings, .desk-prompt-library) {
+  box-shadow: var(--desk-shadow-panel);
+}
+
+body.desk-app[data-theme] :is(
+  .desk-prompt-candidate,
+  .desk-prompt-analysis-module,
+  .desk-prompt-analysis-editor,
+  .desk-settings-card,
+  .desk-settings-account,
+  .desk-gallery-card,
+  .desk-gallery-set,
+  .desk-gallery-video
+) {
+  border-radius: var(--desk-radius-card);
+}
+
+/* Shell and auxiliary surfaces: readable supporting text, consistent compact controls. */
+body.desk-app[data-theme] :is(
+  .desk-release__panel,
+  .desk-language-menu,
+  .desk-status-tip,
+  .desk-text-polish-modal,
+  .desk-text-copy-fallback
+) :where(p, span, strong, em, label, dt, dd, pre, code, button, input, select, textarea) {
+  font-size: var(--desk-font-size-caption);
+  line-height: var(--desk-line-height-caption);
+  letter-spacing: 0;
+}
+
+body.desk-app[data-theme] :is(
+  .desk-release__panel,
+  .desk-language-menu,
+  .desk-status-tip,
+  .desk-text-polish-modal,
+  .desk-text-copy-fallback
+) :where(button, input, select) {
+  min-height: var(--desk-control-height-sm);
+}
+
+/* Prompt assistant: typography and geometry must move together. */
+body.desk-app[data-theme] .desk-prompt-drawer.is-open:not(.is-agent) {
+  height: min(344px, calc(75vh - 72px));
+}
+
+body.desk-app[data-theme] .desk-prompt-drawer__body {
+  grid-template-rows: 34px minmax(0, 1fr);
+  gap: var(--desk-space-3);
+  padding: var(--desk-space-5);
+  border-radius: var(--desk-radius-panel);
+  box-shadow: var(--desk-shadow-panel);
+}
+
+body.desk-app[data-theme] .desk-prompt-drawer.is-open .desk-prompt-drawer__body {
+  border-radius: var(--desk-radius-panel);
+}
+
+body.desk-app[data-theme] :is(
+  .desk-prompt-drawer__header strong,
+  .desk-prompt-chat__head strong,
+  .desk-prompt-candidates__head strong
+) {
+  font-size: var(--desk-font-size-label);
+  line-height: var(--desk-line-height-tight);
+}
+
+body.desk-app[data-theme] .desk-prompt-drawer__header span,
+body.desk-app[data-theme] .desk-prompt-chat__empty,
+body.desk-app[data-theme] .desk-prompt-candidates__empty,
+body.desk-app[data-theme] .desk-prompt-image-menu__empty,
+body.desk-app[data-theme] .desk-prompt-image-switch {
+  font-size: var(--desk-font-size-caption);
+  line-height: var(--desk-line-height-caption);
+}
+
+body.desk-app[data-theme] .desk-prompt-node-picker select {
+  height: var(--desk-control-height-sm);
+  padding-inline: var(--desk-space-4) var(--desk-space-10);
+  font-size: var(--desk-font-size-caption);
+  border-radius: var(--desk-radius-control);
+}
+
+body.desk-app[data-theme] .desk-prompt-drawer button:not(.desk-prompt-drawer__handle) {
+  font-size: var(--desk-font-size-caption);
+}
+
+/* Segmented tabs and task radios own compact internal geometry. Applying the
+   generic 28px button height here makes them overflow their 24/20px shells. */
+body.desk-app[data-theme] .desk-prompt-drawer button:not(.desk-prompt-drawer__handle):not([role="tab"]):not([role="radio"]) {
+  min-height: var(--desk-control-height-sm);
+  padding-inline: var(--desk-space-4);
+  border-radius: var(--desk-radius-surface);
+}
+
+body.desk-app[data-theme] #deskPromptDrawerClear {
+  min-width: 48px;
+}
+
+body.desk-app[data-theme] .desk-prompt-drawer button.desk-prompt-expand-btn {
+  width: var(--desk-control-height-sm);
+  min-width: var(--desk-control-height-sm);
+  padding: 0;
+}
+
+body.desk-app[data-theme] .desk-prompt-drawer .desk-icon {
+  width: 12px;
+  height: 12px;
+}
+
+/* Header action icons are compact square controls. The generic drawer button
+   padding and the legacy header span offset must not displace their glyphs. */
+body.desk-app[data-theme] .desk-prompt-drawer.is-open button.desk-agent-icon-btn:not(.desk-prompt-drawer__handle) {
+  width: var(--desk-control-height-xs);
+  min-width: var(--desk-control-height-xs);
+  height: var(--desk-control-height-xs);
+  min-height: var(--desk-control-height-xs);
+  padding: 0;
+}
+
+body.desk-app[data-theme] .desk-prompt-drawer.is-open button.desk-agent-icon-btn .desk-icon {
+  margin: 0;
+}
+
+body.desk-app[data-theme] .desk-prompt-chat__message span,
+body.desk-app[data-theme] .desk-prompt-candidate em,
+body.desk-app[data-theme] .desk-prompt-candidate__meta,
+body.desk-app[data-theme] .desk-prompt-chat__message p,
+body.desk-app[data-theme] .desk-prompt-candidate p {
+  font-size: var(--desk-font-size-caption);
+  line-height: var(--desk-line-height-normal);
+}
+
+body.desk-app[data-theme] .desk-prompt-candidate p {
+  max-height: calc(3 * 1.5em);
+}
+
+body.desk-app[data-theme] .desk-prompt-candidate.is-expanded p {
+  max-height: none;
+}
+
+body.desk-app[data-theme] .desk-prompt-editor__image {
+  min-width: 54px;
+  max-width: 112px;
+  height: 26px;
+  min-height: 26px;
+  padding: 2px 5px 2px 3px;
+  gap: 4px;
+  font-size: var(--desk-font-size-micro);
+  vertical-align: -7px;
+}
+
+body.desk-app[data-theme] .desk-prompt-editor__image img {
+  width: 18px;
+  height: 18px;
+  flex-basis: 18px;
+}
+
+body.desk-app[data-theme] .desk-prompt-editor__remove {
+  width: 12px;
+  height: 12px;
+  flex-basis: 12px;
+  font-size: var(--desk-font-size-micro);
+}
+
+body.desk-app[data-theme] .desk-prompt-chat__input {
+  grid-template-rows: 74px;
+  height: 74px;
+}
+
+body.desk-app[data-theme] .desk-prompt-chat__textwrap,
+body.desk-app[data-theme] .desk-prompt-chat__input .desk-prompt-editor {
+  height: 74px;
+  min-height: 74px;
+  max-height: 74px;
+}
+
+body.desk-app[data-theme] .desk-prompt-editor {
+  padding: var(--desk-space-4) var(--desk-space-5);
+  font-size: var(--desk-font-size-caption);
+  line-height: var(--desk-line-height-normal);
+  border-radius: var(--desk-radius-surface);
+}
+
+body.desk-app[data-theme] .desk-prompt-image-menu {
+  border-radius: var(--desk-radius-popover);
+  box-shadow: var(--desk-shadow-control);
+}
+
+body.desk-app[data-theme] .desk-prompt-mode-switch {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+body.desk-app[data-theme] .desk-prompt-mode-switch::before {
+  position: absolute;
+  z-index: 0;
+  top: 2px;
+  bottom: 2px;
+  left: 2px;
+  box-sizing: border-box;
+  width: calc(50% - 2px);
+  content: "";
+  pointer-events: none;
+  border-radius: calc(var(--desk-radius-control) - 1px);
+}
+
+body.desk-app[data-theme] .desk-prompt-mode-switch[data-mode] button {
+  position: relative;
+  z-index: 1;
+}
+
+body.desk-app[data-theme] .desk-agent-image-menu {
+  right: auto;
+  bottom: auto;
+}
+
+body.desk-app[data-theme] .desk-prompt-drawer.is-open .desk-prompt-image-menu button:not(.desk-prompt-drawer__handle) {
+  position: relative;
+  box-sizing: border-box;
+  width: 60px;
+  min-width: 60px;
+  height: 60px;
+  min-height: 60px;
+  padding: 2px;
+  overflow: hidden;
+  border-style: dashed;
+  border-radius: var(--desk-radius-control);
+}
+
+body.desk-app[data-theme] .desk-prompt-image-menu img {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  display: block;
+  width: calc(100% - 4px);
+  height: calc(100% - 4px);
+  min-width: 0;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: cover;
+  object-position: center;
+  border-radius: calc(var(--desk-radius-control) - 1px);
+}
+
+/* Agent workbench: replace 7-9px text without clipping the fixed rows. */
+body.desk-app[data-theme] .desk-prompt-drawer.is-open.is-agent {
+  height: min(608px, calc(100dvh - 92px));
+}
+
+body.desk-app[data-theme] .desk-prompt-drawer.is-agent .desk-prompt-drawer__body {
+  grid-template-rows: 34px 46px minmax(0, 1fr);
+  gap: var(--desk-space-2);
+}
+
+body.desk-app[data-theme] .desk-agent-task-rail {
+  display: grid;
+  min-width: 0;
+  min-height: 46px;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: var(--desk-space-4);
+  align-items: center;
+  padding: var(--desk-space-2) var(--desk-space-4);
+  overflow: hidden;
+  border-width: 1px;
+  border-style: solid;
+  border-radius: var(--desk-radius-surface);
+}
+
+body.desk-app[data-theme] .desk-agent-task-navigator {
+  display: grid;
+  min-width: 0;
+  height: 38px;
+  grid-template-columns: var(--desk-control-height-xs) minmax(0, 1fr) var(--desk-control-height-xs);
+  gap: var(--desk-space-2);
+  align-items: center;
+}
+
+body.desk-app[data-theme] .desk-prompt-drawer.is-open button.desk-agent-task-nav:not(.desk-prompt-drawer__handle) {
+  align-self: center;
+  border-radius: var(--desk-radius-control);
+  font-size: 18px;
+  line-height: 1;
+}
+
+body.desk-app[data-theme] .desk-agent-task-actions {
+  display: flex;
+  min-width: 0;
+  flex: 0 0 auto;
+  gap: var(--desk-space-2);
+  align-items: center;
+}
+
+body.desk-app[data-theme] .desk-agent-task-rail__label {
+  padding-inline: var(--desk-space-2);
+  font-size: var(--desk-font-size-caption);
+  line-height: var(--desk-line-height-caption);
+  font-weight: var(--desk-font-weight-bold);
+  white-space: nowrap;
+}
+
+body.desk-app[data-theme] .desk-agent-task-track {
+  display: flex;
+  min-width: 0;
+  height: 38px;
+  gap: var(--desk-space-3);
+  align-items: center;
+  padding: 2px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-inline: contain;
+  scroll-snap-type: inline proximity;
+  scrollbar-width: none;
+}
+
+body.desk-app[data-theme] .desk-agent-task-track::-webkit-scrollbar {
+  display: none;
+}
+
+body.desk-app[data-theme] .desk-agent-task-card-slot {
+  position: relative;
+  display: block;
+  width: 152px;
+  min-width: 152px;
+  height: 36px;
+  flex: 0 0 152px;
+  scroll-snap-align: start;
+}
+
+body.desk-app[data-theme] .desk-prompt-drawer.is-open button.desk-agent-task-card:not(.desk-prompt-drawer__handle) {
+  display: grid;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  height: 36px;
+  min-height: 36px;
+  grid-template-columns: 7px minmax(0, 1fr);
+  gap: var(--desk-space-3);
+  align-items: center;
+  padding: 4px 28px 4px 8px;
+  overflow: hidden;
+  border-width: 1px;
+  border-style: solid;
+  border-radius: var(--desk-radius-control);
+  text-align: left;
+}
+
+body.desk-app[data-theme] .desk-agent-task-card__dot {
+  display: block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+
+body.desk-app[data-theme] .desk-agent-task-card__copy {
+  display: grid;
+  min-width: 0;
+  gap: 1px;
+}
+
+body.desk-app[data-theme] .desk-agent-task-card__copy :is(strong, em) {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  line-height: 1.15;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+body.desk-app[data-theme] .desk-agent-task-card__copy strong {
+  font-size: var(--desk-font-size-caption);
+  font-weight: var(--desk-font-weight-bold);
+}
+
+body.desk-app[data-theme] .desk-agent-task-card__copy em {
+  font-size: var(--desk-font-size-micro);
+  font-style: normal;
+  font-weight: var(--desk-font-weight-medium);
+}
+
+body.desk-app[data-theme] .desk-prompt-drawer.is-open button.desk-agent-task-card__menu-toggle:not(.desk-prompt-drawer__handle) {
+  position: absolute;
+  z-index: 2;
+  top: 50%;
+  right: 4px;
+  display: grid;
+  box-sizing: border-box;
+  width: 20px;
+  min-width: 20px;
+  height: 24px;
+  min-height: 24px;
+  padding: 0;
+  place-items: center;
+  border-width: 1px;
+  border-style: solid;
+  border-radius: var(--desk-radius-control-sm);
+  opacity: 0.5;
+  transform: translateY(-50%);
+}
+
+body.desk-app[data-theme] .desk-agent-task-card__menu-toggle svg {
+  width: 12px;
+  height: 12px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+body.desk-app[data-theme] .desk-agent-task-card-slot:is(.is-selected, :hover) .desk-agent-task-card__menu-toggle,
+body.desk-app[data-theme] .desk-agent-task-card__menu-toggle:focus-visible {
+  opacity: 1;
+}
+
+body.desk-app[data-theme] .desk-agent-task-card-menu {
+  position: absolute;
+  z-index: 24;
+  display: grid;
+  box-sizing: border-box;
+  width: 168px;
+  gap: 2px;
+  padding: 4px;
+  overflow: hidden;
+  border-width: 1px;
+  border-style: solid;
+  border-radius: var(--desk-radius-surface);
+}
+
+body.desk-app[data-theme] .desk-agent-task-card-menu[hidden] {
+  display: none !important;
+}
+
+body.desk-app[data-theme] .desk-prompt-drawer.is-open button.desk-agent-task-card-menu__item:not(.desk-prompt-drawer__handle) {
+  display: grid;
+  width: 100%;
+  min-width: 0;
+  height: 30px;
+  min-height: 30px;
+  grid-template-columns: 16px minmax(0, 1fr);
+  gap: var(--desk-space-3);
+  align-items: center;
+  padding: 0 8px;
+  border-width: 1px;
+  border-style: solid;
+  border-radius: var(--desk-radius-control-sm);
+  text-align: left;
+  font-size: var(--desk-font-size-caption);
+  white-space: nowrap;
+}
+
+body.desk-app[data-theme] .desk-agent-task-card-menu__item svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+body.desk-app[data-theme] .desk-prompt-drawer.is-open button.desk-agent-new-task:not(.desk-prompt-drawer__handle) {
+  display: inline-flex;
+  min-width: 92px;
+  height: var(--desk-control-height-sm);
+  min-height: var(--desk-control-height-sm);
+  gap: var(--desk-space-2);
+  align-items: center;
+  justify-content: center;
+  padding-inline: var(--desk-space-4);
+  white-space: nowrap;
+}
+
+body.desk-app[data-theme] .desk-prompt-drawer.is-open button.desk-agent-task-all:not(.desk-prompt-drawer__handle) {
+  display: inline-flex;
+  min-width: 86px;
+  height: var(--desk-control-height-sm);
+  min-height: var(--desk-control-height-sm);
+  gap: var(--desk-space-2);
+  align-items: center;
+  justify-content: center;
+  padding-inline: var(--desk-space-3);
+  border-radius: var(--desk-radius-control);
+  white-space: nowrap;
+}
+
+body.desk-app[data-theme] .desk-agent-task-all em {
+  display: inline-grid;
+  min-width: 18px;
+  height: 18px;
+  padding-inline: 4px;
+  place-items: center;
+  border-radius: 999px;
+  font-size: var(--desk-font-size-micro);
+  font-style: normal;
+  line-height: 1;
+}
+
+body.desk-app[data-theme] .desk-agent-stage {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+body.desk-app[data-theme] .desk-agent-stage > .desk-agent-workbench {
+  width: 100%;
+  height: 100%;
+}
+
+body.desk-app[data-theme] .desk-agent-task-drawer-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+body.desk-app[data-theme] .desk-agent-task-drawer {
+  position: absolute;
+  top: var(--desk-space-2);
+  right: var(--desk-space-2);
+  bottom: var(--desk-space-2);
+  z-index: 4;
+  display: grid;
+  width: clamp(360px, 38%, 430px);
+  max-width: calc(100% - var(--desk-space-2) - var(--desk-space-2));
+  min-width: 0;
+  grid-template-rows: auto var(--desk-control-height-md) auto minmax(0, 1fr);
+  gap: var(--desk-space-3);
+  padding: var(--desk-space-4);
+  overflow: hidden;
+  border-width: 1px;
+  border-style: solid;
+  border-radius: var(--desk-radius-surface);
+  visibility: hidden;
+  pointer-events: none;
+}
+
+body.desk-app[data-theme] .desk-agent-task-drawer__head,
+body.desk-app[data-theme] .desk-agent-task-drawer__head > div {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+}
+
+body.desk-app[data-theme] .desk-agent-task-drawer__head {
+  justify-content: space-between;
+}
+
+body.desk-app[data-theme] .desk-agent-task-drawer__head > div {
+  gap: var(--desk-space-2);
+}
+
+body.desk-app[data-theme] .desk-agent-task-drawer__head strong {
+  font-size: var(--desk-font-size-label);
+  line-height: var(--desk-line-height-tight);
+}
+
+body.desk-app[data-theme] .desk-agent-task-drawer__head > div > span {
+  font-size: var(--desk-font-size-caption);
+  line-height: var(--desk-line-height-caption);
+}
+
+body.desk-app[data-theme] .desk-agent-task-search {
+  display: grid;
+  min-width: 0;
+  height: var(--desk-control-height-md);
+  grid-template-columns: 14px minmax(0, 1fr);
+  gap: var(--desk-space-2);
+  align-items: center;
+  padding-inline: var(--desk-space-3);
+  border-width: 1px;
+  border-style: solid;
+  border-radius: var(--desk-radius-control);
+}
+
+body.desk-app[data-theme] .desk-agent-task-search__icon {
+  position: relative;
+  width: 11px;
+  height: 11px;
+  border: 1.5px solid currentColor;
+  border-radius: 50%;
+}
+
+body.desk-app[data-theme] .desk-agent-task-search__icon::after {
+  content: "";
+  position: absolute;
+  right: -4px;
+  bottom: -3px;
+  width: 5px;
+  height: 1.5px;
+  background: currentColor;
+  border-radius: 999px;
+  transform: rotate(45deg);
+}
+
+body.desk-app[data-theme] .desk-agent-task-search input {
+  width: 100%;
+  min-width: 0;
+  height: 100%;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  outline: 0;
+  font-size: var(--desk-font-size-caption);
+}
+
+body.desk-app[data-theme] .desk-agent-task-filters {
+  display: flex;
+  min-width: 0;
+  gap: var(--desk-space-2);
+  flex-wrap: wrap;
+  overflow: visible;
+}
+
+body.desk-app[data-theme] .desk-prompt-drawer.is-open button.desk-agent-task-filter:not(.desk-prompt-drawer__handle) {
+  display: inline-flex;
+  height: 24px;
+  min-height: 24px;
+  flex: 0 0 auto;
+  gap: 3px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 7px;
+  border-radius: 8px;
+  font-size: var(--desk-font-size-micro);
+  white-space: nowrap;
+}
+
+body.desk-app[data-theme] .desk-agent-task-filter em {
+  font-size: inherit;
+  font-style: normal;
+}
+
+body.desk-app[data-theme] .desk-agent-task-list {
+  grid-row: 4;
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+
+body.desk-app[data-theme] .desk-agent-task-list-row {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--desk-space-2);
+  align-items: center;
+  padding: 4px 2px;
+  border-bottom-width: 1px;
+  border-bottom-style: solid;
+}
+
+body.desk-app[data-theme] .desk-agent-task-list-row.is-archived {
+  opacity: 0.68;
+}
+
+body.desk-app[data-theme] .desk-prompt-drawer.is-open button.desk-agent-task-list-main:not(.desk-prompt-drawer__handle) {
+  display: grid;
+  min-width: 0;
+  min-height: 52px;
+  grid-template-columns: 8px minmax(0, 1fr);
+  gap: var(--desk-space-3);
+  align-items: center;
+  padding: 6px 7px;
+  overflow: hidden;
+  border-width: 1px;
+  border-style: solid;
+  border-radius: var(--desk-radius-control);
+  text-align: left;
+}
+
+body.desk-app[data-theme] .desk-agent-task-list-dot {
+  display: block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+
+body.desk-app[data-theme] .desk-agent-task-list-copy {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+body.desk-app[data-theme] .desk-agent-task-list-copy :is(strong, span, small) {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+body.desk-app[data-theme] .desk-agent-task-list-copy strong {
+  font-size: var(--desk-font-size-caption);
+  line-height: var(--desk-line-height-tight);
+}
+
+body.desk-app[data-theme] .desk-agent-task-list-copy strong em {
+  display: inline-flex;
+  margin-left: 4px;
+  padding: 2px 5px;
+  border-radius: 5px;
+  font-size: var(--desk-font-size-micro);
+  font-style: normal;
+  font-weight: var(--desk-font-weight-medium);
+  line-height: 1;
+  vertical-align: middle;
+}
+
+body.desk-app[data-theme] .desk-agent-task-list-copy > span,
+body.desk-app[data-theme] .desk-agent-task-list-copy small {
+  font-size: var(--desk-font-size-micro);
+  line-height: var(--desk-line-height-caption);
+}
+
+body.desk-app[data-theme] .desk-agent-task-list-actions {
+  display: grid;
+  grid-template-columns: repeat(3, 22px);
+  gap: 3px;
+}
+
+body.desk-app[data-theme] .desk-prompt-drawer.is-open button.desk-agent-task-row-action:not(.desk-prompt-drawer__handle) {
+  display: grid;
+  width: 22px;
+  min-width: 22px;
+  height: 22px;
+  min-height: 22px;
+  padding: 0;
+  place-items: center;
+  border-radius: 7px;
+}
+
+body.desk-app[data-theme] .desk-agent-task-row-action svg {
+  width: 12px;
+  height: 12px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+body.desk-app[data-theme] .desk-prompt-drawer.is-open button.desk-agent-task-secondary:disabled {
+  cursor: default;
+  opacity: 0.38;
+}
+
+body.desk-app[data-theme] .desk-agent-task-empty {
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+  grid-row: 4;
+  padding: var(--desk-space-5);
+  place-items: center;
+  text-align: center;
+  font-size: var(--desk-font-size-caption);
+}
+
+body.desk-app[data-theme] .desk-agent-task-dialog-backdrop {
+  position: absolute;
+  z-index: 30;
+  inset: 0;
+  border-radius: inherit;
+}
+
+body.desk-app[data-theme] .desk-agent-task-dialog {
+  position: absolute;
+  z-index: 31;
+  top: 50%;
+  left: 50%;
+  box-sizing: border-box;
+  width: min(360px, calc(100% - 32px));
+  overflow: hidden;
+  border-width: 1px;
+  border-style: solid;
+  border-radius: var(--desk-radius-panel);
+  transform: translate(-50%, -50%);
+}
+
+body.desk-app[data-theme] :is(.desk-agent-task-dialog, .desk-agent-task-dialog-backdrop)[hidden] {
+  display: none !important;
+}
+
+body.desk-app[data-theme] .desk-agent-task-dialog form {
+  display: grid;
+  gap: var(--desk-space-4);
+  padding: var(--desk-space-5);
+}
+
+body.desk-app[data-theme] .desk-agent-task-dialog__head {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+}
+
+body.desk-app[data-theme] .desk-agent-task-dialog__head strong {
+  font-size: var(--desk-font-size-label);
+  line-height: var(--desk-line-height-tight);
+}
+
+body.desk-app[data-theme] .desk-agent-task-dialog__head .desk-agent-icon-btn {
+  width: var(--desk-control-height-xs);
+  min-width: var(--desk-control-height-xs);
+  height: var(--desk-control-height-xs);
+  min-height: var(--desk-control-height-xs);
+}
+
+body.desk-app[data-theme] .desk-agent-task-dialog > form > p {
+  margin: 0;
+  font-size: var(--desk-font-size-caption);
+  line-height: var(--desk-line-height-body);
+}
+
+body.desk-app[data-theme] .desk-agent-task-name-field {
+  display: grid;
+  gap: var(--desk-space-2);
+}
+
+body.desk-app[data-theme] .desk-agent-task-name-field[hidden] {
+  display: none !important;
+}
+
+body.desk-app[data-theme] .desk-agent-task-name-field > span {
+  font-size: var(--desk-font-size-caption);
+  font-weight: var(--desk-font-weight-bold);
+}
+
+body.desk-app[data-theme] .desk-agent-task-name-field input {
+  box-sizing: border-box;
+  width: 100%;
+  height: var(--desk-control-height-md);
+  padding: 0 var(--desk-space-4);
+  border-width: 1px;
+  border-style: solid;
+  border-radius: var(--desk-radius-control);
+  outline: 0;
+  font: inherit;
+}
+
+body.desk-app[data-theme] .desk-agent-task-name-field small {
+  font-size: var(--desk-font-size-micro);
+  line-height: var(--desk-line-height-caption);
+}
+
+body.desk-app[data-theme] .desk-agent-task-dialog__error {
+  padding: var(--desk-space-3);
+  border-width: 1px;
+  border-style: solid;
+  border-radius: var(--desk-radius-control-sm);
+}
+
+body.desk-app[data-theme] .desk-agent-task-dialog__error[hidden] {
+  display: none !important;
+}
+
+body.desk-app[data-theme] .desk-agent-task-dialog__actions {
+  display: flex;
+  gap: var(--desk-space-3);
+  justify-content: flex-end;
+}
+
+body.desk-app[data-theme] .desk-prompt-drawer.is-open .desk-agent-task-dialog__actions button:not(.desk-prompt-drawer__handle) {
+  min-width: 76px;
+  height: var(--desk-control-height-sm);
+  min-height: var(--desk-control-height-sm);
+  padding-inline: var(--desk-space-4);
+  border-width: 1px;
+  border-style: solid;
+  border-radius: var(--desk-radius-control);
+}
+
+body.desk-app[data-theme] .desk-agent-task-empty[hidden] {
+  display: none;
+}
+
+body.desk-app[data-theme] .desk-agent-workbench :where(
+  strong,
+  span,
+  em,
+  p,
+  label,
+  time,
+  button,
+  input,
+  select,
+  textarea
+) {
+  font-size: var(--desk-font-size-caption);
+  line-height: var(--desk-line-height-caption);
+  letter-spacing: 0;
+}
+
+body.desk-app[data-theme] :is(.desk-agent-pane--goal, .desk-agent-pane--plan, .desk-agent-pane--activity) {
+  grid-template-rows: 34px minmax(0, 1fr) var(--desk-agent-footer-height, 64px);
+}
+
+@supports (grid-template-rows: subgrid) {
+  @media (min-width: 761px) {
+    body.desk-app[data-theme] .desk-agent-workbench {
+      grid-template-rows: 34px minmax(0, 1fr) var(--desk-agent-footer-height, 64px);
+    }
+
+    body.desk-app[data-theme] .desk-agent-pane {
+      grid-row: 1 / -1;
+      grid-template-rows: subgrid;
+    }
+
+    body.desk-app[data-theme] .desk-agent-pane--goal {
+      grid-column: 1;
+    }
+
+    body.desk-app[data-theme] .desk-agent-pane--plan {
+      grid-column: 2;
+    }
+
+    body.desk-app[data-theme] .desk-agent-pane--activity {
+      grid-column: 3;
+    }
+
+    body.desk-app[data-theme] .desk-agent-compose {
+      align-content: start;
+    }
+  }
+}
+
+body.desk-app[data-theme] .desk-agent-pane__head {
+  min-height: 34px;
+}
+
+body.desk-app[data-theme] .desk-agent-workbench {
+  --desk-agent-footer-height: 64px;
+}
+
+body.desk-app[data-theme] :is(.desk-agent-compose, .desk-agent-approval, .desk-agent-artifact) {
+  box-sizing: border-box;
+  height: var(--desk-agent-footer-height);
+  min-height: var(--desk-agent-footer-height);
+  max-height: var(--desk-agent-footer-height);
+  overflow: hidden;
+}
+
+body.desk-app[data-theme] .desk-agent-plan-body {
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+  grid-template-rows: minmax(0, 1fr) auto;
+}
+
+body.desk-app[data-theme] .desk-agent-plan-details {
+  min-width: 0;
+  max-height: 190px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+
+body.desk-app[data-theme] :is(
+  .desk-agent-revision input,
+  .desk-agent-param select,
+  .desk-agent-param-toggle
+) {
+  height: var(--desk-control-height-md);
+  min-height: var(--desk-control-height-md);
+}
+
+body.desk-app[data-theme] .desk-prompt-drawer.is-open :is(
+  .desk-agent-revision button,
+  .desk-agent-provider button
+):not(.desk-prompt-drawer__handle) {
+  height: var(--desk-control-height-md);
+  min-height: var(--desk-control-height-md);
+  font-size: var(--desk-font-size-caption);
+}
+
+body.desk-app[data-theme] .desk-agent-compose {
+  grid-template-columns: minmax(104px, 116px) auto minmax(82px, auto);
+  gap: 6px;
+}
+
+body.desk-app[data-theme] .desk-agent-compose :is(
+  .desk-agent-field select,
+  .desk-agent-field .desk-select-trigger,
+  .desk-agent-toggle
+),
+body.desk-app[data-theme] .desk-prompt-drawer.is-open button.desk-agent-command:not(.desk-prompt-drawer__handle) {
+  height: var(--desk-control-height-sm);
+  min-height: var(--desk-control-height-sm);
+  font-size: var(--desk-font-size-caption);
+}
+
+body.desk-app[data-theme] .desk-agent-compose .desk-select-trigger,
+body.desk-app[data-theme] .desk-prompt-drawer.is-open .desk-agent-compose button.desk-agent-command:not(.desk-prompt-drawer__handle) {
+  padding-inline: 8px;
+}
+
+body.desk-app[data-theme] .desk-prompt-drawer.is-open .desk-agent-compose > button.desk-agent-command:not(.desk-prompt-drawer__handle) {
+  min-width: 82px;
+  justify-self: end;
+}
+
+body.desk-app[data-theme] .desk-prompt-drawer__header .desk-agent-status {
+  display: inline-flex;
+  box-sizing: border-box;
+  height: var(--desk-control-height-xs);
+  min-height: var(--desk-control-height-xs);
+  align-items: center;
+  padding-block: 0;
+  margin-top: 0;
+  line-height: 1;
+}
+
+body.desk-app[data-theme] .desk-prompt-drawer__header .desk-agent-status > span {
+  display: inline-flex;
+  height: 100%;
+  align-items: center;
+  margin-top: 0;
+  line-height: 1;
+}
+
+body.desk-app[data-theme] .desk-agent-context {
+  min-height: 20px;
+  gap: var(--desk-space-2);
+}
+
+body.desk-app[data-theme] .desk-agent-context > span {
+  height: 20px;
+  min-height: 20px;
+  padding-inline: var(--desk-space-3);
+  font-size: var(--desk-font-size-micro);
+  line-height: 1;
+}
+
+body.desk-app[data-theme] .desk-agent-step {
+  min-height: 56px;
+}
+
+body.desk-app[data-theme] .desk-agent-artifact p {
+  display: -webkit-box;
+  max-height: 1.45em;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+}
+
+/* Prompt Library is a full workspace: it no longer relies on micro typography. */
+body.desk-app[data-theme] .desk-prompt-library {
+  grid-template-rows: 52px 72px minmax(0, 1fr) 34px;
+  font-size: var(--desk-font-size-body);
+}
+
+body.desk-app[data-theme] .desk-prompt-library :where(
+  span,
+  strong,
+  small,
+  em,
+  p,
+  label,
+  kbd,
+  button,
+  input,
+  select,
+  textarea
+) {
+  font-size: var(--desk-font-size-caption);
+  line-height: var(--desk-line-height-caption);
+  letter-spacing: 0;
+}
+
+body.desk-app[data-theme] .desk-prompt-library :where(button, input, select, textarea) {
+  font-size: var(--desk-font-size-label);
+}
+
+body.desk-app[data-theme] .desk-prompt-library__identity h2 {
+  font-size: var(--desk-font-size-section-title);
+}
+
+body.desk-app[data-theme] .desk-prompt-library__mark,
+body.desk-app[data-theme] .desk-prompt-library__tab-copy strong {
+  font-size: var(--desk-font-size-body);
+}
+
+body.desk-app[data-theme] .desk-prompt-library__statusbar {
+  min-height: 34px;
+}
+
+body.desk-app[data-theme] .desk-prompt-library__syntax {
+  font-size: var(--desk-font-size-caption);
+}
+
+body.desk-app[data-theme] .desk-prompt-library__header-actions button {
+  width: var(--desk-control-height-md);
+  height: var(--desk-control-height-md);
+  border-radius: var(--desk-radius-surface);
+}
+
+body.desk-app[data-theme] .desk-prompt-library__header-actions .desk-prompt-library__new {
+  width: auto;
+  min-width: max-content;
+}
+
+body.desk-app[data-theme] .desk-prompt-library__workspace {
+  grid-template-columns: 180px minmax(270px, 30%) minmax(340px, 1fr);
+}
+
+body.desk-app[data-theme] .desk-prompt-library__nav button {
+  min-height: var(--desk-control-height-md);
+  border-radius: var(--desk-radius-surface);
+}
+
+body.desk-app[data-theme] .desk-prompt-library__collection {
+  grid-template-rows: 48px 34px minmax(0, 1fr);
+}
+
+body.desk-app[data-theme] :is(
+  .desk-prompt-library__search,
+  .desk-prompt-library__favorite-filter,
+  .desk-prompt-field input,
+  .desk-prompt-field select,
+  .desk-prompt-field .desk-select-trigger
+) {
+  min-height: var(--desk-control-height-md);
+  height: var(--desk-control-height-md);
+}
+
+body.desk-app[data-theme] .desk-prompt-library-row {
+  min-height: 72px;
+  border-radius: var(--desk-radius-surface);
+}
+
+body.desk-app[data-theme] .desk-prompt-library-row__title strong,
+body.desk-app[data-theme] .desk-prompt-section-title strong {
+  font-size: var(--desk-font-size-label);
+}
+
+body.desk-app[data-theme] .desk-prompt-library-row__meta span,
+body.desk-app[data-theme] .desk-prompt-type-badge {
+  font-size: var(--desk-font-size-micro);
+}
+
+body.desk-app[data-theme] .desk-prompt-editor-pane__head h3 {
+  font-size: var(--desk-font-size-section-title);
+}
+
+body.desk-app[data-theme] :is(
+  .desk-prompt-create__modes button,
+  .desk-prompt-editor-pane__head-actions button,
+  .desk-prompt-editor-actions button,
+  .desk-prompt-template__create,
+  .desk-prompt-rule-builder > header button,
+  .desk-prompt-extractor__footer button
+) {
+  min-height: var(--desk-control-height-md);
+}
+
+body.desk-app[data-theme] .desk-prompt-field textarea {
+  font-size: var(--desk-font-size-label);
+  line-height: var(--desk-line-height-normal);
+}
+
+body.desk-app[data-theme] :is(.desk-prompt-help, .desk-prompt-template__stats div) {
+  border-radius: var(--desk-radius-surface);
+}
+
+/* Settings: increase density coherently and keep errors inspectable. */
+body.desk-app[data-theme] .desk-settings {
+  width: min(460px, calc(100vw - 190px));
+  min-width: 380px;
+  height: min(560px, calc(100vh - var(--desk-bottombar-clearance) - 8px));
+  max-height: min(560px, calc(100vh - var(--desk-bottombar-clearance) - 8px));
+  gap: var(--desk-space-4);
+  padding: var(--desk-space-5);
+}
+
+body.desk-app[data-theme] .desk-settings :where(
+  span,
+  strong,
+  em,
+  p,
+  label,
+  dt,
+  dd,
+  button,
+  input,
+  select,
+  textarea
+) {
+  font-size: var(--desk-font-size-caption);
+  line-height: var(--desk-line-height-caption);
+  letter-spacing: 0;
+}
+
+body.desk-app[data-theme] .desk-settings :where(button, input, select, textarea) {
+  font-size: var(--desk-font-size-label);
+}
+
+body.desk-app[data-theme] .desk-settings__title h2 {
+  font-size: var(--desk-font-size-panel-title);
+}
+
+body.desk-app[data-theme] .desk-settings__version {
+  font-size: var(--desk-font-size-micro);
+}
+
+body.desk-app[data-theme] .desk-settings-tabs button,
+body.desk-app[data-theme] .desk-settings-account__actions button {
+  min-height: var(--desk-control-height-sm);
+  height: auto;
+  border-radius: var(--desk-radius-surface);
+}
+
+/* The expanded group has two 28px rows plus its row gap and top padding.
+   Keep the animated max-height in sync with standardized control geometry. */
+body.desk-app[data-theme] .desk-settings-tabs.is-expanded .desk-settings-tabs__extra {
+  max-height: calc(var(--desk-control-height-sm) + var(--desk-control-height-sm) + 6px);
+}
+
+body.desk-app[data-theme] .desk-settings :is(
+  input:not([type="checkbox"]):not([type="radio"]),
+  select,
+  .desk-select-trigger
+) {
+  min-height: var(--desk-control-height-md);
+}
+
+body.desk-app[data-theme] .desk-settings-account__error {
+  display: -webkit-box;
+  overflow: hidden;
+  line-height: var(--desk-line-height-caption);
+  text-overflow: clip;
+  white-space: normal;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+/* Gallery: make card metadata readable without changing thumbnail dimensions. */
+body.desk-app[data-theme] :is(
+  .desk-gallery-card__meta strong,
+  .desk-gallery-card__meta-copy span,
+  .desk-gallery-card__meta-copy em,
+  .desk-gallery-card__description,
+  .desk-gallery-set em,
+  .desk-gallery-selected-item span
+) {
+  font-size: var(--desk-font-size-caption);
+  line-height: var(--desk-line-height-caption);
+}
+
+body.desk-app[data-theme] .desk-gallery-card__description {
+  max-height: 1.35em;
+}
+
+body.desk-app[data-theme] :is(
+  .desk-gallery-card__image > span,
+  .desk-gallery-card__switcher span,
+  .desk-gallery-card__lineage em,
+  .desk-gallery-card__remote-state,
+  .desk-gallery-video__preview > span
+) {
+  min-height: 20px;
+  font-size: var(--desk-font-size-micro);
+  line-height: var(--desk-line-height-tight);
+}
+
+body.desk-app[data-theme] :is(
+  .desk-pinterest-boards strong,
+  .desk-pinterest-boards em,
+  .desk-pinterest-state span,
+  .desk-pinterest-sync-tip,
+  .desk-gallery-video-resources > header span,
+  .desk-gallery-video-parameters > header span
+) {
+  font-size: var(--desk-font-size-caption);
+  line-height: var(--desk-line-height-caption);
+}
+
+body.desk-app[data-theme] :is(
+  .desk-gallery-preview,
+  .desk-file-preview-modal,
+  .desk-compare
+) :where(p, span, strong, em, pre, label, dt, dd, button, input, select, textarea) {
+  font-size: var(--desk-font-size-caption);
+  line-height: var(--desk-line-height-caption);
+  letter-spacing: 0;
+}
+
+body.desk-app[data-theme] :is(
+  .desk-gallery-preview,
+  .desk-file-preview-modal,
+  .desk-compare
+) :where(button, input, select) {
+  min-height: var(--desk-control-height-sm);
+}
+
+/* Fixed-light editors remain visually local, but their controls share readable metrics. */
+body.desk-app[data-theme] :is(.desk-layout-editor, .desk-pose-studio) :where(
+  button,
+  input,
+  select,
+  textarea,
+  label
+) {
+  font-size: var(--desk-font-size-caption);
+  line-height: var(--desk-line-height-caption);
+  letter-spacing: 0;
+}
+
+body.desk-app[data-theme] .desk-pose-studio__bar-actions .desk-pose-studio__close {
+  font-size: 18px;
+}
+
+body.desk-app[data-theme] :is(.desk-layout-editor, .desk-pose-studio) :where(
+  input:not([type="checkbox"]):not([type="radio"]),
+  select,
+  button:not(.desk-layout-handle):not(.desk-pose-joint)
+) {
+  min-height: var(--desk-control-height-sm);
+}
+
+@media (max-width: 1120px) {
+  body.desk-app[data-theme] .desk-agent-task-rail {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: var(--desk-space-2);
+  }
+
+  body.desk-app[data-theme] .desk-agent-task-rail__label {
+    display: none;
+  }
+
+  body.desk-app[data-theme] .desk-agent-task-card-slot {
+    width: 136px;
+    min-width: 136px;
+    flex-basis: 136px;
+  }
+}
+
+@media (max-width: 860px) {
+  body.desk-app[data-theme] .desk-agent-task-navigator {
+    grid-template-columns: var(--desk-control-height-xs) minmax(0, 1fr) var(--desk-control-height-xs);
+  }
+
+  body.desk-app[data-theme] .desk-agent-task-actions {
+    gap: 4px;
+  }
+
+  body.desk-app[data-theme] .desk-prompt-drawer.is-open button.desk-agent-task-all:not(.desk-prompt-drawer__handle) {
+    min-width: 78px;
+    padding-inline: 7px;
+  }
+
+  body.desk-app[data-theme] .desk-agent-task-drawer {
+    width: min(430px, calc(100% - var(--desk-space-2) - var(--desk-space-2)));
+  }
+}
+
+/* Canvas typography uses level-of-detail instead of inverse-scaled text. */
+body.desk-app .desk-canvas-world {
+  --desk-canvas-font-size-micro: 10px;
+  --desk-canvas-font-size-caption: 11px;
+  --desk-canvas-font-size-label: 12px;
+}
+
+body.desk-app .desk-canvas-world[data-zoom-tier="compact"] .desk-node-hint,
+body.desk-app .desk-canvas-world[data-zoom-tier="overview"] :is(
+  .desk-node-hint,
+  .desk-node__eyebrow,
+  .desk-gpt-model-caption,
+  .desk-file-result-empty__kicker,
+  .desk-file-result-empty__types,
+  .desk-video-result__meta,
+  .desk-text-node__image-mention-head,
+  .desk-text-node__image-mention-empty
+) {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+@media (max-width: 760px) {
+  body.desk-app[data-theme] .desk-agent-task-navigator {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  body.desk-app[data-theme] .desk-agent-task-nav {
+    display: none !important;
+  }
+
+  body.desk-app[data-theme] .desk-agent-task-track {
+    overflow-x: hidden;
+  }
+
+  body.desk-app[data-theme] .desk-agent-task-card-slot:not(.is-selected) {
+    display: none !important;
+  }
+
+  body.desk-app[data-theme] .desk-agent-task-drawer {
+    right: 0;
+    width: 100%;
+  }
+
+  body.desk-app[data-theme] .desk-settings {
+    right: 8px;
+    left: 8px;
+    width: auto;
+    min-width: 0;
+  }
+}

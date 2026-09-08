@@ -1,7 +1,6 @@
 .desk-layout-editor {
   position: fixed;
   inset: 0;
-  z-index: 80;
   display: none;
   grid-template-rows: 54px minmax(0, 1fr);
   grid-template-columns: 248px minmax(0, 1fr) 288px;

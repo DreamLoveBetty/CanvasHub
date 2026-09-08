@@ -111,21 +111,6 @@
     if (msg) msg.textContent = message || '请在 Telegram 中打开此小程序。';
     if (inputRow) inputRow.style.display = showInput ? 'flex' : 'none';
     if (overlay) overlay.style.display = 'flex';
-
-    const debugEl = document.getElementById('authDebug');
-    if (!debugEl) {
-      const debugDiv = document.createElement('div');
-      debugDiv.id = 'authDebug';
-      debugDiv.className = 'mt-3 rounded bg-slate-100 p-2 text-left text-xs text-slate-500';
-      debugDiv.style.cssText = 'margin-top:12px;padding:8px;background:#f1f5f9;border-radius:6px;font-size:11px;text-align:left;word-break:break-all;max-height:120px;overflow:auto;';
-      const authCard = document.querySelector('.auth-card');
-      if (authCard && !document.getElementById('authDebug')) authCard.appendChild(debugDiv);
-    }
-    const debug = document.getElementById('authDebug');
-    if (debug) {
-      const initData = getInitData();
-      debug.innerHTML = '<p class="font-semibold">Debug:</p><p>initData: ' + (initData ? initData.slice(0,30) + '...' : 'null') + '</p><p>URL params: ' + window.location.search + '</p>';
-    }
   }
 
   function hideAuthOverlay() {

@@ -128,6 +128,10 @@
 
     if (provider === 'gpt') {
       const taskType = DesktopState.normalizeGptTaskType(params.gptTaskType, 'image');
+      const requestedRoute = DesktopState.normalizeGptProviderRoute(
+        params.gptProviderRoute,
+        DesktopState.state.params.gptProviderRoute || 'codex'
+      );
       const body = {
         prompt,
         ratio: DesktopState.normalizeRatio(params.ratio, '9:16'),
@@ -137,12 +141,8 @@
         moderation: DesktopState.normalizeModeration(params.moderation, 'auto'),
         task_type: taskType,
         prompt_mode: DesktopState.normalizePromptMode(params.promptMode, 'smart'),
-        gpt_provider_route: taskType === 'image'
-          ? DesktopState.normalizeGptProviderRoute(params.gptProviderRoute, DesktopState.state.params.gptProviderRoute || 'codex')
-          : 'chatgpt_pool',
-        use_third_party_api: taskType === 'image'
-          ? DesktopState.normalizeGptProviderRoute(params.gptProviderRoute, DesktopState.state.params.gptProviderRoute || 'codex') === 'third_party_image_api'
-          : false,
+        gpt_provider_route: taskType === 'ppt' ? 'chatgpt_pool' : requestedRoute,
+        use_third_party_api: taskType !== 'ppt' && requestedRoute === 'third_party_image_api',
         main_model: DesktopState.normalizeGptMainModel(params.gptMainModel, DesktopState.state.params.gptMainModel || 'gpt-5.5'),
         reasoning_effort: DesktopState.normalizeReasoningEffort(params.reasoningEffort, DesktopState.state.params.reasoningEffort || 'medium'),
         archive_enabled: archiveEnabled,
@@ -311,6 +311,14 @@
     query.set('events_since', Math.max(0, Number(options.eventsSince ?? options.events_since ?? 0)));
     query.set('event_limit', Math.max(1, Math.min(1000, Number(options.eventLimit ?? options.event_limit ?? 240))));
     return requireApi().json(`/api/agent/runs/${encodeURIComponent(id)}?${query.toString()}`);
+  }
+
+  function deleteAgentRun(runId) {
+    const id = String(runId || '').trim();
+    if (!id) return Promise.reject(new Error('缺少 agent run_id'));
+    return requireApi().json(`/api/agent/runs/${encodeURIComponent(id)}`, {
+      method: 'DELETE'
+    });
   }
 
   function controlAgentRun(runId, action, payload = {}) {
@@ -540,12 +548,24 @@
     return requireApi().json(`/api/video/runtime/status${probe ? '?probe=1' : ''}`);
   }
 
+  function getVideoSupervisorStatus(probe = false) {
+    return requireApi().json(`/api/video/supervisor/status${probe ? '?probe=1' : ''}`);
+  }
+
   function getVideoRuntimeCapabilities() {
     return requireApi().json('/api/video/capabilities');
   }
 
   function testVideoRuntime(config = {}) {
     return requireApi().json('/api/video/runtime/test', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(config)
+    });
+  }
+
+  function testVideoSupervisor(config = {}) {
+    return requireApi().json('/api/video/supervisor/test', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(config)
@@ -1331,6 +1351,7 @@
     listAgentRuns,
     createAgentRun,
     getAgentRun,
+    deleteAgentRun,
     controlAgentRun,
     submitAgentAction,
     getUpscaleModels,
@@ -1371,8 +1392,10 @@
     testComfyConnection,
     saveComfyWorkflowConfig,
     getVideoRuntimeStatus,
+    getVideoSupervisorStatus,
     getVideoRuntimeCapabilities,
     testVideoRuntime,
+    testVideoSupervisor,
     startVideoRuntime,
     submitVideoTask,
     getGptConfig,

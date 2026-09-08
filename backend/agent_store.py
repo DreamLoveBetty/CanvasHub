@@ -219,6 +219,18 @@ def get_run(run_id: str) -> dict[str, Any] | None:
     return _decode_run(row)
 
 
+def delete_run(run_id: str) -> bool:
+    """Permanently remove one Agent run and its cascaded audit events."""
+    clean_id = str(run_id or "").strip()
+    if not clean_id:
+        return False
+    init_agent_store()
+    with _WRITE_LOCK, _connect() as conn:
+        cursor = conn.execute("DELETE FROM agent_runs WHERE run_id=?", (clean_id,))
+        conn.commit()
+    return bool(cursor.rowcount)
+
+
 def list_runs(limit: int = 20, offset: int = 0, status: str = "") -> list[dict[str, Any]]:
     init_agent_store()
     limit = max(1, min(int(limit or 20), 100))
@@ -235,6 +247,22 @@ def list_runs(limit: int = 20, offset: int = 0, status: str = "") -> list[dict[s
                 (limit, offset),
             ).fetchall()
     return [_decode_run(row) for row in rows if row is not None]
+
+
+def find_run_by_client_task_id(client_task_id: str) -> dict[str, Any] | None:
+    """Return the newest run for one stable desktop Agent task identity."""
+    task_id = str(client_task_id or "").strip()
+    if not task_id:
+        return None
+    init_agent_store()
+    with _connect() as conn:
+        rows = conn.execute("SELECT * FROM agent_runs ORDER BY updated_at DESC").fetchall()
+    for row in rows:
+        run = _decode_run(row)
+        client = (run or {}).get("request", {}).get("client", {})
+        if isinstance(client, dict) and str(client.get("agent_task_id") or "").strip() == task_id:
+            return run
+    return None
 
 
 def update_run(run_id: str, **fields: Any) -> dict[str, Any] | None:
@@ -393,7 +421,9 @@ __all__ = [
     "init_agent_store",
     "create_run",
     "get_run",
+    "delete_run",
     "list_runs",
+    "find_run_by_client_task_id",
     "update_run",
     "append_event",
     "list_events",

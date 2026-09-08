@@ -1,0 +1,830 @@
+/*
+ * Phase 6 Gallery theme adapter.
+ *
+ * Asset loading, image zoom, selection, drag payloads, video-folder expansion,
+ * media playback, virtual scrolling, preview navigation, and panel motion stay
+ * component-owned. This layer maps only theme-dependent paint to root tokens.
+ */
+
+body.desk-app[data-theme] :is(
+  .desk-gallery,
+  .desk-gallery-preview,
+  .desk-pinterest-analysis-modal,
+  .desk-pinterest-split-modal
+) {
+  --desk-ink: var(--desk-gallery-ink);
+  --desk-muted: var(--desk-gallery-muted-ink);
+  --desk-blue: var(--desk-gallery-accent-ink);
+  color-scheme: var(--desk-gallery-color-scheme);
+}
+
+body.desk-app[data-theme] .desk-gallery {
+  color: var(--desk-gallery-ink);
+  background: var(--desk-gallery-panel-background);
+  border-color: var(--desk-gallery-panel-border);
+  box-shadow: var(--desk-gallery-panel-shadow);
+}
+
+body.desk-app[data-theme] .desk-gallery__header h2 {
+  color: var(--desk-gallery-ink);
+}
+
+body.desk-app[data-theme] :is(
+  .desk-gallery-tabs,
+  .desk-gallery-video-source,
+  .desk-gallery-search,
+  .desk-gallery-filter,
+  .desk-gallery-tag-filter,
+  .desk-gallery-stats span
+) {
+  background: var(--desk-gallery-toolbar-background);
+  border-color: var(--desk-gallery-toolbar-border);
+  box-shadow: var(--desk-gallery-toolbar-shadow);
+}
+
+body.desk-app[data-theme] :is(
+  .desk-gallery-tabs,
+  .desk-gallery-video-source,
+  .desk-gallery-search
+) {
+  color: var(--desk-gallery-toolbar-ink);
+}
+
+body.desk-app[data-theme] :is(
+  .desk-gallery-tabs button,
+  .desk-gallery-video-source button
+) {
+  color: var(--desk-gallery-muted-ink);
+}
+
+body.desk-app[data-theme] .desk-gallery-video-source button em {
+  color: var(--desk-gallery-muted-ink);
+  background: var(--desk-gallery-source-control-background);
+}
+
+body.desk-app[data-theme] .desk-gallery-search svg {
+  stroke: var(--desk-gallery-muted-ink);
+}
+
+body.desk-app[data-theme] :is(
+  .desk-gallery-search input,
+  .desk-gallery-tag-filter input
+) {
+  color: var(--desk-gallery-field-ink);
+  background: transparent;
+}
+
+body.desk-app[data-theme] .desk-gallery-filter {
+  color: var(--desk-gallery-field-ink);
+}
+
+body.desk-app[data-theme] :is(
+  .desk-gallery-search input,
+  .desk-gallery-tag-filter input
+)::placeholder {
+  color: var(--desk-gallery-field-placeholder-ink);
+}
+
+body.desk-app[data-theme] .desk-gallery-filter option {
+  color: var(--desk-gallery-native-option-ink);
+  background: var(--desk-gallery-native-option-background);
+}
+
+body.desk-app[data-theme] .desk-gallery-stats span {
+  color: var(--desk-gallery-stat-ink);
+}
+
+body.desk-app[data-theme] .desk-gallery-tag-filter {
+  color: var(--desk-gallery-tag-ink);
+}
+
+/* Image cards keep media as the visual anchor while their chrome follows theme. */
+body.desk-app[data-theme] .desk-gallery-card {
+  --desk-gallery-card-surface: var(--desk-gallery-card-surface-paint);
+  --desk-gallery-card-shadow: var(--desk-gallery-card-elevation);
+  --desk-gallery-card-shadow-hover: var(--desk-gallery-card-hover-elevation);
+  --desk-gallery-image-inner-shadow: var(--desk-gallery-image-inset-shadow);
+  color: var(--desk-gallery-card-ink);
+  background: var(--desk-gallery-card-surface-paint);
+  box-shadow: var(--desk-gallery-card-elevation);
+}
+
+body.desk-app[data-theme] :is(
+  .desk-gallery-card:hover,
+  .desk-gallery-card.is-hover-active,
+  .desk-gallery-card.is-focus-active,
+  .desk-gallery-card:focus-visible
+) {
+  background: var(--desk-gallery-card-surface-paint);
+  box-shadow: var(--desk-gallery-card-hover-elevation);
+}
+
+body.desk-app[data-theme] .desk-gallery-card.is-selected {
+  background: var(--desk-gallery-card-surface-paint);
+  box-shadow: var(--desk-gallery-card-selected-elevation);
+}
+
+body.desk-app[data-theme] :is(
+  .desk-gallery-card.is-favorite,
+  .desk-gallery-card.is-missing-archive,
+  .desk-gallery-card.is-stale-remote
+) {
+  box-shadow: var(--desk-gallery-card-elevation);
+}
+
+body.desk-app[data-theme] .desk-gallery-card__image {
+  background: var(--desk-gallery-image-background);
+}
+
+body.desk-app[data-theme] .desk-gallery-card__image::after {
+  box-shadow: var(--desk-gallery-image-inset-shadow);
+}
+
+body.desk-app[data-theme] :is(
+  .desk-gallery-card__image > span,
+  .desk-gallery-card__switcher,
+  .desk-gallery-card__image button
+) {
+  color: var(--desk-gallery-overlay-ink);
+  background: var(--desk-gallery-overlay-background);
+  border-color: var(--desk-gallery-overlay-border);
+}
+
+body.desk-app[data-theme] .desk-gallery-card__switcher {
+  box-shadow: var(--desk-gallery-overlay-shadow);
+}
+
+body.desk-app[data-theme] :is(
+  .desk-gallery-card__switcher button,
+  .desk-gallery-card__switcher span,
+  .desk-gallery-card__favorite
+) {
+  color: var(--desk-gallery-overlay-ink);
+}
+
+body.desk-app[data-theme] .desk-gallery-card__meta {
+  color: var(--desk-gallery-card-ink);
+  background: transparent;
+}
+
+body.desk-app[data-theme] .desk-gallery-card__meta strong {
+  color: var(--desk-gallery-meta-heading-ink);
+  text-shadow: none;
+}
+
+body.desk-app[data-theme] .desk-gallery-card__meta-copy span {
+  color: var(--desk-gallery-meta-ink);
+  text-shadow: none;
+}
+
+body.desk-app[data-theme] .desk-gallery-card__meta-copy em {
+  color: var(--desk-gallery-meta-secondary-ink);
+  text-shadow: none;
+}
+
+body.desk-app[data-theme] .desk-gallery-card__description {
+  color: var(--desk-gallery-description-ink);
+}
+
+body.desk-app[data-theme] .desk-gallery-card__meta-actions button {
+  color: var(--desk-gallery-meta-action-ink);
+  background: var(--desk-gallery-meta-action-background);
+  border-color: var(--desk-gallery-meta-action-border);
+  box-shadow: var(--desk-gallery-meta-action-shadow);
+}
+
+body.desk-app[data-theme] .desk-gallery-card__meta-actions button:hover:not(:disabled) {
+  color: var(--desk-gallery-meta-action-hover-ink);
+  background: var(--desk-gallery-meta-action-hover-background);
+  border-color: var(--desk-gallery-meta-action-hover-border);
+}
+
+body.desk-app[data-theme] .desk-gallery-card__lineage em {
+  color: var(--desk-gallery-lineage-ink);
+  background: var(--desk-gallery-lineage-background);
+  border-color: var(--desk-gallery-lineage-border);
+  box-shadow: var(--desk-gallery-lineage-shadow);
+}
+
+body.desk-app[data-theme] .desk-gallery-card__remote-state {
+  color: var(--desk-gallery-remote-state-ink);
+  background: var(--desk-gallery-remote-state-background);
+  border-color: var(--desk-gallery-remote-state-border);
+  box-shadow: var(--desk-gallery-remote-state-shadow);
+}
+
+body.desk-app[data-theme] .desk-gallery-card__favorite[aria-pressed="true"] {
+  color: var(--desk-gallery-favorite-ink);
+  background: var(--desk-gallery-favorite-background);
+  border-color: var(--desk-gallery-favorite-border);
+}
+
+body.desk-app[data-theme] :is(
+  .desk-gallery-card__download.is-cached,
+  .desk-gallery-card__download.is-cached:disabled
+) {
+  color: var(--desk-gallery-cached-ink);
+  background: var(--desk-gallery-cached-background);
+  border-color: var(--desk-gallery-cached-border);
+}
+
+/* Video tasks remain physical folder objects; only their paint is tokenized. */
+body.desk-app[data-theme] .desk-gallery-video {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+body.desk-app[data-theme] .desk-gallery-video.is-expanded {
+  background: var(--desk-gallery-video-expanded-background);
+  border-color: var(--desk-gallery-video-expanded-border);
+  box-shadow: var(--desk-gallery-video-expanded-shadow);
+}
+
+body.desk-app[data-theme] .desk-gallery-video-folder__visual {
+  background: var(--desk-gallery-video-folder-background);
+  border-color: var(--desk-gallery-video-folder-border);
+  box-shadow: var(--desk-gallery-video-folder-shadow);
+}
+
+body.desk-app[data-theme] .desk-gallery-video-folder:hover .desk-gallery-video-folder__visual {
+  box-shadow: var(--desk-gallery-video-folder-hover-shadow);
+}
+
+body.desk-app[data-theme] .desk-gallery-video-folder__back {
+  background: var(--desk-gallery-video-back-background);
+}
+
+body.desk-app[data-theme] .desk-gallery-video-folder__back::after {
+  background: var(--desk-gallery-video-back-overlay);
+}
+
+body.desk-app[data-theme] .desk-gallery-video-folder__face {
+  --desk-gallery-video-folder-face-fill: var(--desk-gallery-video-face-fill-paint);
+  color: var(--desk-gallery-video-face-ink);
+  background: transparent;
+}
+
+body.desk-app[data-theme] .desk-gallery-video-folder__case {
+  color: var(--desk-gallery-video-face-muted-ink);
+}
+
+body.desk-app[data-theme] .desk-gallery-video-folder__face > span:last-child {
+  color: var(--desk-gallery-video-face-meta-ink);
+}
+
+body.desk-app[data-theme] .desk-gallery-video-detail {
+  border-top-color: var(--desk-gallery-video-detail-divider);
+}
+
+body.desk-app[data-theme] .desk-gallery-video-detail__media {
+  background: var(--desk-gallery-video-media-background);
+}
+
+body.desk-app[data-theme] :is(
+  .desk-gallery-video-prompt,
+  .desk-gallery-video-parameters,
+  .desk-gallery-video-resources
+) {
+  background: var(--desk-gallery-video-section-background);
+  border-color: var(--desk-gallery-video-section-border);
+}
+
+body.desk-app[data-theme] .desk-gallery-video-prompt p {
+  color: var(--desk-gallery-video-prompt-ink);
+}
+
+body.desk-app[data-theme] :is(
+  .desk-gallery-video-parameters dl > div,
+  .desk-gallery-video-resource
+) {
+  background: var(--desk-gallery-video-data-background);
+  border-color: var(--desk-gallery-video-data-border);
+}
+
+body.desk-app[data-theme] a.desk-gallery-video-resource:hover {
+  background: var(--desk-gallery-video-data-hover-background);
+  border-color: var(--desk-gallery-video-data-hover-border);
+}
+
+body.desk-app[data-theme] :is(
+  .desk-gallery-video-prompt > header button,
+  .desk-gallery-video-folder__collapse
+) {
+  color: var(--desk-gallery-video-support-control-ink);
+  background: var(--desk-gallery-video-support-control-background);
+  border-color: var(--desk-gallery-video-support-control-border);
+}
+
+body.desk-app[data-theme] :is(
+  .desk-gallery-video-resource__preview[data-resource-type="text"],
+  .desk-gallery-video-resource__preview[data-resource-type="markdown"]
+) {
+  color: var(--desk-gallery-video-text-resource-ink);
+  background: var(--desk-gallery-video-text-resource-background);
+}
+
+/* Files, candidate sets, and the selection basket share workspace surfaces. */
+body.desk-app[data-theme] .desk-gallery-file {
+  color: var(--desk-gallery-ink);
+  background: var(--desk-gallery-asset-background);
+  border-color: var(--desk-gallery-asset-border);
+  box-shadow: var(--desk-gallery-asset-shadow);
+}
+
+body.desk-app[data-theme] .desk-gallery-file__preview {
+  color: var(--desk-gallery-muted-ink);
+  background: var(--desk-gallery-file-preview-background);
+  border-color: var(--desk-gallery-file-preview-border);
+}
+
+body.desk-app[data-theme] .desk-gallery-file__missing {
+  color: var(--desk-gallery-file-missing-ink);
+}
+
+body.desk-app[data-theme] :is(
+  .desk-gallery-file__body strong,
+  .desk-gallery-set strong,
+  .desk-gallery-set-detail__title strong,
+  .desk-gallery-set-asset__meta strong,
+  .desk-gallery-selected-item span
+) {
+  color: var(--desk-gallery-ink);
+}
+
+body.desk-app[data-theme] :is(
+  .desk-gallery-file__body span,
+  .desk-gallery-file__body em,
+  .desk-gallery-set em,
+  .desk-gallery-set-detail__title > span,
+  .desk-gallery-set-asset__meta span
+) {
+  color: var(--desk-gallery-muted-ink);
+}
+
+body.desk-app[data-theme] .desk-gallery-set {
+  background: var(--desk-gallery-set-background);
+  border-color: var(--desk-gallery-set-border);
+  box-shadow: var(--desk-gallery-set-shadow);
+}
+
+body.desk-app[data-theme] .desk-gallery-set__thumbs {
+  background: var(--desk-gallery-set-thumb-background);
+}
+
+body.desk-app[data-theme] :is(
+  .desk-gallery-set__meta span,
+  .desk-gallery-set-detail__tags span
+) {
+  color: var(--desk-gallery-set-tag-ink);
+  background: var(--desk-gallery-set-tag-background);
+}
+
+body.desk-app[data-theme] .desk-gallery-set-detail__head {
+  background: var(--desk-gallery-set-detail-background);
+  border-color: var(--desk-gallery-set-asset-border);
+  box-shadow: var(--desk-gallery-set-asset-shadow);
+}
+
+body.desk-app[data-theme] .desk-gallery-set-asset {
+  background: var(--desk-gallery-set-asset-background);
+  border-color: var(--desk-gallery-set-asset-border);
+  box-shadow: var(--desk-gallery-set-asset-shadow);
+}
+
+body.desk-app[data-theme] .desk-gallery-set-asset.is-selected {
+  border-color: var(--desk-gallery-set-selected-border);
+  box-shadow: var(--desk-gallery-set-selected-shadow);
+}
+
+body.desk-app[data-theme] .desk-gallery-set-asset__image {
+  background: var(--desk-gallery-set-thumb-background);
+}
+
+body.desk-app[data-theme] .desk-gallery-inspector {
+  background: var(--desk-gallery-inspector-background);
+  border-color: var(--desk-gallery-inspector-border);
+  box-shadow: var(--desk-gallery-inspector-shadow);
+}
+
+body.desk-app[data-theme] .desk-gallery-inspector__head {
+  color: var(--desk-gallery-muted-ink);
+}
+
+body.desk-app[data-theme] .desk-gallery-inspector__head strong {
+  color: var(--desk-gallery-ink);
+}
+
+body.desk-app[data-theme] .desk-gallery-selected {
+  background: var(--desk-gallery-selection-background);
+  border-color: var(--desk-gallery-selection-border);
+  box-shadow: var(--desk-gallery-selection-shadow);
+}
+
+body.desk-app[data-theme] .desk-gallery-selected-item {
+  background: var(--desk-gallery-selected-item-background);
+  border-color: var(--desk-gallery-selected-item-border);
+}
+
+body.desk-app[data-theme] :is(
+  .desk-gallery-empty,
+  .desk-gallery-more
+) {
+  color: var(--desk-gallery-empty-ink);
+  background: var(--desk-gallery-empty-background);
+  border-color: var(--desk-gallery-empty-border);
+}
+
+body.desk-app[data-theme] .desk-gallery-selected .desk-gallery-empty {
+  color: var(--desk-gallery-selected-empty-ink);
+  background: var(--desk-gallery-selected-empty-background);
+  border-color: var(--desk-gallery-selected-empty-border);
+}
+
+body.desk-app[data-theme] .desk-gallery-scroll-hint {
+  color: var(--desk-gallery-muted-ink);
+  background: transparent;
+}
+
+/* Remote prompt sources remain intentionally flat inside one parent glass shell. */
+body.desk-app[data-theme] .desk-gallery .desk-prompt-source-controls {
+  background: transparent;
+  box-shadow: none;
+}
+
+body.desk-app[data-theme] .desk-gallery .desk-prompt-source-controls::before {
+  background: var(--desk-gallery-source-shell-background);
+  border-color: var(--desk-gallery-source-shell-border);
+  box-shadow: var(--desk-gallery-source-shell-shadow);
+}
+
+body.desk-app[data-theme] .desk-gallery :is(
+  .desk-prompt-source-head,
+  .desk-prompt-source-sync,
+  .desk-prompt-source-tabs,
+  .desk-prompt-source-taxonomy
+) {
+  background: var(--desk-gallery-source-section-background);
+  border-color: var(--desk-gallery-source-section-border);
+  box-shadow: var(--desk-gallery-source-section-shadow);
+}
+
+body.desk-app[data-theme] .desk-gallery .desk-prompt-source-tabs__slider {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+body.desk-app[data-theme] .desk-gallery :is(
+  .desk-prompt-source-head strong,
+  .desk-prompt-source-sync__top strong,
+  .desk-prompt-source-taxonomy__row strong
+) {
+  color: var(--desk-gallery-ink);
+}
+
+body.desk-app[data-theme] .desk-gallery :is(
+  .desk-prompt-source-head__meta span,
+  .desk-prompt-source-actions button:not(:hover):not(:disabled),
+  .desk-prompt-source-tabs button:not(.is-active):not(:hover):not(:disabled),
+  .desk-prompt-source-taxonomy button:not(.is-active):not(:hover):not(:disabled)
+) {
+  color: var(--desk-gallery-source-control-ink);
+  background: var(--desk-gallery-source-control-background);
+  border-color: var(--desk-gallery-source-control-border);
+  box-shadow: none;
+}
+
+body.desk-app[data-theme] .desk-gallery .desk-prompt-source-chip--name {
+  color: var(--desk-gallery-source-chip-ink);
+}
+
+body.desk-app[data-theme] .desk-gallery :is(
+  .desk-prompt-source-tabs span,
+  .desk-prompt-source-taxonomy span,
+  .desk-prompt-source-taxonomy__head span,
+  .desk-prompt-source-sync__top span,
+  .desk-prompt-source-sync em
+) {
+  color: var(--desk-gallery-source-muted-ink);
+}
+
+body.desk-app[data-theme] .desk-gallery .desk-prompt-source-sync__bar {
+  background: var(--desk-gallery-source-progress-background);
+}
+
+body.desk-app[data-theme] .desk-gallery .desk-prompt-source-sync__bar i {
+  background: var(--desk-gallery-source-progress-fill);
+}
+
+body.desk-app[data-theme] .desk-gallery .desk-prompt-source-sync.is-done .desk-prompt-source-sync__bar i {
+  background: var(--desk-gallery-source-progress-done-fill);
+}
+
+/* Full-screen image preview is media-led in both themes. */
+body.desk-app[data-theme] .desk-gallery-preview {
+  background: var(--desk-gallery-preview-background);
+  box-shadow: var(--desk-gallery-preview-shadow);
+}
+
+body.desk-app[data-theme] .desk-gallery-preview__panel {
+  background: var(--desk-gallery-preview-panel-background);
+  box-shadow: none;
+}
+
+body.desk-app[data-theme] .desk-gallery-preview__backdrop {
+  background: var(--desk-gallery-preview-backdrop-background);
+}
+
+body.desk-app[data-theme] .desk-gallery-preview__panel::before {
+  background: var(--desk-gallery-preview-overlay-background);
+}
+
+body.desk-app[data-theme] .desk-gallery-preview__stage {
+  background: transparent;
+}
+
+body.desk-app[data-theme] .desk-gallery-preview__info {
+  color: var(--desk-gallery-preview-info-ink);
+  background: var(--desk-gallery-preview-info-background);
+  box-shadow: var(--desk-gallery-preview-info-shadow);
+}
+
+body.desk-app[data-theme] :is(
+  .desk-gallery-preview__section p,
+  .desk-gallery-lineage-group > strong,
+  .desk-gallery-lineage-empty
+) {
+  color: var(--desk-gallery-preview-label-ink);
+}
+
+body.desk-app[data-theme] :is(
+  .desk-gallery-preview__section h2,
+  .desk-gallery-preview__section pre,
+  .desk-gallery-preview__meta-row strong,
+  .desk-gallery-lineage-chip
+) {
+  color: var(--desk-gallery-preview-value-ink);
+}
+
+body.desk-app[data-theme] .desk-gallery-preview__meta-row span {
+  color: var(--desk-gallery-preview-meta-ink);
+}
+
+body.desk-app[data-theme] .desk-gallery-preview__divider {
+  background: var(--desk-gallery-preview-divider);
+}
+
+body.desk-app[data-theme] .desk-gallery-lineage-chip {
+  background: var(--desk-gallery-preview-lineage-background);
+  border-color: var(--desk-gallery-preview-lineage-border);
+}
+
+body.desk-app[data-theme] .desk-gallery-lineage-chip:hover {
+  background: var(--desk-gallery-preview-lineage-hover-background);
+}
+
+body.desk-app[data-theme] .desk-gallery-lineage-chip.is-missing:hover {
+  background: var(--desk-gallery-preview-lineage-background);
+}
+
+body.desk-app[data-theme] :is(
+  .desk-gallery-lineage-chip img,
+  .desk-gallery-lineage-chip > span
+) {
+  background: var(--desk-gallery-preview-lineage-media-background);
+}
+
+body.desk-app[data-theme] .desk-gallery-lineage-chip > span {
+  color: var(--desk-gallery-preview-lineage-media-ink);
+}
+
+body.desk-app[data-theme] .desk-gallery-lineage-chip > span.is-missing {
+  color: var(--desk-gallery-preview-missing-ink);
+  background: var(--desk-gallery-preview-missing-background);
+}
+
+body.desk-app[data-theme] :is(
+  .desk-gallery-preview__toolbar,
+  .desk-gallery-preview__corner-close
+) {
+  color: var(--desk-gallery-preview-toolbar-ink);
+  background: var(--desk-gallery-preview-toolbar-background);
+  box-shadow: var(--desk-gallery-preview-toolbar-shadow);
+}
+
+body.desk-app[data-theme] :is(
+  .desk-gallery-preview__mini-btn,
+  .desk-gallery-preview__toolbar button
+) {
+  color: var(--desk-gallery-preview-button-ink);
+  background: var(--desk-gallery-preview-button-background);
+  border-color: var(--desk-gallery-preview-button-border);
+  box-shadow: var(--desk-gallery-preview-button-shadow);
+}
+
+body.desk-app[data-theme] :is(
+  .desk-gallery-preview__mini-btn,
+  .desk-gallery-preview__corner-close,
+  .desk-gallery-preview__toolbar button
+):hover:not(:disabled) {
+  color: var(--desk-gallery-preview-button-hover-ink);
+  background: var(--desk-gallery-preview-button-hover-background);
+  border-color: var(--desk-gallery-preview-button-hover-border);
+}
+
+body.desk-app[data-theme] :is(
+  .desk-gallery-preview__mini-btn.is-active,
+  #deskGalleryPreviewApplyBtn,
+  #deskGalleryPreviewCanvasBtn,
+  #deskGalleryPreviewEditBtn,
+  #deskGalleryPreviewCompareBtn,
+  #deskGalleryPreviewLayoutBtn,
+  #deskGalleryPreviewSendBtn
+) {
+  color: var(--desk-gallery-preview-command-ink);
+  background: var(--desk-gallery-preview-command-background);
+  border-color: var(--desk-gallery-preview-command-border);
+  box-shadow: var(--desk-gallery-preview-command-shadow);
+}
+
+body.desk-app[data-theme] .desk-gallery-preview__toolbar button:disabled {
+  color: var(--desk-gallery-preview-disabled-ink);
+  background: var(--desk-gallery-preview-disabled-background);
+  border-color: var(--desk-gallery-preview-disabled-border);
+  box-shadow: none;
+}
+
+body.desk-app[data-theme] .desk-gallery-preview__counter {
+  color: var(--desk-gallery-preview-toolbar-ink);
+}
+
+body.desk-app[data-theme] .desk-gallery-preview__toolbar-separator {
+  background: var(--desk-gallery-preview-separator);
+}
+
+/* Pinterest retains brand identity inside the Gallery's shared contrast model. */
+body.desk-app[data-theme] .desk-gallery-card__meta-copy.is-pinterest-local :is(
+  .desk-gallery-card__description,
+  em
+) {
+  color: var(--desk-gallery-pinterest-soft-ink);
+}
+
+body.desk-app[data-theme] .desk-gallery-card__meta-actions.is-pinterest :is(
+  .desk-gallery-card__analyze,
+  .desk-gallery-card__split
+) {
+  color: var(--desk-gallery-pinterest-soft-ink);
+  background: var(--desk-gallery-pinterest-soft-background);
+  border-color: var(--desk-gallery-pinterest-soft-border);
+  box-shadow: var(--desk-gallery-pinterest-soft-shadow);
+}
+
+body.desk-app[data-theme] .desk-gallery-card__meta-actions.is-pinterest :is(
+  .desk-gallery-card__analyze,
+  .desk-gallery-card__split
+):hover:not(:disabled),
+body.desk-app[data-theme] .desk-gallery-card__meta-actions.is-pinterest .desk-gallery-card__analyze.is-analyzed:not(.is-analyzing) {
+  color: var(--desk-gallery-pinterest-brand-ink);
+  background: var(--desk-gallery-pinterest-action-background);
+  border-color: var(--desk-gallery-pinterest-action-border);
+}
+
+body.desk-app[data-theme] :is(
+  .desk-pinterest-analysis-modal__backdrop,
+  .desk-pinterest-split-modal__backdrop
+) {
+  background: var(--desk-gallery-pinterest-modal-backdrop);
+}
+
+body.desk-app[data-theme] :is(
+  .desk-pinterest-analysis-modal__panel,
+  .desk-pinterest-split-modal__panel
+) {
+  color: var(--desk-gallery-pinterest-modal-ink);
+  background: var(--desk-gallery-pinterest-modal-background);
+  border-color: var(--desk-gallery-pinterest-modal-border);
+  box-shadow: var(--desk-gallery-pinterest-modal-shadow);
+}
+
+body.desk-app[data-theme] :is(
+  .desk-pinterest-analysis-modal__header,
+  .desk-pinterest-analysis-modal__footer,
+  .desk-pinterest-split-modal__header,
+  .desk-pinterest-split-modal__footer
+) {
+  background: var(--desk-gallery-pinterest-modal-band-background);
+  border-color: var(--desk-gallery-pinterest-modal-band-border);
+}
+
+body.desk-app[data-theme] :is(
+  .desk-pinterest-analysis-modal__mark,
+  .desk-pinterest-split-modal__mark
+) {
+  color: var(--desk-gallery-pinterest-brand-ink);
+  background: var(--desk-gallery-pinterest-brand-background);
+  box-shadow: var(--desk-gallery-pinterest-soft-shadow);
+}
+
+body.desk-app[data-theme] :is(
+  .desk-pinterest-analysis-modal__identity h2,
+  .desk-pinterest-analysis-modal__source strong,
+  .desk-pinterest-split-modal__identity h2,
+  .desk-pinterest-split-modal__source strong,
+  .desk-pinterest-split-modal__candidate-copy strong,
+  .desk-pinterest-split-modal__loading strong,
+  .desk-pinterest-split-modal__empty strong
+) {
+  color: var(--desk-gallery-pinterest-modal-heading-ink);
+}
+
+body.desk-app[data-theme] :is(
+  .desk-pinterest-analysis-modal__identity > div > span,
+  .desk-pinterest-analysis-modal__source span,
+  .desk-pinterest-analysis-modal__prompt > span,
+  .desk-pinterest-analysis-modal__footer p,
+  .desk-pinterest-split-modal__identity > div > span,
+  .desk-pinterest-split-modal__source span,
+  .desk-pinterest-split-modal__footer p,
+  .desk-pinterest-split-modal__loading,
+  .desk-pinterest-split-modal__empty,
+  .desk-pinterest-split-modal__loading p,
+  .desk-pinterest-split-modal__empty span
+) {
+  color: var(--desk-gallery-pinterest-modal-muted-ink);
+}
+
+body.desk-app[data-theme] :is(
+  .desk-pinterest-analysis-modal__close,
+  .desk-pinterest-analysis-modal__footer button:not(.is-primary),
+  .desk-pinterest-split-modal__close,
+  .desk-pinterest-split-modal__footer button:not(.is-primary)
+) {
+  color: var(--desk-gallery-pinterest-modal-control-ink);
+  background: var(--desk-gallery-pinterest-modal-control-background);
+  border-color: var(--desk-gallery-pinterest-modal-control-border);
+  box-shadow: var(--desk-gallery-pinterest-modal-control-shadow);
+}
+
+body.desk-app[data-theme] :is(
+  .desk-pinterest-analysis-modal__close,
+  .desk-pinterest-analysis-modal__footer button:not(.is-primary),
+  .desk-pinterest-split-modal__close,
+  .desk-pinterest-split-modal__footer button:not(.is-primary)
+):hover:not(:disabled) {
+  color: var(--desk-gallery-pinterest-modal-control-hover-ink);
+  background: var(--desk-gallery-pinterest-modal-control-hover-background);
+}
+
+body.desk-app[data-theme] :is(
+  .desk-pinterest-analysis-modal__source img,
+  .desk-pinterest-split-modal__source img
+) {
+  background: var(--desk-gallery-pinterest-source-background);
+  border-color: var(--desk-gallery-pinterest-source-border);
+  box-shadow: var(--desk-gallery-pinterest-source-shadow);
+}
+
+body.desk-app[data-theme] .desk-pinterest-analysis-modal__prompt textarea {
+  color: var(--desk-gallery-pinterest-field-ink);
+  background: var(--desk-gallery-pinterest-field-background);
+  border-color: var(--desk-gallery-pinterest-field-border);
+  box-shadow: var(--desk-gallery-pinterest-field-shadow);
+}
+
+body.desk-app[data-theme] .desk-pinterest-analysis-modal__prompt textarea:focus {
+  border-color: var(--desk-gallery-pinterest-field-focus-border);
+  box-shadow: var(--desk-gallery-pinterest-field-focus-shadow);
+}
+
+body.desk-app[data-theme] .desk-pinterest-split-modal__candidate {
+  color: var(--desk-gallery-pinterest-modal-ink);
+  background: var(--desk-gallery-pinterest-candidate-background);
+  border-color: var(--desk-gallery-pinterest-modal-control-border);
+  box-shadow: var(--desk-gallery-pinterest-modal-control-shadow);
+}
+
+body.desk-app[data-theme] .desk-pinterest-split-modal__candidate:hover {
+  background: var(--desk-gallery-pinterest-candidate-hover-background);
+  border-color: var(--desk-gallery-pinterest-soft-border);
+}
+
+body.desk-app[data-theme] .desk-pinterest-split-modal__candidate.is-selected {
+  background: var(--desk-gallery-pinterest-candidate-selected-background);
+  border-color: var(--desk-gallery-pinterest-candidate-selected-border);
+  box-shadow: var(--desk-gallery-pinterest-candidate-selected-shadow);
+}
+
+body.desk-app[data-theme] .desk-pinterest-split-modal__candidate-copy em {
+  color: var(--desk-gallery-pinterest-candidate-label-ink);
+  background: var(--desk-gallery-pinterest-soft-background);
+}
+
+body.desk-app[data-theme] .desk-pinterest-split-modal__candidate-copy > span {
+  color: var(--desk-gallery-pinterest-candidate-copy-ink);
+}
+
+body.desk-app[data-theme] .desk-pinterest-split-modal__loading > span {
+  border-top-color: var(--desk-gallery-pinterest-brand-background);
+}

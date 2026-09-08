@@ -22,7 +22,7 @@ from .pinterest_auth import load_saved_cookie_header
 from .pinterest_storage import list_local_pinterest_library, pinterest_cached_pin_fields
 
 CACHE_TTL_SECONDS = 5 * 60
-CACHE_SCHEMA_VERSION = "authenticated-board-feed-v2"
+CACHE_SCHEMA_VERSION = "authenticated-board-feed-v3"
 USER_AGENT = (
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
     "AppleWebKit/537.36 (KHTML, like Gecko) "
@@ -191,7 +191,12 @@ def _timestamp(value: Any) -> int:
         return 0
 
 
-def _normalize_pin(pin: dict[str, Any], origin: str, download_originals: bool) -> dict[str, Any] | None:
+def _normalize_pin(
+    pin: dict[str, Any],
+    origin: str,
+    download_originals: bool,
+    fallback_board: dict[str, Any] | None = None,
+) -> dict[str, Any] | None:
     pin_id = str(pin.get("id") or "").strip()
     images = pin.get("images") if isinstance(pin.get("images"), dict) else {}
     best = _best_image(images)
@@ -201,6 +206,11 @@ def _normalize_pin(pin: dict[str, Any], origin: str, download_originals: bool) -
         return None
     image_url = _original_image_url(pin, display_url) if download_originals else display_url
     board = pin.get("board") if isinstance(pin.get("board"), dict) else {}
+    # BoardFeedResource Pins can omit board metadata; the feed's board is authoritative.
+    board_fallback = fallback_board if isinstance(fallback_board, dict) else {}
+    board_id = str(board.get("id") or board_fallback.get("id") or "").strip()
+    board_name = str(board.get("name") or board_fallback.get("name") or "").strip()
+    board_url = _absolute_url(origin, board.get("url") or board_fallback.get("url"))
     description = str(
         pin.get("description")
         or pin.get("grid_title")
@@ -212,7 +222,6 @@ def _normalize_pin(pin: dict[str, Any], origin: str, download_originals: bool) -
     if len(title) > 120:
         title = f"{title[:117]}..."
     pin_url = f"{origin}/pin/{urllib.parse.quote(pin_id, safe='')}/"
-    board_name = str(board.get("name") or "").strip()
     width = int(best.get("width") or 0)
     height = int(best.get("height") or 0)
     normalized = {
@@ -233,15 +242,15 @@ def _normalize_pin(pin: dict[str, Any], origin: str, download_originals: bool) -
         "source_kind": "pinterest",
         "source_url": pin_url,
         "external_url": str(pin.get("link") or ""),
-        "board_id": str(board.get("id") or ""),
+        "board_id": board_id,
         "board_name": board_name,
-        "board_url": _absolute_url(origin, board.get("url")),
+        "board_url": board_url,
         "dominant_color": str(pin.get("dominant_color") or ""),
         "tags": [board_name] if board_name else [],
         "params": {
             "source_kind": "pinterest",
             "source_url": pin_url,
-            "board_id": str(board.get("id") or ""),
+            "board_id": board_id,
             "board_name": board_name,
         },
     }
@@ -254,13 +263,14 @@ def _normalize_pins(
     origin: str,
     download_originals: bool,
     limit: int,
+    fallback_board: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
     pins: list[dict[str, Any]] = []
     seen: set[str] = set()
     for value in values:
         if not isinstance(value, dict):
             continue
-        pin = _normalize_pin(value, origin, download_originals)
+        pin = _normalize_pin(value, origin, download_originals, fallback_board)
         if not pin or pin["id"] in seen:
             continue
         seen.add(pin["id"])
@@ -479,7 +489,12 @@ def _board_payload(
     normalized_ids = {
         pin["id"]
         for pin in (
-            _normalize_pin(value, origin, bool(config.get("download_originals", True)))
+            _normalize_pin(
+                value,
+                origin,
+                bool(config.get("download_originals", True)),
+                board,
+            )
             for value in raw_values
             if isinstance(value, dict)
         )
@@ -515,6 +530,7 @@ def _board_payload(
                 value,
                 origin,
                 bool(config.get("download_originals", True)),
+                board,
             )
             if pin:
                 normalized_ids.add(pin["id"])
@@ -523,6 +539,7 @@ def _board_payload(
         origin,
         bool(config.get("download_originals", True)),
         limit,
+        board,
     )
     result = {
         "profile": profile,

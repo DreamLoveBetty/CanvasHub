@@ -204,6 +204,76 @@ def _normalize_manifest_urls(manifest: dict[str, Any], manifest_path: Path) -> d
         data["zip"] = zip_artifact
     data["artifacts"] = artifacts or data.get("artifacts") or []
     data["result_files"] = [item.get("relative_path") for item in data["artifacts"] if item.get("relative_path")]
+
+    preview = dict(data.get("preview") or {}) if isinstance(data.get("preview"), dict) else {}
+
+    def normalize_preview_items(items: Any, *fallback_dirs: Path) -> list[dict[str, Any]]:
+        normalized: list[dict[str, Any]] = []
+        for position, value in enumerate(items if isinstance(items, list) else []):
+            if not isinstance(value, dict):
+                continue
+            item = dict(value)
+            candidates: list[Path] = []
+            raw_path = str(item.get("path") or "").strip()
+            if raw_path:
+                candidates.append(Path(raw_path))
+            name = str(item.get("name") or "").strip()
+            if name:
+                candidates.extend(directory / name for directory in fallback_dirs)
+            path = next((candidate for candidate in candidates if candidate.is_file()), None)
+            if path:
+                item["path"] = str(path)
+                item["url"] = editable_url(path)
+            try:
+                item["index"] = int(item.get("index") or position + 1)
+            except (TypeError, ValueError):
+                item["index"] = position + 1
+            normalized.append(item)
+        return normalized
+
+    pages = normalize_preview_items(preview.get("pages"), task_dir / "preview" / "pages", task_dir / "preview")
+    layers = normalize_preview_items(preview.get("layers"), task_dir / "layers")
+    if pages:
+        preview["pages"] = pages
+        preview["page_count"] = len(pages)
+    if layers:
+        preview["layers"] = layers
+        preview["layer_count"] = len(layers)
+
+    image_path: Path | None = None
+    raw_image_path = str(preview.get("image") or "").strip()
+    if raw_image_path and Path(raw_image_path).is_file():
+        image_path = Path(raw_image_path)
+    elif (task_dir / "preview.png").is_file():
+        image_path = task_dir / "preview.png"
+    elif str(data.get("artifact_type") or "").lower() == "psd" and primary:
+        primary_path = Path(str(primary.get("path") or ""))
+        zip_path = Path(str(zip_artifact.get("path") or "")) if zip_artifact else None
+        image_path, engine = _ensure_psd_preview_image(primary_path, zip_path, task_dir)
+        if engine:
+            preview["engine"] = engine
+
+    if image_path and image_path.is_file():
+        preview.update(
+            {
+                "status": "ready",
+                "image": str(image_path),
+                "image_url": editable_url(image_path),
+                "thumbnail_url": editable_url(image_path),
+            }
+        )
+    elif pages and pages[0].get("url"):
+        preview["thumbnail_url"] = pages[0]["url"]
+    elif layers:
+        representative = next(
+            (item for item in layers if "residual" not in str(item.get("name") or "").lower() and item.get("url")),
+            next((item for item in layers if item.get("url")), None),
+        )
+        if representative:
+            preview["thumbnail_url"] = representative["url"]
+
+    if preview:
+        data["preview"] = preview
     return data
 
 
@@ -323,6 +393,69 @@ def _extract_zip_layers(zip_path: Path | None, task_dir: Path) -> list[dict[str,
     return layers
 
 
+def _extract_zip_composite_preview(zip_path: Path | None, task_dir: Path) -> Path | None:
+    if not zip_path or not zip_path.is_file() or not zipfile.is_zipfile(zip_path):
+        return None
+    out = task_dir / "preview.png"
+    try:
+        with zipfile.ZipFile(zip_path) as archive:
+            item = next(
+                (
+                    entry
+                    for entry in archive.infolist()
+                    if not entry.is_dir()
+                    and Path(entry.filename.replace("\\", "/").lstrip("/")).name.lower() == "composite_preview.png"
+                ),
+                None,
+            )
+            if item is None:
+                return None
+            with archive.open(item) as source:
+                image = Image.open(BytesIO(source.read())).convert("RGBA")
+                image.load()
+        image.save(out, format="PNG")
+        return out if out.is_file() else None
+    except Exception as exc:
+        print(f"⚠️ PSD composite preview extraction failed: {exc}")
+        return None
+
+
+def _ensure_psd_preview_image(primary_path: Path, zip_path: Path | None, task_dir: Path) -> tuple[Path | None, str]:
+    out = task_dir / "preview.png"
+    if out.is_file() and out.stat().st_size:
+        return out, "existing"
+
+    extracted = _extract_zip_composite_preview(zip_path, task_dir)
+    if extracted:
+        return extracted, "zip-composite"
+
+    magick = _find_executable(
+        [
+            "magick",
+            "/opt/homebrew/bin/magick",
+            "/usr/local/bin/magick",
+            "convert",
+            "/opt/homebrew/bin/convert",
+            "/usr/local/bin/convert",
+        ]
+    )
+    if not magick or not primary_path.is_file():
+        return None, ""
+    try:
+        subprocess.run(
+            [magick, f"{primary_path}[0]", str(out)],
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            timeout=60,
+        )
+        if out.is_file() and out.stat().st_size:
+            return out, "imagemagick"
+    except Exception as exc:
+        print(f"⚠️ PSD ImageMagick preview failed: {exc}")
+    return None, ""
+
+
 def _imagemagick_psd_scene_count(primary_path: Path) -> int:
     magick = _find_executable(["magick", "/opt/homebrew/bin/magick", "/usr/local/bin/magick"])
     if magick:
@@ -353,8 +486,8 @@ def validate_psd_artifacts(primary_path: Path, zip_path: Path | None) -> dict[st
         if source.read(4) != b"8BPS":
             raise RuntimeError("PSD 文件头无效，不是真实 Photoshop 文档")
     scene_count = _imagemagick_psd_scene_count(primary_path)
-    if scene_count < 3:
-        raise RuntimeError("PSD 至少需要 2 个真实可编辑图层")
+    if scene_count < 2:
+        raise RuntimeError("PSD 至少需要 1 个真实可编辑图层")
     if not zip_path or not zip_path.exists() or not zipfile.is_zipfile(zip_path):
         raise RuntimeError("PSD 图层 ZIP 缺失或无效")
 
@@ -374,8 +507,8 @@ def validate_psd_artifacts(primary_path: Path, zip_path: Path | None) -> dict[st
             ):
                 layer_names.append(name)
         layer_names.sort()
-        if len(layer_names) < 2:
-            raise RuntimeError("PSD 图层 ZIP 中至少需要 2 张 layers/ PNG")
+        if not layer_names:
+            raise RuntimeError("PSD 图层 ZIP 中至少需要 1 张 layers/ PNG")
         layer_images: list[Image.Image] = []
         for name in layer_names:
             with archive.open(name) as source:
@@ -427,17 +560,19 @@ def _build_psd_preview(primary_path: Path, zip_path: Path | None, task_dir: Path
         "layers": layers,
         "layer_count": len(layers),
     }
-    magick = _find_executable(["magick", "convert"])
-    if magick:
-        out = task_dir / "preview.png"
-        try:
-            cmd = [magick, f"{primary_path}[0]", str(out)] if Path(magick).name == "magick" else [magick, f"{primary_path}[0]", str(out)]
-            subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=60)
-            if out.exists():
-                preview.update({"status": "ready", "image": str(out), "image_url": editable_url(out), "engine": "imagemagick"})
-        except Exception as exc:
-            if not layers:
-                preview.update({"status": "failed", "message": str(exc)[:500], "engine": "imagemagick"})
+    out, engine = _ensure_psd_preview_image(primary_path, zip_path, task_dir)
+    if out:
+        preview.update(
+            {
+                "status": "ready",
+                "image": str(out),
+                "image_url": editable_url(out),
+                "thumbnail_url": editable_url(out),
+                "engine": engine,
+            }
+        )
+    elif not layers:
+        preview.update({"status": "failed", "message": "PSD preview is unavailable"})
     return preview
 
 

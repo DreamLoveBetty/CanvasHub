@@ -21,7 +21,7 @@
     openRequestId: 0,
     error: '',
   };
-  const TARGET_SELECTOR = '[data-text-node-input], #deskPromptChatInput, .desk-prompt-library textarea';
+  const TARGET_SELECTOR = '[data-text-node-input], #deskPromptChatInput, #deskAgentGoal, .desk-prompt-library textarea';
   const TOKEN_SELECTOR = '[data-prompt-block-token]';
   const MENU_ID = 'deskPromptBlockPicker';
 

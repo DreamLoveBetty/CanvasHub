@@ -569,24 +569,82 @@
   display: none;
 }
 
-.desk-app .desk-video-runtime-capabilities {
+.desk-app .desk-video-supervisor {
+  display: grid;
+  gap: 6px;
+  padding-top: 2px;
+}
+
+.desk-app .desk-video-supervisor-status {
+  display: grid;
+  grid-template-columns: 9px minmax(0, 1fr);
+  min-width: 0;
+  gap: 9px;
+  align-items: center;
+  padding: 8px 9px;
+  color: var(--desk-muted);
+  background: rgba(100, 116, 139, 0.05);
+  border: 1px solid rgba(85, 101, 120, 0.1);
+  border-radius: 8px;
+}
+
+.desk-app .desk-video-supervisor-status__dot {
+  flex: 0 0 auto;
+  width: 9px;
+  height: 9px;
+  background: #f59e0b;
+  border-radius: 50%;
+  box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.1);
+}
+
+.desk-app .desk-video-supervisor-status.is-online .desk-video-supervisor-status__dot {
+  background: #22c55e;
+  box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.1);
+}
+
+.desk-app .desk-video-supervisor-status.is-offline .desk-video-supervisor-status__dot {
+  background: #ef4444;
+  box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.1);
+}
+
+.desk-app .desk-video-supervisor-status__copy {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.desk-app .desk-video-supervisor-status__copy strong,
+.desk-app .desk-video-supervisor-status__copy small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.desk-app .desk-video-supervisor-status__copy strong {
+  color: var(--desk-ink);
+  font-size: 10px;
+}
+
+.desk-app .desk-video-supervisor-status__copy small {
+  color: var(--desk-muted);
+  font-size: 8px;
+}
+
+.desk-app .desk-video-supervisor-status__actions {
   display: flex;
-  flex-wrap: wrap;
+  grid-column: 2;
   gap: 5px;
 }
 
-.desk-app .desk-video-runtime-capabilities > span {
-  padding: 4px 7px;
-  color: var(--desk-muted);
-  font-size: 8px;
-  font-weight: 720;
-  background: rgba(100, 116, 139, 0.07);
-  border-radius: 999px;
+.desk-app .desk-video-supervisor-status__actions button {
+  min-width: 82px;
+  gap: 5px;
+  white-space: nowrap;
 }
 
-.desk-app .desk-video-runtime-capabilities strong {
-  color: var(--desk-ink);
-  font-weight: 850;
+.desk-app .desk-video-supervisor-status__actions button > span[aria-hidden="true"] {
+  font-size: 13px;
+  line-height: 1;
 }
 
 .desk-app[data-theme="dark"] .desk-video-node__icon {
@@ -630,9 +688,21 @@ body.desk-app[data-theme="dark"] .desk-node.desk-node--video.is-selected {
 .desk-app[data-theme="dark"] .desk-video-node__inputs,
 .desk-app[data-theme="dark"] .desk-video-runtime-mode,
 .desk-app[data-theme="dark"] .desk-video-runtime-status,
-.desk-app[data-theme="dark"] .desk-video-runtime-panel {
+.desk-app[data-theme="dark"] .desk-video-runtime-panel,
+.desk-app[data-theme="dark"] .desk-video-supervisor-status {
   background: rgba(20, 26, 29, 0.56);
   border-color: rgba(255, 255, 255, 0.07);
+}
+
+@media (max-width: 640px) {
+  .desk-app .desk-video-supervisor-status__actions {
+    width: 100%;
+  }
+
+  .desk-app .desk-video-supervisor-status__actions button {
+    flex: 1 1 0;
+    min-width: 0;
+  }
 }
 
 body.desk-app[data-theme="dark"] .desk-video-node__advanced .desk-input {
@@ -651,8 +721,7 @@ body.desk-app[data-theme="dark"] .desk-video-node__advanced .desk-input:focus {
     inset 0 1px 2px rgba(0, 0, 0, 0.34);
 }
 
-.desk-app[data-theme="dark"] .desk-video-node__actual-size output,
-.desk-app[data-theme="dark"] .desk-video-runtime-capabilities > span {
+.desk-app[data-theme="dark"] .desk-video-node__actual-size output {
   color: var(--desk-ink);
   background: rgba(20, 26, 29, 0.58);
   border-color: rgba(255, 255, 255, 0.07);

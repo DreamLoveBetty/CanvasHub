@@ -1180,8 +1180,8 @@
     'transform', 'transform-origin'
   ];
 
-  function genieBakeElementStyles(source, target) {
-    const computed = getComputedStyle(source);
+  function genieBakeElementStyles(source, target, computedStyle = null) {
+    const computed = computedStyle || getComputedStyle(source);
     let cssText = '';
     for (const prop of GENIE_BAKE_PROPS) {
       const value = computed.getPropertyValue(prop);
@@ -1200,13 +1200,17 @@
     target.style.cssText = cssText;
   }
 
-  function genieInlineImages(sourceRoot, cloneRoot) {
+  function genieInlineImages(sourceRoot, cloneRoot, hiddenSources = null) {
     const sourceImgs = sourceRoot.querySelectorAll('img');
     const cloneImgs = cloneRoot.querySelectorAll('img');
     const count = Math.min(sourceImgs.length, cloneImgs.length);
     for (let i = 0; i < count; i++) {
       const source = sourceImgs[i];
       const clone = cloneImgs[i];
+      if (hiddenSources?.has(source)) {
+        clone.removeAttribute('src');
+        continue;
+      }
       try {
         if (source.complete && source.naturalWidth > 0) {
           const rect = source.getBoundingClientRect();
@@ -1228,7 +1232,21 @@
     }
   }
 
-  async function snapshotHistoryPanel(panel, rect) {
+  function genieSnapshotRasterSize(rect, options = {}) {
+    const rectWidth = Math.max(1, Math.round(rect.width));
+    const rectHeight = Math.max(1, Math.round(rect.height));
+    const maxWidth = Math.max(1, Number(options.maxRasterWidth) || rectWidth);
+    const maxHeight = Math.max(1, Number(options.maxRasterHeight) || rectHeight);
+    const scale = Math.min(1, maxWidth / rectWidth, maxHeight / rectHeight);
+    return {
+      width: Math.max(1, Math.round(rectWidth * scale)),
+      height: Math.max(1, Math.round(rectHeight * scale)),
+      rectWidth,
+      rectHeight
+    };
+  }
+
+  async function snapshotHistoryPanel(panel, rect, options = {}) {
     const fallback = () => drawHistoryPanelFallback(rect);
     try {
       const clone = panel.cloneNode(true);
@@ -1238,11 +1256,24 @@
       genieBakeElementStyles(panel, clone);
       const total = Math.min(sourceEls.length, cloneEls.length);
       const scrollPairs = [];
+      const hiddenSources = options.skipHiddenSubtrees ? new WeakSet() : null;
       for (let i = 0; i < total; i++) {
-        genieBakeElementStyles(sourceEls[i], cloneEls[i]);
-        if (sourceEls[i].scrollTop > 0) scrollPairs.push([cloneEls[i], sourceEls[i].scrollTop]);
+        const source = sourceEls[i];
+        const target = cloneEls[i];
+        if (hiddenSources?.has(source.parentElement)) {
+          hiddenSources.add(source);
+          continue;
+        }
+        const computed = hiddenSources ? getComputedStyle(source) : null;
+        if (hiddenSources && (source.hidden || computed.display === 'none')) {
+          hiddenSources.add(source);
+          target.style.cssText = 'display:none!important;';
+          continue;
+        }
+        genieBakeElementStyles(source, target, computed);
+        if (source.scrollTop > 0) scrollPairs.push([target, source.scrollTop]);
       }
-      genieInlineImages(panel, clone);
+      genieInlineImages(panel, clone, hiddenSources);
       // 还原滚动位置：把滚动容器的内容整体上移
       scrollPairs.forEach(([container, scrollTop]) => {
         const inner = document.createElement('div');
@@ -1267,8 +1298,9 @@
       clone.querySelector('#deskHistoryExpandBtn')?.remove();
       // 必须用 XMLSerializer：outerHTML 按 HTML 规则序列化（<img> 等空元素不自闭合），
       // 在严格 XML 解析的 SVG blob 里必然报错——旧版神灯从未成功渲染过、一直走白板兜底的根因
+      const raster = genieSnapshotRasterSize(rect, options);
       const xhtml = new XMLSerializer().serializeToString(clone);
-      const markup = `<svg xmlns="http://www.w3.org/2000/svg" width="${Math.round(rect.width)}" height="${Math.round(rect.height)}"><foreignObject width="100%" height="100%">${xhtml}</foreignObject></svg>`;
+      const markup = `<svg xmlns="http://www.w3.org/2000/svg" width="${raster.width}" height="${raster.height}" viewBox="0 0 ${raster.rectWidth} ${raster.rectHeight}"><foreignObject width="${raster.rectWidth}" height="${raster.rectHeight}">${xhtml}</foreignObject></svg>`;
       const blob = new Blob([markup], { type: 'image/svg+xml;charset=utf-8' });
       const url = URL.createObjectURL(blob);
       try {
@@ -1279,8 +1311,8 @@
           image.src = url;
         });
         const canvas = document.createElement('canvas');
-        canvas.width = Math.max(1, Math.round(rect.width));
-        canvas.height = Math.max(1, Math.round(rect.height));
+        canvas.width = raster.width;
+        canvas.height = raster.height;
         canvas.getContext('2d').drawImage(image, 0, 0);
         return canvas;
       } finally {
@@ -6829,6 +6861,12 @@
     closePinterestSplitModal({ restoreFocus: false, force: true });
     els.deskGalleryGrid?.querySelectorAll('.desk-gallery-video-detail video').forEach(video => video.pause?.());
     expandedGalleryVideoId = '';
+    const activeElement = document.activeElement;
+    if (activeElement && els.deskGalleryPanel?.contains(activeElement)) {
+      const trigger = document.querySelector('.desk-rail__item[data-tool="gallery"]');
+      if (trigger instanceof HTMLElement) trigger.focus({ preventScroll: true });
+      else if (activeElement instanceof HTMLElement) activeElement.blur();
+    }
     els.deskGalleryPanel?.classList.remove('is-open');
     els.deskGalleryPanel?.setAttribute('aria-hidden', 'true');
   }

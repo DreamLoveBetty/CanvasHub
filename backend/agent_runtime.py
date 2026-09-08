@@ -1005,27 +1005,34 @@ class AgentRuntime:
         goal = _text(payload.get("goal") or payload.get("message"), 2_000)
         context = payload.get("context") if isinstance(payload.get("context"), dict) else {}
         options = payload.get("options") if isinstance(payload.get("options"), dict) else {}
+        client = payload.get("client") if isinstance(payload.get("client"), dict) else {}
+        client_task_id = _text(client.get("agent_task_id"), 160)
         plan = build_plan(goal, context, options)
-        run_id = f"agent_{int(time.time())}_{uuid.uuid4().hex[:10]}"
         request = {
             "goal": goal,
             "options": copy.deepcopy(options),
-            "client": payload.get("client") if isinstance(payload.get("client"), dict) else {},
+            "client": copy.deepcopy(client),
         }
-        run = agent_store.create_run(
-            run_id,
-            goal=goal,
-            request=request,
-            context=context,
-            plan=plan,
-        )
-        self._emit(
-            run_id,
-            "plan_created",
-            status="awaiting_approval",
-            message=f"已生成 {len(plan.get('steps') or [])} 步执行计划，等待确认。",
-            payload={"plan": plan},
-        )
+        with self._lock:
+            if client_task_id:
+                existing = agent_store.find_run_by_client_task_id(client_task_id)
+                if existing:
+                    return self.get_run(existing["run_id"])
+            run_id = f"agent_{int(time.time())}_{uuid.uuid4().hex[:10]}"
+            run = agent_store.create_run(
+                run_id,
+                goal=goal,
+                request=request,
+                context=context,
+                plan=plan,
+            )
+            self._emit(
+                run_id,
+                "plan_created",
+                status="awaiting_approval",
+                message=f"已生成 {len(plan.get('steps') or [])} 步执行计划，等待确认。",
+                payload={"plan": plan},
+            )
         return self.get_run(run_id)
 
     def get_run(self, run_id: str, *, events_since: int = 0, event_limit: int = 240) -> dict[str, Any]:
@@ -1053,6 +1060,26 @@ class AgentRuntime:
     def list_runs(self, *, limit: int = 20, offset: int = 0, status: str = "") -> dict[str, Any]:
         runs = agent_store.list_runs(limit=limit, offset=offset, status=status)
         return {"ok": True, "runs": runs, "count": len(runs)}
+
+    def delete_run(self, run_id: str) -> dict[str, Any]:
+        """Delete an inactive run without touching generated output files."""
+        clean_id = _text(run_id, 160)
+        with self._lock:
+            run = self._require_run(clean_id)
+            status = str(run.get("status") or "")
+            thread = self._threads.get(clean_id)
+            if status not in (TERMINAL_RUN_STATUSES | {"awaiting_approval"}):
+                raise AgentRunConflict("运行中的任务需先取消或等待完成后再删除")
+            if thread and thread.is_alive():
+                raise AgentRunConflict("任务线程仍在结束处理中，请稍后再删除")
+            if not agent_store.delete_run(clean_id):
+                raise AgentRunNotFound("Agent 运行不存在")
+            self._threads.pop(clean_id, None)
+            self._conditions.pop(clean_id, None)
+            stale_actions = [key for key in self._action_results if key[0] == clean_id]
+            for key in stale_actions:
+                self._action_results.pop(key, None)
+        return {"ok": True, "deleted": True, "run_id": clean_id}
 
     def approve_run(self, run_id: str, approval: dict[str, Any] | None = None) -> dict[str, Any]:
         run = self._require_run(run_id)

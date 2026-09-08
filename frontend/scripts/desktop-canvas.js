@@ -20,6 +20,41 @@
   const DEFAULT_TEXT_NODE_HEIGHT = 360;
   const DEFAULT_IMAGE_NODE_WIDTH = 600;
   const DEFAULT_IMAGE_NODE_HEIGHT = 400;
+  const IMAGE_GROUP_UI_SCALE = 0.6;
+  const imageGroupUiSize = value => value * IMAGE_GROUP_UI_SCALE;
+  const IMAGE_GROUP_MAX_ITEMS = 12;
+  const IMAGE_GROUP_MAX_COLUMNS = 4;
+  const IMAGE_GROUP_BASE_THUMB_PX = 168;
+  const IMAGE_GROUP_MOTHER_HEIGHT_PX = imageGroupUiSize(288);
+  const IMAGE_GROUP_MOTHER_TOP_PX = imageGroupUiSize(24);
+  const IMAGE_GROUP_MOTHER_RADIUS_PX = imageGroupUiSize(32);
+  const IMAGE_GROUP_IDENTITY_WIDTH_PX = imageGroupUiSize(168);
+  const IMAGE_GROUP_THUMB_PX = imageGroupUiSize(IMAGE_GROUP_BASE_THUMB_PX);
+  const IMAGE_GROUP_THUMB_STEP_PX = imageGroupUiSize(128);
+  const IMAGE_GROUP_ROW_STEP_PX = imageGroupUiSize(228);
+  const IMAGE_GROUP_TRAILING_SPACE_PX = imageGroupUiSize(48);
+  const IMAGE_GROUP_LIQUID_SHELL_PX = imageGroupUiSize(216);
+  const IMAGE_GROUP_FILTER_OUTSET_PX = imageGroupUiSize(144);
+  const IMAGE_GROUP_LIQUID_VISIBLE_OUTSET_PX = 2;
+  const DEFAULT_IMAGE_GROUP_NODE_WIDTH = IMAGE_GROUP_IDENTITY_WIDTH_PX
+    + IMAGE_GROUP_THUMB_PX
+    + IMAGE_GROUP_THUMB_STEP_PX
+    + IMAGE_GROUP_TRAILING_SPACE_PX;
+  const DEFAULT_IMAGE_GROUP_NODE_HEIGHT = IMAGE_GROUP_MOTHER_HEIGHT_PX + IMAGE_GROUP_MOTHER_TOP_PX * 2;
+  const MIN_IMAGE_GROUP_NODE_WIDTH = DEFAULT_IMAGE_GROUP_NODE_WIDTH;
+  const MAX_IMAGE_GROUP_NODE_WIDTH = IMAGE_GROUP_IDENTITY_WIDTH_PX
+    + IMAGE_GROUP_THUMB_PX
+    + (IMAGE_GROUP_MAX_COLUMNS - 1) * IMAGE_GROUP_THUMB_STEP_PX
+    + IMAGE_GROUP_TRAILING_SPACE_PX;
+  const IMAGE_GROUP_LAYOUT_VERSION = 9;
+  const IMAGE_GROUP_PROXIMITY_DISTANCE_PX = 88;
+  const IMAGE_GROUP_PROXIMITY_RELEASE_PX = 122;
+  const IMAGE_GROUP_PROXIMITY_DWELL_MS = 620;
+  const IMAGE_GROUP_TRANSITION_THUMB_PX = imageGroupUiSize(68);
+  const IMAGE_GROUP_PROXIMITY_CONTACT_PX = 52;
+  const IMAGE_GROUP_PROXIMITY_DROP_PX = 28;
+  const IMAGE_GROUP_PROXIMITY_RELEASE_MS = 380;
+  const IMAGE_GROUP_PROXIMITY_DROP_MS = 400;
   const DEFAULT_INPUT_NODE_WIDTH = 720;
   const DEFAULT_INPUT_NODE_HEIGHT = 460;
   const DEFAULT_COMFY_NODE_WIDTH = 420;
@@ -92,6 +127,7 @@
   const FLOATING_SWELL_BORDER_PADDING_PX = 36;
   const FLOATING_SWELL_SAMPLE_SPACING_PX = 1;
   const FLOATING_SWELL_PEAK_PX = 7;
+  const FLOATING_SWELL_LINK_OVERLAP_SCREEN_PX = 1.25;
   const FLOATING_SWELL_LENGTH_PX = 38;
   const FLOATING_SWELL_PLATEAU_RATIO = 0.4;
   const FLOATING_SWELL_SHOULDER_RATIO = 0.3;
@@ -110,6 +146,10 @@
   const FLOATING_DROPLET_VELOCITY_NORMALIZER = 520;
   const CANVAS_PAN_DRAG_THRESHOLD_PX = 3;
   const CANVAS_CONTEXTMENU_SUPPRESS_MS = 450;
+  const CANVAS_WHEEL_GESTURE_END_MS = 160;
+  const CANVAS_COMPACT_ZOOM_THRESHOLD = 0.72;
+  const CANVAS_OVERVIEW_ZOOM_THRESHOLD = 0.5;
+  const ORDINARY_MENU_CLOSE_FALLBACK_MS = 240;
   const CANVAS_INTERACTION_BLOCK_SELECTOR = [
     '.desk-node',
     '.desk-link-interaction',
@@ -159,6 +199,24 @@
   const PROMPT_BLOCK_MAX_LABEL_LENGTH = 240;
   const PROMPT_BLOCK_MAX_ID_LENGTH = 160;
   const PROMPT_DOCUMENT_HISTORY_LIMIT = 50;
+  const PROMPT_TOKEN_SELECTOR = '[data-prompt-block-token], [data-image-reference-token]';
+  const IMAGE_GROUP_ROLES = Object.freeze([
+    { value: 'reference', label: '参考' },
+    { value: 'subject', label: '主体参考' },
+    { value: 'clothing', label: '服饰参考' },
+    { value: 'style', label: '风格参考' },
+    { value: 'composition', label: '构图参考' },
+    { value: 'background', label: '背景参考' }
+  ]);
+  const IMAGE_GROUP_ROLE_INSTRUCTIONS = Object.freeze({
+    reference: '作为通用视觉参考，仅参考用户明确指定的内容。',
+    subject: '保持主体身份、外形和关键特征。',
+    clothing: '参考服装款式、剪裁、层次、配色、面料纹理和配饰，不继承人物身份、脸部、姿态及背景。',
+    style: '仅参考视觉风格、色彩、光影和材质，不继承主体。',
+    composition: '仅参考机位、景别、主体位置和空间布局。',
+    background: '仅参考场景、环境和空间氛围，不继承前景主体。'
+  });
+  const IMAGE_GROUP_ROLE_PRIORITY_NOTE = '正文中通过 @图片N 指定的明确要求优先于以上默认用途。';
   const PROMPT_BLOCK_MODULE_LABELS = Object.freeze({
     raw: '原始提示词',
     custom: '自定义',
@@ -327,12 +385,21 @@
   ];
   const CUSTOM_TEXT_STYLE_KEY = 'desktop_custom_text_style_presets_v1';
   let activeInteraction = null;
+  let canvasPanFrameId = 0;
+  let canvasGraphFrameId = 0;
+  let canvasWheelEndTimer = 0;
+  let canvasWheelGestureActive = false;
+  let connectionPreviewFrameId = 0;
+  let pendingConnectionPreview = null;
+  let pendingConnectionDropPoint = null;
   let pendingUploadNodeId = 'input';
   let pendingFileMode = 'reference';
   let pendingImageNodeCenter = null;
   let pendingImageTargetNodeId = '';
   let contextMenuPoint = null;
   let contextMenuEl = null;
+  let contextMenuCloseTimer = 0;
+  let nodePaletteCloseTimer = 0;
   let contextMenuConnectionSourceId = '';
   let contextMenuConnectionSourceSide = 'right';
   let contextMenuConnectionSourceAnchor = null;
@@ -350,13 +417,28 @@
   let gptModelCatalog = null;
   let nodeGroupSequence = 0;
   let promptBlockInstanceSequence = 0;
+  let imageGroupItemSequence = 0;
+  let imageReferenceInstanceSequence = 0;
+  let activeTextImageMention = null;
+  let lastPromptTextNodeId = '';
+  let draggedImageGroupItem = null;
+  let imageGroupSortFrameId = 0;
   let lastCanvasPointer = null;
+  const imageGroupSortCleanupTimers = new WeakMap();
   const promptDocumentHistories = new Map();
   const promptDocumentVersions = new Map();
   const videoTaskPollTimers = new Map();
 
   function $(id) {
     return document.getElementById(id);
+  }
+
+  function prefersReducedMotion() {
+    try {
+      return Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches);
+    } catch (e) {
+      return false;
+    }
   }
 
   function escapeHtml(value) {
@@ -374,6 +456,146 @@
     const unique = globalThis.crypto?.randomUUID?.()?.replaceAll('-', '')
       || `${Date.now().toString(36)}${promptBlockInstanceSequence.toString(36)}${Math.random().toString(36).slice(2, 8)}`;
     return `prompt_block_${unique}`;
+  }
+
+  function createImageGroupItemId() {
+    imageGroupItemSequence += 1;
+    const unique = globalThis.crypto?.randomUUID?.()?.replaceAll('-', '')
+      || `${Date.now().toString(36)}${imageGroupItemSequence.toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+    return `image_group_item_${unique}`;
+  }
+
+  function createImageReferenceInstanceId() {
+    imageReferenceInstanceSequence += 1;
+    const unique = globalThis.crypto?.randomUUID?.()?.replaceAll('-', '')
+      || `${Date.now().toString(36)}${imageReferenceInstanceSequence.toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+    return `image_reference_${unique}`;
+  }
+
+  function normalizeImageGroupRole(value, fallback = 'reference') {
+    const raw = String(value || '').trim().toLowerCase();
+    // “细节参考”曾经没有清晰的边界。旧数据按通用参考迁移，避免误判为服饰参考。
+    const normalized = raw === 'detail' ? 'reference' : raw;
+    if (IMAGE_GROUP_ROLES.some(item => item.value === normalized)) return normalized;
+    const normalizedFallback = String(fallback || '').trim().toLowerCase();
+    return IMAGE_GROUP_ROLES.some(item => item.value === normalizedFallback) ? normalizedFallback : 'reference';
+  }
+
+  function imageGroupRoleLabel(value) {
+    const normalized = normalizeImageGroupRole(value);
+    return IMAGE_GROUP_ROLES.find(item => item.value === normalized)?.label || '参考';
+  }
+
+  function imageGroupRoleInstruction(value) {
+    return IMAGE_GROUP_ROLE_INSTRUCTIONS[normalizeImageGroupRole(value)]
+      || IMAGE_GROUP_ROLE_INSTRUCTIONS.reference;
+  }
+
+  function getImageGroupItem(groupId, itemId, sourceNodeId = '') {
+    const group = DesktopState.state.canvas.nodes[String(groupId || '')];
+    if (!group || group.type !== 'image_group' || !Array.isArray(group.items)) return null;
+    return group.items.find(item => (
+      (itemId && item.itemId === itemId)
+      || (sourceNodeId && item.sourceNodeId === sourceNodeId)
+    )) || null;
+  }
+
+  function imageReferenceRole(segment = {}) {
+    const groupId = String(segment.group_id ?? segment.groupId ?? '');
+    const itemId = String(segment.item_id ?? segment.itemId ?? '');
+    const sourceNodeId = String(segment.source_node_id ?? segment.sourceNodeId ?? '');
+    const item = getImageGroupItem(groupId, itemId, sourceNodeId);
+    return normalizeImageGroupRole(item?.role || segment.role_snapshot || segment.roleSnapshot);
+  }
+
+  function imageReferenceTargetNodeId(segment = {}, sourceId = '') {
+    const nodes = DesktopState.state.canvas.nodes || {};
+    const edges = DesktopState.state.canvas.edges || [];
+    const instanceId = String(segment.instance_id ?? segment.instanceId ?? '');
+    const owner = instanceId
+      ? Object.values(nodes).find(node => (
+        node?.type === 'text'
+        && Array.isArray(node.promptDocument?.segments)
+        && node.promptDocument.segments.some(item => (
+          item?.type === 'image_reference'
+          && String(item.instance_id ?? item.instanceId ?? '') === instanceId
+        ))
+      ))
+      : null;
+    const ownerTargets = owner
+      ? edges
+        .filter(edge => edge.from === owner.id && ['input', 'comfy'].includes(nodes[edge.to]?.type))
+        .map(edge => edge.to)
+      : [];
+    const sharedTarget = ownerTargets.find(targetId => edges.some(edge => edge.from === sourceId && edge.to === targetId));
+    if (sharedTarget) return sharedTarget;
+    return edges.find(edge => edge.from === sourceId && ['input', 'comfy'].includes(nodes[edge.to]?.type))?.to || '';
+  }
+
+  function imageReferenceNumber(segment = {}) {
+    const groupId = String(segment.group_id ?? segment.groupId ?? '');
+    const itemId = String(segment.item_id ?? segment.itemId ?? '');
+    const sourceNodeId = String(segment.source_node_id ?? segment.sourceNodeId ?? '');
+    const group = DesktopState.state.canvas.nodes[groupId];
+    const item = getImageGroupItem(groupId, itemId, sourceNodeId);
+    const sourceId = group && item ? groupId : sourceNodeId;
+    const targetNodeId = sourceId ? imageReferenceTargetNodeId(segment, sourceId) : '';
+    if (targetNodeId) {
+      const globalIndex = getConnectedImageReferences(targetNodeId).findIndex(reference => (
+        group && item
+          ? reference.imageGroupId === groupId && reference.imageGroupItemId === item.itemId
+          : !reference.imageGroupId && reference.sourceNodeId === sourceNodeId
+      ));
+      if (globalIndex >= 0) return globalIndex + 1;
+    }
+    if (group && item) return Math.max(0, group.items.indexOf(item)) + 1;
+    const snapshot = String(segment.label_snapshot ?? segment.labelSnapshot ?? '').trim();
+    const snapshotMatch = snapshot.match(/图片\s*(\d{1,3})/);
+    return snapshotMatch ? Math.max(1, Number(snapshotMatch[1]) || 1) : 0;
+  }
+
+  function imageReferenceDisplay(segment = {}) {
+    const imageNumber = imageReferenceNumber(segment);
+    if (imageNumber > 0) return `@图片${imageNumber}`;
+    const snapshot = String(segment.label_snapshot ?? segment.labelSnapshot ?? '').trim();
+    if (snapshot.startsWith('@')) return snapshot;
+    const snapshotMatch = snapshot.match(/图片\s*(\d{1,3})/);
+    if (snapshotMatch) return `@图片${Math.max(1, Number(snapshotMatch[1]) || 1)}`;
+    const sourceNodeId = String(segment.source_node_id ?? segment.sourceNodeId ?? '');
+    const sourceNode = DesktopState.state.canvas.nodes[sourceNodeId];
+    if (sourceNode?.type === 'image') {
+      const allImages = listPromptImageNodes();
+      const imageIndex = allImages.findIndex(item => !item.imageGroupId && item.sourceNodeId === sourceNodeId);
+      if (imageIndex >= 0) return `@图片${imageIndex + 1}`;
+    }
+    return '@图片';
+  }
+
+  function normalizeImageReferenceSegment(segment = {}, fallback = {}) {
+    const source = segment && typeof segment === 'object' ? segment : {};
+    const base = fallback && typeof fallback === 'object' ? fallback : {};
+    const normalized = {
+      type: 'image_reference',
+      instance_id: truncatePromptValue(
+        source.instance_id ?? source.instanceId ?? base.instance_id ?? base.instanceId ?? createImageReferenceInstanceId(),
+        PROMPT_BLOCK_MAX_ID_LENGTH
+      ) || createImageReferenceInstanceId(),
+      group_id: truncatePromptValue(source.group_id ?? source.groupId ?? base.group_id ?? base.groupId ?? '', PROMPT_BLOCK_MAX_ID_LENGTH),
+      item_id: truncatePromptValue(source.item_id ?? source.itemId ?? base.item_id ?? base.itemId ?? '', PROMPT_BLOCK_MAX_ID_LENGTH),
+      source_node_id: truncatePromptValue(
+        source.source_node_id ?? source.sourceNodeId ?? base.source_node_id ?? base.sourceNodeId ?? '',
+        PROMPT_BLOCK_MAX_ID_LENGTH
+      ),
+      role_snapshot: normalizeImageGroupRole(
+        source.role_snapshot ?? source.roleSnapshot ?? source.role ?? base.role_snapshot ?? base.roleSnapshot ?? base.role
+      ),
+      label_snapshot: truncatePromptValue(
+        source.label_snapshot ?? source.labelSnapshot ?? base.label_snapshot ?? base.labelSnapshot ?? '',
+        PROMPT_BLOCK_MAX_LABEL_LENGTH
+      )
+    };
+    if (!normalized.label_snapshot) normalized.label_snapshot = imageReferenceDisplay(normalized);
+    return normalized;
   }
 
   function truncatePromptValue(value, maxLength) {
@@ -593,6 +815,16 @@
     };
     sourceSegments.slice(0, PROMPT_DOCUMENT_MAX_SEGMENTS).forEach(segment => {
       if (!segment || typeof segment !== 'object') return;
+      if (segment.type === 'image_reference') {
+        if (remainingLength <= 0) return;
+        const reference = normalizeImageReferenceSegment(segment);
+        const visibleText = truncatePromptValue(imageReferenceDisplay(reference), remainingLength);
+        reference.label_snapshot = reference.label_snapshot || visibleText;
+        remainingLength -= visibleText.length;
+        segments.push(reference);
+        recognizedSegments += 1;
+        return;
+      }
       if (segment.type === 'prompt_block') {
         if (remainingLength <= 0) return;
         const block = normalizePromptBlockSegment(segment);
@@ -623,9 +855,11 @@
 
   function materializePromptDocument(promptDocument) {
     return (Array.isArray(promptDocument?.segments) ? promptDocument.segments : [])
-      .map(segment => segment?.type === 'prompt_block'
-        ? String(segment.content_snapshot || '')
-        : String(segment?.text || ''))
+      .map(segment => {
+        if (segment?.type === 'prompt_block') return String(segment.content_snapshot || '');
+        if (segment?.type === 'image_reference') return imageReferenceDisplay(segment);
+        return String(segment?.text || '');
+      })
       .join('');
   }
 
@@ -764,7 +998,9 @@
 
   function promptDocumentHasEditorContent(promptDocument) {
     return normalizePromptDocument(promptDocument).segments.some(segment => (
-      segment.type === 'prompt_block' || String(segment.text || '').trim().length > 0
+      segment.type === 'prompt_block'
+      || segment.type === 'image_reference'
+      || String(segment.text || '').trim().length > 0
     ));
   }
 
@@ -825,17 +1061,49 @@
     return `<span class="desk-prompt-block-token${colorClass}${moduleClass}" contenteditable="false" tabindex="0" role="button" aria-haspopup="listbox" aria-expanded="false" data-prompt-block-token="${escapeHtml(normalized.block_id)}" data-prompt-block-instance="${escapeHtml(normalized.instance_id)}" data-prompt-block-instance-id="${escapeHtml(normalized.instance_id)}" data-prompt-block-id="${escapeHtml(normalized.block_id)}" data-prompt-block-module="${escapeHtml(normalized.module_type)}" data-prompt-block-module-type="${escapeHtml(normalized.module_type)}"${moduleData}${colorData}${colorStyle} aria-label="${escapeHtml(ariaLabel)}" title="${escapeHtml(title)}"><span class="desk-prompt-block-token__label">${escapeHtml(label)}</span><span class="desk-prompt-block-token__chevron" aria-hidden="true"><svg viewBox="0 0 12 12"><path d="m3 4.5 3 3 3-3"></path></svg></span></span>`;
   }
 
+  function imageReferenceTokenHtml(segment) {
+    const normalized = normalizeImageReferenceSegment(segment);
+    const label = imageReferenceDisplay(normalized);
+    const liveRole = imageReferenceRole(normalized);
+    const roleLabel = imageGroupRoleLabel(liveRole);
+    return `<span class="desk-image-reference-token" contenteditable="false" tabindex="0" role="button" data-image-reference-token data-image-reference-instance="${escapeHtml(normalized.instance_id)}" data-image-reference-group="${escapeHtml(normalized.group_id)}" data-image-reference-item="${escapeHtml(normalized.item_id)}" data-image-reference-source-node="${escapeHtml(normalized.source_node_id)}" data-image-reference-role="${escapeHtml(liveRole)}" aria-label="图片引用：${escapeHtml(label)}，${escapeHtml(roleLabel)}" title="引用编号跟随模型实际收图顺序"><span class="desk-image-reference-token__label">${escapeHtml(label)}</span><small>${escapeHtml(roleLabel)}</small></span>`;
+  }
+
+  function syncImageReferenceTokenElement(token, segment) {
+    if (!token) return;
+    const normalized = normalizeImageReferenceSegment(segment);
+    const liveRole = imageReferenceRole(normalized);
+    const label = imageReferenceDisplay(normalized);
+    const roleLabel = imageGroupRoleLabel(liveRole);
+    token.dataset.imageReferenceInstance = normalized.instance_id;
+    token.dataset.imageReferenceGroup = normalized.group_id;
+    token.dataset.imageReferenceItem = normalized.item_id;
+    token.dataset.imageReferenceSourceNode = normalized.source_node_id;
+    token.dataset.imageReferenceRole = liveRole;
+    token.setAttribute('aria-label', `图片引用：${label}，${roleLabel}`);
+    token.title = '引用编号跟随模型实际收图顺序';
+    token.innerHTML = `<span class="desk-image-reference-token__label">${escapeHtml(label)}</span><small>${escapeHtml(roleLabel)}</small>`;
+    token._imageReferenceSegment = normalized;
+  }
+
   function promptDocumentEditorHtml(promptDocument) {
     return normalizePromptDocument(promptDocument).segments.map(segment => {
       if (segment.type === 'prompt_block') return promptBlockTokenHtml(segment);
+      if (segment.type === 'image_reference') return imageReferenceTokenHtml(segment);
       return escapeHtml(segment.text || '').replace(/\n/g, '<br>');
     }).join('');
   }
 
   function promptDocumentFromEditor(editor, nodeState) {
+    const existingSegments = normalizePromptDocument(nodeState?.promptDocument, nodeState?.text || '').segments;
     const existingBlocks = new Map(
-      normalizePromptDocument(nodeState?.promptDocument, nodeState?.text || '').segments
+      existingSegments
         .filter(segment => segment.type === 'prompt_block')
+        .map(segment => [segment.instance_id, segment])
+    );
+    const existingImageReferences = new Map(
+      existingSegments
+        .filter(segment => segment.type === 'image_reference')
         .map(segment => [segment.instance_id, segment])
     );
     const segments = [];
@@ -858,6 +1126,21 @@
           return;
         }
         if (child.nodeType !== Node.ELEMENT_NODE) return;
+        if (child.matches?.('[data-image-reference-token]')) {
+          const instanceId = String(child.dataset.imageReferenceInstance || '');
+          const segment = child._imageReferenceSegment
+            || existingImageReferences.get(instanceId)
+            || normalizeImageReferenceSegment({
+              instance_id: instanceId,
+              group_id: child.dataset.imageReferenceGroup || '',
+              item_id: child.dataset.imageReferenceItem || '',
+              source_node_id: child.dataset.imageReferenceSourceNode || '',
+              role_snapshot: child.dataset.imageReferenceRole || 'reference',
+              label_snapshot: child.textContent || ''
+            });
+          segments.push(normalizeImageReferenceSegment(segment));
+          return;
+        }
         if (child.matches?.('[data-prompt-block-token]')) {
           const instanceId = String(child.dataset.promptBlockInstance || child.dataset.promptBlockInstanceId || '');
           const segment = child._promptBlockSegment
@@ -884,7 +1167,7 @@
       });
     };
     walk(editor);
-    if (!editor.querySelector('[data-prompt-block-token]') && editor.textContent === '') {
+    if (!editor.querySelector(PROMPT_TOKEN_SELECTOR) && editor.textContent === '') {
       return createTextPromptDocument('');
     }
     return normalizePromptDocument({ segments }, '');
@@ -1471,6 +1754,53 @@
     return Math.max(min, Math.min(max, value));
   }
 
+  function imageGroupColumnCount(itemCount = 0) {
+    return clamp(Math.max(2, Number(itemCount) || 0), 2, IMAGE_GROUP_MAX_COLUMNS);
+  }
+
+  function imageGroupRowCount(itemCount = 0) {
+    return Math.max(1, Math.ceil(Math.max(1, Number(itemCount) || 0) / IMAGE_GROUP_MAX_COLUMNS));
+  }
+
+  function naturalImageGroupNodeWidth(itemCount = 0) {
+    const columns = imageGroupColumnCount(itemCount);
+    return IMAGE_GROUP_IDENTITY_WIDTH_PX
+      + IMAGE_GROUP_THUMB_PX
+      + Math.max(0, columns - 1) * IMAGE_GROUP_THUMB_STEP_PX
+      + IMAGE_GROUP_TRAILING_SPACE_PX;
+  }
+
+  function compactImageGroupNodeWidth(itemCount = 0) {
+    return clamp(
+      naturalImageGroupNodeWidth(Math.max(2, Number(itemCount) || 0)),
+      MIN_IMAGE_GROUP_NODE_WIDTH,
+      MAX_IMAGE_GROUP_NODE_WIDTH
+    );
+  }
+
+  function imageGroupMotherHeight(itemCount = 0) {
+    return IMAGE_GROUP_MOTHER_HEIGHT_PX
+      + Math.max(0, imageGroupRowCount(itemCount) - 1) * IMAGE_GROUP_ROW_STEP_PX;
+  }
+
+  function imageGroupNodeHeight(itemCount = 0) {
+    return IMAGE_GROUP_MOTHER_TOP_PX * 2 + imageGroupMotherHeight(itemCount);
+  }
+
+  function imageGroupThumbPosition(index = 0) {
+    const normalizedIndex = Math.max(0, Number(index) || 0);
+    const column = normalizedIndex % IMAGE_GROUP_MAX_COLUMNS;
+    const row = Math.floor(normalizedIndex / IMAGE_GROUP_MAX_COLUMNS);
+    return {
+      left: IMAGE_GROUP_IDENTITY_WIDTH_PX + column * IMAGE_GROUP_THUMB_STEP_PX,
+      top: IMAGE_GROUP_MOTHER_TOP_PX
+        + (IMAGE_GROUP_MOTHER_HEIGHT_PX - IMAGE_GROUP_THUMB_PX) / 2
+        + row * IMAGE_GROUP_ROW_STEP_PX,
+      column,
+      row
+    };
+  }
+
   function getNodeState(nodeId) {
     return DesktopState.state.canvas.nodes[nodeId];
   }
@@ -1705,13 +2035,15 @@
     }
     DesktopState.state.canvas.selectedNodeIds = uniqueIds;
     DesktopState.state.canvas.selectedNodeId = uniqueIds[0] || '';
+    const selectedTextNodeId = uniqueIds.find(nodeId => DesktopState.state.canvas.nodes[nodeId]?.type === 'text') || '';
+    if (selectedTextNodeId) lastPromptTextNodeId = selectedTextNodeId;
     blurEditableFocusOutsideSelection(uniqueIds);
     applyNodeSelection();
     window.dispatchEvent(new CustomEvent('desktop:canvas-selection-change', {
       detail: {
         selectedNodeId: DesktopState.state.canvas.selectedNodeId,
         selectedNodeIds: [...uniqueIds],
-        selectedTextNodeId: uniqueIds.find(nodeId => DesktopState.state.canvas.nodes[nodeId]?.type === 'text') || ''
+        selectedTextNodeId
       }
     }));
     if (save) DesktopState.saveSettings();
@@ -1729,7 +2061,7 @@
     els.deskCanvasViewport?.classList.toggle('is-select-tool', useSelectCursor && isSelectToolActive());
   }
 
-  function applyCanvasTransform() {
+  function applyCanvasTransform(options = {}) {
     const canvas = DesktopState.state.canvas;
     if (els.deskCanvasViewport) {
       const gridSize = 20 * canvas.scale;
@@ -1740,7 +2072,23 @@
       els.deskCanvasViewport.style.setProperty('--canvas-grid-y', `${gridY}px`);
     }
     if (els.deskCanvasWorld) {
+      const scaleValue = Number(canvas.scale).toFixed(4);
+      const zoomTier = canvas.scale < CANVAS_OVERVIEW_ZOOM_THRESHOLD
+        ? 'overview'
+        : canvas.scale < CANVAS_COMPACT_ZOOM_THRESHOLD
+          ? 'compact'
+          : 'detail';
+      if (els.deskCanvasWorld.style.getPropertyValue('--desk-canvas-scale') !== scaleValue) {
+        els.deskCanvasWorld.style.setProperty('--desk-canvas-scale', scaleValue);
+      }
+      if (els.deskCanvasWorld.dataset.zoomTier !== zoomTier) {
+        els.deskCanvasWorld.dataset.zoomTier = zoomTier;
+      }
       els.deskCanvasWorld.style.transform = `translate3d(${canvas.x}px, ${canvas.y}px, 0) scale(${canvas.scale})`;
+    }
+    if (options.transformOnly) {
+      if (getSelectedNodeIds().length >= 2) updateSelectionToolbar();
+      return;
     }
     positionEdgeMenu();
     if (els.deskZoomLabel) {
@@ -1752,7 +2100,63 @@
     updateInputProgressOverlay();
   }
 
-  function applyNodeLayout(nodeId) {
+  function scheduleCanvasPanTransform() {
+    if (canvasPanFrameId) return;
+    canvasPanFrameId = requestAnimationFrame(() => {
+      canvasPanFrameId = 0;
+      applyCanvasTransform({ transformOnly: true });
+    });
+  }
+
+  function flushCanvasPanTransform() {
+    if (canvasPanFrameId) cancelAnimationFrame(canvasPanFrameId);
+    canvasPanFrameId = 0;
+    applyCanvasTransform();
+  }
+
+  function scheduleCanvasGraphRender() {
+    if (canvasGraphFrameId) return;
+    canvasGraphFrameId = requestAnimationFrame(() => {
+      canvasGraphFrameId = 0;
+      updateLinkPath();
+      updateSelectionToolbar();
+      updateInputProgressOverlay();
+    });
+  }
+
+  function flushCanvasGraphRender() {
+    if (canvasGraphFrameId) cancelAnimationFrame(canvasGraphFrameId);
+    canvasGraphFrameId = 0;
+    updateLinkPath();
+    updateSelectionToolbar();
+    updateInputProgressOverlay();
+  }
+
+  function updateCanvasZoomLabel() {
+    if (!els.deskZoomLabel) return;
+    els.deskZoomLabel.textContent = `${Math.round(DesktopState.state.canvas.scale * 100)}%`;
+  }
+
+  function finishCanvasWheelGesture(options = {}) {
+    if (canvasWheelEndTimer) clearTimeout(canvasWheelEndTimer);
+    canvasWheelEndTimer = 0;
+    if (!canvasWheelGestureActive) return;
+    canvasWheelGestureActive = false;
+    flushCanvasPanTransform();
+    els.deskCanvasViewport?.classList.remove('is-wheel-transforming');
+    if (options.save !== false) DesktopState.saveSettings();
+  }
+
+  function scheduleCanvasWheelGestureEnd() {
+    if (!canvasWheelGestureActive) {
+      canvasWheelGestureActive = true;
+      els.deskCanvasViewport?.classList.add('is-wheel-transforming');
+    }
+    if (canvasWheelEndTimer) clearTimeout(canvasWheelEndTimer);
+    canvasWheelEndTimer = setTimeout(finishCanvasWheelGesture, CANVAS_WHEEL_GESTURE_END_MS);
+  }
+
+  function applyNodeLayout(nodeId, options = {}) {
     const node = getNodeElement(nodeId);
     const nodeState = getNodeState(nodeId);
     if (!node || !nodeState) return;
@@ -1772,6 +2176,10 @@
     node.style.top = `${nodeState.y}px`;
     node.style.width = `${nodeState.width}px`;
     node.style.height = `${nodeState.height}px`;
+    if (options.deferGraph) {
+      scheduleCanvasGraphRender();
+      return;
+    }
     renderMiniMap();
     updateSelectionToolbar();
     if (nodeState.type === 'input') updateInputProgressOverlay();
@@ -1922,7 +2330,27 @@
   }
 
   function setNodePaletteOpen(open) {
-    els.deskNodePalette?.classList.toggle('is-open', !!open);
+    const palette = els.deskNodePalette;
+    if (palette && open) {
+      if (nodePaletteCloseTimer) {
+        window.clearTimeout(nodePaletteCloseTimer);
+        nodePaletteCloseTimer = 0;
+      }
+      if (!palette.classList.contains('is-open')) {
+        palette.classList.add('is-closing');
+        void palette.offsetWidth;
+        palette.classList.remove('is-closing');
+        palette.classList.add('is-open');
+      }
+    } else if (palette?.classList.contains('is-open')) {
+      palette.classList.remove('is-open');
+      palette.classList.add('is-closing');
+      if (nodePaletteCloseTimer) window.clearTimeout(nodePaletteCloseTimer);
+      nodePaletteCloseTimer = window.setTimeout(() => {
+        nodePaletteCloseTimer = 0;
+        if (!palette.classList.contains('is-open')) palette.classList.remove('is-closing');
+      }, ORDINARY_MENU_CLOSE_FALLBACK_MS);
+    }
     els.deskNodeToolBtn?.setAttribute('aria-expanded', open ? 'true' : 'false');
   }
 
@@ -1967,13 +2395,15 @@
         ? ['video']
         : (fromType === 'video'
           ? ['video_inference']
-      : (fromType === 'output'
+        : (fromType === 'image_group'
+          ? ['input', 'comfy']
+        : (fromType === 'output'
         ? ['image']
         : (fromType === 'image'
           ? ['input', 'comfy', 'video_inference', 'layout', 'pose', 'upscale']
           : (fromType === 'upscale'
             ? ['image']
-            : ((fromType === 'layout' || fromType === 'pose') ? ['input', 'comfy', 'video_inference', 'upscale'] : (fromType === 'text' ? ['input', 'comfy', 'video_inference'] : []))))))));
+            : ((fromType === 'layout' || fromType === 'pose') ? ['input', 'comfy', 'video_inference', 'upscale'] : (fromType === 'text' ? ['input', 'comfy', 'video_inference'] : [])))))))));
     return NODE_MENU_ITEMS.filter(item => targetTypes.includes(item.type));
   }
 
@@ -2043,7 +2473,20 @@
         : (currentIndex + direction + buttons.length) % buttons.length;
       buttons[nextIndex].focus();
     });
+    contextMenuEl.addEventListener('transitionend', event => {
+      if (event.target !== contextMenuEl || event.propertyName !== 'opacity') return;
+      if (!contextMenuEl.classList.contains('is-open')) finishContextMenuClose();
+    });
     return contextMenuEl;
+  }
+
+  function finishContextMenuClose() {
+    if (!contextMenuEl || contextMenuEl.classList.contains('is-open')) return;
+    if (contextMenuCloseTimer) {
+      window.clearTimeout(contextMenuCloseTimer);
+      contextMenuCloseTimer = 0;
+    }
+    contextMenuEl.classList.remove('is-closing');
   }
 
   function hideContextMenu(options = {}) {
@@ -2051,7 +2494,12 @@
     const pendingSourceNode = contextMenuConnectionSourceId
       ? getNodeElement(contextMenuConnectionSourceId)
       : null;
-    contextMenuEl?.classList.remove('is-open');
+    if (contextMenuEl?.classList.contains('is-open')) {
+      contextMenuEl.classList.remove('is-open');
+      contextMenuEl.classList.add('is-closing');
+      if (contextMenuCloseTimer) window.clearTimeout(contextMenuCloseTimer);
+      contextMenuCloseTimer = window.setTimeout(finishContextMenuClose, ORDINARY_MENU_CLOSE_FALLBACK_MS);
+    }
     document.querySelectorAll('.desk-port.is-pending').forEach(item => item.classList.remove('is-pending'));
     releaseFloatingSwell(pendingSourceNode);
     contextMenuPoint = null;
@@ -2075,7 +2523,12 @@
     contextMenuPoint = screenToWorld(event.clientX, event.clientY);
     const items = contextMenuConnectionSourceId ? getConnectableNodeMenuItems(contextMenuConnectionSourceId) : NODE_MENU_ITEMS;
     renderContextMenuItems(items, options.title || '添加节点');
-    menu.classList.add('is-open');
+    if (contextMenuCloseTimer) {
+      window.clearTimeout(contextMenuCloseTimer);
+      contextMenuCloseTimer = 0;
+    }
+    menu.classList.remove('is-open');
+    menu.classList.add('is-closing');
     const menuWidth = menu.offsetWidth || 224;
     const menuHeight = menu.offsetHeight || 320;
     const x = Math.min(window.innerWidth - menuWidth - 10, Math.max(10, event.clientX - 12));
@@ -2096,6 +2549,9 @@
       sourcePort?.classList.add('is-pending');
       holdFloatingSwell(sourcePort);
     }
+    void menu.offsetWidth;
+    menu.classList.remove('is-closing');
+    menu.classList.add('is-open');
     updateLinkPath();
     requestAnimationFrame(() => menu.querySelector('[data-node-context-search]')?.focus?.({ preventScroll: true }));
   }
@@ -2509,6 +2965,39 @@
     });
   }
 
+  function contextMenuConnectionPreviewPath() {
+    if (!contextMenuConnectionSourceId || !contextMenuPoint || !contextMenuEl?.classList.contains('is-open')) return '';
+    const from = contextMenuConnectionSourceAnchor
+      || getAnchor(contextMenuConnectionSourceId, contextMenuConnectionSourceSide);
+    const connectionEndPoint = contextMenuConnectionEndPoint || contextMenuPoint;
+    const sourceGeometry = getNodeGeometry(contextMenuConnectionSourceId);
+    const toSide = oppositePortSide(dominantPortSide(
+      { x: sourceGeometry.centerX, y: sourceGeometry.centerY },
+      connectionEndPoint
+    ));
+    return makeConnectionPath(from, connectionEndPoint, contextMenuConnectionSourceSide, toSide, {
+      fromGeometry: sourceGeometry
+    });
+  }
+
+  function refreshContextMenuConnectionPreview() {
+    const svg = document.querySelector('.desk-link-layer');
+    if (!svg) return;
+    const d = contextMenuConnectionPreviewPath();
+    let path = svg.querySelector('[data-context-connection-preview]');
+    if (!d) {
+      path?.remove();
+      return;
+    }
+    if (!path) {
+      path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      path.classList.add('desk-link-path', 'is-preview', 'is-pending');
+      path.dataset.contextConnectionPreview = 'true';
+      svg.appendChild(path);
+    }
+    path.setAttribute('d', d);
+  }
+
   function updateLinkPath() {
     const svg = document.querySelector('.desk-link-layer');
     if (!svg) return;
@@ -2525,7 +3014,7 @@
       const sides = resolveConnectionSides(edge.from, edge.to);
       const from = getAnchor(edge.from, sides.fromSide);
       const to = getAnchor(edge.to, sides.toSide);
-      const d = makeSmoothStepPath(from, to, sides.fromSide, sides.toSide, {
+      const d = makeConnectionPath(from, to, sides.fromSide, sides.toSide, {
         fromGeometry: getNodeGeometry(edge.from),
         toGeometry: getNodeGeometry(edge.to)
       });
@@ -2539,20 +3028,19 @@
         <path class="desk-link-hit desk-link-interaction${selectedClass}" data-edge-id="${safeEdgeId}" data-edge-interaction d="${d}"></path>
       `;
     }).join('');
-    let pendingMarkup = '';
-    if (contextMenuConnectionSourceId && contextMenuPoint && contextMenuEl?.classList.contains('is-open')) {
-      const from = contextMenuConnectionSourceAnchor
-        || getAnchor(contextMenuConnectionSourceId, contextMenuConnectionSourceSide);
-      const connectionEndPoint = contextMenuConnectionEndPoint || contextMenuPoint;
-      const sourceGeometry = getNodeGeometry(contextMenuConnectionSourceId);
-      const toSide = oppositePortSide(dominantPortSide(
-        { x: sourceGeometry.centerX, y: sourceGeometry.centerY },
-        connectionEndPoint
-      ));
-      const d = makeSmoothStepPath(from, connectionEndPoint, contextMenuConnectionSourceSide, toSide);
-      pendingMarkup = `<path class="desk-link-path is-preview is-pending" d="${d}"></path>`;
-    }
+    const pendingPath = contextMenuConnectionPreviewPath();
+    const pendingMarkup = pendingPath
+      ? `<path class="desk-link-path is-preview is-pending" data-context-connection-preview="true" d="${pendingPath}"></path>`
+      : '';
     svg.innerHTML = `${edgeMarkup}${pendingMarkup}`;
+    if (activeInteraction?.type === 'connect' && activeInteraction.pointer) {
+      renderConnectionPreview(
+        activeInteraction.fromNodeId,
+        activeInteraction.pointer,
+        activeInteraction.fromSide,
+        activeInteraction.fromAnchor
+      );
+    }
     if (edgeMenuEl?.classList.contains('is-open')) requestAnimationFrame(() => positionEdgeMenu());
     renderMiniMap();
   }
@@ -2710,6 +3198,14 @@
     if (!bounds) return;
     const groupState = getSelectionGroupState(selectedIds);
     const units = getSelectionUnits(selectedIds);
+    const imageGroupButton = els.deskSelectionToolbar.querySelector('[data-create-image-group]');
+    const imageGroupDivider = els.deskSelectionToolbar.querySelector('[data-image-group-divider]');
+    const canCreateImageGroup = selectedIds.length <= IMAGE_GROUP_MAX_ITEMS && selectedIds.every(nodeId => {
+      const node = DesktopState.state.canvas.nodes[nodeId];
+      return node?.type === 'image' && Boolean(imageNodeSource(node));
+    });
+    if (imageGroupButton) imageGroupButton.hidden = !canCreateImageGroup;
+    if (imageGroupDivider) imageGroupDivider.hidden = !canCreateImageGroup;
     const rect = worldRectToCanvasRect(bounds);
     if (els.deskSelectionBounds) {
       els.deskSelectionBounds.style.left = `${rect.left}px`;
@@ -2789,6 +3285,1631 @@
     DesktopState.saveSettings();
     DesktopResults.showTransientMessage(`已将 ${selectedIds.length} 个节点设为群组。`);
     return true;
+  }
+
+  function sortImageNodesForGroup(nodes = []) {
+    return [...nodes].sort((a, b) => {
+      const aCenterY = a.y + a.height / 2;
+      const bCenterY = b.y + b.height / 2;
+      const rowTolerance = Math.min(a.height, b.height) * 0.35;
+      return Math.abs(aCenterY - bCenterY) <= rowTolerance ? a.x - b.x : a.y - b.y;
+    });
+  }
+
+  function imageNodesForGroupSelection() {
+    const selected = getSelectedNodeIds()
+      .map(nodeId => DesktopState.state.canvas.nodes[nodeId])
+      .filter(Boolean);
+    if (
+      selected.length < 2
+      || selected.length > IMAGE_GROUP_MAX_ITEMS
+      || selected.some(node => node.type !== 'image' || !imageNodeSource(node))
+    ) return [];
+    return sortImageNodesForGroup(selected);
+  }
+
+  function captureImageNodeTransitionSources(nodes) {
+    return nodes.map(node => {
+      const element = getNodeElement(node.id);
+      const rect = element?.getBoundingClientRect?.();
+      return rect ? {
+        sourceNodeId: node.id,
+        source: imageNodeSource(node),
+        rect: { left: rect.left, top: rect.top, width: rect.width, height: rect.height }
+      } : null;
+    }).filter(Boolean);
+  }
+
+  function nextCanvasEdgeId(fromNodeId, toNodeId, suffix = '') {
+    return `${fromNodeId}_${toNodeId}_${Date.now()}_${suffix || Math.random().toString(36).slice(2, 7)}`;
+  }
+
+  function orderTransitionSourcesForNodes(sources, nodes) {
+    const byNodeId = new Map((sources || []).map(source => [source.sourceNodeId, source]));
+    return nodes.map(node => byNodeId.get(node.id)).filter(Boolean);
+  }
+
+  function createImageGroupFromNodes(nodes, options = {}) {
+    const uniqueIds = new Set();
+    const candidates = (nodes || []).filter(node => {
+      if (node?.type !== 'image' || !imageNodeSource(node) || uniqueIds.has(node.id)) return false;
+      uniqueIds.add(node.id);
+      return true;
+    });
+    const requestedOrder = Array.isArray(options.orderedNodeIds) ? options.orderedNodeIds : [];
+    const byId = new Map(candidates.map(node => [node.id, node]));
+    const imageNodes = (requestedOrder.length
+      ? requestedOrder.map(nodeId => byId.get(nodeId)).filter(Boolean).concat(candidates.filter(node => !requestedOrder.includes(node.id)))
+      : sortImageNodesForGroup(candidates)).slice(0, IMAGE_GROUP_MAX_ITEMS);
+    if (imageNodes.length < 2) return '';
+    const memberIds = new Set(imageNodes.map(node => node.id));
+    const bounds = getBoundsForNodeIds([...memberIds]);
+    if (!bounds) return '';
+    const transitionSources = orderTransitionSourcesForNodes(options.transitionSources, imageNodes);
+    const resolvedTransitionSources = transitionSources.length === imageNodes.length
+      ? transitionSources
+      : captureImageNodeTransitionSources(imageNodes);
+    const groupId = nextNodeId('image_group');
+    const width = compactImageGroupNodeWidth(imageNodes.length);
+    const height = imageGroupNodeHeight(imageNodes.length);
+    const groupNode = normalizeImageGroupNodeState({
+      id: groupId,
+      type: 'image_group',
+      title: '图片组',
+      x: Number.isFinite(Number(options.positionWorld?.x))
+        ? Number(options.positionWorld.x)
+        : bounds.centerX - width / 2,
+      y: Number.isFinite(Number(options.positionWorld?.y))
+        ? Number(options.positionWorld.y)
+        : bounds.centerY - height / 2,
+      width,
+      height,
+      items: imageNodes.map(createImageGroupItemFromNode),
+      memberEdges: (DesktopState.state.canvas.edges || [])
+        .filter(edge => memberIds.has(edge.from) || memberIds.has(edge.to))
+        .map(edge => ({ ...edge }))
+    });
+    groupNode.originX = groupNode.x;
+    groupNode.originY = groupNode.y;
+
+    const migratedTargets = new Set();
+    const nextEdges = [];
+    (DesktopState.state.canvas.edges || []).forEach(edge => {
+      if (memberIds.has(edge.to)) return;
+      if (memberIds.has(edge.from)) {
+        const target = DesktopState.state.canvas.nodes[edge.to];
+        if (!['input', 'comfy'].includes(target?.type) || migratedTargets.has(edge.to)) return;
+        migratedTargets.add(edge.to);
+        nextEdges.push({
+          ...edge,
+          id: nextCanvasEdgeId(groupId, edge.to, migratedTargets.size),
+          from: groupId,
+          outputSlot: undefined
+        });
+        return;
+      }
+      nextEdges.push(edge);
+    });
+
+    imageNodes.forEach(node => {
+      const element = getNodeElement(node.id);
+      discardFloatingSwellState(element);
+      element?.remove();
+      delete DesktopState.state.canvas.nodes[node.id];
+      delete DesktopState.state.outputs[node.id];
+    });
+    DesktopState.state.canvas.nodes[groupId] = groupNode;
+    DesktopState.state.canvas.edges = nextEdges;
+    normalizeNodeGroups();
+    ensureGraphDom();
+    applyNodeLayout(groupId);
+    migrateImageReferenceTokensToGroup(groupId);
+    refreshImageReferenceTokens(groupId);
+    setSelectedNodes([groupId], false);
+    updateLinkPath();
+    DesktopState.saveSettings({ criticalCanvas: true });
+    if (!options.skipTransition) requestAnimationFrame(() => animateImagesIntoGroup(resolvedTransitionSources, groupId));
+    if (!options.quiet) {
+      DesktopResults.showTransientMessage(`已组成图片组，当前顺序为图片1至图片${imageNodes.length}。`);
+    }
+    return groupId;
+  }
+
+  function createImageGroupFromSelection() {
+    const selectedCount = getSelectedNodeIds().length;
+    if (selectedCount > IMAGE_GROUP_MAX_ITEMS) {
+      DesktopResults.showTransientMessage(`一个图片组最多支持 ${IMAGE_GROUP_MAX_ITEMS} 张图片。`);
+      return '';
+    }
+    const imageNodes = imageNodesForGroupSelection();
+    if (imageNodes.length < 2) {
+      DesktopResults.showTransientMessage('请选择至少两个已有图片的图片节点。');
+      return '';
+    }
+    return createImageGroupFromNodes(imageNodes);
+  }
+
+  function appendImageNodeToGroup(imageNodeId, groupId, options = {}) {
+    const imageNode = DesktopState.state.canvas.nodes[imageNodeId];
+    const groupNode = DesktopState.state.canvas.nodes[groupId];
+    if (imageNode?.type !== 'image' || !imageNodeSource(imageNode) || groupNode?.type !== 'image_group') return '';
+    normalizeImageGroupNodeState(groupNode);
+    if (groupNode.items.length >= IMAGE_GROUP_MAX_ITEMS) {
+      if (!options.quiet) DesktopResults.showTransientMessage(`图片组最多支持 ${IMAGE_GROUP_MAX_ITEMS} 张图片。`);
+      return '';
+    }
+    const transitionSources = (options.transitionSources || []).filter(source => source?.sourceNodeId === imageNodeId);
+    const resolvedTransitionSources = transitionSources.length
+      ? transitionSources
+      : captureImageNodeTransitionSources([imageNode]);
+    const oldX = groupNode.x;
+    const oldCenterX = groupNode.x + groupNode.width / 2;
+    const imageEdges = (DesktopState.state.canvas.edges || [])
+      .filter(edge => edge.from === imageNodeId || edge.to === imageNodeId)
+      .map(edge => ({ ...edge }));
+    const memberEdgeKeys = new Set((groupNode.memberEdges || []).map(edge => `${edge.id}:${edge.from}:${edge.to}`));
+    imageEdges.forEach(edge => {
+      const key = `${edge.id}:${edge.from}:${edge.to}`;
+      if (!memberEdgeKeys.has(key)) groupNode.memberEdges.push(edge);
+    });
+
+    const nextEdges = [];
+    const groupTargets = new Set((DesktopState.state.canvas.edges || [])
+      .filter(edge => edge.from === groupId)
+      .map(edge => edge.to));
+    (DesktopState.state.canvas.edges || []).forEach(edge => {
+      if (edge.from !== imageNodeId && edge.to !== imageNodeId) {
+        nextEdges.push(edge);
+        return;
+      }
+      if (edge.from !== imageNodeId) return;
+      const target = DesktopState.state.canvas.nodes[edge.to];
+      if (!['input', 'comfy'].includes(target?.type) || groupTargets.has(edge.to)) return;
+      groupTargets.add(edge.to);
+      nextEdges.push({
+        ...edge,
+        id: nextCanvasEdgeId(groupId, edge.to, groupTargets.size),
+        from: groupId,
+        outputSlot: undefined
+      });
+    });
+
+    const newItem = createImageGroupItemFromNode(imageNode, groupNode.items.length);
+    const requestedIndex = Number(options.insertIndex);
+    const insertIndex = Number.isFinite(requestedIndex)
+      ? clamp(Math.round(requestedIndex), 0, groupNode.items.length)
+      : groupNode.items.length;
+    groupNode.items.splice(insertIndex, 0, newItem);
+    normalizeImageGroupNodeState(groupNode);
+    if (Number.isFinite(Number(options.positionWorld?.x))) {
+      groupNode.x = Number(options.positionWorld.x);
+    } else if (options.preserveLeft) {
+      groupNode.x = oldX;
+    } else {
+      groupNode.x = oldCenterX - groupNode.width / 2;
+    }
+    if (Number.isFinite(Number(options.positionWorld?.y))) groupNode.y = Number(options.positionWorld.y);
+    groupNode.originX += groupNode.x - oldX;
+    DesktopState.state.canvas.edges = nextEdges;
+    discardFloatingSwellState(getNodeElement(imageNodeId));
+    getNodeElement(imageNodeId)?.remove();
+    delete DesktopState.state.canvas.nodes[imageNodeId];
+    delete DesktopState.state.outputs[imageNodeId];
+    refreshImageGroupNode(groupId);
+    applyNodeLayout(groupId);
+    migrateImageReferenceTokensToGroup(groupId, [imageNodeId]);
+    refreshImageReferenceTokens(groupId);
+    setSelectedNodes([groupId], false);
+    updateLinkPath();
+    DesktopState.saveSettings({ criticalCanvas: true });
+    if (!options.skipTransition) requestAnimationFrame(() => animateImagesIntoGroup(resolvedTransitionSources, groupId));
+    if (!options.quiet) {
+      DesktopResults.showTransientMessage(`已加入图片组，当前共 ${groupNode.items.length} 张。`);
+    }
+    return groupId;
+  }
+
+  function migrateImageReferenceTokensToGroup(groupId, sourceNodeIds = []) {
+    const groupNode = DesktopState.state.canvas.nodes[groupId];
+    if (!groupNode || groupNode.type !== 'image_group') return 0;
+    const allowedSources = new Set(sourceNodeIds.filter(Boolean));
+    const itemBySource = new Map(
+      groupNode.items
+        .filter(item => item.sourceNodeId && (!allowedSources.size || allowedSources.has(item.sourceNodeId)))
+        .map(item => [item.sourceNodeId, item])
+    );
+    if (!itemBySource.size) return 0;
+    let migrated = 0;
+    Object.values(DesktopState.state.canvas.nodes || {}).forEach(nodeState => {
+      if (nodeState?.type !== 'text') return;
+      const documentState = ensureTextNodePromptDocument(nodeState);
+      let changed = false;
+      documentState.segments.forEach(segment => {
+        if (segment.type !== 'image_reference' || segment.group_id) return;
+        const item = itemBySource.get(segment.source_node_id);
+        if (!item) return;
+        segment.group_id = groupId;
+        segment.item_id = item.itemId;
+        segment.role_snapshot = normalizeImageGroupRole(item.role);
+        segment.label_snapshot = imageReferenceDisplay(segment);
+        changed = true;
+        migrated += 1;
+      });
+      if (!changed) return;
+      nodeState.text = materializePromptDocument(documentState);
+      renderPromptDocumentToEditor(getNodeElement(nodeState.id)?.querySelector('[data-text-node-input]'), documentState);
+      bumpPromptDocumentVersion(nodeState);
+      notifyTextNodeListChange(nodeState.id);
+    });
+    return migrated;
+  }
+
+  function freezeImageReferenceTokensMatching(predicate) {
+    Object.values(DesktopState.state.canvas.nodes || {}).forEach(nodeState => {
+      if (nodeState?.type !== 'text') return;
+      const documentState = clonePromptDocument(ensureTextNodePromptDocument(nodeState), nodeState.text || '');
+      let changed = false;
+      const segments = documentState.segments.map(segment => {
+        if (segment.type !== 'image_reference' || !predicate(segment)) return segment;
+        changed = true;
+        return { type: 'text', text: imageReferenceDisplay(segment) };
+      });
+      if (!changed) return;
+      nodeState.promptDocument = normalizePromptDocument({ ...documentState, segments }, nodeState.text || '');
+      nodeState.text = materializePromptDocument(nodeState.promptDocument);
+      renderPromptDocumentToEditor(getNodeElement(nodeState.id)?.querySelector('[data-text-node-input]'), nodeState.promptDocument);
+      bumpPromptDocumentVersion(nodeState);
+      notifyTextNodeListChange(nodeState.id);
+    });
+  }
+
+  function freezeImageReferenceTokens(groupId) {
+    freezeImageReferenceTokensMatching(segment => segment.group_id === groupId);
+  }
+
+  function freezeImageReferenceTokensForSourceNode(sourceNodeId) {
+    freezeImageReferenceTokensMatching(segment => !segment.group_id && segment.source_node_id === sourceNodeId);
+  }
+
+  function refreshImageReferenceTokens(groupId = '') {
+    Object.values(DesktopState.state.canvas.nodes || {}).forEach(nodeState => {
+      if (nodeState?.type !== 'text') return;
+      const documentState = ensureTextNodePromptDocument(nodeState);
+      const references = documentState?.segments?.filter(segment => (
+        segment.type === 'image_reference' && (!groupId || segment.group_id === groupId)
+      )) || [];
+      if (!references.length) return;
+      references.forEach(segment => {
+        segment.role_snapshot = imageReferenceRole(segment);
+        segment.label_snapshot = imageReferenceDisplay(segment);
+      });
+      nodeState.text = materializePromptDocument(documentState);
+      const editor = getNodeElement(nodeState.id)?.querySelector('[data-text-node-input]');
+      references.forEach(segment => {
+        const selector = `[data-image-reference-instance="${CSS.escape(segment.instance_id)}"]`;
+        syncImageReferenceTokenElement(editor?.querySelector(selector), segment);
+      });
+      bumpPromptDocumentVersion(nodeState);
+      notifyTextNodeListChange(nodeState.id);
+    });
+  }
+
+  function imageNodeStateFromGroupItem(item, groupNode, index) {
+    const requestedId = String(item.sourceNodeId || '');
+    const id = requestedId && !DesktopState.state.canvas.nodes[requestedId] ? requestedId : nextNodeId('image');
+    const deltaX = groupNode.x - groupNode.originX;
+    const deltaY = groupNode.y - groupNode.originY;
+    return {
+      id,
+      type: 'image',
+      x: item.originalX + deltaX,
+      y: item.originalY + deltaY,
+      width: item.originalWidth,
+      height: item.originalHeight,
+      aspectRatio: item.aspectRatio,
+      imageData: item.imageData || '',
+      imageUrl: item.imageUrl || '',
+      imageName: item.imageName || `图片${index + 1}`,
+      mimeType: item.mimeType || 'image/png',
+      sourceAssetId: item.sourceAssetId || '',
+      sourceTitle: item.sourceTitle || '',
+      sourcePrompt: item.sourcePrompt || '',
+      sourceFile: item.sourceFile || '',
+      sourceTaskId: item.sourceTaskId || '',
+      sourceProvider: item.sourceProvider || '',
+      sourceKind: item.sourceKind || 'image-group',
+      editState: item.editState
+    };
+  }
+
+  function ungroupImageGroup(groupId) {
+    const groupNode = DesktopState.state.canvas.nodes[groupId];
+    if (!groupNode || groupNode.type !== 'image_group') return [];
+    normalizeImageGroupNodeState(groupNode);
+    const groupElement = getNodeElement(groupId);
+    const transitionSources = groupNode.items.map(item => {
+      const rect = groupElement?.querySelector(`[data-image-group-item="${CSS.escape(item.itemId)}"] .desk-image-group__thumb`)?.getBoundingClientRect?.();
+      return rect ? { sourceNodeId: item.sourceNodeId, source: imageGroupItemSource(item), rect } : null;
+    }).filter(Boolean);
+    freezeImageReferenceTokens(groupId);
+
+    const restoredNodes = groupNode.items.map((item, index) => imageNodeStateFromGroupItem(item, groupNode, index));
+    const restoredIdBySource = new Map(groupNode.items.map((item, index) => [item.sourceNodeId, restoredNodes[index].id]));
+    const currentGroupEdges = (DesktopState.state.canvas.edges || []).filter(edge => edge.from === groupId || edge.to === groupId);
+    const nextEdges = (DesktopState.state.canvas.edges || []).filter(edge => edge.from !== groupId && edge.to !== groupId);
+    const edgeKeys = new Set(nextEdges.map(edge => `${edge.from}->${edge.to}:${edge.inputRole || ''}`));
+    const pushEdge = edge => {
+      if (!edge.from || !edge.to || !DesktopState.state.canvas.nodes[edge.from] && !restoredNodes.some(node => node.id === edge.from)) return;
+      if (!DesktopState.state.canvas.nodes[edge.to] && !restoredNodes.some(node => node.id === edge.to)) return;
+      const key = `${edge.from}->${edge.to}:${edge.inputRole || ''}`;
+      if (edgeKeys.has(key)) return;
+      edgeKeys.add(key);
+      nextEdges.push({ ...edge, id: nextCanvasEdgeId(edge.from, edge.to) });
+    };
+
+    delete DesktopState.state.canvas.nodes[groupId];
+    restoredNodes.forEach(node => { DesktopState.state.canvas.nodes[node.id] = node; });
+    currentGroupEdges.filter(edge => edge.from === groupId).forEach(edge => {
+      restoredNodes.forEach(node => pushEdge({ ...edge, from: node.id, to: edge.to, outputSlot: undefined }));
+    });
+    (groupNode.memberEdges || []).forEach(edge => {
+      const originalFromWasMember = restoredIdBySource.has(edge.from);
+      const originalToWasMember = restoredIdBySource.has(edge.to);
+      if (originalFromWasMember && ['input', 'comfy'].includes(DesktopState.state.canvas.nodes[edge.to]?.type)) return;
+      if (!originalFromWasMember && !originalToWasMember) return;
+      pushEdge({
+        ...edge,
+        from: restoredIdBySource.get(edge.from) || edge.from,
+        to: restoredIdBySource.get(edge.to) || edge.to
+      });
+    });
+    DesktopState.state.canvas.edges = nextEdges;
+    discardFloatingSwellState(groupElement);
+    groupElement?.remove();
+    ensureGraphDom();
+    restoredNodes.forEach(node => applyNodeLayout(node.id));
+    setSelectedNodes(restoredNodes.map(node => node.id), false);
+    updateLinkPath();
+    DesktopState.saveSettings({ criticalCanvas: true });
+    requestAnimationFrame(() => animateImagesOutOfGroup(transitionSources, restoredNodes));
+    DesktopResults.showTransientMessage(`已解除图片组，恢复 ${restoredNodes.length} 个图片节点。`);
+    return restoredNodes.map(node => node.id);
+  }
+
+  function captureImageGroupItemRects(groupId) {
+    const element = getNodeElement(groupId);
+    if (!element) return new Map();
+    return new Map(Array.from(element.querySelectorAll('[data-image-group-item]')).map(item => {
+      const snapshot = target => {
+        if (!target) return null;
+        const rect = target.getBoundingClientRect();
+        return { left: rect.left, top: rect.top, width: rect.width, height: rect.height };
+      };
+      const blob = element.querySelector(`[data-image-group-goo-item="${CSS.escape(item.dataset.imageGroupItem)}"]`);
+      return [item.dataset.imageGroupItem, {
+        item: snapshot(item),
+        blob: snapshot(blob)
+      }];
+    }));
+  }
+
+  function animateImageGroupItemFlip(groupId, before) {
+    if (prefersReducedMotion()) return;
+    const element = getNodeElement(groupId);
+    const canvasScale = Math.max(0.01, Number(DesktopState.state.canvas.scale) || 1);
+    element?.querySelectorAll('[data-image-group-item]').forEach(item => {
+      const previousEntry = before.get(item.dataset.imageGroupItem);
+      const previous = previousEntry?.item || previousEntry;
+      if (!previous || !item.animate) return;
+      const rect = item.getBoundingClientRect();
+      const dx = (
+        previous.left + previous.width / 2 - rect.left - rect.width / 2
+      ) / canvasScale;
+      const dy = (
+        previous.top + previous.height / 2 - rect.top - rect.height / 2
+      ) / canvasScale;
+      const scaleX = previous.width / Math.max(1, rect.width);
+      const scaleY = previous.height / Math.max(1, rect.height);
+      if (!dx && !dy && scaleX === 1 && scaleY === 1) return;
+      item.animate([
+        { transform: `translate(${dx}px, ${dy}px) scale(${scaleX}, ${scaleY})`, zIndex: 3 },
+        { transform: 'translate(0, 0)', zIndex: 3 }
+      ], { duration: 360, easing: 'cubic-bezier(.2,.8,.2,1)' });
+      const blob = element.querySelector(`[data-image-group-goo-item="${CSS.escape(item.dataset.imageGroupItem)}"]`);
+      const previousBlob = previousEntry?.blob;
+      if (blob?.animate && previousBlob) {
+        const blobRect = blob.getBoundingClientRect();
+        const blobDx = (
+          previousBlob.left + previousBlob.width / 2 - blobRect.left - blobRect.width / 2
+        ) / canvasScale;
+        const blobDy = (
+          previousBlob.top + previousBlob.height / 2 - blobRect.top - blobRect.height / 2
+        ) / canvasScale;
+        const blobScaleX = previousBlob.width / Math.max(1, blobRect.width);
+        const blobScaleY = previousBlob.height / Math.max(1, blobRect.height);
+        if (blobDx || blobDy || blobScaleX !== 1 || blobScaleY !== 1) {
+          blob.animate([
+            { transform: `translate(${blobDx}px, ${blobDy}px) scale(${Math.max(blobScaleX, blobScaleY)})` },
+            { transform: 'translate(0, 0) scale(1)' }
+          ], { duration: 420, easing: 'cubic-bezier(.2,.8,.2,1)' });
+        }
+      }
+    });
+  }
+
+  function reorderImageGroupItemToIndex(groupId, itemId, targetIndex, before = null) {
+    const groupNode = DesktopState.state.canvas.nodes[groupId];
+    if (!groupNode || groupNode.type !== 'image_group') return false;
+    const fromIndex = groupNode.items.findIndex(item => item.itemId === itemId);
+    if (fromIndex < 0) return false;
+    const nextIndex = clamp(Math.round(Number(targetIndex) || 0), 0, groupNode.items.length - 1);
+    if (fromIndex === nextIndex) return false;
+    const previousRects = before instanceof Map ? before : captureImageGroupItemRects(groupId);
+    const [item] = groupNode.items.splice(fromIndex, 1);
+    groupNode.items.splice(nextIndex, 0, item);
+    refreshImageGroupNode(groupId);
+    refreshImageReferenceTokens(groupId);
+    requestAnimationFrame(() => animateImageGroupItemFlip(groupId, previousRects));
+    DesktopState.saveSettings({ criticalCanvas: true });
+    return true;
+  }
+
+  function reorderImageGroupItem(groupId, itemId, targetItemId, placeAfter = false) {
+    const groupNode = DesktopState.state.canvas.nodes[groupId];
+    if (!groupNode || groupNode.type !== 'image_group' || itemId === targetItemId) return false;
+    const remaining = groupNode.items.filter(item => item.itemId !== itemId);
+    let targetIndex = remaining.findIndex(item => item.itemId === targetItemId);
+    if (targetIndex < 0) return false;
+    if (placeAfter) targetIndex += 1;
+    return reorderImageGroupItemToIndex(groupId, itemId, targetIndex);
+  }
+
+  function imageGroupSortTransform(sortState, entry, screenDx, screenDy = 0, scale = 1, blobTransform = null) {
+    const dx = screenDx / sortState.canvasScale;
+    const dy = screenDy / sortState.canvasScale;
+    entry.element.style.transform = `translate3d(${dx}px, ${dy}px, 0) scale(${scale})`;
+    if (entry.blob) {
+      const blobDx = (blobTransform?.screenDx ?? screenDx) / sortState.canvasScale;
+      const blobDy = (blobTransform?.screenDy ?? screenDy) / sortState.canvasScale;
+      const blobScale = blobTransform?.scale ?? scale;
+      entry.blob.style.transform = `translate(${blobDx}px, ${blobDy}px) scale(${blobScale})`;
+    }
+  }
+
+  function beginImageGroupItemSort(event) {
+    if (event.button !== 0 || event.isPrimary === false || draggedImageGroupItem) return;
+    const handle = event.target.closest('[data-image-group-sort-handle]');
+    const itemElement = handle?.closest('[data-image-group-item]');
+    const groupElement = itemElement?.closest('.desk-node--image-group[data-node-id]');
+    if (!handle || !itemElement || !groupElement || groupElement.classList.contains('is-sorting')) return;
+    const itemElements = Array.from(groupElement.querySelectorAll('[data-image-group-item]'));
+    if (itemElements.length < 2) return;
+    const itemId = itemElement.dataset.imageGroupItem;
+    const fromIndex = itemElements.findIndex(item => item.dataset.imageGroupItem === itemId);
+    if (fromIndex < 0) return;
+
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    if (!getSelectedNodeIds().includes(groupElement.dataset.nodeId)) selectNode(groupElement.dataset.nodeId);
+    const pendingCleanup = imageGroupSortCleanupTimers.get(groupElement);
+    if (pendingCleanup) window.clearTimeout(pendingCleanup);
+    imageGroupSortCleanupTimers.delete(groupElement);
+
+    const itemEntries = itemElements.map((element, index) => {
+      const rect = element.getBoundingClientRect();
+      return {
+        itemId: element.dataset.imageGroupItem,
+        element,
+        index,
+        rect: { left: rect.left, top: rect.top, width: rect.width, height: rect.height },
+        blob: groupElement.querySelector(`[data-image-group-goo-item="${CSS.escape(element.dataset.imageGroupItem)}"]`)
+      };
+    });
+    draggedImageGroupItem = {
+      groupId: groupElement.dataset.nodeId,
+      itemId,
+      pointerId: event.pointerId,
+      handle,
+      groupElement,
+      itemEntries,
+      fromIndex,
+      targetIndex: fromIndex,
+      startClientX: event.clientX,
+      startClientY: event.clientY,
+      clientX: event.clientX,
+      clientY: event.clientY,
+      canvasScale: Math.max(0.01, Number(DesktopState.state.canvas.scale) || 1),
+      moved: false
+    };
+    itemElement.classList.add('is-dragging');
+    itemElement.setAttribute('aria-grabbed', 'true');
+    groupElement.classList.add('is-sorting');
+    document.body.classList.add('desk-image-group-sorting');
+    try {
+      handle.setPointerCapture?.(event.pointerId);
+    } catch {}
+  }
+
+  function renderImageGroupItemSortFrame(sortState) {
+    if (!sortState) return;
+    const dx = sortState.clientX - sortState.startClientX;
+    const dy = sortState.clientY - sortState.startClientY;
+    if (!sortState.moved && Math.hypot(dx, dy) < 4) return;
+    sortState.moved = true;
+
+    const draggedEntry = sortState.itemEntries[sortState.fromIndex];
+    const draggedCenter = {
+      x: draggedEntry.rect.left + draggedEntry.rect.width / 2 + dx,
+      y: draggedEntry.rect.top + draggedEntry.rect.height / 2 + dy
+    };
+    const remaining = sortState.itemEntries.filter(entry => entry.itemId !== sortState.itemId);
+    const closestSlot = sortState.itemEntries.reduce((winner, entry) => {
+      const centerX = entry.rect.left + entry.rect.width / 2;
+      const centerY = entry.rect.top + entry.rect.height / 2;
+      const distance = Math.hypot(draggedCenter.x - centerX, draggedCenter.y - centerY);
+      return !winner || distance < winner.distance ? { index: entry.index, distance } : winner;
+    }, null);
+    sortState.targetIndex = clamp(closestSlot?.index ?? sortState.fromIndex, 0, sortState.itemEntries.length - 1);
+    sortState.groupElement.dataset.sortTargetIndex = String(sortState.targetIndex);
+
+    const previewOrder = remaining.map(entry => entry.itemId);
+    previewOrder.splice(sortState.targetIndex, 0, sortState.itemId);
+    sortState.itemEntries.forEach(entry => {
+      if (entry.itemId === sortState.itemId) {
+        const targetSlot = sortState.itemEntries[sortState.targetIndex]?.rect;
+        imageGroupSortTransform(sortState, entry, dx, dy, 1.06, {
+          screenDx: (targetSlot?.left ?? entry.rect.left) - entry.rect.left,
+          screenDy: (targetSlot?.top ?? entry.rect.top) - entry.rect.top,
+          scale: 1
+        });
+        return;
+      }
+      const previewIndex = previewOrder.indexOf(entry.itemId);
+      const targetSlot = sortState.itemEntries[previewIndex]?.rect;
+      imageGroupSortTransform(
+        sortState,
+        entry,
+        (targetSlot?.left ?? entry.rect.left) - entry.rect.left,
+        (targetSlot?.top ?? entry.rect.top) - entry.rect.top
+      );
+    });
+  }
+
+  function moveImageGroupItemSort(event) {
+    const sortState = draggedImageGroupItem;
+    if (!sortState || event.pointerId !== sortState.pointerId) return;
+    event.preventDefault();
+    sortState.clientX = event.clientX;
+    sortState.clientY = event.clientY;
+    if (imageGroupSortFrameId) return;
+    imageGroupSortFrameId = requestAnimationFrame(() => {
+      imageGroupSortFrameId = 0;
+      if (draggedImageGroupItem === sortState) renderImageGroupItemSortFrame(sortState);
+    });
+  }
+
+  function clearImageGroupItemSortState(sortState, delay = 0) {
+    document.body.classList.remove('desk-image-group-sorting');
+    sortState.groupElement?.removeAttribute('data-sort-target-index');
+    const groupElement = sortState.groupElement;
+    const previousTimer = groupElement ? imageGroupSortCleanupTimers.get(groupElement) : 0;
+    if (previousTimer) window.clearTimeout(previousTimer);
+    const clearGroup = timerId => {
+      if (!groupElement) return;
+      if (timerId && imageGroupSortCleanupTimers.get(groupElement) !== timerId) return;
+      imageGroupSortCleanupTimers.delete(groupElement);
+      if (draggedImageGroupItem?.groupElement !== groupElement) groupElement.classList.remove('is-sorting');
+    };
+    if (delay > 0 && groupElement) {
+      const timerId = window.setTimeout(() => clearGroup(timerId), delay);
+      imageGroupSortCleanupTimers.set(groupElement, timerId);
+    } else {
+      clearGroup(0);
+    }
+    sortState.itemEntries.forEach(entry => {
+      entry.element.classList.remove('is-dragging');
+      entry.element.removeAttribute('aria-grabbed');
+      entry.element.style.removeProperty('transform');
+      entry.blob?.style.removeProperty('transform');
+    });
+  }
+
+  function returnImageGroupItemSort(sortState) {
+    const reducedMotion = prefersReducedMotion();
+    const duration = reducedMotion ? 0 : 240;
+    sortState.itemEntries.forEach(entry => {
+      const itemTransform = entry.element.style.transform;
+      const blobTransform = entry.blob?.style.transform;
+      if (duration && itemTransform && itemTransform !== 'none') {
+        entry.element.animate([
+          { transform: itemTransform },
+          { transform: 'translate3d(0, 0, 0) scale(1)' }
+        ], { duration, easing: 'cubic-bezier(.2,.8,.2,1)' });
+      }
+      if (duration && entry.blob && blobTransform && blobTransform !== 'none') {
+        entry.blob.animate([
+          { transform: blobTransform },
+          { transform: 'translate(0, 0) scale(1)' }
+        ], { duration: duration + 60, easing: 'cubic-bezier(.2,.8,.2,1)' });
+      }
+    });
+    clearImageGroupItemSortState(sortState, duration ? duration + 70 : 0);
+  }
+
+  function endImageGroupItemSort(event, cancelled = false) {
+    const sortState = draggedImageGroupItem;
+    if (!sortState || (event?.pointerId != null && event.pointerId !== sortState.pointerId)) return;
+    event?.preventDefault?.();
+    try {
+      sortState.handle.releasePointerCapture?.(sortState.pointerId);
+    } catch {}
+    if (imageGroupSortFrameId) {
+      cancelAnimationFrame(imageGroupSortFrameId);
+      imageGroupSortFrameId = 0;
+      renderImageGroupItemSortFrame(sortState);
+    }
+    draggedImageGroupItem = null;
+
+    const shouldCommit = !cancelled && sortState.moved && sortState.targetIndex !== sortState.fromIndex;
+    if (!shouldCommit) {
+      returnImageGroupItemSort(sortState);
+      return;
+    }
+    const before = captureImageGroupItemRects(sortState.groupId);
+    const reordered = reorderImageGroupItemToIndex(
+      sortState.groupId,
+      sortState.itemId,
+      sortState.targetIndex,
+      before
+    );
+    if (!reordered) {
+      returnImageGroupItemSort(sortState);
+      return;
+    }
+    const settleDuration = prefersReducedMotion() ? 0 : 460;
+    clearImageGroupItemSortState(sortState, settleDuration);
+  }
+
+  function resolveImageReferenceTextNode(groupId) {
+    const nodes = DesktopState.state.canvas.nodes || {};
+    const selectedTextId = getSelectedNodeIds().find(nodeId => nodes[nodeId]?.type === 'text');
+    const recentTextId = selectedTextId || (nodes[lastPromptTextNodeId]?.type === 'text' ? lastPromptTextNodeId : '');
+    const targetEdge = (DesktopState.state.canvas.edges || [])
+      .find(edge => edge.from === groupId && ['input', 'comfy'].includes(nodes[edge.to]?.type));
+    if (targetEdge) {
+      const connectedTextId = findConnectedTextNodeId(targetEdge.to);
+      if (connectedTextId) return connectedTextId;
+      if (recentTextId) {
+        connectNodes(recentTextId, targetEdge.to, { quiet: true });
+        return recentTextId;
+      }
+      return setPromptTextForInputNode(targetEdge.to, '', { quiet: true });
+    }
+    if (recentTextId) return recentTextId;
+    const groupNode = nodes[groupId];
+    return createTextNodeWithText('', {
+      x: (groupNode?.x || 0) + (groupNode?.width || DEFAULT_IMAGE_GROUP_NODE_WIDTH) + 70,
+      y: groupNode?.y || 0
+    });
+  }
+
+  function insertImageReferenceToken(groupId, itemId) {
+    const groupNode = DesktopState.state.canvas.nodes[groupId];
+    const item = getImageGroupItem(groupId, itemId);
+    if (!groupNode || !item) return null;
+    const textNodeId = resolveImageReferenceTextNode(groupId);
+    const textNode = DesktopState.state.canvas.nodes[textNodeId];
+    const textElement = getNodeElement(textNodeId);
+    if (!textNode || textNode.type !== 'text' || !textElement) throw new Error('无法创建提示词引用');
+    const promptDocument = clonePromptDocument(ensureTextNodePromptDocument(textNode), textNode.text || '');
+    const existing = promptDocument.segments.find(segment => (
+      segment.type === 'image_reference'
+      && segment.group_id === groupId
+      && segment.item_id === itemId
+    ));
+    if (existing) {
+      selectNode(textNodeId);
+      requestAnimationFrame(() => textElement.querySelector(`[data-image-reference-instance="${CSS.escape(existing.instance_id)}"]`)?.focus?.({ preventScroll: true }));
+      DesktopResults.showTransientMessage(`${imageReferenceDisplay(existing)} 已在提示词中。`);
+      return existing;
+    }
+    const visibleText = materializePromptDocument(promptDocument);
+    if (visibleText && !/\s$/.test(visibleText)) promptDocument.segments.push({ type: 'text', text: ' ' });
+    const segment = normalizeImageReferenceSegment({
+      group_id: groupId,
+      item_id: item.itemId,
+      source_node_id: item.sourceNodeId,
+      role_snapshot: item.role,
+      label_snapshot: `@图片${groupNode.items.indexOf(item) + 1}`
+    });
+    promptDocument.segments.push(segment, { type: 'text', text: ' ' });
+    setTextNodePromptDocument(textElement, textNode, promptDocument);
+    textNodeModelTargetIds(textNodeId).forEach(targetNodeId => {
+      const exists = (DesktopState.state.canvas.edges || []).some(edge => edge.from === groupId && edge.to === targetNodeId);
+      if (!exists) connectNodes(groupId, targetNodeId, { quiet: true });
+    });
+    refreshImageReferenceTokens(groupId);
+    selectNode(textNodeId);
+    requestAnimationFrame(() => textElement.querySelector(`[data-image-reference-instance="${CSS.escape(segment.instance_id)}"]`)?.focus?.({ preventScroll: true }));
+    const hasModelTarget = (DesktopState.state.canvas.edges || []).some(edge => edge.from === groupId && ['input', 'comfy'].includes(DesktopState.state.canvas.nodes[edge.to]?.type));
+    DesktopResults.showTransientMessage(hasModelTarget
+      ? `已插入 ${imageReferenceDisplay(segment)}。`
+      : `已插入 ${imageReferenceDisplay(segment)}，请将图片组和文本节点连接到同一模型。`);
+    return segment;
+  }
+
+  function imageGroupGooeyFilterPrimitivesHtml() {
+    return `
+      <feGaussianBlur in="SourceGraphic" stdDeviation="6" result="blur"></feGaussianBlur>
+      <feColorMatrix in="blur" type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 18 -7" result="goo"></feColorMatrix>
+      <feComposite in="SourceGraphic" in2="goo" operator="atop" result="shape"></feComposite>
+      <feColorMatrix in="shape" type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 60 -29.5" result="bin"></feColorMatrix>
+      <feMorphology in="bin" operator="dilate" radius="1" result="edge-spread"></feMorphology>
+      <feFlood flood-color="rgba(0, 0, 0, 0.08)" result="edge-color"></feFlood>
+      <feComposite in="edge-color" in2="edge-spread" operator="in" result="edge"></feComposite>
+      <feMerge><feMergeNode in="edge"></feMergeNode><feMergeNode in="shape"></feMergeNode></feMerge>`;
+  }
+
+  function ensureGlobalImageGroupGooeyFilter() {
+    const id = 'desk-image-group-transition-gooey';
+    if (document.getElementById(id)) return id;
+    document.body.insertAdjacentHTML('beforeend', `
+      <svg class="desk-image-group__global-filter" aria-hidden="true">
+        <defs>
+          <filter id="${id}" x="-45%" y="-45%" width="190%" height="190%" color-interpolation-filters="sRGB">${imageGroupGooeyFilterPrimitivesHtml()}</filter>
+        </defs>
+      </svg>`);
+    return id;
+  }
+
+  function cappedTransitionRect(rect, maxSide = IMAGE_GROUP_TRANSITION_THUMB_PX) {
+    const width = Math.max(32, Number(rect?.width) || 32);
+    const height = Math.max(32, Number(rect?.height) || 32);
+    const side = clamp(Math.min(width, height, maxSide), 38, maxSide);
+    return {
+      left: Number(rect?.left || 0) + (width - side) / 2,
+      top: Number(rect?.top || 0) + (height - side) / 2,
+      width: side,
+      height: side
+    };
+  }
+
+  function animateImageTransition(pairs, focusRect, options = {}) {
+    if (!pairs.length || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+    const filterId = ensureGlobalImageGroupGooeyFilter();
+    const overlay = document.createElement('div');
+    overlay.className = 'desk-image-group-transition';
+    const gooLayer = document.createElement('div');
+    gooLayer.className = 'desk-image-group-transition__goo';
+    gooLayer.style.filter = `url(#${filterId})`;
+    const imageLayer = document.createElement('div');
+    imageLayer.className = 'desk-image-group-transition__images';
+    overlay.append(gooLayer, imageLayer);
+    document.body.appendChild(overlay);
+    const duration = options.duration || 560;
+    const animations = [];
+    pairs.forEach((pair, index) => {
+      const start = cappedTransitionRect(pair.from);
+      const end = cappedTransitionRect(pair.to);
+      const spread = Math.min(34, start.width * 0.52);
+      const midX = Number(focusRect?.left || 0) + Number(focusRect?.width || 0) / 2 - start.width / 2
+        + (index - (pairs.length - 1) / 2) * spread;
+      const midY = Number(focusRect?.top || 0) + Number(focusRect?.height || 0) / 2 - start.height / 2;
+      const dx = end.left - start.left;
+      const dy = end.top - start.top;
+      const midDx = midX - start.left + (index - (pairs.length - 1) / 2) * 5;
+      const midDy = midY - start.top;
+      const scaleX = end.width / start.width;
+      const scaleY = end.height / start.height;
+      const delay = index * 24;
+      const blob = document.createElement('span');
+      blob.style.left = `${start.left}px`;
+      blob.style.top = `${start.top}px`;
+      blob.style.width = `${start.width}px`;
+      blob.style.height = `${start.height}px`;
+      gooLayer.appendChild(blob);
+      const image = document.createElement('img');
+      image.src = pair.source;
+      image.alt = '';
+      image.style.left = `${start.left}px`;
+      image.style.top = `${start.top}px`;
+      image.style.width = `${start.width}px`;
+      image.style.height = `${start.height}px`;
+      imageLayer.appendChild(image);
+      const keyframes = [
+        { transform: 'translate(0, 0) scale(1)', opacity: 0.98, offset: 0 },
+        { transform: `translate(${midDx}px, ${midDy}px) scale(.92)`, opacity: 1, offset: 0.64 },
+        { transform: `translate(${dx}px, ${dy}px) scale(${scaleX}, ${scaleY})`, opacity: 0.98, offset: 1 }
+      ];
+      animations.push(blob.animate(keyframes, { duration, delay, fill: 'forwards', easing: 'cubic-bezier(.2,.78,.18,1)' }));
+      animations.push(image.animate(keyframes, { duration, delay, fill: 'forwards', easing: 'cubic-bezier(.2,.78,.18,1)' }));
+    });
+    Promise.allSettled(animations.map(animation => animation.finished)).finally(() => overlay.remove());
+    window.setTimeout(() => overlay.remove(), duration + pairs.length * 24 + 180);
+  }
+
+  function animateImagesIntoGroup(sources, groupId) {
+    const groupElement = getNodeElement(groupId);
+    if (!groupElement || !sources.length) return;
+    const groupNode = DesktopState.state.canvas.nodes[groupId];
+    const fallbackTargets = Array.from(groupElement.querySelectorAll('[data-image-group-item] .desk-image-group__thumb'));
+    const pairs = sources.map((source, index) => ({
+      source: source.source,
+      from: source.rect,
+      to: (() => {
+        const item = groupNode?.items?.find(candidate => candidate.sourceNodeId === source.sourceNodeId);
+        const target = item
+          ? groupElement.querySelector(`[data-image-group-item="${CSS.escape(item.itemId)}"] .desk-image-group__thumb`)
+          : fallbackTargets[index];
+        return target?.getBoundingClientRect?.() || groupElement.getBoundingClientRect();
+      })()
+    }));
+    const focusRect = groupElement.getBoundingClientRect();
+    groupElement.animate?.([
+      { opacity: 0, transform: 'scale(.92)' },
+      { opacity: 0, transform: 'scale(.96)', offset: 0.55 },
+      { opacity: 1, transform: 'scale(1)' }
+    ], { duration: 650, easing: 'cubic-bezier(.2,.8,.2,1)' });
+    animateImageTransition(pairs, focusRect);
+  }
+
+  function animateImagesOutOfGroup(sources, restoredNodes) {
+    if (!sources.length || !restoredNodes.length) return;
+    const targetRects = restoredNodes.map(node => getNodeElement(node.id)?.getBoundingClientRect?.()).filter(Boolean);
+    const focusRect = sources.reduce((acc, source) => ({
+      left: Math.min(acc.left, source.rect.left),
+      top: Math.min(acc.top, source.rect.top),
+      right: Math.max(acc.right, source.rect.right),
+      bottom: Math.max(acc.bottom, source.rect.bottom)
+    }), { left: Infinity, top: Infinity, right: -Infinity, bottom: -Infinity });
+    const normalizedFocus = {
+      left: focusRect.left,
+      top: focusRect.top,
+      width: Math.max(1, focusRect.right - focusRect.left),
+      height: Math.max(1, focusRect.bottom - focusRect.top)
+    };
+    animateImageTransition(sources.map((source, index) => ({
+      source: source.source,
+      from: source.rect,
+      to: targetRects[index] || source.rect
+    })), normalizedFocus, { duration: 560 });
+  }
+
+  function rectGapDistance(first, second) {
+    const dx = Math.max(first.left - second.right, second.left - first.right, 0);
+    const dy = Math.max(first.top - second.bottom, second.top - first.bottom, 0);
+    return Math.hypot(dx, dy);
+  }
+
+  function mergeAnchorBetweenRects(first, second) {
+    const firstCenterX = first.left + first.width / 2;
+    const firstCenterY = first.top + first.height / 2;
+    const secondCenterX = second.left + second.width / 2;
+    const secondCenterY = second.top + second.height / 2;
+    const firstPoint = {
+      x: clamp(secondCenterX, first.left, first.right),
+      y: clamp(secondCenterY, first.top, first.bottom)
+    };
+    const secondPoint = {
+      x: clamp(firstCenterX, second.left, second.right),
+      y: clamp(firstCenterY, second.top, second.bottom)
+    };
+    return {
+      x: (firstPoint.x + secondPoint.x) / 2,
+      y: (firstPoint.y + secondPoint.y) / 2
+    };
+  }
+
+  function eligibleImageGroupProximityTarget(node, sourceNodeId, excludedIds) {
+    if (!node || node.id === sourceNodeId || excludedIds.has(node.id)) return false;
+    if (node.type === 'image') return Boolean(imageNodeSource(node));
+    return node.type === 'image_group'
+      && node.items?.length < IMAGE_GROUP_MAX_ITEMS
+      && node.items.some(imageGroupItemSource);
+  }
+
+  function findImageGroupProximityCandidate(interaction, threshold = IMAGE_GROUP_PROXIMITY_DISTANCE_PX) {
+    if (interaction?.type !== 'node-drag' || interaction.groupIds?.length !== 1) return null;
+    const sourceNode = DesktopState.state.canvas.nodes[interaction.nodeId];
+    const sourceElement = getNodeElement(interaction.nodeId);
+    if (sourceNode?.type !== 'image' || !imageNodeSource(sourceNode) || !sourceElement) return null;
+    const sourceRect = sourceElement.getBoundingClientRect();
+    const excludedIds = new Set(interaction.groupIds || [interaction.nodeId]);
+    let winner = null;
+    Object.values(DesktopState.state.canvas.nodes || {}).forEach(node => {
+      if (!eligibleImageGroupProximityTarget(node, interaction.nodeId, excludedIds)) return;
+      const element = getNodeElement(node.id);
+      if (!element) return;
+      const targetRect = element.getBoundingClientRect();
+      const distance = rectGapDistance(sourceRect, targetRect);
+      if (distance > threshold) return;
+      const score = distance - (node.type === 'image_group' ? 0.25 : 0);
+      if (!winner || score < winner.score) winner = { nodeId: node.id, distance, score, sourceRect, targetRect };
+    });
+    return winner;
+  }
+
+  function positionImageGroupDwellIndicator(indicator, sourceRect, targetRect) {
+    if (!indicator || !sourceRect || !targetRect) return;
+    const anchor = mergeAnchorBetweenRects(sourceRect, targetRect);
+    indicator.style.left = `${anchor.x}px`;
+    indicator.style.top = `${anchor.y}px`;
+  }
+
+  function createImageGroupDwellIndicator(sourceRect, targetRect) {
+    const indicator = document.createElement('div');
+    indicator.className = 'desk-image-group-dwell';
+    indicator.setAttribute('aria-hidden', 'true');
+    indicator.style.setProperty('--desk-image-group-dwell-ms', `${IMAGE_GROUP_PROXIMITY_DWELL_MS}ms`);
+    indicator.innerHTML = `
+      <svg viewBox="0 0 36 36">
+        <circle class="desk-image-group-dwell__track" cx="18" cy="18" r="15"></circle>
+        <circle class="desk-image-group-dwell__progress" cx="18" cy="18" r="15" pathLength="1"></circle>
+      </svg>
+      <span></span>`;
+    positionImageGroupDwellIndicator(indicator, sourceRect, targetRect);
+    document.body.appendChild(indicator);
+    return indicator;
+  }
+
+  function imageGroupProximityPreviewEntries(sourceNodeId, targetNodeId) {
+    const sourceNode = DesktopState.state.canvas.nodes[sourceNodeId];
+    const targetNode = DesktopState.state.canvas.nodes[targetNodeId];
+    const sourceElement = getNodeElement(sourceNodeId);
+    const targetElement = getNodeElement(targetNodeId);
+    if (!sourceNode || !targetNode || !sourceElement || !targetElement) return [];
+    if (targetNode.type === 'image') {
+      return sortImageNodesForGroup([sourceNode, targetNode]).map(node => ({
+        sourceNodeId: node.id,
+        source: imageNodeSource(node),
+        rect: getNodeElement(node.id)?.getBoundingClientRect?.(),
+        incoming: node.id === sourceNodeId
+      })).filter(entry => entry.source && entry.rect);
+    }
+    if (targetNode.type !== 'image_group') return [];
+    normalizeImageGroupNodeState(targetNode);
+    const entries = targetNode.items.map(item => ({
+      sourceNodeId: item.sourceNodeId,
+      source: imageGroupItemSource(item),
+      rect: targetElement.querySelector(`[data-image-group-item="${CSS.escape(item.itemId)}"] .desk-image-group__thumb`)?.getBoundingClientRect?.(),
+      incoming: false
+    })).filter(entry => entry.source && entry.rect);
+    entries.push({
+      sourceNodeId,
+      source: imageNodeSource(sourceNode),
+      rect: sourceElement.getBoundingClientRect(),
+      incoming: true
+    });
+    return entries;
+  }
+
+  function setImageGroupPreviewChipUnit(chip, side) {
+    chip?.style.setProperty('--desk-image-group-chip-unit', `${Math.max(0.1, Number(side) || 0) / IMAGE_GROUP_BASE_THUMB_PX}px`);
+  }
+
+  /*
+   * Live proximity preview
+   *
+   * One-shot image transitions used by ungrouping remain separate. The live
+   * proximity path has its own lifecycle: after the 620ms dwell the pointer is
+   * still a normal node drag, while this overlay becomes the crisp content
+   * layer and the SVG becomes the liquid silhouette layer.
+   */
+  function liveImageGroupSmoothstep(value) {
+    const t = clamp(Number(value) || 0, 0, 1);
+    return t * t * (3 - 2 * t);
+  }
+
+  function liveImageGroupEase(value) {
+    const t = clamp(Number(value) || 0, 0, 1);
+    return t < 0.82 ? t / 0.82 : 1 - Math.pow((1 - t) / 0.18, 2) * 0.025;
+  }
+
+  function liveImageGroupRoundedRectContact(point, rect, cornerRadius) {
+    const right = Number.isFinite(rect.right) ? rect.right : rect.left + rect.width;
+    const bottom = Number.isFinite(rect.bottom) ? rect.bottom : rect.top + rect.height;
+    const radius = clamp(Number(cornerRadius) || 0, 0, Math.min(rect.width, rect.height) / 2);
+    const coreLeft = rect.left + radius;
+    const coreRight = right - radius;
+    const coreTop = rect.top + radius;
+    const coreBottom = bottom - radius;
+    const corePoint = {
+      x: clamp(point.x, coreLeft, coreRight),
+      y: clamp(point.y, coreTop, coreBottom)
+    };
+    const dx = point.x - corePoint.x;
+    const dy = point.y - corePoint.y;
+    const length = Math.hypot(dx, dy);
+    if (length > 0.001) {
+      const normal = { x: dx / length, y: dy / length };
+      return {
+        surface: {
+          x: corePoint.x + normal.x * radius,
+          y: corePoint.y + normal.y * radius
+        },
+        normal,
+        distance: length - radius
+      };
+    }
+    const edges = [
+      { distance: point.x - rect.left, surface: { x: rect.left, y: point.y }, normal: { x: -1, y: 0 } },
+      { distance: right - point.x, surface: { x: right, y: point.y }, normal: { x: 1, y: 0 } },
+      { distance: point.y - rect.top, surface: { x: point.x, y: rect.top }, normal: { x: 0, y: -1 } },
+      { distance: bottom - point.y, surface: { x: point.x, y: bottom }, normal: { x: 0, y: 1 } }
+    ];
+    const nearest = edges.reduce((winner, edge) => edge.distance < winner.distance ? edge : winner);
+    return { surface: nearest.surface, normal: nearest.normal, distance: -Math.max(0, nearest.distance) };
+  }
+
+  function liveImageGroupApproachContact(sourcePoint, targetPoint, rect, cornerRadius) {
+    const directContact = liveImageGroupRoundedRectContact(sourcePoint, rect, cornerRadius);
+    if (directContact.distance >= 0) return directContact;
+    let dx = sourcePoint.x - targetPoint.x;
+    let dy = sourcePoint.y - targetPoint.y;
+    let length = Math.hypot(dx, dy);
+    if (length < 0.001) {
+      dx = sourcePoint.x < rect.left + rect.width / 2 ? -1 : 1;
+      dy = 0;
+      length = 1;
+    }
+    const normal = { x: dx / length, y: dy / length };
+    const reach = Math.hypot(rect.width, rect.height) + Math.max(0, Number(cornerRadius) || 0) + 1;
+    return liveImageGroupRoundedRectContact({
+      x: rect.left + rect.width / 2 + normal.x * reach,
+      y: rect.top + rect.height / 2 + normal.y * reach
+    }, rect, cornerRadius);
+  }
+
+  function liveImageGroupChip(entry, imageLayer, incoming = false) {
+    const chip = document.createElement('div');
+    chip.className = `desk-image-group-transition__chip${incoming ? ' is-incoming' : ''}`;
+    const image = document.createElement('img');
+    image.src = entry.source;
+    image.alt = '';
+    image.draggable = false;
+    const badge = document.createElement('strong');
+    badge.textContent = '1';
+    chip.append(image, badge);
+    imageLayer.appendChild(chip);
+    return { ...entry, chip, image, badge };
+  }
+
+  function liveImageGroupMask(normal, strength) {
+    if (strength <= 0.015) return '';
+    const x = clamp(50 - normal.x * 43, 4, 96).toFixed(1);
+    const y = clamp(50 - normal.y * 43, 4, 96).toFixed(1);
+    const edge = Math.round(18 + strength * 16);
+    return `radial-gradient(ellipse 72% 72% at ${x}% ${y}%, rgba(0,0,0,0) 0%, rgba(0,0,0,.34) ${edge}%, #000 64%, #000 100%)`;
+  }
+
+  function liveImageGroupSlotPosition(preview, index) {
+    const normalizedIndex = Math.max(0, Math.round(Number(index) || 0));
+    const column = normalizedIndex % IMAGE_GROUP_MAX_COLUMNS;
+    const row = Math.floor(normalizedIndex / IMAGE_GROUP_MAX_COLUMNS);
+    const left = preview.baseLeft + preview.thumbStart + column * preview.step;
+    const top = preview.baseTop + preview.rowInset + row * preview.rowStep;
+    return {
+      left,
+      top,
+      x: left + preview.thumbSize / 2,
+      y: top + preview.thumbSize / 2
+    };
+  }
+
+  function liveImageGroupSlotIndex(preview, center) {
+    const count = preview.targetItems.length;
+    if (!count) return 0;
+    const point = typeof center === 'number' ? { x: center, y: preview.baseTop + preview.rowInset } : center;
+    let winner = { index: 0, distance: Number.POSITIVE_INFINITY };
+    for (let index = 0; index <= count; index += 1) {
+      const slot = liveImageGroupSlotPosition(preview, index);
+      const distance = Math.hypot((point?.x || 0) - slot.x, (point?.y || 0) - slot.y);
+      if (distance < winner.distance) winner = { index, distance };
+    }
+    return winner.index;
+  }
+
+  function liveImageGroupSlotCenter(preview, index) {
+    const position = liveImageGroupSlotPosition(preview, index);
+    return { x: position.x, y: position.y };
+  }
+
+  function renderLiveImageGroupPreview(preview, now = performance.now(), immediate = false) {
+    if (!preview?.active) return;
+    const elapsed = Math.max(0, now - preview.introStartedAt);
+    const intro = preview.committing || preview.reducedMotion
+      ? 1
+      : liveImageGroupEase(clamp(elapsed / preview.introDuration, 0, 1));
+    const pointerCenter = {
+      x: preview.pointerX,
+      y: preview.pointerY
+    };
+    const body = {
+      left: preview.baseLeft,
+      top: preview.baseTop,
+      width: preview.currentWidth,
+      height: preview.currentHeight,
+      right: preview.baseLeft + preview.currentWidth,
+      bottom: preview.baseTop + preview.currentHeight
+    };
+    const contact = liveImageGroupRoundedRectContact(pointerCenter, body, preview.motherRadius);
+    const gap = contact.distance - preview.incomingRadius;
+    preview.targetStrength = gap < IMAGE_GROUP_PROXIMITY_CONTACT_PX
+      ? liveImageGroupSmoothstep(1 - gap / IMAGE_GROUP_PROXIMITY_CONTACT_PX)
+      : 0;
+    if (preview.targetStrength > 0.01) preview.lastContact = { ...contact };
+    preview.insertionIndex = liveImageGroupSlotIndex(preview, pointerCenter);
+    preview.dropActive = gap <= IMAGE_GROUP_PROXIMITY_DROP_PX;
+    preview.overlay.classList.toggle('is-drop-active', preview.dropActive);
+    preview.targetWidth = preview.dropActive ? preview.finalWidth : preview.baseWidth;
+    preview.targetHeight = preview.dropActive ? preview.finalHeight : preview.baseHeight;
+    if (preview.reducedMotion) {
+      preview.currentStrength = preview.targetStrength;
+      preview.releaseStrength = preview.targetStrength;
+      preview.currentWidth = preview.targetWidth;
+      preview.currentHeight = preview.targetHeight;
+    } else if (immediate) {
+      preview.currentWidth += (preview.targetWidth - preview.currentWidth) * 0.28;
+      if (Math.abs(preview.targetWidth - preview.currentWidth) < 0.35) preview.currentWidth = preview.targetWidth;
+      preview.currentHeight += (preview.targetHeight - preview.currentHeight) * 0.28;
+      if (Math.abs(preview.targetHeight - preview.currentHeight) < 0.35) preview.currentHeight = preview.targetHeight;
+    }
+
+    const open = preview.dropActive;
+    preview.targetItems.forEach((item, index) => {
+      const slot = index + (open && index >= preview.insertionIndex ? 1 : 0);
+      const slotPosition = liveImageGroupSlotPosition(preview, slot);
+      item.chip.style.left = `${slotPosition.left}px`;
+      item.chip.style.top = `${slotPosition.top}px`;
+      item.chip.style.width = `${preview.thumbSize}px`;
+      item.chip.style.height = `${preview.thumbSize}px`;
+      setImageGroupPreviewChipUnit(item.chip, preview.thumbSize);
+      const startScale = item.startSide / Math.max(1, preview.thumbSize);
+      item.chip.style.transform = `scale(${startScale + (1 - startScale) * intro})`;
+      item.badge.textContent = String(slot + 1);
+    });
+
+    const slotCenter = liveImageGroupSlotCenter(preview, preview.insertionIndex);
+    let incomingCenter;
+    let incomingSize;
+    if (preview.committing) {
+      const progress = liveImageGroupEase(preview.commitProgress || 0);
+      incomingCenter = {
+        x: preview.dropStartCenter.x + (slotCenter.x - preview.dropStartCenter.x) * progress,
+        y: preview.dropStartCenter.y + (slotCenter.y - preview.dropStartCenter.y) * progress
+      };
+      incomingSize = preview.dropStartSize + (preview.thumbSize - preview.dropStartSize) * progress;
+    } else {
+      incomingCenter = pointerCenter;
+      incomingSize = preview.introStartSide + (preview.thumbSize - preview.introStartSide) * intro;
+    }
+    preview.incomingCenter = incomingCenter;
+    preview.incomingSize = incomingSize;
+    preview.incoming.chip.style.left = `${incomingCenter.x - incomingSize / 2}px`;
+    preview.incoming.chip.style.top = `${incomingCenter.y - incomingSize / 2}px`;
+    preview.incoming.chip.style.width = `${incomingSize}px`;
+    preview.incoming.chip.style.height = `${incomingSize}px`;
+    setImageGroupPreviewChipUnit(preview.incoming.chip, incomingSize);
+    preview.incoming.badge.textContent = String(preview.insertionIndex + 1);
+
+    const strength = preview.currentStrength;
+    const renderContact = preview.lastContact || contact;
+    const normal = renderContact.normal || { x: 1, y: 0 };
+    const sourceSurface = {
+      x: incomingCenter.x - normal.x * Math.max(1, incomingSize / 2),
+      y: incomingCenter.y - normal.y * Math.max(1, incomingSize / 2)
+    };
+    const targetSurface = renderContact.surface;
+    const px = -normal.y;
+    const py = normal.x;
+    const half = Math.max(1, 1.5 + strength * 7.5);
+    const sourceHalf = Math.max(1, 1 + strength * 5.5);
+    const midX = (sourceSurface.x + targetSurface.x) / 2;
+    const midY = (sourceSurface.y + targetSurface.y) / 2;
+    const neck = `M ${targetSurface.x + px * half} ${targetSurface.y + py * half}`
+      + ` C ${midX + px * half * 0.7} ${midY + py * half * 0.7}, ${midX + px * sourceHalf * 0.7} ${midY + py * sourceHalf * 0.7}, ${sourceSurface.x + px * sourceHalf} ${sourceSurface.y + py * sourceHalf}`
+      + ` L ${sourceSurface.x - px * sourceHalf} ${sourceSurface.y - py * sourceHalf}`
+      + ` C ${midX - px * sourceHalf * 0.7} ${midY - py * sourceHalf * 0.7}, ${midX - px * half * 0.7} ${midY - py * half * 0.7}, ${targetSurface.x - px * half} ${targetSurface.y - py * half} Z`;
+    preview.bridge.setAttribute('d', neck);
+    preview.bridgeHalo.setAttribute('d', neck);
+    preview.bridge.style.opacity = String(clamp(strength * 1.12, 0, 1));
+    preview.bridgeHalo.style.opacity = String(clamp(strength * 0.34, 0, 0.34));
+    preview.contactBlob.setAttribute('cx', String(targetSurface.x));
+    preview.contactBlob.setAttribute('cy', String(targetSurface.y));
+    preview.contactBlob.setAttribute('r', String(Math.max(1, 3 + strength * 10)));
+    preview.contactBlob.style.opacity = String(clamp(strength * 0.9, 0, 0.9));
+    preview.incomingShape.setAttribute('cx', String(incomingCenter.x));
+    preview.incomingShape.setAttribute('cy', String(incomingCenter.y));
+    preview.incomingShape.setAttribute('r', String(Math.max(1, incomingSize / 2 + imageGroupUiSize(4))));
+
+    const mask = liveImageGroupMask(normal, strength);
+    [...preview.meltImages, preview.incoming.image].forEach(image => {
+      if (mask) {
+        image.style.maskImage = mask;
+        image.style.webkitMaskImage = mask;
+      } else {
+        image.style.removeProperty('mask-image');
+        image.style.removeProperty('-webkit-mask-image');
+      }
+    });
+    preview.meltImages.forEach((image, index) => {
+      const flow = (8 + index * 7) * strength;
+      image.style.left = `${incomingCenter.x - incomingSize / 2}px`;
+      image.style.top = `${incomingCenter.y - incomingSize / 2}px`;
+      image.style.width = `${incomingSize}px`;
+      image.style.height = `${incomingSize}px`;
+      image.style.opacity = String(clamp(strength * (0.3 - index * 0.08), 0, 0.3));
+      image.style.transform = `translate(${-normal.x * flow}px, ${-normal.y * flow}px) scale(${1 + strength * (0.16 + index * 0.06)})`;
+    });
+    preview.overlay.dataset.contactAxis = Math.abs(normal.x) > Math.abs(normal.y) ? 'x' : 'y';
+    preview.overlay.dataset.contactSide = normal.x < -0.35 ? 'left' : normal.x > 0.35 ? 'right' : normal.y < 0 ? 'top' : 'bottom';
+    preview.identity.style.left = `${preview.baseLeft + preview.identityInset}px`;
+    preview.identity.style.top = `${preview.baseTop + preview.identityTop}px`;
+    preview.identity.querySelector('span').textContent = `${preview.targetItems.length + (preview.dropActive ? 1 : 0)} 张`;
+    preview.base.setAttribute('width', String(preview.currentWidth));
+    preview.base.setAttribute('height', String(preview.currentHeight));
+    preview.base.setAttribute('rx', String(preview.motherRadius));
+  }
+
+  function startLiveImageGroupPreviewFrame(preview) {
+    if (!preview?.active || preview.raf) return;
+    if (preview.reducedMotion) {
+      renderLiveImageGroupPreview(preview, performance.now(), true);
+      return;
+    }
+    preview.lastFrame = performance.now();
+    const tick = now => {
+      preview.raf = 0;
+      if (!preview.active) return;
+      const dt = Math.max(0.001, Math.min(0.05, (now - preview.lastFrame) / 1000));
+      preview.lastFrame = now;
+      if (!preview.committing) {
+        const target = preview.targetStrength || 0;
+        if (target >= preview.currentStrength) {
+          preview.currentStrength += (target - preview.currentStrength) * Math.min(1, dt * 18);
+          preview.releaseStartedAt = 0;
+        } else if (target > 0.01) {
+          preview.currentStrength += (target - preview.currentStrength) * Math.min(1, dt * 8);
+          preview.releaseStartedAt = 0;
+        } else if (preview.currentStrength > 0.001) {
+          if (!preview.releaseStartedAt) preview.releaseStartedAt = now;
+          const releaseProgress = clamp((now - preview.releaseStartedAt) / IMAGE_GROUP_PROXIMITY_RELEASE_MS, 0, 1);
+          preview.currentStrength = preview.releaseStrength * Math.pow(1 - releaseProgress, 2);
+        }
+        if (target > 0.01) preview.releaseStrength = Math.max(preview.releaseStrength, preview.currentStrength, target);
+      }
+      const widthDelta = preview.targetWidth - preview.currentWidth;
+      preview.currentWidth += widthDelta * Math.min(1, dt * 12);
+      if (Math.abs(widthDelta) < 0.2) preview.currentWidth = preview.targetWidth;
+      const heightDelta = preview.targetHeight - preview.currentHeight;
+      preview.currentHeight += heightDelta * Math.min(1, dt * 12);
+      if (Math.abs(heightDelta) < 0.2) preview.currentHeight = preview.targetHeight;
+      renderLiveImageGroupPreview(preview, now, false);
+      const introActive = !preview.committing && now - preview.introStartedAt < preview.introDuration + 20;
+      const strengthActive = Math.abs((preview.targetStrength || 0) - preview.currentStrength) >= 0.002
+        || (preview.targetStrength <= 0.01 && preview.currentStrength >= 0.001);
+      const sizeActive = Math.abs(preview.targetWidth - preview.currentWidth) >= 0.2
+        || Math.abs(preview.targetHeight - preview.currentHeight) >= 0.2;
+      if (introActive || strengthActive || sizeActive || preview.releasing) {
+        preview.raf = requestAnimationFrame(tick);
+      }
+    };
+    preview.raf = requestAnimationFrame(tick);
+  }
+
+  function createImageGroupProximityPreview(sourceNodeId, targetNodeId, interaction) {
+    const entries = imageGroupProximityPreviewEntries(sourceNodeId, targetNodeId);
+    if (entries.length < 2) return null;
+    const sourceRect = getNodeElement(sourceNodeId)?.getBoundingClientRect?.();
+    const targetElement = getNodeElement(targetNodeId);
+    const targetRect = targetElement?.getBoundingClientRect?.();
+    if (!sourceRect || !targetRect) return null;
+    const targetNode = DesktopState.state.canvas.nodes[targetNodeId];
+    const targetBodyRect = targetNode?.type === 'image_group'
+      ? targetElement.querySelector('[data-image-group-liquid-base]')?.getBoundingClientRect?.()
+      : null;
+    const incomingEntry = entries.find(entry => entry.incoming);
+    const targetEntries = entries.filter(entry => !entry.incoming);
+    if (!incomingEntry || !targetEntries.length) return null;
+    const canvasScale = Math.max(0.3, Number(DesktopState.state.canvas.scale) || 1);
+    const thumbSize = targetBodyRect ? Math.max(24, targetEntries[0].rect.width) : IMAGE_GROUP_THUMB_PX * canvasScale;
+    const step = targetBodyRect && targetEntries.length > 1
+      ? Math.max(thumbSize * 0.58, Math.abs(targetEntries[1].rect.left - targetEntries[0].rect.left))
+      : IMAGE_GROUP_THUMB_STEP_PX * canvasScale;
+    const rowStep = targetBodyRect && targetEntries.length > IMAGE_GROUP_MAX_COLUMNS
+      ? Math.max(thumbSize, Math.abs(targetEntries[IMAGE_GROUP_MAX_COLUMNS].rect.top - targetEntries[0].rect.top))
+      : IMAGE_GROUP_ROW_STEP_PX * canvasScale;
+    const thumbStart = targetBodyRect
+      ? Math.max(8, targetEntries[0].rect.left - targetBodyRect.left)
+      : IMAGE_GROUP_IDENTITY_WIDTH_PX * canvasScale;
+    const rowInset = targetBodyRect
+      ? Math.max(0, targetEntries[0].rect.top - targetBodyRect.top)
+      : (IMAGE_GROUP_MOTHER_HEIGHT_PX - IMAGE_GROUP_THUMB_PX) / 2 * canvasScale;
+    const motherHeight = targetBodyRect?.height || imageGroupMotherHeight(targetEntries.length) * canvasScale;
+    const finalHeight = imageGroupMotherHeight(targetEntries.length + 1) * canvasScale;
+    const motherRadius = IMAGE_GROUP_MOTHER_RADIUS_PX * canvasScale;
+    const baseWidth = targetBodyRect?.width || naturalImageGroupNodeWidth(targetEntries.length) * canvasScale;
+    const finalWidth = naturalImageGroupNodeWidth(targetEntries.length + 1) * canvasScale;
+    const rawAnchor = targetBodyRect
+      ? { x: targetBodyRect.left + targetBodyRect.width / 2, y: targetBodyRect.top + targetBodyRect.height / 2 }
+      : mergeAnchorBetweenRects(sourceRect, targetRect);
+    const baseLeft = targetBodyRect
+      ? targetBodyRect.left
+      : clamp(rawAnchor.x - baseWidth / 2, 18, Math.max(18, window.innerWidth - baseWidth - 18));
+    const baseTop = targetBodyRect
+      ? targetBodyRect.top
+      : clamp(rawAnchor.y - motherHeight / 2, 18, Math.max(18, window.innerHeight - motherHeight - 18));
+    const baseRect = { left: baseLeft, top: baseTop, width: baseWidth, height: motherHeight };
+    const sourceCenter = {
+      x: sourceRect.left + sourceRect.width / 2,
+      y: sourceRect.top + sourceRect.height / 2
+    };
+    const targetCenter = {
+      x: targetRect.left + targetRect.width / 2,
+      y: targetRect.top + targetRect.height / 2
+    };
+    const pointerAtReady = {
+      x: Number.isFinite(interaction?.lastClientX) ? interaction.lastClientX : sourceCenter.x,
+      y: Number.isFinite(interaction?.lastClientY) ? interaction.lastClientY : sourceCenter.y
+    };
+    const initialContact = liveImageGroupApproachContact(pointerAtReady, targetCenter, baseRect, motherRadius);
+    const incomingRadius = thumbSize / 2 + imageGroupUiSize(4);
+    const introStart = cappedTransitionRect(sourceRect, IMAGE_GROUP_TRANSITION_THUMB_PX);
+    const transitionId = `desk-image-group-proximity-gooey-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+    const overlay = document.createElement('div');
+    overlay.className = 'desk-image-group-transition desk-image-group-transition--proximity';
+    const liquidSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    liquidSvg.classList.add('desk-image-group-transition__liquid-svg');
+    liquidSvg.setAttribute('viewBox', `0 0 ${window.innerWidth} ${window.innerHeight}`);
+    liquidSvg.setAttribute('preserveAspectRatio', 'none');
+    liquidSvg.innerHTML = `<defs><filter id="${transitionId}" filterUnits="userSpaceOnUse" x="-80" y="-80" width="${window.innerWidth + 160}" height="${window.innerHeight + 160}" color-interpolation-filters="sRGB">${imageGroupGooeyFilterPrimitivesHtml()}</filter></defs><g class="desk-image-group-transition__liquid-surface" filter="url(#${transitionId})"></g>`;
+    const liquidSurface = liquidSvg.querySelector('.desk-image-group-transition__liquid-surface');
+    const base = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    base.classList.add('desk-image-group-transition__mother-shape');
+    base.setAttribute('x', String(baseLeft));
+    base.setAttribute('y', String(baseTop));
+    base.setAttribute('width', String(baseWidth));
+    base.setAttribute('height', String(motherHeight));
+    base.setAttribute('rx', String(motherRadius));
+    liquidSurface.appendChild(base);
+    const bridgeHalo = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    bridgeHalo.classList.add('desk-image-group-transition__bridge-halo');
+    const bridge = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    bridge.classList.add('desk-image-group-transition__bridge');
+    const contactBlob = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    contactBlob.classList.add('desk-image-group-transition__contact');
+    const incomingShape = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    incomingShape.classList.add('desk-image-group-transition__incoming-shape');
+    liquidSurface.append(bridgeHalo, bridge, contactBlob, incomingShape);
+    const meltLayer = document.createElement('div');
+    meltLayer.className = 'desk-image-group-transition__melt';
+    const identity = document.createElement('div');
+    identity.className = 'desk-image-group-transition__identity';
+    const identityScale = clamp(canvasScale, 0.35, 1.45);
+    identity.style.setProperty('--desk-image-group-transition-scale', String(identityScale));
+    identity.innerHTML = `<strong>图片组</strong><span>${targetEntries.length} 张</span>`;
+    const imageLayer = document.createElement('div');
+    imageLayer.className = 'desk-image-group-transition__images';
+    overlay.append(liquidSvg, meltLayer, identity, imageLayer);
+    document.body.appendChild(overlay);
+    const targetItems = targetEntries.map(entry => {
+      const item = liveImageGroupChip(entry, imageLayer);
+      item.startSide = Math.max(thumbSize, cappedTransitionRect(entry.rect, IMAGE_GROUP_TRANSITION_THUMB_PX).width);
+      setImageGroupPreviewChipUnit(item.chip, thumbSize);
+      return item;
+    });
+    const incoming = liveImageGroupChip(incomingEntry, imageLayer, true);
+    const meltImages = [0, 1].map(() => {
+      const image = document.createElement('img');
+      image.src = incomingEntry.source;
+      image.alt = '';
+      meltLayer.appendChild(image);
+      return image;
+    });
+    const preview = {
+      overlay, base, bridge, bridgeHalo, contactBlob, incomingShape, identity,
+      targetItems, incoming, meltImages, targetNodeId, sourceNodeId,
+      baseLeft, baseTop, baseWidth, baseHeight: motherHeight,
+      currentWidth: baseWidth, targetWidth: baseWidth, finalWidth,
+      currentHeight: motherHeight, targetHeight: motherHeight, finalHeight,
+      motherHeight, motherRadius, thumbSize, thumbStart, step, rowInset, rowStep,
+      identityInset: imageGroupUiSize(24) * canvasScale,
+      identityTop: imageGroupUiSize(20) * canvasScale,
+      incomingRadius, introStartSide: introStart.width,
+      pointerX: pointerAtReady.x,
+      pointerY: pointerAtReady.y,
+      introStartedAt: performance.now(), introDuration: 250,
+      currentStrength: 0, releaseStrength: 0, releaseStartedAt: 0, targetStrength: 0,
+      insertionIndex: targetItems.length, dropActive: false, lastContact: initialContact,
+      active: true, raf: 0, committing: false, commitProgress: 0, releasing: false,
+      reducedMotion: prefersReducedMotion(),
+      incomingCenter: pointerAtReady, incomingSize: introStart.width, dropStartSize: introStart.width,
+      positionWorld: null
+    };
+    const position = screenToWorld(baseLeft, baseTop - IMAGE_GROUP_MOTHER_TOP_PX * canvasScale);
+    preview.positionWorld = { x: position.x, y: position.y };
+    renderLiveImageGroupPreview(preview, performance.now(), true);
+    startLiveImageGroupPreviewFrame(preview);
+    return preview;
+  }
+
+  function clearImageGroupProximity(interaction, options = {}) {
+    const proximity = interaction?.imageGroupProximity;
+    if (!proximity) return;
+    window.clearTimeout(proximity.timer);
+    window.clearTimeout(proximity.releaseTimer);
+    proximity.indicator?.remove();
+    if (proximity.preview) {
+      proximity.preview.active = false;
+      if (proximity.preview.raf) cancelAnimationFrame(proximity.preview.raf);
+      proximity.preview.raf = 0;
+      if (!options.preserveOverlay) proximity.preview.overlay?.remove();
+    }
+    getNodeElement(interaction.nodeId)?.classList.remove('is-image-group-proximity-source', 'is-image-group-proximity-ready');
+    getNodeElement(proximity.targetNodeId)?.classList.remove('is-image-group-proximity-target', 'is-image-group-proximity-ready');
+    interaction.imageGroupProximity = null;
+  }
+
+  function releaseImageGroupProximity(interaction) {
+    const proximity = interaction?.imageGroupProximity;
+    const preview = proximity?.preview;
+    if (!proximity?.ready || !preview || proximity.releasing) return;
+    if (preview.reducedMotion) {
+      clearImageGroupProximity(interaction);
+      return;
+    }
+    proximity.releasing = true;
+    preview.releasing = true;
+    preview.dropActive = false;
+    preview.targetStrength = 0;
+    preview.targetWidth = preview.baseWidth;
+    preview.targetHeight = preview.baseHeight;
+    preview.releaseStrength = Math.max(preview.releaseStrength, preview.currentStrength);
+    preview.releaseStartedAt = 0;
+    preview.overlay?.classList.remove('is-drop-active');
+    preview.overlay?.setAttribute('data-releasing', 'true');
+    startLiveImageGroupPreviewFrame(preview);
+    proximity.releaseTimer = window.setTimeout(() => {
+      if (activeInteraction !== interaction || interaction.imageGroupProximity !== proximity) return;
+      clearImageGroupProximity(interaction);
+    }, IMAGE_GROUP_PROXIMITY_RELEASE_MS + 45);
+  }
+
+  function beginImageGroupProximity(interaction, candidate) {
+    clearImageGroupProximity(interaction);
+    const sourceElement = getNodeElement(interaction.nodeId);
+    const targetElement = getNodeElement(candidate.nodeId);
+    if (!sourceElement || !targetElement) return;
+    sourceElement.classList.add('is-image-group-proximity-source');
+    targetElement.classList.add('is-image-group-proximity-target');
+    const proximity = {
+      targetNodeId: candidate.nodeId,
+      indicator: createImageGroupDwellIndicator(candidate.sourceRect, candidate.targetRect),
+      timer: 0,
+      releaseTimer: 0,
+      ready: false,
+      releasing: false,
+      preview: null
+    };
+    interaction.imageGroupProximity = proximity;
+    proximity.timer = window.setTimeout(() => {
+      if (activeInteraction !== interaction || interaction.imageGroupProximity !== proximity) return;
+      const current = findImageGroupProximityCandidate(interaction, IMAGE_GROUP_PROXIMITY_RELEASE_PX);
+      if (current?.nodeId !== proximity.targetNodeId) {
+        clearImageGroupProximity(interaction);
+        return;
+      }
+      proximity.ready = true;
+      proximity.readyClientX = interaction.lastClientX;
+      proximity.readyClientY = interaction.lastClientY;
+      proximity.indicator?.remove();
+      proximity.indicator = null;
+      hideSmartGuides();
+      sourceElement.classList.add('is-image-group-proximity-ready');
+      targetElement.classList.add('is-image-group-proximity-ready');
+      proximity.preview = createImageGroupProximityPreview(interaction.nodeId, proximity.targetNodeId, interaction);
+      if (!proximity.preview) clearImageGroupProximity(interaction);
+    }, IMAGE_GROUP_PROXIMITY_DWELL_MS);
+  }
+
+  function updateImageGroupProximity(interaction) {
+    const existing = interaction?.imageGroupProximity;
+    if (existing?.ready) {
+      const current = findImageGroupProximityCandidate(interaction, IMAGE_GROUP_PROXIMITY_RELEASE_PX);
+      if (!current || current.nodeId !== existing.targetNodeId) {
+        releaseImageGroupProximity(interaction);
+        return;
+      }
+      if (existing.releasing) {
+        existing.releasing = false;
+        window.clearTimeout(existing.releaseTimer);
+        existing.releaseTimer = 0;
+        existing.preview.releasing = false;
+        existing.preview.overlay?.removeAttribute('data-releasing');
+      }
+      if (existing.preview) {
+        existing.preview.pointerX = interaction.lastClientX;
+        existing.preview.pointerY = interaction.lastClientY;
+        renderLiveImageGroupPreview(existing.preview, performance.now(), true);
+        startLiveImageGroupPreviewFrame(existing.preview);
+      }
+      return;
+    }
+    const threshold = existing ? IMAGE_GROUP_PROXIMITY_RELEASE_PX : IMAGE_GROUP_PROXIMITY_DISTANCE_PX;
+    const candidate = findImageGroupProximityCandidate(interaction, threshold);
+    if (!candidate) {
+      clearImageGroupProximity(interaction);
+      return;
+    }
+    if (existing?.targetNodeId === candidate.nodeId) {
+      positionImageGroupDwellIndicator(existing.indicator, candidate.sourceRect, candidate.targetRect);
+      return;
+    }
+    beginImageGroupProximity(interaction, candidate);
+  }
+
+  function animateImageGroupProximityDrop(interaction) {
+    const proximity = interaction?.imageGroupProximity;
+    const preview = proximity?.preview;
+    if (!proximity?.ready || !preview?.dropActive || preview.committing) return false;
+    preview.committing = true;
+    if (preview.raf) cancelAnimationFrame(preview.raf);
+    preview.raf = 0;
+    preview.dropStartCenter = { ...preview.incomingCenter };
+    preview.dropStartSize = preview.incomingSize;
+    preview.commitProgress = 0;
+    if (preview.reducedMotion) {
+      preview.commitProgress = 1;
+      commitImageGroupProximity(interaction);
+      return true;
+    }
+    const started = performance.now();
+    const tick = now => {
+      const progress = clamp((now - started) / IMAGE_GROUP_PROXIMITY_DROP_MS, 0, 1);
+      preview.commitProgress = progress;
+      preview.currentStrength *= Math.max(0, 1 - progress * 1.4);
+      preview.currentWidth += (preview.finalWidth - preview.currentWidth) * Math.min(1, 0.12 + progress * 0.18);
+      preview.currentHeight += (preview.finalHeight - preview.currentHeight) * Math.min(1, 0.12 + progress * 0.18);
+      renderLiveImageGroupPreview(preview, now, false);
+      if (progress < 1) {
+        preview.raf = requestAnimationFrame(tick);
+        return;
+      }
+      preview.raf = 0;
+      commitImageGroupProximity(interaction);
+    };
+    preview.raf = requestAnimationFrame(tick);
+    return true;
+  }
+
+  function commitImageGroupProximity(interaction) {
+    const proximity = interaction?.imageGroupProximity;
+    const preview = proximity?.preview;
+    if (!proximity?.ready || !preview) return '';
+    const sourceNode = DesktopState.state.canvas.nodes[interaction.nodeId];
+    const targetNode = DesktopState.state.canvas.nodes[proximity.targetNodeId];
+    const insertIndex = preview.insertionIndex;
+    const positionWorld = preview.positionWorld;
+    const fakeInteraction = { nodeId: interaction.nodeId, imageGroupProximity: proximity };
+    clearImageGroupProximity(fakeInteraction, { preserveOverlay: true });
+    let groupId = '';
+    if (sourceNode?.type === 'image' && targetNode?.type === 'image') {
+      const targetIds = preview.targetItems.map(item => item.sourceNodeId);
+      const orderedNodeIds = [...targetIds.slice(0, insertIndex), sourceNode.id, ...targetIds.slice(insertIndex)];
+      groupId = createImageGroupFromNodes([targetNode, sourceNode], {
+        orderedNodeIds, positionWorld, skipTransition: true, quiet: true
+      });
+    } else if (sourceNode?.type === 'image' && targetNode?.type === 'image_group') {
+      groupId = appendImageNodeToGroup(sourceNode.id, targetNode.id, {
+        insertIndex, positionWorld, preserveLeft: true, skipTransition: true, quiet: true
+      });
+    }
+    preview.overlay?.remove();
+    if (groupId) {
+      const count = DesktopState.state.canvas.nodes[groupId]?.items?.length || 0;
+      DesktopResults.showTransientMessage(`已通过拖拽融合为图片组，当前共 ${count} 张。`);
+    }
+    return groupId;
   }
 
   function alignSelection(action) {
@@ -2892,7 +5013,7 @@
             ? 'is-video'
             : (node.type === 'video_inference'
               ? 'is-video-inference'
-              : (node.type === 'image' ? 'is-image' : (node.type === 'pose' ? 'is-pose' : (node.type === 'text' ? 'is-text' : 'is-input'))))));
+              : ((node.type === 'image' || node.type === 'image_group') ? 'is-image' : (node.type === 'pose' ? 'is-pose' : (node.type === 'text' ? 'is-text' : 'is-input'))))));
       return `<span class="desk-minimap__node ${typeClass}" style="left:${rect.left}px;top:${rect.top}px;width:${rect.width}px;height:${rect.height}px"></span>`;
     }).join('');
 
@@ -3165,19 +5286,116 @@
     return roundedOrthogonalPath(points);
   }
 
+  function connectionLineStyle() {
+    return window.DesktopPreferences?.state?.connectionLineStyle === 'curve'
+      ? 'curve'
+      : 'straight';
+  }
+
+  function portOutwardVector(side) {
+    const normalizedSide = normalizePortSide(side);
+    if (normalizedSide === 'left') return { x: -1, y: 0 };
+    if (normalizedSide === 'top') return { x: 0, y: -1 };
+    if (normalizedSide === 'bottom') return { x: 0, y: 1 };
+    return { x: 1, y: 0 };
+  }
+
+  function classicCurveControlOffset(axisDistance, crossDistance) {
+    if (axisDistance >= 0) return clamp(axisDistance * 0.5, 0, 180);
+    const reverseOffset = 22
+      + Math.sqrt(Math.abs(axisDistance)) * 4.5
+      + Math.min(Math.abs(crossDistance) * 0.08, 36);
+    return clamp(reverseOffset, 28, 180);
+  }
+
+  function makeClassicCurvePath(from, to, fromSide = 'right', toSide = 'left') {
+    const normalizedFromSide = normalizePortSide(fromSide, 'right');
+    const normalizedToSide = normalizePortSide(toSide, 'left');
+    const fromVector = portOutwardVector(normalizedFromSide);
+    const toVector = portOutwardVector(normalizedToSide);
+    const dx = to.x - from.x;
+    const dy = to.y - from.y;
+    const fromAxisDistance = dx * fromVector.x + dy * fromVector.y;
+    const toAxisDistance = -dx * toVector.x - dy * toVector.y;
+    const fromCrossDistance = fromVector.x ? dy : dx;
+    const toCrossDistance = toVector.x ? dy : dx;
+    const fromOffset = classicCurveControlOffset(fromAxisDistance, fromCrossDistance);
+    const toOffset = classicCurveControlOffset(toAxisDistance, toCrossDistance);
+    const fromControl = {
+      x: from.x + fromVector.x * fromOffset,
+      y: from.y + fromVector.y * fromOffset
+    };
+    const toControl = {
+      x: to.x + toVector.x * toOffset,
+      y: to.y + toVector.y * toOffset
+    };
+
+    return `M ${from.x} ${from.y} C ${fromControl.x} ${fromControl.y} ${toControl.x} ${toControl.y} ${to.x} ${to.y}`;
+  }
+
+  function makeConnectionPath(from, to, fromSide = 'right', toSide = 'left', route = null) {
+    if (connectionLineStyle() === 'curve') {
+      return makeClassicCurvePath(from, to, fromSide, toSide);
+    }
+    return makeSmoothStepPath(from, to, fromSide, toSide, route);
+  }
+
+  function ensureLiveConnectionPreviewPath(svg) {
+    let path = svg?.querySelector('[data-live-connection-preview]');
+    if (path || !svg) return path;
+    path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.classList.add('desk-link-path', 'is-preview');
+    path.dataset.liveConnectionPreview = 'true';
+    svg.appendChild(path);
+    return path;
+  }
+
+  function flushConnectionPreviewFrame() {
+    connectionPreviewFrameId = 0;
+    const svg = document.querySelector('.desk-link-layer');
+    const preview = pendingConnectionPreview;
+    if (svg && preview) {
+      const normalizedFromSide = normalizePortSide(preview.fromSide, 'right');
+      const sourceGeometry = getNodeGeometry(preview.fromNodeId);
+      const toSide = oppositePortSide(dominantPortSide(
+        { x: sourceGeometry.centerX, y: sourceGeometry.centerY },
+        preview.pointer
+      ));
+      const from = preview.fromAnchor || getAnchor(preview.fromNodeId, normalizedFromSide);
+      const d = makeConnectionPath(from, preview.pointer, normalizedFromSide, toSide, {
+        fromGeometry: sourceGeometry
+      });
+      ensureLiveConnectionPreviewPath(svg)?.setAttribute('d', d);
+    }
+    if (pendingConnectionDropPoint) {
+      const point = pendingConnectionDropPoint;
+      pendingConnectionDropPoint = null;
+      updateConnectionDropTarget(point.x, point.y);
+    }
+  }
+
+  function scheduleConnectionPreviewFrame() {
+    if (!connectionPreviewFrameId) connectionPreviewFrameId = requestAnimationFrame(flushConnectionPreviewFrame);
+  }
+
+  function clearLiveConnectionPreview() {
+    if (connectionPreviewFrameId) cancelAnimationFrame(connectionPreviewFrameId);
+    connectionPreviewFrameId = 0;
+    pendingConnectionPreview = null;
+    pendingConnectionDropPoint = null;
+    document.querySelector('.desk-link-layer [data-live-connection-preview]')?.remove();
+  }
+
   function renderConnectionPreview(fromNodeId, pointer, fromSide = 'right', fromAnchor = null) {
     const svg = document.querySelector('.desk-link-layer');
     if (!svg) return;
-    updateLinkPath();
-    const normalizedFromSide = normalizePortSide(fromSide, 'right');
-    const sourceGeometry = getNodeGeometry(fromNodeId);
-    const toSide = oppositePortSide(dominantPortSide(
-      { x: sourceGeometry.centerX, y: sourceGeometry.centerY },
-      pointer
-    ));
-    const from = fromAnchor || getAnchor(fromNodeId, normalizedFromSide);
-    const d = makeSmoothStepPath(from, pointer, normalizedFromSide, toSide);
-    svg.insertAdjacentHTML('beforeend', `<path class="desk-link-path is-preview" d="${d}"></path>`);
+    pendingConnectionPreview = {
+      fromNodeId,
+      pointer: { x: Number(pointer?.x) || 0, y: Number(pointer?.y) || 0 },
+      fromSide,
+      fromAnchor: fromAnchor ? { x: Number(fromAnchor.x) || 0, y: Number(fromAnchor.y) || 0 } : null
+    };
+    scheduleConnectionPreviewFrame();
   }
 
   function videoConfigApi() {
@@ -3232,13 +5450,15 @@
   function nextNodeId(type) {
     const prefix = type === 'file_output'
       ? 'file_output'
+      : (type === 'image_group'
+        ? 'image_group'
       : (type === 'comfy'
         ? 'comfy'
         : (type === 'video_inference'
           ? 'video_inference'
           : (type === 'video'
             ? 'video'
-            : (type === 'image' ? 'image' : (type === 'upscale' ? 'upscale' : (type === 'pose' ? 'pose' : (type === 'layout' ? 'layout' : (type === 'text' ? 'text' : 'input'))))))));
+            : (type === 'image' ? 'image' : (type === 'upscale' ? 'upscale' : (type === 'pose' ? 'pose' : (type === 'layout' ? 'layout' : (type === 'text' ? 'text' : 'input')))))))));
     let id = '';
     do {
       const unique = globalThis.crypto?.randomUUID?.()?.replaceAll('-', '')
@@ -3254,22 +5474,26 @@
     const count = Object.keys(DesktopState.state.canvas.nodes).length;
     const defaultWidth = type === 'file_output'
       ? DEFAULT_FILE_OUTPUT_NODE_WIDTH
+      : (type === 'image_group'
+        ? DEFAULT_IMAGE_GROUP_NODE_WIDTH
       : (type === 'comfy'
         ? DEFAULT_COMFY_NODE_WIDTH
         : (type === 'video_inference'
           ? DEFAULT_VIDEO_INFERENCE_NODE_WIDTH
           : (type === 'video'
             ? DEFAULT_VIDEO_NODE_WIDTH
-            : (type === 'upscale' ? DEFAULT_UPSCALE_NODE_WIDTH : (type === 'layout' ? 320 : (type === 'pose' ? 340 : (type === 'text' ? DEFAULT_TEXT_NODE_WIDTH : DEFAULT_INPUT_NODE_WIDTH)))))));
+            : (type === 'upscale' ? DEFAULT_UPSCALE_NODE_WIDTH : (type === 'layout' ? 320 : (type === 'pose' ? 340 : (type === 'text' ? DEFAULT_TEXT_NODE_WIDTH : DEFAULT_INPUT_NODE_WIDTH))))))));
     const defaultHeight = type === 'file_output'
       ? DEFAULT_FILE_OUTPUT_NODE_HEIGHT
+      : (type === 'image_group'
+        ? DEFAULT_IMAGE_GROUP_NODE_HEIGHT
       : (type === 'comfy'
         ? DEFAULT_COMFY_NODE_HEIGHT
         : (type === 'video_inference'
           ? DEFAULT_VIDEO_INFERENCE_NODE_HEIGHT
           : (type === 'video'
             ? DEFAULT_VIDEO_NODE_HEIGHT
-            : (type === 'upscale' ? DEFAULT_UPSCALE_NODE_HEIGHT : (type === 'layout' ? 300 : (type === 'pose' ? 300 : (type === 'text' ? DEFAULT_TEXT_NODE_HEIGHT : DEFAULT_INPUT_NODE_HEIGHT)))))));
+            : (type === 'upscale' ? DEFAULT_UPSCALE_NODE_HEIGHT : (type === 'layout' ? 300 : (type === 'pose' ? 300 : (type === 'text' ? DEFAULT_TEXT_NODE_HEIGHT : DEFAULT_INPUT_NODE_HEIGHT))))))));
     const node = {
       id,
       type,
@@ -3313,6 +5537,16 @@
       node.imageUrl = '';
       node.imageName = '空图片节点';
       node.mimeType = 'image/png';
+    }
+    if (type === 'image_group') {
+      node.width = DEFAULT_IMAGE_GROUP_NODE_WIDTH;
+      node.height = DEFAULT_IMAGE_GROUP_NODE_HEIGHT;
+      node.imageGroupLayoutVersion = IMAGE_GROUP_LAYOUT_VERSION;
+      node.title = '图片组';
+      node.items = [];
+      node.memberEdges = [];
+      node.originX = node.x;
+      node.originY = node.y;
     }
     if (type === 'video') {
       node.width = DEFAULT_VIDEO_NODE_WIDTH;
@@ -4455,13 +6689,236 @@
     return node?.imageData || node?.imageUrl || '';
   }
 
+  function imageGroupItemSource(item) {
+    return item?.imageData || item?.imageUrl || '';
+  }
+
+  function normalizeImageGroupItem(item = {}, index = 0) {
+    const clean = jsonClone(item, {});
+    const sourceNodeId = String(clean.sourceNodeId || clean.source_node_id || clean.nodeId || '').trim();
+    const dataUrl = dataUrlValue(clean.imageData) || dataUrlValue(clean.base64) || dataUrlValue(clean.imageUrl);
+    const rawImageUrl = String(clean.imageUrl || clean.url || '').trim();
+    const imageUrl = rawImageUrl.startsWith('data:') ? '' : rawImageUrl;
+    return {
+      itemId: String(clean.itemId || clean.item_id || createImageGroupItemId()),
+      sourceNodeId,
+      role: normalizeImageGroupRole(clean.role, index === 0 ? 'subject' : 'reference'),
+      imageData: dataUrl || '',
+      imageUrl,
+      imageName: String(clean.imageName || clean.name || clean.title || `图片${index + 1}`),
+      mimeType: String(clean.mimeType || clean.type || (dataUrl ? dataUrl.slice(5, dataUrl.indexOf(';')) : 'image/png') || 'image/png'),
+      sourceAssetId: String(clean.sourceAssetId || clean.assetId || clean.asset_id || ''),
+      sourceTitle: String(clean.sourceTitle || clean.title || ''),
+      sourcePrompt: String(clean.sourcePrompt || clean.prompt || ''),
+      sourceFile: String(clean.sourceFile || clean.file || ''),
+      sourceTaskId: String(clean.sourceTaskId || clean.taskId || clean.task_id || ''),
+      sourceProvider: String(clean.sourceProvider || clean.provider || ''),
+      sourceKind: String(clean.sourceKind || clean.source || 'image-group'),
+      aspectRatio: Number(clean.aspectRatio) > 0 ? Number(clean.aspectRatio) : DEFAULT_IMAGE_NODE_WIDTH / DEFAULT_IMAGE_NODE_HEIGHT,
+      originalX: Number.isFinite(Number(clean.originalX)) ? Number(clean.originalX) : 0,
+      originalY: Number.isFinite(Number(clean.originalY)) ? Number(clean.originalY) : 0,
+      originalWidth: Number.isFinite(Number(clean.originalWidth)) ? Number(clean.originalWidth) : DEFAULT_IMAGE_NODE_WIDTH,
+      originalHeight: Number.isFinite(Number(clean.originalHeight)) ? Number(clean.originalHeight) : DEFAULT_IMAGE_NODE_HEIGHT,
+      editState: clean.editState && typeof clean.editState === 'object' ? clean.editState : undefined
+    };
+  }
+
+  function normalizeImageGroupNodeState(node = {}) {
+    const seen = new Set();
+    node.items = (Array.isArray(node.items) ? node.items : [])
+      .map(normalizeImageGroupItem)
+      .filter(item => {
+        if (!imageGroupItemSource(item) || seen.has(item.itemId)) return false;
+        seen.add(item.itemId);
+        return true;
+      })
+      .slice(0, IMAGE_GROUP_MAX_ITEMS);
+    node.title = String(node.title || '图片组').slice(0, 32);
+    node.width = compactImageGroupNodeWidth(node.items.length);
+    node.height = imageGroupNodeHeight(node.items.length);
+    node.imageGroupLayoutVersion = IMAGE_GROUP_LAYOUT_VERSION;
+    node.originX = Number.isFinite(Number(node.originX)) ? Number(node.originX) : Number(node.x || 0);
+    node.originY = Number.isFinite(Number(node.originY)) ? Number(node.originY) : Number(node.y || 0);
+    node.memberEdges = Array.isArray(node.memberEdges) ? node.memberEdges.map(edge => ({ ...edge })) : [];
+    return node;
+  }
+
+  function createImageGroupItemFromNode(node, index = 0) {
+    return normalizeImageGroupItem({
+      itemId: createImageGroupItemId(),
+      sourceNodeId: node.id,
+      role: index === 0 ? 'subject' : 'reference',
+      imageData: node.imageData || '',
+      imageUrl: node.imageUrl || '',
+      imageName: node.imageName || `图片${index + 1}`,
+      mimeType: node.mimeType || 'image/png',
+      sourceAssetId: node.sourceAssetId || '',
+      sourceTitle: node.sourceTitle || '',
+      sourcePrompt: node.sourcePrompt || '',
+      sourceFile: node.sourceFile || '',
+      sourceTaskId: node.sourceTaskId || '',
+      sourceProvider: node.sourceProvider || '',
+      sourceKind: node.sourceKind || 'image-node',
+      aspectRatio: node.aspectRatio,
+      originalX: node.x,
+      originalY: node.y,
+      originalWidth: node.width,
+      originalHeight: node.height,
+      editState: node.editState
+    }, index);
+  }
+
+  function normalizeImageSourceFromGroupItem(item, groupNode, index = 0) {
+    const source = imageGroupItemSource(item);
+    if (!source) return null;
+    return {
+      id: item.sourceAssetId || `image-group:${groupNode.id}:${item.itemId}`,
+      assetId: item.sourceAssetId || '',
+      sourceNodeId: item.sourceNodeId || groupNode.id,
+      imageGroupId: groupNode.id,
+      imageGroupItemId: item.itemId,
+      imageNumber: index + 1,
+      imageRole: normalizeImageGroupRole(item.role),
+      name: item.imageName || `图片${index + 1}.png`,
+      title: item.sourceTitle || item.imageName || `图片${index + 1}`,
+      prompt: item.sourcePrompt || '',
+      file: item.sourceFile || '',
+      taskId: item.sourceTaskId || '',
+      provider: item.sourceProvider || '',
+      type: item.mimeType || 'image/png',
+      url: item.imageUrl || source,
+      base64: item.imageData || '',
+      imageData: item.imageData || '',
+      imageUrl: item.imageUrl || '',
+      source: item.sourceKind || 'image-group'
+    };
+  }
+
+  function imageGroupRoleOptionsHtml(selected) {
+    const normalized = normalizeImageGroupRole(selected);
+    return IMAGE_GROUP_ROLES.map(item => (
+      `<option value="${item.value}"${item.value === normalized ? ' selected' : ''}>${item.label}</option>`
+    )).join('');
+  }
+
+  function imageGroupItemHtml(groupNode, item, index) {
+    const source = escapeHtml(imageGroupItemSource(item));
+    const label = `图片${index + 1}`;
+    return `
+      <article class="desk-image-group__item" tabindex="0" data-node-drag-ignore data-image-group-item="${escapeHtml(item.itemId)}" aria-label="${label}：${escapeHtml(item.imageName || '')}">
+        <div class="desk-image-group__thumb" data-image-group-sort-handle title="拖拽调整图片顺序">
+          <img src="${source}" alt="${escapeHtml(item.imageName || label)}" draggable="false">
+          <strong aria-label="${label}">${index + 1}</strong>
+        </div>
+        <div class="desk-image-group__item-actions">
+          <select data-image-group-role aria-label="${label}的参考用途">${imageGroupRoleOptionsHtml(item.role)}</select>
+          <button type="button" data-image-group-insert-reference title="插入提示词引用" aria-label="将${label}插入提示词">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.1.1l2-2a5 5 0 0 0-7.1-7.1l-1.1 1.1"></path><path d="M14 11a5 5 0 0 0-7.1-.1l-2 2A5 5 0 0 0 12 20l1.1-1.1"></path></svg>
+          </button>
+        </div>
+      </article>`;
+  }
+
+  function imageGroupItemsHtml(groupNode) {
+    return groupNode.items.map((item, index) => imageGroupItemHtml(groupNode, item, index)).join('');
+  }
+
+  function imageGroupGooeyBlobsHtml(groupNode) {
+    const shellInset = (IMAGE_GROUP_LIQUID_SHELL_PX - IMAGE_GROUP_THUMB_PX) / 2;
+    return groupNode.items.map((item, index) => {
+      const position = imageGroupThumbPosition(index);
+      return `<rect class="desk-image-group__liquid-item" data-image-group-goo-item="${escapeHtml(item.itemId)}" x="${position.left - shellInset}" y="${position.top - shellInset}" width="${IMAGE_GROUP_LIQUID_SHELL_PX}" height="${IMAGE_GROUP_LIQUID_SHELL_PX}" rx="${IMAGE_GROUP_LIQUID_SHELL_PX / 2}"></rect>`;
+    }).join('');
+  }
+
+  function imageGroupNodeHtml(node) {
+    normalizeImageGroupNodeState(node);
+    const filterId = `desk-image-group-gooey-${node.id}`;
+    const filterWidth = node.width + IMAGE_GROUP_FILTER_OUTSET_PX * 2;
+    const filterHeight = node.height + IMAGE_GROUP_FILTER_OUTSET_PX * 2;
+    const motherHeight = imageGroupMotherHeight(node.items.length);
+    const columns = imageGroupColumnCount(node.items.length);
+    return `
+      <section class="desk-node desk-node--image-group" data-node-id="${node.id}" aria-label="图片组，${node.items.length} 张图片" style="--desk-image-group-mother-radius:${IMAGE_GROUP_MOTHER_RADIUS_PX}px;--desk-image-group-columns:${columns}">
+        <svg class="desk-image-group__silhouette" data-image-group-silhouette aria-hidden="true" viewBox="0 0 ${node.width} ${node.height}" preserveAspectRatio="none">
+          <defs>
+            <filter id="${escapeHtml(filterId)}" data-image-group-filter filterUnits="userSpaceOnUse" x="-${IMAGE_GROUP_FILTER_OUTSET_PX}" y="-${IMAGE_GROUP_FILTER_OUTSET_PX}" width="${filterWidth}" height="${filterHeight}" color-interpolation-filters="sRGB">${imageGroupGooeyFilterPrimitivesHtml()}</filter>
+          </defs>
+          <g class="desk-image-group__liquid" filter="url(#${escapeHtml(filterId)})" data-image-group-goo>
+            <rect class="desk-image-group__liquid-base" data-image-group-liquid-base x="0" y="${IMAGE_GROUP_MOTHER_TOP_PX}" width="${node.width}" height="${motherHeight}" rx="${IMAGE_GROUP_MOTHER_RADIUS_PX}"></rect>
+            ${imageGroupGooeyBlobsHtml(node)}
+          </g>
+        </svg>
+        <div class="desk-image-group__mother desk-image-group__body" data-node-drag-handle>
+          <div class="desk-image-group__identity" aria-hidden="true">
+            <strong>图片组</strong>
+            <span data-image-group-count>${node.items.length} 张</span>
+          </div>
+          <div class="desk-image-group__items" data-image-group-items>${imageGroupItemsHtml(node)}</div>
+        </div>
+        <div class="desk-image-group__node-actions" data-node-drag-ignore aria-label="图片组操作">
+          <button type="button" data-image-group-ungroup title="解除图片组" aria-label="解除图片组">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="8" height="8" rx="2"></rect><rect x="13" y="11" width="8" height="8" rx="2"></rect><path d="m10 15-2 2 2 2M14 9l2-2-2-2"></path></svg>
+          </button>
+          <button type="button" class="desk-node-delete" data-node-delete title="删除图片组" aria-label="删除图片组">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16"></path><path d="M9 7V4h6v3"></path><path d="m7 7 1 13h8l1-13"></path><path d="M10 11v5M14 11v5"></path></svg>
+          </button>
+        </div>
+        <button type="button" class="desk-port desk-port--out" data-port="out" data-node-id="${node.id}" title="按图片编号连接到模型节点" aria-label="连接图片组输出"></button>
+      </section>`;
+  }
+
+  function refreshImageGroupNode(groupId) {
+    const groupNode = DesktopState.state.canvas.nodes[groupId];
+    const element = getNodeElement(groupId);
+    if (!groupNode || groupNode.type !== 'image_group' || !element) return;
+    normalizeImageGroupNodeState(groupNode);
+    const items = element.querySelector('[data-image-group-items]');
+    const goo = element.querySelector('[data-image-group-goo]');
+    const count = element.querySelector('[data-image-group-count]');
+    const silhouette = element.querySelector('[data-image-group-silhouette]');
+    const filter = element.querySelector('[data-image-group-filter]');
+    const motherHeight = imageGroupMotherHeight(groupNode.items.length);
+    if (items) items.innerHTML = imageGroupItemsHtml(groupNode);
+    if (goo) {
+      goo.innerHTML = `<rect class="desk-image-group__liquid-base" data-image-group-liquid-base x="0" y="${IMAGE_GROUP_MOTHER_TOP_PX}" width="${groupNode.width}" height="${motherHeight}" rx="${IMAGE_GROUP_MOTHER_RADIUS_PX}"></rect>${imageGroupGooeyBlobsHtml(groupNode)}`;
+    }
+    if (count) count.textContent = `${groupNode.items.length} 张`;
+    silhouette?.setAttribute('viewBox', `0 0 ${groupNode.width} ${groupNode.height}`);
+    filter?.setAttribute('width', String(groupNode.width + IMAGE_GROUP_FILTER_OUTSET_PX * 2));
+    filter?.setAttribute('height', String(groupNode.height + IMAGE_GROUP_FILTER_OUTSET_PX * 2));
+    element.querySelector('[data-image-group-liquid-base]')?.setAttribute('width', String(groupNode.width));
+    element.querySelector('[data-image-group-liquid-base]')?.setAttribute('height', String(motherHeight));
+    element.style.setProperty('--desk-image-group-mother-radius', `${IMAGE_GROUP_MOTHER_RADIUS_PX}px`);
+    element.style.setProperty('--desk-image-group-columns', String(imageGroupColumnCount(groupNode.items.length)));
+    element.setAttribute('aria-label', `图片组，${groupNode.items.length} 张图片`);
+    ensureNodeEdgeHandles(element);
+    updateLinkPath();
+  }
+
   function listPromptImageNodes() {
+    let imageIndex = 0;
     return Object.values(DesktopState.state.canvas.nodes)
-      .filter(node => node?.type === 'image' && imageNodeSource(node))
-      .map((node, index) => {
+      .flatMap(node => {
+        if (node?.type === 'image_group') {
+          return (node.items || []).map((item, index) => {
+            const reference = normalizeImageSourceFromGroupItem(item, node, index);
+            if (!reference) return null;
+            imageIndex += 1;
+            return {
+              ...reference,
+              nodeId: node.id,
+              id: `image-group:${node.id}:${item.itemId}`,
+              type: 'image',
+              label: `图片${index + 1} · ${item.imageName || `图片节点 ${imageIndex}`}`
+            };
+          }).filter(Boolean);
+        }
+        if (node?.type !== 'image' || !imageNodeSource(node)) return [];
+        imageIndex += 1;
         const source = imageNodeSource(node);
-        const label = node.imageName || node.sourceTitle || `图片节点 ${index + 1}`;
-        return {
+        const label = node.imageName || node.sourceTitle || `图片节点 ${imageIndex}`;
+        return [{
           nodeId: node.id,
           id: `image-node:${node.id}`,
           type: 'image',
@@ -4477,7 +6934,7 @@
           prompt: node.sourcePrompt || '',
           file: node.sourceFile || '',
           source: node.sourceKind || 'image-node'
-        };
+        }];
       });
   }
 
@@ -4602,6 +7059,7 @@
           ${textStyleTagHtml(node.stylePresetId)}
         </div>
         <div class="desk-text-node__input" data-text-node-input data-empty="${promptDocumentHasEditorContent(promptDocument) ? 'false' : 'true'}" contenteditable="true" role="textbox" aria-multiline="true" aria-label="输入提示词或片段" data-placeholder="输入提示词或片段" spellcheck="false">${promptDocumentEditorHtml(promptDocument)}</div>
+        <div class="desk-text-node__image-mention-menu" data-text-image-mention-menu data-node-drag-ignore hidden role="listbox" aria-label="引用画布图片"></div>
         <button type="button" class="desk-port desk-port--out" data-port="out" data-node-id="${node.id}" title="连接提示词到模型节点" aria-label="连接文本输出"></button>
         <div class="desk-text-node__drawer" aria-label="文本节点操作">
           <button type="button" data-text-action="preset">预设风格</button>
@@ -4738,7 +7196,9 @@
     return Math.abs(spring.target - spring.value) < 0.001 && Math.abs(spring.velocity) < 0.001;
   }
 
-  function buildFloatingSwellPerimeter(width, height, requestedRadius) {
+  function buildFloatingSwellPerimeter(width, height, requestedRadius, offsetX = 0, offsetY = 0) {
+    const originX = Number.isFinite(Number(offsetX)) ? Number(offsetX) : 0;
+    const originY = Number.isFinite(Number(offsetY)) ? Number(offsetY) : 0;
     const radius = Math.max(0, Math.min(requestedRadius, width / 2, height / 2));
     const horizontal = Math.max(0, width - radius * 2);
     const vertical = Math.max(0, height - radius * 2);
@@ -4785,19 +7245,19 @@
     };
 
     if (radius > 0) {
-      addLine(horizontal, radius, 0, 1, 0, 0, -1);
-      addArc(width - radius, radius, -Math.PI / 2);
-      addLine(vertical, width, radius, 0, 1, 1, 0);
-      addArc(width - radius, height - radius, 0);
-      addLine(horizontal, width - radius, height, -1, 0, 0, 1);
-      addArc(radius, height - radius, Math.PI / 2);
-      addLine(vertical, 0, height - radius, 0, -1, -1, 0);
-      addArc(radius, radius, Math.PI);
+      addLine(horizontal, originX + radius, originY, 1, 0, 0, -1);
+      addArc(originX + width - radius, originY + radius, -Math.PI / 2);
+      addLine(vertical, originX + width, originY + radius, 0, 1, 1, 0);
+      addArc(originX + width - radius, originY + height - radius, 0);
+      addLine(horizontal, originX + width - radius, originY + height, -1, 0, 0, 1);
+      addArc(originX + radius, originY + height - radius, Math.PI / 2);
+      addLine(vertical, originX, originY + height - radius, 0, -1, -1, 0);
+      addArc(originX + radius, originY + radius, Math.PI);
     } else {
-      addLine(width, 0, 0, 1, 0, 0, -1);
-      addLine(height, width, 0, 0, 1, 1, 0);
-      addLine(width, width, height, -1, 0, 0, 1);
-      addLine(height, 0, height, 0, -1, -1, 0);
+      addLine(width, originX, originY, 1, 0, 0, -1);
+      addLine(height, originX + width, originY, 0, 1, 1, 0);
+      addLine(width, originX + width, originY + height, -1, 0, 0, 1);
+      addLine(height, originX, originY + height, 0, -1, -1, 0);
     }
 
     const samples = [];
@@ -5067,36 +7527,79 @@
       : (point.ny < 0 ? 'top' : 'bottom');
   }
 
+  function floatingSwellBounds(nodeElement) {
+    const nodeWidth = nodeElement.offsetWidth || Number(getNodeState(nodeElement.dataset.nodeId)?.width || 0);
+    const nodeHeight = nodeElement.offsetHeight || Number(getNodeState(nodeElement.dataset.nodeId)?.height || 0);
+    const radius = Math.max(0, parseFloat(getComputedStyle(nodeElement).borderTopLeftRadius) || 0);
+    const liquidBase = nodeElement.matches('.desk-node--image-group')
+      ? nodeElement.querySelector('[data-image-group-liquid-base]')
+      : null;
+    if (!liquidBase) {
+      return { nodeWidth, nodeHeight, x: 0, y: 0, width: nodeWidth, height: nodeHeight, radius };
+    }
+    const baseX = clamp(Number(liquidBase.getAttribute('x')) || 0, 0, nodeWidth);
+    const baseY = clamp(Number(liquidBase.getAttribute('y')) || 0, 0, nodeHeight);
+    const baseWidth = clamp(Number(liquidBase.getAttribute('width')) || nodeWidth, 0, nodeWidth - baseX);
+    const baseHeight = clamp(Number(liquidBase.getAttribute('height')) || nodeHeight, 0, nodeHeight - baseY);
+    const baseRadius = Math.max(0, Number(liquidBase.getAttribute('rx')) || radius);
+    const outset = IMAGE_GROUP_LIQUID_VISIBLE_OUTSET_PX;
+    return {
+      nodeWidth,
+      nodeHeight,
+      x: baseX - outset,
+      y: baseY - outset,
+      width: baseWidth + outset * 2,
+      height: baseHeight + outset * 2,
+      radius: baseRadius + outset
+    };
+  }
+
   function updateFloatingSwellGeometry(state) {
     const nodeElement = state.nodeElement;
-    const width = nodeElement.offsetWidth || Number(getNodeState(nodeElement.dataset.nodeId)?.width || 0);
-    const height = nodeElement.offsetHeight || Number(getNodeState(nodeElement.dataset.nodeId)?.height || 0);
-    const radius = Math.max(0, parseFloat(getComputedStyle(nodeElement).borderTopLeftRadius) || 0);
+    const bounds = floatingSwellBounds(nodeElement);
     if (
       state.geometry
-      && state.width === width
-      && state.height === height
-      && Math.abs(state.radius - radius) < 0.01
+      && state.width === bounds.nodeWidth
+      && state.height === bounds.nodeHeight
+      && state.geometryX === bounds.x
+      && state.geometryY === bounds.y
+      && state.geometryWidth === bounds.width
+      && state.geometryHeight === bounds.height
+      && Math.abs(state.radius - bounds.radius) < 0.01
     ) return;
-    state.width = width;
-    state.height = height;
-    state.radius = radius;
-    state.geometry = buildFloatingSwellPerimeter(width, height, radius);
+    state.width = bounds.nodeWidth;
+    state.height = bounds.nodeHeight;
+    state.geometryX = bounds.x;
+    state.geometryY = bounds.y;
+    state.geometryWidth = bounds.width;
+    state.geometryHeight = bounds.height;
+    state.radius = bounds.radius;
+    state.geometry = buildFloatingSwellPerimeter(
+      bounds.width,
+      bounds.height,
+      bounds.radius,
+      bounds.x,
+      bounds.y
+    );
     const padding = FLOATING_SWELL_BORDER_PADDING_PX;
-    state.svg.setAttribute('viewBox', `${-padding} ${-padding} ${width + padding * 2} ${height + padding * 2}`);
+    state.svg.setAttribute('viewBox', `${-padding} ${-padding} ${bounds.nodeWidth + padding * 2} ${bounds.nodeHeight + padding * 2}`);
     state.svg.style.width = `calc(100% + ${padding * 2}px)`;
     state.svg.style.height = `calc(100% + ${padding * 2}px)`;
     state.paintRect.setAttribute('x', String(-padding));
     state.paintRect.setAttribute('y', String(-padding));
-    state.paintRect.setAttribute('width', String(width + padding * 2));
-    state.paintRect.setAttribute('height', String(height + padding * 2));
-    state.innerRect.setAttribute('x', '0.75');
-    state.innerRect.setAttribute('y', '0.75');
-    state.innerRect.setAttribute('width', String(Math.max(0, width - 1.5)));
-    state.innerRect.setAttribute('height', String(Math.max(0, height - 1.5)));
-    state.innerRect.setAttribute('rx', String(Math.max(0, radius - 0.75)));
+    state.paintRect.setAttribute('width', String(bounds.nodeWidth + padding * 2));
+    state.paintRect.setAttribute('height', String(bounds.nodeHeight + padding * 2));
+    state.innerRect.setAttribute('x', String(bounds.x));
+    state.innerRect.setAttribute('y', String(bounds.y));
+    state.innerRect.setAttribute('width', String(bounds.width));
+    state.innerRect.setAttribute('height', String(bounds.height));
+    state.innerRect.setAttribute('rx', String(bounds.radius));
     if (!Number.isFinite(state.position.value) || state.position.value < 0 || state.position.value >= state.geometry.length) {
-      const initial = closestFloatingSwellSample(state.geometry.samples, width, height / 2).sample;
+      const initial = closestFloatingSwellSample(
+        state.geometry.samples,
+        bounds.x + bounds.width,
+        bounds.y + bounds.height / 2
+      ).sample;
       state.position.value = initial.s;
       state.position.target = initial.s;
       state.position.velocity = 0;
@@ -5122,7 +7625,6 @@
           </mask>
         </defs>
         <rect class="desk-node-swell-border__paint" data-swell-paint mask="url(#${maskId})"></rect>
-        <path class="desk-node-swell-border__outline" data-swell-outline></path>
       `;
       nodeElement.insertBefore(svg, nodeElement.firstChild);
       state = {
@@ -5132,10 +7634,13 @@
         maskPath: svg.querySelector('[data-swell-mask-path]'),
         innerRect: svg.querySelector('[data-swell-inner]'),
         paintRect: svg.querySelector('[data-swell-paint]'),
-        outlinePath: svg.querySelector('[data-swell-outline]'),
         geometry: null,
         width: 0,
         height: 0,
+        geometryX: 0,
+        geometryY: 0,
+        geometryWidth: 0,
+        geometryHeight: 0,
         radius: 0,
         amplitude: { value: 0, velocity: 0, target: 0 },
         position: { value: Number.NaN, velocity: 0, target: Number.NaN }
@@ -5149,11 +7654,21 @@
     return state;
   }
 
+  function floatingSwellConnectionAnchor(node, side, anchorX, anchorY) {
+    const scale = Math.max(0.01, Number(DesktopState.state.canvas.scale) || 1);
+    const inward = FLOATING_SWELL_LINK_OVERLAP_SCREEN_PX / scale;
+    const outward = portOutwardVector(side);
+    return {
+      x: node.x + anchorX - outward.x * inward,
+      y: node.y + anchorY - outward.y * inward
+    };
+  }
+
   function syncFloatingDropletConnectionAnchor(state, side, anchorX, anchorY) {
     const nodeId = state.nodeElement.dataset.nodeId || '';
     const node = getNodeState(nodeId);
     if (!node) return;
-    const worldAnchor = { x: node.x + anchorX, y: node.y + anchorY };
+    const worldAnchor = floatingSwellConnectionAnchor(node, side, anchorX, anchorY);
     if (
       activeInteraction?.type === 'connect'
       && activeInteraction.fromNodeId === nodeId
@@ -5172,7 +7687,7 @@
     ) {
       contextMenuConnectionSourceSide = side;
       contextMenuConnectionSourceAnchor = worldAnchor;
-      updateLinkPath();
+      refreshContextMenuConnectionPreview();
     }
   }
 
@@ -5189,7 +7704,6 @@
       : null;
     const path = droplet?.path || buildFloatingSwellPath(geometry, state.position.value, peak);
     state.maskPath.setAttribute('d', path);
-    state.outlinePath.setAttribute('d', path);
     const visible = state.amplitude.target > 0 || peak >= FLOATING_SWELL_VISIBLE_THRESHOLD_PX;
     state.nodeElement.classList.toggle('is-swell-visible', visible);
     state.nodeElement.dataset.connectionSwellStyle = style;
@@ -5209,8 +7723,29 @@
     }
   }
 
+  function renderReducedMotionFloatingSwells() {
+    if (floatingSwellFrameId) cancelAnimationFrame(floatingSwellFrameId);
+    floatingSwellFrameId = 0;
+    floatingSwellLastFrame = 0;
+    floatingSwellStates.forEach(state => {
+      if (!state.nodeElement.isConnected) {
+        floatingSwellStates.delete(state);
+        return;
+      }
+      state.amplitude.value = state.amplitude.target;
+      state.amplitude.velocity = 0;
+      if (Number.isFinite(state.position.target)) state.position.value = state.position.target;
+      state.position.velocity = 0;
+      renderFloatingSwellState(state);
+    });
+  }
+
   function animateFloatingSwells(timestamp) {
     floatingSwellFrameId = 0;
+    if (prefersReducedMotion()) {
+      renderReducedMotionFloatingSwells();
+      return;
+    }
     const deltaSeconds = floatingSwellLastFrame
       ? Math.min(FLOATING_SWELL_MAX_FRAME_DELTA_SECONDS, Math.max(0, (timestamp - floatingSwellLastFrame) / 1000))
       : 1 / 60;
@@ -5254,6 +7789,10 @@
   }
 
   function scheduleFloatingSwellFrame() {
+    if (prefersReducedMotion()) {
+      renderReducedMotionFloatingSwells();
+      return;
+    }
     if (!floatingSwellFrameId) floatingSwellFrameId = requestAnimationFrame(animateFloatingSwells);
   }
 
@@ -5431,11 +7970,12 @@
     const anchorX = Number(port.dataset.anchorX);
     const anchorY = Number(port.dataset.anchorY);
     if (!Number.isFinite(anchorX) || !Number.isFinite(anchorY)) return getAnchor(nodeId, side);
-    return { x: node.x + anchorX, y: node.y + anchorY };
+    return floatingSwellConnectionAnchor(node, side, anchorX, anchorY);
   }
 
   function nodeHtmlForState(nodeId, node) {
     if (node.type === 'file_output') return fileOutputNodeHtml(nodeId);
+    if (node.type === 'image_group') return imageGroupNodeHtml(node);
     if (node.type === 'image') return imageNodeHtml(node);
     if (node.type === 'video') return videoNodeHtml(node);
     if (node.type === 'video_inference') return videoInferenceNodeHtml(node);
@@ -5517,11 +8057,11 @@
     return centerCanvasOnBounds(getPrimaryModelBounds(), scale);
   }
 
-  function setCanvasScale(nextScale, anchorClientX, anchorClientY) {
+  function setCanvasScale(nextScale, anchorClientX, anchorClientY, options = {}) {
     const canvas = DesktopState.state.canvas;
     const previousScale = canvas.scale;
     const scale = clamp(nextScale, MIN_SCALE, MAX_SCALE);
-    if (Math.abs(scale - previousScale) < 0.001) return;
+    if (Math.abs(scale - previousScale) < 0.001) return false;
 
     const rect = els.deskCanvasViewport.getBoundingClientRect();
     const anchorX = anchorClientX == null ? rect.left + rect.width / 2 : anchorClientX;
@@ -5531,8 +8071,14 @@
     canvas.scale = scale;
     canvas.x = anchorX - rect.left - worldPoint.x * scale;
     canvas.y = anchorY - rect.top - worldPoint.y * scale;
-    applyCanvasTransform();
-    DesktopState.saveSettings();
+    if (options.deferTransform) {
+      updateCanvasZoomLabel();
+      scheduleCanvasPanTransform();
+    } else {
+      applyCanvasTransform();
+    }
+    if (options.save !== false) DesktopState.saveSettings();
+    return true;
   }
 
   function setCanvasScaleCenteredOnPrimary(nextScale) {
@@ -5597,7 +8143,7 @@
     document.querySelectorAll('.desk-node[data-node-id]:not(#deskInputNode)').forEach(node => node.remove());
     ensureDefaultModelOutputState();
     applyAllNodeLayouts();
-    DesktopState.saveSettings();
+    DesktopState.saveSettings({ criticalCanvas: true });
   }
 
   function syncFormFromState() {
@@ -5613,8 +8159,8 @@
     if (els.deskCountInput) els.deskCountInput.value = DesktopState.clamp(state.params.imageCount, 1, 8, 2);
     if (els.deskModerationSelect) els.deskModerationSelect.value = state.params.moderation;
     const normalizedTaskType = DesktopState.normalizeGptTaskType(state.params.gptTaskType, 'image');
-    if (normalizedTaskType !== 'image') state.params.gptProviderRoute = 'chatgpt_pool';
-    if (normalizedTaskType === 'image' && state.params.useThirdPartyApi && state.params.gptProviderRoute !== 'third_party_image_api') {
+    if (normalizedTaskType === 'ppt') state.params.gptProviderRoute = 'chatgpt_pool';
+    if (normalizedTaskType !== 'ppt' && state.params.useThirdPartyApi && state.params.gptProviderRoute !== 'third_party_image_api') {
       state.params.gptProviderRoute = 'third_party_image_api';
       state.params.useThirdPartyApi = false;
     }
@@ -5661,9 +8207,9 @@
     state.params.imageCount = DesktopState.clamp(els.deskCountInput?.value, 1, 8, 1);
     state.params.moderation = DesktopState.normalizeModeration(els.deskModerationSelect?.value, 'auto');
     state.params.gptTaskType = DesktopState.normalizeGptTaskType(els.deskGptTaskTypeSelect?.value, 'image');
-    state.params.gptProviderRoute = state.params.gptTaskType === 'image'
-      ? DesktopState.normalizeGptProviderRoute(routeSelect?.value, 'codex')
-      : 'chatgpt_pool';
+    state.params.gptProviderRoute = state.params.gptTaskType === 'ppt'
+      ? 'chatgpt_pool'
+      : DesktopState.normalizeGptProviderRoute(routeSelect?.value, 'codex');
     state.params.useThirdPartyApi = state.params.gptProviderRoute === 'third_party_image_api';
     state.params.reasoningEffort = DesktopState.normalizeReasoningEffort(els.deskReasoningEffortSelect?.value, state.params.reasoningEffort || 'medium');
     applyGptModelRouteToNode(els.deskInputNode, state.params.gptProviderRoute);
@@ -5701,9 +8247,9 @@
       return nodeState;
     }
     const taskType = DesktopState.normalizeGptTaskType(node.querySelector('[data-field="gptTaskType"]')?.value, 'image');
-    const route = taskType === 'image'
-      ? DesktopState.normalizeGptProviderRoute(node.querySelector('[data-field="gptProviderRoute"]')?.value, 'codex')
-      : 'chatgpt_pool';
+    const route = taskType === 'ppt'
+      ? 'chatgpt_pool'
+      : DesktopState.normalizeGptProviderRoute(node.querySelector('[data-field="gptProviderRoute"]')?.value, 'codex');
     nodeState.params = nodeState.params || {};
     nodeState.params.reasoningEffort = DesktopState.normalizeReasoningEffort(
       node.querySelector('[data-field="reasoningEffort"]')?.value,
@@ -5819,6 +8365,7 @@
     const isLeftButton = event.button === 0;
     const isRightButton = event.button === 2;
     if (!isLeftButton && !isRightButton) return;
+    if (canvasWheelGestureActive) finishCanvasWheelGesture();
     const startedOnNode = !!event.target.closest('.desk-node');
     if (isLeftButton) {
       if (event.target.closest(CANVAS_INTERACTION_BLOCK_SELECTOR)) return;
@@ -5955,6 +8502,8 @@
       groupBounds: getBoundsForNodeIds(groupIds),
       startWorldX: pointer.x,
       startWorldY: pointer.y,
+      lastClientX: event.clientX,
+      lastClientY: event.clientY,
       nodeX: nodeState.x,
       nodeY: nodeState.y
     };
@@ -6005,7 +8554,7 @@
       }
       canvas.x = activeInteraction.canvasX + dx;
       canvas.y = activeInteraction.canvasY + dy;
-      applyCanvasTransform();
+      scheduleCanvasPanTransform();
       return;
     }
 
@@ -6017,7 +8566,8 @@
         activeInteraction.fromSide,
         activeInteraction.fromAnchor
       );
-      updateConnectionDropTarget(event.clientX, event.clientY);
+      pendingConnectionDropPoint = { x: event.clientX, y: event.clientY };
+      scheduleConnectionPreviewFrame();
       return;
     }
 
@@ -6038,6 +8588,8 @@
     const pointer = screenToWorld(event.clientX, event.clientY);
 
     if (activeInteraction.type === 'node-drag') {
+      activeInteraction.lastClientX = event.clientX;
+      activeInteraction.lastClientY = event.clientY;
       const rawDx = pointer.x - activeInteraction.startWorldX;
       const rawDy = pointer.y - activeInteraction.startWorldY;
       const snap = resolveSnap(activeInteraction.groupIds || [activeInteraction.nodeId], activeInteraction.nodePositions || {}, rawDx, rawDy);
@@ -6047,10 +8599,17 @@
         if (!item || !base) return;
         item.x = base.x + snap.dx;
         item.y = base.y + snap.dy;
-        applyNodeLayout(nodeId);
+        applyNodeLayout(nodeId, { deferGraph: true });
       });
       showSmartGuides(snap.guides);
-      updateLinkPath();
+      if (activeInteraction.imageGroupProximity?.ready) {
+        hideSmartGuides();
+        updateImageGroupProximity(activeInteraction);
+      } else if (!activeInteraction.imageGroupProximityCooldown) {
+        updateImageGroupProximity(activeInteraction);
+      } else if (!findImageGroupProximityCandidate(activeInteraction, IMAGE_GROUP_PROXIMITY_RELEASE_PX)) {
+        activeInteraction.imageGroupProximityCooldown = false;
+      }
       return;
     }
 
@@ -6093,8 +8652,7 @@
         nodeState.width = clamp(activeInteraction.width + pointer.x - activeInteraction.startWorldX, MIN_NODE_WIDTH, MAX_NODE_WIDTH);
         nodeState.height = clamp(activeInteraction.height + pointer.y - activeInteraction.startWorldY, MIN_NODE_HEIGHT, MAX_NODE_HEIGHT);
       }
-      applyNodeLayout(activeInteraction.nodeId);
-      updateLinkPath();
+      applyNodeLayout(activeInteraction.nodeId, { deferGraph: true });
     }
   }
 
@@ -6120,6 +8678,12 @@
       return;
     }
     const interaction = activeInteraction;
+    const shouldAnimateImageGroupDrop = interaction.type === 'node-drag'
+      && event?.type === 'pointerup'
+      && interaction.imageGroupProximity?.ready
+      && interaction.imageGroupProximity?.preview?.dropActive;
+    if (interaction.type === 'pan') flushCanvasPanTransform();
+    if (interaction.type === 'node-drag' || interaction.type === 'node-resize') flushCanvasGraphRender();
     getNodeElement(interaction.nodeId)?.classList.remove('is-dragging', 'is-resizing');
     els.deskCanvasViewport?.classList.remove('is-panning');
     try {
@@ -6129,6 +8693,10 @@
     } catch {}
     hideSmartGuides();
     activeInteraction = null;
+    if (shouldAnimateImageGroupDrop && animateImageGroupProximityDrop(interaction)) {
+      return;
+    }
+    clearImageGroupProximity(interaction);
     DesktopState.saveSettings();
     if (interaction.type === 'pan' && interaction.pointerButton === 'right') {
       suppressCanvasContextMenuUntil = Date.now() + CANVAS_CONTEXTMENU_SUPPRESS_MS;
@@ -6149,7 +8717,11 @@
       const primaryDelta = Math.abs(event.deltaY || 0) >= Math.abs(event.deltaX || 0) ? event.deltaY : event.deltaX;
       if (!primaryDelta) return;
       const factor = primaryDelta > 0 ? 0.92 : 1.08;
-      setCanvasScale(canvas.scale * factor, event.clientX, event.clientY);
+      const changed = setCanvasScale(canvas.scale * factor, event.clientX, event.clientY, {
+        deferTransform: true,
+        save: false
+      });
+      if (changed) scheduleCanvasWheelGestureEnd();
       return;
     }
 
@@ -6161,8 +8733,8 @@
       canvas.x -= panX;
       if (event.deltaX && event.deltaY) canvas.y -= event.deltaY;
     }
-    applyCanvasTransform();
-    DesktopState.saveSettings();
+    scheduleCanvasWheelGestureEnd();
+    scheduleCanvasPanTransform();
   }
 
   function renderReferenceThumbs() {
@@ -6322,10 +8894,10 @@
     const routeSelect = node.querySelector('[data-field="gptProviderRoute"], #deskGptProviderRouteSelect');
     if (typeSelect) typeSelect.value = normalized;
     if (routeSelect) {
-      const locked = normalized !== 'image';
+      const locked = normalized === 'ppt';
       if (locked) routeSelect.value = 'chatgpt_pool';
       routeSelect.disabled = locked;
-      routeSelect.title = locked ? 'PPT/PSD 任务只能走账号池 Web API 线路' : '';
+      routeSelect.title = locked ? 'PPT 任务只能走账号池 Web API 线路' : '';
       applyGptModelRouteToNode(node, routeSelect.value);
     }
     node.classList.toggle('is-editable-file-task', normalized !== 'image');
@@ -6360,6 +8932,15 @@
     return token;
   }
 
+  function createImageReferenceTokenElement(segment) {
+    const normalized = normalizeImageReferenceSegment(segment);
+    const template = document.createElement('template');
+    template.innerHTML = imageReferenceTokenHtml(normalized);
+    const token = template.content.firstElementChild;
+    if (token) token._imageReferenceSegment = normalized;
+    return token;
+  }
+
   function isRangeInsidePromptEditor(range, editor) {
     if (!range || !editor) return false;
     try {
@@ -6389,6 +8970,257 @@
     if (!selection || !range) return;
     selection.removeAllRanges();
     selection.addRange(range);
+  }
+
+  function imageMentionCandidateKey(reference = {}) {
+    const groupId = String(reference.imageGroupId || reference.groupId || '');
+    const itemId = String(reference.imageGroupItemId || reference.itemId || '');
+    if (groupId && itemId) return `group:${groupId}:${itemId}`;
+    const sourceNodeId = String(reference.sourceNodeId || reference.nodeId || '');
+    return sourceNodeId ? `node:${sourceNodeId}` : '';
+  }
+
+  function textImageMentionCandidates(textNodeId) {
+    const nodes = DesktopState.state.canvas.nodes || {};
+    const targetNodeId = textNodeModelTargetIds(textNodeId)[0] || '';
+    const connectedReferences = targetNodeId ? getConnectedImageReferences(targetNodeId) : [];
+    const connectedOrder = new Map();
+    connectedReferences.forEach((reference, index) => {
+      if (reference.imageGroupId || nodes[reference.sourceNodeId]?.type === 'image') {
+        const key = imageMentionCandidateKey(reference);
+        if (key) connectedOrder.set(key, index);
+      }
+    });
+    return listPromptImageNodes()
+      .map((reference, canvasIndex) => {
+        const key = imageMentionCandidateKey(reference);
+        if (!key) return null;
+        const connectedIndex = connectedOrder.has(key) ? connectedOrder.get(key) : -1;
+        const imageNumber = connectedIndex >= 0
+          ? connectedIndex + 1
+          : Math.max(1, Number(reference.imageNumber) || canvasIndex + 1);
+        const role = normalizeImageGroupRole(reference.imageRole || 'reference');
+        return {
+          key,
+          groupId: String(reference.imageGroupId || ''),
+          itemId: String(reference.imageGroupItemId || ''),
+          sourceNodeId: String(reference.sourceNodeId || reference.nodeId || ''),
+          connectNodeId: String(reference.imageGroupId || reference.nodeId || reference.sourceNodeId || ''),
+          imageNumber,
+          role,
+          roleLabel: imageGroupRoleLabel(role),
+          name: String(reference.name || reference.title || reference.label || `图片${imageNumber}`),
+          source: String(reference.imageData || reference.base64 || reference.imageUrl || reference.url || ''),
+          connected: connectedIndex >= 0,
+          canvasIndex
+        };
+      })
+      .filter(Boolean)
+      .sort((left, right) => {
+        if (left.connected !== right.connected) return left.connected ? -1 : 1;
+        if (left.connected && right.connected) return left.imageNumber - right.imageNumber;
+        return left.canvasIndex - right.canvasIndex;
+      });
+  }
+
+  function detectTextImageMention(editor) {
+    const range = currentPromptEditorRange(editor);
+    if (!range?.collapsed || range.startContainer.nodeType !== Node.TEXT_NODE) return null;
+    const textNode = range.startContainer;
+    const beforeCaret = String(textNode.nodeValue || '').slice(0, range.startOffset);
+    const match = beforeCaret.match(/(^|[\s，,。；;、：:（(【\[])(@([^\s@，,。；;、：:（）()【】\[\]]*))$/);
+    if (!match || match[3].length > 64) return null;
+    const mentionRange = document.createRange();
+    mentionRange.setStart(textNode, range.startOffset - match[2].length);
+    mentionRange.setEnd(textNode, range.startOffset);
+    return { range: mentionRange, query: match[3] };
+  }
+
+  function closeTextImageMention(editor = null) {
+    if (!activeTextImageMention || (editor && activeTextImageMention.editor !== editor)) return;
+    const { menu, node } = activeTextImageMention;
+    if (menu) {
+      menu.hidden = true;
+      menu.innerHTML = '';
+      menu.style.removeProperty('left');
+      menu.style.removeProperty('top');
+    }
+    node?.classList.remove('is-image-mention-open');
+    activeTextImageMention = null;
+  }
+
+  function positionTextImageMentionMenu(state) {
+    const { range, menu, node, nodeState } = state;
+    if (!range || !menu || !node) return;
+    const caretRect = range.getBoundingClientRect();
+    const nodeRect = node.getBoundingClientRect();
+    const canvasScale = Math.max(0.01, Number(DesktopState.state.canvas.scale) || 1);
+    const left = clamp(
+      (caretRect.left - nodeRect.left) / canvasScale,
+      8,
+      Math.max(8, Number(nodeState.width || node.offsetWidth) - 248)
+    );
+    const top = clamp(
+      (caretRect.bottom - nodeRect.top) / canvasScale + 6,
+      34,
+      Math.max(34, Number(nodeState.height || node.offsetHeight) - 18)
+    );
+    menu.style.left = `${left}px`;
+    menu.style.top = `${top}px`;
+  }
+
+  function renderTextImageMentionMenu(state) {
+    const { menu, candidates, activeIndex, query } = state;
+    if (!menu) return;
+    menu.innerHTML = `
+      <div class="desk-text-node__image-mention-head">
+        <strong>引用图片</strong>
+        <span>${query ? `匹配“${escapeHtml(query)}”` : '输入名称筛选'}</span>
+      </div>
+      <div class="desk-text-node__image-mention-list">
+        ${candidates.length ? candidates.map((candidate, index) => `
+          <button type="button" data-text-image-mention-pick="${index}" role="option" aria-selected="${index === activeIndex ? 'true' : 'false'}" class="${index === activeIndex ? 'is-active' : ''}">
+            <span class="desk-text-node__image-mention-thumb">${candidate.source ? `<img src="${escapeHtml(candidate.source)}" alt="" draggable="false">` : '<i aria-hidden="true">图</i>'}</span>
+            <span class="desk-text-node__image-mention-copy">
+              <strong>@图片${candidate.imageNumber}<em>${escapeHtml(candidate.roleLabel)}</em></strong>
+              <small>${escapeHtml(candidate.name)}</small>
+            </span>
+            ${candidate.connected ? '<b>已接入</b>' : '<b class="is-muted">未接入</b>'}
+          </button>`).join('') : '<p class="desk-text-node__image-mention-empty">没有匹配的图片</p>'}
+      </div>`;
+    menu.hidden = false;
+    state.node.classList.add('is-image-mention-open');
+    positionTextImageMentionMenu(state);
+  }
+
+  function updateTextImageMention(editor) {
+    const node = editor?.closest?.('.desk-node--text[data-node-id]');
+    const nodeState = node ? DesktopState.state.canvas.nodes[node.dataset.nodeId] : null;
+    const mention = nodeState?.type === 'text' ? detectTextImageMention(editor) : null;
+    if (!mention) {
+      closeTextImageMention(editor);
+      return false;
+    }
+    const normalizedQuery = mention.query.trim().toLowerCase();
+    const allCandidates = textImageMentionCandidates(nodeState.id);
+    const candidates = normalizedQuery
+      ? allCandidates.filter(candidate => (
+        `图片${candidate.imageNumber} ${candidate.name} ${candidate.roleLabel}`.toLowerCase().includes(normalizedQuery)
+      ))
+      : allCandidates;
+    const previousKey = activeTextImageMention?.editor === editor
+      ? activeTextImageMention.candidates?.[activeTextImageMention.activeIndex]?.key
+      : '';
+    let activeIndex = Math.max(0, candidates.findIndex(candidate => candidate.key === previousKey));
+    if (!candidates.length) activeIndex = -1;
+    const state = {
+      editor,
+      node,
+      nodeState,
+      menu: node.querySelector('[data-text-image-mention-menu]'),
+      range: mention.range,
+      query: mention.query,
+      candidates,
+      activeIndex
+    };
+    activeTextImageMention = state;
+    renderTextImageMentionMenu(state);
+    return true;
+  }
+
+  function setTextImageMentionActiveIndex(index) {
+    const state = activeTextImageMention;
+    if (!state?.candidates?.length) return;
+    state.activeIndex = (index + state.candidates.length) % state.candidates.length;
+    renderTextImageMentionMenu(state);
+    state.menu?.querySelector(`[data-text-image-mention-pick="${state.activeIndex}"]`)?.scrollIntoView?.({ block: 'nearest' });
+  }
+
+  function ensureTextNodeImageReferenceConnections(textNodeId, targetNodeId) {
+    const nodeState = DesktopState.state.canvas.nodes[textNodeId];
+    const targetState = DesktopState.state.canvas.nodes[targetNodeId];
+    if (nodeState?.type !== 'text' || !['input', 'comfy'].includes(targetState?.type)) return 0;
+    const sourceIds = [...new Set(
+      (ensureTextNodePromptDocument(nodeState)?.segments || [])
+        .filter(segment => segment.type === 'image_reference')
+        .map(segment => String(segment.group_id || segment.source_node_id || ''))
+        .filter(sourceId => ['image', 'image_group'].includes(DesktopState.state.canvas.nodes[sourceId]?.type))
+    )];
+    let connected = 0;
+    sourceIds.forEach(sourceId => {
+      const exists = (DesktopState.state.canvas.edges || []).some(edge => edge.from === sourceId && edge.to === targetNodeId);
+      if (exists) return;
+      if (connectNodes(sourceId, targetNodeId, { quiet: true })) connected += 1;
+    });
+    return connected;
+  }
+
+  function insertTextImageMentionCandidate(candidateIndex = -1) {
+    const state = activeTextImageMention;
+    if (!state || state.activeIndex < 0) return false;
+    const candidate = state.candidates[candidateIndex >= 0 ? candidateIndex : state.activeIndex];
+    if (!candidate || !isRangeInsidePromptEditor(state.range, state.editor)) return false;
+    const historyEntry = beginPromptDocumentHistory(state.nodeState);
+    const segment = normalizeImageReferenceSegment({
+      group_id: candidate.groupId,
+      item_id: candidate.itemId,
+      source_node_id: candidate.sourceNodeId,
+      role_snapshot: candidate.role,
+      label_snapshot: `@图片${candidate.imageNumber}`
+    });
+    const token = createImageReferenceTokenElement(segment);
+    if (!token) return false;
+    const suffix = document.createTextNode(' ');
+    const fragment = document.createDocumentFragment();
+    fragment.append(token, suffix);
+    state.range.deleteContents();
+    state.range.insertNode(fragment);
+    const caret = document.createRange();
+    caret.setStartAfter(suffix);
+    caret.collapse(true);
+    closeTextImageMention(state.editor);
+    selectNode(state.nodeState.id);
+    state.editor.focus({ preventScroll: true });
+    setPromptEditorCaret(caret);
+    syncPromptDocumentFromEditor(state.editor, state.nodeState);
+    commitPromptDocumentHistory(state.nodeState, historyEntry);
+    textNodeModelTargetIds(state.nodeState.id).forEach(targetNodeId => {
+      if (!candidate.connectNodeId) return;
+      const exists = (DesktopState.state.canvas.edges || []).some(edge => (
+        edge.from === candidate.connectNodeId && edge.to === targetNodeId
+      ));
+      if (!exists) connectNodes(candidate.connectNodeId, targetNodeId, { quiet: true });
+    });
+    refreshImageReferenceTokens();
+    state.editor.focus({ preventScroll: true });
+    setPromptEditorCaret(caret);
+    state.editor.dispatchEvent(new CustomEvent('prompt-editor:change', { bubbles: true }));
+    DesktopResults.showTransientMessage(`已引用 ${imageReferenceDisplay(segment)}，可继续输入具体要求。`);
+    return true;
+  }
+
+  function handleTextImageMentionKeydown(event, editor) {
+    const state = activeTextImageMention;
+    if (!state || state.editor !== editor || event.isComposing) return false;
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault();
+      event.stopPropagation();
+      setTextImageMentionActiveIndex(state.activeIndex + (event.key === 'ArrowDown' ? 1 : -1));
+      return true;
+    }
+    if ((event.key === 'Enter' || event.key === 'Tab') && state.activeIndex >= 0) {
+      event.preventDefault();
+      event.stopPropagation();
+      insertTextImageMentionCandidate();
+      return true;
+    }
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      event.stopPropagation();
+      closeTextImageMention(editor);
+      return true;
+    }
+    return false;
   }
 
   function resolvePromptTokenEditor(options = {}) {
@@ -6545,7 +9377,7 @@
       const index = direction < 0 ? offset - 1 : offset;
       const direct = container.childNodes[index];
       if (direct) {
-        if (direct.nodeType === Node.ELEMENT_NODE && direct.matches?.('[data-prompt-block-token]')) return direct;
+        if (direct.nodeType === Node.ELEMENT_NODE && direct.matches?.(PROMPT_TOKEN_SELECTOR)) return direct;
         if (direct.nodeType === Node.TEXT_NODE && (direct.nodeValue || '').length) return null;
       }
     }
@@ -6554,7 +9386,7 @@
     while (current && current !== editor) {
       const sibling = direction < 0 ? current.previousSibling : current.nextSibling;
       if (sibling) {
-        if (sibling.nodeType === Node.ELEMENT_NODE && sibling.matches?.('[data-prompt-block-token]')) return sibling;
+        if (sibling.nodeType === Node.ELEMENT_NODE && sibling.matches?.(PROMPT_TOKEN_SELECTOR)) return sibling;
         return null;
       }
       current = current.parentNode;
@@ -6564,7 +9396,7 @@
 
   function handlePromptEditorTokenDelete(event, editor) {
     if (event.key !== 'Backspace' && event.key !== 'Delete') return false;
-    const focusedToken = event.target.closest?.('[data-prompt-block-token]');
+    const focusedToken = event.target.closest?.(PROMPT_TOKEN_SELECTOR);
     const selection = window.getSelection?.();
     const range = selection?.rangeCount ? selection.getRangeAt(0) : null;
     const token = focusedToken || adjacentPromptToken(range, editor, event.key === 'Backspace' ? -1 : 1);
@@ -7165,12 +9997,24 @@
   }
 
   function getConnectedImageReferences(inputNodeId) {
-    return (DesktopState.state.canvas.edges || [])
+    const incoming = (DesktopState.state.canvas.edges || [])
       .filter(edge => edge.to === inputNodeId)
-      .map(edge => DesktopState.state.canvas.nodes[edge.from])
-      .filter(node => (node?.type === 'image' && (node.imageData || node.imageUrl)) || (node?.type === 'layout' && node.layoutExport) || (node?.type === 'pose' && (node.exportImage || node.previewImage)))
-      .map(node => {
+      .map(edge => DesktopState.state.canvas.nodes[edge.from]);
+    const prioritized = incoming.some(node => node?.type === 'image_group')
+      ? [...incoming.filter(node => node?.type === 'image_group'), ...incoming.filter(node => node?.type !== 'image_group')]
+      : incoming;
+    return prioritized
+      .filter(node => (
+        (node?.type === 'image' && (node.imageData || node.imageUrl))
+        || (node?.type === 'image_group' && node.items?.some(imageGroupItemSource))
+        || (node?.type === 'layout' && node.layoutExport)
+        || (node?.type === 'pose' && (node.exportImage || node.previewImage))
+      ))
+      .flatMap(node => {
         if (node.type === 'image') return normalizeImageSourceFromNode(node);
+        if (node.type === 'image_group') {
+          return node.items.map((item, index) => normalizeImageSourceFromGroupItem(item, node, index)).filter(Boolean);
+        }
         if (node.type === 'pose') return normalizePoseReferenceFromNode(node);
         return {
           id: `layout:${node.id}`,
@@ -7186,6 +10030,50 @@
         };
       })
       .filter(Boolean);
+  }
+
+  function imageGroupRoleEntriesForTarget(targetNodeId) {
+    return getConnectedImageReferences(targetNodeId)
+      .map((reference, index) => ({ reference, imageNumber: index + 1 }))
+      .filter(entry => entry.reference.imageGroupId && entry.reference.imageGroupItemId)
+      .map(entry => ({
+        targetNodeId,
+        groupId: entry.reference.imageGroupId,
+        itemId: entry.reference.imageGroupItemId,
+        sourceNodeId: entry.reference.sourceNodeId || '',
+        imageNumber: entry.imageNumber,
+        role: normalizeImageGroupRole(entry.reference.imageRole),
+        roleLabel: imageGroupRoleLabel(entry.reference.imageRole),
+        instruction: imageGroupRoleInstruction(entry.reference.imageRole),
+        name: entry.reference.name || entry.reference.title || `图片${entry.imageNumber}`
+      }));
+  }
+
+  function imageGroupRolePromptBlock(targetNodeId) {
+    const entries = imageGroupRoleEntriesForTarget(targetNodeId);
+    if (!entries.length) return '';
+    return [
+      '【图片参考关系】',
+      ...entries.map(entry => `图片${entry.imageNumber}：${entry.roleLabel}。${entry.instruction}`),
+      IMAGE_GROUP_ROLE_PRIORITY_NOTE
+    ].join('\n');
+  }
+
+  function textNodeModelTargetIds(textNodeId) {
+    const nodes = DesktopState.state.canvas.nodes || {};
+    return (DesktopState.state.canvas.edges || [])
+      .filter(edge => edge.from === textNodeId && ['input', 'comfy'].includes(nodes[edge.to]?.type))
+      .map(edge => edge.to);
+  }
+
+  function mergeNodeReferenceImages(nodeId, directReferences = []) {
+    const connected = getConnectedImageReferences(nodeId);
+    const hasImageGroup = (DesktopState.state.canvas.edges || []).some(edge => (
+      edge.to === nodeId && DesktopState.state.canvas.nodes[edge.from]?.type === 'image_group'
+    ));
+    return hasImageGroup
+      ? [...connected, ...(directReferences || [])]
+      : [...(directReferences || []), ...connected];
   }
 
   function getConnectedTextNodes(inputNodeId) {
@@ -7204,6 +10092,7 @@
 
   function getBatchPromptItems(inputNodeId) {
     const textNodes = getConnectedTextNodes(inputNodeId);
+    const imageRoleBlock = imageGroupRolePromptBlock(inputNodeId);
     const nodePrompts = textNodes
       .map(node => {
         const promptDocument = ensureTextNodePromptDocument(node);
@@ -7216,14 +10105,14 @@
       .filter(item => item.text);
     if (nodePrompts.length > 1) {
       return nodePrompts.map(item => composePromptWithTextStyles(
-        [item.fidelityHeader, item.text].filter(Boolean).join('\n\n'),
+        [item.fidelityHeader, imageRoleBlock, item.text].filter(Boolean).join('\n\n'),
         [item.styleId].filter(Boolean)
       ));
     }
     if (nodePrompts.length === 1) {
       const parts = splitBatchPromptItems(nodePrompts[0].text);
       return parts.map(part => composePromptWithTextStyles(
-        [nodePrompts[0].fidelityHeader, part].filter(Boolean).join('\n\n'),
+        [nodePrompts[0].fidelityHeader, imageRoleBlock, part].filter(Boolean).join('\n\n'),
         [nodePrompts[0].styleId].filter(Boolean)
       ));
     }
@@ -7239,8 +10128,10 @@
     const combinedFidelityHeader = promptDocumentFidelityHeader({
       segments: promptDocuments.flatMap(document => Array.isArray(document.segments) ? document.segments : [])
     });
+    const imageRoleBlock = imageGroupRolePromptBlock(inputNodeId);
     const basePrompt = [
       combinedFidelityHeader,
+      imageRoleBlock,
       ...textNodes.map(node => materializeTextNode(node).trim()).filter(Boolean),
       String(prompt || '').trim()
     ]
@@ -7266,7 +10157,7 @@
         provider: DesktopState.state.provider,
         params: { ...DesktopState.state.params },
         batchMode: !!DesktopState.state.params.batchMode,
-        referenceImages: [...DesktopState.state.referenceImages, ...getConnectedImageReferences(nodeId)]
+        referenceImages: mergeNodeReferenceImages(nodeId, DesktopState.state.referenceImages)
       };
     }
 
@@ -7287,15 +10178,15 @@
         imageCount: node.querySelector('[data-field="imageCount"]')?.value || 1,
         moderation: node.querySelector('[data-field="moderation"]')?.value || 'auto',
         gptTaskType: applyGptTaskTypeToNode(node, node.querySelector('[data-field="gptTaskType"]')?.value),
-        gptProviderRoute: DesktopState.normalizeGptTaskType(node.querySelector('[data-field="gptTaskType"]')?.value, 'image') === 'image'
-          ? DesktopState.normalizeGptProviderRoute(node.querySelector('[data-field="gptProviderRoute"]')?.value, 'codex')
-          : 'chatgpt_pool',
+        gptProviderRoute: DesktopState.normalizeGptTaskType(node.querySelector('[data-field="gptTaskType"]')?.value, 'image') === 'ppt'
+          ? 'chatgpt_pool'
+          : DesktopState.normalizeGptProviderRoute(node.querySelector('[data-field="gptProviderRoute"]')?.value, 'codex'),
         useThirdPartyApi: DesktopState.normalizeGptProviderRoute(node.querySelector('[data-field="gptProviderRoute"]')?.value, 'codex') === 'third_party_image_api',
         gptMainModel: DesktopState.normalizeGptMainModel(node.querySelector('[data-field="gptMainModel"]')?.value, 'gpt-5.5'),
         reasoningEffort: DesktopState.normalizeReasoningEffort(node.querySelector('[data-field="reasoningEffort"]')?.value, 'medium'),
         promptMode: getPromptModeFromNode(node, 'smart')
       },
-      referenceImages: [...getNodeReferenceImages(nodeId), ...getConnectedImageReferences(nodeId)]
+      referenceImages: mergeNodeReferenceImages(nodeId, getNodeReferenceImages(nodeId))
     };
   }
 
@@ -7677,7 +10568,7 @@
   }
 
   function normalizeNodeMenuType(type) {
-    return ['input', 'comfy', 'video_inference', 'video', 'file_output', 'layout', 'text', 'image', 'pose', 'upscale'].includes(type) ? type : 'input';
+    return ['input', 'comfy', 'video_inference', 'video', 'file_output', 'layout', 'text', 'image', 'image_group', 'pose', 'upscale'].includes(type) ? type : 'input';
   }
 
   function addNodeFromMenu(type, worldPoint) {
@@ -7691,6 +10582,8 @@
     const node = DesktopState.state.canvas.nodes[nodeId];
     if (!node) return;
     if (node.type === 'video_inference') stopVideoTaskPolling(nodeId);
+    if (node.type === 'image_group') freezeImageReferenceTokens(nodeId);
+    if (node.type === 'image') freezeImageReferenceTokensForSourceNode(nodeId);
     const nodeEl = getNodeElement(nodeId);
     if (nodeEl?.contains(document.activeElement)) {
       document.activeElement?.blur?.();
@@ -7727,6 +10620,7 @@
       .flatMap(edge => [edge.from, edge.to])
       .filter(id => DesktopState.state.canvas.nodes[id]?.type === 'video');
     DesktopState.state.canvas.edges = (DesktopState.state.canvas.edges || []).filter(edge => edge.from !== nodeId && edge.to !== nodeId);
+    refreshImageReferenceTokens();
     window.dispatchEvent(new CustomEvent('desktop:canvas-node-removed', { detail: { nodeId } }));
     if (node.type === 'text') notifyTextNodeListChange(nodeId);
     affectedLayoutIds.forEach(updateLayoutInputCount);
@@ -7735,7 +10629,7 @@
     affectedVideoInferenceIds.forEach(refreshVideoInferenceNode);
     affectedVideoIds.forEach(refreshVideoNode);
     updateLinkPath();
-    DesktopState.saveSettings();
+    DesktopState.saveSettings(node.type === 'image_group' ? { criticalCanvas: true } : undefined);
     if (options.focusCanvas) focusCanvasViewport();
   }
 
@@ -7749,6 +10643,8 @@
     const comfyToUpscale = from?.type === 'comfy' && to?.type === 'upscale';
     const imageToInput = from?.type === 'image' && to?.type === 'input';
     const imageToComfy = from?.type === 'image' && to?.type === 'comfy';
+    const imageGroupToInput = from?.type === 'image_group' && to?.type === 'input';
+    const imageGroupToComfy = from?.type === 'image_group' && to?.type === 'comfy';
     const imageToLayout = from?.type === 'image' && to?.type === 'layout';
     const imageToPoseReference = from?.type === 'image' && to?.type === 'pose';
     const imageToUpscale = from?.type === 'image' && to?.type === 'upscale';
@@ -7769,7 +10665,7 @@
     const outputToImage = from?.type === 'output' && to?.type === 'image';
     const upscaleToImage = from?.type === 'upscale' && to?.type === 'image';
     const videoInputConnection = textToVideoInference || imageToVideoInference || layoutToVideoInference || poseToVideoInference || videoToVideoInference;
-    if (!from || !to || (!modelToResult && !modelToImage && !modelToUpscale && !comfyToImage && !comfyToUpscale && !imageToInput && !imageToComfy && !imageToLayout && !imageToPoseReference && !imageToUpscale && !layoutToInput && !layoutToComfy && !layoutToUpscale && !poseToInput && !poseToComfy && !poseToUpscale && !textToInput && !textToComfy && !videoInputConnection && !videoInferenceToVideo && !outputToImage && !upscaleToImage)) {
+    if (!from || !to || (!modelToResult && !modelToImage && !modelToUpscale && !comfyToImage && !comfyToUpscale && !imageToInput && !imageToComfy && !imageGroupToInput && !imageGroupToComfy && !imageToLayout && !imageToPoseReference && !imageToUpscale && !layoutToInput && !layoutToComfy && !layoutToUpscale && !poseToInput && !poseToComfy && !poseToUpscale && !textToInput && !textToComfy && !videoInputConnection && !videoInferenceToVideo && !outputToImage && !upscaleToImage)) {
       if (!options.quiet) DesktopResults.showTransientMessage('当前节点类型不能这样连接。视频生成可接入文本、图片、姿态、排版或视频节点。');
       return '';
     }
@@ -7796,6 +10692,8 @@
       outputRole: videoInferenceToVideo ? 'video' : undefined,
       outputSlot: Number.isFinite(Number(options.outputSlot)) ? Number(options.outputSlot) : undefined
     });
+    if (textToInput || textToComfy) ensureTextNodeImageReferenceConnections(fromNodeId, toNodeId);
+    refreshImageReferenceTokens();
     document.querySelectorAll('.desk-port.is-connecting').forEach(item => item.classList.remove('is-connecting'));
     updateLinkPath();
     if (imageToLayout) {
@@ -7831,9 +10729,13 @@
       if (!options.quiet) DesktopResults.showTransientMessage('视频结果节点已接入 MiniMax H3 输出。');
       DesktopState.saveSettings();
       return edgeId;
-    } else if (imageToComfy || layoutToComfy || poseToComfy || textToComfy) {
+    } else if (imageToComfy || imageGroupToComfy || layoutToComfy || poseToComfy || textToComfy) {
       refreshComfyNode(toNodeId);
       if (!options.quiet) DesktopResults.showTransientMessage('输入已接入 Comfy 工作流节点。');
+      DesktopState.saveSettings();
+      return edgeId;
+    } else if (imageGroupToInput) {
+      if (!options.quiet) DesktopResults.showTransientMessage(`图片组已按当前顺序接入，共 ${from.items?.length || 0} 张。`);
       DesktopState.saveSettings();
       return edgeId;
     } else if (poseToInput) {
@@ -7911,6 +10813,7 @@
     comfyIds.forEach(refreshComfyNode);
     videoInferenceIds.forEach(refreshVideoInferenceNode);
     videoIds.forEach(refreshVideoNode);
+    refreshImageReferenceTokens();
   }
 
   function removeEdgesById(edgeIds = [], options = {}) {
@@ -7942,6 +10845,7 @@
   }
 
   function clearConnectionDragVisuals() {
+    clearLiveConnectionPreview();
     document.querySelectorAll('.desk-port.is-connecting, .desk-port.is-drop-target').forEach(item => {
       item.classList.remove('is-connecting', 'is-drop-target');
     });
@@ -9066,7 +11970,11 @@
           ? DEFAULT_COMFY_NODE_WIDTH
           : (clean.type === 'video_inference'
             ? DEFAULT_VIDEO_INFERENCE_NODE_WIDTH
-            : (clean.type === 'video' ? DEFAULT_VIDEO_NODE_WIDTH : (clean.type === 'upscale' ? DEFAULT_UPSCALE_NODE_WIDTH : DEFAULT_IMAGE_NODE_WIDTH)))));
+            : (clean.type === 'video'
+              ? DEFAULT_VIDEO_NODE_WIDTH
+              : (clean.type === 'image_group'
+                ? DEFAULT_IMAGE_GROUP_NODE_WIDTH
+                : (clean.type === 'upscale' ? DEFAULT_UPSCALE_NODE_WIDTH : DEFAULT_IMAGE_NODE_WIDTH))))));
     clean.height = Number.isFinite(Number(clean.height))
       ? Number(clean.height)
       : (clean.type === 'input'
@@ -9075,7 +11983,11 @@
           ? DEFAULT_COMFY_NODE_HEIGHT
           : (clean.type === 'video_inference'
             ? DEFAULT_VIDEO_INFERENCE_NODE_HEIGHT
-            : (clean.type === 'video' ? DEFAULT_VIDEO_NODE_HEIGHT : (clean.type === 'upscale' ? DEFAULT_UPSCALE_NODE_HEIGHT : DEFAULT_IMAGE_NODE_HEIGHT)))));
+            : (clean.type === 'video'
+              ? DEFAULT_VIDEO_NODE_HEIGHT
+              : (clean.type === 'image_group'
+                ? DEFAULT_IMAGE_GROUP_NODE_HEIGHT
+                : (clean.type === 'upscale' ? DEFAULT_UPSCALE_NODE_HEIGHT : DEFAULT_IMAGE_NODE_HEIGHT))))));
     if (clean.type === 'input') {
       clean.width = DEFAULT_INPUT_NODE_WIDTH;
       clean.height = DEFAULT_INPUT_NODE_HEIGHT;
@@ -9132,6 +12044,12 @@
       clean.imageName = String(clean.imageName || clean.title || '图片节点');
       clean.mimeType = String(clean.mimeType || (dataUrl ? dataUrl.slice(5, dataUrl.indexOf(';')) : 'image/png') || 'image/png');
       clean.aspectRatio = Number(clean.aspectRatio) > 0 ? Number(clean.aspectRatio) : DEFAULT_IMAGE_NODE_WIDTH / DEFAULT_IMAGE_NODE_HEIGHT;
+    }
+    if (clean.type === 'image_group') {
+      normalizeImageGroupNodeState(clean);
+      clean.items = clean.items
+        .map(item => String(item.imageUrl || '').startsWith('blob:') ? { ...item, imageUrl: '' } : item)
+        .filter(imageGroupItemSource);
     }
     if (clean.type === 'video') {
       clean.width = clamp(clean.width, MIN_VIDEO_NODE_WIDTH, MAX_VIDEO_NODE_WIDTH);
@@ -9417,7 +12335,7 @@
     renderReferenceThumbs();
     applyAllNodeLayouts();
     notifyTextNodeListChange(DesktopState.state.canvas.selectedNodeId || '');
-    DesktopState.saveSettings();
+    DesktopState.saveSettings({ criticalCanvas: true });
     DesktopState.saveDraft();
     DesktopResults.renderIdleProviderHint?.();
     DesktopResults.showTransientMessage('工作流已加载。');
@@ -11858,6 +14776,18 @@
     return types.includes('application/x-desktop-add-node');
   }
 
+  function activateImageGroupReferenceItem(activeItem) {
+    if (!activeItem) return;
+    const focused = document.activeElement;
+    let shouldCloseSelect = false;
+    document.querySelectorAll('.desk-image-group__item').forEach(item => {
+      if (item === activeItem) return;
+      if (item.querySelector('.desk-select-shell.is-open')) shouldCloseSelect = true;
+      if (focused && item.contains(focused)) focused.blur?.();
+    });
+    if (shouldCloseSelect) window.DesktopSelect?.closeAll?.();
+  }
+
   function getAddNodeDragPayload(dataTransfer) {
     if (!hasAddNodeDragPayload(dataTransfer)) return null;
     try {
@@ -11893,6 +14823,11 @@
     }, true);
     els.deskCanvasViewport?.addEventListener('pointermove', event => {
       lastCanvasPointer = { x: event.clientX, y: event.clientY };
+    });
+    els.deskCanvasWorld?.addEventListener('pointerover', event => {
+      const item = event.target.closest?.('.desk-node--image-group [data-image-group-item]');
+      if (!item || (event.relatedTarget && item.contains(event.relatedTarget))) return;
+      activateImageGroupReferenceItem(item);
     });
     document.addEventListener('paste', handleCanvasImagePaste);
     document.querySelectorAll('.desk-rail__item[data-tool]').forEach(button => {
@@ -11955,6 +14890,11 @@
     });
 
     document.addEventListener('pointerdown', event => {
+      if (activeTextImageMention
+        && !activeTextImageMention.menu?.contains(event.target)
+        && !activeTextImageMention.editor?.contains(event.target)) {
+        closeTextImageMention();
+      }
       if (event.target.closest('#deskNodePalette, #deskNodeContextMenu, #deskNodeToolBtn, #deskEdgeMenu, [data-edge-interaction]')) return;
       clearSelectedEdge();
       setNodePaletteOpen(false);
@@ -11971,6 +14911,32 @@
     });
 
     els.deskCanvasWorld?.addEventListener('click', event => {
+      const imageMentionButton = event.target.closest('[data-text-image-mention-pick]');
+      if (imageMentionButton) {
+        event.preventDefault();
+        event.stopPropagation();
+        insertTextImageMentionCandidate(Number(imageMentionButton.dataset.textImageMentionPick));
+        return;
+      }
+      const imageGroupUngroupButton = event.target.closest('[data-image-group-ungroup]');
+      if (imageGroupUngroupButton) {
+        const groupElement = imageGroupUngroupButton.closest('.desk-node--image-group[data-node-id]');
+        if (!groupElement) return;
+        event.preventDefault();
+        event.stopPropagation();
+        ungroupImageGroup(groupElement.dataset.nodeId);
+        return;
+      }
+      const imageReferenceButton = event.target.closest('[data-image-group-insert-reference]');
+      if (imageReferenceButton) {
+        const groupElement = imageReferenceButton.closest('.desk-node--image-group[data-node-id]');
+        const itemElement = imageReferenceButton.closest('[data-image-group-item]');
+        if (!groupElement || !itemElement) return;
+        event.preventDefault();
+        event.stopPropagation();
+        insertImageReferenceToken(groupElement.dataset.nodeId, itemElement.dataset.imageGroupItem);
+        return;
+      }
       const videoRunButton = event.target.closest('[data-video-run]');
       if (videoRunButton) {
         const nodeElement = videoRunButton.closest('.desk-node--video-inference[data-node-id]');
@@ -12402,6 +15368,7 @@
       if (!nodeState) return;
       syncPromptDocumentFromEditor(input, nodeState);
       setTextStyleMenuOpen(node, false);
+      updateTextImageMention(input);
     });
 
     els.deskCanvasWorld?.addEventListener('paste', event => {
@@ -12415,11 +15382,31 @@
     els.deskCanvasWorld?.addEventListener('keydown', event => {
       const editor = event.target.closest?.('[data-text-node-input][contenteditable="true"]');
       if (!editor) return;
+      if (handleTextImageMentionKeydown(event, editor)) return;
       if (handlePromptDocumentHistoryShortcut(event, editor)) return;
       handlePromptEditorTokenDelete(event, editor);
     });
+    els.deskCanvasWorld?.addEventListener('keyup', event => {
+      const editor = event.target.closest?.('[data-text-node-input][contenteditable="true"]');
+      if (editor && !event.isComposing && event.key !== 'Escape') updateTextImageMention(editor);
+    });
+    els.deskCanvasWorld?.addEventListener('mouseup', event => {
+      const editor = event.target.closest?.('[data-text-node-input][contenteditable="true"]');
+      if (editor) updateTextImageMention(editor);
+    });
 
     els.deskCanvasWorld?.addEventListener('change', event => {
+      const imageGroupRole = event.target.closest('[data-image-group-role]');
+      if (imageGroupRole) {
+        const groupElement = imageGroupRole.closest('.desk-node--image-group[data-node-id]');
+        const itemElement = imageGroupRole.closest('[data-image-group-item]');
+        const item = getImageGroupItem(groupElement?.dataset.nodeId, itemElement?.dataset.imageGroupItem);
+        if (!groupElement || !item) return;
+        item.role = normalizeImageGroupRole(imageGroupRole.value);
+        refreshImageReferenceTokens(groupElement.dataset.nodeId);
+        DesktopState.saveSettings({ criticalCanvas: true });
+        return;
+      }
       const videoField = event.target.closest('.desk-node--video-inference[data-node-id] [data-video-field]');
       if (videoField) {
         const nodeElement = videoField.closest('.desk-node--video-inference[data-node-id]');
@@ -12693,13 +15680,29 @@
       toggleSelectionGroup();
     });
     els.deskSelectionToolbar?.addEventListener('click', event => {
+      const imageGroupButton = event.target.closest('[data-create-image-group]');
+      if (imageGroupButton) {
+        event.preventDefault();
+        event.stopPropagation();
+        createImageGroupFromSelection();
+        return;
+      }
       const button = event.target.closest('[data-align]');
       if (!button) return;
       event.preventDefault();
       event.stopPropagation();
       alignSelection(button.dataset.align);
     });
+    els.deskCanvasWorld?.addEventListener('pointerdown', beginImageGroupItemSort);
+    window.addEventListener('pointermove', moveImageGroupItemSort, { passive: false });
+    window.addEventListener('pointerup', event => endImageGroupItemSort(event));
+    window.addEventListener('pointercancel', event => endImageGroupItemSort(event, true));
     els.deskCanvasWorld?.addEventListener('pointerdown', event => {
+      if (event.target.closest('[data-text-image-mention-pick]')) {
+        event.preventDefault();
+        event.stopPropagation();
+        return;
+      }
       const aliasShell = event.target.closest('.desk-text-node__alias');
       if (aliasShell) {
         const node = aliasShell.closest('.desk-node--text[data-node-id]');
@@ -12820,6 +15823,12 @@
 
     document.addEventListener('keydown', event => {
       if (event.defaultPrevented) return;
+      if (event.key === 'Escape' && draggedImageGroupItem) {
+        event.preventDefault();
+        event.stopPropagation();
+        endImageGroupItemSort(null, true);
+        return;
+      }
       if (event.key === 'Escape') {
         hideContextMenu();
         setZoomPresetMenuOpen(false);
@@ -12958,6 +15967,7 @@
       Object.values(DesktopState.state.canvas.nodes || {}).filter(node => node.type === 'comfy').forEach(node => refreshComfyNode(node.id));
     });
     window.addEventListener('desktop:connection-swell-style-change', refreshFloatingSwellStyle);
+    window.addEventListener('desktop:connection-line-style-change', updateLinkPath);
     window.addEventListener('desktop:video-runtime-status-updated', () => {
       Object.values(DesktopState.state.canvas.nodes || {})
         .filter(node => node.type === 'video_inference')

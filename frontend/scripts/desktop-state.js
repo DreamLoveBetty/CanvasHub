@@ -1,11 +1,25 @@
 (function () {
   const SETTINGS_KEY = 'desktop_canvas_settings_v1';
+  const CANVAS_FALLBACK_KEY = 'desktop_canvas_fallback_v1';
+  const CANVAS_BACKUP_DB_NAME = 'desktop_canvas_backup_v1';
+  const CANVAS_BACKUP_STORE = 'snapshots';
+  const CANVAS_BACKUP_ID = 'latest';
   const DRAFT_KEY = 'desktop_canvas_draft_v1';
   const LAST_TASK_KEY = 'desktop_canvas_last_task_v1';
   const DEFAULT_INPUT_NODE_WIDTH = 720;
   const DEFAULT_INPUT_NODE_HEIGHT = 460;
   const DEFAULT_CANVAS_SCALE = 0.75;
   const CANVAS_VIEW_VERSION = 2;
+  const CANVAS_BACKUP_WRITE_DELAY_MS = 180;
+
+  let loadedSettingsSavedAt = 0;
+  let canvasBackupDb = null;
+  let canvasBackupDbPromise = null;
+  let canvasBackupReadPromise = null;
+  let pendingCanvasBackup = null;
+  let canvasBackupWritePromise = null;
+  let canvasBackupWriteTimer = 0;
+  let localSettingsSaveFailed = false;
 
   const statusLabels = {
     idle: '空闲',
@@ -320,29 +334,226 @@
     }, {});
   }
 
-  function saveSettings() {
-    state.params.model = normalizeGoogleModel(state.params.model);
+  function readStorageJson(storage, key) {
     try {
-      localStorage.setItem(SETTINGS_KEY, JSON.stringify({
-        canvasViewVersion: CANVAS_VIEW_VERSION,
-        provider: state.provider,
-        inputExpanded: state.inputExpanded,
-        referenceImages: sanitizeReferences(state.referenceImages),
-        nodeReferenceImages: sanitizeReferenceMap(state.nodeReferenceImages),
-        params: { ...state.params, model: normalizeGoogleModel(state.params.model) },
-        canvas: state.canvas,
-        output: {
-          telegramEnabled: state.output.telegramEnabled,
-          archiveEnabled: state.output.archiveEnabled
-        },
-        outputs: state.outputs
-      }));
+      const raw = storage?.getItem(key);
+      return raw ? JSON.parse(raw) : null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function canvasBackupPayload(savedAt = Date.now()) {
+    try {
+      return {
+        version: 1,
+        savedAt,
+        canvas: JSON.parse(JSON.stringify(state.canvas))
+      };
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function openCanvasBackupDb() {
+    if (typeof indexedDB === 'undefined') return Promise.reject(new Error('IndexedDB unavailable'));
+    if (canvasBackupDbPromise) return canvasBackupDbPromise;
+    canvasBackupDbPromise = new Promise((resolve, reject) => {
+      let request;
+      try {
+        request = indexedDB.open(CANVAS_BACKUP_DB_NAME, 1);
+      } catch (error) {
+        reject(error);
+        return;
+      }
+      request.onupgradeneeded = () => {
+        if (!request.result.objectStoreNames.contains(CANVAS_BACKUP_STORE)) {
+          request.result.createObjectStore(CANVAS_BACKUP_STORE);
+        }
+      };
+      request.onsuccess = () => {
+        const db = request.result;
+        canvasBackupDb = db;
+        db.onversionchange = () => {
+          db.close();
+          if (canvasBackupDb === db) {
+            canvasBackupDb = null;
+            canvasBackupDbPromise = null;
+          }
+        };
+        resolve(db);
+      };
+      request.onerror = () => reject(request.error || new Error('Unable to open canvas backup'));
+      request.onblocked = () => reject(new Error('Canvas backup database is blocked'));
+    }).catch(error => {
+      canvasBackupDbPromise = null;
+      throw error;
+    });
+    return canvasBackupDbPromise;
+  }
+
+  function writeCanvasBackupToDb(db, backup) {
+    return new Promise((resolve, reject) => {
+      let transaction;
+      try {
+        transaction = db.transaction(CANVAS_BACKUP_STORE, 'readwrite');
+        transaction.objectStore(CANVAS_BACKUP_STORE).put(backup, CANVAS_BACKUP_ID);
+      } catch (error) {
+        if (canvasBackupDb === db) {
+          canvasBackupDb = null;
+          canvasBackupDbPromise = null;
+        }
+        reject(error);
+        return;
+      }
+      transaction.oncomplete = resolve;
+      transaction.onerror = () => reject(transaction.error || new Error('Unable to write canvas backup'));
+      transaction.onabort = () => reject(transaction.error || new Error('Canvas backup write aborted'));
+    });
+  }
+
+  function writeCanvasBackup(backup) {
+    if (canvasBackupDb) return writeCanvasBackupToDb(canvasBackupDb, backup);
+    return openCanvasBackupDb().then(db => writeCanvasBackupToDb(db, backup));
+  }
+
+  function startCanvasBackupWrite() {
+    if (canvasBackupWritePromise || !pendingCanvasBackup) return;
+    if (canvasBackupWriteTimer) {
+      clearTimeout(canvasBackupWriteTimer);
+      canvasBackupWriteTimer = 0;
+    }
+    const pending = pendingCanvasBackup;
+    pendingCanvasBackup = null;
+    const backup = (pending.canvas || pending.version)
+      ? pending
+      : canvasBackupPayload(pending.savedAt);
+    canvasBackupWritePromise = Promise.resolve()
+      .then(() => backup?.canvas ? writeCanvasBackup(backup) : null)
+      .catch(() => {})
+      .finally(() => {
+        canvasBackupWritePromise = null;
+        if (pendingCanvasBackup) {
+          queueCanvasBackup(
+            pendingCanvasBackup.savedAt,
+            pendingCanvasBackup.canvas ? pendingCanvasBackup : null
+          );
+        }
+      });
+  }
+
+  function queueCanvasBackup(savedAt, preparedBackup = null) {
+    const timestamp = Number(preparedBackup?.savedAt ?? savedAt) || Date.now();
+    if (!pendingCanvasBackup || timestamp >= pendingCanvasBackup.savedAt) {
+      pendingCanvasBackup = preparedBackup?.canvas
+        ? preparedBackup
+        : { savedAt: timestamp, canvas: null };
+    }
+    if (canvasBackupWritePromise) return;
+    if (canvasBackupWriteTimer) clearTimeout(canvasBackupWriteTimer);
+    canvasBackupWriteTimer = setTimeout(() => {
+      canvasBackupWriteTimer = 0;
+      startCanvasBackupWrite();
+    }, CANVAS_BACKUP_WRITE_DELAY_MS);
+  }
+
+  function flushCanvasBackup(savedAt, preparedBackup = null) {
+    const backup = preparedBackup?.canvas ? preparedBackup : canvasBackupPayload(savedAt);
+    if (!backup?.canvas) return;
+    pendingCanvasBackup = null;
+    if (canvasBackupWriteTimer) {
+      clearTimeout(canvasBackupWriteTimer);
+      canvasBackupWriteTimer = 0;
+    }
+    writeCanvasBackup(backup).catch(() => {});
+  }
+
+  function readCanvasBackup() {
+    return openCanvasBackupDb().then(db => new Promise((resolve, reject) => {
+      let transaction;
+      let request;
+      try {
+        transaction = db.transaction(CANVAS_BACKUP_STORE, 'readonly');
+        request = transaction.objectStore(CANVAS_BACKUP_STORE).get(CANVAS_BACKUP_ID);
+      } catch (error) {
+        reject(error);
+        return;
+      }
+      request.onsuccess = () => resolve(request.result || null);
+      request.onerror = () => reject(request.error || new Error('Unable to read canvas backup'));
+    }));
+  }
+
+  function restoreCanvasPayload(payload) {
+    const canvas = payload?.canvas;
+    if (!canvas || typeof canvas !== 'object' || !canvas.nodes || typeof canvas.nodes !== 'object') return false;
+    state.canvas = {
+      ...state.canvas,
+      ...canvas,
+      nodes: { ...canvas.nodes },
+      selectedNodeId: canvas.selectedNodeId || '',
+      edges: Array.isArray(canvas.edges) ? canvas.edges : []
+    };
+    loadedSettingsSavedAt = Math.max(loadedSettingsSavedAt, Number(payload.savedAt) || 0);
+    return true;
+  }
+
+  function saveSettings(options = {}) {
+    state.params.model = normalizeGoogleModel(state.params.model);
+    const savedAt = Math.max(Date.now(), loadedSettingsSavedAt + 1);
+    const payload = {
+      canvasViewVersion: CANVAS_VIEW_VERSION,
+      savedAt,
+      provider: state.provider,
+      inputExpanded: state.inputExpanded,
+      referenceImages: sanitizeReferences(state.referenceImages),
+      nodeReferenceImages: sanitizeReferenceMap(state.nodeReferenceImages),
+      params: { ...state.params, model: normalizeGoogleModel(state.params.model) },
+      canvas: state.canvas,
+      output: {
+        telegramEnabled: state.output.telegramEnabled,
+        archiveEnabled: state.output.archiveEnabled
+      },
+      outputs: state.outputs
+    };
+    let localSaved = false;
+    try {
+      localStorage.setItem(SETTINGS_KEY, JSON.stringify(payload));
+      localSaved = true;
+      localSettingsSaveFailed = false;
+      try { sessionStorage.removeItem(CANVAS_FALLBACK_KEY); } catch (e) {}
     } catch (e) {}
+    loadedSettingsSavedAt = savedAt;
+    if (!localSaved) {
+      const immediateBackup = options.flushCanvasBackup === true
+        || options.criticalCanvas === true
+        || !localSettingsSaveFailed;
+      const fallback = immediateBackup ? canvasBackupPayload(savedAt) : null;
+      let fallbackSaved = false;
+      try {
+        if (fallback) {
+          sessionStorage.setItem(CANVAS_FALLBACK_KEY, JSON.stringify(fallback));
+          fallbackSaved = true;
+        }
+      } catch (e) {}
+      localSettingsSaveFailed = true;
+      if (immediateBackup) flushCanvasBackup(savedAt, fallback);
+      else queueCanvasBackup(savedAt);
+      return fallbackSaved;
+    }
+    if (options.flushCanvasBackup === true || options.criticalCanvas === true) flushCanvasBackup(savedAt);
+    else queueCanvasBackup(savedAt);
+    return true;
   }
 
   function loadSettings() {
+    const parsed = readStorageJson(window.localStorage, SETTINGS_KEY) || {};
+    const fallback = readStorageJson(window.sessionStorage, CANVAS_FALLBACK_KEY);
+    const localSavedAt = Number(parsed.savedAt) || 0;
+    const fallbackSavedAt = Number(fallback?.savedAt) || 0;
+    loadedSettingsSavedAt = Math.max(localSavedAt, fallbackSavedAt);
+    canvasBackupReadPromise = readCanvasBackup().catch(() => null);
     try {
-      const parsed = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}');
       const resetCanvasView = Number(parsed.canvasViewVersion || 0) < CANVAS_VIEW_VERSION;
       state.runtimeConfig.resetCanvasViewOnLoad = resetCanvasView;
       if (parsed.provider) state.provider = parsed.provider;
@@ -396,6 +607,15 @@
         state.output.archiveEnabled = parsed.output.archiveEnabled !== false;
       }
     } catch (e) {}
+    if (fallbackSavedAt > localSavedAt) restoreCanvasPayload(fallback);
+  }
+
+  async function restoreCanvasBackup() {
+    const pendingRead = canvasBackupReadPromise;
+    canvasBackupReadPromise = null;
+    const backup = await (pendingRead || readCanvasBackup().catch(() => null));
+    if (!backup || (Number(backup.savedAt) || 0) <= loadedSettingsSavedAt) return false;
+    return restoreCanvasPayload(backup);
   }
 
   function saveDraft() {
@@ -463,6 +683,7 @@
     estimateProgress,
     saveSettings,
     loadSettings,
+    restoreCanvasBackup,
     saveDraft,
     loadDraft,
     applyGptRuntimeConfig,

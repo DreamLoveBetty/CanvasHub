@@ -1012,13 +1012,16 @@ def edit_image_third_party(
     moderation: str = "auto",
     mask: str | None = None,
     progress_callback: ProgressCallback | None = None,
+    background: str = "auto",
+    output_format: str | None = None,
 ) -> dict[str, Any]:
     cfg = get_third_party_image_config()
     _check_rate_limit_cooldown()
     session = _session(cfg)
     timeout = int(cfg.get("timeout_seconds") or 900)
     download_retries = _download_retry_count(cfg)
-    output_format = _normalize_format(cfg.get("format") or "png")
+    force_output_format = output_format is not None
+    output_format = _normalize_format(output_format or cfg.get("format") or "png")
     size = _map_size(ratio, resolution)
     files: list[tuple[str, tuple[str, bytes, str]]] = []
     for index, image in enumerate(images or [], start=1):
@@ -1037,6 +1040,11 @@ def edit_image_third_party(
         "quality": _normalize_quality(quality),
         "moderation": "low" if str(moderation or "").lower() == "low" else "auto",
     }
+    background_key = str(background or "auto").strip().lower()
+    if background_key in {"transparent", "opaque"}:
+        form["background"] = background_key
+    if force_output_format:
+        form["format"] = output_format
     response, data = _post_json_response(
         session,
         _endpoint(cfg, "edit_path"),

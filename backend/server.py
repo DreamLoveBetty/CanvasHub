@@ -107,6 +107,7 @@ from .api_client_gpt import send_telegram_result, send_tg_document
 from .provider_gpt_codex import generate_image_gpt_codex, edit_image_gpt_codex, get_gpt_provider_auth_status
 from .provider_chatgpt_pool import chat_chatgpt_pool, edit_image_gpt_pool, generate_editable_file_gpt_pool, generate_image_gpt_pool, search_chatgpt_pool
 from .provider_third_party_image import generate_image_third_party, edit_image_third_party
+from .provider_psd import generate_editable_psd_native
 from .gpt_model_catalog import DEFAULT_POOL_MODEL, get_gpt_model_catalog, normalize_model_id, resolve_route_model
 from .image_resolution import build_resolution_metadata, normalize_actual_sizes
 from .managed_codex_oauth import (
@@ -242,9 +243,11 @@ from .video_runtime import (
     collect_component_status as collect_video_runtime_component_status,
     collect_runtime_capabilities as collect_video_runtime_capabilities,
     collect_runtime_status as collect_video_runtime_status,
+    collect_supervisor_status as collect_video_supervisor_status,
     download_runtime_result as download_video_runtime_result,
     get_runtime_job as get_video_runtime_job,
     normalize_runtime_base_url,
+    normalize_supervisor_base_url,
     start_local_runtime as start_local_video_runtime,
     submit_runtime_job as submit_video_runtime_job,
 )
@@ -5826,6 +5829,7 @@ def _collect_system_diagnostics():
             "runtime_mode": video_inference_cfg.get("runtime_mode", "auto"),
             "local_base_url": (video_inference_cfg.get("local") or {}).get("base_url", ""),
             "lan_base_url": (video_inference_cfg.get("lan") or {}).get("base_url", ""),
+            "manager_base_url": video_inference_cfg.get("manager_base_url", ""),
             "lan_api_key_configured": bool((video_inference_cfg.get("lan") or {}).get("api_key_configured")),
             "environment_managed": bool(video_inference_cfg.get("environment_managed")),
             "component": collect_video_runtime_component_status(),
@@ -6136,6 +6140,9 @@ def _sanitize_system_settings_patch(payload):
     runtime_mode = _clean_text(video_inference_data.get("runtime_mode"), max_len=16).lower()
     if runtime_mode in {"auto", "local", "lan"}:
         video_inference["runtime_mode"] = runtime_mode
+    if "manager_base_url" in video_inference_data:
+        raw_manager_url = _clean_text(video_inference_data.get("manager_base_url"), max_len=2048)
+        video_inference["manager_base_url"] = normalize_supervisor_base_url(raw_manager_url, allow_empty=True)
 
     video_local = _settings_dict(video_inference.get("local")).copy()
     video_local_data = _settings_dict(video_inference_data.get("local"))
@@ -7313,6 +7320,10 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
             if not self.require_auth():
                 return
             self.handle_video_runtime_status(parsed)
+        elif path == '/api/video/supervisor/status':
+            if not self.require_auth():
+                return
+            self.handle_video_supervisor_status(parsed)
         elif path == '/api/video/capabilities':
             if not self.require_auth():
                 return
@@ -7532,6 +7543,10 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
             if not self.require_auth():
                 return
             self.handle_delete_failed()
+        elif path.startswith('/api/agent/runs/'):
+            if not self.require_auth():
+                return
+            self.handle_agent_run_delete(parsed)
         elif path.startswith('/api/assets/sets/'):
             if not self.require_auth():
                 return
@@ -7603,6 +7618,10 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
             if not self.require_auth():
                 return
             self.handle_video_runtime_test()
+        elif path == '/api/video/supervisor/test':
+            if not self.require_auth():
+                return
+            self.handle_video_supervisor_test()
         elif path == '/api/video/runtime/start':
             if not self.require_auth():
                 return
@@ -7933,6 +7952,17 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
                 events_since=events_since,
                 event_limit=event_limit,
             ))
+        except Exception as error:
+            self._send_agent_error(error)
+
+    def handle_agent_run_delete(self, parsed):
+        """Permanently delete one inactive Agent run and its audit events."""
+        try:
+            parts = self._agent_run_route_parts(parsed)
+            if len(parts) != 4 or parts[:3] != ['api', 'agent', 'runs'] or not parts[3]:
+                self.send_json({"ok": False, "error": "Agent 运行路径不存在"}, 404)
+                return
+            self.send_json(get_agent_runtime().delete_run(parts[3]))
         except Exception as error:
             self._send_agent_error(error)
 
@@ -8653,7 +8683,7 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
             gpt_provider_route = _coerce_gpt_provider_route(
                 data.get('gpt_provider_route', data.get('gptProviderRoute', data.get('provider_route', data.get('providerRoute'))))
             )
-            if gpt_task_type != 'image':
+            if gpt_task_type == 'ppt':
                 gpt_provider_route = 'chatgpt_pool'
             main_model = _coerce_gpt_main_model(data.get('main_model', data.get('mainModel')))
             reasoning_effort = _coerce_gpt_reasoning_effort(data.get('reasoning_effort', data.get('reasoningEffort')))
@@ -9382,6 +9412,16 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
             print(f"❌ H3 Runtime 状态读取失败：{e}")
             self.send_json({"ok": False, "online": False, "error": str(e)}, 500)
 
+    def handle_video_supervisor_status(self, parsed=None):
+        """Return the configured H3 Supervisor address and optional health probe."""
+        try:
+            query = urllib.parse.parse_qs(parsed.query) if parsed else {}
+            probe = _coerce_bool((query.get("probe") or ["0"])[0], False)
+            self.send_json(collect_video_supervisor_status(probe=probe))
+        except Exception as e:
+            print(f"❌ H3 Supervisor 状态读取失败：{e}")
+            self.send_json({"ok": False, "online": False, "error": str(e)}, 500)
+
     def handle_video_runtime_capabilities(self):
         """Return live H3 capabilities, or a bounded offline fallback."""
         try:
@@ -9395,6 +9435,19 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
         try:
             payload = self.read_json_body(max_bytes=64 * 1024)
             self.send_json(collect_video_runtime_status(probe=True, overrides=payload))
+        except ValueError as e:
+            self.send_json({"ok": False, "online": False, "error": str(e)}, 400)
+        except Exception as e:
+            self.send_json({"ok": False, "online": False, "error": str(e)}, 502)
+
+    def handle_video_supervisor_test(self):
+        """Probe an unsaved Supervisor URL from the settings panel."""
+        try:
+            payload = self.read_json_body(max_bytes=16 * 1024)
+            self.send_json(collect_video_supervisor_status(
+                probe=True,
+                base_url=payload.get("manager_base_url") if isinstance(payload, dict) else None,
+            ))
         except ValueError as e:
             self.send_json({"ok": False, "online": False, "error": str(e)}, 400)
         except Exception as e:
@@ -12771,7 +12824,7 @@ def process_gpt_editable_file_task(
     archive_enabled=True,
     telegram_enabled=True,
 ):
-    """后台线程：处理 ChatGPT Web 可编辑 PPT/PSD 文件任务。"""
+    """后台线程：PPT 走账号池，PSD 可走模型原生图片编辑线路。"""
     run_id = ''
     task_kind = 'gpt-file'
     task_provider = 'chatgpt_pool'
@@ -12784,11 +12837,39 @@ def process_gpt_editable_file_task(
         if kind == 'psd' and not images:
             raise RuntimeError('PSD 任务需要至少一张参考图')
 
+        requested_route = _coerce_gpt_provider_route(gpt_provider_route)
+        selected_route = 'chatgpt_pool' if kind == 'ppt' else requested_route
+        task_params = (get_task(task_id) or {}).get('params') or {}
+        requested_main_model = _coerce_gpt_main_model(task_params.get('main_model'))
+        requested_reasoning_effort = _coerce_gpt_reasoning_effort(task_params.get('reasoning_effort'))
+        route_resolution = resolve_route_model(
+            selected_route,
+            requested_main_model,
+            reasoning_effort=requested_reasoning_effort,
+        )
+        main_model = route_resolution.get('model') or requested_main_model
+        reasoning_effort = route_resolution.get('reasoning_effort') or requested_reasoning_effort
+        codex_unavailable_error = ''
+        if kind == 'psd' and selected_route == 'codex' and not route_resolution.get('available'):
+            codex_unavailable_error = route_resolution.get('warning') or '当前 Codex 账号没有可用的 PSD 图片编辑模型'
+            if get_chatgpt_pool_config(ensure_auth_key=True).get('enabled'):
+                selected_route = 'chatgpt_pool'
+
+        def apply_selected_route(route):
+            nonlocal selected_route, task_provider, task_route
+            selected_route = route
+            task_provider = 'third_party_image_api' if route == 'third_party_image_api' else ('codex' if route == 'codex' else 'chatgpt_pool')
+            task_route = 'third_party_image_api_edit' if route == 'third_party_image_api' else ('codex_edit' if route == 'codex' else 'chatgpt_pool_editable')
+
+        apply_selected_route(selected_route)
         _merge_task_params(task_id, {
             'task_type': kind,
             'artifact_type': kind,
-            'gpt_provider_route': 'chatgpt_pool',
+            'requested_gpt_provider_route': requested_route,
+            'gpt_provider_route': selected_route,
             'prompt_mode': prompt_mode,
+            'main_model': main_model,
+            'reasoning_effort': reasoning_effort,
             'archive_enabled': bool(archive_enabled),
             'telegram_enabled': bool(telegram_enabled),
         })
@@ -12804,15 +12885,82 @@ def process_gpt_editable_file_task(
         print(f"📄 开始处理 {kind.upper()} 文件任务：{task_id}")
         send_status_notification(task_id, f'已提交 {kind.upper()} 文件任务，请等待...', '✅')
         update_task_status(task_id, 'preparing', f'正在准备 {kind.upper()} 文件任务...', stage='preparing')
-        update_task_status(task_id, 'processing', '正在调用 ChatGPT 账号池 Web API...', stage='calling_chatgpt_pool')
-        _append_task_route_trace(task_id, 'chatgpt_pool_editable', 'started', f'正在生成 {kind.upper()} 文件')
-        _record_generation_event(task_id, 'provider_call_started', f'开始调用 ChatGPT 账号池生成 {kind.upper()} 文件', stage='calling_chatgpt_pool', payload={'provider': task_provider, 'route': task_route, 'artifact_type': kind})
+        if codex_unavailable_error:
+            _append_task_route_trace(task_id, 'codex_edit', 'skipped', codex_unavailable_error)
+            if selected_route != 'chatgpt_pool':
+                raise RuntimeError(codex_unavailable_error)
 
-        result = generate_editable_file_gpt_pool(kind=kind, prompt=prompt, base64_images=images, task_id=task_id)
+        provider_labels = {
+            'codex': '本地 Codex 原生图片能力',
+            'third_party_image_api': '第三方原生图片 API',
+            'chatgpt_pool': 'ChatGPT 账号池 Web API',
+        }
+
+        def call_selected_provider():
+            label = provider_labels[selected_route]
+            stage = 'calling_chatgpt_pool' if selected_route == 'chatgpt_pool' else ('calling_third_party_image_api' if selected_route == 'third_party_image_api' else 'calling_gpt_edit')
+            update_task_status(task_id, 'processing', f'正在调用 {label}...', stage=stage)
+            _append_task_route_trace(task_id, task_route, 'started', f'正在生成 {kind.upper()} 文件')
+            _record_generation_event(
+                task_id,
+                'provider_call_started',
+                f'开始调用 {label} 生成 {kind.upper()} 文件',
+                stage=stage,
+                payload={'provider': task_provider, 'route': task_route, 'artifact_type': kind},
+            )
+            if selected_route == 'chatgpt_pool':
+                return generate_editable_file_gpt_pool(kind=kind, prompt=prompt, base64_images=images, task_id=task_id)
+            provider_env = None
+            codex_auth_source = ''
+            if selected_route == 'codex':
+                provider_env, codex_auth_source = _resolve_codex_provider_env()
+            native_result = generate_editable_psd_native(
+                route=selected_route,
+                prompt=prompt,
+                base64_images=images,
+                ratio=_coerce_image_ratio(task_params.get('ratio'), '1:1'),
+                resolution=_coerce_gpt_resolution(task_params.get('resolution')),
+                quality='high',
+                moderation=_coerce_gpt_moderation(task_params.get('moderation', 'auto')),
+                prompt_mode=prompt_mode,
+                main_model=main_model,
+                reasoning_effort=reasoning_effort,
+                total_timeout_seconds=_coerce_gpt_provider_total_timeout(None),
+                on_provider_wait=_make_gpt_provider_wait_callback(task_id),
+                progress_callback=_make_third_party_download_progress_callback(task_id),
+                provider_env=provider_env,
+            )
+            if codex_auth_source:
+                native_result['codex_auth_source'] = codex_auth_source
+            if native_result.get('success'):
+                _annotate_gpt_route_result(
+                    native_result,
+                    route_resolution,
+                    requested_route=requested_route,
+                    requested_model=requested_main_model,
+                    requested_reasoning_effort=requested_reasoning_effort,
+                )
+            return native_result
+
+        result = call_selected_provider()
+        if not result.get('success') and kind == 'psd' and selected_route == 'codex':
+            primary_error = result.get('error') or 'Codex PSD 生成失败'
+            _append_task_route_trace(task_id, task_route, 'failed', primary_error)
+            pool_cfg = get_chatgpt_pool_config(ensure_auth_key=True)
+            if pool_cfg.get('enabled'):
+                update_task_status(task_id, 'fallback_running', 'Codex PSD 生成失败，正在切换账号池托底...', stage='fallback_running')
+                send_status_notification(task_id, 'Codex PSD 生成失败，切换账号池托底中...', '🛟')
+                apply_selected_route('chatgpt_pool')
+                _merge_task_params(task_id, {
+                    'gpt_provider_route': selected_route,
+                    'psd_fallback_from': 'codex',
+                    'psd_primary_error': str(primary_error)[:800],
+                })
+                result = call_selected_provider()
         if not result.get('success'):
-            error = result.get('error') or 'ChatGPT 账号池可编辑文件任务失败'
-            _append_task_route_trace(task_id, 'chatgpt_pool_editable', 'failed', error)
-            raise RuntimeError(_format_gpt_pool_error(error))
+            error = result.get('error') or f'{provider_labels[selected_route]}可编辑文件任务失败'
+            _append_task_route_trace(task_id, task_route, 'failed', error)
+            raise RuntimeError(_format_gpt_pool_error(error) if selected_route == 'chatgpt_pool' else _format_gpt_provider_error(error))
         if _is_task_canceled(task_id):
             update_task(task_id, 'canceled', stage='canceled', progress_text='任务已取消')
             return
@@ -12829,12 +12977,15 @@ def process_gpt_editable_file_task(
             strict_psd_validation=(kind == 'psd'),
         )
         _record_generation_event(task_id, 'artifact_saved', f'{kind.upper()} 文件产物已保存', stage='saving', payload={'artifact_type': kind, 'result_count': len(manifest.get("result_files") or [])})
-        _append_task_route_trace(task_id, 'chatgpt_pool_editable', 'succeeded', f'{kind.upper()} 文件生成成功')
+        _append_task_route_trace(task_id, task_route, 'succeeded', f'{kind.upper()} 文件生成成功')
         _merge_task_params(task_id, {
             'file_manifest': manifest,
             'file_manifest_url': manifest.get('manifest_url'),
             'editable_preview_status': (manifest.get('preview') or {}).get('status'),
             'editable_artifact_type': kind,
+            'gpt_provider_route': selected_route,
+            'codex_auth_source': result.get('codex_auth_source'),
+            'generated_transparent_path': result.get('generated_transparent_path'),
         })
 
         result_files = manifest.get('result_files') or []

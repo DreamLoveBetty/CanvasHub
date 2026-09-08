@@ -1,0 +1,297 @@
+/* Desktop motion normalization: ordinary controls and spatial surfaces only.
+   Theme reveal, prompt genie, image-group liquid/sort and live canvas gestures
+   remain owned by their component modules and are handled in phase 5. */
+
+/* The legacy prompt drawer assigned every ordinary button a 500ms transition.
+   Keep the genie handle component-owned, but make its actual controls respond
+   with the same timing as buttons elsewhere in the desktop application. */
+body.desk-app[data-theme] .desk-prompt-drawer button:not(.desk-prompt-drawer__handle) {
+  transition:
+    var(--desk-motion-control-transition),
+    var(--desk-motion-material-transition);
+}
+
+/* Compact icon systems animate only properties they actually change. */
+body.desk-app[data-theme] :where(
+  .desk-rail__glyph,
+  .desk-rail__glyph svg,
+  .desk-rail-icon__frame,
+  .desk-rail-icon__cursor,
+  .desk-rail-icon__flow,
+  .desk-rail-icon__image,
+  .desk-rail-icon__play,
+  .desk-rail-icon__monitor,
+  .desk-rail-icon__cog,
+  .desk-node-palette__icon,
+  .desk-node-palette svg,
+  .desk-node-icon__frame,
+  .desk-node-icon__enter,
+  .desk-node-icon__file-front,
+  .desk-node-icon__file-back,
+  .desk-node-icon__image-body,
+  .desk-node-icon__plus,
+  .desk-node-icon__upscale-arrow,
+  .desk-node-icon__upscale-frame,
+  .desk-node-icon__pose-body,
+  .desk-node-icon__scan-frame,
+  .desk-node-icon__text-lines,
+  .desk-node-icon__layout-frame,
+  .desk-node-icon__layout-panels
+) {
+  transition: var(--desk-motion-icon-transition);
+}
+
+/* Reversible popovers that stay mounted while their state class changes. */
+body.desk-app[data-theme] :where(
+  .desk-workflow-dock-panel,
+  .desk-progress-float
+) {
+  transition:
+    opacity var(--desk-motion-duration-normal) var(--desk-motion-ease-exit),
+    transform var(--desk-motion-duration-normal) var(--desk-motion-ease-exit);
+}
+
+body.desk-app[data-theme] :where(
+  .desk-workflow-dock-panel.is-open,
+  .desk-progress-float.is-visible
+) {
+  transition:
+    opacity var(--desk-motion-duration-normal) var(--desk-motion-ease-enter),
+    transform var(--desk-motion-duration-slow) var(--desk-motion-ease-emphasized);
+}
+
+body.desk-app[data-theme] .desk-zoom-controls {
+  transition:
+    opacity var(--desk-motion-duration-normal) var(--desk-motion-ease-standard),
+    transform var(--desk-motion-duration-normal) var(--desk-motion-ease-interactive);
+}
+
+body.desk-app[data-theme] .desk-minimap {
+  transition:
+    height var(--desk-motion-duration-normal) var(--desk-motion-ease-standard),
+    opacity var(--desk-motion-duration-normal) var(--desk-motion-ease-standard);
+}
+
+/* Main ordinary workspaces share one enter/exit contract. Component layout,
+   surfaces and stacking stay local; only displacement and timing are unified. */
+body.desk-app[data-theme] :where(
+  .desk-gallery,
+  .desk-settings,
+  .desk-prompt-library
+) {
+  transform: translateY(var(--desk-motion-distance-md)) scale(var(--desk-motion-scale-subtle));
+  transition: var(--desk-motion-surface-exit-transition);
+}
+
+body.desk-app[data-theme] :where(
+  .desk-gallery,
+  .desk-settings,
+  .desk-prompt-library
+).is-open {
+  transform: translateY(0) scale(1);
+  transition: var(--desk-motion-surface-enter-transition);
+}
+
+/* Modal backdrops and panels use delayed visibility on exit, so repeated open
+   and close operations can reverse from the current interpolated state. */
+body.desk-app[data-theme] :where(
+  .desk-text-polish-modal,
+  .desk-gallery-preview,
+  .desk-compare,
+  .desk-pinterest-analysis-modal,
+  .desk-pinterest-split-modal
+) {
+  transition:
+    opacity var(--desk-motion-duration-normal) var(--desk-motion-ease-exit),
+    visibility 0s linear var(--desk-motion-duration-normal);
+}
+
+body.desk-app[data-theme] :where(
+  .desk-text-polish-modal,
+  .desk-gallery-preview,
+  .desk-compare,
+  .desk-pinterest-analysis-modal,
+  .desk-pinterest-split-modal
+).is-open {
+  transition:
+    opacity var(--desk-motion-duration-normal) var(--desk-motion-ease-enter),
+    visibility 0s linear 0s;
+}
+
+body.desk-app[data-theme] :where(
+  .desk-text-polish-modal__panel,
+  .desk-pinterest-analysis-modal__panel,
+  .desk-pinterest-split-modal__panel
+) {
+  transform: translateY(var(--desk-motion-distance-md)) scale(var(--desk-motion-scale-subtle));
+  transition:
+    opacity var(--desk-motion-duration-normal) var(--desk-motion-ease-exit),
+    transform var(--desk-motion-duration-normal) var(--desk-motion-ease-exit);
+}
+
+body.desk-app[data-theme] :where(
+  .desk-text-polish-modal.is-open .desk-text-polish-modal__panel,
+  .desk-pinterest-analysis-modal.is-open .desk-pinterest-analysis-modal__panel,
+  .desk-pinterest-split-modal.is-open .desk-pinterest-split-modal__panel
+) {
+  transform: translateY(0) scale(1);
+  transition:
+    opacity var(--desk-motion-duration-normal) var(--desk-motion-ease-enter),
+    transform var(--desk-motion-duration-slow) var(--desk-motion-ease-emphasized);
+}
+
+/* Custom selects stay mounted for their short exit transition. The JS module
+   finalizes `hidden` after transitionend and cancels that close on re-open. */
+body.desk-app[data-theme] .desk-select-menu {
+  visibility: hidden;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(calc(0px - var(--desk-motion-distance-md))) scale(var(--desk-motion-scale-subtle));
+  transform-origin: top center;
+  transition: var(--desk-motion-surface-exit-transition);
+}
+
+body.desk-app[data-theme] .desk-select-menu.is-above {
+  transform: translateY(var(--desk-motion-distance-md)) scale(var(--desk-motion-scale-subtle));
+  transform-origin: bottom center;
+}
+
+body.desk-app[data-theme] .desk-select-menu.is-open,
+body.desk-app[data-theme] .desk-select-menu.is-above.is-open {
+  visibility: visible;
+  pointer-events: auto;
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  transition: var(--desk-motion-surface-enter-transition);
+}
+
+body.desk-app[data-theme] .desk-agent-task-card {
+  transition:
+    background-position var(--desk-motion-duration-slow) var(--desk-motion-ease-emphasized),
+    border-color var(--desk-motion-duration-fast) var(--desk-motion-ease-standard),
+    box-shadow var(--desk-motion-duration-normal) var(--desk-motion-ease-standard),
+    transform var(--desk-motion-duration-fast) var(--desk-motion-ease-interactive);
+}
+
+body.desk-app[data-theme] .desk-agent-task-card:active:not(:disabled) {
+  transform: translateY(1px) scale(0.992);
+}
+
+body.desk-app[data-theme] .desk-agent-task-card__menu-toggle {
+  transition:
+    opacity var(--desk-motion-duration-fast) var(--desk-motion-ease-standard),
+    color var(--desk-motion-duration-fast) var(--desk-motion-ease-standard),
+    background-color var(--desk-motion-duration-fast) var(--desk-motion-ease-standard),
+    border-color var(--desk-motion-duration-fast) var(--desk-motion-ease-standard),
+    transform var(--desk-motion-duration-fast) var(--desk-motion-ease-interactive);
+}
+
+body.desk-app[data-theme] .desk-agent-task-card__menu-toggle:active:not(:disabled) {
+  transform: translateY(-50%) scale(0.94);
+}
+
+body.desk-app[data-theme] .desk-agent-task-drawer-backdrop {
+  opacity: 0;
+  transition:
+    opacity var(--desk-motion-duration-normal) var(--desk-motion-ease-exit),
+    visibility 0s linear var(--desk-motion-duration-normal);
+}
+
+body.desk-app[data-theme] .desk-agent-task-drawer-backdrop.is-open {
+  visibility: visible;
+  opacity: 1;
+  transition:
+    opacity var(--desk-motion-duration-normal) var(--desk-motion-ease-enter),
+    visibility 0s linear 0s;
+}
+
+body.desk-app[data-theme] .desk-agent-task-drawer {
+  opacity: 0;
+  transform: translate3d(var(--desk-motion-distance-md), 0, 0) scale(var(--desk-motion-scale-subtle));
+  transform-origin: right center;
+  transition:
+    opacity var(--desk-motion-duration-normal) var(--desk-motion-ease-exit),
+    transform var(--desk-motion-duration-normal) var(--desk-motion-ease-exit),
+    visibility 0s linear var(--desk-motion-duration-normal);
+}
+
+body.desk-app[data-theme] .desk-agent-task-drawer.is-open {
+  visibility: visible;
+  pointer-events: auto;
+  opacity: 1;
+  transform: translate3d(0, 0, 0) scale(1);
+  transition:
+    opacity var(--desk-motion-duration-normal) var(--desk-motion-ease-enter),
+    transform var(--desk-motion-duration-slow) var(--desk-motion-ease-emphasized),
+    visibility 0s linear 0s;
+}
+
+@keyframes desk-agent-task-menu-in {
+  from { opacity: 0; transform: translateY(-4px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes desk-agent-task-dialog-in {
+  from { opacity: 0; transform: translate(-50%, calc(-50% + 7px)) scale(0.985); }
+  to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+
+@keyframes desk-agent-task-backdrop-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+body.desk-app[data-theme] .desk-agent-task-card-menu.is-open {
+  transform-origin: top right;
+  animation: desk-agent-task-menu-in var(--desk-motion-duration-normal) var(--desk-motion-ease-enter) both;
+}
+
+body.desk-app[data-theme] .desk-agent-task-dialog.is-open {
+  animation: desk-agent-task-dialog-in var(--desk-motion-duration-slow) var(--desk-motion-ease-emphasized) both;
+}
+
+body.desk-app[data-theme] .desk-agent-task-dialog-backdrop:not([hidden]) {
+  animation: desk-agent-task-backdrop-in var(--desk-motion-duration-normal) var(--desk-motion-ease-enter) both;
+}
+
+/* Rail palette and canvas node menu use the same spatial profile. `is-closing`
+   keeps each menu rendered just long enough to complete a reversible exit. */
+body.desk-app[data-theme] .desk-node-palette:not(.desk-node-context-menu).is-open,
+body.desk-app[data-theme] .desk-node-palette:not(.desk-node-context-menu).is-closing {
+  display: grid;
+}
+
+body.desk-app[data-theme] .desk-node-palette:not(.desk-node-context-menu).is-closing,
+body.desk-app[data-theme] .desk-node-context-menu.is-closing {
+  visibility: hidden;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(calc(0px - var(--desk-motion-distance-md))) scale(var(--desk-motion-scale-subtle));
+  transition: var(--desk-motion-surface-exit-transition);
+}
+
+body.desk-app[data-theme] .desk-node-palette:not(.desk-node-context-menu).is-open,
+body.desk-app[data-theme] .desk-node-context-menu.is-open {
+  visibility: visible;
+  pointer-events: auto;
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  transition: var(--desk-motion-surface-enter-transition);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body.desk-app[data-theme] :where(
+    .desk-select-menu,
+    .desk-node-palette,
+    .desk-node-context-menu,
+    .desk-agent-task-drawer,
+    .desk-agent-task-drawer-backdrop,
+    .desk-agent-task-card-menu,
+    .desk-agent-task-dialog,
+    .desk-agent-task-dialog-backdrop
+  ) {
+    transition-duration: 0.01ms;
+    transition-delay: 0s;
+    animation-duration: 0.01ms;
+  }
+}

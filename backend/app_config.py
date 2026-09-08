@@ -58,6 +58,7 @@ DEFAULT_COMFY_TASK_TIMEOUT_SECONDS = 1800
 DEFAULT_COMFY_POLL_INTERVAL_SECONDS = 2.0
 DEFAULT_VIDEO_RUNTIME_MODE = "auto"
 DEFAULT_VIDEO_RUNTIME_LOCAL_BASE_URL = "http://127.0.0.1:8190"
+DEFAULT_VIDEO_RUNTIME_MANAGER_PORT = 8191
 DEFAULT_VIDEO_RUNTIME_COMPONENT_DIR = r"D:\Program\H3_Runtime_Server" if os.name == "nt" else ""
 DEFAULT_VIDEO_RUNTIME_START_MODE = "on_demand"
 DEFAULT_VIDEO_RUNTIME_CONNECT_TIMEOUT_SECONDS = 5.0
@@ -405,6 +406,18 @@ def get_comfy_config() -> dict[str, Any]:
     }
 
 
+def _derive_video_runtime_manager_base_url(base_url: str) -> str:
+    parsed = urllib.parse.urlparse(_as_str(base_url))
+    if parsed.scheme not in {"http", "https"} or not parsed.hostname:
+        return ""
+    hostname = parsed.hostname
+    if ":" in hostname and not hostname.startswith("["):
+        hostname = f"[{hostname}]"
+    return urllib.parse.urlunparse(
+        (parsed.scheme, f"{hostname}:{DEFAULT_VIDEO_RUNTIME_MANAGER_PORT}", "", "", "", "")
+    )
+
+
 def get_video_inference_config() -> dict[str, Any]:
     """Return private MiniMax H3 Runtime routing settings."""
     settings = load_app_settings()
@@ -422,6 +435,7 @@ def get_video_inference_config() -> dict[str, Any]:
     env_lan_url = _as_str(os.environ.get("H3_RUNTIME_LAN_URL"))
     env_api_key = _as_str(os.environ.get("H3_RUNTIME_API_KEY"))
     env_timeout = _as_str(os.environ.get("H3_RUNTIME_CONNECT_TIMEOUT_SECONDS"))
+    env_manager_url = _as_str(os.environ.get("H3_RUNTIME_MANAGER_URL"))
 
     runtime_mode = _as_str(env_mode or section.get("runtime_mode") or DEFAULT_VIDEO_RUNTIME_MODE).lower()
     if runtime_mode not in {"auto", "local", "lan"}:
@@ -433,6 +447,16 @@ def get_video_inference_config() -> dict[str, Any]:
         connect_timeout = float(env_timeout or lan.get("connect_timeout_seconds") or DEFAULT_VIDEO_RUNTIME_CONNECT_TIMEOUT_SECONDS)
     except (TypeError, ValueError):
         connect_timeout = DEFAULT_VIDEO_RUNTIME_CONNECT_TIMEOUT_SECONDS
+
+    local_base_url = _as_str(env_local_url or local.get("base_url") or DEFAULT_VIDEO_RUNTIME_LOCAL_BASE_URL).rstrip("/")
+    lan_base_url = _as_str(env_lan_url or lan.get("base_url")).rstrip("/")
+    if env_manager_url:
+        manager_base_url = env_manager_url.rstrip("/")
+    elif "manager_base_url" in section:
+        manager_base_url = _as_str(section.get("manager_base_url")).rstrip("/")
+    else:
+        manager_source_url = lan_base_url if runtime_mode != "local" and lan_base_url else local_base_url
+        manager_base_url = _derive_video_runtime_manager_base_url(manager_source_url)
 
     aspect_ratio = _as_str(defaults.get("aspect_ratio") or DEFAULT_VIDEO_ASPECT_RATIO)
     if aspect_ratio not in {"16:9", "9:16", "3:4", "4:3", "2:3", "3:2", "1:1", "21:9", "9:21"}:
@@ -463,18 +487,20 @@ def get_video_inference_config() -> dict[str, Any]:
             ("lan.base_url", env_lan_url),
             ("lan.api_key", env_api_key),
             ("lan.connect_timeout_seconds", env_timeout),
+            ("manager_base_url", env_manager_url),
         )
         if value
     ]
     return {
         "runtime_mode": runtime_mode,
+        "manager_base_url": manager_base_url,
         "local": {
-            "base_url": _as_str(env_local_url or local.get("base_url") or DEFAULT_VIDEO_RUNTIME_LOCAL_BASE_URL).rstrip("/"),
+            "base_url": local_base_url,
             "component_dir": _as_str(env_component_dir or local.get("component_dir") or DEFAULT_VIDEO_RUNTIME_COMPONENT_DIR),
             "start_mode": start_mode,
         },
         "lan": {
-            "base_url": _as_str(env_lan_url or lan.get("base_url")).rstrip("/"),
+            "base_url": lan_base_url,
             "api_key": _as_str(env_api_key or lan.get("api_key")),
             "connect_timeout_seconds": max(0.5, min(30.0, connect_timeout)),
         },

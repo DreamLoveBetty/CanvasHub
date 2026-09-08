@@ -629,6 +629,10 @@
 
   function updatePromptDrawerHandleEyes(event) {
     if (!state.open || !els.deskPromptDrawerToggle) return;
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches) {
+      resetPromptDrawerHandleEyes();
+      return;
+    }
     if (event?.pointerType && event.pointerType !== 'mouse') return;
     handleEyesPoint = { x: event.clientX, y: event.clientY };
     if (handleEyesRaf) return;
@@ -664,6 +668,25 @@
   }
 
   let promptGenieRunId = 0;
+  let promptGenieHandle = null;
+
+  function stopPromptGenieAnimation() {
+    promptGenieHandle?.cancel?.();
+    promptGenieHandle = null;
+    els.deskPromptDrawer?.classList.remove('is-genie-anim', 'is-genie-hidden');
+  }
+
+  function promptGenieConfig(drawer) {
+    const isAgent = drawer?.classList.contains('is-agent');
+    return {
+      duration: isAgent ? 320 : 500,
+      snapshot: {
+        skipHiddenSubtrees: true,
+        maxRasterWidth: isAgent ? 720 : 960,
+        maxRasterHeight: isAgent ? 280 : 360
+      }
+    };
+  }
 
   function promptDrawerCollapsedRect() {
     // 收起态：87×21 药丸，水平居中，bottom 35px（与 .desk-prompt-drawer 基础样式一致）
@@ -682,28 +705,35 @@
   async function animatePromptGenieClose(runId) {
     const drawer = els.deskPromptDrawer;
     const fx = window.DeskGenieFX;
+    const genie = promptGenieConfig(drawer);
     const panelRect = drawer.getBoundingClientRect();
-    const source = await fx.snapshotPanel(drawer, panelRect);
+    const source = await fx.snapshotPanel(drawer, panelRect, genie.snapshot);
     if (runId !== promptGenieRunId) return;
-    fx.animate({
+    let completed = false;
+    const handle = fx.animate({
       direction: 'minimize',
       source,
       targetRect: promptDrawerCollapsedRect(),
       panelRect,
+      duration: genie.duration,
       isCancelled: () => runId !== promptGenieRunId,
       onStart: () => {
         drawer.classList.add('is-genie-anim');
         applyPromptDrawerOpenState(false);
       },
       onDone: () => {
+        completed = true;
+        if (runId === promptGenieRunId) promptGenieHandle = null;
         drawer.classList.remove('is-genie-anim');
       }
     });
+    if (!completed && runId === promptGenieRunId) promptGenieHandle = handle;
   }
 
   async function animatePromptGenieOpen(runId) {
     const drawer = els.deskPromptDrawer;
     const fx = window.DeskGenieFX;
+    const genie = promptGenieConfig(drawer);
     // 先无过渡地切到展开布局并整体隐形，待快照就绪再播翘曲
     drawer.classList.add('is-genie-anim', 'is-genie-hidden');
     applyPromptDrawerOpenState(true);
@@ -713,36 +743,52 @@
       return;
     }
     const panelRect = drawer.getBoundingClientRect();
-    const source = await fx.snapshotPanel(drawer, panelRect);
+    const source = await fx.snapshotPanel(drawer, panelRect, genie.snapshot);
     if (runId !== promptGenieRunId) {
       drawer.classList.remove('is-genie-anim', 'is-genie-hidden');
       return;
     }
-    fx.animate({
+    let completed = false;
+    const handle = fx.animate({
       direction: 'open',
       source,
       targetRect: promptDrawerCollapsedRect(),
       panelRect,
+      duration: genie.duration,
       isCancelled: () => runId !== promptGenieRunId,
       onStart: () => {},
       onDone: () => {
+        completed = true;
+        if (runId === promptGenieRunId) promptGenieHandle = null;
         drawer.classList.remove('is-genie-anim', 'is-genie-hidden');
       }
     });
+    if (!completed && runId === promptGenieRunId) promptGenieHandle = handle;
   }
 
   function setOpen(open, animate = true) {
     const next = !!open;
     const fx = window.DeskGenieFX;
-    if (!animate || next === state.open || !fx?.ready?.() || !els.deskPromptDrawer) {
+    if (next === state.open && !promptGenieHandle) return;
+    const runId = ++promptGenieRunId;
+    stopPromptGenieAnimation();
+    const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
+    if (!animate || reducedMotion || !fx?.ready?.() || !els.deskPromptDrawer) {
       applyPromptDrawerOpenState(next);
       return;
     }
-    const runId = ++promptGenieRunId;
     if (next) {
-      animatePromptGenieOpen(runId);
+      animatePromptGenieOpen(runId).catch(() => {
+        if (runId !== promptGenieRunId) return;
+        applyPromptDrawerOpenState(true);
+        stopPromptGenieAnimation();
+      });
     } else {
-      animatePromptGenieClose(runId);
+      animatePromptGenieClose(runId).catch(() => {
+        if (runId !== promptGenieRunId) return;
+        applyPromptDrawerOpenState(false);
+        stopPromptGenieAnimation();
+      });
     }
   }
 
@@ -944,7 +990,8 @@
 
   function candidateCard(item, index, canApply = true, options = {}) {
     const forceExpanded = !!options.forceExpanded;
-    const expanded = forceExpanded || state.expandedCandidateId === (item.id || String(index));
+    const alwaysExpanded = forceExpanded || isH3PromptCandidate(item);
+    const expanded = alwaysExpanded || state.expandedCandidateId === (item.id || String(index));
     const applyLabel = hasTextTarget() ? '应用到文本节点' : '新建文本节点';
     const displayLanguage = forceExpanded
       ? (options.displayLanguage === 'en' ? 'en' : 'zh')
@@ -966,7 +1013,7 @@
         ${candidateAdapterMetaHtml(item)}
         <p class="desk-prompt-candidate__prompt" data-prompt-language="${escapeHtml(displayLanguage)}">${escapeHtml(displayText)}</p>
         <div>
-          ${forceExpanded ? '' : `<button type="button" data-candidate-action="toggle" data-candidate-index="${index}" aria-expanded="${expanded ? 'true' : 'false'}">${expanded ? '收起' : '展开'}</button>`}
+          ${alwaysExpanded ? '' : `<button type="button" data-candidate-action="toggle" data-candidate-index="${index}" aria-expanded="${expanded ? 'true' : 'false'}">${expanded ? '收起' : '展开'}</button>`}
           <button type="button" data-candidate-action="apply-text" data-candidate-index="${index}" ${canApply ? '' : 'disabled'}>${applyLabel}</button>
           <button type="button" data-candidate-action="copy" data-candidate-index="${index}" data-candidate-view-language="${escapeHtml(displayLanguage)}">复制</button>
           <button type="button" data-candidate-action="save-style" data-candidate-index="${index}">另存风格</button>

@@ -83,20 +83,28 @@ def _private_hostname(hostname: str) -> bool:
     return bool(address.is_loopback or address.is_private or address.is_link_local or address in carrier_grade_nat)
 
 
-def normalize_runtime_base_url(value: Any, *, allow_empty: bool = False) -> str:
+def _normalize_private_base_url(value: Any, service_name: str, *, allow_empty: bool = False) -> str:
     base_url = str(value or "").strip().rstrip("/")
     if not base_url and allow_empty:
         return ""
     parsed = urllib.parse.urlparse(base_url)
     if parsed.scheme not in {"http", "https"} or not parsed.hostname:
-        raise ValueError("H3 Runtime 地址必须是完整的 http:// 或 https:// 地址")
+        raise ValueError(f"{service_name}地址必须是完整的 http:// 或 https:// 地址")
     if parsed.username or parsed.password:
-        raise ValueError("H3 Runtime 地址不能包含用户名或密码")
+        raise ValueError(f"{service_name}地址不能包含用户名或密码")
     if parsed.path not in {"", "/"} or parsed.params or parsed.query or parsed.fragment:
-        raise ValueError("H3 Runtime 地址只能填写协议、主机和端口")
+        raise ValueError(f"{service_name}地址只能填写协议、主机和端口")
     if not _private_hostname(parsed.hostname):
-        raise ValueError("H3 Runtime 仅允许本机或局域网地址")
+        raise ValueError(f"{service_name}仅允许本机或局域网地址")
     return base_url
+
+
+def normalize_runtime_base_url(value: Any, *, allow_empty: bool = False) -> str:
+    return _normalize_private_base_url(value, "H3 Runtime ", allow_empty=allow_empty)
+
+
+def normalize_supervisor_base_url(value: Any, *, allow_empty: bool = False) -> str:
+    return _normalize_private_base_url(value, "H3 Supervisor ", allow_empty=allow_empty)
 
 
 def _merged_config(overrides: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -278,6 +286,80 @@ def collect_runtime_status(*, probe: bool = True, overrides: dict[str, Any] | No
         "error": attempts[-1]["error"] if attempts else "连接失败",
         "message": "H3 Runtime 离线",
     }
+
+
+def collect_supervisor_status(*, probe: bool = True, base_url: Any = None) -> dict[str, Any]:
+    config = get_video_inference_config()
+    configured_url = config.get("manager_base_url") if base_url is None else base_url
+    try:
+        manager_base_url = normalize_supervisor_base_url(configured_url, allow_empty=True)
+    except Exception as exc:
+        return {
+            "ok": True,
+            "online": False,
+            "checked": True,
+            "configured": bool(str(configured_url or "").strip()),
+            "base_url": "",
+            "error": _clean_error(exc),
+            "message": _clean_error(exc),
+        }
+
+    base_result = {
+        "ok": True,
+        "online": False,
+        "checked": False,
+        "configured": bool(manager_base_url),
+        "base_url": manager_base_url,
+        "manager_url": manager_base_url,
+    }
+    if not manager_base_url:
+        return {**base_result, "message": "尚未配置 H3 Supervisor 管理台地址"}
+    if not probe:
+        return {**base_result, "message": "尚未检测管理台"}
+
+    started = time.perf_counter()
+    timeout = min(float((config.get("lan") or {}).get("connect_timeout_seconds") or 5), 10.0)
+    try:
+        with _new_session() as session:
+            response = session.get(
+                f"{manager_base_url}/api/supervisor/health",
+                timeout=timeout,
+                allow_redirects=False,
+                headers={"Accept": "application/json"},
+            )
+            if response.status_code != 200:
+                raise RuntimeError(f"Supervisor health 返回 HTTP {response.status_code}")
+            if len(response.content) > 64 * 1024:
+                raise RuntimeError("Supervisor health 响应过大")
+            health = response.json() if response.content else {}
+        if not isinstance(health, dict) or health.get("service") != "h3-runtime-supervisor" or health.get("ok") is not True:
+            raise RuntimeError("目标地址未返回有效的 H3 Supervisor 健康信息")
+        return {
+            **base_result,
+            "online": True,
+            "checked": True,
+            "latency_ms": round((time.perf_counter() - started) * 1000),
+            "service": "h3-runtime-supervisor",
+            "version": str(health.get("version") or "")[:64],
+            "status": str(health.get("status") or "ok")[:32],
+            "uptime_seconds": max(0.0, float(health.get("uptime_seconds") or 0)),
+            "admin_initialized": health.get("admin_initialized") is True,
+            "checked_at": str(health.get("checked_at") or "")[:64],
+            "message": "H3 Supervisor 在线",
+        }
+    except Exception as exc:
+        if isinstance(exc, requests.Timeout):
+            error = "连接 H3 Supervisor 超时"
+        elif isinstance(exc, requests.ConnectionError):
+            error = "无法连接 H3 Supervisor"
+        else:
+            error = _clean_error(exc)
+        return {
+            **base_result,
+            "checked": True,
+            "error": error,
+            "message": "H3 Supervisor 离线",
+        }
 
 
 def collect_runtime_capabilities() -> dict[str, Any]:

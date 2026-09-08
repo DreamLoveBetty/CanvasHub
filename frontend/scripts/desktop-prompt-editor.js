@@ -29,6 +29,13 @@
     let mentionRange = null;
     let mentionQuery = '';
 
+    function resetMentionMenuPosition() {
+      const menu = options.menu;
+      if (!menu) return;
+      ['left', 'top', 'right', 'bottom'].forEach(property => menu.style.removeProperty(property));
+      delete menu.dataset.mentionAnchored;
+    }
+
     function dispatchInput() {
       root.dispatchEvent(new CustomEvent('prompt-editor:change', { bubbles: true }));
       options.onChange?.(getText());
@@ -37,6 +44,7 @@
     function clearMention() {
       mentionRange = null;
       mentionQuery = '';
+      resetMentionMenuPosition();
     }
 
     function closeMention() {
@@ -44,12 +52,95 @@
       options.onMentionClose?.();
     }
 
-    function selectionRange() {
+    function selectionRange(options = {}) {
       const selection = window.getSelection?.();
       if (!selection || !selection.rangeCount) return null;
       const range = selection.getRangeAt(0);
-      if (!range.collapsed || !isInside(root, range.startContainer)) return null;
+      if ((!options.allowExpanded && !range.collapsed)
+        || !isInside(root, range.startContainer)
+        || !isInside(root, range.endContainer)) return null;
       return range;
+    }
+
+    function mentionAnchorRect() {
+      if (!mentionRange) return null;
+      const anchorRange = mentionRange.cloneRange();
+      const container = anchorRange.startContainer;
+      if (container?.nodeType === Node.TEXT_NODE && anchorRange.startOffset < (container.nodeValue || '').length) {
+        anchorRange.setEnd(container, anchorRange.startOffset + 1);
+      }
+      try {
+        const rect = anchorRange.getBoundingClientRect();
+        if (rect && (rect.width || rect.height)) return rect;
+      } catch (error) {}
+      try {
+        return mentionRange.getBoundingClientRect();
+      } catch (error) {
+        return null;
+      }
+    }
+
+    function positionMentionMenu() {
+      const menu = options.menu;
+      if (!menu || menu.hidden || !mentionRange) return;
+      const anchorRect = mentionAnchorRect();
+      const offsetParent = menu.offsetParent || menu.parentElement;
+      if (!anchorRect || !offsetParent) return;
+
+      const parentRect = offsetParent.getBoundingClientRect();
+      const editorRect = root.getBoundingClientRect();
+      const menuRect = menu.getBoundingClientRect();
+      const menuWidth = menuRect.width || menu.offsetWidth || 0;
+      const menuHeight = menuRect.height || menu.offsetHeight || 0;
+      const gap = 6;
+      const inset = 4;
+      const minLeft = editorRect.left - parentRect.left + inset;
+      const maxLeft = Math.max(minLeft, editorRect.right - parentRect.left - menuWidth - inset);
+      const left = Math.max(minLeft, Math.min(maxLeft, anchorRect.left - parentRect.left));
+      const below = anchorRect.bottom - parentRect.top + gap;
+      const above = anchorRect.top - parentRect.top - menuHeight - gap;
+      const editorBottom = editorRect.bottom - parentRect.top - inset;
+      const top = below + menuHeight <= editorBottom ? below : above;
+
+      menu.style.left = `${Math.round(left)}px`;
+      menu.style.top = `${Math.round(top)}px`;
+      menu.style.right = 'auto';
+      menu.style.bottom = 'auto';
+      menu.dataset.mentionAnchored = 'true';
+    }
+
+    function clipboardPlainText(clipboardData) {
+      if (!clipboardData) return null;
+      const types = Array.from(clipboardData.types || []);
+      const plainText = clipboardData.getData('text/plain');
+      if (plainText || types.includes('text/plain')) return plainText;
+      const html = clipboardData.getData('text/html');
+      if (!html && !types.includes('text/html')) return null;
+      const parsed = new DOMParser().parseFromString(html, 'text/html');
+      return serialize(parsed.body)
+        .replace(/\u00a0/g, ' ')
+        .replace(/[ \t]+\n/g, '\n')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim();
+    }
+
+    function insertPlainText(text = '') {
+      const cleanText = String(text || '')
+        .replace(/\r\n?/g, '\n')
+        .replace(/\u0000/g, '');
+      root.focus({ preventScroll: true });
+      const range = selectionRange({ allowExpanded: true });
+      const textNode = document.createTextNode(cleanText);
+      if (range) {
+        range.deleteContents();
+        range.insertNode(textNode);
+      } else {
+        root.append(textNode);
+      }
+      placeCaretAfter(textNode);
+      clearMention();
+      detectMention();
+      dispatchInput();
     }
 
     function detectMention() {
@@ -76,6 +167,7 @@
       mentionRange = nextRange;
       mentionQuery = match[2] || '';
       options.onMention?.({ query: mentionQuery, editor: api });
+      positionMentionMenu();
     }
 
     function chipHtml(item = {}) {
@@ -169,6 +261,7 @@
           return;
         }
         if (child.nodeType !== Node.ELEMENT_NODE) return;
+        if (/^(SCRIPT|STYLE|NOSCRIPT|TEMPLATE)$/.test(child.tagName)) return;
         if (child.matches?.('.desk-prompt-editor__image')) {
           const id = child.dataset.promptImageId || '';
           output += id ? `${id} ` : '';
@@ -179,7 +272,8 @@
           return;
         }
         output += serialize(child);
-        if (/^(DIV|P)$/.test(child.tagName) && !output.endsWith('\n')) output += '\n';
+        if (/^(ADDRESS|ARTICLE|BLOCKQUOTE|DD|DIV|DL|DT|FIGCAPTION|FIGURE|FOOTER|H[1-6]|HEADER|LI|MAIN|NAV|OL|P|PRE|SECTION|TABLE|TR|UL)$/.test(child.tagName)
+          && !output.endsWith('\n')) output += '\n';
       });
       return output;
     }
@@ -276,8 +370,16 @@
       detectMention();
       dispatchInput();
     });
+    root.addEventListener('paste', event => {
+      const text = clipboardPlainText(event.clipboardData);
+      event.preventDefault();
+      if (text === null) return;
+      insertPlainText(text);
+    });
     root.addEventListener('keyup', detectMention);
     root.addEventListener('mouseup', detectMention);
+    root.addEventListener('scroll', positionMentionMenu, { passive: true });
+    window.addEventListener('resize', positionMentionMenu, { passive: true });
     root.addEventListener('keydown', event => {
       if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
         event.preventDefault();
@@ -309,6 +411,8 @@
       getText,
       hasMention: () => !!mentionRange,
       insertAttachment,
+      insertPlainText,
+      positionMentionMenu,
       removeAttachment,
       setAttachments,
       setDocument,

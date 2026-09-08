@@ -1,0 +1,441 @@
+/*
+ * Phase 6 Settings + Auth theme adapter.
+ *
+ * Panel positioning, tab expansion, form geometry, account-pool behavior,
+ * loading feedback, the settings help slide, and the auth flow remain
+ * component-owned. Shared fields and command buttons remain controls-owned.
+ * This layer maps only theme-dependent paint to root tokens.
+ */
+
+body.desk-app[data-theme] :is(
+  .desk-settings,
+  .desk-settings-info-tip
+) {
+  --desk-ink: var(--desk-settings-ink);
+  --desk-muted: var(--desk-settings-muted-ink);
+  --desk-blue: var(--desk-settings-accent-ink);
+  color-scheme: var(--desk-settings-color-scheme);
+}
+
+body.desk-app[data-theme] .desk-settings {
+  color: var(--desk-settings-ink);
+  background: var(--desk-settings-panel-background);
+  border-color: var(--desk-settings-panel-border);
+  box-shadow: var(--desk-settings-panel-shadow);
+}
+
+body.desk-app[data-theme] :is(
+  .desk-settings__title h2,
+  .desk-settings-card h3,
+  .desk-settings-kv strong,
+  .desk-settings-path strong,
+  .desk-settings-form__section-title strong,
+  .desk-settings-account__main strong,
+  .desk-settings-details summary span,
+  .desk-comfy-workflow-editor__heading strong
+) {
+  color: var(--desk-settings-ink);
+}
+
+body.desk-app[data-theme] .desk-settings__version {
+  color: var(--desk-settings-version-ink);
+}
+
+body.desk-app[data-theme] .desk-settings-tabs {
+  background: var(--desk-settings-tabs-background);
+  border-color: var(--desk-settings-tabs-border);
+  box-shadow: var(--desk-settings-tabs-shadow);
+}
+
+body.desk-app[data-theme] :where(.desk-settings-tabs button) {
+  color: var(--desk-settings-tabs-ink);
+}
+
+body.desk-app[data-theme] :where(.desk-settings-tabs .desk-settings-tabs__toggle) {
+  color: var(--desk-settings-tabs-toggle-ink);
+}
+
+body.desk-app[data-theme] .desk-settings__summary span {
+  color: var(--desk-settings-summary-ink);
+  background: var(--desk-settings-summary-background);
+  border-color: var(--desk-settings-summary-border);
+  box-shadow: var(--desk-settings-summary-shadow);
+}
+
+body.desk-app[data-theme] .desk-settings__summary span.is-ok {
+  color: var(--desk-settings-summary-ok-ink);
+  background: var(--desk-settings-summary-ok-background);
+  border-color: var(--desk-settings-summary-ok-border);
+}
+
+body.desk-app[data-theme] .desk-settings__summary span.is-warn {
+  color: var(--desk-settings-summary-warn-ink);
+  background: var(--desk-settings-summary-warn-background);
+  border-color: var(--desk-settings-summary-warn-border);
+}
+
+body.desk-app[data-theme] .desk-settings-card {
+  background: var(--desk-settings-card-background);
+  border-color: var(--desk-settings-card-border);
+  box-shadow: var(--desk-settings-card-shadow);
+}
+
+body.desk-app[data-theme] .desk-settings-dot {
+  background: var(--desk-settings-ok-dot);
+  box-shadow: var(--desk-settings-ok-dot-shadow);
+}
+
+body.desk-app[data-theme] .desk-settings-card.is-warn .desk-settings-dot {
+  background: var(--desk-settings-warn-dot);
+  box-shadow: var(--desk-settings-warn-dot-shadow);
+}
+
+body.desk-app[data-theme] .desk-settings-canvas-interaction {
+  background: var(--desk-settings-inline-background);
+  border-color: var(--desk-settings-inline-border);
+  box-shadow: var(--desk-settings-inline-shadow);
+}
+
+body.desk-app[data-theme] .desk-settings-canvas-interaction__segment {
+  background: var(--desk-settings-segment-background);
+  border-color: var(--desk-settings-segment-border);
+  box-shadow: var(--desk-settings-segment-shadow);
+}
+
+body.desk-app[data-theme] :where(.desk-settings-canvas-interaction__segment button) {
+  color: var(--desk-settings-segment-ink);
+}
+
+body.desk-app[data-theme] :is(
+  .desk-settings-canvas-interaction__label,
+  .desk-settings-kv,
+  .desk-settings-path,
+  .desk-settings-form label,
+  .desk-settings-secret-field,
+  .desk-settings-form__section-title span,
+  .desk-settings-details summary em,
+  .desk-settings-account__meta,
+  .desk-comfy-settings-library__meta,
+  .desk-comfy-workflow-editor__heading small,
+  .desk-comfy-workflow-editor__heading span,
+  .desk-comfy-thumbnail-field small,
+  .desk-comfy-service-status,
+  .desk-comfy-settings-workflow__copy small,
+  .desk-comfy-settings-workflow__state
+) {
+  color: var(--desk-settings-muted-ink);
+}
+
+body.desk-app[data-theme] .desk-settings-path {
+  background: var(--desk-settings-path-background);
+  border-color: var(--desk-settings-path-border);
+  box-shadow: var(--desk-settings-path-shadow);
+}
+
+body.desk-app[data-theme] :is(
+  .desk-settings-path em,
+  .desk-settings-account__main span
+) {
+  color: var(--desk-settings-badge-ok-ink);
+  background: var(--desk-settings-badge-ok-background);
+}
+
+body.desk-app[data-theme] :is(
+  .desk-settings-path.is-warn em,
+  .desk-settings-account.is-warn .desk-settings-account__main span
+) {
+  color: var(--desk-settings-badge-warn-ink);
+  background: var(--desk-settings-badge-warn-background);
+}
+
+body.desk-app[data-theme] :where(
+  .desk-settings-form input,
+  .desk-settings-textarea
+) {
+  color: var(--desk-settings-field-ink);
+  background: var(--desk-settings-field-background);
+  border-color: var(--desk-settings-field-border);
+  box-shadow: var(--desk-settings-field-shadow);
+}
+
+body.desk-app[data-theme] .desk-settings-form input[type="checkbox"] {
+  accent-color: var(--desk-settings-checkbox-accent);
+}
+
+body.desk-app[data-theme] .desk-settings-secret-clear {
+  color: var(--desk-settings-danger-control-ink);
+  background: var(--desk-settings-danger-control-background);
+  border-color: var(--desk-settings-danger-control-border);
+  box-shadow: var(--desk-settings-danger-control-shadow);
+}
+
+body.desk-app[data-theme] .desk-settings-secret-clear:hover {
+  color: var(--desk-settings-danger-control-hover-ink);
+  background: var(--desk-settings-danger-control-hover-background);
+  border-color: var(--desk-settings-danger-control-hover-border);
+  box-shadow: var(--desk-settings-danger-control-hover-shadow);
+}
+
+body.desk-app[data-theme] .desk-settings-form__hint {
+  color: var(--desk-settings-hint-ink);
+}
+
+body.desk-app[data-theme] .desk-settings-pinterest-status {
+  color: var(--desk-settings-pinterest-warn-ink);
+  background: var(--desk-settings-pinterest-warn-background);
+  border-color: var(--desk-settings-pinterest-warn-border);
+}
+
+body.desk-app[data-theme] .desk-settings-pinterest-status > span {
+  background: var(--desk-settings-pinterest-warn-dot);
+}
+
+body.desk-app[data-theme] .desk-settings-pinterest-status.is-ok {
+  color: var(--desk-settings-pinterest-ok-ink);
+  background: var(--desk-settings-pinterest-ok-background);
+  border-color: var(--desk-settings-pinterest-ok-border);
+}
+
+body.desk-app[data-theme] .desk-settings-pinterest-status.is-ok > span {
+  background: var(--desk-settings-pinterest-ok-dot);
+}
+
+body.desk-app[data-theme] .desk-settings-form__activity {
+  color: var(--desk-settings-activity-ink);
+  background: var(--desk-settings-activity-background);
+  border-color: var(--desk-settings-activity-border);
+}
+
+body.desk-app[data-theme] :is(
+  .desk-settings-form__actions button.is-done,
+  .desk-settings-account__actions button.is-done
+) {
+  color: var(--desk-settings-done-ink);
+  background: var(--desk-settings-done-background);
+  border-color: var(--desk-settings-done-border);
+}
+
+body.desk-app[data-theme] .desk-settings-pool-toolbar {
+  background: var(--desk-settings-pool-toolbar-background);
+  border-color: var(--desk-settings-pool-toolbar-border);
+  box-shadow: var(--desk-settings-pool-toolbar-shadow);
+}
+
+body.desk-app[data-theme] .desk-settings-pool-summary span {
+  color: var(--desk-settings-pool-chip-ink);
+  background: var(--desk-settings-pool-chip-background);
+  border-color: var(--desk-settings-pool-chip-border);
+  box-shadow: var(--desk-settings-pool-chip-shadow);
+}
+
+body.desk-app[data-theme] .desk-settings-pool-summary span.is-ok {
+  color: var(--desk-settings-pool-chip-ok-ink);
+  background: var(--desk-settings-pool-chip-ok-background);
+  border-color: var(--desk-settings-pool-chip-ok-border);
+}
+
+body.desk-app[data-theme] .desk-settings-pool-summary span.is-warn {
+  color: var(--desk-settings-pool-chip-warn-ink);
+  background: var(--desk-settings-pool-chip-warn-background);
+  border-color: var(--desk-settings-pool-chip-warn-border);
+}
+
+body.desk-app[data-theme] .desk-settings-pool-activity {
+  color: var(--desk-settings-pool-activity-ink);
+  background: var(--desk-settings-pool-activity-background);
+  border-color: var(--desk-settings-pool-activity-border);
+  box-shadow: var(--desk-settings-pool-activity-shadow);
+}
+
+body.desk-app[data-theme] .desk-settings-pool-activity.is-working {
+  color: var(--desk-settings-pool-working-ink);
+  background: var(--desk-settings-pool-working-background);
+  border-color: var(--desk-settings-pool-working-border);
+}
+
+body.desk-app[data-theme] .desk-settings-pool-activity.is-success {
+  color: var(--desk-settings-pool-success-ink);
+  background: var(--desk-settings-pool-success-background);
+  border-color: var(--desk-settings-pool-success-border);
+}
+
+body.desk-app[data-theme] .desk-settings-pool-activity.is-warn {
+  color: var(--desk-settings-pool-warn-ink);
+  background: var(--desk-settings-pool-warn-background);
+  border-color: var(--desk-settings-pool-warn-border);
+}
+
+body.desk-app[data-theme] .desk-settings-pool-activity.is-error {
+  color: var(--desk-settings-pool-error-ink);
+  background: var(--desk-settings-pool-error-background);
+  border-color: var(--desk-settings-pool-error-border);
+}
+
+body.desk-app[data-theme] .desk-settings-details {
+  background: var(--desk-settings-details-background);
+  border-color: var(--desk-settings-details-border);
+  box-shadow: var(--desk-settings-details-shadow);
+}
+
+body.desk-app[data-theme] .desk-settings-details summary::after {
+  color: var(--desk-settings-muted-ink);
+}
+
+body.desk-app[data-theme] .desk-settings-details summary span {
+  color: var(--desk-settings-details-summary-ink);
+}
+
+body.desk-app[data-theme] .desk-settings-account {
+  background: var(--desk-settings-account-background);
+  border-color: var(--desk-settings-account-border);
+  box-shadow: var(--desk-settings-account-shadow);
+}
+
+body.desk-app[data-theme] .desk-settings-account.is-warn {
+  border-color: var(--desk-settings-account-warn-border);
+}
+
+body.desk-app[data-theme] .desk-settings-account__error {
+  color: var(--desk-settings-error-ink);
+}
+
+body.desk-app[data-theme] .desk-settings-empty {
+  color: var(--desk-settings-empty-ink);
+  background: var(--desk-settings-empty-background);
+  border-color: var(--desk-settings-empty-border);
+  box-shadow: var(--desk-settings-empty-shadow);
+}
+
+/* ComfyUI settings cards stay in this adapter only when hosted by Settings. */
+body.desk-app[data-theme] .desk-settings .desk-comfy-settings-workflow {
+  color: var(--desk-settings-ink);
+  background: var(--desk-settings-comfy-card-background);
+  border-color: var(--desk-settings-comfy-card-border);
+  box-shadow: var(--desk-settings-comfy-card-shadow);
+}
+
+body.desk-app[data-theme] .desk-settings .desk-comfy-settings-workflow:hover {
+  color: var(--desk-settings-comfy-card-hover-ink);
+  background: var(--desk-settings-comfy-card-hover-background);
+  border-color: var(--desk-settings-comfy-card-hover-border);
+}
+
+body.desk-app[data-theme] .desk-settings .desk-comfy-settings-workflow.is-selected {
+  background: var(--desk-settings-comfy-card-selected-background);
+  border-color: var(--desk-settings-comfy-card-selected-border);
+  box-shadow: var(--desk-settings-comfy-card-selected-shadow);
+}
+
+body.desk-app[data-theme] .desk-settings .desk-comfy-settings-workflow__thumb {
+  background: var(--desk-settings-comfy-thumb-background);
+}
+
+body.desk-app[data-theme] .desk-settings .desk-comfy-workflow-placeholder i {
+  background: var(--desk-settings-comfy-placeholder-fill);
+}
+
+body.desk-app[data-theme] .desk-settings .desk-comfy-workflow-editor {
+  border-color: var(--desk-settings-comfy-divider);
+}
+
+body.desk-app[data-theme] .desk-settings .desk-comfy-parameter-panel {
+  background: var(--desk-settings-comfy-panel-background);
+  border-color: var(--desk-settings-comfy-panel-border);
+}
+
+body.desk-app[data-theme] .desk-settings .desk-comfy-parameter-group + .desk-comfy-parameter-group {
+  border-color: var(--desk-settings-comfy-divider);
+}
+
+body.desk-app[data-theme] .desk-settings .desk-comfy-service-status {
+  background: var(--desk-settings-comfy-status-background);
+}
+
+body.desk-app[data-theme] .desk-settings .desk-comfy-service-status span {
+  background: var(--desk-settings-comfy-status-warn-dot);
+}
+
+body.desk-app[data-theme] .desk-settings .desk-comfy-service-status.is-online span {
+  background: var(--desk-settings-comfy-status-ok-dot);
+}
+
+/* The settings help card keeps its slide motion; only its glass paint changes. */
+body.desk-app[data-theme] .desk-settings-info-tip {
+  color: var(--desk-settings-info-ink);
+  background: var(--desk-settings-info-background);
+  border-color: var(--desk-settings-info-border);
+  box-shadow: var(--desk-settings-info-shadow);
+}
+
+body.desk-app[data-theme] .desk-settings-info-tip::before {
+  background: var(--desk-settings-info-overlay-background);
+}
+
+body.desk-app[data-theme] .desk-settings-info-tip .desk-status-tip__head strong {
+  color: var(--desk-settings-info-heading-ink);
+}
+
+body.desk-app[data-theme] .desk-settings-info-tip .desk-status-tip__head span {
+  color: var(--desk-settings-info-muted-ink);
+}
+
+body.desk-app[data-theme] .desk-settings-info-tip .desk-status-tip__summary span {
+  color: var(--desk-settings-info-summary-label-ink);
+}
+
+body.desk-app[data-theme] .desk-settings-info-tip .desk-status-tip__head button {
+  color: var(--desk-settings-info-control-ink);
+  background: var(--desk-settings-info-control-background);
+  border-color: var(--desk-settings-info-control-border);
+  box-shadow: var(--desk-settings-info-control-shadow);
+}
+
+body.desk-app[data-theme] .desk-settings-info-tip .desk-status-tip__summary {
+  background: var(--desk-settings-info-summary-background);
+  border-color: var(--desk-settings-info-summary-border);
+  box-shadow: var(--desk-settings-info-summary-shadow);
+}
+
+body.desk-app[data-theme] .desk-settings-info-tip .desk-status-tip__summary strong {
+  color: var(--desk-settings-info-summary-strong-ink);
+}
+
+body.desk-app[data-theme] .desk-settings-info-tip__section {
+  background: var(--desk-settings-info-section-background);
+  border-color: var(--desk-settings-info-section-border);
+  box-shadow: var(--desk-settings-info-section-shadow);
+}
+
+body.desk-app[data-theme] .desk-settings-info-tip__section h4 {
+  color: var(--desk-settings-info-section-heading-ink);
+}
+
+body.desk-app[data-theme] .desk-settings-info-tip__section li {
+  color: var(--desk-settings-info-body-ink);
+}
+
+body.desk-app[data-theme] .desk-settings-info-tip__section li::before {
+  background: var(--desk-settings-info-bullet);
+}
+
+/* Auth uses the same theme hierarchy. Its shared field and primary command
+   continue to be painted by desktop-controls.css. */
+body.desk-app[data-theme] .auth-overlay {
+  color-scheme: var(--desk-auth-color-scheme);
+  background: var(--desk-auth-overlay-background);
+}
+
+body.desk-app[data-theme] .auth-card {
+  color: var(--desk-auth-card-ink);
+  background: var(--desk-auth-card-background);
+  border-color: var(--desk-auth-card-border);
+  box-shadow: var(--desk-auth-card-shadow);
+}
+
+body.desk-app[data-theme] .auth-title {
+  color: var(--desk-auth-card-ink);
+}
+
+body.desk-app[data-theme] .auth-message {
+  color: var(--desk-auth-message-ink);
+}

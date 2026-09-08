@@ -1,5 +1,6 @@
 (function () {
   let authenticatedDataStarted = false;
+  let desktopInitPromise = null;
 
   function afterAuthReady(callback) {
     if (typeof waitForMiniappAuthReady === 'function') {
@@ -13,6 +14,10 @@
 
   function loadAuthenticatedDesktopData() {
     if (authenticatedDataStarted) return;
+    if (!window.DesktopCanvas) {
+      initDesktopApp().then(loadAuthenticatedDesktopData).catch(() => {});
+      return;
+    }
     authenticatedDataStarted = true;
 
     DesktopApi.getGptConfig()
@@ -37,31 +42,36 @@
   }
 
   function initDesktopApp() {
-    DesktopState.loadSettings();
-    DesktopState.loadDraft();
-    DesktopState.loadLastTask();
+    if (desktopInitPromise) return desktopInitPromise;
+    desktopInitPromise = (async () => {
+      DesktopState.loadSettings();
+      await DesktopState.restoreCanvasBackup?.();
+      DesktopState.loadDraft();
+      DesktopState.loadLastTask();
 
-    DesktopResults.init();
-    DesktopCanvas.init();
-    DesktopHistory.init();
-    window.DesktopSettings?.init?.();
-    window.DesktopPromptDrawer?.init?.();
-    window.DesktopPromptAgent?.init?.();
-    window.DesktopPromptLibrary?.init?.();
-    window.DesktopPromptInsert?.init?.();
-    window.DesktopI18n?.apply?.();
-    window.DesktopSelect?.init?.();
-    bindGlobalKeys();
+      DesktopResults.init();
+      DesktopCanvas.init();
+      DesktopHistory.init();
+      window.DesktopSettings?.init?.();
+      window.DesktopPromptDrawer?.init?.();
+      window.DesktopPromptAgent?.init?.();
+      window.DesktopPromptLibrary?.init?.();
+      window.DesktopPromptInsert?.init?.();
+      window.DesktopI18n?.apply?.();
+      window.DesktopSelect?.init?.();
+      bindGlobalKeys();
 
-    window.loadHistory = function () {
-      return DesktopHistory.loadHistory()
-        .then(items => {
-          DesktopResults.restoreLastTask().catch(() => {});
-          return items;
-        });
-    };
+      window.loadHistory = function () {
+        return DesktopHistory.loadHistory()
+          .then(items => {
+            DesktopResults.restoreLastTask().catch(() => {});
+            return items;
+          });
+      };
 
-    afterAuthReady(loadAuthenticatedDesktopData);
+      afterAuthReady(loadAuthenticatedDesktopData);
+    })();
+    return desktopInitPromise;
   }
 
   window.addEventListener('miniapp:auth-state-change', event => {
@@ -69,7 +79,11 @@
       authenticatedDataStarted = false;
       return;
     }
-    loadAuthenticatedDesktopData();
+    initDesktopApp().then(loadAuthenticatedDesktopData).catch(() => {});
+  });
+
+  window.addEventListener('pagehide', () => {
+    try { DesktopState.saveSettings({ flushCanvasBackup: true }); } catch (e) {}
   });
 
   window.addEventListener('desktop:language-change', () => {
@@ -86,8 +100,8 @@
   });
 
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initDesktopApp, { once: true });
+    document.addEventListener('DOMContentLoaded', () => { initDesktopApp().catch(() => {}); }, { once: true });
   } else {
-    initDesktopApp();
+    initDesktopApp().catch(() => {});
   }
 })();

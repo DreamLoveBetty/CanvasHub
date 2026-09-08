@@ -3,14 +3,17 @@
   const SUPPORTED_LANGUAGES = new Set(['zh', 'en']);
   const SUPPORTED_THEMES = new Set(['light', 'dark']);
   const SUPPORTED_CONNECTION_SWELL_STYLES = new Set(['liquid', 'droplet']);
+  const SUPPORTED_CONNECTION_LINE_STYLES = new Set(['straight', 'curve']);
 
   const state = {
     theme: 'light',
     language: 'zh',
     connectionSwellStyle: 'liquid',
+    connectionLineStyle: 'straight',
   };
   let themeTransitionTimer = null;
-  let themeRevealInProgress = false;
+  let activeThemeReveal = null;
+  let themeRevealSequence = 0;
   const THEME_REVEAL_DURATION_MS = 960;
 
   function normalizeTheme(value) {
@@ -28,16 +31,24 @@
     return SUPPORTED_CONNECTION_SWELL_STYLES.has(style) ? style : 'liquid';
   }
 
+  function normalizeConnectionLineStyle(value) {
+    const style = String(value || '').trim().toLowerCase();
+    if (style === 'sag') return 'curve';
+    return SUPPORTED_CONNECTION_LINE_STYLES.has(style) ? style : 'straight';
+  }
+
   function readPreferences() {
     try {
       const parsed = JSON.parse(localStorage.getItem(PREF_KEY) || '{}');
       state.theme = normalizeTheme(parsed.theme);
       state.language = normalizeLanguage(parsed.language);
       state.connectionSwellStyle = normalizeConnectionSwellStyle(parsed.connectionSwellStyle);
+      state.connectionLineStyle = normalizeConnectionLineStyle(parsed.connectionLineStyle);
     } catch (e) {
       state.theme = 'light';
       state.language = 'zh';
       state.connectionSwellStyle = 'liquid';
+      state.connectionLineStyle = 'straight';
     }
   }
 
@@ -47,6 +58,7 @@
         theme: state.theme,
         language: state.language,
         connectionSwellStyle: state.connectionSwellStyle,
+        connectionLineStyle: state.connectionLineStyle,
       }));
     } catch (e) {}
   }
@@ -75,6 +87,12 @@
     state.connectionSwellStyle = normalizeConnectionSwellStyle(style);
     document.body?.setAttribute('data-connection-swell-style', state.connectionSwellStyle);
     document.documentElement.setAttribute('data-connection-swell-style', state.connectionSwellStyle);
+  }
+
+  function applyConnectionLineStyle(style = state.connectionLineStyle) {
+    state.connectionLineStyle = normalizeConnectionLineStyle(style);
+    document.body?.setAttribute('data-connection-line-style', state.connectionLineStyle);
+    document.documentElement.setAttribute('data-connection-line-style', state.connectionLineStyle);
   }
 
   function startThemeTransition() {
@@ -129,20 +147,44 @@
     return 1 - Math.pow(1 - Math.min(1, Math.max(0, t)), 3);
   }
 
-  function animateThemeRevealOverlay(overlay, endRadius) {
+  function finishThemeReveal(run, cancelled = false) {
+    if (!run || run.finished) return;
+    run.finished = true;
+    if (run.frameId) window.cancelAnimationFrame(run.frameId);
+    run.frameId = 0;
+    run.overlay?.remove();
+    if (activeThemeReveal === run) {
+      document.documentElement?.classList.remove('theme-reveal-transitioning');
+      document.body?.classList.remove('theme-reveal-transitioning');
+      activeThemeReveal = null;
+    }
+    run.resolve?.({ cancelled });
+  }
+
+  function cancelThemeReveal() {
+    if (activeThemeReveal) finishThemeReveal(activeThemeReveal, true);
+  }
+
+  function animateThemeRevealOverlay(run, endRadius) {
     return new Promise(resolve => {
+      run.resolve = resolve;
       const startedAt = performance.now();
       const frame = now => {
+        run.frameId = 0;
+        if (activeThemeReveal !== run || run.finished) {
+          finishThemeReveal(run, true);
+          return;
+        }
         const progress = Math.min(1, (now - startedAt) / THEME_REVEAL_DURATION_MS);
         const eased = easeThemeReveal(progress);
-        overlay.style.setProperty('--theme-reveal-radius', `${Math.ceil(endRadius * eased)}px`);
+        run.overlay.style.setProperty('--theme-reveal-radius', `${Math.ceil(endRadius * eased)}px`);
         if (progress < 1) {
-          window.requestAnimationFrame(frame);
+          run.frameId = window.requestAnimationFrame(frame);
         } else {
-          resolve();
+          finishThemeReveal(run, false);
         }
       };
-      window.requestAnimationFrame(frame);
+      run.frameId = window.requestAnimationFrame(frame);
     });
   }
 
@@ -151,39 +193,41 @@
     const body = document.body;
     const targetTheme = normalizeTheme(nextTheme);
     const previousTheme = state.theme;
-    if (themeRevealInProgress) {
-      applyTheme(targetTheme);
-      return Promise.resolve();
-    }
+    cancelThemeReveal();
     const origin = resolveThemeTransitionOrigin(options);
     const maxX = Math.max(origin.x, window.innerWidth - origin.x);
     const maxY = Math.max(origin.y, window.innerHeight - origin.y);
     const endRadius = Math.ceil(Math.hypot(maxX, maxY));
 
-    themeRevealInProgress = true;
     root?.classList.add('theme-reveal-transitioning');
     body?.classList.add('theme-reveal-transitioning');
 
     const overlay = document.createElement('div');
     overlay.className = 'desk-theme-reveal-overlay';
     overlay.dataset.theme = previousTheme;
+    overlay.dataset.frozenTheme = previousTheme;
+    overlay.style.colorScheme = previousTheme;
     overlay.style.setProperty('--theme-reveal-x', `${origin.x}px`);
     overlay.style.setProperty('--theme-reveal-y', `${origin.y}px`);
     overlay.style.setProperty('--theme-reveal-radius', '0px');
     body?.appendChild(overlay);
 
-    applyTheme(targetTheme);
-
-    const cleanup = () => {
-      overlay.remove();
-      root?.classList.remove('theme-reveal-transitioning');
-      body?.classList.remove('theme-reveal-transitioning');
-      themeRevealInProgress = false;
+    const run = {
+      id: ++themeRevealSequence,
+      overlay,
+      frameId: 0,
+      resolve: null,
+      finished: false,
+      previousTheme,
+      targetTheme,
     };
+    activeThemeReveal = run;
 
-    return animateThemeRevealOverlay(overlay, endRadius)
-      .catch(() => {})
-      .then(cleanup);
+    applyTheme(targetTheme);
+    return animateThemeRevealOverlay(run, endRadius).catch(() => {
+      finishThemeReveal(run, true);
+      return { cancelled: true };
+    });
   }
 
   function updateThemeButton() {
@@ -224,7 +268,9 @@
     }
     savePreferences();
     if (themeChangeFinished?.then) {
-      themeChangeFinished.then(() => emitThemeChange(nextTheme));
+      themeChangeFinished.then(() => {
+        if (state.theme === nextTheme) emitThemeChange(nextTheme);
+      });
     } else {
       emitThemeChange(state.theme);
     }
@@ -247,6 +293,14 @@
     }));
   }
 
+  function setConnectionLineStyle(style) {
+    applyConnectionLineStyle(style);
+    savePreferences();
+    window.dispatchEvent(new CustomEvent('desktop:connection-line-style-change', {
+      detail: { style: state.connectionLineStyle },
+    }));
+  }
+
   function toggleTheme(event) {
     setTheme(state.theme === 'dark' ? 'light' : 'dark', {
       event,
@@ -266,6 +320,7 @@
     applyTheme(state.theme);
     applyLanguage(state.language);
     applyConnectionSwellStyle(state.connectionSwellStyle);
+    applyConnectionLineStyle(state.connectionLineStyle);
     bindControls();
   }
 
@@ -276,8 +331,10 @@
     setTheme,
     setLanguage,
     setConnectionSwellStyle,
+    setConnectionLineStyle,
     toggleTheme,
     normalizeConnectionSwellStyle,
+    normalizeConnectionLineStyle,
   };
 
   if (document.readyState === 'loading') {

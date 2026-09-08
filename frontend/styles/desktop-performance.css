@@ -1,0 +1,71 @@
+/*
+ * Desktop canvas performance contract
+ *
+ * Keep compositor promotion scoped to an active gesture. Permanent
+ * `will-change` on every node and every image-group layer multiplies GPU
+ * memory as groups grow, while the SVG goo/filter chain forces Chromium to
+ * repaint those promoted layers during trackpad wheel and pinch gestures.
+ */
+
+body.desk-app .desk-canvas-world,
+body.desk-app .desk-canvas .desk-node,
+body.desk-app .desk-node--image-group :is(
+  .desk-image-group__silhouette,
+  .desk-image-group__liquid-base,
+  .desk-image-group__liquid-item,
+  .desk-image-group__item,
+  .desk-image-group__thumb
+) {
+  will-change: auto;
+}
+
+body.desk-app .desk-canvas:is(.is-panning, .is-wheel-transforming) .desk-canvas-world {
+  will-change: transform;
+}
+
+body.desk-app .desk-canvas .desk-node:is(.is-dragging, .is-resizing) {
+  will-change: left, top, width, height;
+}
+
+body.desk-app .desk-node--image-group.is-sorting :is(
+  .desk-image-group__item,
+  .desk-image-group__liquid-item
+),
+body.desk-app .desk-image-group__item.is-dragging .desk-image-group__thumb {
+  will-change: transform;
+}
+
+/*
+ * Wheel/pinch/pointer pan moves the complete world as one layer. While that
+ * world is moving, temporarily bypass child filters and large raster shadows;
+ * the full liquid silhouette and depth return as soon as the gesture settles.
+ */
+body.desk-app .desk-canvas:is(.is-panning, .is-wheel-transforming) .desk-image-group__liquid,
+body.desk-app .desk-canvas:is(.is-panning, .is-wheel-transforming) .desk-image-group__silhouette {
+  filter: none !important;
+}
+
+body.desk-app .desk-canvas:is(.is-panning, .is-wheel-transforming) :is(
+  .desk-node--image > img,
+  .desk-image-group__thumb > img
+) {
+  box-shadow: none !important;
+}
+
+body.desk-app .desk-canvas:is(.is-panning, .is-wheel-transforming) .desk-node.desk-glass {
+  box-shadow: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body.desk-app .desk-canvas-world,
+  body.desk-app .desk-canvas .desk-node,
+  body.desk-app .desk-node--image-group :is(
+    .desk-image-group__silhouette,
+    .desk-image-group__liquid-base,
+    .desk-image-group__liquid-item,
+    .desk-image-group__item,
+    .desk-image-group__thumb
+  ) {
+    will-change: auto !important;
+  }
+}

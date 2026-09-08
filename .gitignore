@@ -92,3 +92,4 @@ work/
 *.tmp
 *.swp
 .gstack/
+raglite/chroma-data/

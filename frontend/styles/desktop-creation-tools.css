@@ -1,0 +1,1324 @@
+/*
+ * Phase 6 creation-tool theme adapter.
+ *
+ * File preview behavior, video playback/runtime state, pose manipulation,
+ * layout geometry and every component-owned transition remain in their source
+ * modules. This layer maps only theme-dependent paint to root-level tokens.
+ */
+
+/* Shared semantic bridges for the four creation workspaces and detached menus. */
+body.desk-app[data-theme] :where(
+  .desk-node--file-output,
+  .desk-file-preview-modal
+) {
+  --desk-ink: var(--desk-file-ink);
+  --desk-muted: var(--desk-file-muted-ink);
+  --desk-blue: var(--desk-file-accent-ink);
+  --desk-file-accent: var(--desk-file-accent-ink);
+  --desk-file-accent-soft: var(--desk-file-accent-soft-paint);
+  --desk-file-border: var(--desk-file-preview-border);
+  color-scheme: var(--desk-file-color-scheme);
+}
+
+body.desk-app[data-theme] :where(
+  .desk-node--video,
+  .desk-node--video-inference,
+  .desk-video-runtime-panel,
+  .desk-video-supervisor-status
+) {
+  --desk-ink: var(--desk-video-ink);
+  --desk-muted: var(--desk-video-muted-ink);
+  --desk-blue: var(--desk-video-accent-ink);
+  color-scheme: var(--desk-video-color-scheme);
+}
+
+body.desk-app[data-theme] :where(
+  .desk-node--pose,
+  .desk-pose-studio,
+  .desk-pose-human-panel,
+  .desk-select-menu[data-select-variant="pose"]
+) {
+  --desk-ink: var(--desk-pose-ink);
+  --desk-muted: var(--desk-pose-muted-ink);
+  --desk-blue: var(--desk-pose-accent-ink);
+  color-scheme: var(--desk-pose-color-scheme);
+}
+
+body.desk-app[data-theme] :where(
+  .desk-layout-editor,
+  .desk-layout-create,
+  .desk-layout-node-preview,
+  .desk-layout-node-actions,
+  .desk-select-menu[data-select-variant="layout-actions"],
+  .desk-select-menu[data-select-variant="layout-inspector"],
+  .desk-select-menu[data-select-variant="layout"]
+) {
+  --desk-ink: var(--desk-layout-ink);
+  --desk-muted: var(--desk-layout-muted-ink);
+  --desk-blue: var(--desk-layout-accent-ink);
+  color-scheme: var(--desk-layout-color-scheme);
+}
+
+/* File output nodes. */
+body.desk-app[data-theme] .desk-file-node-heading__icon {
+  color: var(--desk-file-emphasis-ink);
+  background: var(--desk-file-icon-background);
+  border-color: var(--desk-file-icon-border);
+  box-shadow: var(--desk-file-icon-shadow);
+}
+
+body.desk-app[data-theme] .desk-file-node-heading__icon svg,
+body.desk-app[data-theme] .desk-file-result-empty__icon svg {
+  fill: none;
+  stroke: currentColor;
+}
+
+body.desk-app[data-theme] .desk-node--file-output .desk-progress-wrap {
+  background: var(--desk-file-progress-background);
+  border-color: var(--desk-file-progress-border);
+  box-shadow: var(--desk-file-progress-shadow);
+}
+
+body.desk-app[data-theme] :where(
+  .desk-node--file-output .desk-progress-copy strong,
+  .desk-file-result-empty__icon,
+  .desk-file-result-empty__kicker
+) {
+  color: var(--desk-file-accent-ink);
+}
+
+body.desk-app[data-theme] .desk-file-result {
+  scrollbar-color: var(--desk-file-scrollbar-color);
+}
+
+body.desk-app[data-theme] .desk-file-layer-list {
+  scrollbar-color: var(--desk-file-layer-scrollbar-color);
+}
+
+body.desk-app[data-theme] :where(
+  .desk-file-result::-webkit-scrollbar-thumb,
+  .desk-file-layer-list::-webkit-scrollbar-thumb
+) {
+  background: var(--desk-file-scrollbar-thumb);
+}
+
+body.desk-app[data-theme] :where(
+  .desk-file-result-empty,
+  .desk-file-card
+) {
+  background: var(--desk-file-card-background);
+  border-color: var(--desk-file-card-border);
+  box-shadow: var(--desk-file-card-shadow);
+}
+
+body.desk-app[data-theme] .desk-file-result-empty {
+  color: var(--desk-file-muted-ink);
+}
+
+body.desk-app[data-theme] .desk-file-result-empty__icon::before {
+  background: var(--desk-file-empty-icon-halo);
+}
+
+body.desk-app[data-theme] .desk-file-empty-back {
+  fill: var(--desk-file-empty-back-fill);
+  stroke: var(--desk-file-empty-back-stroke);
+}
+
+body.desk-app[data-theme] .desk-file-empty-front {
+  fill: var(--desk-file-empty-front-fill);
+  stroke: currentColor;
+}
+
+body.desk-app[data-theme] :where(
+  .desk-file-empty-fold,
+  .desk-file-empty-line
+) {
+  stroke: currentColor;
+}
+
+body.desk-app[data-theme] :where(
+  .desk-file-result-empty strong,
+  .desk-file-card__title strong,
+  .desk-file-layer__copy strong
+) {
+  color: var(--desk-file-ink);
+}
+
+body.desk-app[data-theme] .desk-file-result-empty__types span {
+  color: var(--desk-file-type-ink);
+  background: var(--desk-file-type-background);
+  border-color: var(--desk-file-type-border);
+}
+
+body.desk-app[data-theme] .desk-file-result-empty__types span.is-active {
+  color: var(--desk-file-emphasis-ink);
+  background: var(--desk-file-accent-soft-paint);
+  border-color: var(--desk-file-accent-border);
+}
+
+body.desk-app[data-theme] .desk-file-result-empty__types i {
+  background: var(--desk-file-type-divider);
+}
+
+body.desk-app[data-theme] .desk-file-result-empty.is-busy .desk-file-empty-front {
+  fill: var(--desk-file-empty-busy-fill);
+}
+
+body.desk-app[data-theme] .desk-file-preview {
+  background: var(--desk-file-preview-background);
+  border-color: var(--desk-file-preview-border);
+}
+
+body.desk-app[data-theme] .desk-file-preview__badge {
+  color: var(--desk-file-preview-badge-ink);
+  background: var(--desk-file-preview-badge-background);
+  border-color: var(--desk-file-preview-badge-border);
+}
+
+body.desk-app[data-theme] :where(
+  .desk-file-preview__fallback,
+  .desk-file-card__title span,
+  .desk-file-card__meta,
+  .desk-file-card__note,
+  .desk-file-preview-list__label,
+  .desk-file-preview-list__head > em,
+  .desk-file-layer__copy em,
+  .desk-file-layer > i,
+  .desk-file-output-source
+) {
+  color: var(--desk-file-muted-ink);
+}
+
+body.desk-app[data-theme] .desk-file-card__kind {
+  color: var(--desk-file-emphasis-ink);
+  background: var(--desk-file-accent-soft-paint);
+  border-color: var(--desk-file-kind-border);
+}
+
+body.desk-app[data-theme] :where(
+  .desk-file-card__actions a,
+  .desk-file-card__actions button
+) {
+  color: var(--desk-file-ink);
+  background: var(--desk-file-action-background);
+  border-color: var(--desk-file-action-border);
+  box-shadow: var(--desk-file-action-shadow);
+}
+
+body.desk-app[data-theme] :where(
+  .desk-file-card__actions a:hover,
+  .desk-file-card__actions button:hover
+) {
+  color: var(--desk-file-action-hover-ink);
+  border-color: var(--desk-file-action-hover-border);
+}
+
+body.desk-app[data-theme] :where(
+  .desk-file-preview-list,
+  .desk-file-card__footer
+) {
+  border-color: var(--desk-file-divider);
+}
+
+body.desk-app[data-theme] .desk-file-output-footer {
+  border-color: var(--desk-file-footer-divider);
+}
+
+body.desk-app[data-theme] .desk-file-layer {
+  color: inherit;
+  background: var(--desk-file-layer-background);
+  border-color: var(--desk-file-layer-border);
+}
+
+body.desk-app[data-theme] .desk-file-layer:hover {
+  background: var(--desk-file-layer-hover-background);
+  border-color: var(--desk-file-layer-hover-border);
+}
+
+body.desk-app[data-theme] .desk-file-layer img {
+  background: var(--desk-file-layer-thumb-background);
+}
+
+body.desk-app[data-theme] .desk-file-output-source i {
+  background: var(--desk-file-accent-ink);
+  border-color: var(--desk-file-source-dot-border);
+  box-shadow: var(--desk-file-source-dot-shadow);
+}
+
+/* File preview modal. */
+body.desk-app[data-theme] .desk-file-preview-modal {
+  background: var(--desk-file-modal-background);
+  box-shadow: var(--desk-file-modal-shadow);
+}
+
+body.desk-app[data-theme] .desk-file-preview-modal__panel {
+  background: var(--desk-file-modal-panel-background);
+  box-shadow: none;
+}
+
+body.desk-app[data-theme] .desk-file-preview-modal__stage {
+  background: var(--desk-file-modal-stage-background);
+  border-color: var(--desk-file-modal-divider);
+}
+
+body.desk-app[data-theme] :where(
+  .desk-file-preview-modal__stage > img,
+  .desk-file-preview-modal__stage > iframe,
+  .desk-file-preview-modal__composite
+) {
+  background: var(--desk-file-modal-media-background);
+  border-color: var(--desk-file-modal-media-border);
+}
+
+body.desk-app[data-theme] .desk-file-preview-modal__fallback {
+  color: var(--desk-file-muted-ink);
+}
+
+body.desk-app[data-theme] :where(
+  .desk-file-preview-modal__fallback strong,
+  .desk-file-preview-modal__info h2,
+  .desk-file-preview-modal__meta b,
+  .desk-file-preview-modal__info section strong,
+  .desk-file-preview-modal__layer-copy strong
+) {
+  color: var(--desk-file-ink);
+}
+
+body.desk-app[data-theme] .desk-file-preview-modal__info {
+  background: var(--desk-file-modal-info-background);
+  box-shadow: var(--desk-file-modal-info-shadow);
+}
+
+body.desk-app[data-theme] .desk-file-preview-modal__info p {
+  color: var(--desk-file-modal-label-ink);
+}
+
+body.desk-app[data-theme] .desk-file-preview-modal__meta span {
+  color: var(--desk-file-muted-ink);
+  background: var(--desk-file-modal-meta-background);
+  border-color: var(--desk-file-modal-meta-border);
+}
+
+body.desk-app[data-theme] .desk-file-preview-modal__info pre {
+  color: var(--desk-file-modal-pre-ink);
+  background: var(--desk-file-modal-pre-background);
+  border-color: var(--desk-file-modal-pre-border);
+}
+
+body.desk-app[data-theme] .desk-file-preview-modal__layer {
+  color: var(--desk-file-modal-layer-ink);
+  background: var(--desk-file-modal-layer-background);
+  border-color: var(--desk-file-modal-layer-border);
+}
+
+body.desk-app[data-theme] .desk-file-preview-modal__layer:hover {
+  color: var(--desk-file-modal-layer-hover-ink);
+  background: var(--desk-file-modal-layer-hover-background);
+  border-color: var(--desk-file-modal-layer-hover-border);
+}
+
+body.desk-app[data-theme] .desk-file-preview-modal__layer-link {
+  color: inherit;
+}
+
+body.desk-app[data-theme] .desk-file-preview-modal__layer-link img {
+  background: var(--desk-file-modal-layer-thumb-background);
+}
+
+body.desk-app[data-theme] .desk-file-preview-modal__layer-copy em {
+  color: var(--desk-file-muted-ink);
+}
+
+body.desk-app[data-theme] .desk-file-preview-modal__layer-visibility {
+  color: var(--desk-file-modal-visibility-ink);
+  background: var(--desk-file-modal-visibility-background);
+  border-color: var(--desk-file-modal-visibility-border);
+  box-shadow: var(--desk-file-modal-visibility-shadow);
+}
+
+body.desk-app[data-theme] .desk-file-preview-modal__layer-visibility span {
+  background: currentColor;
+}
+
+body.desk-app[data-theme] .desk-file-preview-modal__layer-visibility:hover {
+  color: var(--desk-file-modal-visibility-hover-ink);
+  background: var(--desk-file-modal-visibility-hover-background);
+  border-color: var(--desk-file-modal-visibility-hover-border);
+}
+
+body.desk-app[data-theme] .desk-file-preview-modal__layer-visibility[aria-pressed="false"] {
+  color: var(--desk-file-modal-visibility-off-ink);
+  background: var(--desk-file-modal-visibility-off-background);
+}
+
+body.desk-app[data-theme] .desk-file-preview-modal__actions {
+  border-color: var(--desk-file-modal-divider);
+}
+
+body.desk-app[data-theme] :where(
+  .desk-file-preview-modal__actions a,
+  .desk-file-preview-modal__actions button,
+  .desk-file-preview-modal__close
+) {
+  color: var(--desk-file-modal-action-ink);
+  background: var(--desk-file-modal-action-background);
+  border-color: var(--desk-file-modal-action-border);
+  box-shadow: var(--desk-file-modal-action-shadow);
+}
+
+body.desk-app[data-theme] :where(
+  .desk-file-preview-modal__actions a:hover,
+  .desk-file-preview-modal__actions button:hover:not(:disabled),
+  .desk-file-preview-modal__close:hover:not(:disabled)
+) {
+  color: var(--desk-file-modal-action-hover-ink);
+  background: var(--desk-file-modal-action-hover-background);
+  border-color: var(--desk-file-modal-action-hover-border);
+  box-shadow: var(--desk-file-modal-action-hover-shadow);
+}
+
+body.desk-app[data-theme] .desk-file-preview-modal__close svg {
+  fill: none;
+  stroke: currentColor;
+}
+
+/* Video inference and result nodes. */
+body.desk-app[data-theme] .desk-video-node__icon {
+  color: var(--desk-video-accent-ink);
+  background: var(--desk-video-icon-background);
+  border-color: var(--desk-video-icon-border);
+}
+
+body.desk-app[data-theme] .desk-video-node__icon svg {
+  fill: none;
+  stroke: currentColor;
+}
+
+body.desk-app[data-theme] .desk-video-runtime-pill {
+  color: var(--desk-video-muted-ink);
+  background: var(--desk-video-pill-background);
+  border-color: var(--desk-video-pill-border);
+}
+
+body.desk-app[data-theme] .desk-video-runtime-pill.is-online {
+  color: var(--desk-video-online-ink);
+  background: var(--desk-video-online-background);
+  border-color: var(--desk-video-online-border);
+}
+
+body.desk-app[data-theme] .desk-video-runtime-pill.is-offline {
+  color: var(--desk-video-offline-ink);
+  background: var(--desk-video-offline-background);
+  border-color: var(--desk-video-offline-border);
+}
+
+body.desk-app[data-theme] :where(
+  .desk-video-node__inputs,
+  .desk-video-runtime-mode,
+  .desk-video-runtime-status,
+  .desk-video-runtime-panel,
+  .desk-video-supervisor-status
+) {
+  background: var(--desk-video-inline-background);
+  border-color: var(--desk-video-inline-border);
+}
+
+body.desk-app[data-theme] :where(
+  .desk-video-node__inputs > div,
+  .desk-video-node__fields > label,
+  .desk-video-node__advanced > label,
+  .desk-video-node__footer > span,
+  .desk-video-runtime-status,
+  .desk-video-runtime-status small,
+  .desk-video-supervisor-status,
+  .desk-video-supervisor-status__copy small
+) {
+  color: var(--desk-video-muted-ink);
+}
+
+body.desk-app[data-theme] .desk-video-node__inputs i {
+  background: var(--desk-video-input-dot);
+}
+
+body.desk-app[data-theme] .desk-video-node__inputs .is-connected i {
+  background: var(--desk-video-online-dot);
+  box-shadow: var(--desk-video-online-dot-shadow);
+}
+
+body.desk-app[data-theme] :where(
+  .desk-video-node__inputs strong,
+  .desk-video-runtime-status strong,
+  .desk-video-supervisor-status__copy strong
+) {
+  color: var(--desk-video-ink);
+}
+
+body.desk-app[data-theme] .desk-video-node__advanced .desk-input {
+  color: var(--desk-video-field-ink);
+  background: var(--desk-video-field-background);
+  border-color: var(--desk-video-field-border);
+  box-shadow: var(--desk-video-field-shadow);
+}
+
+body.desk-app[data-theme] .desk-video-node__advanced .desk-input:focus {
+  border-color: var(--desk-video-field-focus-border);
+  box-shadow: var(--desk-video-field-focus-shadow);
+}
+
+body.desk-app[data-theme] .desk-video-node__advanced .desk-input::placeholder {
+  color: var(--desk-video-field-placeholder-ink);
+}
+
+body.desk-app[data-theme] .desk-video-node__advanced .desk-input:disabled {
+  color: var(--desk-video-field-disabled-ink);
+}
+
+body.desk-app[data-theme] .desk-video-node__quality small {
+  color: var(--desk-video-accent-ink);
+  background: var(--desk-video-quality-background);
+  border-color: var(--desk-video-quality-border);
+}
+
+body.desk-app[data-theme] .desk-video-node__progress,
+body.desk-app[data-theme] .desk-node--video,
+body.desk-app[data-theme] .desk-node--video .desk-resize-handle {
+  background: transparent;
+  box-shadow: none;
+}
+
+body.desk-app[data-theme] .desk-node--video {
+  border-color: transparent;
+}
+
+body.desk-app[data-theme] .desk-video-node__run--generate {
+  box-shadow: var(--desk-video-run-shadow);
+}
+
+body.desk-app[data-theme] .desk-video-result__preview {
+  background: var(--desk-video-preview-background);
+  box-shadow: var(--desk-video-preview-shadow);
+}
+
+body.desk-app[data-theme] .desk-video-result__preview video {
+  background: var(--desk-video-media-background);
+}
+
+body.desk-app[data-theme] .desk-video-result__empty {
+  color: var(--desk-video-preview-muted-ink);
+}
+
+body.desk-app[data-theme] .desk-video-result__empty > span {
+  color: var(--desk-video-preview-ink);
+  background: var(--desk-video-preview-chip-background);
+  border-color: var(--desk-video-preview-chip-border);
+}
+
+body.desk-app[data-theme] .desk-video-result__empty strong {
+  color: var(--desk-video-preview-strong-ink);
+}
+
+body.desk-app[data-theme] .desk-video-result__empty small {
+  color: var(--desk-video-preview-subtle-ink);
+}
+
+body.desk-app[data-theme] .desk-video-result__meta {
+  color: var(--desk-video-preview-meta-ink);
+  text-shadow: var(--desk-video-preview-meta-shadow);
+}
+
+body.desk-app[data-theme] .desk-video-result__meta i {
+  background: var(--desk-video-preview-meta-dot);
+}
+
+body.desk-app[data-theme] :where(
+  .desk-node--video .desk-port,
+  .desk-node--video-inference .desk-port
+) {
+  border-color: var(--desk-video-port-border);
+  box-shadow: var(--desk-video-port-shadow);
+}
+
+body.desk-app[data-theme] :where(
+  .desk-minimap__node.is-video,
+  .desk-minimap__node.is-video-inference
+) {
+  background: var(--desk-video-minimap-background);
+}
+
+body.desk-app[data-theme] .desk-video-runtime-mode button {
+  color: var(--desk-video-muted-ink);
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+body.desk-app[data-theme] .desk-video-runtime-mode button:hover {
+  color: var(--desk-video-mode-hover-ink);
+  background: var(--desk-video-mode-hover-background);
+}
+
+body.desk-app[data-theme] .desk-video-runtime-mode button.is-active {
+  color: var(--desk-video-mode-active-ink);
+  background: var(--desk-video-mode-active-background);
+  border-color: var(--desk-video-mode-active-border);
+  box-shadow: var(--desk-video-mode-active-shadow);
+}
+
+body.desk-app[data-theme] :where(
+  .desk-video-runtime-status > span,
+  .desk-video-supervisor-status__dot
+) {
+  background: var(--desk-video-warn-dot);
+  box-shadow: var(--desk-video-warn-dot-shadow);
+}
+
+body.desk-app[data-theme] :where(
+  .desk-video-runtime-status.is-online > span,
+  .desk-video-supervisor-status.is-online .desk-video-supervisor-status__dot
+) {
+  background: var(--desk-video-online-dot);
+  box-shadow: var(--desk-video-online-dot-shadow);
+}
+
+body.desk-app[data-theme] :where(
+  .desk-video-runtime-status.is-offline > span,
+  .desk-video-supervisor-status.is-offline .desk-video-supervisor-status__dot
+) {
+  background: var(--desk-video-error-dot);
+  box-shadow: var(--desk-video-error-dot-shadow);
+}
+
+/* Pose node, studio and director controls. */
+body.desk-app[data-theme] .desk-minimap__node.is-pose {
+  background: var(--desk-pose-minimap-background);
+}
+
+body.desk-app[data-theme] .desk-pose-node-preview {
+  color: var(--desk-pose-muted-ink);
+  background: var(--desk-pose-preview-background);
+  border-color: var(--desk-pose-preview-border);
+}
+
+body.desk-app[data-theme] .desk-pose-node-preview strong {
+  color: var(--desk-pose-ink);
+}
+
+body.desk-app[data-theme] .desk-pose-node-preview em {
+  color: var(--desk-pose-muted-ink);
+}
+
+body.desk-app[data-theme] .desk-pose-node-actions button {
+  color: var(--desk-pose-ink);
+  background: var(--desk-pose-node-action-background);
+  border-color: var(--desk-pose-node-action-border);
+}
+
+body.desk-app[data-theme] .desk-pose-node-actions button.is-primary {
+  color: var(--desk-pose-primary-ink);
+  background: var(--desk-pose-primary-background);
+  border-color: var(--desk-pose-primary-border);
+}
+
+body.desk-app[data-theme] .desk-pose-studio {
+  background: var(--desk-pose-overlay-background);
+}
+
+body.desk-app[data-theme] .desk-pose-studio__panel {
+  color: var(--desk-pose-ink);
+  background: var(--desk-pose-panel-background);
+  border-color: var(--desk-pose-panel-border);
+  box-shadow: var(--desk-pose-panel-shadow);
+}
+
+body.desk-app[data-theme] .desk-pose-studio__bar {
+  border-color: var(--desk-pose-divider);
+}
+
+body.desk-app[data-theme] .desk-pose-studio__bar p {
+  color: var(--desk-pose-accent-ink);
+}
+
+body.desk-app[data-theme] :where(
+  .desk-pose-studio__bar-actions button,
+  .desk-pose-background-upload span,
+  .desk-director-panel__head button,
+  .desk-director-preset-grid button,
+  .desk-director-joint-actions button,
+  .desk-director-camera-actions button
+) {
+  color: var(--desk-pose-ink);
+  background: var(--desk-pose-control-background);
+  border-color: var(--desk-pose-control-border);
+}
+
+body.desk-app[data-theme] .desk-pose-studio__bar-actions .desk-pose-studio__close {
+  color: var(--desk-pose-close-ink);
+}
+
+body.desk-app[data-theme] :where(
+  .desk-pose-studio__bar-actions button.is-primary,
+  .desk-director-joint-list button.is-active,
+  .desk-director-preset-grid button.is-active
+) {
+  color: var(--desk-pose-primary-ink);
+  background: var(--desk-pose-primary-background);
+  border-color: var(--desk-pose-primary-border);
+}
+
+body.desk-app[data-theme] .desk-pose-studio__stage {
+  background: var(--desk-pose-stage-background);
+  border-color: var(--desk-pose-stage-border);
+}
+
+/* The joint HUD deliberately stays a high-contrast dark instrument in both themes. */
+body.desk-app[data-theme] .desk-director-joint-hud__card {
+  background: var(--desk-pose-hud-background);
+  border-color: var(--desk-pose-hud-border);
+  box-shadow: var(--desk-pose-hud-shadow);
+}
+
+body.desk-app[data-theme] .desk-director-joint-hud__head strong {
+  color: var(--desk-pose-hud-ink);
+}
+
+body.desk-app[data-theme] .desk-director-joint-hud__head span,
+body.desk-app[data-theme] .desk-director-joint-hud__feedback em {
+  color: var(--desk-pose-hud-muted-ink);
+}
+
+body.desk-app[data-theme] .desk-director-joint-axis {
+  color: var(--desk-pose-hud-axis-ink);
+  background: var(--desk-pose-hud-axis-background);
+  border-color: var(--desk-pose-hud-axis-border);
+}
+
+body.desk-app[data-theme] :where(
+  .desk-director-joint-axis:hover,
+  .desk-director-joint-axis.is-active
+) {
+  color: var(--desk-pose-hud-strong-ink);
+  background: var(--desk-pose-hud-axis-hover-background);
+  border-color: var(--joint-axis-color, var(--desk-pose-accent-ink));
+}
+
+body.desk-app[data-theme] :where(
+  .desk-director-joint-axis i,
+  .desk-director-joint-axis em,
+  .desk-director-joint-hud__feedback strong
+) {
+  color: var(--desk-pose-hud-strong-ink);
+}
+
+body.desk-app[data-theme] .desk-director-joint-hud__feedback {
+  color: var(--desk-pose-hud-feedback-ink);
+  border-color: var(--desk-pose-hud-feedback-border);
+}
+
+body.desk-app[data-theme] .desk-director-joint-hud__stem {
+  background: var(--desk-pose-hud-stem-background);
+}
+
+body.desk-app[data-theme] .desk-director-joint-hud__anchor {
+  border-color: var(--desk-pose-hud-anchor-border);
+  box-shadow: var(--desk-pose-hud-anchor-shadow);
+}
+
+body.desk-app[data-theme] .desk-pose-studio__stage-footer,
+body.desk-app[data-theme] .desk-pose-background-clear,
+body.desk-app[data-theme] .desk-director-field span,
+body.desk-app[data-theme] .desk-director-empty {
+  color: var(--desk-pose-muted-ink);
+}
+
+body.desk-app[data-theme] .desk-pose-background-clear {
+  background: var(--desk-pose-quiet-background);
+  border-color: var(--desk-pose-quiet-border);
+}
+
+body.desk-app[data-theme] :where(
+  .desk-director-panel,
+  .desk-pose-human-panel
+) {
+  background: var(--desk-pose-section-background);
+  border-color: var(--desk-pose-section-border);
+}
+
+body.desk-app[data-theme] .desk-director-panel__head span {
+  color: var(--desk-pose-panel-badge-ink);
+  background: var(--desk-pose-panel-badge-background);
+  border-color: var(--desk-pose-panel-badge-border);
+}
+
+body.desk-app[data-theme] :where(
+  .desk-director-scene-list button,
+  .desk-director-joint-list button,
+  .desk-director-camera-list button
+) {
+  color: var(--desk-pose-ink);
+  background: var(--desk-pose-list-background);
+  border-color: var(--desk-pose-list-border);
+}
+
+body.desk-app[data-theme] :where(
+  .desk-director-scene-list button.is-active,
+  .desk-director-camera-list button.is-active
+) {
+  background: var(--desk-pose-list-active-background);
+  border-color: var(--desk-pose-list-active-border);
+}
+
+body.desk-app[data-theme] .desk-director-scene-list span {
+  box-shadow: var(--desk-pose-scene-thumb-shadow);
+}
+
+body.desk-app[data-theme] .desk-director-joint-actions button:disabled {
+  color: var(--desk-pose-disabled-ink);
+  background: var(--desk-pose-disabled-background);
+}
+
+body.desk-app[data-theme] :where(
+  .desk-director-camera-list img,
+  .desk-director-camera-list span
+) {
+  background: var(--desk-pose-camera-thumb-background);
+}
+
+body.desk-app[data-theme] :where(
+  .desk-director-field input,
+  .desk-director-field .desk-select-trigger
+) {
+  color: var(--desk-pose-field-ink);
+  background: var(--desk-pose-field-background);
+  border-color: var(--desk-pose-field-border);
+}
+
+body.desk-app[data-theme] .desk-pose-human-panel__head span {
+  color: var(--desk-pose-human-badge-ink);
+  background: var(--desk-pose-human-badge-background);
+  border-color: var(--desk-pose-human-badge-border);
+}
+
+body.desk-app[data-theme] .desk-pose-segmented {
+  background: var(--desk-pose-segment-background);
+  border-color: var(--desk-pose-segment-border);
+}
+
+body.desk-app[data-theme] .desk-pose-segmented button {
+  color: var(--desk-pose-muted-ink);
+  background: transparent;
+}
+
+body.desk-app[data-theme] .desk-pose-segmented button.is-active {
+  color: var(--desk-pose-ink);
+  background: var(--desk-pose-segment-active-background);
+  box-shadow: var(--desk-pose-segment-active-shadow);
+}
+
+body.desk-app[data-theme] .desk-pose-control {
+  background: var(--desk-pose-control-row-background);
+  border-color: var(--desk-pose-control-row-border);
+}
+
+body.desk-app[data-theme] .desk-pose-control em {
+  color: var(--desk-pose-accent-ink);
+}
+
+body.desk-app[data-theme] .desk-pose-control input {
+  accent-color: var(--desk-pose-accent-ink);
+}
+
+/* Layout editor, creation dialog and canvas-node preview. */
+body.desk-app[data-theme] .desk-layout-editor {
+  color: var(--desk-layout-ink);
+  background: var(--desk-layout-workspace-background);
+}
+
+body.desk-app[data-theme] .desk-layout-topbar {
+  background: var(--desk-layout-panel-background);
+  border-color: var(--desk-layout-divider);
+  box-shadow: var(--desk-layout-topbar-shadow);
+}
+
+body.desk-app[data-theme] :where(
+  .desk-layout-brand span,
+  .desk-layout-status,
+  .desk-layout-page-item em,
+  .desk-layout-layer,
+  .desk-layout-layer__action,
+  .desk-layout-object-toolbar span,
+  .desk-layout-inspector-heading span,
+  .desk-layout-template-image-field em,
+  .desk-layout-selection-meta > span > em,
+  .desk-layout-inspector label span,
+  .desk-layout-create__header span,
+  .desk-layout-create__label,
+  .desk-layout-preset span,
+  .desk-layout-preset em,
+  .desk-layout-template em,
+  .desk-layout-create__footer span,
+  .desk-layout-node-preview
+) {
+  color: var(--desk-layout-muted-ink);
+}
+
+body.desk-app[data-theme] .desk-layout-status.is-saving {
+  color: var(--desk-layout-accent-ink);
+}
+
+body.desk-app[data-theme] .desk-layout-status.is-error,
+body.desk-app[data-theme] .desk-layout-inline-actions button.is-danger {
+  color: var(--desk-layout-danger-ink);
+}
+
+body.desk-app[data-theme] .desk-layout-status.is-saved {
+  color: var(--desk-layout-success-ink);
+}
+
+body.desk-app[data-theme] .desk-layout-action-group {
+  border-color: var(--desk-layout-divider);
+}
+
+body.desk-app[data-theme] :where(
+  .desk-layout-actions select,
+  .desk-layout-actions .desk-select-trigger,
+  .desk-layout-actions button,
+  .desk-layout-inline-actions button,
+  .desk-layout-layers__header button,
+  .desk-layout-page-actions button,
+  .desk-layout-object-toolbar button,
+  .desk-layout-template-image-field button,
+  .desk-layout-align-controls button,
+  .desk-layout-image-controls button
+) {
+  color: var(--desk-layout-control-ink);
+  background: var(--desk-layout-control-background);
+  border-color: var(--desk-layout-control-border);
+  box-shadow: var(--desk-layout-control-shadow);
+}
+
+body.desk-app[data-theme] :where(
+  .desk-layout-actions button:hover,
+  .desk-layout-inline-actions button:hover
+) {
+  background: var(--desk-layout-control-hover-background);
+}
+
+body.desk-app[data-theme] :where(
+  .desk-layout-actions button.is-primary,
+  .desk-layout-actions button.is-active,
+  .desk-layout-object-toolbar button.is-active,
+  .desk-layout-create__footer button,
+  .desk-layout-node-actions button.is-primary
+) {
+  color: var(--desk-layout-primary-ink);
+  background: var(--desk-layout-primary-background);
+  border-color: var(--desk-layout-primary-border);
+}
+
+body.desk-app[data-theme] .desk-layout-actions button.is-quiet {
+  color: var(--desk-layout-muted-ink);
+  background: var(--desk-layout-quiet-background);
+}
+
+body.desk-app[data-theme] :where(
+  .desk-layout-actions button:disabled,
+  .desk-layout-align-controls button:disabled
+) {
+  color: var(--desk-layout-disabled-ink);
+  background: var(--desk-layout-disabled-background);
+  border-color: var(--desk-layout-disabled-border);
+  box-shadow: none;
+}
+
+body.desk-app[data-theme] :where(
+  .desk-layout-layers,
+  .desk-layout-inspector
+) {
+  background: var(--desk-layout-panel-background);
+}
+
+body.desk-app[data-theme] .desk-layout-layers {
+  border-color: var(--desk-layout-side-divider);
+}
+
+body.desk-app[data-theme] .desk-layout-inspector {
+  border-color: var(--desk-layout-side-divider);
+}
+
+body.desk-app[data-theme] .desk-layout-layers__header button {
+  color: var(--desk-layout-muted-ink);
+  background: var(--desk-layout-control-background);
+  border-color: var(--desk-layout-header-control-border);
+  box-shadow: none;
+}
+
+body.desk-app[data-theme] .desk-layout-layers__header button:hover,
+body.desk-app[data-theme] .desk-layout-page-actions button:hover {
+  color: var(--desk-layout-ink);
+  border-color: var(--desk-layout-control-hover-border);
+}
+
+body.desk-app[data-theme] :where(
+  .desk-layout-isolation-bar,
+  .desk-layout-selection-meta.is-isolated
+) {
+  color: var(--desk-layout-isolation-ink);
+  background: var(--desk-layout-isolation-background);
+  border-color: var(--desk-layout-isolation-border);
+}
+
+body.desk-app[data-theme] .desk-layout-isolation-bar {
+  box-shadow: var(--desk-layout-isolation-inset);
+}
+
+body.desk-app[data-theme] .desk-layout-isolation-bar em {
+  color: var(--desk-layout-isolation-muted-ink);
+}
+
+body.desk-app[data-theme] :where(
+  .desk-layout-isolation-bar button,
+  .desk-layout-selection-meta.is-isolated button
+) {
+  color: var(--desk-layout-isolation-ink);
+  background: var(--desk-layout-control-background);
+  border-color: var(--desk-layout-isolation-control-border);
+}
+
+body.desk-app[data-theme] :where(
+  .desk-layout-isolation-bar button:hover,
+  .desk-layout-selection-meta.is-isolated button:hover
+) {
+  background: var(--desk-layout-isolation-hover-background);
+  border-color: var(--desk-layout-isolation-hover-border);
+}
+
+body.desk-app[data-theme] .desk-layout-page-actions button:disabled {
+  color: var(--desk-layout-page-disabled-ink);
+  background: var(--desk-layout-page-disabled-background);
+}
+
+body.desk-app[data-theme] .desk-layout-page-actions svg,
+body.desk-app[data-theme] .desk-layout-layer svg {
+  fill: none;
+  stroke: currentColor;
+}
+
+body.desk-app[data-theme] :where(
+  .desk-layout-page-item,
+  .desk-layout-empty-state,
+  .desk-layout-layer,
+  .desk-layout-preset,
+  .desk-layout-template
+) {
+  background: var(--desk-layout-list-background);
+  border-color: var(--desk-layout-list-border);
+}
+
+body.desk-app[data-theme] :where(
+  .desk-layout-page-item,
+  .desk-layout-empty-state strong,
+  .desk-layout-layer--group,
+  .desk-layout-layer__type i,
+  .desk-layout-template-image-field strong,
+  .desk-layout-inspector-heading strong,
+  .desk-layout-create__header strong,
+  .desk-layout-preset,
+  .desk-layout-template
+) {
+  color: var(--desk-layout-ink);
+}
+
+body.desk-app[data-theme] :where(
+  .desk-layout-page-item.is-active,
+  .desk-layout-preset.is-active,
+  .desk-layout-template.is-active
+) {
+  background: var(--desk-layout-accent-soft-background);
+  border-color: var(--desk-layout-accent-soft-border);
+}
+
+body.desk-app[data-theme] .desk-layout-page-item i {
+  color: var(--desk-layout-accent-ink);
+  background: var(--desk-layout-control-background);
+}
+
+body.desk-app[data-theme] .desk-layout-page-thumb {
+  color: var(--desk-layout-muted-ink);
+  background: var(--desk-layout-control-background);
+  border-color: var(--desk-layout-control-subtle-border);
+  box-shadow: var(--desk-layout-page-thumb-shadow);
+}
+
+body.desk-app[data-theme] :where(
+  .desk-layout-page-name-input,
+  .desk-layout-layer__name-input
+) {
+  color: var(--desk-layout-field-ink);
+  background: var(--desk-layout-field-background);
+  border-color: var(--desk-layout-field-focus-border);
+}
+
+body.desk-app[data-theme] #deskLayoutLayerList {
+  border-color: var(--desk-layout-tree-line);
+}
+
+body.desk-app[data-theme] .desk-layout-empty-state {
+  color: var(--desk-layout-muted-ink);
+  border-color: var(--desk-layout-empty-border);
+}
+
+body.desk-app[data-theme] :where(
+  .desk-layout-empty-state.is-tree-child::before,
+  .desk-layout-layer.is-tree-child::before
+) {
+  background: var(--desk-layout-tree-line);
+}
+
+body.desk-app[data-theme] .desk-layout-layer:hover {
+  color: var(--desk-layout-ink);
+  background: var(--desk-layout-list-hover-background);
+  border-color: var(--desk-layout-list-hover-border);
+}
+
+body.desk-app[data-theme] .desk-layout-layer.is-active {
+  color: var(--desk-layout-accent-ink);
+  background: var(--desk-layout-accent-active-background);
+  border-color: var(--desk-layout-accent-active-border);
+  box-shadow: var(--desk-layout-accent-active-inset);
+}
+
+body.desk-app[data-theme] .desk-layout-layer.is-locked {
+  background: var(--desk-layout-locked-background);
+}
+
+body.desk-app[data-theme] .desk-layout-layer.is-isolated {
+  color: var(--desk-layout-isolation-ink);
+  background: var(--desk-layout-isolation-strong-background);
+  border-color: var(--desk-layout-isolation-strong-border);
+  box-shadow: var(--desk-layout-isolation-inset);
+}
+
+body.desk-app[data-theme] .desk-layout-layer.is-isolated-child {
+  color: var(--desk-layout-isolation-ink);
+  background: var(--desk-layout-isolation-child-background);
+  border-color: var(--desk-layout-isolation-child-border);
+}
+
+body.desk-app[data-theme] .desk-layout-layer.is-drop-target {
+  border-color: var(--desk-layout-drop-border);
+  box-shadow: var(--desk-layout-drop-shadow);
+}
+
+body.desk-app[data-theme] .desk-layout-layer--group {
+  background: var(--desk-layout-group-background);
+  border-color: var(--desk-layout-group-border);
+}
+
+body.desk-app[data-theme] .desk-layout-layer--group .desk-layout-layer__type i {
+  color: var(--desk-layout-accent-ink);
+  background: var(--desk-layout-accent-soft-background);
+  border-color: var(--desk-layout-accent-soft-border);
+}
+
+body.desk-app[data-theme] .desk-layout-layer__badge {
+  color: var(--desk-layout-isolation-ink);
+  background: var(--desk-layout-isolation-badge-background);
+  border-color: var(--desk-layout-isolation-badge-border);
+}
+
+body.desk-app[data-theme] .desk-layout-layer button {
+  color: inherit;
+  background: transparent;
+}
+
+body.desk-app[data-theme] .desk-layout-layer__grab {
+  color: var(--desk-layout-grab-ink);
+}
+
+body.desk-app[data-theme] .desk-layout-layer__type i {
+  background: var(--desk-layout-control-background);
+  border-color: var(--desk-layout-list-border);
+}
+
+body.desk-app[data-theme] .desk-layout-layer__action:hover {
+  color: var(--desk-layout-ink);
+  background: var(--desk-layout-action-hover-background);
+}
+
+body.desk-app[data-theme] :where(
+  .desk-layout-layer.is-hidden .desk-layout-layer__action[data-layer-visibility],
+  .desk-layout-layer.is-locked .desk-layout-layer__action[data-layer-lock]
+) {
+  color: var(--desk-layout-accent-ink);
+  background: var(--desk-layout-accent-soft-background);
+}
+
+body.desk-app[data-theme] .desk-layout-stage {
+  background: var(--desk-layout-stage-background);
+}
+
+body.desk-app[data-theme] .desk-layout-object-toolbar {
+  background: var(--desk-layout-panel-background);
+  border-color: var(--desk-layout-divider);
+  box-shadow: var(--desk-layout-toolbar-shadow);
+}
+
+body.desk-app[data-theme] .desk-layout-page {
+  background: var(--desk-layout-page-background);
+  border-color: var(--desk-layout-page-border);
+  box-shadow: var(--desk-layout-page-shadow);
+}
+
+body.desk-app[data-theme] .desk-layout-page::before {
+  color: var(--desk-layout-muted-ink);
+  background: var(--desk-layout-page-label-background);
+  border-color: var(--desk-layout-control-subtle-border);
+}
+
+body.desk-app[data-theme] .desk-layout-page .canvas-container {
+  border-color: var(--desk-layout-canvas-border);
+  box-shadow: var(--desk-layout-canvas-shadow);
+}
+
+body.desk-app[data-theme] .desk-layout-safe-area {
+  border-color: var(--desk-layout-guide-border);
+  box-shadow: var(--desk-layout-guide-inset);
+}
+
+body.desk-app[data-theme] .desk-layout-guide {
+  background: var(--desk-layout-guide-background);
+  box-shadow: var(--desk-layout-guide-shadow);
+}
+
+body.desk-app[data-theme] .desk-layout-group-selection {
+  background: var(--desk-layout-selection-background);
+  border-color: var(--desk-layout-selection-border);
+  box-shadow: var(--desk-layout-selection-shadow);
+}
+
+body.desk-app[data-theme] .desk-layout-group-selection::before {
+  color: var(--desk-layout-selection-label-ink);
+  background: var(--desk-layout-selection-label-background);
+  box-shadow: var(--desk-layout-selection-label-shadow);
+}
+
+body.desk-app[data-theme] .desk-layout-group-selection[data-locked="true"] {
+  background: var(--desk-layout-locked-selection-background);
+  border-color: var(--desk-layout-locked-selection-border);
+  box-shadow: var(--desk-layout-locked-selection-shadow);
+}
+
+body.desk-app[data-theme] .desk-layout-group-selection[data-locked="true"]::before {
+  background: var(--desk-layout-locked-label-background);
+  box-shadow: var(--desk-layout-locked-label-shadow);
+}
+
+body.desk-app[data-theme] :where(
+  .desk-layout-template-controls,
+  .desk-layout-align-controls,
+  .desk-layout-crop-controls
+) {
+  background: var(--desk-layout-inspector-section-background);
+  border-color: var(--desk-layout-control-subtle-border);
+}
+
+body.desk-app[data-theme] .desk-layout-template-image-field {
+  background: var(--desk-layout-field-background);
+  border-color: var(--desk-layout-control-subtle-border);
+}
+
+body.desk-app[data-theme] .desk-layout-selection-meta {
+  color: var(--desk-layout-accent-ink);
+  background: var(--desk-layout-accent-soft-background);
+  border-color: var(--desk-layout-selection-meta-border);
+}
+
+body.desk-app[data-theme] .desk-layout-selection-meta > span > i {
+  color: var(--desk-layout-selection-divider-ink);
+}
+
+body.desk-app[data-theme] .desk-layout-selection-meta button {
+  color: var(--desk-layout-accent-ink);
+  background: var(--desk-layout-control-background);
+  border-color: var(--desk-layout-selection-control-border);
+}
+
+body.desk-app[data-theme] .desk-layout-selection-meta button:hover {
+  background: var(--desk-layout-accent-soft-background);
+  border-color: var(--desk-layout-selection-control-hover-border);
+}
+
+body.desk-app[data-theme] :where(
+  .desk-layout-inspector textarea,
+  .desk-layout-inspector select,
+  .desk-layout-inspector input[type="text"],
+  .desk-layout-inspector input[type="number"],
+  .desk-layout-inspector input[type="color"]
+) {
+  color: var(--desk-layout-field-ink);
+  background: var(--desk-layout-field-background);
+  border-color: var(--desk-layout-field-border);
+}
+
+body.desk-app[data-theme] :where(
+  .desk-layout-inspector textarea,
+  .desk-layout-inspector select,
+  .desk-layout-inspector input[type="text"],
+  .desk-layout-inspector input[type="number"]
+):focus {
+  border-color: var(--desk-layout-field-focus-border);
+  box-shadow: var(--desk-layout-field-focus-shadow);
+}
+
+body.desk-app[data-theme] .desk-layout-inspector input[type="range"] {
+  accent-color: var(--desk-layout-accent-ink);
+}
+
+body.desk-app[data-theme] :where(
+  .desk-layout-template-image-field button:hover,
+  .desk-layout-align-controls button:hover,
+  .desk-layout-image-controls button:hover
+) {
+  border-color: var(--desk-layout-control-accent-hover-border);
+}
+
+body.desk-app[data-theme] .desk-layout-create {
+  background: var(--desk-layout-create-overlay-background);
+}
+
+body.desk-app[data-theme] .desk-layout-create__panel {
+  background: var(--desk-layout-create-panel-background);
+  border-color: var(--desk-layout-divider);
+  box-shadow: var(--desk-layout-create-panel-shadow);
+}
+
+body.desk-app[data-theme] :where(
+  .desk-layout-create__header,
+  .desk-layout-create__footer
+) {
+  border-color: var(--desk-layout-control-subtle-border);
+}
+
+body.desk-app[data-theme] :where(
+  .desk-layout-preset:hover,
+  .desk-layout-template:hover
+) {
+  background: var(--desk-layout-list-hover-background);
+  border-color: var(--desk-layout-selection-control-border);
+}
+
+body.desk-app[data-theme] .desk-layout-template i {
+  background: var(--desk-layout-template-thumb-background);
+  border-color: var(--desk-layout-accent-soft-border);
+  box-shadow: inset 4px 0 0 var(--template-accent);
+}
+
+body.desk-app[data-theme] .desk-layout-node-preview {
+  background: var(--desk-layout-node-preview-background);
+}
+
+body.desk-app[data-theme] .desk-layout-node-actions button {
+  color: var(--desk-layout-ink);
+  background: var(--desk-layout-node-action-background);
+  border-color: var(--desk-layout-node-action-border);
+}
