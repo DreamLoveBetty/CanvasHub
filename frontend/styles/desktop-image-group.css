@@ -34,7 +34,13 @@ body.desk-app[data-theme] .desk-image-group__mother::after {
   border-color: transparent;
 }
 
-body.desk-app[data-theme] .desk-node--image-group.is-selected .desk-image-group__mother::after {
+body.desk-app[data-theme] .desk-node--image-group:is(
+  .is-selected,
+  .is-connection-drop-target
+) .desk-image-group__mother::after,
+body.desk-app[data-theme] .desk-node--image-group:has(
+  > .desk-port--floating:is(.is-connecting, .is-pending)
+) .desk-image-group__mother::after {
   border-color: var(--desk-image-group-selection-border);
   box-shadow: var(--desk-image-group-selection-shadow);
 }
@@ -267,4 +273,16 @@ body.desk-app[data-theme] .desk-image-group-transition__chip.is-incoming img {
   box-shadow:
     0 calc(var(--desk-image-group-chip-unit) * 24) calc(var(--desk-image-group-chip-unit) * 56) var(--desk-image-group-transition-chip-incoming-shadow-color),
     0 0 0 calc(var(--desk-image-group-chip-unit) * 4) var(--desk-image-group-transition-chip-incoming-ring);
+}
+
+/* The shared SVG silhouette owns the proximity preview's outer edge/shadow.
+ * Its circle and the image must have identical opaque alpha for displacement;
+ * otherwise a rigid shadow/ring remains around the liquid photo. */
+body.desk-app[data-theme] .desk-image-group-transition--proximity .desk-image-group-transition__chip.is-incoming img {
+  background: var(--desk-image-group-transition-chip-border);
+  box-shadow: none;
+}
+
+body.desk-app[data-theme] .desk-image-group-transition__incoming-shape {
+  fill: var(--desk-image-group-transition-chip-border);
 }

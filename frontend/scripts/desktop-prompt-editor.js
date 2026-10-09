@@ -13,6 +13,24 @@
     return item.dataUrl || item.imageData || item.imageUrl || item.url || '';
   }
 
+  function mediaKind(item = {}) {
+    const explicit = String(item.mediaKind || item.media_kind || item.kind || '').trim().toLowerCase();
+    if (explicit === 'video' || String(item.mimeType || item.type || '').toLowerCase().startsWith('video/')) return 'video';
+    return 'image';
+  }
+
+  function attachmentSource(item = {}) {
+    return mediaKind(item) === 'video'
+      ? (item.posterDataUrl || item.poster_data_url || item.posterUrl || item.poster_url || item.previewUrl || item.preview_url || '')
+      : imageSource(item);
+  }
+
+  function mediaSource(item = {}) {
+    return mediaKind(item) === 'video'
+      ? (item.mediaUrl || item.media_url || item.videoUrl || item.video_url || item.url || '')
+      : imageSource(item);
+  }
+
   function cssEscape(value) {
     if (window.CSS?.escape) return window.CSS.escape(String(value || ''));
     return String(value || '').replace(/["\\]/g, '\\$&');
@@ -172,14 +190,16 @@
 
     function chipHtml(item = {}) {
       const id = String(item.id || '').trim();
-      const src = imageSource(item);
+      const kind = mediaKind(item);
+      const src = attachmentSource(item);
+      const source = mediaSource(item);
       const sourceNodeId = String(item.sourceNodeId || item.nodeId || item.source_node_id || '').trim();
-      const mimeType = String(item.mimeType || item.type || 'image/png').trim();
+      const mimeType = String(item.mimeType || item.type || (kind === 'video' ? 'video/mp4' : 'image/png')).trim();
       return `
-        <span class="desk-prompt-editor__image" contenteditable="false" data-prompt-image-id="${escapeAttr(id)}" data-source-node-id="${escapeAttr(sourceNodeId)}" data-image-src="${escapeAttr(src)}" data-mime-type="${escapeAttr(mimeType)}" title="${escapeAttr(id)}">
-          <img src="${escapeAttr(src)}" alt="">
+        <span class="desk-prompt-editor__image desk-prompt-editor__media desk-prompt-editor__media--${kind}" contenteditable="false" data-prompt-image-id="${escapeAttr(id)}" data-prompt-media-id="${escapeAttr(id)}" data-source-node-id="${escapeAttr(sourceNodeId)}" data-image-src="${escapeAttr(src)}" data-media-src="${escapeAttr(source)}" data-media-kind="${kind}" data-mime-type="${escapeAttr(mimeType)}" title="${escapeAttr(`${id} · ${kind === 'video' ? '视频' : '图片'}`)}">
+          ${src ? `<img src="${escapeAttr(src)}" alt="">` : `<span class="desk-prompt-editor__media-icon" aria-hidden="true">${kind === 'video' ? '▶' : '◇'}</span>`}
           <span class="desk-prompt-editor__label">${escapeAttr(id)}</span>
-          <span class="desk-prompt-editor__remove" role="button" aria-label="移除 ${escapeAttr(id)}" data-prompt-editor-remove-image="${escapeAttr(id)}">×</span>
+          <span class="desk-prompt-editor__remove" role="button" aria-label="移除 ${escapeAttr(id)}" data-prompt-editor-remove-image="${escapeAttr(id)}" data-prompt-editor-remove-media="${escapeAttr(id)}">×</span>
         </span>
       `;
     }
@@ -240,12 +260,18 @@
         nextIds.add(id);
         attachments.set(id, item);
         root.querySelectorAll(`[data-prompt-image-id="${cssEscape(id)}"]`).forEach(node => {
+          const kind = mediaKind(item);
+          const preview = attachmentSource(item);
           const img = node.querySelector('img');
-          if (img) img.src = imageSource(item);
+          if (img && preview) img.src = preview;
+          node.classList.toggle('desk-prompt-editor__media--video', kind === 'video');
+          node.classList.toggle('desk-prompt-editor__media--image', kind !== 'video');
           node.dataset.sourceNodeId = String(item.sourceNodeId || item.nodeId || item.source_node_id || '');
-          node.dataset.imageSrc = imageSource(item);
-          node.dataset.mimeType = String(item.mimeType || item.type || 'image/png');
-          node.title = id;
+          node.dataset.imageSrc = preview;
+          node.dataset.mediaSrc = mediaSource(item);
+          node.dataset.mediaKind = kind;
+          node.dataset.mimeType = String(item.mimeType || item.type || (kind === 'video' ? 'video/mp4' : 'image/png'));
+          node.title = `${id} · ${kind === 'video' ? '视频' : '图片'}`;
         });
       });
       Array.from(attachments.keys()).forEach(id => {
@@ -292,7 +318,9 @@
           id: String(node.dataset.promptImageId || '').trim(),
           sourceNodeId: String(node.dataset.sourceNodeId || '').trim(),
           imageSrc: String(node.dataset.imageSrc || node.querySelector('img')?.getAttribute('src') || '').trim(),
-          mimeType: String(node.dataset.mimeType || 'image/png').trim()
+          mediaSrc: String(node.dataset.mediaSrc || '').trim(),
+          mediaKind: String(node.dataset.mediaKind || 'image').trim(),
+          mimeType: String(node.dataset.mimeType || (node.dataset.mediaKind === 'video' ? 'video/mp4' : 'image/png')).trim()
         }))
         .filter(item => item.id);
     }
@@ -391,9 +419,9 @@
       }
     });
     root.addEventListener('click', event => {
-      const remove = event.target.closest('[data-prompt-editor-remove-image]');
+      const remove = event.target.closest('[data-prompt-editor-remove-media], [data-prompt-editor-remove-image]');
       if (!remove) return;
-      const id = remove.dataset.promptEditorRemoveImage || '';
+      const id = remove.dataset.promptEditorRemoveMedia || remove.dataset.promptEditorRemoveImage || '';
       removeAttachment(id);
       options.onRemoveAttachment?.(id);
       event.preventDefault();

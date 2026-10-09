@@ -1,0 +1,17 @@
+/* Compare-only viewport chrome; no asset/task state or shared gallery overrides. */
+body.desk-app .desk-compare__stage img { transform-origin:50% 50%; pointer-events:none; user-select:none; will-change:transform; }
+body.desk-app .desk-compare__stage.is-zoomed { cursor:grab; }
+body.desk-app .desk-compare__stage.is-panning { cursor:grabbing; }
+body.desk-app .desk-compare__divider { pointer-events:auto; cursor:ew-resize; }
+body.desk-app .desk-compare__divider::after { content:""; position:absolute; inset:0 -16px; }
+body.desk-app .desk-compare__stage:focus-visible { outline:2px solid var(--desk-color-accent); outline-offset:-2px; }
+body.desk-app .desk-compare__stage:has(input[type="range"]:focus-visible) .desk-compare__divider::before { outline:3px solid var(--desk-color-accent); outline-offset:3px; }
+body.desk-app .desk-compare__tools { position:absolute; z-index:3; bottom:16px; left:50%; transform:translateX(-50%); display:flex; align-items:center; gap:6px; padding:6px 8px; max-width:calc(100% - 24px); box-sizing:border-box; border:1px solid var(--desk-node-stroke); border-radius:10px; background:var(--desk-color-panel-solid, #f1f6fc); box-shadow:0 4px 16px rgba(15,35,60,.16); color:var(--desk-node-ink); cursor:default; }
+body.desk-app[data-theme="dark"] .desk-compare__tools { background:#182536; }
+body.desk-app .desk-compare__tools button { flex:none; min-width:32px; height:32px; padding:0 9px; border:1px solid var(--desk-color-border-faint); border-radius:7px; color:inherit; background:var(--desk-color-accent-soft); font-family:inherit; font-size:12px; font-weight:600; line-height:1; cursor:pointer; }
+body.desk-app .desk-compare__tools button:hover:not(:disabled) { background:var(--desk-color-accent-soft-strong,rgba(84,137,206,.25)); }
+body.desk-app .desk-compare__tools button:focus-visible { outline:2px solid var(--desk-color-accent); outline-offset:2px; }
+body.desk-app .desk-compare__tools button:disabled { opacity:.4; cursor:default; }
+body.desk-app .desk-compare__tools output { min-width:48px; text-align:center; font-size:12px; font-variant-numeric:tabular-nums; }
+body.desk-app .desk-compare__hint { font-size:11px; color:var(--desk-node-muted-ink); white-space:nowrap; padding:0 5px; }
+@media(max-width:1100px) { body.desk-app .desk-compare__hint { display:none; } }

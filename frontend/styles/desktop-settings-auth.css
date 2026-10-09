@@ -42,17 +42,71 @@ body.desk-app[data-theme] .desk-settings__version {
 }
 
 body.desk-app[data-theme] .desk-settings-tabs {
-  background: var(--desk-settings-tabs-background);
-  border-color: var(--desk-settings-tabs-border);
-  box-shadow: var(--desk-settings-tabs-shadow);
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
 }
 
 body.desk-app[data-theme] :where(.desk-settings-tabs button) {
   color: var(--desk-settings-tabs-ink);
 }
 
-body.desk-app[data-theme] :where(.desk-settings-tabs .desk-settings-tabs__toggle) {
-  color: var(--desk-settings-tabs-toggle-ink);
+body.desk-app[data-theme] .desk-settings-tabs {
+  border-right: 1px solid var(--desk-settings-nav-divider);
+}
+
+body.desk-app[data-theme] .desk-settings-tabs__group-label {
+  color: var(--desk-settings-tabs-group-ink);
+}
+
+body.desk-app[data-theme] .desk-settings-search {
+  color: var(--desk-settings-muted-ink);
+  background: var(--desk-settings-search-background);
+  border: 1px solid var(--desk-settings-search-border);
+}
+
+body.desk-app[data-theme] .desk-settings-search:focus-within {
+  border-color: var(--desk-settings-hit-ring);
+}
+
+/* The box chrome lives on .desk-settings-search; the id outranks the settings form
+   input skin (`.desk-settings :is(input:not(...)...)`), which would add an inner frame. */
+body.desk-app[data-theme] .desk-settings #deskSettingsSearchInput {
+  color: var(--desk-settings-ink);
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  outline: none;
+}
+
+body.desk-app[data-theme] .desk-settings-search__results {
+  color: var(--desk-settings-ink);
+  background: var(--desk-settings-search-results-background);
+  border: 1px solid var(--desk-settings-search-border);
+  box-shadow: var(--desk-settings-panel-shadow);
+}
+
+body.desk-app[data-theme] .desk-settings-search__option.is-active {
+  background: var(--desk-settings-search-active-background);
+}
+
+body.desk-app[data-theme] .desk-settings-search__option :is(.desk-settings-search__path, small),
+body.desk-app[data-theme] .desk-settings-search__empty {
+  color: var(--desk-settings-muted-ink);
+}
+
+body.desk-app[data-theme] .desk-settings-search mark {
+  color: inherit;
+  background: var(--desk-settings-search-mark);
+}
+
+body.desk-app[data-theme] .desk-settings__resize:is(:hover, :focus-visible),
+body.desk-app[data-theme] .desk-settings.is-resizing .desk-settings__resize {
+  background: var(--desk-settings-resize-hover);
+}
+
+body.desk-app[data-theme] .desk-settings__body .is-search-hit {
+  box-shadow: 0 0 0 2px var(--desk-settings-hit-ring);
 }
 
 body.desk-app[data-theme] .desk-settings__summary span {
@@ -77,29 +131,29 @@ body.desk-app[data-theme] .desk-settings__summary span.is-warn {
 body.desk-app[data-theme] .desk-settings-card {
   background: var(--desk-settings-card-background);
   border-color: var(--desk-settings-card-border);
-  box-shadow: var(--desk-settings-card-shadow);
+  box-shadow: none;
 }
 
 body.desk-app[data-theme] .desk-settings-dot {
   background: var(--desk-settings-ok-dot);
-  box-shadow: var(--desk-settings-ok-dot-shadow);
+  box-shadow: none;
 }
 
 body.desk-app[data-theme] .desk-settings-card.is-warn .desk-settings-dot {
   background: var(--desk-settings-warn-dot);
-  box-shadow: var(--desk-settings-warn-dot-shadow);
+  box-shadow: none;
 }
 
 body.desk-app[data-theme] .desk-settings-canvas-interaction {
-  background: var(--desk-settings-inline-background);
-  border-color: var(--desk-settings-inline-border);
-  box-shadow: var(--desk-settings-inline-shadow);
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
 }
 
 body.desk-app[data-theme] .desk-settings-canvas-interaction__segment {
   background: var(--desk-settings-segment-background);
   border-color: var(--desk-settings-segment-border);
-  box-shadow: var(--desk-settings-segment-shadow);
+  box-shadow: inset 0 0 0 1px var(--desk-settings-segment-border);
 }
 
 body.desk-app[data-theme] :where(.desk-settings-canvas-interaction__segment button) {
@@ -149,8 +203,8 @@ body.desk-app[data-theme] :is(
 }
 
 body.desk-app[data-theme] :where(
-  .desk-settings-form input,
-  .desk-settings-textarea
+  .desk-settings input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]),
+  .desk-settings textarea
 ) {
   color: var(--desk-settings-field-ink);
   background: var(--desk-settings-field-background);
@@ -164,9 +218,9 @@ body.desk-app[data-theme] .desk-settings-form input[type="checkbox"] {
 
 body.desk-app[data-theme] .desk-settings-secret-clear {
   color: var(--desk-settings-danger-control-ink);
-  background: var(--desk-settings-danger-control-background);
-  border-color: var(--desk-settings-danger-control-border);
-  box-shadow: var(--desk-settings-danger-control-shadow);
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
 }
 
 body.desk-app[data-theme] .desk-settings-secret-clear:hover {
@@ -178,6 +232,19 @@ body.desk-app[data-theme] .desk-settings-secret-clear:hover {
 
 body.desk-app[data-theme] .desk-settings-form__hint {
   color: var(--desk-settings-hint-ink);
+}
+
+/* Static tool guidance is auxiliary copy, not a runtime warning. Actual
+   inspection/error borders and messages retain their domain status colors. */
+body.desk-app[data-theme] .desk-settings :is(
+  .desk-krea2-tools__card,
+  .desk-qwen21-tools__card
+) .desk-settings-form__hint,
+body.desk-app[data-theme] .desk-settings :is(
+  .desk-krea2-tools__inspection,
+  .desk-qwen21-tools__inspection
+).is-empty {
+  color: var(--desk-settings-muted-ink);
 }
 
 body.desk-app[data-theme] .desk-settings-pinterest-status {
@@ -206,19 +273,19 @@ body.desk-app[data-theme] .desk-settings-form__activity {
   border-color: var(--desk-settings-activity-border);
 }
 
-body.desk-app[data-theme] :is(
-  .desk-settings-form__actions button.is-done,
-  .desk-settings-account__actions button.is-done
-) {
+body.desk-app[data-theme] .desk-settings :is(
+  .desk-settings-form__actions,
+  .desk-settings-account__actions
+) button.is-done:not(.is-loading) {
   color: var(--desk-settings-done-ink);
   background: var(--desk-settings-done-background);
   border-color: var(--desk-settings-done-border);
 }
 
 body.desk-app[data-theme] .desk-settings-pool-toolbar {
-  background: var(--desk-settings-pool-toolbar-background);
-  border-color: var(--desk-settings-pool-toolbar-border);
-  box-shadow: var(--desk-settings-pool-toolbar-shadow);
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
 }
 
 body.desk-app[data-theme] .desk-settings-pool-summary span {
@@ -238,6 +305,22 @@ body.desk-app[data-theme] .desk-settings-pool-summary span.is-warn {
   color: var(--desk-settings-pool-chip-warn-ink);
   background: var(--desk-settings-pool-chip-warn-background);
   border-color: var(--desk-settings-pool-chip-warn-border);
+}
+
+/* Settings success labels share the footer's pale silk, not the saturated
+   service/online badges. Keep their existing geometry and warning states. */
+body.desk-app[data-theme] .desk-settings :is(
+  .desk-settings__summary span.is-ok,
+  .desk-settings-path:not(.is-warn) em,
+  .desk-settings-account:not(.is-warn) .desk-settings-account__main span,
+  .desk-settings-pool-summary span.is-ok,
+  .desk-settings-form__actions button.is-done,
+  .desk-settings-account__actions button.is-done
+) {
+  background-position: var(--desk-status-material-position);
+  background-repeat: no-repeat;
+  background-size: var(--desk-status-material-background-size);
+  box-shadow: var(--desk-status-success-soft-shadow);
 }
 
 body.desk-app[data-theme] .desk-settings-pool-activity {
@@ -272,9 +355,37 @@ body.desk-app[data-theme] .desk-settings-pool-activity.is-error {
 }
 
 body.desk-app[data-theme] .desk-settings-details {
-  background: var(--desk-settings-details-background);
-  border-color: var(--desk-settings-details-border);
-  box-shadow: var(--desk-settings-details-shadow);
+  background: transparent;
+  border-color: var(--desk-settings-field-border);
+  box-shadow: none;
+}
+
+/* Runtime sections follow the same quiet Settings material. Keep the domain's
+   online/offline/warning dot colors and real inspection/error frames intact. */
+body.desk-app[data-theme] .desk-settings :is(.desk-video-runtime-panel, .desk-video-supervisor) {
+  background: transparent;
+  border-color: var(--desk-settings-field-border);
+  box-shadow: none;
+}
+
+body.desk-app[data-theme] .desk-settings :is(.desk-video-runtime-status, .desk-video-supervisor-status) {
+  background: var(--desk-settings-segment-background);
+  border-color: transparent;
+  box-shadow: none;
+}
+
+body.desk-app[data-theme] .desk-settings :is(.desk-video-runtime-status > span, .desk-video-supervisor-status__dot) {
+  box-shadow: none;
+}
+
+body.desk-app[data-theme] .desk-settings :is(
+  .desk-krea2-tools__paths > div,
+  .desk-qwen21-tools__paths > div,
+  .desk-krea2-tools__inspection.is-empty,
+  .desk-qwen21-tools__inspection.is-empty
+) {
+  background: transparent;
+  box-shadow: none;
 }
 
 body.desk-app[data-theme] .desk-settings-details summary::after {

@@ -208,6 +208,17 @@ body.desk-app[data-theme] .desk-prompt-editor__remove {
   background: var(--desk-prompt-assistant-mention-remove-background);
 }
 
+body.desk-app[data-theme] .desk-prompt-editor__media-icon {
+  color: var(--desk-prompt-assistant-accent-emphasis-ink);
+  background: var(--desk-agent-image-menu-thumb-background);
+}
+
+body.desk-app[data-theme] .desk-prompt-image-menu__kind {
+  color: var(--desk-prompt-assistant-media-kind-ink);
+  background: var(--desk-prompt-assistant-media-kind-background);
+  border-color: var(--desk-prompt-assistant-media-kind-border);
+}
+
 body.desk-app[data-theme] :is(
   .desk-prompt-image-switch span,
   .desk-agent-toggle > span,

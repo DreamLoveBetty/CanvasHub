@@ -1,0 +1,267 @@
+/* LoRA presentation: shared desktop material/typography, compact gallery density.
+   Control paint stays in desktop-controls; this module owns only local layout. */
+.desk-app :is(.desk-lora-library, .desk-lora-dialog) {
+  font-family: var(--desk-font-family-sans);
+  font-size: var(--desk-font-size-label);
+  line-height: var(--desk-line-height-normal);
+  color: var(--desk-ink);
+}
+
+.desk-app .desk-lora-library {
+  display: block;
+  min-width: 0;
+  overflow: auto;
+  padding: var(--desk-space-5);
+}
+
+.desk-app .desk-gallery--loras .desk-gallery__body { grid-template-columns: minmax(0, 1fr); }
+.desk-app .desk-gallery--loras :is(.desk-gallery-inspector, .desk-gallery-search, .desk-gallery-filter, .desk-gallery-tag-filter, .desk-gallery-stats),
+.desk-app .desk-gallery--loras .desk-select-shell[data-select-id="deskGalleryFilterSelect"] { display: none; }
+
+/* Match the existing compact gallery controls, including enhanced selects. */
+.desk-app :is(.desk-lora-library, .desk-lora-dialog) :is(.desk-input, .desk-select, .desk-select-trigger, .desk-button) {
+  box-sizing: border-box;
+  min-width: 0;
+  min-height: var(--desk-control-height-sm);
+  height: var(--desk-control-height-sm);
+  padding: 0 var(--desk-space-4);
+  border-radius: var(--desk-radius-control);
+  font-family: var(--desk-font-family-sans);
+  font-size: var(--desk-font-size-caption);
+  font-weight: var(--desk-font-weight-medium);
+  line-height: var(--desk-line-height-caption);
+}
+
+.desk-app :is(.desk-lora-library, .desk-lora-dialog) .desk-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--desk-space-2);
+  white-space: nowrap;
+  text-decoration: none;
+}
+
+.desk-app :is(.desk-lora-library, .desk-lora-dialog) .desk-select-trigger {
+  padding-right: 26px;
+  font-weight: var(--desk-font-weight-semibold);
+}
+
+.desk-app :is(.desk-lora-library, .desk-lora-dialog) .desk-input {
+  width: 100%;
+  border: 1px solid var(--desk-color-control-border);
+  background: var(--desk-color-control-bg);
+  color: var(--desk-color-control-ink);
+  box-shadow: var(--desk-shadow-control);
+  transition: var(--desk-motion-control-transition);
+}
+
+.desk-app :is(.desk-lora-library, .desk-lora-dialog) .desk-input::placeholder { color: var(--desk-muted); }
+.desk-app :is(.desk-lora-library, .desk-lora-dialog) .desk-input:hover { border-color: var(--desk-color-control-border-hover); }
+.desk-app :is(.desk-lora-library, .desk-lora-dialog) .desk-input:focus {
+  border-color: var(--desk-color-accent);
+  outline: 2px solid var(--desk-color-accent-soft);
+  outline-offset: 0;
+}
+
+.desk-app .desk-lora-dialog textarea.desk-input {
+  height: auto;
+  min-height: 48px;
+  max-height: 180px;
+  padding: var(--desk-space-3) var(--desk-space-4);
+  resize: vertical;
+  line-height: var(--desk-line-height-normal);
+}
+
+.desk-app .desk-lora-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--desk-space-3);
+  margin-bottom: var(--desk-space-3);
+}
+.desk-app .desk-lora-toolbar > input { flex: 1 1 220px; min-width: 140px; }
+.desk-app .desk-lora-toolbar > :is(select, .desk-select-shell) { flex: 0 0 116px; width: 116px; }
+.desk-app .desk-lora-toolbar > .desk-button { flex: 0 0 auto; }
+.desk-app .desk-lora-status {
+  color: var(--desk-muted);
+  padding-bottom: var(--desk-space-4);
+  font-size: var(--desk-font-size-caption);
+  overflow-wrap: anywhere;
+}
+
+.desk-app .desk-lora-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(175px, 1fr));
+  gap: var(--desk-space-5);
+}
+.desk-app .desk-lora-card {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  border: 1px solid var(--desk-color-control-border);
+  border-radius: var(--desk-radius-card);
+  overflow: hidden;
+  background: var(--desk-color-control-bg);
+}
+.desk-app .desk-lora-card__open {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--desk-ink);
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+.desk-app .desk-lora-card__image {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 4/3;
+  background: var(--desk-color-accent-soft);
+  overflow: hidden;
+}
+.desk-app .desk-lora-card__image img { width: 100%; height: 100%; object-fit: cover; }
+.desk-app .desk-lora-card__image > span {
+  display: grid;
+  text-align: center;
+  gap: var(--desk-space-2);
+  color: var(--desk-muted);
+  font-size: var(--desk-font-size-panel-title);
+  font-weight: var(--desk-font-weight-bold);
+}
+.desk-app .desk-lora-card__image small { font-size: var(--desk-font-size-caption); font-weight: var(--desk-font-weight-regular); }
+.desk-app .desk-lora-card__text { padding: var(--desk-space-4) var(--desk-space-5) 0; }
+.desk-app .desk-lora-card__text strong {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--desk-font-size-label);
+}
+.desk-app .desk-lora-card__text :is(p, small) { color: var(--desk-muted); font-size: var(--desk-font-size-caption); overflow: hidden; text-overflow: ellipsis; }
+.desk-app .desk-lora-card__text p { white-space: nowrap; margin: var(--desk-space-3) 0; }
+.desk-app .desk-lora-card footer {
+  display: flex;
+  flex: 0 0 auto;
+  margin-top: auto;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 var(--desk-space-5) var(--desk-space-4);
+  gap: var(--desk-space-3);
+  font-size: var(--desk-font-size-caption);
+  color: var(--desk-muted);
+}
+.desk-app .desk-lora-card footer .desk-button { flex: 0 0 auto; height: var(--desk-control-height-xs); min-height: var(--desk-control-height-xs); }
+.desk-app .desk-lora-empty { grid-column: 1/-1; padding: 40px 16px; text-align: center; color: var(--desk-muted); }
+.desk-app .desk-lora-pagination { display: flex; justify-content: center; align-items: center; gap: var(--desk-space-6); padding: var(--desk-space-6); font-size: var(--desk-font-size-caption); }
+
+/* Header and save actions stay visible; only the content area scrolls. */
+.desk-app .desk-lora-dialog {
+  width: min(560px, calc(100vw - 32px));
+  max-width: calc(100vw - 32px);
+  max-height: calc(100dvh - 40px);
+  padding: 0;
+  margin: auto;
+  box-sizing: border-box;
+  overflow: hidden;
+  border: 1px solid var(--desk-color-popover-border);
+  border-radius: var(--desk-radius-panel);
+  background: var(--desk-color-popover-bg);
+  box-shadow: var(--desk-shadow-panel);
+}
+.desk-app .desk-lora-dialog[open] { display: flex; flex-direction: column; }
+.desk-app .desk-lora-dialog [hidden] { display: none !important; }
+.desk-app .desk-lora-dialog--large { width: min(1000px, calc(100vw - 32px)); }
+.desk-app .desk-lora-dialog--detail { width: min(960px, calc(100vw - 32px)); }
+.desk-app .desk-lora-dialog::backdrop { background: var(--desk-gallery-pinterest-modal-backdrop); backdrop-filter: blur(4px); }
+.desk-app .desk-lora-dialog > header {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--desk-space-5) var(--desk-space-8);
+  gap: var(--desk-space-6);
+  border-bottom: 1px solid var(--desk-color-border-subtle);
+}
+.desk-app .desk-lora-dialog > header > div { min-width: 0; }
+.desk-app .desk-lora-dialog h2 { font-size: var(--desk-font-size-section-title); line-height: var(--desk-line-height-tight); margin: var(--desk-space-1) 0 0; overflow-wrap: anywhere; }
+.desk-app .desk-lora-dialog h3 { font-size: var(--desk-font-size-label); margin: 0; }
+.desk-app .desk-lora-dialog small { color: var(--desk-muted); font-size: var(--desk-font-size-caption); }
+.desk-app .desk-lora-dialog > header small { font-size: var(--desk-font-size-micro); }
+.desk-app .desk-lora-dialog > header .desk-button { flex: 0 0 auto; width: var(--desk-control-height-xs); height: var(--desk-control-height-xs); min-height: var(--desk-control-height-xs); padding: 0; }
+.desk-app .desk-lora-dialog > header svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
+.desk-app .desk-lora-feedback { flex: 0 0 auto; padding: var(--desk-space-3) var(--desk-space-8); margin: 0; background: var(--desk-color-accent-soft); font-size: var(--desk-font-size-caption); overflow-wrap: anywhere; }
+.desk-app .desk-lora-feedback:empty { display: none; }
+.desk-app .desk-lora-dialog[aria-busy="true"] > :is(.desk-lora-dialog__body, .desk-lora-dialog__footer) { pointer-events: none; opacity: .7; }
+.desk-app .desk-lora-dialog__body { flex: 0 1 auto; min-height: 0; padding: var(--desk-space-6) var(--desk-space-8); overflow: auto; box-sizing: border-box; }
+.desk-app .desk-lora-dialog__footer { display: flex; flex: 0 0 auto; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--desk-space-4); padding: var(--desk-space-4) var(--desk-space-8); border-top: 1px solid var(--desk-color-border-subtle); }
+
+.desk-app .desk-lora-detail { display: grid; grid-template-columns: 268px minmax(0, 1fr); align-items: start; gap: var(--desk-space-8); }
+.desk-app .desk-lora-detail__visual { min-width: 0; }
+.desk-app .desk-lora-detail__info { display: grid; align-content: start; gap: var(--desk-space-5); min-width: 0; }
+.desk-app .desk-lora-hero { display: flex; align-items: center; justify-content: center; height: 246px; background: var(--desk-color-accent-soft); border-radius: var(--desk-radius-surface); overflow: hidden; color: var(--desk-muted); font-size: var(--desk-font-size-caption); }
+.desk-app .desk-lora-hero img { width: 100%; height: 100%; object-fit: contain; cursor: zoom-in; }
+.desk-app .desk-lora-thumbs { display: flex; overflow: auto; gap: var(--desk-space-3); padding: var(--desk-space-3) 0; }
+.desk-app .desk-lora-thumbs:empty { display: none; }
+.desk-app .desk-lora-thumbs > div { flex: 0 0 82px; }
+.desk-app .desk-lora-thumbs button[data-lora-preview] { display: block; width: 82px; height: 60px; border: 0; padding: 0; background: none; cursor: pointer; }
+.desk-app .desk-lora-thumbs img { width: 100%; height: 100%; object-fit: cover; border-radius: var(--desk-radius-control); }
+.desk-app .desk-lora-thumbs > div > div { display: flex; justify-content: space-between; gap: var(--desk-space-1); padding-top: var(--desk-space-2); }
+.desk-app .desk-lora-thumbs .desk-button { height: var(--desk-control-height-xs); min-height: var(--desk-control-height-xs); padding: 0 var(--desk-space-2); font-size: var(--desk-font-size-micro); }
+.desk-app .desk-lora-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--desk-space-3); }
+.desk-app .desk-lora-detail__visual > .desk-lora-actions { margin: var(--desk-space-3) 0; }
+.desk-app .desk-lora-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: var(--desk-space-4); }
+/* Only single-line controls share columns; multiline editors span the form. */
+.desk-app .desk-lora-fields--identity { grid-template-columns: minmax(0, 2fr) repeat(2, minmax(0, 1fr)); align-items: end; }
+.desk-app .desk-lora-detail__info label { display: grid; min-width: 0; gap: var(--desk-space-2); color: var(--desk-muted); font-size: var(--desk-font-size-caption); }
+.desk-app .desk-lora-actions label { display: inline-flex; align-items: center; gap: var(--desk-space-2); color: var(--desk-muted); font-size: var(--desk-font-size-caption); }
+.desk-app .desk-lora-dialog input[type="checkbox"] { width: 13px; height: 13px; margin: 0; flex: 0 0 auto; }
+.desk-app .desk-lora-detail :is(select, .desk-select-shell) { width: 100%; }
+.desk-app .desk-lora-section-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: var(--desk-space-3); margin-bottom: var(--desk-space-3); }
+.desk-app .desk-lora-detail__info label.desk-lora-trigger-status { display: flex; align-items: center; gap: var(--desk-space-3); }
+.desk-app .desk-lora-trigger-status > :is(select, .desk-select-shell) { width: 156px; flex: 0 0 156px; }
+.desk-app .desk-lora-trigger-tools { display: flex; flex-wrap: wrap; align-items: center; gap: var(--desk-space-3); }
+.desk-app .desk-lora-trigger-tools > .desk-lora-chips { flex: 1 1 180px; min-width: 0; }
+.desk-app .desk-lora-trigger-tools > .desk-lora-actions { margin-left: auto; }
+.desk-app .desk-lora-chips { display: flex; flex-wrap: wrap; gap: var(--desk-space-3); max-height: 96px; overflow: auto; }
+.desk-app .desk-lora-chip { display: flex; align-items: center; gap: var(--desk-space-3); padding: var(--desk-space-1) var(--desk-space-2); min-width: 0; max-width: 100%; background: var(--desk-color-accent-soft); border-radius: var(--desk-radius-control); }
+.desk-app .desk-lora-chip label { display: flex; align-items: center; gap: var(--desk-space-2); }
+.desk-app .desk-lora-chip span { overflow-wrap: anywhere; }
+.desk-app .desk-lora-chip .desk-button { height: var(--desk-control-height-xs); min-height: var(--desk-control-height-xs); padding: 0 var(--desk-space-2); font-size: var(--desk-font-size-micro); }
+.desk-app .desk-lora-disclosure { min-width: 0; border-top: 1px solid var(--desk-color-border-subtle); margin-top: var(--desk-space-3); }
+.desk-app .desk-lora-disclosure > summary { padding: var(--desk-space-3) 0; cursor: pointer; color: var(--desk-muted); font-size: var(--desk-font-size-caption); font-weight: var(--desk-font-weight-semibold); }
+.desk-app .desk-lora-disclosure__body { display: grid; gap: var(--desk-space-4); padding: var(--desk-space-2) 0 var(--desk-space-3); min-width: 0; overflow-wrap: anywhere; }
+.desk-app .desk-lora-disclosure__body p { margin: 0; font-size: var(--desk-font-size-caption); }
+.desk-app .desk-lora-trigger-editor { border: 0; }
+.desk-app .desk-lora-trigger-editor > summary { color: var(--desk-color-accent); }
+.desk-app .desk-lora-apply { display: flex; gap: var(--desk-space-3); align-items: end; }
+.desk-app .desk-lora-apply > label { flex: 1; min-width: 0; }
+.desk-app .desk-lora-apply > button { flex: 0 0 auto; }
+.desk-app .desk-lora-file-info { margin: 0; font-size: var(--desk-font-size-caption); color: var(--desk-muted); }
+.desk-app .desk-lora-file-info dt { margin-top: var(--desk-space-3); font-weight: var(--desk-font-weight-semibold); }
+.desk-app .desk-lora-file-info dt:first-child { margin-top: 0; }
+.desk-app .desk-lora-file-info dd { margin: var(--desk-space-2) 0; overflow-wrap: anywhere; }
+.desk-app .desk-lora-reset { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--desk-space-4); margin: var(--desk-space-6) 0; }
+.desk-app .desk-lora-enlarged { display: block; max-width: 100%; max-height: 72vh; margin: auto; object-fit: contain; }
+.desk-app .desk-lora-danger { color: var(--desk-muted); font-size: var(--desk-font-size-caption); }
+.desk-app .desk-lora-danger .desk-lora-actions { margin-top: var(--desk-space-3); }
+.desk-app .desk-lora-danger .desk-select-shell { flex: 1; min-width: 85px; }
+
+/* Node and Settings entry points retain their host's geometry. */
+.desk-app .desk-lora-picker-button { width: 100%; height: 32px; justify-content: space-between; font-size: 11px; }
+.desk-app .desk-lora-row-detail { width: 100%; padding: 0 !important; border: 0; background: none; color: var(--desk-ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; font: inherit; font-weight: 750; cursor: pointer; }
+.desk-app .desk-lora-settings .desk-lora-actions { margin: 8px 0; }
+.desk-app .desk-lora-settings .desk-lora-actions input { min-width: 160px; flex: 1; }
+
+@media (max-width: 760px) {
+  .desk-app .desk-lora-detail { grid-template-columns: 210px minmax(0, 1fr); gap: var(--desk-space-6); }
+  .desk-app .desk-lora-hero { height: 200px; }
+  .desk-app .desk-lora-dialog__body { padding: var(--desk-space-6); }
+}
+@media (max-width: 600px) {
+  .desk-app .desk-lora-detail { grid-template-columns: minmax(0, 1fr); }
+  .desk-app .desk-lora-hero { height: 190px; }
+  .desk-app .desk-lora-dialog__footer small { display: none; }
+}

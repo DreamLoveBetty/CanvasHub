@@ -12,9 +12,13 @@
   let bottomStatusMessage = DEFAULT_STATUS_MESSAGE;
   let bottomStatusTone = 'info';
   let statusTipOpen = false;
+  // Task details belong to task reports/resetOutput, never to transient notices.
   let statusTipTask = null;
   let statusTipRawText = '';
   let statusTipCopyTimer = null;
+  let statusDockFrame = null;
+  let statusDockResizeObserver = null;
+  let statusDockHistoryObserver = null;
   const STATUS_TONE_CLASSES = [
     'desk-status-chip--ok',
     'desk-status-chip--warn',
@@ -96,6 +100,8 @@
       'deskOutputStatus',
       'deskInputOutputStatus',
       'deskStatusMessage',
+      'deskStatusBarStatus',
+      'deskHistoryPanel',
       'deskStatusTip',
       'deskStatusTipTitle',
       'deskStatusTipSubtitle',
@@ -147,7 +153,7 @@
       status: node.querySelector('[data-output-status]') || (resultNodeId === 'output' ? els.deskOutputStatus : els.deskInputOutputStatus),
       progressPercent: isInputNode ? els.deskInputProgressPercent : (node.querySelector('[data-progress-percent]') || (resultNodeId === 'output' ? els.deskProgressPercent : null)),
       progressBar: isInputNode ? els.deskInputProgressBar : (node.querySelector('[data-progress-bar]') || (resultNodeId === 'output' ? els.deskProgressBar : null)),
-      progressWrap: isInputNode ? null : node.querySelector('.desk-progress-wrap'),
+      progressWrap: isInputNode ? null : node.querySelector('.desk-progress-wrap, .desk-progress-float'),
       progressStage: isInputNode ? els.deskInputProgressStage : node.querySelector('[data-progress-stage]'),
       progressTimer: isInputNode ? els.deskInputProgressTimer : node.querySelector('[data-progress-timer]'),
       grid: node.querySelector('[data-result-grid]') || (resultNodeId === 'output' ? els.deskResultGrid : null),
@@ -246,6 +252,7 @@
     els.deskStatusMessage.textContent = bottomStatusMessage || DEFAULT_STATUS_MESSAGE;
     els.deskStatusMessage.dataset.tone = bottomStatusTone || 'info';
     els.deskStatusMessage.title = '点击查看任务状态详情';
+    scheduleStatusTipPosition();
     if (statusTipOpen) renderStatusTip();
   }
 
@@ -253,6 +260,16 @@
     bottomStatusMessage = message || DEFAULT_STATUS_MESSAGE;
     bottomStatusTone = tone || 'info';
     if (!transientTimer) renderBottomStatus();
+  }
+
+  // Shared status presentation port. Does not create image outputs, poll jobs,
+  // change provider controls or take ownership of a domain's task lifecycle.
+  function reportTaskStatus({ task, message, tone = 'info' }) {
+    statusTipTask = buildStatusTipTask(task);
+    statusTipTask.status_tone = tone;
+    setBottomStatus(message || task?.progress_text || DEFAULT_STATUS_MESSAGE, tone);
+    scheduleStatusTipPosition();
+    if (statusTipOpen && transientTimer) renderStatusTip();
   }
 
   function setStatusChipTone(chip, tone = 'ok') {
@@ -330,6 +347,7 @@
     const route = String(value || '').trim();
     const labels = {
       codex: '本地 Codex',
+      mlx_yue: '本地 mlx-Yue',
       chatgpt_pool: '账号池 API',
       third_party_image_api: '第三方 API',
       google_gen: 'Google 生成',
@@ -371,40 +389,32 @@
   function statusTipMetaRows(task = null, output = null) {
     const route = inferStatusRoute(task, output);
     const rows = [
-      ['状态', DesktopState.getStatusLabel(task?.status || output?.status || 'idle')],
-      ['任务 ID', task?.task_id || output?.taskId || DesktopState.state.selectedTaskId || ''],
+      ['状态', task?.status_label || DesktopState.getStatusLabel(task?.status || output?.status || 'idle')],
+      ['节点', task?.node_title || ''],
+      ['操作', task?.operation_label || ''],
+      ['任务 ID', task?.task_id || output?.taskId || ''],
       ['Run ID', task?.last_run_id || output?.lastRunId || ''],
       ['错误码', task?.error_code || output?.errorCode || ''],
       ['分类', task?.error_category || output?.errorCategory || ''],
       ['线路', readableRoute(route)],
       ['阶段', task?.stage || output?.stage || ''],
+      ['用时', task?.elapsed_text || ''],
       ['次数', task?.run_count ? `${task.run_count}` : '']
     ];
     return rows.filter(([, value]) => value !== undefined && value !== null && String(value).trim() !== '');
   }
 
   function getStatusTipTask() {
-    const output = getOutputState(DEFAULT_RESULT_NODE_ID);
-    return statusTipTask || {
-      task_id: output.taskId || DesktopState.state.selectedTaskId || '',
-      status: output.status || 'idle',
-      stage: output.stage || '',
-      progress_text: output.progressText || bottomStatusMessage,
-      progress: output.progress || 0,
-      error: output.error || '',
-      display_error: output.displayError || '',
-      raw_error: output.rawError || '',
-      error_code: output.errorCode || '',
-      error_category: output.errorCategory || '',
-      last_run_id: output.lastRunId || '',
-      run_count: output.runCount || 0,
-      params: output.params || {}
-    };
+    return statusTipTask || buildStatusTipTask({ status: 'idle', progress_text: DEFAULT_STATUS_MESSAGE });
   }
 
   function buildStatusTipTask(task = null, output = null) {
     const source = task && typeof task === 'object' ? task : {};
-    const liveOutput = output || getOutputState(DEFAULT_RESULT_NODE_ID);
+    const hasSourceTaskId = Object.prototype.hasOwnProperty.call(source, 'task_id') || Object.prototype.hasOwnProperty.call(source, 'taskId');
+    const sourceTaskId = Object.prototype.hasOwnProperty.call(source, 'task_id') ? source.task_id : source.taskId;
+    const outputTaskId = output?.taskId ?? output?.task_id;
+    // Never stitch an explicit new/empty task ID onto a previous task's data.
+    const liveOutput = output && (!hasSourceTaskId || (sourceTaskId && sourceTaskId === outputTaskId)) ? output : {};
     const sourceValue = (snakeName, camelName, fallback = '') => {
       if (Object.prototype.hasOwnProperty.call(source, snakeName)) return source[snakeName];
       if (camelName && Object.prototype.hasOwnProperty.call(source, camelName)) return source[camelName];
@@ -412,10 +422,10 @@
     };
     return {
       ...source,
-      task_id: sourceValue('task_id', 'taskId', liveOutput?.taskId || DesktopState.state.selectedTaskId || ''),
+      task_id: sourceValue('task_id', 'taskId', liveOutput?.taskId || liveOutput?.task_id || ''),
       status: sourceValue('status', '', liveOutput?.status || 'idle'),
       stage: sourceValue('stage', '', liveOutput?.stage || ''),
-      progress_text: sourceValue('progress_text', 'message', liveOutput?.progressText || bottomStatusMessage || ''),
+      progress_text: sourceValue('progress_text', 'message', liveOutput?.progressText || ''),
       progress: sourceValue('progress', 'progressPercent', liveOutput?.progress || 0),
       error: sourceValue('error', '', liveOutput?.error || ''),
       display_error: sourceValue('display_error', 'displayError', liveOutput?.displayError || ''),
@@ -426,53 +436,97 @@
       run_count: sourceValue('run_count', 'runCount', liveOutput?.runCount || 0),
       type: sourceValue('type', '', liveOutput?.type || ''),
       provider: sourceValue('provider', '', liveOutput?.provider || ''),
-      params: getTaskParams(source) || liveOutput?.params || {}
+      params: { ...getTaskParams(Object.prototype.hasOwnProperty.call(source, 'params') ? source : liveOutput) }
     };
+  }
+
+  // One horizontal dock for both the footer label and its task details. The
+  // expanded history is a DOM layout anchor, not a dependency on history state.
+  function calculateStatusDock({ statusLeft, statusRight, historyLeft, preferredWidth }) {
+    const right = Math.max(statusLeft, Math.min(statusRight, historyLeft ?? statusRight));
+    const available = right - statusLeft;
+    // Keep a small scrollable indicator area even in a narrow desktop window.
+    const width = Math.min(preferredWidth, available, Math.max(72, available - 56));
+    return { left: right - width, right, width, trailing: statusRight - right };
   }
 
   function updateStatusTipPosition() {
     const panel = els.deskStatusTip;
     const trigger = els.deskStatusMessage;
-    if (!panel || !trigger || panel.hidden) return;
-    const rect = trigger.getBoundingClientRect();
-    const panelRect = panel.getBoundingClientRect();
-    const gap = 10;
+    if (!panel || !trigger) return;
     const viewportPadding = 10;
-    const width = Math.min(panelRect.width || 360, window.innerWidth - viewportPadding * 2);
-    const left = Math.max(
-      viewportPadding,
-      Math.min(window.innerWidth - width - viewportPadding, rect.left + rect.width / 2 - width / 2)
-    );
-    const bottom = Math.max(viewportPadding, window.innerHeight - rect.top + gap);
-    panel.style.left = `${Math.round(left)}px`;
+    const status = els.deskStatusBarStatus;
+    const statusRect = status?.getBoundingClientRect();
+    const history = els.deskHistoryPanel;
+    const historyRect = history?.getBoundingClientRect();
+    const historyVisible = history && !history.hidden && !history.classList.contains('is-collapsed')
+      && historyRect.width > 0 && historyRect.height > 0
+      && historyRect.left < window.innerWidth && historyRect.right > 0;
+    const extended = Boolean(statusTipTask?.raw_detail);
+    const dock = calculateStatusDock({
+      statusLeft: statusRect?.left ?? viewportPadding,
+      statusRight: statusRect?.right ?? window.innerWidth - viewportPadding,
+      historyLeft: historyVisible ? historyRect.left : null,
+      preferredWidth: extended ? 400 : 280
+    });
+    status?.style.setProperty('--desk-status-dock-width', `${dock.width}px`);
+    status?.style.setProperty('--desk-status-dock-trailing', `${dock.trailing}px`);
+    panel.dataset.extended = String(extended);
+    panel.style.width = `${dock.width}px`;
+    panel.style.left = `${dock.left}px`;
     panel.style.right = 'auto';
-    panel.style.bottom = `${Math.round(bottom)}px`;
+    if (!panel.hidden) {
+      const rect = trigger.getBoundingClientRect();
+      panel.style.bottom = `${Math.max(viewportPadding, window.innerHeight - rect.top + 10)}px`;
+    }
+  }
+
+  function scheduleStatusTipPosition() {
+    if (statusDockFrame !== null) return;
+    statusDockFrame = window.requestAnimationFrame(() => {
+      statusDockFrame = null;
+      updateStatusTipPosition();
+    });
+  }
+
+  function bindStatusDockLayout() {
+    if (statusDockFrame != null) window.cancelAnimationFrame(statusDockFrame);
+    statusDockFrame = null;
+    statusDockResizeObserver?.disconnect();
+    statusDockHistoryObserver?.disconnect();
+    window.removeEventListener('resize', scheduleStatusTipPosition);
+    window.addEventListener('resize', scheduleStatusTipPosition);
+    if (window.ResizeObserver) {
+      statusDockResizeObserver = new window.ResizeObserver(scheduleStatusTipPosition);
+      [els.deskStatusBarStatus, els.deskHistoryPanel].filter(Boolean)
+        .forEach(element => statusDockResizeObserver.observe(element));
+    }
+    if (window.MutationObserver && els.deskHistoryPanel) {
+      statusDockHistoryObserver = new window.MutationObserver(scheduleStatusTipPosition);
+      statusDockHistoryObserver.observe(els.deskHistoryPanel, { attributes: true, attributeFilter: ['class', 'hidden'] });
+    }
+    scheduleStatusTipPosition();
   }
 
   function renderStatusTip() {
     const panel = els.deskStatusTip;
     if (!panel) return;
     const task = getStatusTipTask();
-    const output = getOutputState(DEFAULT_RESULT_NODE_ID);
-    const status = String(task?.status || output.status || 'idle');
+    panel.dataset.extended = String(Boolean(task?.raw_detail));
+    const status = String(task?.status || 'idle');
     const displaySource = task?.display_error
       || task?.progress_text
       || task?.message
       || task?.error
-      || output.displayError
-      || output.progressText
-      || bottomStatusMessage
       || DEFAULT_STATUS_MESSAGE;
     const displayInfo = statusDisplayInfo(displaySource);
     const displayMessage = displayInfo.text;
     const raw = formatStatusRaw(
-      task?.raw_error
+      task?.raw_detail
+      || task?.raw_error
       || task?.rawError
       || task?.error
-      || output.rawError
-      || output.error
       || task?.progress_text
-      || output.progressText
       || ''
     );
     statusTipRawText = [
@@ -483,7 +537,7 @@
       task?.task_id ? `task_id：${task.task_id}` : '',
       task?.last_run_id ? `run_id：${task.last_run_id}` : ''
     ].filter(Boolean).join('\n\n');
-    if (els.deskStatusTipTitle) els.deskStatusTipTitle.textContent = DesktopState.isFailure(status) ? '生成失败详情' : '任务状态详情';
+    if (els.deskStatusTipTitle) els.deskStatusTipTitle.textContent = task?.detail_title || (DesktopState.isFailure(status) ? '生成失败详情' : '任务状态详情');
     if (els.deskStatusTipSubtitle) els.deskStatusTipSubtitle.textContent = task?.task_id ? `#${task.task_id}` : '当前任务';
     if (els.deskStatusTipDisplay) {
       els.deskStatusTipDisplay.textContent = displayMessage || DEFAULT_STATUS_MESSAGE;
@@ -491,13 +545,13 @@
     }
     if (els.deskStatusTipRaw) els.deskStatusTipRaw.textContent = raw || '暂无原始返回信息';
     if (els.deskStatusTipMeta) {
-      els.deskStatusTipMeta.innerHTML = statusTipMetaRows(task, output)
+      els.deskStatusTipMeta.innerHTML = statusTipMetaRows(task)
         .map(([label, value]) => `<div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd></div>`)
         .join('');
     }
     resetStatusTipCopyButton();
-    panel.dataset.tone = DesktopState.isFailure(status) ? 'error' : (DesktopState.isSuccess(status) ? 'success' : (DesktopState.isInFlight(status) ? 'busy' : 'info'));
-    window.requestAnimationFrame(updateStatusTipPosition);
+    panel.dataset.tone = task?.status_tone || (DesktopState.isFailure(status) ? 'error' : (DesktopState.isSuccess(status) ? 'success' : (DesktopState.isInFlight(status) ? 'busy' : 'info')));
+    scheduleStatusTipPosition();
   }
 
   function openStatusTip() {
@@ -1098,6 +1152,30 @@
     if (resultEls.progressStage) {
       resultEls.progressStage.textContent = output.progressText || DesktopState.getStatusLabel(status);
     }
+    const resultNode = getResultNode(resultNodeId);
+    let materialRoot = resultEls.progressWrap;
+    if (resultNode?.classList.contains('desk-node--input')) {
+      materialRoot = resultNode.querySelector('[data-input-material-progress]');
+      if (!materialRoot && DesktopState.isInFlight(status)) {
+        // The classic single floating overlay remains compatible. New materials
+        // are node-relative so simultaneous image tasks cannot overwrite each other.
+        materialRoot = document.createElement('div');
+        materialRoot.className = 'desk-input-material-progress';
+        materialRoot.setAttribute('data-input-material-progress', '');
+        resultNode.appendChild(materialRoot);
+      }
+    }
+    if (materialRoot) {
+      const labels = { gpt: 'GPT · 图像生成', google: '图像生成', comfy: 'ComfyUI',
+        topaz: 'Topaz · 图像增强', upscale: '本地高清放大', file_output: '文件生成', video_inference: 'MiniMax H3' };
+      window.DesktopCanvas?.updateTaskProgress?.(materialRoot, {
+        visible: DesktopState.isInFlight(status), running: DesktopState.isInFlight(status), taskId: output.taskId,
+        percent: task?.progress ?? task?.progress_percent ?? task?.progressPercent ?? null,
+        title: output.progressText || DesktopState.getStatusLabel(status),
+        detail: labels[resultNode?.dataset.nodeType || state.canvas?.nodes?.[resultNodeId]?.type] || labels[output.type] || '图像生成',
+        startedAt: output.startedAt || output.createdAt, finishedAt: output.finishedAt,
+      }, resultNode);
+    }
     if (resultEls.progressTimer) {
       if (DesktopState.isInFlight(status)) {
         startProgressTimer(resultNodeId);
@@ -1139,7 +1217,7 @@
     }
     renderActions(resultNodeId);
     renderPills(task, resultNodeId);
-    window.DesktopCanvas?.refreshUpscaleNodeMode?.(resultNodeId);
+    window.DesktopCanvas?.refreshTaskNode?.(resultNodeId);
     if (DesktopState.isSuccess(status) && output.imagePaths?.length) {
       window.DesktopCanvas?.runUpscaleChainsForOutput?.(resultNodeId, output)
         ?.then(count => {
@@ -1610,18 +1688,11 @@
 
   function showTransientMessage(message, tone = 'info') {
     if (!els.deskStatusMessage) return;
-    if (tone === 'error') {
-      statusTipTask = buildStatusTipTask({
-        status: 'failed',
-        progress_text: message || DEFAULT_STATUS_MESSAGE,
-        display_error: message || DEFAULT_STATUS_MESSAGE,
-        raw_error: message || ''
-      });
-    } else if (tone === 'success') {
-      statusTipTask = null;
-    }
+    // Feedback about copying/settings/etc. is not a generation task update.
+    // Keep an open detail panel (including copy text) bound to its task.
     els.deskStatusMessage.textContent = message || DEFAULT_STATUS_MESSAGE;
     els.deskStatusMessage.dataset.tone = tone;
+    scheduleStatusTipPosition();
     if (statusTipOpen) renderStatusTip();
     if (transientTimer) window.clearTimeout(transientTimer);
     transientTimer = window.setTimeout(() => {
@@ -1630,57 +1701,13 @@
     }, 3600);
   }
 
-  function getCancelableTaskEntries() {
-    const entries = [];
-    Object.entries(DesktopState.state.outputs || {}).forEach(([resultNodeId, output]) => {
-      if (output?.taskId && DesktopState.isInFlight(output.status)) {
-        entries.push({ kind: 'task', resultNodeId, taskId: output.taskId });
-      }
-      if (output?.batchId && !['completed', 'missing'].includes(String(output.batchStatus || ''))) {
-        entries.push({ kind: 'batch', resultNodeId, batchId: output.batchId });
-      }
-    });
-    if (DesktopState.state.selectedTaskId && DesktopState.isInFlight(DesktopState.state.output.status)) {
-      entries.push({ kind: 'task', resultNodeId: DEFAULT_RESULT_NODE_ID, taskId: DesktopState.state.selectedTaskId });
-    }
-    const seen = new Set();
-    return entries.filter(entry => {
-      const key = `${entry.kind}:${entry.resultNodeId}:${entry.taskId || entry.batchId}`;
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
-  }
-
   async function cancelActiveTasks() {
-    const entries = getCancelableTaskEntries();
-    if (!entries.length) {
-      showTransientMessage('没有正在生成的任务。');
-      return;
-    }
-    const results = await Promise.allSettled(entries.map(async entry => {
-      if (entry.kind === 'batch') {
-        const summary = await DesktopApi.controlBatch(entry.batchId, 'cancel');
-        applyBatchSummary(summary, entry.resultNodeId);
-        stopBatchPolling(entry.resultNodeId);
-        return summary;
-      }
-      const task = await DesktopApi.cancelTask(entry.taskId);
-      applyTask({ ...task, task_id: entry.taskId }, entry.resultNodeId);
-      stopResultPolling(entry.resultNodeId);
-      return task;
-    }));
-    stopPolling();
-    pollTimers.forEach(timer => window.clearTimeout(timer));
-    pollTimers.clear();
-    batchPollTimers.forEach(timer => window.clearTimeout(timer));
-    batchPollTimers.clear();
-    const failed = results.filter(result => result.status === 'rejected').length;
-    if (failed) {
-      showTransientMessage(`${entries.length - failed}/${entries.length} 个任务已取消，${failed} 个取消失败。`);
-    } else {
-      showTransientMessage(entries.length > 1 ? `${entries.length} 个任务已取消。` : '任务已取消。');
-    }
+    const {total, failed} = await DesktopCanvas.getTaskRegistry().cancelAll();
+    if (!total) { showTransientMessage('没有正在生成的任务。'); return; }
+    // Domain cancellation callbacks own pollers. A failed request must keep polling
+    // and remain retryable; never stop every module's timers from the status UI.
+    if (failed) showTransientMessage(`${total - failed}/${total} 个任务已发送停止请求，${failed} 个取消失败。`);
+    else showTransientMessage(total > 1 ? `${total} 个任务已发送停止请求。` : '任务已发送停止请求。');
     DesktopHistory.loadHistory().catch(() => {});
   }
 
@@ -1715,10 +1742,6 @@
       if (panel?.contains(event.target) || trigger?.contains(event.target)) return;
       closeStatusTip();
     });
-    window.addEventListener('resize', () => {
-      if (statusTipOpen) updateStatusTipPosition();
-    });
-
     els.deskStopBtn?.addEventListener('click', async () => {
       try {
         els.deskStopBtn.disabled = true;
@@ -1791,9 +1814,20 @@
     return restoreActiveTasks();
   }
 
+  let taskUnregister = [];
   function init() {
+    taskUnregister.forEach(dispose => dispose());
+    const registry = DesktopCanvas.getTaskRegistry();
+    const outputs = window.DesktopTaskOutputAdapter.create({defaultResultNodeId: DEFAULT_RESULT_NODE_ID, getState: () => DesktopState.state,
+      isInFlight: status => DesktopState.isInFlight(status), api: () => DesktopApi,
+      applyTask, applyBatch: applyBatchSummary, stopTaskPolling: stopResultPolling, stopBatchPolling,
+      cancelVideo: id => DesktopCanvas.cancelVideoInferenceTask(id)});
+    taskUnregister = ['generation','batch','video'].map(domain => registry.register(domain, {
+      client: () => DesktopApi.tasks[domain], ...(domain === 'generation' ? {listCancelable: outputs.listCancelable} : {}),
+    }));
     collectElements();
     bindActions();
+    bindStatusDockLayout();
     const defaultOutput = DesktopState.state.outputs?.[DEFAULT_RESULT_NODE_ID];
     if (defaultOutput?.taskId && outputHasVisibleState(defaultOutput)) {
       applyPersistedOutputSnapshot(DEFAULT_RESULT_NODE_ID, defaultOutput);
@@ -1814,6 +1848,7 @@
     stopPolling,
     showError,
     showTransientMessage,
+    reportTaskStatus,
     refreshSidecarStatus,
     refreshOutputConfigStatus,
     resetOutput,

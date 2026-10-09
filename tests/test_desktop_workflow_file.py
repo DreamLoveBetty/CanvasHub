@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 import unittest
+from html.parser import HTMLParser
 from pathlib import Path
 
 
@@ -12,6 +13,34 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def assert_asset_has_cache_bust(testcase, html: str, asset_path: str) -> None:
     testcase.assertRegex(html, re.escape(asset_path) + r"\?v=[0-9A-Za-z._-]+")
+
+
+class DesktopScriptParser(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.scripts = []
+
+    def handle_starttag(self, tag, attrs):
+        attrs = dict(attrs)
+        if tag == "script" and attrs.get("src"):
+            self.scripts.append(attrs)
+
+
+def read_canvas_module(testcase, name):
+    """Read an actual, synchronously loaded canvas dependency, not an orphan file."""
+    parser = DesktopScriptParser()
+    parser.feed(testcase.read("desktop.html"))
+    paths = [attrs["src"].split("?", 1)[0] for attrs in parser.scripts]
+    module_path = f"scripts/desktop-canvas-{name}.js"
+    host_path = "scripts/desktop-canvas.js"
+    for path in (module_path, host_path):
+        testcase.assertEqual(paths.count(path), 1, path)
+        attrs = parser.scripts[paths.index(path)]
+        for attribute in ("async", "defer", "nomodule"):
+            testcase.assertNotIn(attribute, attrs, path)
+        testcase.assertIn(attrs.get("type", "").lower(), ("", "text/javascript", "application/javascript"), path)
+    testcase.assertLess(paths.index(module_path), paths.index(host_path))
+    return testcase.read(module_path)
 
 
 class DesktopWorkflowFileTest(unittest.TestCase):
@@ -40,6 +69,7 @@ class DesktopWorkflowFileTest(unittest.TestCase):
 
     def test_canvas_js_exports_workflow_file_helpers(self):
         source = self.read("scripts/desktop-canvas.js")
+        workflow = read_canvas_module(self, "workflow")
 
         for needle in (
             "tg-mini-app-img-gen.desktop-workflow",
@@ -53,13 +83,13 @@ class DesktopWorkflowFileTest(unittest.TestCase):
         ):
             self.assertIn(needle, source)
         self.assertIn("加载工作流会替换当前画布", source)
-        self.assertIn(".tcflow.json", source)
-        self.assertIn("showSaveFilePicker", source)
-        self.assertIn("suggestedName", source)
-        self.assertIn("createWritable", source)
-        self.assertIn("保存工作流完整路径", source)
-        self.assertIn("保存工作流文件名", source)
-        self.assertIn("saveWorkflowToCustomPath", source)
+        self.assertIn(".tcflow.json", workflow)
+        self.assertIn("showSaveFilePicker", workflow)
+        self.assertIn("suggestedName", workflow)
+        self.assertIn("createWritable", workflow)
+        self.assertIn("保存工作流完整路径", workflow)
+        self.assertIn("保存工作流文件名", workflow)
+        self.assertIn("saveWorkflowToCustomPath", workflow)
         self.assertIn("deskWorkflowDockToggle", source)
         self.assertIn("setWorkflowDockOpen", source)
 

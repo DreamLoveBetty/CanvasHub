@@ -2,6 +2,7 @@
   const els = {};
   let lastHistoryDragAt = 0;
   let galleryView = 'images';
+  let loraGallery = null;
   let galleryFilter = 'all';
   let galleryQuery = '';
   let galleryTag = '';
@@ -98,10 +99,7 @@
   let galleryLoadMorePromise = null;
   let galleryAssetsGeneration = 0;
   let comparePair = [];
-  let comparePositionRaf = 0;
-  let comparePositionValue = 50;
-  let compareDragPointerId = null;
-  let compareDragRect = null;
+  let compareViewport = null;
   let previewCompareQueue = [];
   let galleryRenderLimit = 28;
   let gallerySearchTimer = null;
@@ -365,9 +363,10 @@
   }
 
   function galleryAssetModelLabel(asset, params = {}) {
-    return compactGalleryModelLabel(
+    const rawLabel = compactGalleryModelLabel(
       params.main_model
       || asset?.mainModel
+      || params.base_model_name
       || params.model
       || params.modelAlias
       || asset?.item?.model
@@ -375,6 +374,13 @@
       || providerLabel(asset)
       || '未知模型'
     );
+    if (providerGroup(asset) === 'qwen21') {
+      if (!rawLabel || ['google', '图片', '未知模型'].includes(rawLabel.toLowerCase())) return 'Qwen 2.1';
+      return rawLabel.toLowerCase().startsWith('qwen') ? rawLabel : `Qwen 2.1 · ${rawLabel}`;
+    }
+    if (providerGroup(asset) !== 'krea2') return rawLabel;
+    if (!rawLabel || ['google', '图片', '未知模型'].includes(rawLabel.toLowerCase())) return 'Krea2';
+    return rawLabel.toLowerCase().startsWith('krea') ? rawLabel : `Krea2 · ${rawLabel}`;
   }
 
   function galleryAssetRatioLabel(asset, params = {}) {
@@ -446,6 +452,16 @@
     const orientation = inferOrientation(width, height, asset?.orientation);
     const requestedResolution = requestedAssetResolution(asset, params);
     const actualResolution = actualAssetResolution(asset, params);
+    const generationTiming = asset?.generationTiming || asset?.generation_timing || params.generation_timing || {};
+    const startedAt = Number(asset?.startedAt || asset?.started_at || 0);
+    const finishedAt = Number(asset?.finishedAt || asset?.finished_at || 0);
+    const durationSeconds = Number(
+      asset?.durationSeconds
+      || asset?.duration_seconds
+      || generationTiming?.total_seconds
+      || (finishedAt >= startedAt && startedAt > 0 ? finishedAt - startedAt : 0)
+      || 0
+    );
     return {
       ...asset,
       id,
@@ -461,6 +477,14 @@
       providerLabel: asset?.providerLabel || asset?.provider_label || providerLabel(asset),
       createdAt: asset?.createdAt || asset?.created_at || asset?.timestamp || 0,
       updatedAt: asset?.updatedAt || asset?.updated_at || 0,
+      startedAt,
+      started_at: startedAt,
+      finishedAt,
+      finished_at: finishedAt,
+      durationSeconds: Number.isFinite(durationSeconds) && durationSeconds >= 0 ? durationSeconds : 0,
+      duration_seconds: Number.isFinite(durationSeconds) && durationSeconds >= 0 ? durationSeconds : 0,
+      generationTiming,
+      generation_timing: generationTiming,
       width,
       height,
       imageWidth: width,
@@ -1596,6 +1620,60 @@
     }
   }
 
+  function boundedGenerationSeconds(value) {
+    if (value == null || value === '') return null;
+    const seconds = Number(value);
+    return Number.isFinite(seconds) && seconds >= 0 && seconds <= 7 * 24 * 60 * 60
+      ? seconds
+      : null;
+  }
+
+  function formatGenerationDuration(value) {
+    const seconds = boundedGenerationSeconds(value);
+    if (seconds == null) return '';
+    if (seconds > 0 && seconds < 0.01) return '<0.01 秒';
+    if (seconds < 60) {
+      const digits = seconds < 10 ? 2 : 1;
+      return `${seconds.toFixed(digits).replace(/\.?0+$/, '')} 秒`;
+    }
+    const whole = Math.round(seconds);
+    const hours = Math.floor(whole / 3600);
+    const minutes = Math.floor((whole % 3600) / 60);
+    const remainder = whole % 60;
+    return [hours ? `${hours}小时` : '', minutes ? `${minutes}分` : '', `${remainder}秒`]
+      .filter(Boolean)
+      .join(' ');
+  }
+
+  function assetGenerationTiming(asset, params = {}) {
+    const raw = (
+      params.generation_timing
+      || asset?.generationTiming
+      || asset?.generation_timing
+      || {}
+    );
+    const startedAt = Number(asset?.startedAt || asset?.started_at || asset?.item?.started_at || 0);
+    const finishedAt = Number(asset?.finishedAt || asset?.finished_at || asset?.item?.finished_at || 0);
+    const timestampDuration = finishedAt >= startedAt && startedAt > 0 ? finishedAt - startedAt : null;
+    const totalSeconds = boundedGenerationSeconds(
+      raw?.total_seconds
+      ?? asset?.durationSeconds
+      ?? asset?.duration_seconds
+      ?? asset?.item?.duration_seconds
+      ?? asset?.item?.duration
+      ?? timestampDuration
+    );
+    if (totalSeconds == null || totalSeconds <= 0) return null;
+    const timing = { totalSeconds, localInference: raw?.local_inference === true };
+    if (timing.localInference) {
+      timing.modelLoadSeconds = boundedGenerationSeconds(raw.model_load_seconds);
+      timing.inferenceSeconds = boundedGenerationSeconds(raw.inference_seconds);
+      timing.denoiseSeconds = boundedGenerationSeconds(raw.denoise_seconds);
+      timing.saveSeconds = boundedGenerationSeconds(raw.save_seconds);
+    }
+    return timing;
+  }
+
   function normalizePromptSourceRun(run) {
     if (!run || typeof run !== 'object') return null;
     const progressPercent = Number(run.progress_percent ?? run.progressPercent ?? 0);
@@ -1661,7 +1739,13 @@
 
   function providerGroup(itemOrType) {
     const type = String(typeof itemOrType === 'string' ? itemOrType : itemOrType?.type || '').toLowerCase();
+    const provider = String(typeof itemOrType === 'string' ? '' : (
+      itemOrType?.provider || itemOrType?.params?.provider || ''
+    )).toLowerCase();
+    if (type.includes('krea2') || provider.includes('krea2')) return 'krea2';
+    if (type.includes('qwen21') || provider.includes('qwen-image-2.1')) return 'qwen21';
     if (type.includes('pinterest') || itemOrType?.provider === 'pinterest') return 'pinterest';
+    if (type === 'topaz' || itemOrType?.provider === 'topaz') return 'topaz';
     if (type.startsWith('gpt')) return 'gpt';
     if (type === 'comfy') return 'comfy';
     if (type.includes('layout')) return 'layout';
@@ -1670,6 +1754,9 @@
 
   function providerLabel(itemOrType) {
     return {
+      krea2: 'Krea2',
+      qwen21: 'Qwen 2.1',
+      topaz: 'Topaz',
       gpt: 'GPT',
       google: 'Google',
       comfy: 'Comfy',
@@ -1699,6 +1786,15 @@
       const paths = Array.isArray(item.image_paths) ? item.image_paths : [];
       const count = Math.max(files.length, paths.length);
       if (!count) return [];
+      const startedAt = Number(item.started_at || item.startedAt || 0);
+      const finishedAt = Number(item.finished_at || item.finishedAt || 0);
+      const durationSeconds = Number(
+        item.duration_seconds
+        || item.durationSeconds
+        || item.duration
+        || (finishedAt >= startedAt && startedAt > 0 ? finishedAt - startedAt : 0)
+        || 0
+      );
       return Array.from({ length: count }, (_, index) => {
         const file = files[index] || files[0] || '';
         const imageUrl = paths[index] || imagePathForFile(item, file, index);
@@ -1718,6 +1814,14 @@
           providerLabel: providerLabel(item),
           status: item.status || '',
           createdAt: item.created_at || item.timestamp || 0,
+          startedAt,
+          started_at: startedAt,
+          finishedAt,
+          finished_at: finishedAt,
+          durationSeconds: Number.isFinite(durationSeconds) && durationSeconds >= 0 ? durationSeconds : 0,
+          duration_seconds: Number.isFinite(durationSeconds) && durationSeconds >= 0 ? durationSeconds : 0,
+          generationTiming: item.params?.generation_timing || {},
+          generation_timing: item.params?.generation_timing || {},
           params: item.params || {},
           lineage: item.params?.lineage || {},
           referenceAssets: item.params?.lineage?.referenceAssets || item.params?.lineage?.reference_assets || [],
@@ -2460,13 +2564,25 @@
         .filter(Boolean)
         .join(' → ')
       : '';
-    const model = params.main_model || asset?.mainModel || params.model || params.modelAlias || asset?.item?.model || asset?.providerLabel || providerLabel(asset);
+    const model = galleryAssetModelLabel(asset, params);
     const ratio = params.ratio || params.aspect_ratio || params.aspectRatio || asset?.aspectRatio || '';
     const resolution = galleryAssetResolutionLabel(asset, params);
     const source = isRemoteLibraryAsset(asset)
       ? (asset?.boardName || asset?.sourceName || asset?.providerLabel || '远程源')
-      : (asset?.missingArchive ? '记录缺图' : (asset?.hasTaskRecord ? '有任务记录' : '仅归档文件'));
+      : (asset?.missingArchive ? (asset?.imageUrl ? '未归档记录' : '原图缺失') : (asset?.hasTaskRecord ? '有任务记录' : '仅归档文件'));
     const pixels = asset?.megapixels ? `${Number(asset.megapixels).toFixed(2).replace(/\.?0+$/, '')} MP` : '';
+    const timing = assetGenerationTiming(asset, params);
+    const timingRows = timing
+      ? [
+          ...(timing.localInference ? [
+            ['加载模型用时', formatGenerationDuration(timing.modelLoadSeconds)],
+            ['推理用时', formatGenerationDuration(timing.inferenceSeconds)],
+            ['降噪用时', formatGenerationDuration(timing.denoiseSeconds)],
+            ['保存图片用时', formatGenerationDuration(timing.saveSeconds)]
+          ] : []),
+          ['生成用时', formatGenerationDuration(timing.totalSeconds)]
+        ]
+      : [];
     const rows = [
       ['Model', model],
       ['线路', params.gpt_provider_route === 'chatgpt_pool' ? '账号池 API' : (['codex', 'managed_codex_oauth'].includes(params.gpt_provider_route) ? '本地 Codex' : '')],
@@ -2491,7 +2607,8 @@
       ['远程链接', asset?.sourceUrl || params.source_url || ''],
       ['仓库', asset?.repoUrl || params.source_repo || ''],
       ['文件', asset?.file || ''],
-      ['生成时间', formatPreviewTime(asset?.createdAt)]
+      ['生成时间', formatPreviewTime(asset?.createdAt)],
+      ...timingRows
     ].filter(([, value]) => String(value || '').trim());
     return rows.map(([label, value]) => `
       <div class="desk-gallery-preview__meta-row">
@@ -2847,10 +2964,10 @@
           : '图片不可用，按高保真模块拆分现有提示词'));
     const imageHtml = activeAsset.imageUrl
       ? `<img src="${escapeHtml(mediaUrl(activeAsset.thumbUrl || activeAsset.imageUrl))}" data-fallback="${escapeHtml(mediaUrl(activeAsset.imageUrl))}" alt="" draggable="false" loading="lazy" decoding="async" fetchpriority="${index < 8 ? 'high' : 'low'}">`
-      : '<div class="desk-gallery-card__missing">记录缺图</div>';
+      : '<div class="desk-gallery-card__missing">原图缺失</div>';
     const sourceBadge = isPinterest
       ? (asset.boardName || 'Pinterest')
-      : (isRemote ? (asset.stale ? '远程已删' : '远程源') : (asset.missingArchive ? '记录缺图' : (asset.hasTaskRecord ? '有记录' : '仅归档')));
+      : (isRemote ? (asset.stale ? '远程已删' : '远程源') : (asset.missingArchive ? (asset.imageUrl ? '未归档记录' : '原图缺失') : (asset.hasTaskRecord ? '有记录' : '仅归档')));
     const modelLabel = isPinterest ? (asset.boardName || 'Pinterest') : galleryAssetModelLabel(activeAsset, params);
     const ratioLabel = galleryAssetRatioLabel(activeAsset, params);
     const resolutionLabel = galleryAssetResolutionLabel(activeAsset, params);
@@ -3053,7 +3170,8 @@
       `有记录 ${value('task_record_image_count')}`,
       `孤儿 ${value('orphan_asset_count')}`,
       `有尺寸 ${value('metadata_image_count')}`,
-      `记录缺图 ${value('history_missing_count')}`
+      `未归档 ${value('history_missing_archive_count')}`,
+      `原图缺失 ${value('history_missing_count')}`
     ].map(item => `<span>${escapeHtml(item)}</span>`).join('');
   }
 
@@ -5836,7 +5954,7 @@
     clearGalleryHoverState(els.deskGalleryGrid.querySelector('[data-prompt-source-scroll]'));
     disposeGalleryVirtualContainer(els.deskGalleryGrid.querySelector('[data-prompt-source-scroll]'));
     invalidateGalleryVirtualData();
-    if (!['images', 'videos', 'sets', 'setDetail', 'sources', 'files', 'pinterest'].includes(galleryView)) galleryView = 'images';
+    if (!['images', 'videos', 'sets', 'setDetail', 'sources', 'files', 'pinterest', 'loras'].includes(galleryView)) galleryView = 'images';
     document.querySelectorAll('[data-gallery-view]').forEach(button => {
       const view = button.dataset.galleryView;
       const isActive = view === galleryView || (galleryView === 'setDetail' && view === 'sets');
@@ -5845,6 +5963,18 @@
       button.tabIndex = isActive ? 0 : -1;
       if (isActive && button.id) els.deskGalleryGrid.setAttribute('aria-labelledby', button.id);
     });
+    els.deskGalleryPanel?.classList.toggle('desk-gallery--loras', galleryView === 'loras');
+    if (galleryView === 'loras') {
+      renderGalleryVideoSourceSwitch();
+      if (!els.deskGalleryGrid.classList.contains('desk-lora-library')) {
+        resetGalleryVirtualContent(els.deskGalleryGrid);
+        loraGallery?.mount(els.deskGalleryGrid);
+      } else {
+        loraGallery?.refresh();
+      }
+      return;
+    }
+    loraGallery?.unmount();
     renderGalleryVideoSourceSwitch();
     if (els.deskGalleryFilterSelect) els.deskGalleryFilterSelect.value = galleryFilter;
     if (els.deskGalleryTagInput && els.deskGalleryTagInput.value !== galleryTag) els.deskGalleryTagInput.value = galleryTag;
@@ -5877,6 +6007,7 @@
   }
 
   function renderGallerySelection() {
+    if (galleryView === 'loras') return;
     if (els.deskGalleryRefreshMetaBtn) els.deskGalleryRefreshMetaBtn.disabled = galleryView === 'videos';
     if (galleryView === 'videos') {
       const count = getVisibleGalleryVideos().length;
@@ -6791,6 +6922,7 @@
   }
 
   function refreshGalleryAssets() {
+    if (galleryView === 'loras') return loraGallery?.refresh();
     resetGalleryRenderLimit();
     if (galleryView === 'images') {
       loadGalleryAssets().catch(error => DesktopResults.showError(error));
@@ -6824,6 +6956,7 @@
     renderGallerySelection();
     // 首屏只等当前视图的数据；其余数据集延后到空闲时段加载，避免和关键请求争抢后端
     const primaryLoaders = {
+      loras: () => loraGallery?.refresh(),
       images: loadGalleryAssets,
       videos: loadGalleryVideos,
       sets: loadGallerySets,
@@ -6838,6 +6971,8 @@
     if (primaryKey !== 'sets' && primaryKey !== 'setDetail') deferredLoads.push(loadGallerySets);
     if (primaryKey !== 'files') deferredLoads.push(loadGalleryFiles);
     if (primaryKey !== 'sources') deferredLoads.push(loadPromptSources);
+    // LoRA has its own catalog lifecycle; opening it need not scan image history.
+    if (primaryKey === 'loras') deferredLoads.length = 0;
     const scheduleIdle = typeof window.requestIdleCallback === 'function'
       ? callback => window.requestIdleCallback(callback, { timeout: 1500 })
       : callback => window.setTimeout(callback, 600);
@@ -6857,6 +6992,7 @@
   }
 
   function closeGallery() {
+    if (loraGallery?.dispose() === false) return;
     closePinterestAnalysisModal({ restoreFocus: false });
     closePinterestSplitModal({ restoreFocus: false, force: true });
     els.deskGalleryGrid?.querySelectorAll('.desk-gallery-video-detail video').forEach(video => video.pause?.());
@@ -6940,93 +7076,15 @@
     if (els.deskComparePromptRight) els.deskComparePromptRight.textContent = right?.prompt || '无提示词';
   }
 
-  function compareImageBand(stageRect) {
-    // object-fit: contain 的实际渲染矩形（两图取并集）；分界线与拖动只作用于图片区域，不跑进留白
-    if (!stageRect || !stageRect.width || !stageRect.height) return null;
-    let left = Infinity;
-    let right = -Infinity;
-    let top = Infinity;
-    let bottom = -Infinity;
-    [els.deskCompareBaseImg, els.deskCompareTopImg].forEach(img => {
-      const naturalWidth = img?.naturalWidth || 0;
-      const naturalHeight = img?.naturalHeight || 0;
-      if (!naturalWidth || !naturalHeight) return;
-      const scale = Math.min(stageRect.width / naturalWidth, stageRect.height / naturalHeight);
-      const width = naturalWidth * scale;
-      const height = naturalHeight * scale;
-      const x = (stageRect.width - width) / 2;
-      const y = (stageRect.height - height) / 2;
-      left = Math.min(left, x);
-      right = Math.max(right, x + width);
-      top = Math.min(top, y);
-      bottom = Math.max(bottom, y + height);
-    });
-    if (!Number.isFinite(left) || right - left < 1) return null;
-    return { left, top, width: right - left, height: bottom - top };
-  }
-
-  let compareDividerBoundsKey = '';
-
-  function updateComparePosition(value = els.deskCompareRange?.value || 50) {
-    // 纯 transform 对偶平移实现揭示（外层左移、内层图片反向右移），
-    // 全程走合成器零重绘；旧的 clip-path 方案每帧都要重绘 4K 级原图导致拖动卡顿。
-    const num = Number(value);
-    comparePositionValue = Number.isFinite(num) ? Math.max(0, Math.min(100, num)) : 50;
-    if (comparePositionRaf) return;
-    comparePositionRaf = window.requestAnimationFrame(() => {
-      comparePositionRaf = 0;
-      // 先读后写：避免同帧内布局读写交错造成强制回流
-      const stageRect = compareDragRect
-        || (els.deskCompareStage ? els.deskCompareStage.getBoundingClientRect() : null);
-      const stageWidth = stageRect?.width || 0;
-      const percent = comparePositionValue;
-      const band = compareImageBand(stageRect);
-      // 分界点在舞台坐标系里的位置：percent 映射到图片带宽而非整个舞台
-      const seamX = band
-        ? band.left + band.width * percent / 100
-        : stageWidth * percent / 100;
-      const stageHidden = stageWidth ? 100 - (seamX / stageWidth) * 100 : 100 - percent;
-      if (els.deskCompareOverlay) {
-        els.deskCompareOverlay.style.transform = `translateX(-${stageHidden}%)`;
-      }
-      if (els.deskCompareTopImg) {
-        els.deskCompareTopImg.style.transform = `translateX(${stageHidden}%)`;
-      }
-      if (els.deskCompareDivider) {
-        if (stageWidth) {
-          // transform 定位分隔线：整条拖动链路零布局、零重绘，全走合成器
-          els.deskCompareDivider.style.left = '0';
-          els.deskCompareDivider.style.transform = `translateX(${seamX - 0.5}px)`;
-        } else {
-          els.deskCompareDivider.style.left = `${percent}%`;
-        }
-        // 线的上下端裁到图片高度内（尺寸只在开合/换图/缩放时变化，按 key 去重写入避免每帧布局）
-        const boundsKey = band ? `${band.top.toFixed(1)}|${band.height.toFixed(1)}` : 'full';
-        if (boundsKey !== compareDividerBoundsKey) {
-          compareDividerBoundsKey = boundsKey;
-          if (band) {
-            els.deskCompareDivider.style.top = `${band.top}px`;
-            els.deskCompareDivider.style.bottom = 'auto';
-            els.deskCompareDivider.style.height = `${band.height}px`;
-          } else {
-            els.deskCompareDivider.style.top = '0';
-            els.deskCompareDivider.style.bottom = '0';
-            els.deskCompareDivider.style.height = '';
-          }
-        }
-      }
-    });
-  }
-
-  function openCompare(assets = getSelectedAssets()) {
+  function openCompare(assets = getSelectedAssets(), { preserveView = false } = {}) {
     if (assets.length !== 2) {
       DesktopResults.showTransientMessage('请选择 2 张图片进入对比。');
       return;
     }
     comparePair = assets.slice(0, 2);
     const [left, right] = comparePair;
-    if (els.deskCompareBaseImg) els.deskCompareBaseImg.src = mediaUrl(left.imageUrl);
-    if (els.deskCompareTopImg) els.deskCompareTopImg.src = mediaUrl(right.imageUrl);
+    if (els.deskCompareBaseImg) els.deskCompareBaseImg.src = mediaUrl(right.imageUrl);
+    if (els.deskCompareTopImg) els.deskCompareTopImg.src = mediaUrl(left.imageUrl);
     const leftName = compareAssetName(left, 'A');
     const rightName = compareAssetName(right, 'B');
     if (els.deskCompareLeftLabel) {
@@ -7038,17 +7096,17 @@
       els.deskCompareRightLabel.title = rightName;
     }
     renderCompareInfo(left, right);
-    if (els.deskCompareRange) els.deskCompareRange.value = '50';
-    updateComparePosition(50);
     // 实测(2026-07-26 真机探针)：对比打开时身后的图库面板毛玻璃面每帧被重算,
     // 拖动帧率 18fps；隐藏后 100fps。被完全遮挡的面板暂时下线,关闭对比时恢复。
     els.deskGalleryPanel?.classList.add('desk-under-compare');
     els.deskGalleryPreviewModal?.classList.add('desk-under-compare');
     els.deskCompareModal?.classList.add('is-open');
     els.deskCompareModal?.setAttribute('aria-hidden', 'false');
+    compareViewport?.open({ preserve: preserveView });
   }
 
   function closeCompare() {
+    compareViewport?.close();
     els.deskGalleryPanel?.classList.remove('desk-under-compare');
     els.deskGalleryPreviewModal?.classList.remove('desk-under-compare');
     els.deskCompareModal?.classList.remove('is-open');
@@ -7058,7 +7116,7 @@
   function swapCompare() {
     if (comparePair.length !== 2) return;
     comparePair = [comparePair[1], comparePair[0]];
-    openCompare(comparePair);
+    openCompare(comparePair, { preserveView: true });
   }
 
   async function sendAssetToTelegram(asset) {
@@ -7288,7 +7346,8 @@
     parts.push(`资产库 ${Number(stats.gallery_asset_count || 0).toLocaleString('zh-CN')} 张`);
     parts.push(`有任务记录 ${Number(stats.task_record_image_count || 0).toLocaleString('zh-CN')} 张`);
     parts.push(`孤儿图 ${Number(stats.orphan_asset_count || 0).toLocaleString('zh-CN')} 张`);
-    if (stats.history_missing_count) parts.push(`记录缺图 ${Number(stats.history_missing_count || 0).toLocaleString('zh-CN')} 条`);
+    if (stats.history_missing_archive_count) parts.push(`未归档记录 ${Number(stats.history_missing_archive_count || 0).toLocaleString('zh-CN')} 条`);
+    if (stats.history_missing_count) parts.push(`原图缺失 ${Number(stats.history_missing_count || 0).toLocaleString('zh-CN')} 条`);
     if (health.missing_count) parts.push(`缺文件资产 ${health.missing_count} 个`);
     if (health.invalid_set_refs) parts.push(`候选集失效引用 ${health.invalid_set_refs} 个`);
     if (health.empty_set_count) parts.push(`空候选集 ${health.empty_set_count} 个`);
@@ -7525,6 +7584,7 @@
     });
 
     els.deskGalleryRefreshBtn?.addEventListener('click', () => {
+      if (galleryView === 'loras') { loraGallery?.refresh(true); return; }
       if (galleryView === 'sources') {
         refreshPromptSources().catch(error => DesktopResults.showError(error));
         return;
@@ -7736,61 +7796,6 @@
       schedulePromptSourceTabSlider();
     });
 
-    els.deskCompareRange?.addEventListener('input', event => updateComparePosition(event.target.value));
-    // 指针直控拖动：绕开原生滑杆事件管线，每个 pointermove 即时响应；
-    // range 仅保留键盘可达性（CSS 已设 pointer-events:none）
-    const comparePointerPercent = event => {
-      // 指针 → 图片带内百分比：留白区拖动会被夹到 0/100，分界线不会跑出图片边界
-      if (!compareDragRect) return null;
-      const band = compareImageBand(compareDragRect);
-      const originX = compareDragRect.left + (band ? band.left : 0);
-      const width = band ? band.width : compareDragRect.width;
-      if (!width) return null;
-      return Math.max(0, Math.min(100, ((event.clientX - originX) / width) * 100));
-    };
-    els.deskCompareStage?.addEventListener('pointerdown', event => {
-      if (event.button !== 0) return;
-      compareDragRect = els.deskCompareStage.getBoundingClientRect();
-      if (!compareDragRect.width) {
-        compareDragRect = null;
-        return;
-      }
-      compareDragPointerId = event.pointerId;
-      try {
-        els.deskCompareStage.setPointerCapture(event.pointerId);
-      } catch (error) {}
-      const percent = comparePointerPercent(event);
-      if (percent === null) return;
-      if (els.deskCompareRange) els.deskCompareRange.value = String(percent);
-      updateComparePosition(percent);
-      event.preventDefault();
-    });
-    els.deskCompareStage?.addEventListener('pointermove', event => {
-      if (compareDragPointerId === null || event.pointerId !== compareDragPointerId || !compareDragRect) return;
-      const percent = comparePointerPercent(event);
-      if (percent === null) return;
-      if (els.deskCompareRange) els.deskCompareRange.value = String(percent);
-      updateComparePosition(percent);
-    });
-    const endCompareDrag = event => {
-      if (compareDragPointerId === null || event.pointerId !== compareDragPointerId) return;
-      compareDragPointerId = null;
-      compareDragRect = null;
-    };
-    els.deskCompareStage?.addEventListener('pointerup', endCompareDrag);
-    els.deskCompareStage?.addEventListener('pointercancel', endCompareDrag);
-    // 图片解码完成后 naturalWidth 才可用，需要重算图片带并把分界线裁进图片区域
-    [els.deskCompareBaseImg, els.deskCompareTopImg].forEach(img => {
-      img?.addEventListener('load', () => {
-        if (els.deskCompareModal?.classList.contains('is-open')) updateComparePosition();
-      });
-    });
-    window.addEventListener('resize', () => {
-      if (els.deskCompareModal?.classList.contains('is-open')) {
-        compareDragRect = null;
-        updateComparePosition();
-      }
-    });
     els.deskCompareCloseBtn?.addEventListener('click', closeCompare);
     els.deskCompareSwapBtn?.addEventListener('click', swapCompare);
     els.deskCompareModal?.addEventListener('click', event => {
@@ -7841,6 +7846,19 @@
 
   function init() {
     collectElements();
+    loraGallery = window.DesktopLoRAView.create({
+      library: DesktopApi.lora, assets: options => DesktopApi.getAssets(options),
+      listTargets: () => DesktopCanvas.listLoRATargets(),
+      addToNode: (...args) => DesktopCanvas.addLoRAToNode(...args),
+      triggerTargets: (...args) => DesktopCanvas.listLoRATextTargets(...args),
+      insertTriggers: (...args) => DesktopCanvas.insertLoRATriggers(...args),
+      notify: message => DesktopResults.showTransientMessage(message)
+    });
+    compareViewport?.destroy();
+    compareViewport = window.DesktopCompareViewport.create({
+      stage: els.deskCompareStage, base: els.deskCompareBaseImg, top: els.deskCompareTopImg,
+      overlay: els.deskCompareOverlay, divider: els.deskCompareDivider, range: els.deskCompareRange
+    });
     bindHistoryPanelBounds();
     restoreHistoryCollapsedState();
     bindEvents();

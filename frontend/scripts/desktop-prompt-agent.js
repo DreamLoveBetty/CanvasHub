@@ -8,6 +8,7 @@
   const SNAPSHOT_STORE = 'canvas_snapshots';
   const ACTION_RECEIPT_STORE = 'action_receipts';
   const MAX_IMAGE_REFERENCES = 4;
+  const MAX_VIDEO_REFERENCES = 2;
   const MAX_ACTIVE_TASKS = 24;
   const MAX_TASK_HISTORY = 100;
   const MAX_RAIL_TERMINAL_TASKS = 3;
@@ -184,14 +185,23 @@
   function compactImageReferences(items = []) {
     return (Array.isArray(items) ? items : []).slice(0, MAX_IMAGE_REFERENCES).map(item => ({
       id: String(item?.id || '').trim(),
-      label: String(item?.label || item?.id || '图片节点').trim(),
+      label: String(item?.label || item?.id || (mediaKind(item) === 'video' ? '视频节点' : '图片节点')).trim(),
       sourceNodeId: String(item?.sourceNodeId || item?.nodeId || item?.source_node_id || '').trim(),
-      mimeType: String(item?.mimeType || item?.type || 'image/png').trim()
+      mediaKind: mediaKind(item),
+      mimeType: String(item?.mimeType || item?.mime_type || (mediaKind(item) === 'video' ? 'video/mp4' : 'image/png')).trim(),
+      mediaUrl: String(item?.mediaUrl || item?.media_url || item?.videoUrl || item?.video_url || '').trim(),
+      posterUrl: String(item?.posterUrl || item?.poster_url || item?.previewUrl || item?.preview_url || '').trim(),
+      durationSeconds: Number(item?.durationSeconds || item?.duration_seconds || 0),
+      mediaWidth: Number(item?.mediaWidth || item?.media_width || item?.width || 0),
+      mediaHeight: Number(item?.mediaHeight || item?.media_height || item?.height || 0),
+      fps: Number(item?.fps || 0),
+      fileSize: Number(item?.fileSize || item?.file_size || 0),
+      sourceTaskId: String(item?.sourceTaskId || item?.source_task_id || '').trim()
     })).filter(item => item.id && item.sourceNodeId);
   }
 
   function hydrateImageReferences(items = []) {
-    const nodes = getImageNodes();
+    const nodes = getMediaNodes();
     return compactImageReferences(items).map(item => {
       const node = nodes.find(candidate => String(candidate.nodeId || '') === item.sourceNodeId);
       return node ? { ...node, ...item } : item;
@@ -199,14 +209,22 @@
   }
 
   function runImageReferences(run = {}) {
-    const references = Array.isArray(run?.context?.referenced_images)
-      ? run.context.referenced_images
-      : [];
+    const imageReferences = Array.isArray(run?.context?.referenced_images) ? run.context.referenced_images : [];
+    const videoReferences = Array.isArray(run?.context?.referenced_videos) ? run.context.referenced_videos : [];
+    const references = [
+      ...imageReferences.map(item => ({ ...item, media_kind: 'image' })),
+      ...videoReferences.map(item => ({ ...item, media_kind: 'video' }))
+    ];
     return hydrateImageReferences(references.map((reference, index) => ({
-      id: String(reference?.id || `image${index + 1}`),
-      label: String(reference?.label || reference?.id || `图片 ${index + 1}`),
+      id: String(reference?.id || `${reference?.media_kind === 'video' ? 'video' : 'image'}${index + 1}`),
+      label: String(reference?.label || reference?.id || `${reference?.media_kind === 'video' ? '视频' : '图片'} ${index + 1}`),
       sourceNodeId: String(reference?.source_node_id || reference?.sourceNodeId || ''),
-      mimeType: String(reference?.mime_type || reference?.mimeType || 'image/png')
+      mediaKind: String(reference?.media_kind || reference?.mediaKind || 'image'),
+      mimeType: String(reference?.mime_type || reference?.mimeType || (reference?.media_kind === 'video' ? 'video/mp4' : 'image/png')),
+      durationSeconds: Number(reference?.duration_seconds || reference?.durationSeconds || 0),
+      mediaWidth: Number(reference?.width || reference?.media_width || reference?.mediaWidth || 0),
+      mediaHeight: Number(reference?.height || reference?.media_height || reference?.mediaHeight || 0),
+      fps: Number(reference?.fps || 0)
     })));
   }
 
@@ -1304,6 +1322,19 @@
     return window.DesktopCanvas?.listPromptImageNodes?.() || [];
   }
 
+  function getMediaNodes() {
+    return window.DesktopCanvas?.listPromptMediaNodes?.() || [
+      ...(window.DesktopCanvas?.listPromptImageNodes?.() || []),
+      ...(window.DesktopCanvas?.listPromptVideoNodes?.() || [])
+    ];
+  }
+
+  function mediaKind(item = {}) {
+    const explicit = String(item.mediaKind || item.media_kind || item.kind || '').trim().toLowerCase();
+    if (explicit === 'video' || String(item.mimeType || item.mime_type || '').toLowerCase().startsWith('video/')) return 'video';
+    return 'image';
+  }
+
   function goalText() {
     return goalEditor?.getText?.() || String(els.deskAgentGoal?.textContent || '').trim();
   }
@@ -1317,34 +1348,49 @@
   }
 
   function syncImageReferencesFromEditor() {
-    const nodes = getImageNodes();
+    const nodes = getMediaNodes();
     const chips = editorImageReferences();
     state.imageReferences = chips.map(chip => {
       const existing = state.imageReferences.find(item => item.id === chip.id);
       const sourceNodeId = chip.sourceNodeId || existing?.sourceNodeId || '';
       const node = nodes.find(item => item.nodeId === sourceNodeId);
-      const source = chip.imageSrc || node?.imageData || node?.imageUrl || node?.url || '';
+      const kind = mediaKind(chip.mediaKind ? chip : (node || existing || {}));
+      const source = kind === 'video'
+        ? (chip.mediaSrc || node?.mediaUrl || node?.videoUrl || node?.url || existing?.mediaUrl || '')
+        : (chip.imageSrc || node?.imageData || node?.imageUrl || node?.url || '');
       const isDataUrl = source.startsWith('data:image/');
       return {
         ...existing,
+        ...node,
         id: chip.id,
         label: existing?.label || node?.label || chip.id,
         sourceNodeId: sourceNodeId || node?.nodeId || '',
-        imageData: node?.imageData || (isDataUrl ? source : ''),
-        imageUrl: node?.imageUrl || (isDataUrl ? '' : source),
+        mediaKind: kind,
+        imageData: kind === 'image' ? (node?.imageData || (isDataUrl ? source : '')) : '',
+        imageUrl: kind === 'image' ? (node?.imageUrl || (isDataUrl ? '' : source)) : '',
+        mediaUrl: kind === 'video' ? source : '',
+        videoUrl: kind === 'video' ? (node?.videoUrl || source) : '',
+        posterUrl: kind === 'video' ? (node?.posterUrl || node?.previewUrl || chip.imageSrc || existing?.posterUrl || '') : '',
         url: node?.url || source,
-        mimeType: chip.mimeType || existing?.mimeType || node?.mimeType || 'image/png'
+        mimeType: chip.mimeType || existing?.mimeType || node?.mimeType || (kind === 'video' ? 'video/mp4' : 'image/png'),
+        durationSeconds: Number(node?.durationSeconds || existing?.durationSeconds || 0),
+        mediaWidth: Number(node?.mediaWidth || node?.width || existing?.mediaWidth || 0),
+        mediaHeight: Number(node?.mediaHeight || node?.height || existing?.mediaHeight || 0),
+        fps: Number(node?.fps || existing?.fps || 0),
+        fileSize: Number(node?.fileSize || existing?.fileSize || 0),
+        sourceTaskId: String(node?.sourceTaskId || existing?.sourceTaskId || '')
       };
     }).filter(item => item.id && item.sourceNodeId);
   }
 
-  function nextImageReferenceId() {
+  function nextImageReferenceId(kind = 'image') {
     const used = new Set(state.imageReferences.map(item => String(item.id || '')));
+    const prefix = kind === 'video' ? 'video' : 'image';
     for (let index = 1; index <= MAX_IMAGE_REFERENCES; index += 1) {
-      const id = `image${index}`;
+      const id = `${prefix}${index}`;
       if (!used.has(id)) return id;
     }
-    return `image${state.imageReferences.length + 1}`;
+    return `${prefix}${state.imageReferences.length + 1}`;
   }
 
   function closeImageMentionMenu(options = {}) {
@@ -1359,7 +1405,7 @@
   function renderImageMentionMenu() {
     if (!els.deskAgentImageMenu || !goalEditor?.hasMention?.()) return;
     const query = String(state.mentionQuery || '').trim().toLowerCase();
-    const nodes = getImageNodes()
+    const nodes = getMediaNodes()
       .filter(node => {
         if (!query) return true;
         return `${node.label || ''} ${node.name || ''} ${node.nodeId || ''}`.toLowerCase().includes(query);
@@ -1367,20 +1413,33 @@
       .slice(0, 8);
     const columns = Math.max(1, Math.min(nodes.length || 1, 3));
     els.deskAgentImageMenu.style.setProperty('--desk-prompt-image-menu-cols', String(columns));
-    els.deskAgentImageMenu.dataset.imageCount = String(nodes.length);
+    els.deskAgentImageMenu.dataset.imageCount = String(nodes.filter(node => mediaKind(node) === 'image').length);
+    els.deskAgentImageMenu.dataset.videoCount = String(nodes.filter(node => mediaKind(node) === 'video').length);
     els.deskAgentImageMenu.innerHTML = nodes.length
-      ? nodes.map(node => `
-          <button type="button" data-agent-pick-image-node="${escapeHtml(node.nodeId)}" aria-label="引用 ${escapeHtml(node.label || '图片节点')}" title="引用 ${escapeHtml(node.label || '图片节点')}">
-            <img src="${escapeHtml(node.imageData || node.imageUrl || node.url)}" alt="">
+      ? nodes.map(node => {
+          const kind = mediaKind(node);
+          const videoSrc = typeof window.miniappMediaUrl === 'function' ? window.miniappMediaUrl(node.mediaUrl || node.videoUrl || node.url || '') : (node.mediaUrl || node.videoUrl || node.url || '');
+          const poster = typeof window.miniappMediaUrl === 'function' ? window.miniappMediaUrl(node.posterUrl || node.previewUrl || '') : (node.posterUrl || node.previewUrl || '');
+          const preview = kind === 'video'
+            ? (poster ? `<img src="${escapeHtml(poster)}" alt="">` : `<video src="${escapeHtml(videoSrc)}" muted playsinline preload="metadata"></video>`)
+            : `<img src="${escapeHtml(node.imageData || node.imageUrl || node.url)}" alt="">`;
+          return `
+          <button type="button" data-agent-pick-media-node="${escapeHtml(node.nodeId)}" data-media-kind="${kind}" aria-label="引用 ${escapeHtml(node.label || (kind === 'video' ? '视频节点' : '图片节点'))}" title="引用 ${escapeHtml(node.label || (kind === 'video' ? '视频节点（用于分析）' : '图片节点'))}">
+            ${preview}
+            <span class="desk-prompt-image-menu__kind" aria-hidden="true">${kind === 'video' ? '视频' : '图片'}</span>
           </button>
-        `).join('')
-      : '<div class="desk-prompt-image-menu__empty">没有图片节点</div>';
+        `;
+        }).join('')
+      : '<div class="desk-prompt-image-menu__empty">没有图片或视频节点</div>';
     els.deskAgentImageMenu.hidden = false;
   }
 
   function addImageReference(raw = {}) {
     const sourceNodeId = String(raw.sourceNodeId || raw.nodeId || raw.source_node_id || '').trim();
-    const source = raw.imageData || raw.dataUrl || raw.imageUrl || raw.url || '';
+    const kind = mediaKind(raw);
+    const source = kind === 'video'
+      ? (raw.mediaUrl || raw.videoUrl || raw.url || '')
+      : (raw.imageData || raw.dataUrl || raw.imageUrl || raw.url || '');
     if (!sourceNodeId || !source) return null;
     const existing = state.imageReferences.find(item => imageReferenceKey(item) === sourceNodeId);
     if (existing) {
@@ -1391,17 +1450,33 @@
     }
     if (state.imageReferences.length >= MAX_IMAGE_REFERENCES) {
       closeImageMentionMenu();
-      window.DesktopResults?.showTransientMessage?.(`Agent 最多引用 ${MAX_IMAGE_REFERENCES} 张图片。`, 'warning');
+      window.DesktopResults?.showTransientMessage?.(`Agent 最多引用 ${MAX_IMAGE_REFERENCES} 个媒体节点。`, 'warning');
+      return null;
+    }
+    if (kind === 'video' && state.imageReferences.filter(item => mediaKind(item) === 'video').length >= MAX_VIDEO_REFERENCES) {
+      closeImageMentionMenu();
+      window.DesktopResults?.showTransientMessage?.(`Agent 最多引用 ${MAX_VIDEO_REFERENCES} 个视频节点。`, 'warning');
       return null;
     }
     const item = {
-      id: nextImageReferenceId(),
-      label: String(raw.label || raw.name || raw.title || '图片节点').trim(),
+      ...raw,
+      id: nextImageReferenceId(kind),
+      label: String(raw.label || raw.name || raw.title || (kind === 'video' ? '视频节点' : '图片节点')).trim(),
       sourceNodeId,
-      imageData: raw.imageData || raw.dataUrl || '',
-      imageUrl: raw.imageUrl || '',
+      mediaKind: kind,
+      imageData: kind === 'image' ? (raw.imageData || raw.dataUrl || '') : '',
+      imageUrl: kind === 'image' ? (raw.imageUrl || '') : '',
+      mediaUrl: kind === 'video' ? source : '',
+      videoUrl: kind === 'video' ? (raw.videoUrl || source) : '',
+      posterUrl: kind === 'video' ? (raw.posterUrl || raw.previewUrl || '') : '',
       url: raw.url || raw.imageUrl || raw.imageData || raw.dataUrl || '',
-      mimeType: raw.mimeType || raw.type || 'image/png'
+      mimeType: raw.mimeType || raw.mime_type || (kind === 'video' ? 'video/mp4' : 'image/png'),
+      durationSeconds: Number(raw.durationSeconds || raw.duration_seconds || 0),
+      mediaWidth: Number(raw.mediaWidth || raw.media_width || raw.width || 0),
+      mediaHeight: Number(raw.mediaHeight || raw.media_height || raw.height || 0),
+      fps: Number(raw.fps || 0),
+      fileSize: Number(raw.fileSize || raw.file_size || 0),
+      sourceTaskId: String(raw.sourceTaskId || raw.source_task_id || '')
     };
     state.imageReferences.push(item);
     goalEditor?.insertAttachment?.(item, { replaceMention: true });
@@ -1417,13 +1492,13 @@
   }
 
   function attachImageNode(nodeId) {
-    const node = getImageNodes().find(item => item.nodeId === String(nodeId || ''));
+    const node = getMediaNodes().find(item => item.nodeId === String(nodeId || ''));
     if (!node) return;
     addImageReference(node);
   }
 
   function reconcileImageReferences() {
-    const nodeIds = new Set(getImageNodes().map(item => String(item.nodeId || '')));
+    const nodeIds = new Set(getMediaNodes().map(item => String(item.nodeId || '')));
     const next = state.imageReferences.filter(item => nodeIds.has(String(item.sourceNodeId || '')));
     if (next.length === state.imageReferences.length) return;
     state.imageReferences = next;
@@ -1431,18 +1506,20 @@
   }
 
   function restoreGoalFromRun(payload = {}) {
-    const references = Array.isArray(payload.context?.referenced_images)
-      ? payload.context.referenced_images
-      : [];
-    const nodes = getImageNodes();
+    const references = [
+      ...(Array.isArray(payload.context?.referenced_images) ? payload.context.referenced_images.map(item => ({ ...item, media_kind: 'image' })) : []),
+      ...(Array.isArray(payload.context?.referenced_videos) ? payload.context.referenced_videos.map(item => ({ ...item, media_kind: 'video' })) : [])
+    ];
+    const nodes = getMediaNodes();
     state.imageReferences = references.slice(0, MAX_IMAGE_REFERENCES).map((reference, index) => {
       const sourceNodeId = String(reference?.source_node_id || reference?.sourceNodeId || '').trim();
       const node = nodes.find(item => item.nodeId === sourceNodeId);
       if (!node) return null;
       return {
         ...node,
-        id: String(reference.id || `image${index + 1}`),
-        label: String(reference.label || node.label || `图片 ${index + 1}`),
+        id: String(reference.id || `${reference.media_kind === 'video' ? 'video' : 'image'}${index + 1}`),
+        label: String(reference.label || node.label || `${reference.media_kind === 'video' ? '视频' : '图片'} ${index + 1}`),
+        mediaKind: String(reference.media_kind || reference.mediaKind || mediaKind(node)),
         sourceNodeId
       };
     }).filter(Boolean);
@@ -1530,6 +1607,7 @@
     const canvas = runCanvas && typeof runCanvas === 'object' ? runCanvas : canvasSnapshotState();
     const nodes = Object.values(canvas.nodes || {}).filter(Boolean);
     const images = nodes.filter(node => node.type === 'image');
+    const videos = nodes.filter(node => node.type === 'video');
     const selected = task?.runId
       ? (Array.isArray(task.run?.context?.selected_node_ids) ? task.run.context.selected_node_ids : selectedNodeIds(canvas))
       : selectedNodeIds(canvas);
@@ -1544,8 +1622,9 @@
       els.deskAgentContext.innerHTML = [
         `<span>${selected.length ? `已选 ${selected.length}` : '未选择节点'}</span>`,
         ...(hasVideoContext ? ['<span>MiniMax H3 · I2VA</span>'] : []),
-        ...(state.imageReferences.length ? [`<span>引用 ${state.imageReferences.length}</span>`] : []),
+        ...(state.imageReferences.length ? [`<span>媒体引用 ${state.imageReferences.length}</span>`] : []),
         `<span>图片 ${images.length}</span>`,
+        `<span>视频 ${videos.length}</span>`,
         `<span>文本 ${textNodes.length}</span>`
       ].join('');
     }
@@ -1673,6 +1752,7 @@
     ).trim();
     const canvasNodeIds = new Set(Object.keys(snapshot.state.canvas.nodes || {}));
     const referencedImages = state.imageReferences
+      .filter(item => mediaKind(item) === 'image')
       .filter(item => canvasNodeIds.has(String(item.sourceNodeId || '')))
       .slice(0, MAX_IMAGE_REFERENCES)
       .map(item => ({
@@ -1680,6 +1760,20 @@
         label: String(item.label || item.id || '图片节点'),
         source_node_id: String(item.sourceNodeId || ''),
         mime_type: String(item.mimeType || 'image/png')
+      }));
+    const referencedVideos = state.imageReferences
+      .filter(item => mediaKind(item) === 'video')
+      .filter(item => canvasNodeIds.has(String(item.sourceNodeId || '')))
+      .slice(0, MAX_VIDEO_REFERENCES)
+      .map(item => ({
+        id: String(item.id || ''),
+        label: String(item.label || item.id || '视频节点'),
+        source_node_id: String(item.sourceNodeId || ''),
+        mime_type: String(item.mimeType || 'video/mp4'),
+        duration_seconds: Number(item.durationSeconds || 0),
+        width: Number(item.mediaWidth || item.width || 0),
+        height: Number(item.mediaHeight || item.height || 0),
+        fps: Number(item.fps || 0)
       }));
     const context = {
       workflow: sanitizeWorkflowForServer(snapshot),
@@ -1702,7 +1796,9 @@
       result_node_id: resultNodeId,
       selected_node_ids: selectedNodeIds(snapshot.state.canvas),
       referenced_image_node_ids: referencedImages.map(item => item.source_node_id),
-      referenced_images: referencedImages
+      referenced_images: referencedImages,
+      referenced_video_node_ids: referencedVideos.map(item => item.source_node_id),
+      referenced_videos: referencedVideos
     };
     return {
       snapshot,
@@ -2049,6 +2145,45 @@
     };
   }
 
+  async function executeAnalyzeVideos(action) {
+    const wanted = new Set((action.video_node_ids || []).map(String));
+    const nodes = (window.DesktopCanvas?.listPromptVideoNodes?.() || [])
+      .filter(node => !wanted.size || wanted.has(String(node.nodeId || node.sourceNodeId || '')))
+      .slice(0, MAX_VIDEO_REFERENCES);
+    if (!nodes.length) throw new Error('画布中没有可分析的视频节点');
+    if (!window.DesktopPromptMedia?.sampleVideoReferences) {
+      throw new Error('视频抽帧模块尚未加载，请刷新页面后重试');
+    }
+    const videos = await window.DesktopPromptMedia.sampleVideoReferences(nodes, {
+      onProgress(progress) {
+        const label = progress.video?.label || `视频 ${progress.videoIndex || 1}`;
+        window.DesktopResults?.showTransientMessage?.(
+          `Agent 正在抽取 ${label}：${progress.completed}/${progress.total} 帧`,
+          'info'
+        );
+      }
+    });
+    const result = await window.DesktopApi.analyzePromptVideo({
+      message: action.message || action.goal || '分析画布参考视频',
+      videos,
+      target: {},
+      style: {},
+      keep_text: false
+    });
+    return {
+      analysis: result?.analysis && typeof result.analysis === 'object' ? result.analysis : {},
+      candidates: (Array.isArray(result?.candidates) ? result.candidates : [result?.candidate])
+        .filter(candidate => candidate?.text)
+        .slice(0, 4)
+        .map(candidate => ({
+          id: candidate.id || '',
+          label: candidate.label || '',
+          kind: candidate.kind || '',
+          text: String(candidate.text || '')
+        }))
+    };
+  }
+
   async function executeCompileH3Prompt(action) {
     const firstFrameNodeId = String(action.first_frame_node_id || '');
     const firstFrameNode = (window.DesktopCanvas?.listPromptImageNodes?.() || [])
@@ -2057,7 +2192,7 @@
     const firstFrame = await imagePayloadForNode(firstFrameNode, 0);
     const analysis = action.analysis && typeof action.analysis === 'object' ? action.analysis : {};
     const analysisText = Object.keys(analysis).length
-      ? `首帧分析：\n${JSON.stringify(analysis, null, 2)}`
+      ? `首帧与参考视频分析：\n${JSON.stringify(analysis, null, 2)}`
       : '';
     const result = await window.DesktopApi?.compileVideoPrompt?.({
       prompt: String(action.current_prompt || ''),
@@ -2093,8 +2228,18 @@
 
   function executeApplyPrompt(action) {
     const requestedInputId = String(action.input_node_id || '');
+    const referenceIds = [...new Set((Array.isArray(action.referenced_image_node_ids)
+      ? action.referenced_image_node_ids : []).map(value => String(value || '')).filter(Boolean))];
+    const before = window.DesktopCanvas?.exportWorkflowSnapshot?.();
+    for (const nodeId of referenceIds) {
+      const node = before?.state?.canvas?.nodes?.[nodeId];
+      if (node?.type !== 'image' || !(node.imageData || node.imageUrl)) {
+        throw new Error(`引用图片节点不存在或没有图片：${nodeId}`);
+      }
+    }
     const target = window.DesktopCanvas?.fillNearestInputPrompt?.(action.text || '', {
       inputNodeId: requestedInputId,
+      createIfMissing: action.create_input_if_missing ?? (requestedInputId === 'input'),
       promptMeta: action.prompt_meta || {}
     });
     const snapshot = window.DesktopCanvas?.exportWorkflowSnapshot?.();
@@ -2103,6 +2248,11 @@
     const edge = (snapshot?.state?.canvas?.edges || []).find(item => item.to === inputId && nodes[item.from]?.type === 'text');
     const textNodeId = String(target?.textNodeId || edge?.from || '');
     if (!textNodeId) throw new Error('提示词已写入，但没有找到对应文本节点');
+    for (const nodeId of referenceIds) {
+      if ((snapshot?.state?.canvas?.edges || []).some(item => item.from === nodeId && item.to === inputId)) continue;
+      const edgeId = window.DesktopCanvas?.connectNodes?.(nodeId, inputId, { quiet: true });
+      if (!edgeId) throw new Error(`引用图片连接失败：${nodeId}`);
+    }
     return { node_id: textNodeId, input_node_id: inputId };
   }
 
@@ -2186,6 +2336,8 @@
     switch (String(action?.type || '')) {
       case 'analyze_images':
         return executeAnalyzeImages(action);
+      case 'analyze_videos':
+        return executeAnalyzeVideos(action);
       case 'compile_h3_prompt':
         return executeCompileH3Prompt(action);
       case 'update_text_node':
@@ -3122,9 +3274,9 @@
     els.deskAgentRollback?.addEventListener('click', () => controlRun('rollback'));
     els.deskAgentCancel?.addEventListener('click', () => controlRun('cancel'));
     els.deskAgentImageMenu?.addEventListener('click', event => {
-      const button = event.target.closest('[data-agent-pick-image-node]');
+      const button = event.target.closest('[data-agent-pick-media-node]');
       if (!button) return;
-      attachImageNode(button.dataset.agentPickImageNode);
+      attachImageNode(button.dataset.agentPickMediaNode);
     });
     ['desktop:canvas-selection-change', 'desktop:canvas-text-nodes-change', 'desktop:canvas-node-removed'].forEach(name => {
       window.addEventListener(name, refreshContextPreview);

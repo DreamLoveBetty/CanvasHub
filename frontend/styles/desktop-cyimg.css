@@ -1,0 +1,31 @@
+/* 绘栾 nodes inherit the Canvas glass, ink, stroke, status and action tokens. */
+body.desk-app .desk-node--cyimg{display:flex;flex-direction:column;box-sizing:border-box;padding:16px;border:1px solid var(--desk-node-stroke);border-radius:var(--desk-node-radius);background:var(--desk-node-sheen-background),var(--desk-node-glass-background);color:var(--desk-node-ink);box-shadow:var(--desk-node-glass-shadow);overflow:visible}
+body.desk-app .desk-node--cyimg::before{display:none}
+body.desk-app .desk-node--cyimg.is-selected{border-color:var(--desk-node-selection-stroke)}
+body.desk-app .desk-node--cyimg:has(.desk-select-shell.is-open){z-index:6}
+body.desk-app .desk-node--cyimg [hidden]{display:none!important}
+body.desk-app .desk-cyimg__header{display:flex;align-items:center;gap:12px;padding-bottom:13px;border-bottom:1px solid var(--desk-color-border-faint)}
+body.desk-app .desk-cyimg__header>div{flex:1;min-width:0}
+body.desk-app .desk-cyimg__header strong{font-size:17px}
+body.desk-app .desk-cyimg__header small{display:block;margin-top:4px;color:var(--desk-node-muted-ink);font-size:9px;letter-spacing:.16em}
+body.desk-app .desk-cyimg__icon{width:40px;height:40px;display:grid;place-items:center;box-sizing:border-box;padding:9px;border-radius:12px;background:var(--desk-color-accent-soft);color:var(--desk-color-accent)}
+body.desk-app .desk-cyimg__icon svg{width:22px;height:22px}
+body.desk-app .desk-cyimg__body{display:flex;flex:1;min-height:0;flex-direction:column;gap:11px;padding-top:14px;font-size:12px}
+body.desk-app .desk-cyimg__body label{display:flex;flex-direction:column;gap:5px;color:var(--desk-node-muted-ink);font-size:11px}
+body.desk-app .desk-cyimg__body :is(select,input[type=number],input[type=text]){width:100%;box-sizing:border-box;padding:7px 10px;border:1px solid var(--desk-color-border-faint);border-radius:8px;background:var(--desk-node-glass-background);color:var(--desk-node-ink);font:inherit;outline:none}
+body.desk-app .desk-cyimg__body :is(select,input[type=number],input[type=text]):focus-visible{border-color:var(--desk-color-accent);box-shadow:0 0 0 2px var(--desk-color-accent-soft)}
+body.desk-app .desk-cyimg__model select{height:36px}
+body.desk-app .desk-cyimg__fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px 12px;overflow:visible;min-height:0;padding:1px 2px}
+body.desk-app .desk-cyimg__fields label.desk-cyimg__check{flex-direction:row;align-items:center;align-self:end;min-height:35px;gap:8px}
+body.desk-app .desk-cyimg__inputs{padding-top:10px;border-top:1px solid var(--desk-color-border-faint);color:var(--desk-node-muted-ink);font-size:11px;line-height:1.45}
+body.desk-app .desk-cyimg__footer{display:flex;align-items:flex-end;justify-content:space-between;gap:14px;margin-top:auto;padding-top:8px;color:var(--desk-node-muted-ink)}
+body.desk-app .desk-cyimg__footer>div{display:flex;flex-direction:column;gap:8px}
+body.desk-app .desk-cyimg__footer small{font-size:10px}
+body.desk-app .desk-cyimg__body label.desk-cyimg__telegram{flex-direction:row;align-items:center;gap:7px}
+body.desk-app[data-theme] .desk-node--cyimg .desk-cyimg__run.desk-generation-action{border-radius:4px}
+body.desk-app[data-theme] .desk-node--cyimg .desk-cyimg__run.desk-generation-action:not(:disabled){box-shadow:0 20px 36px var(--desk-action-primary-shadow),inset 0 1px 0 var(--desk-action-primary-highlight)}
+body.desk-app .desk-cyimg__run[aria-busy=true]{opacity:1;cursor:progress}
+body.desk-app .desk-cyimg__progress{position:absolute;top:calc(100% + 6px);left:0;width:100%}
+body.desk-app .desk-cyimg__progress [data-cyimg-bar]{display:block;min-width:10%;height:100%;border-radius:inherit;background:var(--desk-color-accent)}
+/* The generate action sits at the end of the footer row. */
+body.desk-app .desk-node .desk-cyimg__run { margin-left:auto; }

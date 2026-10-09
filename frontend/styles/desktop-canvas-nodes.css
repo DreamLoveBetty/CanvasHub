@@ -16,6 +16,8 @@ body.desk-app[data-theme] {
 
 /* Canvas surface and inherited legacy bridges. */
 body.desk-app[data-theme] .desk-canvas {
+  /* Camera motion is transform-based, never a second native scroll offset. */
+  overflow: clip;
   --desk-ink: var(--desk-node-ink);
   --desk-muted: var(--desk-node-muted-ink);
   --desk-blue: var(--desk-canvas-control-accent);
@@ -34,6 +36,17 @@ body.desk-app[data-theme] .desk-node-palette:not(.desk-node-context-menu) {
   --desk-ink: var(--desk-canvas-palette-ink);
   --desk-muted: var(--desk-canvas-palette-muted-ink);
   --desk-blue: var(--desk-canvas-control-accent);
+  left: calc(100% + 8px);
+  width: 320px;
+  max-width: calc(100vw - 90px);
+  /* Rail top (82) + menu offset (84) + frame + bottom controls / breathing room. */
+  max-height: calc(100dvh - 232px);
+  gap: 2px;
+  align-content: start;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
   color: var(--desk-canvas-palette-ink);
   background: var(--desk-canvas-palette-background);
   border-color: var(--desk-canvas-palette-border);
@@ -43,6 +56,10 @@ body.desk-app[data-theme] .desk-node-palette:not(.desk-node-context-menu) {
 }
 
 body.desk-app[data-theme] .desk-node-palette:not(.desk-node-context-menu) button {
+  grid-template-columns: 28px minmax(0, 1fr);
+  min-height: 48px;
+  padding: 6px 8px;
+  gap: 8px;
   color: var(--desk-canvas-palette-ink);
   background: var(--desk-canvas-palette-item-background);
   border-color: var(--desk-canvas-palette-item-border);
@@ -64,6 +81,8 @@ body.desk-app[data-theme] .desk-node-palette:not(.desk-node-context-menu) button
 }
 
 body.desk-app[data-theme] .desk-node-palette:not(.desk-node-context-menu) .desk-node-palette__icon {
+  width: 28px;
+  height: 28px;
   color: var(--desk-canvas-palette-icon-ink);
   background: var(--desk-canvas-palette-icon-background);
   border-color: var(--desk-canvas-palette-icon-border);
@@ -77,11 +96,85 @@ body.desk-app[data-theme] .desk-node-palette:not(.desk-node-context-menu) button
 }
 
 body.desk-app[data-theme] .desk-node-palette:not(.desk-node-context-menu) strong {
+  font-size: var(--desk-font-size-body);
+  line-height: var(--desk-line-height-tight);
   color: var(--desk-canvas-palette-ink);
 }
 
 body.desk-app[data-theme] .desk-node-palette:not(.desk-node-context-menu) em {
+  font-size: var(--desk-font-size-caption);
+  line-height: var(--desk-line-height-caption);
   color: var(--desk-canvas-palette-muted-ink);
+}
+
+body.desk-app[data-theme] .desk-node-palette:not(.desk-node-context-menu) .desk-node-palette__copy {
+  min-width: 0;
+}
+
+body.desk-app[data-theme] .desk-node-palette:not(.desk-node-context-menu) :is(strong, em) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body.desk-app[data-theme] .desk-node-palette__category {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  min-height: 34px;
+  padding: 6px 8px;
+  color: var(--desk-canvas-palette-ink);
+  font-size: var(--desk-font-size-body);
+  font-weight: 700;
+  line-height: var(--desk-line-height-tight);
+  list-style: none;
+  border: 1px solid transparent;
+  border-radius: var(--desk-radius-control);
+  cursor: pointer;
+  user-select: none;
+}
+
+body.desk-app[data-theme] .desk-node-palette__category::-webkit-details-marker {
+  display: none;
+}
+
+body.desk-app[data-theme] .desk-node-palette__category-title {
+  flex: 1;
+}
+
+body.desk-app[data-theme] .desk-node-palette__count {
+  color: var(--desk-canvas-palette-muted-ink);
+  font-size: var(--desk-font-size-caption);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+body.desk-app[data-theme] .desk-node-palette__category:hover,
+body.desk-app[data-theme] .desk-node-palette__group[open] > .desk-node-palette__category {
+  color: var(--desk-canvas-palette-item-hover-ink);
+  background: var(--desk-canvas-palette-item-hover-background);
+}
+
+body.desk-app[data-theme] .desk-node-palette__category:focus-visible {
+  outline: 2px solid var(--desk-canvas-palette-item-focus-outline);
+  outline-offset: -2px;
+  background: var(--desk-canvas-palette-item-focus-background);
+}
+
+body.desk-app[data-theme] .desk-node-palette__chevron {
+  flex: 0 0 12px;
+  width: 12px;
+  height: 12px;
+}
+
+body.desk-app[data-theme] .desk-node-palette__group[open] > .desk-node-palette__category .desk-node-palette__chevron {
+  transform: rotate(90deg);
+}
+
+body.desk-app[data-theme] .desk-node-palette__items {
+  display: grid;
+  gap: 2px;
+  margin: 4px 0 6px 8px;
 }
 
 /* Marquee, smart guides, multi-selection bounds, and alignment toolbar. */
@@ -167,6 +260,25 @@ body.desk-app[data-theme] .desk-selection-toolbar .desk-selection-image-group:is
 }
 
 /* Zoom controls and minimap. */
+body.desk-app .desk-minimap {
+  cursor: crosshair;
+  touch-action: none;
+  user-select: none;
+}
+
+body.desk-app .desk-minimap.is-navigating {
+  cursor: grabbing;
+}
+
+body.desk-app .desk-minimap__world {
+  pointer-events: none;
+}
+
+body.desk-app .desk-minimap:focus-visible {
+  outline: 2px solid var(--desk-color-focus-border);
+  outline-offset: 2px;
+}
+
 body.desk-app[data-theme] .desk-zoom-controls {
   --desk-ink: var(--desk-canvas-zoom-ink);
   --desk-muted: var(--desk-canvas-zoom-muted-ink);
@@ -524,4 +636,106 @@ body.desk-app[data-theme] .desk-canvas .desk-node.desk-glass:not(.desk-node--ima
 
 body.desk-app[data-theme] .desk-canvas .desk-node.desk-glass:not(.desk-node--image-group).is-selected {
   box-shadow: var(--desk-node-glass-selected-shadow);
+}
+
+/* One quiet depth profile also covers domain shells without desk-glass.
+   Keep their local backgrounds and audio hardware internals unchanged. */
+body.desk-app[data-theme] .desk-canvas .desk-node:not(:is(.desk-node--image, .desk-node--video, .desk-node--image-group)) {
+  border-color: var(--desk-node-glass-border);
+  box-shadow: var(--desk-node-glass-shadow);
+}
+
+body.desk-app[data-theme] .desk-canvas .desk-node:not(:is(.desk-node--image, .desk-node--video, .desk-node--image-group)):is(.is-dragging, .is-resizing) {
+  box-shadow: var(--desk-node-glass-active-shadow);
+}
+
+/* Media depth belongs to the visible image/preview, not a second root frame. */
+body.desk-app[data-theme] .desk-node--video .desk-video-result__preview {
+  box-shadow: var(--desk-node-image-shadow);
+}
+
+body.desk-app[data-theme] .desk-canvas .desk-node:not(.desk-node--image-group).is-selected {
+  box-shadow: var(--desk-node-selected-shadow);
+}
+
+body.desk-app[data-theme] .desk-node--video.is-selected .desk-video-result__preview,
+body.desk-app[data-theme] .desk-node--image.is-selected .desk-image-node__placeholder {
+  box-shadow: none;
+}
+
+/* Shared node frame states: only selection and an active connection operation
+   highlight the whole shell. Committed edges keep their local port caps/wires,
+   not a selection-like frame. Place this after normal domain/glass material. */
+body.desk-app[data-theme] .desk-canvas .desk-node:not(.desk-node--image-group):is(
+  .is-selected,
+  .is-connection-drop-target
+),
+body.desk-app[data-theme] .desk-canvas .desk-node:not(.desk-node--image-group):has(
+  > .desk-port--floating:is(.is-connecting, .is-pending)
+) {
+  border-color: var(--desk-node-edge-stroke);
+}
+
+/* Transient, pointer-transparent connection feedback. SVG dimensions inherit
+   node zoom; no filter, permanent frame, or variables inherited by form controls. */
+body.desk-app .desk-node > :is(.desk-connection-proximity, .desk-connection-impact) {
+  position: absolute;
+  z-index: 13;
+  overflow: visible;
+  color: var(--desk-node-edge-stroke);
+  pointer-events: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.25px;
+  stroke-linecap: round;
+}
+
+/* Opaque theme color plus a white-hot core stays legible on both canvas themes.
+   Layered strokes provide local glow without a blur filter or flashing opacity. */
+body.desk-app .desk-node > .desk-connection-proximity {
+  color: var(--desk-canvas-control-accent);
+  stroke-linejoin: round;
+}
+body.desk-app .desk-connection-proximity__halo {
+  stroke-width: 7px;
+  opacity: 0.22;
+}
+body.desk-app .desk-connection-proximity__wave { stroke-width: 2.4px; }
+body.desk-app .desk-connection-proximity__core {
+  stroke: color-mix(in srgb, currentColor 18%, white);
+  stroke-width: 0.85px;
+}
+body.desk-app .desk-connection-proximity__ring { stroke-width: 1.6px; opacity: 0.75; }
+body.desk-app .desk-connection-proximity[data-phase="snapped"] .desk-connection-proximity__ring { opacity: 1; }
+body.desk-app .desk-connection-impact__ring { opacity: 0.65; }
+body.desk-app .desk-connection-impact__wave {
+  /* Width/dash length are per-layer SVG attributes, with one shared light head. */
+  opacity: 0;
+}
+body.desk-app .desk-connection-commit-wire {
+  fill: none;
+  stroke: var(--desk-node-selection-stroke);
+  stroke-width: 1.8px;
+  stroke-linecap: round;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body.desk-app :is(.desk-connection-proximity__arc, .desk-connection-impact__wave, .desk-connection-impact__bloom, .desk-connection-commit-wire) { display: none; }
+}
+
+/* Node success labels use the same pale silk as footer task/queue/archive chips.
+   Scope the paint here: saturated shell service badges and warnings stay intact. */
+body.desk-app[data-theme] .desk-node :is(
+  .desk-status-pill.is-success,
+  .desk-pill-row span.is-success,
+  .desk-video-runtime-pill.is-online
+) {
+  color: var(--desk-status-success-soft-ink);
+  background: var(--desk-status-success-soft-background);
+  background-position: var(--desk-status-material-position);
+  background-repeat: no-repeat;
+  background-size: var(--desk-status-material-background-size);
+  border-color: var(--desk-status-success-soft-border);
+  box-shadow: var(--desk-status-success-soft-shadow);
 }

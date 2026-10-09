@@ -1,0 +1,185 @@
+.desk-app .desk-node--qwen21 { width:720px; height:500px; min-width:720px; min-height:500px; padding:14px; overflow:visible; }
+.desk-app .desk-qwen21__header { flex:0 0 auto; margin-bottom:4px; }
+.desk-app .desk-qwen21__body { display:flex; flex:1 1 auto; flex-direction:column; gap:4px; min-height:0; overflow:visible; }
+.desk-app .desk-qwen21__grid { display:grid; flex:0 0 auto; gap:4px; margin:0; }
+.desk-app .desk-qwen21__grid--model { grid-template-columns:repeat(2,minmax(0,1fr)); }
+.desk-app .desk-qwen21__mode { min-width:0; padding:0 10px; font-size:12px; text-overflow:ellipsis; }
+.desk-app .desk-qwen21__grid--params { grid-template-columns:repeat(4,minmax(0,1fr)); }
+.desk-app .desk-qwen21__seed { grid-column:span 2; }
+.desk-app .desk-qwen21__grid label { display:grid; gap:3px; min-width:0; }
+.desk-app .desk-qwen21__grid label > span { color:var(--desk-muted); font-size:11px; font-weight:750; }
+.desk-app .desk-qwen21__grid .desk-select-shell { width:100%; }
+.desk-app .desk-qwen21__loras { display:flex; flex:1 1 auto; flex-direction:column; gap:4px; min-height:58px; padding-top:6px; border-top:1px solid var(--desk-color-control-border); overflow:visible; }
+.desk-app .desk-qwen21__loras > header { display:flex; flex:0 0 auto; align-items:center; gap:10px; }
+.desk-app .desk-qwen21__loras strong { color:var(--desk-ink); font-size:12px; font-weight:800; }
+.desk-app .desk-qwen21__loras small { color:var(--desk-muted); font-size:9px; font-weight:700; }
+.desk-app [data-qwen21-lora-list] { display:grid; flex:1 1 auto; grid-template-columns:repeat(2,minmax(0,1fr)); align-content:start; gap:4px; min-height:0; overflow:auto; }
+.desk-app .desk-qwen21__empty { display:flex; grid-column:1 / -1; align-items:center; justify-content:center; min-height:36px; height:100%; color:var(--desk-muted); font-size:10px; font-weight:650; background:var(--desk-color-control-bg); border-radius:var(--desk-radius); }
+.desk-app .desk-qwen21__lora { display:grid; grid-template-columns:minmax(0,1fr) 58px 26px; align-items:center; gap:4px; min-height:32px; padding:2px 4px 2px 7px; background:var(--desk-color-control-bg); border:1px solid var(--desk-color-control-border); border-radius:var(--desk-radius); }
+.desk-app .desk-qwen21__lora strong { overflow:hidden; font-size:10px; text-overflow:ellipsis; white-space:nowrap; }
+.desk-app .desk-qwen21__lora .desk-number,.desk-app .desk-qwen21__lora > button { height:26px; min-height:26px; }
+.desk-app .desk-qwen21__lora > button { padding:0; font-size:14px; }
+.desk-app .desk-qwen21__references { display:flex; flex:0 0 28px; align-items:center; gap:5px; min-width:0; overflow:auto; color:var(--desk-muted); font-size:10px; }
+.desk-app .desk-qwen21__references[hidden] { display:none; }
+.desk-app .desk-qwen21__reference { display:flex; flex:0 0 auto; align-items:center; gap:4px; padding:2px 4px; background:var(--desk-color-control-bg); border:1px solid var(--desk-color-control-border); border-radius:var(--desk-radius); }
+.desk-app .desk-qwen21__reference > span { max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.desk-app .desk-qwen21__reference > button { width:20px; height:20px; min-height:20px; padding:0; }
+.desk-app .desk-qwen21__footer { flex:0 0 auto; min-height:72px; margin-top:0; }
+.desk-app .desk-qwen21__meta { flex-wrap:nowrap; overflow:hidden; }
+.desk-app .desk-qwen21__meta > span { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.desk-app .desk-qwen21__meta [data-qwen21-runtime] { flex:1 1 auto; }
+.desk-app .desk-node--qwen21 > .desk-qwen21__progress { position:absolute; top:calc(100% + 2px); left:0; right:auto; z-index:8; width:100%; box-sizing:border-box; }
+.desk-app .desk-node--qwen21 > .desk-qwen21__progress[hidden] { display:none; }
+.desk-app .desk-node--qwen21:has(.desk-select-shell.is-open) { z-index:30; }
+
+.desk-app .desk-qwen21-tools__card {
+  gap: 8px;
+}
+
+.desk-app .desk-qwen21-tools__paths,
+.desk-app .desk-qwen21-tools__inspection,
+.desk-app .desk-qwen21-tools__progress,
+.desk-app .desk-qwen21-tools__models {
+  display: grid;
+  gap: 6px;
+}
+
+.desk-app .desk-qwen21-tools__paths {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.desk-app .desk-qwen21-tools__paths > div,
+.desk-app .desk-qwen21-tools__inspection,
+.desk-app .desk-qwen21-tools__progress,
+.desk-app .desk-qwen21-tools__model {
+  min-width: 0;
+  padding: 8px 10px;
+  background: var(--desk-color-control-bg);
+  border: 1px solid var(--desk-color-control-border);
+  border-radius: var(--desk-radius);
+}
+
+.desk-app .desk-qwen21-tools__paths > div,
+.desk-app .desk-qwen21-tools__model > div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.desk-app .desk-qwen21-tools__paths span,
+.desk-app .desk-qwen21-tools__form label > span,
+.desk-app .desk-qwen21-tools__model span,
+.desk-app .desk-qwen21-tools__inspection span {
+  color: var(--desk-muted);
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.desk-app .desk-qwen21-tools__paths strong,
+.desk-app .desk-qwen21-tools__model strong {
+  overflow: hidden;
+  color: var(--desk-ink);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.desk-app .desk-qwen21-tools__form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.desk-app .desk-qwen21-tools__form label {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.desk-app .desk-qwen21-tools__wide,
+.desk-app .desk-qwen21-tools__inspection,
+.desk-app .desk-qwen21-tools__actions {
+  grid-column: 1 / -1;
+}
+
+.desk-app .desk-qwen21-tools__inspection strong {
+  color: var(--desk-ink);
+  font-size: 10px;
+}
+
+.desk-app .desk-qwen21-tools__inspection.is-warn,
+.desk-app .desk-qwen21-tools__progress.is-error {
+  border-color: var(--desk-color-danger-border);
+}
+
+.desk-app .desk-qwen21-tools__inspection.is-ok,
+.desk-app .desk-qwen21-tools__progress.is-success,
+.desk-app .desk-qwen21-tools__model.is-ready {
+  border-color: var(--desk-status-success-soft-border);
+}
+
+.desk-app .desk-qwen21-tools__progress > div:first-child {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  color: var(--desk-muted);
+  font-size: 9px;
+}
+
+.desk-app .desk-qwen21-tools__progress > div:first-child span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.desk-app .desk-qwen21-tools__bar {
+  height: 7px;
+  overflow: hidden;
+  background: var(--desk-color-control-border);
+  border-radius: 999px;
+}
+
+.desk-app .desk-qwen21-tools__bar span {
+  display: block;
+  height: 100%;
+  background: var(--desk-action-primary-gloss);
+  border-radius: inherit;
+  transition: width 180ms ease;
+}
+
+.desk-app .desk-qwen21-tools__progress > button {
+  justify-self: end;
+}
+
+.desk-app .desk-qwen21-tools__progress small {
+  color: var(--desk-color-danger-ink);
+  font-size: 9px;
+  line-height: 1.45;
+}
+
+.desk-app .desk-qwen21-tools__model {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.desk-app .desk-qwen21-tools__model em {
+  color: var(--desk-muted);
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 750;
+}
+
+.desk-app .desk-qwen21-tools__actions {
+  margin-top: 0;
+}
+
+@media (max-width: 720px) {
+  .desk-app .desk-qwen21-tools__paths,
+  .desk-app .desk-qwen21-tools__form {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

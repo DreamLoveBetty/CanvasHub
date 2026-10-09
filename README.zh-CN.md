@@ -51,6 +51,9 @@ MINIAPP_PUBLIC_URL=https://your-domain.example ./start.sh
 
 ## 桌面 App
 
+开发者可独立构建前端并自动生成资源版本；普通源码启动仍不需要 Node.js。
+构建、校验与桌面打包的兼容边界见 [前端构建说明](frontend/README.md)。
+
 桌面版可以从 [GitHub Releases](https://github.com/DreamLoveBetty/CanvasHub/releases)
 下载。应用设置、账号信息、图片归档、缓存和可选组件会保存在当前用户的数据
 目录中，覆盖安装或升级应用不会清除这些内容。

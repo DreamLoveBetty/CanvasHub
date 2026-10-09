@@ -1,0 +1,132 @@
+/* Audio hardware surface. Tokens and controls are scoped to this node only. */
+body.desk-app .desk-node--audio {
+  --desk-audio-face: var(--desk-node-glass-background);
+  --desk-audio-ink: var(--desk-node-ink);
+  --desk-audio-muted: var(--desk-node-muted-ink);
+  --desk-audio-line: var(--desk-color-border-faint);
+  --desk-audio-highlight: rgba(255, 255, 255, .92);
+  --desk-audio-button: linear-gradient(145deg, var(--desk-blue-frost), var(--desk-blue-mist));
+  --desk-audio-button-shadow: inset 1px 1px 2px #fff, inset -1px -1px 2px var(--desk-blue-powder), 2px 3px 7px rgba(var(--desk-blue-midnight-rgb), .09);
+  --desk-audio-head: #bd7270;
+  --desk-audio-played: var(--desk-color-accent);
+  --desk-audio-head-glow: rgba(189, 114, 112, .3);
+  display: grid;
+  grid-template-rows: 22px 88px 156px 30px;
+  align-content: center;
+  gap: 8px;
+  box-sizing: border-box;
+  padding: 14px 18px;
+  color: var(--desk-audio-ink);
+  background: var(--desk-node-sheen-background), var(--desk-audio-face);
+  border: 1px solid var(--desk-color-border-faint);
+  border-radius: var(--desk-node-radius);
+  box-shadow: var(--desk-node-glass-shadow);
+  font-family: inherit;
+  overflow: visible;
+  isolation: isolate;
+}
+body.desk-app .desk-node--audio.is-selected {
+  border-color: var(--desk-node-selection-stroke);
+  box-shadow: var(--desk-node-glass-selected-shadow);
+}
+body.desk-app .desk-node--audio::before { display: none; }
+body.desk-app .desk-node--audio [hidden] { display: none !important; }
+body.desk-app .desk-audio__header,
+body.desk-app .desk-audio__header > span,
+body.desk-app .desk-audio__header > div { display: flex; align-items: center; gap: 8px; min-width: 0; }
+body.desk-app .desk-audio__header { justify-content: space-between; cursor: grab; }
+body.desk-app .desk-audio__header strong { font-size: 12px; letter-spacing: .04em; }
+body.desk-app .desk-audio__header em { font-size: 9px; letter-spacing: .18em; font-style: normal; color: var(--desk-audio-muted); }
+body.desk-app .desk-audio__header .desk-node-icon { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; }
+body.desk-app .desk-audio__header .desk-status-pill { font-size: 10px; padding: 3px 8px; min-height: 20px; }
+body.desk-app .desk-audio__timeline { position: relative; min-width: 0; overflow: hidden; border-bottom: 1px solid var(--desk-audio-line); }
+body.desk-app .desk-audio__wave { display: block; width: 100%; height: 62px; fill: none; stroke: var(--desk-audio-muted); stroke-width: 1.4; }
+body.desk-app .desk-audio__wave [data-audio-wave] { opacity: .42; }
+body.desk-app .desk-audio__wave-progress { overflow: hidden; stroke: var(--desk-audio-played); stroke-width: 1.6; }
+body.desk-app .desk-audio__baseline { opacity: .2; stroke-width: 1; }
+body.desk-app .desk-audio__wave-hint { position: absolute; inset: 0 0 24px; display: grid; place-items: center; font-size: 11px; color: var(--desk-audio-muted); pointer-events: none; }
+body.desk-app .desk-audio__playhead { position: absolute; top: 0; bottom: 0; left: 0; width: 1px; transform: translateX(-50%); background: var(--desk-audio-head); box-shadow: 0 0 0 1px rgba(189, 114, 112, .1); pointer-events: none; }
+body.desk-app .desk-audio__playhead::before { content: ""; position: absolute; top: 0; left: 50%; width: 44px; height: 62px; transform: translateX(-50%); background: radial-gradient(ellipse at center, var(--desk-audio-head-glow), transparent 72%); opacity: 0; transition: opacity 160ms ease; }
+body.desk-app .desk-node--audio.is-playing .desk-audio__playhead::before { opacity: 1; }
+body.desk-app .desk-audio__ruler { display: flex; justify-content: space-between; position: relative; height: 22px; font-size: 10px; font-variant-numeric: tabular-nums; font-weight: 600; color: var(--desk-audio-muted); background: repeating-linear-gradient(90deg, var(--desk-audio-line) 0 1px, transparent 1px 12px) 0 10px / 100% 4px no-repeat; }
+body.desk-app .desk-audio__ruler span { background: var(--desk-audio-face); padding: 4px 3px 0; }
+body.desk-app .desk-audio__seek { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: crosshair; }
+body.desk-app .desk-audio__timeline:focus-within { outline: 2px solid var(--desk-node-selection-stroke); outline-offset: 3px; border-radius: 3px; }
+body.desk-app .desk-audio__body { display: grid; grid-template-columns: 236px minmax(0, 1fr) 152px 48px; align-items: center; gap: 16px; }
+body.desk-app .desk-audio__display { position: relative; overflow: hidden; height: 148px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between; padding: 15px 15px 12px; color: #e3e7e5; background: linear-gradient(113deg, rgba(255, 255, 255, .08) 0 51%, transparent 51.3%), linear-gradient(160deg, #282b2b, #151818); border: 1px solid #969b9b; border-radius: 13px; box-shadow: 0 0 0 5px rgba(90, 100, 100, .05), inset 0 1px 1px rgba(255, 255, 255, .15); }
+body.desk-app .desk-audio__display > div:first-child { display: flex; align-items: center; justify-content: space-between; font-size: 9px; letter-spacing: .09em; color: #acb7b2; }
+body.desk-app .desk-audio__display > strong { font-size: 33px; line-height: 1; font-weight: 400; letter-spacing: .02em; font-variant-numeric: tabular-nums; }
+body.desk-app .desk-audio__display p { display: flex; justify-content: space-between; margin: 0; font-size: 10px; color: #a4b0aa; }
+body.desk-app .desk-audio__display small { font-size: 9px; color: #a4b0aa; letter-spacing: .04em; }
+body.desk-app .desk-audio__meter { position: relative; display: grid; gap: 3px; color: #a4b0aa; font-size: 8px; line-height: 1; font-variant-numeric: tabular-nums; }
+body.desk-app .desk-audio__meter-row { display: grid; grid-template-columns: 9px minmax(0, 1fr) 30px; align-items: center; gap: 4px; }
+body.desk-app .desk-audio__meter-row > :last-child { text-align: right; }
+body.desk-app .desk-audio__meter-track { position: relative; height: 6px; overflow: hidden; background: rgba(160, 185, 170, .13); border-radius: 1px; }
+body.desk-app .desk-audio__meter-track::after { content: ""; position: absolute; inset: 0; background: repeating-linear-gradient(90deg, transparent 0 4px, rgba(18, 25, 22, .85) 4px 6px); pointer-events: none; }
+body.desk-app .desk-audio__meter-fill { display: block; width: 100%; height: 100%; background: #91c5ab; transform: scaleX(0); transform-origin: left; transition: transform 80ms linear; }
+body.desk-app .desk-audio__meter-peak { position: absolute; top: 0; bottom: 0; width: 2px; left: 0; opacity: 0; transform: translateX(-100%); background: #e2c790; z-index: 1; }
+body.desk-app .desk-audio__meter-track.is-hot .desk-audio__meter-peak { background: #ef928b; }
+body.desk-app .desk-audio__meter-scale { display: grid; grid-template-columns: minmax(0, 1fr) 30px; gap: 4px; margin-left: 13px; color: #889990; font-size: 7px; text-align: right; }
+body.desk-app .desk-audio__meter-ticks { display: flex; justify-content: space-between; }
+body.desk-app .desk-audio__meter-ticks i { font-style: normal; }
+body.desk-app .desk-audio__meter[data-meter-state="idle"] .desk-audio__meter-fill,
+body.desk-app .desk-audio__meter[data-meter-state="silent"] .desk-audio__meter-fill { transition-duration: 180ms; }
+body.desk-app .desk-audio__meter-note { position: absolute; inset: 0; display: grid; place-items: center; background: #202725; color: #a4b0aa; font-size: 9px; }
+body.desk-app .desk-audio__file { align-self: stretch; display: flex; flex-direction: column; justify-content: center; min-width: 0; gap: 5px; }
+body.desk-app .desk-audio__file > strong { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 14px; line-height: 1.4; font-weight: 650; }
+body.desk-app .desk-audio__file > span { font-size: 10px; color: var(--desk-audio-muted); }
+body.desk-app .desk-audio__file dl { margin: 13px 0 4px; font-size: 10px; }
+body.desk-app .desk-audio__file dl div { display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid var(--desk-audio-line); }
+body.desk-app .desk-audio__file dt { color: var(--desk-audio-muted); }
+body.desk-app .desk-audio__file dd { margin: 0; font-variant-numeric: tabular-nums; }
+body.desk-app .desk-audio__file .desk-audio__source { font-size: 9px; letter-spacing: .05em; }
+body.desk-app .desk-audio__wheel { position: relative; width: 152px; height: 152px; box-sizing: border-box; border: 1px solid var(--desk-audio-line); border-radius: 50%; background: var(--desk-audio-button); box-shadow: inset 0 0 0 2px var(--desk-audio-highlight), inset -3px -3px 9px rgba(78, 89, 88, .06); }
+body.desk-app .desk-node--audio :is(.desk-audio__wheel button, .desk-audio__round, .desk-audio__actions button, .desk-audio__volume button) { min-width: 0; min-height: 0; padding: 0; margin: 0; color: var(--desk-audio-ink); font-family: inherit; cursor: pointer; outline-offset: 3px; transition: box-shadow 140ms ease, background-color 140ms ease, transform 140ms ease; }
+body.desk-app .desk-audio__wheel button { position: absolute; display: grid; place-items: center; width: 34px; height: 34px; background: transparent; border: 0; border-radius: 50%; box-shadow: none; }
+body.desk-app .desk-audio__wheel svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+body.desk-app .desk-audio__wheel-top { top: 3px; left: 58px; }
+body.desk-app .desk-audio__wheel-bottom { bottom: 3px; left: 58px; }
+body.desk-app .desk-audio__wheel-left { left: 3px; top: 58px; }
+body.desk-app .desk-audio__wheel-right { right: 3px; top: 58px; }
+body.desk-app .desk-audio__wheel .desk-audio__play { width: 65px; height: 65px; left: 42.5px; top: 42.5px; background: var(--desk-audio-button); border: 1px solid var(--desk-audio-line); box-shadow: var(--desk-audio-button-shadow); }
+body.desk-app .desk-audio__play svg { width: 21px; height: 21px; fill: currentColor; stroke: none; }
+body.desk-app .desk-audio__side { display: grid; justify-items: center; gap: 5px; font-size: 10px; }
+body.desk-app .desk-audio__side > span { color: var(--desk-audio-muted); }
+body.desk-app .desk-audio__round { display: grid; place-items: center; width: 42px; height: 42px; background: var(--desk-audio-button); border: 1px solid var(--desk-audio-line); border-radius: 50%; box-shadow: var(--desk-audio-button-shadow); }
+body.desk-app .desk-audio__round svg { width: 19px; height: 19px; stroke: currentColor; stroke-width: 1.5; fill: none; stroke-linejoin: round; }
+body.desk-app .desk-audio__round[data-audio-action="stop"] svg { fill: currentColor; stroke: none; }
+body.desk-app .desk-audio__round[aria-pressed="true"] { color: var(--desk-status-success-soft-ink); background: var(--desk-status-success-soft-background); border-color: var(--desk-status-success-soft-border); box-shadow: var(--desk-status-success-soft-shadow); }
+body.desk-app .desk-audio__footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-width: 0; padding-top: 5px; }
+body.desk-app .desk-audio__actions { display: flex; gap: 7px; flex-shrink: 0; }
+body.desk-app .desk-node--audio .desk-audio__actions button { min-height: 25px; padding: 0 11px; border: 1px solid var(--desk-audio-line); border-radius: 8px; background: var(--desk-audio-button); box-shadow: var(--desk-audio-button-shadow); font-size: 10px; font-weight: 600; }
+body.desk-app .desk-audio__message { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 9px; color: var(--desk-audio-muted); text-align: center; }
+body.desk-app .desk-audio__message.is-error { color: var(--desk-status-error-on-fill); background: var(--desk-status-error-silk-background); border-radius: 4px; padding: 3px 5px; }
+body.desk-app .desk-audio__volume { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+body.desk-app .desk-audio__volume button { display: grid; place-items: center; width: 22px; height: 22px; background: transparent; border: 0; box-shadow: none; }
+body.desk-app .desk-audio__volume svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linejoin: round; }
+body.desk-app .desk-audio__volume input { width: 75px; height: 14px; margin: 0; accent-color: var(--desk-audio-muted); }
+body.desk-app .desk-audio__volume output { min-width: 26px; font-size: 9px; text-align: right; color: var(--desk-audio-muted); font-variant-numeric: tabular-nums; }
+body.desk-app .desk-node--audio [data-audio-action]:disabled { cursor: default; opacity: .35; transform: none; }
+body.desk-app .desk-node--audio [data-audio-action]:not(:disabled):hover { background-color: rgba(92, 108, 105, .09); }
+body.desk-app .desk-node--audio [data-audio-action]:not(:disabled):active { transform: translateY(1px); box-shadow: inset 1px 2px 4px rgba(31, 41, 39, .18); }
+body.desk-app .desk-node--audio [data-audio-action]:focus-visible { outline: 2px solid var(--desk-node-selection-stroke); }
+body.desk-app[data-theme="dark"] .desk-node--audio {
+  --desk-audio-face: #323839;
+  --desk-audio-ink: #dce2df;
+  --desk-audio-muted: #a0aeaa;
+  --desk-audio-line: rgba(179, 195, 187, .18);
+  --desk-audio-highlight: rgba(255, 255, 255, .08);
+  --desk-audio-head-glow: rgba(214, 145, 134, .38);
+  --desk-audio-button: linear-gradient(145deg, #454d4e, #303536);
+  --desk-audio-button-shadow: inset 1px 1px 2px rgba(255, 255, 255, .08), inset -1px -1px 2px #1d2424, 2px 3px 7px rgba(0, 0, 0, .16);
+  background: linear-gradient(150deg, rgba(255, 255, 255, .04), transparent 50%), var(--desk-audio-face);
+  border-color: #171e1e;
+  box-shadow: inset 0 0 0 2px var(--desk-audio-highlight), 0 16px 28px rgba(33, 48, 60, .17);
+}
+body.desk-app[data-theme="dark"] .desk-node--audio.is-selected { border-color: var(--desk-node-selection-stroke); box-shadow: var(--desk-node-glass-selected-shadow); }
+body.desk-app[data-theme="dark"] .desk-audio__display { border-color: #1e2725; box-shadow: 0 0 0 5px rgba(0, 0, 0, .08), inset 0 1px 1px rgba(255, 255, 255, .1); }
+@media (prefers-reduced-motion: reduce) {
+  body.desk-app .desk-node--audio [data-audio-action],
+  body.desk-app .desk-audio__meter-fill,
+  body.desk-app .desk-audio__playhead::before { transition: none; }
+}

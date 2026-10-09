@@ -65,6 +65,8 @@
 
   function inferVariant(select) {
     if (select.id === 'deskLanguageSelect' || select.closest('.desk-language-picker')) return 'language';
+    if (select.closest('.desk-topaz-video-workbench')) return 'topaz-video-workbench';
+    if (select.closest('.desk-lora-library, .desk-lora-dialog')) return 'gallery';
     if (select.classList.contains('desk-gallery-filter')) return 'gallery';
     if (select.closest('.desk-image-group__item-actions')) return 'image-group-role';
     if (select.closest('.desk-prompt-node-picker')) return 'prompt';
@@ -78,6 +80,12 @@
 
   function usesAnchoredMenu(select) {
     return !!select?.closest?.('.desk-canvas-world .desk-node');
+  }
+
+  function menuContainer(select) {
+    // A body-level popup is inert behind a native modal's top layer.
+    // Keep fixed positioning, but mount in the owning dialog when present.
+    return select.closest('dialog') || document.body;
   }
 
   function inheritedScale(element) {
@@ -171,7 +179,8 @@
       const selected = item.optionIndex === selectedIndex;
       const disabled = item.disabled ? ' disabled aria-disabled="true"' : '';
       const selectedAttrs = selected ? ' is-selected" aria-selected="true"' : '" aria-selected="false"';
-      return `<button type="button" class="desk-select-option${selectedAttrs} role="option" id="${optionId(state, item.optionIndex)}" data-option-index="${item.optionIndex}"${disabled}>${escapeHtml(item.label)}</button>`;
+      const title = state.menu.dataset.selectWidth === 'content' ? ` title="${escapeHtml(item.label)}"` : '';
+      return `<button type="button" class="desk-select-option${selectedAttrs} role="option" id="${optionId(state, item.optionIndex)}" data-option-index="${item.optionIndex}"${disabled}${title}>${escapeHtml(item.label)}</button>`;
     }).join('');
     state.menu.setAttribute('aria-label', state.select.getAttribute('aria-label') || state.trigger.getAttribute('aria-label') || 'Select');
   }
@@ -203,6 +212,16 @@
     setHighlighted(state, next);
   }
 
+  function contentMenuWidth(state) {
+    if (state.menu.dataset.selectWidth !== 'content') return 0;
+    // Opt-in only: measure single-line labels in the actual menu font. The
+    // positioning code then clamps to the viewport in the same zoom space.
+    state.menu.style.width = 'max-content';
+    state.menu.style.minWidth = '0px';
+    state.menu.style.maxWidth = 'none';
+    return Math.ceil(state.menu.offsetWidth);
+  }
+
   function placeAnchoredMenu(state) {
     const rect = state.trigger.getBoundingClientRect();
     const margin = 8;
@@ -215,10 +234,12 @@
       : 0;
     const minWidth = state.variant === 'prompt' ? 160 : (imageGroupMenuWidth || 132);
     const shellWidth = state.shell.offsetWidth || state.trigger.offsetWidth || minWidth;
-    const viewportMaxWidth = Math.max(minWidth, Math.floor((window.innerWidth - margin * 2) / scale));
+    const contentWidth = contentMenuWidth(state);
+    const viewportMaxWidth = Math.max(contentWidth ? 1 : minWidth, Math.floor((window.innerWidth - margin * 2) / scale));
     const menuWidth = imageGroupMenuWidth
       ? Math.min(imageGroupMenuWidth, viewportMaxWidth)
-      : Math.min(Math.max(shellWidth, minWidth), Math.min(320, viewportMaxWidth));
+      : contentWidth ? Math.min(Math.max(shellWidth, minWidth, contentWidth), viewportMaxWidth)
+        : Math.min(Math.max(shellWidth, minWidth), Math.min(320, viewportMaxWidth));
     const menuScreenWidth = menuWidth * scale;
     const availableBelow = window.innerHeight - rect.bottom - margin;
     const availableAbove = rect.top - margin;
@@ -232,7 +253,7 @@
       && rect.right - menuScreenWidth >= margin;
 
     state.menu.style.width = `${imageGroupMenuWidth ? menuWidth : Math.round(menuWidth)}px`;
-    state.menu.style.minWidth = `${imageGroupMenuWidth ? menuWidth : Math.round(minWidth)}px`;
+    state.menu.style.minWidth = `${imageGroupMenuWidth ? menuWidth : Math.round(contentWidth ? Math.min(minWidth, menuWidth) : minWidth)}px`;
     state.menu.style.maxWidth = `${Math.round(viewportMaxWidth)}px`;
     state.menu.style.maxHeight = `${Math.round(maxHeight)}px`;
     if (imageGroupThumb) {
@@ -241,6 +262,10 @@
       const centeredLeft = thumbRect.left + (thumbRect.width - menuScreenWidth) / 2;
       const clampedLeft = Math.max(margin, Math.min(centeredLeft, window.innerWidth - margin - menuScreenWidth));
       state.menu.style.left = `${(clampedLeft - shellRect.left) / scale}px`;
+      state.menu.style.right = 'auto';
+    } else if (contentWidth) {
+      const left = Math.max(margin, Math.min(rect.left, window.innerWidth - margin - menuScreenWidth));
+      state.menu.style.left = `${(left - state.shell.getBoundingClientRect().left) / scale}px`;
       state.menu.style.right = 'auto';
     } else {
       state.menu.style.left = alignRight ? 'auto' : '0px';
@@ -259,15 +284,16 @@
     }
     const rect = state.trigger.getBoundingClientRect();
     const margin = 8;
+    const contentWidth = contentMenuWidth(state);
     const minWidth = Math.max(rect.width, state.variant === 'prompt' ? 160 : 132);
-    const maxWidth = Math.max(minWidth, Math.min(320, window.innerWidth - margin * 2));
-    const width = Math.min(Math.max(minWidth, rect.width), window.innerWidth - margin * 2);
+    const maxWidth = contentWidth ? window.innerWidth - margin * 2 : Math.max(minWidth, Math.min(320, window.innerWidth - margin * 2));
+    const width = Math.min(Math.max(minWidth, rect.width, contentWidth), window.innerWidth - margin * 2);
     const availableBelow = window.innerHeight - rect.bottom - margin;
     const availableAbove = rect.top - margin;
     const maxHeight = Math.max(120, Math.min(280, Math.max(availableBelow, availableAbove) - 4));
 
     state.menu.style.width = `${Math.round(width)}px`;
-    state.menu.style.minWidth = `${Math.round(minWidth)}px`;
+    state.menu.style.minWidth = `${Math.round(contentWidth ? Math.min(minWidth, width) : minWidth)}px`;
     state.menu.style.maxWidth = `${Math.round(maxWidth)}px`;
     state.menu.style.maxHeight = `${Math.round(maxHeight)}px`;
 
@@ -480,6 +506,7 @@
     menu.id = `${id}-menu`;
     menu.dataset.selectVariant = variant;
     menu.dataset.menuMode = menuMode;
+    menu.dataset.selectWidth = select.dataset.deskSelectWidth || '';
     menu.hidden = true;
     menu.setAttribute('role', 'listbox');
     if (menuMode === 'anchored') {
@@ -487,7 +514,7 @@
       stackRoot?.classList.add('desk-select-stack-root');
       shell.appendChild(menu);
     } else {
-      document.body.appendChild(menu);
+      menuContainer(select).appendChild(menu);
     }
     select.insertAdjacentElement('afterend', shell);
 

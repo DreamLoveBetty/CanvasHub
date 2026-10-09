@@ -686,9 +686,26 @@ body.desk-app[data-theme] .desk-rail {
   height: auto;
   padding: var(--desk-space-6) 5px;
   color: var(--desk-color-text-primary);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--desk-radius-surface);
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+/* Keep the rail's glass on a sibling paint layer. Filtering the rail itself
+   creates a backdrop root that prevents its outboard node menu from blurring
+   the canvas. The transparent frame preserves layout and the menu's anchor. */
+body.desk-app[data-theme] .desk-rail::before {
+  position: absolute;
+  inset: -1px;
+  z-index: -1;
+  content: "";
+  pointer-events: none;
   background: var(--desk-shell-rail-background);
   border: 1px solid var(--desk-shell-rail-border);
-  border-radius: var(--desk-radius-surface);
+  border-radius: inherit;
   box-shadow: var(--desk-shell-rail-shadow);
   -webkit-backdrop-filter: var(--desk-shell-rail-filter);
   backdrop-filter: var(--desk-shell-rail-filter);
@@ -794,7 +811,7 @@ body.desk-app[data-theme] .desk-rail__item span:last-child {
 
 /* Bottom status bar. */
 body.desk-app[data-theme] .desk-bottombar {
-  position: absolute;
+  position: fixed;
   right: 0;
   bottom: 0;
   left: 0;
@@ -803,6 +820,7 @@ body.desk-app[data-theme] .desk-bottombar {
   gap: var(--desk-space-4);
   align-items: center;
   justify-content: space-between;
+  width: auto;
   height: var(--desk-shell-bottombar-height);
   padding: 0 var(--desk-space-3) 0 var(--desk-space-5);
   color: var(--desk-shell-bottombar-ink);
@@ -822,6 +840,8 @@ body.desk-app[data-theme] .desk-bottombar::before {
 }
 
 body.desk-app[data-theme] .desk-bottombar__status {
+  --desk-status-dock-width: 280px;
+  --desk-status-dock-trailing: 0px;
   display: flex;
   flex: 1 1 auto;
   gap: 0;
@@ -834,6 +854,27 @@ body.desk-app[data-theme] .desk-bottombar__status {
   border: 0;
   border-radius: 0;
   box-shadow: none;
+}
+
+/* Indicators may scroll without moving the task label or the stop control. */
+body.desk-app[data-theme] .desk-status-indicators {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  min-width: 0;
+  height: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+
+body.desk-app[data-theme] .desk-status-indicators::-webkit-scrollbar {
+  display: none;
+}
+
+body.desk-app[data-theme] .desk-status-indicators:focus-visible {
+  outline: 2px solid var(--desk-color-focus-border);
+  outline-offset: -2px;
 }
 
 body.desk-app[data-theme] .desk-status-group {
@@ -858,10 +899,12 @@ body.desk-app[data-theme] .desk-status-group:not(.desk-status-group--feedback)::
 }
 
 body.desk-app[data-theme] .desk-status-group--feedback {
-  flex: 0 1 min(28vw, 360px);
-  min-width: 220px;
-  padding-right: var(--desk-space-2);
-  margin-left: auto;
+  flex: 0 0 var(--desk-status-dock-width, 280px);
+  min-width: 0;
+  max-width: none;
+  padding: 0;
+  margin-right: var(--desk-status-dock-trailing, 0px);
+  margin-left: var(--desk-space-4);
 }
 
 body.desk-app[data-theme] .desk-status-chip {
@@ -939,23 +982,6 @@ body.desk-app[data-theme] .desk-status-chip--ok {
   box-shadow: var(--desk-status-ok-shadow);
 }
 
-body.desk-app[data-theme] :is(
-  .desk-status-group--feedback span[data-tone="info"],
-  .desk-status-feedback-trigger[data-tone="info"]
-) {
-  color: var(--desk-status-chip-ink);
-}
-
-body.desk-app[data-theme] :is(
-  .desk-status-group--feedback span[data-tone="success"],
-  .desk-status-feedback-trigger[data-tone="success"]
-) {
-  color: var(--desk-status-service-ink);
-  background: var(--desk-status-service-background);
-  border-color: var(--desk-status-service-border);
-  box-shadow: var(--desk-status-service-shadow);
-}
-
 body.desk-app[data-theme] :is(.desk-status-chip--service, .desk-status-group--run .desk-status-chip--ok) {
   color: var(--desk-status-service-ink);
   background: var(--desk-status-service-background);
@@ -967,22 +993,14 @@ body.desk-app[data-theme] .desk-status-chip--checking {
   color: var(--desk-status-checking-ink);
 }
 
-body.desk-app[data-theme] :is(
-  .desk-status-chip--warn,
-  .desk-status-group--feedback span[data-tone="warning"],
-  .desk-status-feedback-trigger[data-tone="warning"]
-) {
+body.desk-app[data-theme] .desk-status-chip--warn {
   color: var(--desk-status-warning-ink);
   background: var(--desk-status-warning-background);
   border-color: var(--desk-status-warning-border);
   box-shadow: var(--desk-status-warning-shadow);
 }
 
-body.desk-app[data-theme] :is(
-  .desk-status-chip--error,
-  .desk-status-group--feedback span[data-tone="error"],
-  .desk-status-feedback-trigger[data-tone="error"]
-) {
+body.desk-app[data-theme] .desk-status-chip--error {
   color: var(--desk-status-error-ink);
   background: var(--desk-status-error-background);
   border-color: var(--desk-status-error-border);
@@ -993,13 +1011,7 @@ body.desk-app[data-theme] :is(
   .desk-status-chip--ok,
   .desk-status-chip--service,
   .desk-status-chip--warn,
-  .desk-status-chip--error,
-  .desk-status-group--feedback span[data-tone="success"],
-  .desk-status-group--feedback span[data-tone="warning"],
-  .desk-status-group--feedback span[data-tone="error"],
-  .desk-status-feedback-trigger[data-tone="success"],
-  .desk-status-feedback-trigger[data-tone="warning"],
-  .desk-status-feedback-trigger[data-tone="error"]
+  .desk-status-chip--error
 ) {
   background-position: var(--desk-status-material-position);
   background-repeat: no-repeat;
@@ -1025,11 +1037,13 @@ body.desk-app[data-theme] .desk-status-chip--error::before {
   background: var(--desk-status-error-dot);
 }
 
-body.desk-app[data-theme] :is(.desk-status-group--feedback span, .desk-status-feedback-trigger) {
+/* Share the chips' green palette, but recess this log link into the footer. */
+body.desk-app[data-theme] .desk-status-group--feedback :is(span, .desk-status-feedback-trigger) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 72px;
+  width: 100%;
+  min-width: 0;
   max-width: 100%;
   height: var(--desk-control-height-xs);
   padding: 0 var(--desk-space-5);
@@ -1038,39 +1052,17 @@ body.desk-app[data-theme] :is(.desk-status-group--feedback span, .desk-status-fe
   font-size: var(--desk-font-size-micro);
   text-overflow: ellipsis;
   white-space: nowrap;
-  background: var(--desk-status-feedback-background);
-  border: 1px solid var(--desk-status-feedback-border);
+  background: var(--desk-status-ok-background);
+  background-position: var(--desk-status-material-position);
+  background-repeat: no-repeat;
+  background-size: var(--desk-status-material-background-size);
+  border: 1px solid var(--desk-status-ok-border);
   border-radius: var(--desk-space-3);
   box-shadow: var(--desk-status-feedback-shadow);
+  filter: none;
   transform: none;
-  transition:
-    var(--desk-motion-control-transition),
-    var(--desk-motion-material-transition);
-}
-
-body.desk-app[data-theme] .desk-status-feedback-trigger:not([data-tone="success"]):not([data-tone="warning"]):not([data-tone="error"]):is(:hover, [aria-expanded="true"]) {
-  background: var(--desk-status-feedback-hover-background);
-  border-color: var(--desk-status-feedback-hover-border);
-}
-
-body.desk-app[data-theme] .desk-status-feedback-trigger:is(
-  [data-tone="success"],
-  [data-tone="warning"],
-  [data-tone="error"]
-):is(:hover, [aria-expanded="true"]) {
-  background-position: var(--desk-status-material-position-hover);
-  filter: brightness(1.04);
-  transform: translateY(calc(0px - var(--desk-motion-distance-xs)));
-}
-
-body.desk-app[data-theme] .desk-status-feedback-trigger:is(
-  [data-tone="success"],
-  [data-tone="warning"],
-  [data-tone="error"]
-):active {
-  background-position: var(--desk-status-material-position-active);
-  filter: brightness(0.98);
-  transform: translateY(0);
+  transition: none;
+  animation: none;
 }
 
 body.desk-app[data-theme] .desk-status-feedback-trigger:focus-visible {
@@ -1171,6 +1163,18 @@ body.desk-app[data-theme] #deskStatusTip[hidden] {
   display: none;
 }
 
+/* Detailed domain reports need room for identity metadata and multiline logs.
+   At short viewport heights the whole panel scrolls instead of clipping the log. */
+body.desk-app[data-theme] #deskStatusTip[data-extended="true"] {
+  width: min(400px, calc(100vw - 20px));
+  max-height: min(560px, calc(100vh - 72px));
+  overflow-y: auto;
+}
+body.desk-app[data-theme] #deskStatusTip[data-extended="true"] .desk-status-tip__raw {
+  min-height: 120px;
+  max-height: 220px;
+}
+
 body.desk-app[data-theme] #deskStatusTip::after {
   position: absolute;
   bottom: -6px;
@@ -1187,6 +1191,23 @@ body.desk-app[data-theme] #deskStatusTip::after {
 
 body.desk-app[data-theme] #deskStatusTip .desk-status-tip__head strong {
   color: var(--desk-status-tip-title-ink);
+}
+
+/* Long task IDs must shrink, not push the close control outside the dock. */
+body.desk-app[data-theme] #deskStatusTip .desk-status-tip__head > div {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+body.desk-app[data-theme] #deskStatusTip .desk-status-tip__head span {
+  max-width: 100%;
+}
+
+body.desk-app[data-theme] #deskStatusTip .desk-status-tip__head button {
+  flex: 0 0 var(--desk-control-height-xs);
+  width: var(--desk-control-height-xs);
+  min-width: var(--desk-control-height-xs);
+  height: var(--desk-control-height-xs);
 }
 
 body.desk-app[data-theme] #deskStatusTip :is(

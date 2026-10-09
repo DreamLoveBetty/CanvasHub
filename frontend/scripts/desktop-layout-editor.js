@@ -33,6 +33,10 @@
   let pendingImageReplacement = false;
   let projectFonts = [];
   let fontsReadyPromise = null;
+  const fontLoadFailures = new Map();
+  let fontCatalogWarning = '';
+  let fontFamilyRequest = 0;
+  let fontWeightRequest = 0;
   let undoStack = [];
   let redoStack = [];
   let historySnapshotKey = '';
@@ -108,6 +112,7 @@
       'deskLayoutPageList',
       'deskLayoutLayerList',
       'deskLayoutStatus',
+      'deskLayoutFontWarning',
       'deskLayoutDraftSelect',
       'deskLayoutLoadBtn',
       'deskLayoutTemplateBtn',
@@ -345,31 +350,75 @@
     fontsReadyPromise = (async () => {
       try {
         const data = await window.DesktopApi?.listLayoutFonts?.();
+        if (!Array.isArray(data?.fonts)) throw new Error('字体列表不可用');
         const fonts = Array.isArray(data?.fonts) ? data.fonts : [];
         projectFonts = fonts.map(normalizeFontRecord).filter(font => font && font.faces.length);
+        fontCatalogWarning = '';
         registerProjectFontFaces(projectFonts);
         const currentValue = els.deskLayoutFontFamilySelect?.value || '';
         const shouldUseProjectDefault = !currentValue || currentValue === 'Arial';
         renderFontFamilyOptions(shouldUseProjectDefault ? getDefaultTextFont() : currentValue);
       } catch (error) {
         projectFonts = [];
+        fontCatalogWarning = '字体列表加载失败，请刷新后重试。';
         renderFontFamilyOptions(els.deskLayoutFontFamilySelect?.value || getDefaultTextFont());
         fontsReadyPromise = null;
       }
       await loadFontFamily(getDefaultTextFont());
+      renderFontWarnings();
       return projectFonts;
     })();
     return fontsReadyPromise;
   }
 
+  function canvasTextObjects(targetCanvas = canvas) {
+    const texts = [];
+    function visit(objects) {
+      (objects || []).forEach(object => {
+        if (isTextObject(object)) texts.push(object);
+        else if (typeof object.getObjects === 'function') visit(object.getObjects());
+      });
+    }
+    visit(targetCanvas?.getObjects?.());
+    return texts;
+  }
+
+  function fontLoadKey(family, weight) {
+    return JSON.stringify([String(family || '').trim(), normalizeFontWeight(weight)]);
+  }
+
+  function renderFontWarnings() {
+    if (!els.deskLayoutFontWarning) return;
+    const texts = canvasTextObjects();
+    const inUse = new Set(texts.map(object => fontLoadKey(object.fontFamily, object.fontWeight)));
+    if (!texts.length) inUse.add(fontLoadKey(getDefaultTextFont(), 400));
+    const warnings = [...fontLoadFailures].filter(([key]) => inUse.has(key)).map(([, message]) => message);
+    if (fontCatalogWarning) warnings.unshift(fontCatalogWarning);
+    els.deskLayoutFontWarning.textContent = [...new Set(warnings)].join(' ');
+    els.deskLayoutFontWarning.hidden = !warnings.length;
+  }
+
   async function loadFontFamily(family, weight = 400, sampleText = '排版字体Aa123') {
     const fontFamily = String(family || '').trim();
-    if (!fontFamily || !document.fonts?.load) return;
-    const numericWeight = Math.max(100, Math.min(900, Number(weight) || 400));
+    if (!fontFamily) return false;
+    const numericWeight = normalizeFontWeight(weight);
+    const key = fontLoadKey(fontFamily, numericWeight);
     try {
-      await document.fonts.load(`${numericWeight} 32px "${cssString(fontFamily)}"`, String(sampleText || '排版字体Aa123'));
+      if (!document.fonts?.load) throw new Error('浏览器不支持字体加载');
+      const faces = await document.fonts.load(`${numericWeight} 32px "${cssString(fontFamily)}"`, String(sampleText || '排版字体Aa123'));
+      const record = getFontRecord(fontFamily);
+      if (!faces.length && record?.source !== 'system') throw new Error('没有可用的项目字体');
+      fontLoadFailures.delete(key);
+      // JSON restoration can measure text before its font arrives. Object-cache
+      // invalidation alone does not clear Fabric's shared fallback-width cache.
+      if (faces.length) fabric.util.clearFabricFontCache?.(fontFamily);
+      renderFontWarnings();
+      return true;
     } catch (error) {
-      // 字体文件可能来自用户手动放入目录，失败时保持系统降级字体。
+      // Preserve draft metadata and fallback rendering, but never hide the failure.
+      fontLoadFailures.set(key, `字体「${fontFamily}」加载失败或未提供（${numericWeight}），可能显示替代字形；请刷新重试或换用其他字体。`);
+      renderFontWarnings();
+      return false;
     }
   }
 
@@ -384,8 +433,7 @@
   async function ensureCanvasFontsLoaded(targetCanvas = canvas) {
     if (!targetCanvas) return;
     await ensureLayoutFonts();
-    const fonts = targetCanvas.getObjects()
-      .filter(object => ['i-text', 'text', 'textbox'].includes(object.type))
+    const fonts = canvasTextObjects(targetCanvas)
       .map(object => ({
         object,
         family: String(object.fontFamily || '').trim(),
@@ -400,6 +448,7 @@
     } catch (error) {
       // 输出前尽量等待字体，失败时让浏览器使用降级渲染。
     }
+    renderFontWarnings();
   }
 
   function clearGroupImageEditTarget() {
@@ -3443,6 +3492,7 @@
   }
 
   function updateSelectionUi() {
+    renderFontWarnings();
     if (!canvas || syncingSelection) return;
     let object = canvas.getActiveObject();
     const customSelectedObjects = getCustomSelectedLayerObjects();
@@ -3806,27 +3856,35 @@
   }
 
   async function updateActiveTextFont(family) {
-    const object = canvas?.getActiveObject();
+    const targetCanvas = canvas;
+    const object = targetCanvas?.getActiveObject();
     if (!object || !isTextObject(object)) return;
+    const request = ++fontFamilyRequest;
     const nextFamily = String(family || getDefaultTextFont()).trim();
     const weight = normalizeFontWeight(object.fontWeight);
     if (els.deskLayoutFontFamilySelect) {
       els.deskLayoutFontFamilySelect.style.fontFamily = fontCssStack(nextFamily);
     }
     await loadFontFamily(nextFamily, weight, object.text || '排版字体Aa123');
+    if (request !== fontFamilyRequest || canvas !== targetCanvas || targetCanvas.getActiveObject() !== object) return;
     updateActiveText({ fontFamily: nextFamily });
     refreshTextObjectMetrics(object);
     canvas?.renderAll();
+    renderFontWarnings();
   }
 
   async function updateActiveTextWeight(weight) {
-    const object = canvas?.getActiveObject();
+    const targetCanvas = canvas;
+    const object = targetCanvas?.getActiveObject();
     if (!object || !isTextObject(object)) return;
+    const request = ++fontWeightRequest;
     const nextWeight = normalizeFontWeight(weight);
     const family = String(object.fontFamily || getDefaultTextFont()).trim();
     await loadFontFamily(family, nextWeight, object.text || '排版字体Aa123');
+    if (request !== fontWeightRequest || canvas !== targetCanvas || targetCanvas.getActiveObject() !== object) return;
     updateActiveText({ fontWeight: nextWeight });
     updateSelectionUi();
+    renderFontWarnings();
   }
 
   function addText() {
@@ -4273,6 +4331,8 @@
   }
 
   function close() {
+    fontFamilyRequest += 1;
+    fontWeightRequest += 1;
     flushPendingHistory();
     exitGroupIsolation({ silent: true, skipUi: true, keepSelection: true });
     els.deskLayoutEditor?.classList.remove('is-open');

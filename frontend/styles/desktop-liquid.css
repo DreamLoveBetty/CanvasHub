@@ -1197,6 +1197,14 @@ body.desk-app[data-theme="dark"] .desk-theme-toggle__icon--moon {
   outline: none;
 }
 
+/* Long model names opt into content-width menus; other selectors keep their
+   existing geometry. At the viewport limit, retain one row and a full title. */
+body.desk-app .desk-select-menu[data-select-width="content"] .desk-select-option {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .desk-select-option:hover,
 .desk-select-option.is-highlighted,
 .desk-select-option.is-selected {
@@ -1496,21 +1504,9 @@ body.desk-app[data-theme="dark"]::after {
   filter: drop-shadow(0 2px 4px rgba(0, 51, 120, 0.28));
 }
 
-.desk-node--input .desk-button--generate {
-  width: 72px;
-  height: 72px;
-  min-width: 72px;
-  min-height: 72px;
+/* The input node's footer keeps an 8px gap before its generate action. */
+.desk-node--input .desk-generation-action {
   margin-left: 8px;
-  border-radius: 4px;
-  box-shadow:
-    0 20px 36px rgba(31, 45, 62, 0.18),
-    inset 0 1px 0 rgba(255, 255, 255, 0.5);
-}
-
-.desk-node--input .desk-button--generate svg {
-  width: 30px;
-  height: 30px;
 }
 
 .desk-button--generate:hover {
@@ -8211,36 +8207,14 @@ body.desk-history-collapsed .desk-gallery {
 }
 
 .desk-settings-tabs {
-  display: block;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 28px;
+  column-gap: 3px;
   padding: 2px;
   background: rgba(255, 255, 255, 0.34);
   border: 1px solid rgba(255, 255, 255, 0.42);
   border-radius: 8px;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.38);
-}
-
-.desk-settings-tabs__primary {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr)) 28px;
-  gap: 3px;
-}
-
-.desk-settings-tabs__extra {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 3px;
-  max-height: 0;
-  overflow: hidden;
-  opacity: 0;
-  transform: translateY(-3px);
-  transition: max-height 180ms ease, opacity 150ms ease, transform 180ms ease, padding-top 180ms ease;
-}
-
-.desk-settings-tabs.is-expanded .desk-settings-tabs__extra {
-  max-height: 58px;
-  padding-top: 3px;
-  opacity: 1;
-  transform: translateY(0);
 }
 
 .desk-settings-tabs button {
@@ -8255,29 +8229,6 @@ body.desk-history-collapsed .desk-gallery {
   background: transparent;
   border: 0;
   border-radius: 8px;
-}
-
-.desk-settings-tabs .desk-settings-tabs__toggle {
-  display: grid;
-  place-items: center;
-  width: 28px;
-  padding: 0;
-  color: rgba(72, 91, 112, 0.74);
-}
-
-.desk-settings-tabs__toggle svg {
-  width: 13px;
-  height: 13px;
-  fill: none;
-  stroke: currentColor;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  stroke-width: 1.8;
-  transition: transform 180ms ease;
-}
-
-.desk-settings-tabs.is-expanded .desk-settings-tabs__toggle svg {
-  transform: rotate(180deg);
 }
 
 .desk-comfy-settings-library {
@@ -9277,19 +9228,6 @@ body.desk-history-collapsed .desk-gallery {
     flex-wrap: wrap;
   }
 
-  .desk-settings-tabs {
-    display: block;
-    overflow: hidden;
-  }
-
-  .desk-settings-tabs__primary {
-    grid-template-columns: repeat(4, minmax(62px, 1fr)) 28px;
-  }
-
-  .desk-settings-tabs__extra {
-    grid-template-columns: repeat(4, minmax(62px, 1fr));
-  }
-
   .desk-settings-info-tip {
     width: min(250px, calc(100vw - 20px));
     max-height: calc(100vh - var(--desk-bottombar-clearance) - 8px);
@@ -9366,6 +9304,15 @@ body.desk-history-collapsed .desk-gallery {
   align-items: stretch;
 }
 
+.desk-gallery-tab-groups {
+  display: flex;
+  flex: 0 1 auto;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  max-width: 100%;
+}
+
 .desk-gallery-tabs {
   display: flex;
   flex: 0 1 auto;
@@ -9388,6 +9335,16 @@ body.desk-history-collapsed .desk-gallery {
 
 .desk-gallery-tabs::-webkit-scrollbar {
   display: none;
+}
+
+/* Separate model assets without changing tab styling or keyboard order.
+   Narrow windows scroll the output tabs while keeping the model tab visible. */
+.desk-gallery-tab-groups > .desk-gallery-tabs {
+  min-width: 0;
+}
+
+.desk-gallery-tab-groups > .desk-gallery-tabs--models {
+  flex-shrink: 0;
 }
 
 .desk-gallery-video-source {
@@ -21309,7 +21266,7 @@ body.desk-app[data-theme="dark"] .desk-pinterest-split-modal__footer button.is-p
   overflow: visible;
 }
 
-body.desk-app .desk-node.desk-node--edge-handles:is(.has-settled-port-left, .has-settled-port-right),
+/* Resting connections are marked by their port caps below, not a full frame. */
 body.desk-app .desk-node.desk-node--edge-handles:has(> .desk-port--floating:is(.is-connecting, .is-pending)) {
   border-color: var(--desk-node-edge-stroke);
 }

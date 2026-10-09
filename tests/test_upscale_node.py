@@ -1,6 +1,9 @@
 import io
 import json
+import re
+import tempfile
 import unittest
+from html.parser import HTMLParser
 from pathlib import Path
 from unittest.mock import patch
 
@@ -9,6 +12,34 @@ from backend.upscale_runtime import available_upscale_models, normalize_upscale_
 
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+class DesktopScriptParser(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.scripts = []
+
+    def handle_starttag(self, tag, attrs):
+        attrs = dict(attrs)
+        if tag == "script" and attrs.get("src"):
+            self.scripts.append(attrs)
+
+
+def read_canvas_module(testcase, name):
+    """Read an actual, synchronously loaded canvas dependency, not an orphan file."""
+    parser = DesktopScriptParser()
+    parser.feed(testcase.read("frontend/desktop.html"))
+    paths = [attrs["src"].split("?", 1)[0] for attrs in parser.scripts]
+    module_path = f"scripts/desktop-canvas-{name}.js"
+    host_path = "scripts/desktop-canvas.js"
+    for path in (module_path, host_path):
+        testcase.assertEqual(paths.count(path), 1, path)
+        attrs = parser.scripts[paths.index(path)]
+        for attribute in ("async", "defer", "nomodule"):
+            testcase.assertNotIn(attribute, attrs, path)
+        testcase.assertIn(attrs.get("type", "").lower(), ("", "text/javascript", "application/javascript"), path)
+    testcase.assertLess(paths.index(module_path), paths.index(host_path))
+    return testcase.read("frontend/" + module_path)
 
 
 class FakeUpscaleHandler:
@@ -38,10 +69,24 @@ class UpscaleRuntimeConfigTest(unittest.TestCase):
         self.assertEqual(normalize_upscale_model("unknown"), "4x-UltraSharp")
 
     def test_available_models_reports_expected_weights(self):
-        models = available_upscale_models(ROOT / "models" / "upscale")
+        with tempfile.TemporaryDirectory() as tmp:
+            models = available_upscale_models(Path(tmp))
         filenames = {item["filename"] for item in models}
         self.assertIn("4x-UltraSharp.pth", filenames)
         self.assertIn("4x-AnimeSharp.pth", filenames)
+        self.assertTrue(all(not item["available"] for item in models))
+
+    def test_available_models_marks_only_present_weight_files_available(self):
+        for model_id in ("4x-UltraSharp", "4x-AnimeSharp"):
+            with self.subTest(model=model_id), tempfile.TemporaryDirectory() as tmp:
+                model_dir = Path(tmp)
+                # This API reports file presence, not model validity or inference readiness.
+                (model_dir / f"{model_id}.pth").write_bytes(b"test file-presence fixture")
+                models = available_upscale_models(model_dir)
+                self.assertEqual(
+                    {item["id"] for item in models if item["available"]},
+                    {model_id},
+                )
 
 
 class UpscaleEndpointTest(unittest.TestCase):
@@ -58,17 +103,29 @@ class UpscaleEndpointTest(unittest.TestCase):
             },
         })
 
-        with patch.object(server.time, "time", return_value=1710000000), \
+        # Scheduling must not depend on optional weights installed on this machine.
+        models = [
+            {"id": "4x-UltraSharp", "available": False},
+            {"id": "4x-AnimeSharp", "available": True},
+        ]
+        with patch.object(server, "available_upscale_models", return_value=models) as available_models, \
+             patch.object(server, "get_upscale_component_status") as component_status, \
+             patch.object(server.time, "time", return_value=1710000000), \
              patch.object(server.random, "randint", return_value=1234), \
              patch.object(server, "create_task") as create_task:
             server.RequestHandler.handle_upscale_run(handler)
 
+        available_models.assert_called_once_with(server.UPSCALE_MODEL_DIR)
+        component_status.assert_not_called()
         self.assertEqual(handler.response["status"], 202)
         self.assertEqual(handler.response["data"]["task_id"], "upscale_1710000000_1234")
+        self.assertEqual(handler.response["data"]["status"], "queued")
+        self.assertEqual(handler.response["data"]["type"], "upscale")
         create_task.assert_called_once()
         task_id, prompt, params = create_task.call_args.args[:3]
         self.assertEqual(task_id, "upscale_1710000000_1234")
         self.assertEqual(create_task.call_args.kwargs["task_type"], "upscale")
+        self.assertEqual(create_task.call_args.kwargs["status"], "queued")
         self.assertEqual(prompt, "高清放大：4x-AnimeSharp")
         self.assertEqual(params["model"], "4x-AnimeSharp")
         self.assertEqual(params["tile_size"], 384)
@@ -76,17 +133,59 @@ class UpscaleEndpointTest(unittest.TestCase):
         self.assertEqual(params["archive_enabled"], True)
         self.assertEqual(params["telegram_enabled"], False)
         self.assertEqual(params["lineage"]["reference_assets"][0]["source_node_id"], "image_1")
+        self.assertEqual(handler.started["task_id"], task_id)
         self.assertIs(handler.started["target"], server.process_upscale_task)
+        self.assertEqual(handler.started["args"], (task_id, prompt, "data:image/png;base64,AAAA", params))
+
+    def test_upscale_run_rejects_unavailable_selected_model_without_creating_task(self):
+        cases = (
+            ("missing_selected_weight", "anime", [
+                {"id": "4x-UltraSharp", "available": True},
+                {"id": "4x-AnimeSharp", "available": False},
+            ]),
+            ("selected_model_not_listed", "anime", [
+                {"id": "4x-UltraSharp", "available": True},
+            ]),
+            ("empty_catalog", "photo", []),
+            ("no_weights_installed", "photo", [
+                {"id": "4x-UltraSharp", "available": False},
+                {"id": "4x-AnimeSharp", "available": False},
+            ]),
+        )
+        for name, model, models in cases:
+            with self.subTest(case=name):
+                handler = FakeUpscaleHandler({
+                    "model": model,
+                    "images": ["data:image/png;base64,AAAA"],
+                })
+                component = {"installed": False, "version": ""}
+                with patch.object(server, "available_upscale_models", return_value=models) as available_models, \
+                     patch.object(server, "get_upscale_component_status", return_value=component) as component_status, \
+                     patch.object(server, "create_task") as create_task:
+                    server.RequestHandler.handle_upscale_run(handler)
+
+                self.assertEqual(handler.response["status"], 409)
+                self.assertIn("高清放大组件尚未安装", handler.response["data"]["error"])
+                self.assertEqual(handler.response["data"]["component"], component)
+                available_models.assert_called_once_with(server.UPSCALE_MODEL_DIR)
+                component_status.assert_called_once_with()
+                create_task.assert_not_called()
+                self.assertIsNone(handler.started)
 
     def test_upscale_run_rejects_missing_image(self):
         handler = FakeUpscaleHandler({"model": "4x-UltraSharp", "images": []})
 
-        with patch.object(server, "create_task") as create_task:
+        with patch.object(server, "create_task") as create_task, \
+             patch.object(server, "available_upscale_models") as available_models, \
+             patch.object(server, "get_upscale_component_status") as component_status:
             server.RequestHandler.handle_upscale_run(handler)
 
         self.assertEqual(handler.response["status"], 400)
         self.assertIn("请先连接或上传一张图片", handler.response["data"]["error"])
         create_task.assert_not_called()
+        available_models.assert_not_called()
+        component_status.assert_not_called()
+        self.assertIsNone(handler.started)
 
     def test_upscale_progress_callback_persists_numeric_progress(self):
         with patch.object(server.time, "time", return_value=1710000010), \
@@ -117,6 +216,8 @@ class UpscaleDesktopSourceTest(unittest.TestCase):
     def test_desktop_exposes_upscale_node(self):
         html = self.read("frontend/desktop.html")
         canvas = self.read("frontend/scripts/desktop-canvas.js")
+        model_nodes = read_canvas_module(self, "model-nodes")
+        connections = read_canvas_module(self, "connections")
         api = self.read("frontend/scripts/desktop-api.js")
         css = self.read("frontend/styles/desktop-liquid.css")
         state_js = self.read("frontend/scripts/desktop-state.js")
@@ -131,12 +232,12 @@ class UpscaleDesktopSourceTest(unittest.TestCase):
         self.assertIn("readUpscaleNodeConfig", canvas)
         self.assertIn("readUpscaleNodeConfigForReference", canvas)
         self.assertIn("runUpscaleChainsForOutput", canvas)
-        self.assertIn("modelToUpscale", canvas)
-        self.assertIn('data-upscale-actions', canvas)
-        self.assertIn('desk-upscale-telegram', canvas)
-        self.assertIn('data-output-telegram', canvas)
-        self.assertIn('desk-upscale-progress', canvas)
-        self.assertIn('desk-progress-float__bar', canvas)
+        self.assertIn("modelToUpscale", connections)
+        self.assertIn('data-upscale-actions', model_nodes)
+        self.assertIn('desk-upscale-telegram', model_nodes)
+        self.assertIn('data-output-telegram', model_nodes)
+        self.assertIn('desk-upscale-progress', model_nodes)
+        self.assertIn('desk-progress-float__bar', model_nodes)
         self.assertIn("width: 360px", css)
         self.assertIn("height: 180px", css)
         self.assertRegex(css, r"--desk-node-radius:\s*8px;")
@@ -157,7 +258,11 @@ class UpscaleDesktopSourceTest(unittest.TestCase):
         self.assertIn("font-size: 7px", css)
         self.assertIn("background: transparent", css)
         self.assertIn('body.desk-app[data-theme="dark"] .desk-node--upscale .desk-upscale-progress', css)
-        upscale_snippet = canvas[canvas.index("function upscaleNodeHtml"):canvas.index("function imageNodeHtml")]
+        # The module function closes at its own declaration's body boundary;
+        # imageNodeHtml now belongs to another module and is not a delimiter.
+        upscale_match = re.search(r"^    function upscaleNodeHtml\(node\) \{.*?^  \}", model_nodes, re.M | re.S)
+        self.assertIsNotNone(upscale_match)
+        upscale_snippet = upscale_match.group(0)
         self.assertIn('data-i18n="upscaleEyebrow"', upscale_snippet)
         self.assertIn('data-i18n="upscaleTitle"', upscale_snippet)
         self.assertIn('data-i18n="upscaleTileLabel">分块</span>', upscale_snippet)
@@ -167,9 +272,21 @@ class UpscaleDesktopSourceTest(unittest.TestCase):
         self.assertNotIn('<span>Tile</span>', upscale_snippet)
         self.assertNotIn('<span>Overlap</span>', upscale_snippet)
         self.assertNotIn("data-node-resize-handle", upscale_snippet)
-        self.assertNotIn('data-upscale-send-original', canvas)
-        self.assertNotIn("desk-upscale-result", canvas)
-        self.assertNotIn("Spandrel · ESRGAN 4x", canvas)
+        # Preserve the former whole-canvas exclusions across every loaded part,
+        # checking each file separately rather than synthesizing logical source.
+        canvas_sources = {"scripts/desktop-canvas.js": canvas}
+        parser = DesktopScriptParser()
+        parser.feed(html)
+        for attrs in parser.scripts:
+            path = attrs["src"].split("?", 1)[0]
+            if re.fullmatch(r"scripts/desktop-canvas-[^/]+\.js", path):
+                name = Path(path).stem.removeprefix("desktop-canvas-")
+                canvas_sources[path] = read_canvas_module(self, name)
+        for path, source in canvas_sources.items():
+            with self.subTest(canvas_script=path):
+                self.assertNotIn('data-upscale-send-original', source)
+                self.assertNotIn("desk-upscale-result", source)
+                self.assertNotIn("Spandrel · ESRGAN 4x", source)
         self.assertIn("/api/upscale/run", api)
         self.assertIn("getUpscaleModels", api)
         self.assertIn("'progress': 'REAL DEFAULT 0'", database_py)
@@ -193,10 +310,14 @@ class UpscaleDesktopSourceTest(unittest.TestCase):
         self.assertIn("'重叠': 'Overlap'", i18n)
 
     def test_upscale_auto_chain_does_not_retrigger_from_upscale_result(self):
-        canvas = self.read("frontend/scripts/desktop-canvas.js")
-        start = canvas.index("async function runUpscaleChainsForOutput")
-        end = canvas.index("async function populateResultImageNodes", start)
-        snippet = canvas[start:end]
+        generation = read_canvas_module(self, "generation")
+        chain_match = re.search(
+            r"^    async function runUpscaleChainsForOutput\(resultNodeId, output\) \{.*?^  \}",
+            generation,
+            re.M | re.S,
+        )
+        self.assertIsNotNone(chain_match)
+        snippet = chain_match.group(0)
 
         self.assertIn("if (resultNode?.type === 'upscale') return 0;", snippet)
         self.assertIn("String(output?.type || '').toLowerCase() === 'upscale'", snippet)

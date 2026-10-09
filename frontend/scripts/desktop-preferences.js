@@ -10,6 +10,10 @@
     language: 'zh',
     connectionSwellStyle: 'liquid',
     connectionLineStyle: 'straight',
+    canvasCollisionEnabled: false,
+    progress: { style: 'liquid', height: 36, colors: {} },
+    controlMaterial: normalizeControlMaterial(),
+    settingsWidth: normalizeSettingsWidth(),
   };
   let themeTransitionTimer = null;
   let activeThemeReveal = null;
@@ -44,11 +48,19 @@
       state.language = normalizeLanguage(parsed.language);
       state.connectionSwellStyle = normalizeConnectionSwellStyle(parsed.connectionSwellStyle);
       state.connectionLineStyle = normalizeConnectionLineStyle(parsed.connectionLineStyle);
+      state.canvasCollisionEnabled = parsed.canvasCollisionEnabled === true;
+      state.progress = normalizeProgressPreferences(parsed.progress);
+      state.controlMaterial = normalizeControlMaterial(parsed.controlMaterial);
+      state.settingsWidth = normalizeSettingsWidth(parsed.settingsWidth);
     } catch (e) {
       state.theme = 'light';
       state.language = 'zh';
       state.connectionSwellStyle = 'liquid';
       state.connectionLineStyle = 'straight';
+      state.canvasCollisionEnabled = false;
+      state.progress = normalizeProgressPreferences();
+      state.controlMaterial = normalizeControlMaterial();
+      state.settingsWidth = normalizeSettingsWidth();
     }
   }
 
@@ -59,6 +71,10 @@
         language: state.language,
         connectionSwellStyle: state.connectionSwellStyle,
         connectionLineStyle: state.connectionLineStyle,
+        canvasCollisionEnabled: state.canvasCollisionEnabled,
+        progress: state.progress,
+        controlMaterial: state.controlMaterial,
+        settingsWidth: state.settingsWidth,
       }));
     } catch (e) {}
   }
@@ -308,6 +324,65 @@
     });
   }
 
+  function setCanvasCollisionEnabled(enabled) {
+    state.canvasCollisionEnabled = enabled === true;
+    savePreferences();
+    window.dispatchEvent(new CustomEvent('desktop:canvas-collision-change', {
+      detail: { enabled: state.canvasCollisionEnabled },
+    }));
+  }
+
+  function normalizeProgressPreferences(value) {
+    return window.DesktopProgressModel?.normalizePreferences(value)
+      || { style: 'liquid', height: 36, colors: {} };
+  }
+
+  function applyProgressPreferences() {
+    const body = document.body;
+    body?.setAttribute('data-progress-style', state.progress.style);
+    const color = state.progress.colors.classic;
+    if (color) {
+      body?.setAttribute('data-progress-classic-tint', 'true');
+      body?.style?.setProperty('--desk-progress-classic-fill', window.DesktopProgressModel.classicFillGradient(color));
+    } else {
+      body?.removeAttribute?.('data-progress-classic-tint');
+      body?.style?.removeProperty('--desk-progress-classic-fill');
+    }
+  }
+
+  function setProgressPreferences(patch = {}) {
+    state.progress = normalizeProgressPreferences({ ...state.progress, ...patch });
+    applyProgressPreferences();
+    savePreferences();
+    window.dispatchEvent(new CustomEvent('desktop:progress-preferences-change', {
+      detail: { progress: state.progress },
+    }));
+  }
+
+  // Schema/normalisation and the body projection belong to DesktopControlMaterial.
+  function normalizeControlMaterial(value) {
+    return window.DesktopControlMaterial?.normalize(value) || { material: 'current' };
+  }
+
+  function setControlMaterialPreferences(patch = {}) {
+    state.controlMaterial = normalizeControlMaterial({ ...state.controlMaterial, ...patch });
+    window.DesktopControlMaterial?.apply(state.controlMaterial, document.body);
+    savePreferences();
+    window.dispatchEvent(new CustomEvent('desktop:control-material-change', {
+      detail: { controlMaterial: state.controlMaterial },
+    }));
+  }
+
+  // Width bounds belong to the settings drawer module.
+  function normalizeSettingsWidth(value) {
+    return window.DesktopSettingsDrawer?.normalizeWidth(value) || 760;
+  }
+
+  function setSettingsWidth(width) {
+    state.settingsWidth = normalizeSettingsWidth(width);
+    savePreferences();
+  }
+
   function bindControls() {
     document.getElementById('deskThemeToggle')?.addEventListener('click', toggleTheme);
     document.getElementById('deskLanguageSelect')?.addEventListener('change', (event) => {
@@ -317,6 +392,8 @@
 
   function init() {
     readPreferences();
+    applyProgressPreferences();
+    window.DesktopControlMaterial?.apply(state.controlMaterial, document.body);
     applyTheme(state.theme);
     applyLanguage(state.language);
     applyConnectionSwellStyle(state.connectionSwellStyle);
@@ -332,6 +409,10 @@
     setLanguage,
     setConnectionSwellStyle,
     setConnectionLineStyle,
+    setCanvasCollisionEnabled,
+    setProgressPreferences,
+    setControlMaterialPreferences,
+    setSettingsWidth,
     toggleTheme,
     normalizeConnectionSwellStyle,
     normalizeConnectionLineStyle,

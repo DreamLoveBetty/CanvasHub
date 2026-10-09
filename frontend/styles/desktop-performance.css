@@ -7,6 +7,30 @@
  * repaint those promoted layers during trackpad wheel and pinch gestures.
  */
 
+/* Only the viewport background consumes these camera values. Letting them
+ * inherit makes each pan frame recalculate styles across every node/control,
+ * including offscreen nodes. Register them locally without changing the grid
+ * paint, transform/gesture logic, or promoting additional compositor layers.
+ * Initial values match the legacy background fallbacks for first paint.
+ */
+@property --canvas-grid-x {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+
+@property --canvas-grid-y {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+
+@property --canvas-grid-size {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 20px;
+}
+
 body.desk-app .desk-canvas-world,
 body.desk-app .desk-canvas .desk-node,
 body.desk-app .desk-node--image-group :is(
@@ -47,12 +71,15 @@ body.desk-app .desk-canvas:is(.is-panning, .is-wheel-transforming) .desk-image-g
 
 body.desk-app .desk-canvas:is(.is-panning, .is-wheel-transforming) :is(
   .desk-node--image > img,
+  .desk-image-node__placeholder,
+  .desk-video-result__preview,
   .desk-image-group__thumb > img
 ) {
   box-shadow: none !important;
 }
 
-body.desk-app .desk-canvas:is(.is-panning, .is-wheel-transforming) .desk-node.desk-glass {
+body.desk-app .desk-canvas:is(.is-panning, .is-wheel-transforming) .desk-node.desk-glass,
+body.desk-app .desk-canvas:is(.is-panning, .is-wheel-transforming) .desk-node:not(.desk-node--image-group) {
   box-shadow: none !important;
 }
 

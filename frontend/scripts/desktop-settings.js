@@ -11,10 +11,22 @@
   let lastVideoRuntimeCapabilities = null;
   let lastVideoSupervisorStatus = null;
   let activeComfyWorkflowId = '';
+  let krea2Tools = null;
+  let qwen21Tools = null;
+  let loraSettings = null;
   let pinterestAuthSessionId = window.sessionStorage?.getItem('deskPinterestAuthSessionId') || '';
   let pinterestAuthActivity = null;
   let activeTab = 'status';
-  let tabsExpanded = false;
+  let settingsSearch = null;
+  let settingsDrawer = null;
+  let searchIndexCache = null;
+  const searchHitTimers = new WeakMap();
+  const googlePoolSettings = window.DesktopGooglePool.create({
+    request: (action, body) => window.DesktopApi.googlePool(action, body),
+    renderCard, escapeHtml,
+    onRender: () => { if (lastDiagnostics) renderDiagnostics(lastDiagnostics); },
+    onGptSelected: () => loadChatgptPoolAccounts().catch(error => showSettingsFeedback(error, '账号池列表读取失败'))
+  });
   let settingsInfoTipOpen = false;
   let chatgptPoolActivity = null;
   let chatgptPoolRefreshBusy = false;
@@ -28,7 +40,6 @@
   let managedCodexOAuthPollDeadline = 0;
   const MANAGED_CODEX_OAUTH_POLL_INTERVAL_MS = 1500;
   const MANAGED_CODEX_OAUTH_POLL_TIMEOUT_MS = 15 * 60 * 1000;
-  const EXTRA_SETTINGS_TABS = new Set(['third-party', 'chatgpt-pool', 'prompt', 'paths', 'comfy', 'video-inference']);
   const SETTINGS_TAB_HELP = {
     system: {
       title: '系统配置',
@@ -172,6 +183,35 @@
         ]]
       ]
     },
+    'model-tools': {
+      title: '模型工具',
+      subtitle: 'Qwen 2.1 / Krea 2 Base 权重转换与管理',
+      summary: '按模型架构检查本地完整 Transformer，使用共享 MLX 环境转换并注册到对应画布节点。',
+      sections: [
+        ['转换流程', [
+          '源文件保持在本地，不通过浏览器上传；放入对应“模型导入目录”后刷新设置页，再从下拉列表选择。',
+          '先检查 safetensors 文件头，再开始转换；检查不会载入完整模型。转换在独立子进程中严格加载，按输出精度写入并严格重载。',
+          '验证通过后才会原子写入对应 Base 权重目录，并在节点中显示实际模型名称。'
+        ]],
+        ['兼容范围与输出精度', [
+          '支持与 Krea 2 Turbo、Qwen-Image 2.1 同结构的完整 FP32/BF16/FP16 Transformer，以及严格配对 weight_scale/comfy_quant 的 ComfyUI scaled-FP8 E4M3FN 单文件。',
+          '兼容 transformer/model.diffusion_model 等包装前缀。仅转换完整 Transformer；Qwen 1、旧 Edit、LoRA、GGUF、其它 FP8、MLX packed 权重和修改了层数或 shape 的模型会被拒绝。',
+          '两种模型均可选 MLX BF16 · 不量化；默认仍为 MLX 8-bit · group_size 64，Krea 2 另有 Mixed 4/8-bit。不同精度独立存放，不覆盖已有模型。',
+          'BF16 仅导出 Transformer，保留现有共享文本编码器与 VAE；Qwen 共享文本编码器仍为 8-bit，不等于整套 BF16 模型。BF16 需要更多磁盘和统一内存。',
+          'FP8 解码为 BF16 或再次量化均不会恢复已损失的精度。'
+        ]],
+        ['资源调度', [
+          '转换复用画布主 Python 环境，不安装或降级 MLX、mflux、Transformers。',
+          'Qwen 首次使用需要准备固定源码与共享模型；共用画布 Python 环境，不升级 Krea2 / YuE 依赖。共享文本与视觉编码器、RGBA VAE 供全部 Qwen Base 使用。',
+          '转换与 YuE、Qwen、Krea 及其他本机推理任务串行排队；不会强制终止正在运行的任务。'
+        ]],
+        ['Qwen 2.1 · VAE', [
+          '支持完整 Qwen-Image 2.1 RGBA VAE（FP32 / BF16 / FP16）。放入 VAE 导入目录后点击“刷新目录”；无需重命名为 0.safetensors。使用固定 Qwen 2.1 配置，不支持不同架构或归一化配置的 VAE。',
+          '原版 MLX 直接加载，自定义 Diffusers VAE 自动适配布局，不量化、不覆盖原版。',
+          '导入后点击“应用 VAE”，用于新提交的 Qwen 任务；已排队或正在生成的任务保留原选择。'
+        ]]
+      ]
+    },
     comfy: {
       title: 'ComfyUI 配置',
       subtitle: '本地服务与工作流目录',
@@ -239,8 +279,9 @@
       'deskSettingsInfoTipContent',
       'deskSettingsInfoTipClose',
       'deskSettingsTabs',
-      'deskSettingsTabsToggle',
-      'deskSettingsExtraTabs',
+      'deskSettingsSearchInput',
+      'deskSettingsSearchResults',
+      'deskSettingsResize',
       'deskSettingsSummary',
       'deskSettingsBody'
     ].forEach(id => {
@@ -458,6 +499,7 @@
   }
 
   function renderCanvasInteractionSettings() {
+    const collisionEnabled = window.DesktopPreferences?.state?.canvasCollisionEnabled === true;
     const swellStyle = window.DesktopPreferences?.normalizeConnectionSwellStyle?.(
       window.DesktopPreferences?.state?.connectionSwellStyle
     ) || 'liquid';
@@ -476,6 +518,11 @@
           <button type="button" class="${lineStyle === 'straight' ? 'is-active' : ''}" data-connection-line-style="straight" aria-pressed="${lineStyle === 'straight' ? 'true' : 'false'}">直线</button>
           <button type="button" class="${lineStyle === 'curve' ? 'is-active' : ''}" data-connection-line-style="curve" aria-pressed="${lineStyle === 'curve' ? 'true' : 'false'}">曲线</button>
         </div>
+        <span class="desk-settings-canvas-interaction__label" title="拖动节点时，自动推开碰到的其他节点；图片靠近合组优先。">节点碰撞</span>
+        <div class="desk-settings-canvas-interaction__segment" role="group" aria-label="节点碰撞开关">
+          <button type="button" class="${!collisionEnabled ? 'is-active' : ''}" data-canvas-collision="false" aria-pressed="${!collisionEnabled}">关闭</button>
+          <button type="button" class="${collisionEnabled ? 'is-active' : ''}" data-canvas-collision="true" aria-pressed="${collisionEnabled}">开启</button>
+        </div>
       </div>`
     ], true);
   }
@@ -486,6 +533,80 @@
     if (status === 'invalid') return '登录已失效';
     if (status === 'error') return '验证失败';
     return '已保存，待验证';
+  }
+
+  function renderProgressSettings() {
+    const model = window.DesktopProgressModel;
+    const { style, height, colors } = model.normalizePreferences(window.DesktopPreferences?.state?.progress);
+    const color = colors[style] || model.PROGRESS_STYLES[style].color;
+    return renderCard('节点进度条', [`<div class="desk-settings-form" data-progress-settings>
+      <label><span>动效样式</span><select class="desk-select" data-progress-preference="style" aria-label="进度条动效样式">${Object.entries(model.PROGRESS_STYLES).map(([key, item]) => `<option value="${key}"${style === key ? ' selected' : ''}>${item.label} · ${item.english}</option>`).join('')}</select></label>
+      <label><span>轨道高度</span><select class="desk-select" data-progress-preference="height" aria-label="进度条轨道高度"${style === 'classic' ? ' disabled' : ''}>${model.PROGRESS_HEIGHTS.map(size => `<option value="${size}"${height === size ? ' selected' : ''}>${size} px${size === 36 ? ' · 紧凑' : size === 48 ? ' · 标准' : ' · 宽松'}</option>`).join('')}</select></label>
+      <div class="desk-settings-secret-field"><span>填充颜色</span><div class="desk-settings-progress-color">
+        <input type="color" value="${color}" data-progress-preference="color" aria-label="进度条填充颜色">
+        <input class="desk-input" type="text" value="${color}" data-progress-preference="hex" aria-label="进度条颜色 HEX" spellcheck="false" maxlength="7" placeholder="#42B8FA">
+        <button type="button" class="desk-button" data-progress-color-reset title="恢复当前样式的原始配色">原色</button>
+      </div></div>
+      <p class="desk-settings-form__hint">即时生效并保存在本浏览器。新样式将进度、阶段和用时置于轨道内；经典保留原有胶囊与下挂标签。</p>
+    </div>`], true);
+  }
+
+  function syncProgressSettings(card) {
+    if (!card) return;
+    const model = window.DesktopProgressModel;
+    const { style, height, colors } = model.normalizePreferences(window.DesktopPreferences?.state?.progress);
+    const color = colors[style] || model.PROGRESS_STYLES[style].color;
+    card.querySelectorAll('[data-progress-preference]').forEach(control => {
+      const field = control.dataset.progressPreference;
+      control.value = field === 'style' ? style : field === 'height' ? String(height) : color;
+      if (field === 'height') control.disabled = style === 'classic';
+      control.removeAttribute('aria-invalid');
+      if (field === 'style' || field === 'height') window.DesktopSelect?.refresh(control);
+    });
+  }
+
+  function updateProgressPreference(event) {
+    const input = event.target.closest('[data-progress-preference]');
+    if (!input) return false;
+    const field = input.dataset.progressPreference;
+    const preferences = window.DesktopPreferences;
+    const previous = window.DesktopProgressModel.normalizePreferences(preferences?.state?.progress);
+    if (field === 'style' || field === 'height') {
+      if (event.type !== 'change') return true;
+      preferences.setProgressPreferences({ [field]: input.value });
+      // Preserve focus/scroll and unsaved fields in other System cards.
+      syncProgressSettings(input.closest('[data-progress-settings]'));
+    } else {
+      const color = window.DesktopProgressModel.normalizeFillColor(input.value);
+      input.setAttribute('aria-invalid', String(!color));
+      if (!color) return true;
+      preferences.setProgressPreferences({ colors: { ...previous.colors, [previous.style]: color } });
+      const card = input.closest('[data-progress-settings]');
+      card.querySelectorAll('[data-progress-preference="color"], [data-progress-preference="hex"]').forEach(control => {
+        if (control !== input || event.type === 'change') control.value = color;
+        control.removeAttribute('aria-invalid');
+      });
+    }
+    return true;
+  }
+
+  function renderControlMaterialSettings() {
+    const material = window.DesktopControlMaterial;
+    if (!material) return '';
+    return renderCard('节点按钮材质', [material.renderSettings(window.DesktopPreferences?.state?.controlMaterial)], true);
+  }
+
+  // Assembly only: the module validates the event and owns the card's in-place refresh.
+  function updateControlMaterialPreference(event) {
+    const material = window.DesktopControlMaterial;
+    const card = event.target.closest?.('[data-control-material-settings]');
+    if (!material || !card) return false;
+    const patch = material.patchFromEvent(event, window.DesktopPreferences.state.controlMaterial);
+    if (patch) {
+      window.DesktopPreferences.setControlMaterialPreferences(patch);
+      material.syncSettings(card, window.DesktopPreferences.state.controlMaterial);
+    }
+    return true;
   }
 
   function pinterestAuthSourceLabel(source) {
@@ -621,7 +742,7 @@
     window.DesktopSelect?.refresh?.(reasoningSelect);
   }
 
-  function renderThirdPartyImageSettings(config, nanoConfig = {}) {
+  function renderThirdPartyImageSettings(config, nanoConfig = {}, cyimgConfig = {}) {
     const api = config || {};
     const nano = nanoConfig || {};
     const nanoCard = renderCard('Nano Banana API', [
@@ -660,7 +781,17 @@
         ${renderSystemSaveButton('third-party-gpt-image', '保存 Gpt-Image-2 API')}
       </div>`
     ], Boolean(api.api_key_configured && api.base_url));
-    return nanoCard + gptImageCard;
+    const cyimgCard = renderCard('绘栾 API', [
+      `<div class="desk-settings-form" data-system-settings-card="third-party-cyimg">
+        <p class="desk-settings-form__hint">独立异步接口，支持画布上的绘栾图像与视频节点。模型目录实时读取；不会改动现有第三方图像或 GPT 托底线路。</p>
+        ${renderSecretInput('绘栾 API Key', 'cyimg.api_key', cyimgConfig.api_key_configured, {
+          placeholder: cyimgConfig.api_key_configured ? '留空则不修改' : '粘贴 sk_ 开头的绘栾 API Key'
+        })}
+        ${renderInput('任务等待上限（秒）', 'cyimg.task_timeout_seconds', cyimgConfig.task_timeout_seconds || 3600, { type:'number', min:60, max:7200, step:60 })}
+        ${renderSystemSaveButton('third-party-cyimg', '保存绘栾 API')}
+      </div>`
+    ], Boolean(cyimgConfig.api_key_configured));
+    return nanoCard + gptImageCard + cyimgCard;
   }
 
   function comfyWorkflowPlaceholder() {
@@ -1336,7 +1467,11 @@
     ].join('');
   }
 
-  function renderDiagnostics(data) {
+  // One category's sections from already-loaded data. `activeTab` is shadowed so each
+  // section renders its full form for `tab` and its summary card otherwise; the search
+  // index calls this for every category without touching the DOM or the active tab.
+  function buildSections(data, tab) {
+    const activeTab = tab;
     const telegram = data.telegram || {};
     const nanoBanana = {
       ...(data.yunwu || {}),
@@ -1356,6 +1491,7 @@
       ...(data.third_party_image_api || {}),
       ...(setting('third_party_image_api', {}) || {})
     };
+    const cyimg = { ...(data.cyimg || {}), ...(setting('cyimg', {}) || {}) };
     const auth = data.auth || {};
     const server = data.server || {};
     const promptRuntime = lastPromptConfig || { prompt_skill: data.prompt_skill || {} };
@@ -1370,7 +1506,7 @@
       ...(setting('video_inference', {}) || {})
     };
     const pinterest = setting('pinterest', {});
-    const thirdPartyReady = Boolean(nanoBanana.api_key_configured || thirdParty.api_key_configured);
+    const thirdPartyReady = Boolean(nanoBanana.api_key_configured || thirdParty.api_key_configured || cyimg.api_key_configured);
     const providerNeedsRelogin = Boolean(provider.requires_relogin);
     const providerReady = Boolean(provider.configured) && !providerNeedsRelogin;
     const managedReloginCount = Number(managedCodex?.stats?.requires_relogin || managedCodex?.accounts?.stats?.requires_relogin || 0);
@@ -1394,7 +1530,7 @@
       {
         tab: 'system',
         html: activeTab === 'system'
-          ? renderCanvasInteractionSettings() + renderSystemRuntimeSettings(editableServer, setting('auth', auth)) + renderPinterestSettings(pinterest)
+          ? renderCanvasInteractionSettings() + renderProgressSettings() + renderControlMaterialSettings() + renderSystemRuntimeSettings(editableServer, setting('auth', auth)) + renderPinterestSettings(pinterest)
           : ''
       },
       {
@@ -1447,20 +1583,21 @@
       },
       {
         tab: 'third-party',
-        html: activeTab === 'third-party' ? renderThirdPartyImageSettings(thirdParty, nanoBanana) : renderCard('第三方 API', [
+        html: activeTab === 'third-party' ? renderThirdPartyImageSettings(thirdParty, nanoBanana, cyimg) : renderCard('第三方 API', [
           renderKv('nano banana API Key', nanoBanana.api_key_configured, { boolean: true }),
           renderKv('nano banana API URL', nanoBanana.base_url || ''),
           renderKv('Gpt-image-2 API Key', thirdParty.api_key_configured, { boolean: true }),
           renderKv('Gpt-image-2 API URL', thirdParty.base_url || ''),
           renderKv('生成接口', thirdParty.generate_path || '/v1/images/generations'),
           renderKv('编辑接口', thirdParty.edit_path || '/v1/images/edits'),
-          renderKv('模型', thirdParty.model || 'gpt-image-2')
+          renderKv('模型', thirdParty.model || 'gpt-image-2'),
+          renderKv('绘栾 API Key', cyimg.api_key_configured, { boolean: true })
         ], thirdPartyReady)
       },
       {
         tab: 'chatgpt-pool',
         html: activeTab === 'chatgpt-pool'
-          ? renderChatgptPoolRuntimeSettings(editablePool) + renderChatgptPoolSettings(editablePool, lastChatgptPoolAccounts)
+          ? googlePoolSettings.render(renderChatgptPoolRuntimeSettings(editablePool) + renderChatgptPoolSettings(editablePool, lastChatgptPoolAccounts))
           : renderChatgptPoolOverview(pool, lastChatgptPoolAccounts)
       },
       {
@@ -1476,6 +1613,14 @@
         html: activeTab === 'prompt'
           ? renderPromptSettings(promptRuntime)
           : renderPromptOverview(promptRuntime)
+      },
+      {
+        tab: 'model-tools',
+        html: activeTab === 'model-tools'
+          ? (loraSettings?.render?.() || '') + (qwen21Tools?.render?.() || '') + (krea2Tools?.render?.() || renderCard('Krea 2 模型转换', [
+              '<div class="desk-settings-empty">模型工具模块未加载。</div>'
+            ], false))
+          : ''
       },
       {
         tab: 'comfy',
@@ -1501,6 +1646,11 @@
       }
     ];
 
+    return { sections, server, pool, telegram, pinterest, promptSkill, promptRuntime, thirdPartyReady, providerStatusLabel, managedStatusLabel };
+  }
+
+  function renderDiagnostics(data) {
+    const { sections, server, pool, telegram, pinterest, promptSkill, promptRuntime, thirdPartyReady, providerStatusLabel, managedStatusLabel } = buildSections(data, activeTab);
     const visibleSections = activeTab === 'status'
       ? sections
       : sections.filter(section => section.tab === activeTab);
@@ -1941,6 +2091,7 @@
     const payload = collectSystemSettingsForm(card);
     await window.DesktopApi.saveSystemSettings(payload);
     await refresh();
+    if (payload.cyimg) window.dispatchEvent(new CustomEvent('desktop:cyimg-settings-updated'));
     window.DesktopResults?.showTransientMessage?.('系统配置已保存。', 'success');
   }
 
@@ -2587,8 +2738,10 @@
     els.deskSettingsPanel?.classList.add('is-open');
     els.deskSettingsPanel?.setAttribute('aria-hidden', 'false');
     document.body.classList.add('desk-settings-open');
-    tabsExpanded = EXTRA_SETTINGS_TABS.has(activeTab);
+    settingsDrawer?.refresh();
     updateTabs();
+    // Focus moves into the drawer; search is the most useful first stop.
+    els.deskSettingsSearchInput?.focus({ preventScroll: true });
     const gallery = document.getElementById('deskGalleryPanel');
     gallery?.classList.remove('is-open');
     gallery?.setAttribute('aria-hidden', 'true');
@@ -2598,6 +2751,7 @@
       } else {
         renderDiagnostics(lastDiagnostics);
       }
+      if (activeTab === 'model-tools') await Promise.all([krea2Tools?.activate?.(),qwen21Tools?.activate?.(),loraSettings?.activate?.()]);
     } catch (error) {
       if (els.deskSettingsSummary) {
         els.deskSettingsSummary.innerHTML = '<span class="is-warn">诊断读取失败</span>';
@@ -2620,15 +2774,14 @@
     els.deskSettingsPanel?.classList.remove('is-open');
     els.deskSettingsPanel?.setAttribute('aria-hidden', 'true');
     document.body.classList.remove('desk-settings-open');
+    settingsSearch?.close();
+    krea2Tools?.deactivate?.();
+    qwen21Tools?.deactivate?.();
+    loraSettings?.deactivate?.();
     closeSettingsInfoTip();
   }
 
   function updateTabs() {
-    if (EXTRA_SETTINGS_TABS.has(activeTab)) tabsExpanded = true;
-    els.deskSettingsTabs?.classList.toggle('is-expanded', tabsExpanded);
-    els.deskSettingsTabsToggle?.setAttribute('aria-expanded', tabsExpanded ? 'true' : 'false');
-    els.deskSettingsTabsToggle?.setAttribute('aria-label', tabsExpanded ? '收起更多设置分类' : '展开更多设置分类');
-    els.deskSettingsExtraTabs?.setAttribute('aria-hidden', tabsExpanded ? 'false' : 'true');
     els.deskSettingsTabs?.querySelectorAll('[data-settings-tab]').forEach(button => {
       const active = button.dataset.settingsTab === activeTab;
       button.classList.toggle('is-active', active);
@@ -2639,6 +2792,79 @@
       if (SETTINGS_TAB_HELP[activeTab]) renderSettingsInfoTip();
       else closeSettingsInfoTip();
     }
+  }
+
+  function selectTab(tab) {
+    const previousTab = activeTab;
+    activeTab = tab || 'status';
+    if (activeTab === 'browser') {
+      activeTab = 'status';
+    }
+    updateTabs();
+    if (lastDiagnostics) renderDiagnostics(lastDiagnostics);
+    if (previousTab === 'model-tools' && activeTab !== 'model-tools') {krea2Tools?.deactivate?.();qwen21Tools?.deactivate?.();loraSettings?.deactivate?.();}
+    if (activeTab === 'model-tools') {
+      loraSettings?.activate?.().catch(error => showSettingsFeedback(error, 'LoRA 连接设置读取失败'));
+      krea2Tools?.activate?.().catch(error => showSettingsFeedback(error, '模型工具状态读取失败'));
+      qwen21Tools?.activate?.().catch(error => showSettingsFeedback(error, 'Qwen 模型工具状态读取失败'));
+    }
+    if (activeTab === 'chatgpt-pool' && googlePoolSettings.isGoogle()) {
+      void googlePoolSettings.refresh();
+    } else if (activeTab === 'chatgpt-pool') {
+      loadChatgptPoolAccounts().catch(error => showSettingsFeedback(error, '账号池列表读取失败'));
+    }
+  }
+
+  // ---- Search: index every category's cards from the data already loaded --------------
+  function settingsCategories() {
+    return [...(els.deskSettingsTabs?.querySelectorAll('[data-settings-tab]') || [])]
+      .map(button => ({
+        tab: button.dataset.settingsTab,
+        label: button.textContent.trim(),
+        group: button.closest('[data-settings-group]')?.dataset.settingsGroup || ''
+      }))
+      .filter(category => category.tab !== 'status');
+  }
+
+  function settingsSearchIndex() {
+    if (!lastDiagnostics) return [];
+    if (searchIndexCache?.data === lastDiagnostics) return searchIndexCache.entries;
+    const categories = settingsCategories().map(category => ({
+      ...category,
+      html: buildSections(lastDiagnostics, category.tab).sections
+        .filter(section => section.tab === category.tab)
+        .map(section => section.html)
+        .join('')
+    }));
+    const entries = window.DesktopSettingsSearch?.buildIndex(categories) || [];
+    searchIndexCache = { data: lastDiagnostics, entries };
+    return entries;
+  }
+
+  function revealSearchHit(hit) {
+    if (activeTab !== hit.entry.tab) selectTab(hit.entry.tab);
+    const card = els.deskSettingsBody?.querySelectorAll('.desk-settings-card')[hit.entry.cardIndex];
+    if (!card) return;
+    const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
+    card.scrollIntoView({ block: 'start', behavior: reduceMotion ? 'auto' : 'smooth' });
+    const field = hit.field && [...card.querySelectorAll('label, .desk-settings-kv, .desk-settings-path, .desk-settings-secret-field, .desk-settings-form__section-title, .desk-settings-canvas-interaction__label')]
+      .find(el => el.textContent.replace(/\s+/g, ' ').trim().startsWith(hit.field));
+    [card, field].filter(Boolean).forEach(el => {
+      // A newer hit on the same element must not be cut short by an older timer.
+      clearTimeout(searchHitTimers.get(el));
+      el.classList.remove('is-search-hit');
+      void el.offsetWidth;
+      el.classList.add('is-search-hit');
+      searchHitTimers.set(el, setTimeout(() => el.classList.remove('is-search-hit'), 1800));
+    });
+    // DesktopSelect enhances freshly rendered selects on the next frame and hides the
+    // native <select>; wait for that, then focus what is actually rendered.
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      if (!card.isConnected) return;
+      const focusable = [...(field || card).querySelectorAll('.desk-select-trigger, input:not([type="hidden"]), select, textarea, button')]
+        .find(el => !el.disabled && el.getClientRects().length && getComputedStyle(el).visibility !== 'hidden');
+      focusable?.focus({ preventScroll: true });
+    }));
   }
 
   function bindEvents() {
@@ -2661,30 +2887,15 @@
         errorMessage: '诊断读取失败'
       });
     });
-    els.deskSettingsTabsToggle?.addEventListener('click', event => {
-      event.preventDefault();
-      event.stopPropagation();
-      const nextExpanded = !tabsExpanded;
-      if (!nextExpanded && EXTRA_SETTINGS_TABS.has(activeTab)) activeTab = 'status';
-      tabsExpanded = nextExpanded;
-      updateTabs();
-      if (lastDiagnostics) renderDiagnostics(lastDiagnostics);
-    });
     els.deskSettingsTabs?.addEventListener('click', event => {
       const button = event.target.closest('[data-settings-tab]');
       if (!button) return;
       event.stopPropagation();
-      activeTab = button.dataset.settingsTab || 'status';
-      if (activeTab === 'browser') {
-        activeTab = 'status';
-      }
-      updateTabs();
-      if (lastDiagnostics) renderDiagnostics(lastDiagnostics);
-      if (activeTab === 'chatgpt-pool') {
-        loadChatgptPoolAccounts().catch(error => showSettingsFeedback(error, '账号池列表读取失败'));
-      }
+      selectTab(button.dataset.settingsTab);
     });
     els.deskSettingsBody?.addEventListener('input', event => {
+      if (updateProgressPreference(event) || updateControlMaterialPreference(event)) return;
+      if (loraSettings?.handleInput?.(event) || qwen21Tools?.handleInput?.(event) || krea2Tools?.handleInput?.(event)) return;
       const managerField = event.target.closest('[data-system-setting-field="video_inference.manager_base_url"]');
       if (!managerField) return;
       const managerBaseUrl = String(managerField.value || '').trim();
@@ -2700,6 +2911,8 @@
       updateVideoSupervisorStatusView(lastVideoSupervisorStatus);
     });
     els.deskSettingsBody?.addEventListener('change', event => {
+      if (updateProgressPreference(event) || updateControlMaterialPreference(event)) return;
+      if (loraSettings?.handleInput?.(event) || qwen21Tools?.handleInput?.(event) || krea2Tools?.handleInput?.(event)) return;
       const systemField = event.target.closest('[data-system-setting-field]');
       if (systemField?.dataset.systemSettingField === 'gpt_provider.image_main_model') {
         syncProviderReasoningField(systemField);
@@ -2711,6 +2924,17 @@
       }
     });
     els.deskSettingsBody?.addEventListener('click', event => {
+      if (event.target.closest('[data-control-material-accent-reset]') && updateControlMaterialPreference(event)) return;
+      const progressColorReset = event.target.closest('[data-progress-color-reset]');
+      if (progressColorReset) {
+        const { style, colors } = window.DesktopProgressModel.normalizePreferences(window.DesktopPreferences.state.progress);
+        delete colors[style];
+        window.DesktopPreferences.setProgressPreferences({ colors });
+        syncProgressSettings(progressColorReset.closest('[data-progress-settings]'));
+        return;
+      }
+      if (loraSettings?.handleClick?.(event) || qwen21Tools?.handleClick?.(event) || krea2Tools?.handleClick?.(event)) return;
+      if (googlePoolSettings.handleClick(event)) return;
       const videoRuntimeMode = event.target.closest('[data-video-runtime-mode]');
       if (videoRuntimeMode) {
         event.preventDefault();
@@ -2770,6 +2994,18 @@
         return;
       }
       const swellStyleButton = event.target.closest('button[data-connection-swell-style]');
+      const collisionButton = event.target.closest('button[data-canvas-collision]');
+      if (collisionButton) {
+        event.preventDefault();
+        const enabled = collisionButton.dataset.canvasCollision === 'true';
+        window.DesktopPreferences?.setCanvasCollisionEnabled?.(enabled);
+        collisionButton.parentElement?.querySelectorAll('[data-canvas-collision]').forEach(button => {
+          const active = (button.dataset.canvasCollision === 'true') === enabled;
+          button.classList.toggle('is-active', active);
+          button.setAttribute('aria-pressed', String(active));
+        });
+        return;
+      }
       if (swellStyleButton) {
         event.preventDefault();
         const style = window.DesktopPreferences?.normalizeConnectionSwellStyle?.(
@@ -3167,6 +3403,36 @@
 
   function init() {
     collectElements();
+    loraSettings = window.DesktopLoRASettings.create({
+      library: DesktopApi.lora,
+      rerender: () => { if (activeTab === 'model-tools' && lastDiagnostics) renderDiagnostics(lastDiagnostics); },
+      notify: message => window.DesktopResults?.showTransientMessage?.(message)
+    });
+    krea2Tools = window.DesktopKrea2Tools?.create?.({
+      api: window.DesktopKrea2API,
+      escapeHtml,
+      rerender: () => {
+        if (activeTab === 'model-tools' && lastDiagnostics) renderDiagnostics(lastDiagnostics);
+      },
+      notify: (message, tone) => window.DesktopResults?.showTransientMessage?.(message, tone)
+    }) || null;
+    qwen21Tools = window.DesktopQwen21Tools?.create?.({
+      api: window.DesktopQwen21API, escapeHtml,
+      rerender: () => { if (activeTab === 'model-tools' && lastDiagnostics) renderDiagnostics(lastDiagnostics); },
+      notify: (message, tone) => window.DesktopResults?.showTransientMessage?.(message, tone)
+    }) || null;
+    settingsDrawer = window.DesktopSettingsDrawer?.create({
+      panel: els.deskSettingsPanel,
+      handle: els.deskSettingsResize,
+      getWidth: () => window.DesktopPreferences?.state?.settingsWidth,
+      setWidth: width => window.DesktopPreferences?.setSettingsWidth?.(width)
+    }) || null;
+    settingsSearch = window.DesktopSettingsSearch?.create({
+      input: els.deskSettingsSearchInput,
+      results: els.deskSettingsSearchResults,
+      getIndex: settingsSearchIndex,
+      onSelect: revealSearchHit
+    }) || null;
     bindEvents();
   }
 

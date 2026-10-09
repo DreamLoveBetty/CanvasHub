@@ -1,9 +1,11 @@
 (function () {
   const els = {};
   const MAX_IMAGE_ATTACHMENTS = 4;
+  const MAX_VIDEO_ATTACHMENTS = 2;
+  const MAX_MEDIA_ATTACHMENTS = 4;
   const HIDDEN_ANALYSIS_MODULE_IDS = new Set(['main', 'visual_summary', 'text_markdown']);
   const SESSION_STORAGE_KEY = 'desktop_prompt_drawer_session_v2';
-  const SESSION_SCHEMA_VERSION = 4;
+  const SESSION_SCHEMA_VERSION = 5;
   const ASSISTANT_TASK_MODES = new Set(['conversation', 'image_analysis', 'video_prompt']);
   const MAX_SESSION_MESSAGES = 80;
   const MAX_SESSION_CANDIDATES = 40;
@@ -108,7 +110,7 @@
   }
 
   function inferResultTaskMode(candidates = state.candidates, analysisModules = state.analysisModules) {
-    if (state.imageAnalysis || (analysisModules || []).length || (candidates || []).some(item => item?.kind === 'image_analysis_main')) {
+    if (state.imageAnalysis || (analysisModules || []).length || (candidates || []).some(item => ['image_analysis_main', 'video_analysis_main'].includes(item?.kind))) {
       return 'image_analysis';
     }
     if ((candidates || []).some(item => /^h3(?:_|$)/i.test(String(item?.kind || '')) || String(item?.mode || '').toUpperCase() === 'I2VA')) {
@@ -153,6 +155,20 @@
 
   function getImageNodes() {
     return window.DesktopCanvas?.listPromptImageNodes?.() || [];
+  }
+
+  function getMediaNodes() {
+    return window.DesktopCanvas?.listPromptMediaNodes?.()
+      || [
+        ...getImageNodes().map(item => ({ ...item, mediaKind: 'image' })),
+        ...(window.DesktopCanvas?.listPromptVideoNodes?.() || [])
+      ];
+  }
+
+  function attachmentMediaKind(item = {}) {
+    return window.DesktopPromptMedia?.mediaKind?.(item)
+      || (String(item.mediaKind || item.media_kind || '').toLowerCase() === 'video'
+        || String(item.mimeType || item.mime_type || '').toLowerCase().startsWith('video/') ? 'video' : 'image');
   }
 
   function canvasState() {
@@ -231,7 +247,7 @@
     const standalone = !!options.standalone;
     const videoNode = h3VideoNodeForTarget(target) || (standalone ? preferredH3VideoNode() : null);
     if (!videoNode && !standalone) return null;
-    const attachedFirstFrame = state.imageAttachments[0] || null;
+    const attachedFirstFrame = state.imageAttachments.find(item => attachmentMediaKind(item) === 'image') || null;
     const connectedFirstFrame = h3FirstFrameNode(videoNode?.id);
     const firstFrame = attachedFirstFrame
       ? h3ReferenceMetadata(attachedFirstFrame, 'mention')
@@ -256,7 +272,7 @@
   }
 
   function imageAttachmentKey(item = {}) {
-    return String(item.sourceNodeId || item.nodeId || item.source_node_id || item.dataUrl || item.imageData || item.imageUrl || item.url || item.id || '').trim();
+    return String(item.sourceNodeId || item.nodeId || item.source_node_id || item.dataUrl || item.imageData || item.imageUrl || item.mediaUrl || item.videoUrl || item.url || item.id || '').trim();
   }
 
   function editorText() {
@@ -313,15 +329,30 @@
   }
 
   function sanitizeSessionAttachment(item = {}) {
-    const source = item.imageUrl || item.url || '';
+    const kind = attachmentMediaKind(item);
+    const source = kind === 'video'
+      ? (item.mediaUrl || item.videoUrl || item.url || '')
+      : (item.imageUrl || item.url || '');
+    const poster = item.posterUrl || item.previewUrl || '';
     return {
       id: String(item.id || '').trim(),
       label: String(item.label || item.id || '').trim(),
-      imageUrl: String(source || '').startsWith('data:image/') ? '' : String(source || '').trim(),
+      mediaKind: kind,
+      imageUrl: kind === 'image' && !String(source || '').startsWith('data:image/') ? String(source || '').trim() : '',
+      mediaUrl: kind === 'video' ? String(source || '').trim() : '',
+      videoUrl: kind === 'video' ? String(source || '').trim() : '',
+      posterUrl: String(poster || '').trim(),
+      previewUrl: String(poster || '').trim(),
       url: String(source || '').startsWith('data:image/') ? '' : String(source || '').trim(),
       sourceNodeId: String(item.sourceNodeId || item.nodeId || item.source_node_id || '').trim(),
-      mimeType: String(item.mimeType || item.type || 'image/png').trim(),
-      role: String(item.role || '').trim()
+      mimeType: String(item.mimeType || item.type || (kind === 'video' ? 'video/mp4' : 'image/png')).trim(),
+      role: String(item.role || '').trim(),
+      durationSeconds: Number(item.durationSeconds || item.duration_seconds || 0),
+      mediaWidth: Number(item.mediaWidth || item.width || 0),
+      mediaHeight: Number(item.mediaHeight || item.height || 0),
+      fps: Number(item.fps || 0),
+      fileSize: Number(item.fileSize || item.file_size || 0),
+      sourceTaskId: String(item.sourceTaskId || item.source_task_id || '')
     };
   }
 
@@ -420,7 +451,20 @@
       state.resultMode = parsed.resultMode
         ? normalizeAssistantTaskMode(parsed.resultMode)
         : inferResultTaskMode(state.candidates, state.analysisModules);
-      if (parsed.editorText && promptEditor?.setText) {
+      if (promptEditor?.setDocument) {
+        const attachments = state.imageAttachments.map(item => ({
+          ...normalizeAttachmentFromChip({
+            id: item.id,
+            sourceNodeId: item.sourceNodeId,
+            imageSrc: item.imageUrl || item.posterUrl || item.previewUrl || item.url,
+            mediaSrc: item.mediaUrl || item.videoUrl || item.url,
+            mediaKind: item.mediaKind,
+            mimeType: item.mimeType
+          }),
+          label: item.label
+        }));
+        promptEditor.setDocument(parsed.editorText || '', attachments);
+      } else if (parsed.editorText && promptEditor?.setText) {
         promptEditor.setText(parsed.editorText);
       }
     } catch (error) {
@@ -455,25 +499,41 @@
         id: String(node.dataset.promptImageId || '').trim(),
         sourceNodeId: String(node.dataset.sourceNodeId || '').trim(),
         imageSrc: String(node.dataset.imageSrc || node.querySelector('img')?.getAttribute('src') || '').trim(),
-        mimeType: String(node.dataset.mimeType || 'image/png').trim()
+        mediaSrc: String(node.dataset.mediaSrc || '').trim(),
+        mediaKind: String(node.dataset.mediaKind || 'image').trim(),
+        mimeType: String(node.dataset.mimeType || (node.dataset.mediaKind === 'video' ? 'video/mp4' : 'image/png')).trim()
       }))
       .filter(item => item.id);
   }
 
   function normalizeAttachmentFromChip(chip = {}) {
-    const node = chip.sourceNodeId ? getImageNodes().find(item => item.nodeId === chip.sourceNodeId) : null;
-    const src = chip.imageSrc || node?.imageData || node?.imageUrl || node?.url || '';
+    const node = chip.sourceNodeId ? getMediaNodes().find(item => item.nodeId === chip.sourceNodeId) : null;
+    const kind = attachmentMediaKind({ ...node, ...chip });
+    const src = kind === 'video'
+      ? (chip.mediaSrc || node?.mediaUrl || node?.videoUrl || node?.url || '')
+      : (chip.imageSrc || node?.imageData || node?.imageUrl || node?.url || '');
     const isDataUrl = src.startsWith('data:image/');
     return {
       id: chip.id,
       label: chip.id,
-      dataUrl: isDataUrl ? src : (node?.imageData || ''),
-      imageData: isDataUrl ? src : (node?.imageData || ''),
-      imageUrl: isDataUrl ? '' : src,
+      mediaKind: kind,
+      dataUrl: kind === 'image' ? (isDataUrl ? src : (node?.imageData || '')) : '',
+      imageData: kind === 'image' ? (isDataUrl ? src : (node?.imageData || '')) : '',
+      imageUrl: kind === 'image' && !isDataUrl ? src : '',
+      mediaUrl: kind === 'video' ? src : '',
+      videoUrl: kind === 'video' ? src : '',
+      posterUrl: node?.posterUrl || chip.imageSrc || '',
+      previewUrl: node?.previewUrl || node?.posterUrl || chip.imageSrc || '',
       url: src,
       sourceNodeId: chip.sourceNodeId || node?.nodeId || '',
-      mimeType: chip.mimeType || node?.mimeType || node?.type || 'image/png',
-      role: chip.id === 'image1' ? 'primary' : 'fusion_reserved'
+      mimeType: chip.mimeType || node?.mimeType || (kind === 'video' ? 'video/mp4' : 'image/png'),
+      role: kind === 'image' ? (chip.id === 'image1' ? 'primary' : 'fusion_reserved') : 'analysis_reference',
+      durationSeconds: Number(node?.durationSeconds || 0),
+      mediaWidth: Number(node?.mediaWidth || 0),
+      mediaHeight: Number(node?.mediaHeight || 0),
+      fps: Number(node?.fps || 0),
+      fileSize: Number(node?.fileSize || 0),
+      sourceTaskId: String(node?.sourceTaskId || '')
     };
   }
 
@@ -484,26 +544,33 @@
     chips.forEach(chip => {
       const existing = state.imageAttachments.find(item => item.id === chip.id);
       if (existing) {
-        const isDataUrl = chip.imageSrc?.startsWith('data:image/');
+        const kind = attachmentMediaKind({ ...existing, ...chip });
+        const isDataUrl = kind === 'image' && chip.imageSrc?.startsWith('data:image/');
         existing.sourceNodeId = existing.sourceNodeId || chip.sourceNodeId;
-        existing.url = existing.url || chip.imageSrc;
-        existing.imageUrl = existing.imageUrl || (isDataUrl ? '' : chip.imageSrc);
+        existing.mediaKind = kind;
+        existing.url = existing.url || chip.mediaSrc || chip.imageSrc;
+        existing.mediaUrl = existing.mediaUrl || (kind === 'video' ? chip.mediaSrc : '');
+        existing.videoUrl = existing.videoUrl || existing.mediaUrl;
+        existing.imageUrl = existing.imageUrl || (kind === 'image' && !isDataUrl ? chip.imageSrc : '');
         existing.dataUrl = existing.dataUrl || (isDataUrl ? chip.imageSrc : '');
         existing.imageData = existing.imageData || (isDataUrl ? chip.imageSrc : '');
-        existing.mimeType = existing.mimeType || chip.mimeType || 'image/png';
+        existing.posterUrl = existing.posterUrl || (kind === 'video' ? chip.imageSrc : '');
+        existing.previewUrl = existing.previewUrl || existing.posterUrl;
+        existing.mimeType = existing.mimeType || chip.mimeType || (kind === 'video' ? 'video/mp4' : 'image/png');
         return;
       }
       state.imageAttachments.push(normalizeAttachmentFromChip(chip));
     });
   }
 
-  function nextImageAttachmentId() {
+  function nextImageAttachmentId(kind = 'image') {
+    const prefix = kind === 'video' ? 'video' : 'image';
     const used = new Set(state.imageAttachments.map(item => String(item.id || '')));
-    for (let index = 1; index <= MAX_IMAGE_ATTACHMENTS; index += 1) {
-      const id = `image${index}`;
+    for (let index = 1; index <= MAX_MEDIA_ATTACHMENTS; index += 1) {
+      const id = `${prefix}${index}`;
       if (!used.has(id)) return id;
     }
-    return `image${state.imageAttachments.length + 1}`;
+    return `${prefix}${state.imageAttachments.length + 1}`;
   }
 
   function closeImageMentionMenu(options = {}) {
@@ -516,7 +583,10 @@
   }
 
   function addImageAttachment(raw = {}, options = {}) {
-    const source = raw.dataUrl || raw.data_url || raw.imageData || raw.base64 || raw.imageUrl || raw.url || '';
+    const kind = attachmentMediaKind(raw);
+    const source = kind === 'video'
+      ? (raw.mediaUrl || raw.media_url || raw.videoUrl || raw.video_url || raw.url || '')
+      : (raw.dataUrl || raw.data_url || raw.imageData || raw.base64 || raw.imageUrl || raw.url || '');
     if (!source) return null;
     const key = imageAttachmentKey(raw);
     const existing = state.imageAttachments.find(item => imageAttachmentKey(item) === key);
@@ -525,21 +595,38 @@
       render();
       return existing;
     }
-    if (state.imageAttachments.length >= MAX_IMAGE_ATTACHMENTS) {
-      window.DesktopResults?.showTransientMessage?.(`最多先选择 ${MAX_IMAGE_ATTACHMENTS} 张图片。`, 'warning');
+    if (state.imageAttachments.length >= MAX_MEDIA_ATTACHMENTS) {
+      window.DesktopResults?.showTransientMessage?.(`最多先选择 ${MAX_MEDIA_ATTACHMENTS} 个媒体引用。`, 'warning');
       return null;
     }
-    const id = options.id || nextImageAttachmentId();
+    if (kind === 'video' && state.imageAttachments.filter(item => attachmentMediaKind(item) === 'video').length >= MAX_VIDEO_ATTACHMENTS) {
+      window.DesktopResults?.showTransientMessage?.(`最多同时引用 ${MAX_VIDEO_ATTACHMENTS} 个视频。`, 'warning');
+      return null;
+    }
+    const id = options.id || nextImageAttachmentId(kind);
     const item = {
       id,
       label: String(raw.label || raw.name || raw.title || id).trim() || id,
-      dataUrl: raw.dataUrl || raw.data_url || raw.imageData || raw.base64 || '',
-      imageData: raw.imageData || raw.base64 || raw.dataUrl || raw.data_url || '',
-      imageUrl: raw.imageUrl || raw.url || '',
-      url: raw.imageUrl || raw.url || raw.imageData || raw.base64 || raw.dataUrl || raw.data_url || '',
+      mediaKind: kind,
+      dataUrl: kind === 'image' ? (raw.dataUrl || raw.data_url || raw.imageData || raw.base64 || '') : '',
+      imageData: kind === 'image' ? (raw.imageData || raw.base64 || raw.dataUrl || raw.data_url || '') : '',
+      imageUrl: kind === 'image' ? (raw.imageUrl || raw.url || '') : '',
+      mediaUrl: kind === 'video' ? source : '',
+      videoUrl: kind === 'video' ? source : '',
+      posterUrl: raw.posterUrl || raw.poster_url || '',
+      previewUrl: raw.previewUrl || raw.preview_url || raw.posterUrl || raw.poster_url || '',
+      url: source,
       sourceNodeId: raw.sourceNodeId || raw.nodeId || raw.source_node_id || '',
-      mimeType: raw.mimeType || raw.type || 'image/png',
-      role: state.imageAttachments.length ? 'fusion_reserved' : 'primary'
+      mimeType: raw.mimeType || raw.mime_type || (kind === 'video' ? 'video/mp4' : 'image/png'),
+      role: kind === 'image'
+        ? (state.imageAttachments.some(value => attachmentMediaKind(value) === 'image') ? 'fusion_reserved' : 'primary')
+        : 'analysis_reference',
+      durationSeconds: Number(raw.durationSeconds || raw.duration_seconds || 0),
+      mediaWidth: Number(raw.mediaWidth || raw.media_width || raw.width || 0),
+      mediaHeight: Number(raw.mediaHeight || raw.media_height || raw.height || 0),
+      fps: Number(raw.fps || 0),
+      fileSize: Number(raw.fileSize || raw.file_size || 0),
+      sourceTaskId: String(raw.sourceTaskId || raw.source_task_id || '')
     };
     state.imageAttachments.push(item);
     promptEditor?.insertAttachment?.(item, { replaceMention: options.replaceMention !== false });
@@ -562,7 +649,7 @@
   function renderImageMentionMenu() {
     if (!els.deskPromptImageMenu || !promptEditor?.hasMention?.()) return;
     const query = String(state.mentionQuery || '').trim().toLowerCase();
-    const nodes = getImageNodes()
+    const nodes = getMediaNodes()
       .filter(node => {
         if (!query) return true;
         return `${node.label || ''} ${node.name || ''} ${node.nodeId || ''}`.toLowerCase().includes(query);
@@ -570,22 +657,37 @@
       .slice(0, 8);
     const columns = Math.max(1, Math.min(nodes.length || 1, 3));
     els.deskPromptImageMenu.style.setProperty('--desk-prompt-image-menu-cols', String(columns));
-    els.deskPromptImageMenu.dataset.imageCount = String(nodes.length);
+    els.deskPromptImageMenu.dataset.imageCount = String(nodes.filter(node => attachmentMediaKind(node) === 'image').length);
+    els.deskPromptImageMenu.dataset.videoCount = String(nodes.filter(node => attachmentMediaKind(node) === 'video').length);
     if (!nodes.length) {
-      els.deskPromptImageMenu.innerHTML = '<div class="desk-prompt-image-menu__empty">没有图片节点</div>';
+      els.deskPromptImageMenu.innerHTML = '<div class="desk-prompt-image-menu__empty">没有图片或视频节点</div>';
     } else {
-      els.deskPromptImageMenu.innerHTML = nodes.map(node => `
-        <button type="button" data-prompt-pick-image-node="${escapeHtml(node.nodeId)}" aria-label="引用图片节点" title="引用图片节点">
-          <img src="${escapeHtml(node.imageData || node.imageUrl || node.url)}" alt="">
+      els.deskPromptImageMenu.innerHTML = nodes.map(node => {
+        const kind = attachmentMediaKind(node);
+        const videoSrc = typeof window.miniappMediaUrl === 'function' ? window.miniappMediaUrl(node.mediaUrl || node.videoUrl || node.url || '') : (node.mediaUrl || node.videoUrl || node.url || '');
+        const poster = typeof window.miniappMediaUrl === 'function' ? window.miniappMediaUrl(node.posterUrl || node.previewUrl || '') : (node.posterUrl || node.previewUrl || '');
+        const preview = kind === 'video'
+          ? (poster ? `<img src="${escapeHtml(poster)}" alt="">` : `<video src="${escapeHtml(videoSrc)}" muted playsinline preload="metadata"></video>`)
+          : `<img src="${escapeHtml(node.imageData || node.imageUrl || node.url)}" alt="">`;
+        return `
+        <button type="button" data-prompt-pick-media-node="${escapeHtml(node.nodeId)}" data-media-kind="${kind}" aria-label="引用${kind === 'video' ? '视频' : '图片'}节点" title="引用${kind === 'video' ? '视频（用于分析）' : '图片'}节点">
+          ${preview}
+          <span class="desk-prompt-image-menu__kind" aria-hidden="true">${kind === 'video' ? '视频' : '图片'}</span>
         </button>
-      `).join('');
+      `;
+      }).join('');
     }
     els.deskPromptImageMenu.hidden = false;
   }
 
   async function attachImageNode(nodeId) {
-    const node = getImageNodes().find(item => item.nodeId === nodeId);
+    const node = getMediaNodes().find(item => item.nodeId === nodeId);
     if (!node) return;
+    if (attachmentMediaKind(node) === 'video') {
+      addImageAttachment({ ...node, sourceNodeId: node.nodeId }, { replaceMention: true });
+      closeImageMentionMenu();
+      return;
+    }
     const source = node.imageData || node.imageUrl || node.url || '';
     let dataUrl = node.imageData || '';
     if (!dataUrl && source && window.DesktopApi?.imageUrlToDataUri) {
@@ -795,20 +897,20 @@
   function taskModeCopy(mode = state.taskMode) {
     if (mode === 'image_analysis') {
       return {
-        candidateTitle: '图片分析',
-        placeholder: '输入分析要求，并用 @ 选择要分析的图片。',
-        emptyMessage: '用 @ 引用一张画布图片开始分析。',
+        candidateTitle: '媒体分析',
+        placeholder: '输入分析要求，并用 @ 选择要分析的图片或视频。',
+        emptyMessage: '用 @ 引用画布图片或视频开始分析。',
         emptyCandidate: '分析结果会显示在这里。',
-        sendLabel: '分析图片',
-        sendTitle: '调用图片分析 Skill',
+        sendLabel: '分析媒体',
+        sendTitle: '调用图片或视频分析',
         generateLabel: '',
-        meta: '参考图分析'
+        meta: '参考媒体分析'
       };
     }
     if (mode === 'video_prompt') {
       return {
         candidateTitle: 'H3 视频提示词',
-        placeholder: '描述视频动作、镜头与声音，输入 @ 可引用首帧。',
+        placeholder: '描述视频动作、镜头与声音，输入 @ 可引用首帧图片或参考视频。',
         emptyMessage: '开始讨论 MiniMax H3 视频方向。',
         emptyCandidate: '生成的视频提示词会显示在这里。',
         sendLabel: '讨论',
@@ -819,7 +921,7 @@
     }
     return {
       candidateTitle: '图片提示词',
-      placeholder: '输入讨论内容，或输入 @ 选择画布图片节点。',
+      placeholder: '输入讨论内容，或输入 @ 选择画布图片/视频节点。',
       emptyMessage: '开始讨论图片提示词方向。',
       emptyCandidate: '生成的图片提示词会显示在这里。',
       sendLabel: '发送',
@@ -1486,9 +1588,11 @@
     resolveAssistantTypingIdle();
   }
 
-  async function imageAttachmentPayloads() {
+  async function imageAttachmentPayloads(options = {}) {
     syncImageAttachmentsFromEditor();
-    const items = state.imageAttachments.slice(0, 1);
+    const items = state.imageAttachments
+      .filter(item => attachmentMediaKind(item) === 'image')
+      .slice(0, options.limit || 1);
     const payloads = [];
     for (const item of items) {
       let dataUrl = item.dataUrl || item.imageData || '';
@@ -1497,6 +1601,12 @@
         dataUrl = await window.DesktopApi.imageUrlToDataUri(source);
       }
       if (!dataUrl && source?.startsWith('data:image/')) dataUrl = source;
+      if (options.strict && dataUrl && !dataUrl.startsWith('data:image/')) {
+        dataUrl = await window.DesktopApi?.imageUrlToDataUri?.(dataUrl);
+      }
+      if (options.strict && !String(dataUrl || '').startsWith('data:image/')) {
+        throw new Error(`无法读取引用图片 ${item.id}，请重新用 @ 选择图片。`);
+      }
       if (!dataUrl) continue;
       payloads.push({
         id: item.id,
@@ -1509,6 +1619,26 @@
       });
     }
     return payloads;
+  }
+
+  async function videoAttachmentPayloads(options = {}) {
+    syncImageAttachmentsFromEditor();
+    const items = state.imageAttachments
+      .filter(item => attachmentMediaKind(item) === 'video')
+      .slice(0, options.limit || MAX_VIDEO_ATTACHMENTS);
+    if (!items.length) return [];
+    if (!window.DesktopPromptMedia?.sampleVideoReferences) {
+      throw new Error('视频抽帧模块尚未加载，请刷新页面后重试。');
+    }
+    return window.DesktopPromptMedia.sampleVideoReferences(items, {
+      onProgress(progress) {
+        const label = progress.video?.label || `视频 ${progress.videoIndex || 1}`;
+        window.DesktopResults?.showTransientMessage?.(
+          `正在抽取 ${label}：${progress.completed}/${progress.total} 帧`,
+          'info'
+        );
+      }
+    });
   }
 
   function h3CompileReference(image = {}) {
@@ -1648,42 +1778,65 @@
 
   async function submitImageAnalysis(messageOverride = '') {
     const message = String(messageOverride || editorText() || '').trim();
-    const images = await imageAttachmentPayloads();
-    if (!images.length) {
-      window.DesktopResults?.showTransientMessage?.('请先用 @ 选择画布图片节点。', 'warning');
+    syncImageAttachmentsFromEditor();
+    if (!state.imageAttachments.length) {
+      window.DesktopResults?.showTransientMessage?.('请先用 @ 选择画布图片或视频节点。', 'warning');
       return;
     }
     state.busyChat = true;
-    state.messages.push({ role: 'user', text: message || `分析 ${images.map(item => item.id).join('、')}` });
+    render();
+    let images = [];
+    let videos = [];
+    try {
+      images = await imageAttachmentPayloads();
+      videos = await videoAttachmentPayloads();
+    } catch (error) {
+      state.busyChat = false;
+      window.DesktopResults?.showError?.(error);
+      render();
+      return;
+    }
+    if (!images.length && !videos.length) {
+      state.busyChat = false;
+      window.DesktopResults?.showTransientMessage?.('请先用 @ 选择画布图片或视频节点。', 'warning');
+      render();
+      return;
+    }
+    const referencedIds = [...images, ...videos].map(item => item.id).join('、');
+    state.messages.push({ role: 'user', text: message || `分析 ${referencedIds}` });
     render();
     try {
       const target = getTarget();
-      const result = await DesktopApi.analyzePromptImage({
+      const analysisPayload = {
         message,
         images,
+        videos,
         target: target?.type === 'text' ? target : {},
         style: {},
         keep_text: false
-      });
+      };
+      const result = videos.length
+        ? await DesktopApi.analyzePromptVideo(analysisPayload)
+        : await DesktopApi.analyzePromptImage(analysisPayload);
       normalizeAnalysisResult(result);
       state.resultMode = 'image_analysis';
       persistPromptVersions(state.candidates, {
-        message: message || '图片分析',
+        message: message || (videos.length ? '视频分析' : '图片分析'),
         target: target?.type === 'text' ? target : {},
         style: {}
       });
       state.messages.push({
         role: 'assistant',
-        text: `图片分析完成，已生成 ${state.candidates.length || 1} 个主候选和 ${state.analysisModules.length} 个结构化模块。`
+        text: `${videos.length ? '视频' : '图片'}分析完成，已生成 ${state.candidates.length || 1} 个主候选和 ${state.analysisModules.length} 个结构化模块。`
       });
       clearEditor({ keepAttachments: true });
       closeImageMentionMenu();
-      window.DesktopResults?.showTransientMessage?.('图片分析已完成。', 'success');
+      window.DesktopResults?.showTransientMessage?.(`${videos.length ? '视频' : '图片'}分析已完成。`, 'success');
     } catch (error) {
-      const errorMessage = error?.message || String(error || '图片分析失败');
-      state.messages.push({ role: 'assistant', text: `图片分析失败：${errorMessage}` });
+      const errorMessage = error?.message || String(error || '媒体分析失败');
+      state.messages.push({ role: 'assistant', text: `媒体分析失败：${errorMessage}` });
       if (window.DesktopResults?.showTransientMessage) {
-        window.DesktopResults.showTransientMessage(`图片分析失败：${errorMessage}`, 'error');
+        window.DesktopResults.showTransientMessage(`媒体分析失败：${errorMessage}`, 'error');
       } else {
         window.DesktopResults?.showError?.(error);
       }
@@ -1707,6 +1860,24 @@
       return;
     }
     state.busyChat = true;
+    render();
+    let images;
+    let videos;
+    try {
+      images = (await imageAttachmentPayloads({ limit: MAX_IMAGE_ATTACHMENTS, strict: true })).map(item => ({
+        id: item.id,
+        label: item.label,
+        data_url: item.dataUrl,
+        source_node_id: item.sourceNodeId,
+        mime_type: item.mimeType
+      }));
+      videos = await videoAttachmentPayloads({ limit: MAX_VIDEO_ATTACHMENTS });
+    } catch (error) {
+      state.busyChat = false;
+      window.DesktopResults?.showError?.(error);
+      render();
+      return;
+    }
     state.messages.push({ role: 'user', text: message });
     state.messages.push({ role: 'assistant', text: '', streaming: true });
     const assistantIndex = state.messages.length - 1;
@@ -1719,6 +1890,8 @@
     const payload = {
       message,
       prompt,
+      images,
+      videos,
       target: targetPayload,
       style: {},
       history: state.messages.slice(0, -2).slice(-8),
@@ -2148,9 +2321,9 @@
       setAssistantTaskMode(els.deskPromptImageAnalysisToggle.checked ? 'image_analysis' : 'conversation');
     });
     els.deskPromptImageMenu?.addEventListener('click', event => {
-      const button = event.target.closest('[data-prompt-pick-image-node]');
+      const button = event.target.closest('[data-prompt-pick-media-node]');
       if (!button) return;
-      attachImageNode(button.dataset.promptPickImageNode).catch(error => window.DesktopResults?.showError?.(error));
+      attachImageNode(button.dataset.promptPickMediaNode).catch(error => window.DesktopResults?.showError?.(error));
     });
     els.deskPromptChatMessages?.addEventListener('click', event => {
       if (event.target.closest('[data-prompt-create-text]')) createTextNode();

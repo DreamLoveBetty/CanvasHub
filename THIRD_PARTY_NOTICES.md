@@ -15,6 +15,7 @@ referenced files.
 | Three.js r160 | `static/pose/three.module.js`, `static/pose/GLTFLoader.js`, `static/pose/OrbitControls.js`, `static/pose/SkeletonUtils.js`, `static/pose/TransformControls.js`, `static/pose/utils/BufferGeometryUtils.js` | MIT License. See `static/pose/THREE_LICENSE.md`; the bundled `three.module.js` also includes `SPDX-License-Identifier: MIT`. |
 | Tabler Icons | `frontend/assets/image-editor-icons/*.svg`, `frontend/assets/image-editor-cursors/*.svg` | MIT License. See `frontend/assets/image-editor-icons/TABLER_LICENSE.md` and `frontend/assets/image-editor-cursors/TABLER_LICENSE.md`. |
 | Lucide icons | `frontend/assets/icons/*.svg` | ISC License, with Feather MIT notice for derived icons. See `frontend/assets/icons/LUCIDE_LICENSE.md`; newer bundled SVG files may also include `@license lucide-static v1.23.0 - ISC` comments. |
+| Ambient CSS (commit f829df7) | `frontend/vendor/ambientcss/ambient.css`, `frontend/vendor/ambientcss/components.css`; generated subset `frontend/styles/desktop-ambient-controls.css` | MIT License. See `frontend/vendor/ambientcss/LICENSE` and `frontend/vendor/ambientcss/README.md` (upstream paths and SHA-256). |
 
 ## Pose / 3D Assets
 
@@ -51,7 +52,29 @@ Python dependencies are declared in:
 Before a public release, generate a dependency license report from the exact
 environment used for distribution.
 
+## Krea 2 Instruction-edit Runtime
+
+| Component | Files | License / Notice |
+| --- | --- | --- |
+| ComfyUI-Krea2Edit | `backend/krea2/edit_profile.py`, `backend/krea2/edit_mlx.py` | Dual-conditioning protocol, reference geometry and attention semantics adapted from `lbouaraba/comfyui-krea2edit` revision `86f886dac23013d88996e3a2e99093ba44d322fb`, Apache-2.0. See `backend/krea2/vendor/LICENSE.comfyui-krea2edit` and `backend/krea2/vendor/NOTICE.md`. |
+| KinoMLX | `backend/krea2/edit_mlx.py` | Native MLX Qwen3-VL vision/MRoPE structure cross-checked against `dmlsrc/KinoMLX` revision `02711388f8c7e0a9415eb932f0a130ee87e42724`, MIT. See `backend/krea2/vendor/LICENSE.kinomlx` and `backend/krea2/vendor/NOTICE.md`. |
+
+Krea 2 Identity Edit adapter weights are user-supplied runtime assets, are not
+bundled in the project, and remain subject to their own model license.
+
 ## Project-owned Runtime Code
 
 `backend/codex_image_runtime/` is project-owned runtime code used by the local
 Codex image provider and prompt polishing path.
+
+## Qwen-Image 2.1 optional MLX runtime
+
+| Component | Files | License / Notice |
+| --- | --- | --- |
+| MFLUX Qwen reference implementation | `backend/qwen21/vendor/*.original`, deterministic adaptation in `backend/qwen21/source_adapter.py`; separately downloaded `components/qwen21/source/mflux/` | MFLUX `adcbe85975760d545ca142069713781929898be0`, MIT. See `backend/qwen21/vendor/MFLUX-LICENSE` and `backend/qwen21/vendor/NOTICE.md`. |
+
+Heretic Qwen 2.1 MLX checkpoint and Viggle turbo adapter are optional, separately
+downloaded runtime assets, not bundled in the project. Their pinned repositories,
+revisions and checksums are recorded by the Qwen installer. They retain their model
+licenses and upstream attribution. Qwen-specific quantization and sigma handling do
+not substitute Krea weights or its quantization recipes.

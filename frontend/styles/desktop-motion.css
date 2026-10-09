@@ -12,6 +12,52 @@ body.desk-app[data-theme] .desk-prompt-drawer button:not(.desk-prompt-drawer__ha
 }
 
 /* Compact icon systems animate only properties they actually change. */
+body.desk-app[data-theme] .desk-state-icon {
+  overflow: visible;
+  pointer-events: none;
+}
+
+/* Fade retained layers instead of replacing paths or hiding the old glyph.
+   Only these small glyphs blur, never the button, text or canvas surface. */
+body.desk-app[data-theme] .desk-state-icon__layer {
+  opacity: 0;
+  transform: scale(var(--desk-motion-icon-scale));
+  transform-box: view-box;
+  transform-origin: center;
+  filter: blur(var(--desk-motion-icon-blur));
+  transition:
+    opacity var(--desk-motion-duration-fast) var(--desk-motion-ease-exit),
+    transform var(--desk-motion-duration-base) var(--desk-motion-ease-exit),
+    filter var(--desk-motion-duration-instant) var(--desk-motion-ease-exit);
+}
+
+body.desk-app[data-theme] .desk-state-icon__layer.is-current {
+  opacity: 1;
+  transform: scale(1);
+  filter: blur(0);
+  transition:
+    opacity var(--desk-motion-duration-base) var(--desk-motion-ease-enter),
+    transform var(--desk-motion-duration-normal) var(--desk-motion-ease-interactive),
+    filter var(--desk-motion-duration-instant) var(--desk-motion-ease-enter);
+}
+
+/* Rotation is nested below the scale layer. Pause inactive spinners in place;
+   unchanged polling and rapid reversal neither recreate nor restart them. */
+body.desk-app[data-theme] .desk-state-icon__layer[data-state-icon-layer="busy"] .desk-state-icon__glyph {
+  transform-box: view-box;
+  transform-origin: center;
+  animation: desk-state-icon-spin 1s linear infinite;
+  animation-play-state: paused;
+}
+
+body.desk-app[data-theme] .desk-state-icon__layer[data-state-icon-layer="busy"].is-current .desk-state-icon__glyph {
+  animation-play-state: running;
+}
+
+@keyframes desk-state-icon-spin {
+  to { transform: rotate(360deg); }
+}
+
 body.desk-app[data-theme] :where(
   .desk-rail__glyph,
   .desk-rail__glyph svg,
@@ -47,8 +93,8 @@ body.desk-app[data-theme] :where(
   .desk-progress-float
 ) {
   transition:
-    opacity var(--desk-motion-duration-normal) var(--desk-motion-ease-exit),
-    transform var(--desk-motion-duration-normal) var(--desk-motion-ease-exit);
+    opacity var(--desk-motion-duration-exit) var(--desk-motion-ease-exit),
+    transform var(--desk-motion-duration-exit) var(--desk-motion-ease-exit);
 }
 
 body.desk-app[data-theme] :where(
@@ -79,7 +125,7 @@ body.desk-app[data-theme] :where(
   .desk-settings,
   .desk-prompt-library
 ) {
-  transform: translateY(var(--desk-motion-distance-md)) scale(var(--desk-motion-scale-subtle));
+  transform: translateY(var(--desk-motion-distance-exit)) scale(var(--desk-motion-scale-exit));
   transition: var(--desk-motion-surface-exit-transition);
 }
 
@@ -102,8 +148,8 @@ body.desk-app[data-theme] :where(
   .desk-pinterest-split-modal
 ) {
   transition:
-    opacity var(--desk-motion-duration-normal) var(--desk-motion-ease-exit),
-    visibility 0s linear var(--desk-motion-duration-normal);
+    opacity var(--desk-motion-duration-exit) var(--desk-motion-ease-exit),
+    visibility 0s linear var(--desk-motion-duration-exit);
 }
 
 body.desk-app[data-theme] :where(
@@ -123,10 +169,10 @@ body.desk-app[data-theme] :where(
   .desk-pinterest-analysis-modal__panel,
   .desk-pinterest-split-modal__panel
 ) {
-  transform: translateY(var(--desk-motion-distance-md)) scale(var(--desk-motion-scale-subtle));
+  transform: translateY(var(--desk-motion-distance-exit)) scale(var(--desk-motion-scale-exit));
   transition:
-    opacity var(--desk-motion-duration-normal) var(--desk-motion-ease-exit),
-    transform var(--desk-motion-duration-normal) var(--desk-motion-ease-exit);
+    opacity var(--desk-motion-duration-exit) var(--desk-motion-ease-exit),
+    transform var(--desk-motion-duration-exit) var(--desk-motion-ease-exit);
 }
 
 body.desk-app[data-theme] :where(
@@ -146,13 +192,13 @@ body.desk-app[data-theme] .desk-select-menu {
   visibility: hidden;
   pointer-events: none;
   opacity: 0;
-  transform: translateY(calc(0px - var(--desk-motion-distance-md))) scale(var(--desk-motion-scale-subtle));
+  transform: translateY(calc(0px - var(--desk-motion-distance-exit))) scale(var(--desk-motion-scale-exit));
   transform-origin: top center;
   transition: var(--desk-motion-surface-exit-transition);
 }
 
 body.desk-app[data-theme] .desk-select-menu.is-above {
-  transform: translateY(var(--desk-motion-distance-md)) scale(var(--desk-motion-scale-subtle));
+  transform: translateY(var(--desk-motion-distance-exit)) scale(var(--desk-motion-scale-exit));
   transform-origin: bottom center;
 }
 
@@ -193,8 +239,8 @@ body.desk-app[data-theme] .desk-agent-task-card__menu-toggle:active:not(:disable
 body.desk-app[data-theme] .desk-agent-task-drawer-backdrop {
   opacity: 0;
   transition:
-    opacity var(--desk-motion-duration-normal) var(--desk-motion-ease-exit),
-    visibility 0s linear var(--desk-motion-duration-normal);
+    opacity var(--desk-motion-duration-exit) var(--desk-motion-ease-exit),
+    visibility 0s linear var(--desk-motion-duration-exit);
 }
 
 body.desk-app[data-theme] .desk-agent-task-drawer-backdrop.is-open {
@@ -207,12 +253,12 @@ body.desk-app[data-theme] .desk-agent-task-drawer-backdrop.is-open {
 
 body.desk-app[data-theme] .desk-agent-task-drawer {
   opacity: 0;
-  transform: translate3d(var(--desk-motion-distance-md), 0, 0) scale(var(--desk-motion-scale-subtle));
+  transform: translate3d(var(--desk-motion-distance-exit), 0, 0) scale(var(--desk-motion-scale-exit));
   transform-origin: right center;
   transition:
-    opacity var(--desk-motion-duration-normal) var(--desk-motion-ease-exit),
-    transform var(--desk-motion-duration-normal) var(--desk-motion-ease-exit),
-    visibility 0s linear var(--desk-motion-duration-normal);
+    opacity var(--desk-motion-duration-exit) var(--desk-motion-ease-exit),
+    transform var(--desk-motion-duration-exit) var(--desk-motion-ease-exit),
+    visibility 0s linear var(--desk-motion-duration-exit);
 }
 
 body.desk-app[data-theme] .desk-agent-task-drawer.is-open {
@@ -266,7 +312,7 @@ body.desk-app[data-theme] .desk-node-context-menu.is-closing {
   visibility: hidden;
   pointer-events: none;
   opacity: 0;
-  transform: translateY(calc(0px - var(--desk-motion-distance-md))) scale(var(--desk-motion-scale-subtle));
+  transform: translateY(calc(0px - var(--desk-motion-distance-exit))) scale(var(--desk-motion-scale-exit));
   transition: var(--desk-motion-surface-exit-transition);
 }
 
@@ -280,6 +326,17 @@ body.desk-app[data-theme] .desk-node-context-menu.is-open {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  body.desk-app[data-theme] .desk-state-icon__layer {
+    /* Also beat the active layer and legacy universal duration override. */
+    transition: none !important;
+    transform: none !important;
+    filter: none !important;
+  }
+
+  body.desk-app[data-theme] .desk-state-icon__glyph {
+    animation: none !important;
+  }
+
   body.desk-app[data-theme] :where(
     .desk-select-menu,
     .desk-node-palette,

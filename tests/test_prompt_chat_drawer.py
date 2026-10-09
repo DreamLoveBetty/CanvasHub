@@ -2,6 +2,7 @@ import json
 import re
 import unittest
 import tempfile
+from html.parser import HTMLParser
 from pathlib import Path
 from unittest.mock import patch
 
@@ -21,6 +22,34 @@ def read_text(path):
 
 def assert_asset_has_cache_bust(testcase, html, asset_path):
     testcase.assertRegex(html, re.escape(asset_path) + r"\?v=[0-9A-Za-z._-]+")
+
+
+class DesktopScriptParser(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.scripts = []
+
+    def handle_starttag(self, tag, attrs):
+        attrs = dict(attrs)
+        if tag == "script" and attrs.get("src"):
+            self.scripts.append(attrs)
+
+
+def read_canvas_module(testcase, name):
+    """Read an actual, synchronously loaded canvas dependency, not an orphan file."""
+    parser = DesktopScriptParser()
+    parser.feed(read_text("desktop.html"))
+    paths = [attrs["src"].split("?", 1)[0] for attrs in parser.scripts]
+    module_path = f"scripts/desktop-canvas-{name}.js"
+    host_path = "scripts/desktop-canvas.js"
+    for path in (module_path, host_path):
+        testcase.assertEqual(paths.count(path), 1, path)
+        attrs = parser.scripts[paths.index(path)]
+        for attribute in ("async", "defer", "nomodule"):
+            testcase.assertNotIn(attribute, attrs, path)
+        testcase.assertIn(attrs.get("type", "").lower(), ("", "text/javascript", "application/javascript"), path)
+    testcase.assertLess(paths.index(module_path), paths.index(host_path))
+    return read_text(module_path)
 
 
 class PromptChatBackendTest(unittest.TestCase):
@@ -432,6 +461,8 @@ class PromptChatFrontendTest(unittest.TestCase):
         drawer_js = read_text("scripts/desktop-prompt-drawer.js")
         editor_js = read_text("scripts/desktop-prompt-editor.js")
         canvas_js = read_text("scripts/desktop-canvas.js")
+        text_editor_js = read_canvas_module(self, "text-editor")
+        nodes_js = read_canvas_module(self, "nodes")
         bootstrap_js = read_text("scripts/desktop-bootstrap.js")
 
         self.assertIn('id="deskPromptDrawer"', html)
@@ -439,8 +470,14 @@ class PromptChatFrontendTest(unittest.TestCase):
         self.assertIn("desktop-prompt-editor.js", html)
         assert_asset_has_cache_bust(self, html, "scripts/desktop-canvas.js")
         assert_asset_has_cache_bust(self, html, "scripts/desktop-api.js")
+        assert_asset_has_cache_bust(self, html, "scripts/desktop-prompt-media.js")
         assert_asset_has_cache_bust(self, html, "scripts/desktop-prompt-editor.js")
         assert_asset_has_cache_bust(self, html, "scripts/desktop-prompt-drawer.js")
+        self.assertIn(
+            "scripts/desktop-prompt-editor.js?v=20260929-prompt-video1",
+            html,
+        )
+        self.assertLess(html.index("scripts/desktop-prompt-media.js"), html.index("scripts/desktop-prompt-editor.js"))
         self.assertIn("DesktopPromptDrawer?.init", bootstrap_js)
         self.assertIn("DesktopPromptEditor", editor_js)
         self.assertIn("insertAttachment", editor_js)
@@ -448,6 +485,13 @@ class PromptChatFrontendTest(unittest.TestCase):
         self.assertIn("data-source-node-id", editor_js)
         self.assertIn("desk-prompt-editor__label", editor_js)
         self.assertIn("data-prompt-editor-remove-image", editor_js)
+        self.assertIn("function mentionAnchorRect()", editor_js)
+        self.assertIn("function positionMentionMenu()", editor_js)
+        self.assertIn("const anchorRange = mentionRange.cloneRange();", editor_js)
+        self.assertIn("const offsetParent = menu.offsetParent || menu.parentElement;", editor_js)
+        self.assertIn("menu.dataset.mentionAnchored = 'true';", editor_js)
+        self.assertIn("root.addEventListener('scroll', positionMentionMenu", editor_js)
+        self.assertIn("window.addEventListener('resize', positionMentionMenu", editor_js)
         self.assertIn("syncImageAttachmentsFromEditor", drawer_js)
         self.assertIn("data-candidate-action=\"copy\"", drawer_js)
         self.assertIn("data-candidate-action=\"apply-text\"", drawer_js)
@@ -503,7 +547,9 @@ class PromptChatFrontendTest(unittest.TestCase):
         self.assertIn('class="desk-prompt-editor"', html)
         self.assertIn('contenteditable="true"', html)
         self.assertIn('id="deskPromptImageMenu"', html)
-        self.assertIn("data-prompt-pick-image-node", drawer_js)
+        self.assertIn("data-prompt-pick-media-node", drawer_js)
+        self.assertIn("DesktopApi.analyzePromptVideo", drawer_js)
+        self.assertIn("/api/prompt/video-analysis", api_js)
         self.assertIn("保留图中文字", drawer_js)
         self.assertIn("data-analysis-ocr-text", drawer_js)
         self.assertIn("textRegions: []", drawer_js)
@@ -532,7 +578,7 @@ class PromptChatFrontendTest(unittest.TestCase):
         self.assertIn("saveStylePreset", api_js)
         self.assertIn("registerTextStylePresets", canvas_js)
         self.assertIn("applyTextStylePresetToTarget", canvas_js)
-        self.assertIn("请先选择文本节点", canvas_js)
+        self.assertIn("请先选择文本节点", text_editor_js)
         self.assertIn("event.target.closest('.desk-node--text, #deskPromptDrawer')", canvas_js)
         self.assertIn("boundTextNodeId: ''", drawer_js)
         self.assertIn("desktop:canvas-selection-change", canvas_js)
@@ -567,13 +613,13 @@ class PromptChatFrontendTest(unittest.TestCase):
         self.assertNotIn("selectedStyleId", drawer_js)
         self.assertNotIn("document.addEventListener('click'", drawer_js)
         self.assertIn("deskPromptDrawerToggle?.addEventListener('click', () => setOpen(!state.open))", drawer_js)
-        self.assertIn("globalThis.crypto?.randomUUID?.()?.replaceAll", canvas_js)
+        self.assertIn("globalThis.crypto?.randomUUID?.()?.replaceAll", nodes_js)
         self.assertIn('id="deskPromptNodeSelect"', html)
         self.assertIn("listTextNodes", canvas_js)
-        self.assertIn("data-text-node-alias", canvas_js)
-        self.assertIn("data-text-node-alias-edit", canvas_js)
-        self.assertIn("readonly tabindex=\"-1\"", canvas_js)
-        self.assertIn("textNodeAliasStyle(alias)", canvas_js)
+        self.assertIn("data-text-node-alias", text_editor_js)
+        self.assertIn("data-text-node-alias-edit", text_editor_js)
+        self.assertIn("readonly tabindex=\"-1\"", text_editor_js)
+        self.assertIn("textNodeAliasStyle(alias)", text_editor_js)
         self.assertIn("commitTextNodeAliasInput", canvas_js)
         self.assertIn("setTextNodeAliasEditing", canvas_js)
         self.assertIn("sanitizeTextNodeAlias", canvas_js)
@@ -583,8 +629,8 @@ class PromptChatFrontendTest(unittest.TestCase):
         self.assertIn('id="deskPromptDrawerClear" aria-label="清空提示词助手" title="清空">清空</button>', html)
         self.assertNotIn("已绑定：", html)
         self.assertNotIn("已绑定：", drawer_js)
-        self.assertIn("安全审核版", canvas_js)
-        self.assertIn('data-text-action="safe-rewrite"', canvas_js)
+        self.assertIn("安全审核版", text_editor_js)
+        self.assertIn('data-text-action="safe-rewrite"', text_editor_js)
         self.assertNotIn("deskPromptSafeRewrite", html)
         self.assertNotIn("safety_review", drawer_js)
         self.assertNotIn("更电影感", drawer_js)
@@ -609,17 +655,20 @@ class PromptChatFrontendTest(unittest.TestCase):
 
     def test_canvas_delete_key_and_detach_connection_hooks_exist(self):
         canvas_js = read_text("scripts/desktop-canvas.js")
+        connections_js = read_canvas_module(self, "connections")
 
         self.assertIn("function handleCanvasDeleteKeydown(event)", canvas_js)
         self.assertIn("document.addEventListener('keydown', handleCanvasDeleteKeydown, true)", canvas_js)
         self.assertIn("function startConnectionDetachDrag(event, button)", canvas_js)
         self.assertIn("getDetachableIncomingEdge(detachPortButton.dataset.nodeId)", canvas_js)
-        self.assertIn("removeEdgesById([edge.id], { quiet: true })", canvas_js)
+        self.assertIn("function startConnectionDetachDrag(event, button)", connections_js)
+        self.assertIn("removeEdgesById([edge.id], { quiet: true })", connections_js)
 
     def test_drawer_uses_compact_center_handle_and_mid_panel(self):
         html = read_text("desktop.html")
         css = read_text("styles/desktop-liquid.css")
-        canvas_js = read_text("scripts/desktop-canvas.js")
+        geometry_css = read_text("styles/desktop-geometry.css")
+        viewport_js = read_canvas_module(self, "viewport")
 
         self.assertIn('aria-label="展开或收起提示词助手"', html)
         assert_asset_has_cache_bust(self, html, "styles/desktop-liquid.css")
@@ -628,7 +677,12 @@ class PromptChatFrontendTest(unittest.TestCase):
         self.assertIn("--desk-radius: 4px;", css)
         self.assertIn("--desk-radius-lg: 7px;", css)
         self.assertRegex(css, r"\.desk-titlebar\s*\{[^}]*top:\s*0;[^}]*left:\s*0;[^}]*right:\s*0;[^}]*height:\s*36px;")
-        self.assertRegex(css, r"\.desk-titlebar\s*\{[^}]*z-index:\s*20;")
+        self.assertNotRegex(css, r"\.desk-titlebar\s*\{[^}]*z-index:")
+        self.assertRegex(
+            geometry_css,
+            r"\.desk-titlebar,[\s\S]*?\.desk-node-palette\s*\)\s*\{"
+            r"[^}]*z-index:\s*var\(--desk-layer-chrome\);",
+        )
         self.assertRegex(css, r"\.desk-titlebar::before,\s*\n\.desk-bottombar::before\s*\{[^}]*display:\s*none;[^}]*content:\s*none;[^}]*pointer-events:\s*none;")
         self.assertRegex(css, r"\.desk-titlebar::before\s*\{[^}]*height:\s*0;[^}]*background:\s*transparent;")
         self.assertRegex(css, r"\.desk-bottombar::before\s*\{[^}]*height:\s*0;[^}]*background:\s*transparent;")
@@ -644,7 +698,13 @@ class PromptChatFrontendTest(unittest.TestCase):
         self.assertRegex(css, r"\.desk-rail\s*\{[^}]*background:\s*rgba\(255,\s*255,\s*255,\s*0\.28\);")
         self.assertRegex(css, r"\.desk-rail\s*\{[^}]*backdrop-filter:\s*blur\(22px\)\s*saturate\(1\.35\);")
         self.assertRegex(css, r"\.desk-bottombar\s*\{[^}]*right:\s*0;[^}]*bottom:\s*0;[^}]*left:\s*0;[^}]*height:\s*34px;")
-        self.assertRegex(css, r"\.desk-history\s*\{[^}]*top:\s*36px;[^}]*right:\s*0;[^}]*z-index:\s*11;")
+        self.assertRegex(css, r"\.desk-history\s*\{[^}]*top:\s*36px;[^}]*right:\s*0;")
+        self.assertNotRegex(css, r"\.desk-history\s*\{[^}]*z-index:")
+        self.assertRegex(
+            geometry_css,
+            r"body\.desk-app :is\(\.desk-rail, \.desk-history, \.desk-zoom-controls\)\s*\{"
+            r"[^}]*z-index:\s*var\(--desk-layer-node\);",
+        )
         self.assertRegex(css, r"\.desk-history\s*\{[^}]*background:\s*rgba\(255,\s*255,\s*255,\s*0\.3\);")
         self.assertNotIn('id="deskRefreshHistoryBtn"', html)
         self.assertIn('class="desk-history__rail desk-history-windchime-button desk-history-windchime-button--hang"', html)
@@ -715,7 +775,7 @@ class PromptChatFrontendTest(unittest.TestCase):
         self.assertRegex(css, r"\.desk-prompt-drawer\.is-open \.desk-prompt-drawer__handle:hover\s*\{[^}]*translateX\(-50%\)\s*translateY\(-2px\)")
         self.assertRegex(css, r"\.desk-prompt-drawer__handle > span:not\(\.desk-prompt-drawer__handle-eye\),\s*\n\.desk-prompt-drawer__handle em\s*\{[^}]*clip:\s*rect")
         self.assertRegex(css, r"\.desk-canvas\s*\{[^}]*background-size:\s*[^}]*var\(--canvas-grid-size,\s*20px\)\s*var\(--canvas-grid-size,\s*20px\),[^}]*100%\s*18px,[^}]*100%\s*18px;")
-        self.assertIn("const gridSize = 20 * canvas.scale;", canvas_js)
+        self.assertIn("const gridSize = 20 * canvas.scale;", viewport_js)
         self.assertRegex(css, r"\.desk-prompt-drawer__body\s*\{[^}]*overflow:\s*hidden;")
         self.assertRegex(css, r"\.desk-prompt-drawer__body\s*\{[^}]*grid-template-rows:\s*30px\s*minmax\(0,\s*1fr\);")
         self.assertRegex(css, r"\.desk-prompt-drawer__body\s*\{[^}]*background:\s*[^}]*linear-gradient\(158deg,[^}]*rgba\(255,\s*255,\s*255,\s*0\.14\);")

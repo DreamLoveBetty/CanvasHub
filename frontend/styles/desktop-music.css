@@ -1,0 +1,92 @@
+/* Independent music nodes: share the canvas tokens, never image-specific selectors. */
+body.desk-app .desk-node--music { display:flex; flex-direction:column; padding:16px; box-sizing:border-box; border:1px solid var(--desk-color-border-faint); border-radius:var(--desk-node-radius); background:var(--desk-node-sheen-background),var(--desk-node-glass-background); color:var(--desk-node-ink); box-shadow:var(--desk-node-glass-shadow); overflow:visible; }
+body.desk-app .desk-node--music::before { display:none; }
+body.desk-app .desk-node--music.is-selected { border-color:var(--desk-node-selection-stroke); box-shadow:var(--desk-node-glass-selected-shadow); }
+body.desk-app .desk-node--music [hidden] { display:none!important; }
+body.desk-app .desk-music__header { display:flex; gap:12px; align-items:center; padding:0 0 14px; flex:none; border-bottom:1px solid var(--desk-color-border-faint); cursor:grab; }
+body.desk-app .desk-music__header > div { flex:1; min-width:0; }
+body.desk-app .desk-music__header strong { font-size:17px; line-height:1.35; display:block; }
+body.desk-app .desk-music__header small { display:block; color:var(--desk-node-muted-ink); letter-spacing:.16em; font-size:9px; margin-top:4px; }
+body.desk-app .desk-music__icon { display:grid; place-items:center; width:42px; height:42px; border-radius:13px; color:var(--desk-color-accent); background:var(--desk-color-accent-soft); }
+body.desk-app .desk-music__icon svg { width:25px; height:25px; fill:none; stroke:currentColor; stroke-width:1.7; }
+body.desk-app .desk-music__body { min-height:0; flex:1; overflow:auto; overscroll-behavior:contain; scrollbar-width:thin; display:flex; flex-direction:column; gap:12px; padding:14px 2px 2px; font-size:12px; }
+body.desk-app .desk-music__body label { display:flex; flex-direction:column; gap:6px; color:var(--desk-node-muted-ink); font-weight:600; font-size:11px; }
+body.desk-app .desk-music__body label small { display:inline; font-weight:400; font-size:10px; }
+body.desk-app .desk-music__body input:not([type=checkbox]),body.desk-app .desk-music__body select,body.desk-app .desk-music__body textarea { width:100%; min-width:0; box-sizing:border-box; border:1px solid var(--desk-color-border-faint); background:var(--desk-node-glass-background); border-radius:9px; color:var(--desk-node-ink); padding:9px 10px; font:inherit; font-size:12px; }
+body.desk-app .desk-music__body textarea { resize:vertical; line-height:1.5; min-height:50px; }
+body.desk-app .desk-music__body :is(button,input,select,textarea):focus-visible { outline:2px solid var(--desk-color-accent); outline-offset:2px; }
+body.desk-app .desk-music__body button { min-height:30px; padding:6px 12px; border:1px solid var(--desk-color-border-faint); background:var(--desk-node-sheen-background),var(--desk-node-glass-background); box-shadow:0 3px 9px rgba(15,35,65,.06),inset 0 1px 0 rgba(255,255,255,.25); border-radius:9px; font-size:12px; color:var(--desk-node-ink); cursor:pointer; }
+body.desk-app .desk-music__body button:disabled { opacity:.48; cursor:not-allowed; }
+body.desk-app .desk-music__body button.desk-music__primary { flex:1; min-height:40px; color:var(--desk-action-primary-ink); background:var(--desk-action-primary-gloss); background-size:var(--desk-action-primary-silk-background-size); background-position:var(--desk-action-primary-silk-position); border-color:var(--desk-action-primary-border); box-shadow:0 5px 14px var(--desk-action-primary-shadow); }
+body.desk-app .desk-music__actions,body.desk-app .desk-music__score-tools { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+body.desk-app .desk-music__grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+body.desk-app .desk-music__input-status { display:flex; flex-wrap:wrap; gap:6px 18px; margin-bottom:4px; font-weight:600; }
+body.desk-app .desk-music__input-status .is-ready { color:var(--desk-node-ink); }
+body.desk-app .desk-music__connections { font-size:11px; color:var(--desk-node-muted-ink); background:var(--desk-color-accent-soft); border-radius:8px; padding:8px 10px; line-height:1.6; }
+body.desk-app .desk-music__connections label { display:inline-flex; flex-direction:row; align-items:center; gap:6px; margin-right:8px; }
+body.desk-app .desk-music__connections select { width:80px; padding:2px; }
+body.desk-app .desk-music__body details { border:1px solid var(--desk-color-border-faint); border-radius:10px; padding:10px; }
+body.desk-app .desk-music__body summary { cursor:pointer; font-weight:600; }
+body.desk-app .desk-music__body details[open] > * + * { margin-top:10px; }
+body.desk-app .desk-music__artifacts { display:flex; flex-wrap:wrap; gap:6px; font-size:10px; }
+body.desk-app .desk-music__artifacts button { font-size:10px; padding:4px 7px; }
+body.desk-app .desk-music__formats { display:flex; gap:12px; }
+body.desk-app .desk-music__formats > span { background:var(--desk-color-accent-soft); padding:9px 15px; border-radius:8px; color:var(--desk-color-accent); }
+body.desk-app .desk-music__muted,body.desk-app .desk-music__notice { color:var(--desk-node-muted-ink); font-size:11px; line-height:1.5; margin:0; }
+body.desk-app .desk-music__error { margin:0; font-size:11px; white-space:pre-wrap; overflow-wrap:anywhere; color:var(--desk-color-danger,#b84055); line-height:1.6; }
+body.desk-app .desk-music__tabs { display:flex; gap:4px; padding:3px; border-radius:12px; background:var(--desk-color-accent-soft); }
+body.desk-app .desk-music__tabs > button { flex:1; border:0; box-shadow:none; background:transparent; }
+body.desk-app .desk-music__tabs > button[aria-pressed=true] { color:var(--desk-color-accent); background:var(--desk-node-glass-background); box-shadow:0 2px 8px rgba(25,55,85,.1); }
+body.desk-app .desk-music__editor { flex:1; display:flex; min-height:205px; overflow:hidden; border:1px solid var(--desk-color-border-faint); border-radius:10px; }
+body.desk-app .desk-music__editor pre { margin:0; padding:10px 8px; color:var(--desk-node-muted-ink); opacity:.65; background:var(--desk-color-accent-soft); overflow:hidden; text-align:right; user-select:none; font:12px/1.65 ui-monospace,monospace; }
+body.desk-app .desk-music__editor textarea { border:0; resize:none; border-radius:0; white-space:pre; font:12px/1.65 ui-monospace,monospace; }
+body.desk-app .desk-music__paper { background:#fff; color:#18273c; border:1px solid var(--desk-color-border-faint); border-radius:12px; padding:8px; min-height:180px; overflow:auto; flex:1; }
+body.desk-app .desk-music__source { flex:1; min-height:240px; font:11px/1.65 ui-monospace,monospace; overflow:auto; white-space:pre-wrap; margin:0; }
+body.desk-app .desk-music__score-tools label { width:100px; }
+body.desk-app .desk-music__score-title { flex:none; }
+body.desk-app .desk-music__score-title > label { flex-direction:row; align-items:center; gap:12px; }
+body.desk-app .desk-music__score-title input { flex:1; height:34px; }
+body.desk-app .desk-music__score-tools > span { flex:1; font-size:11px; color:var(--desk-node-muted-ink); }
+body.desk-app .desk-music__compare { flex:1; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; min-height:210px; overflow:auto; }
+body.desk-app .desk-music__compare-card { min-width:0; padding:12px; border:1px solid var(--desk-color-border-faint); border-radius:15px; overflow:hidden; display:flex; flex-direction:column; gap:12px; }
+body.desk-app .desk-music__compare-card strong { font-size:12px; overflow-wrap:anywhere; }
+body.desk-app .desk-music__compare-card audio { width:100%; height:36px; }
+body.desk-app .desk-music__compare-card pre { font:10px/1.6 ui-monospace,monospace; overflow:auto; white-space:pre-wrap; margin:0; }
+body.desk-app .desk-music__compare-card svg { height:50px; width:100%; stroke:var(--desk-node-muted-ink); fill:none; }
+body.desk-app .desk-music__body .desk-music__check { flex-direction:row; align-items:center; margin-right:auto; }
+body.desk-app .desk-music__check input { width:15px; height:15px; }
+
+/* Core parameters fit in two rows; export format sits beside input references.
+   Do not clip anchored menus with a
+   scrolling body; current-job actions remain at the lower right. */
+body.desk-app .desk-node--music[data-music-kind="music_generate"] .desk-music__body { overflow:visible; }
+body.desk-app .desk-music__generation-content { flex:1; min-height:0; display:flex; flex-direction:column; gap:12px; padding:2px; }
+body.desk-app .desk-music__generation-content > * { flex-shrink:0; }
+body.desk-app .desk-music__generation-content .desk-music__grid { grid-template-columns:repeat(4,minmax(0,1fr)); }
+body.desk-app .desk-music__generation-params :is(input,select,.desk-select-trigger) { height:34px; box-sizing:border-box; }
+body.desk-app .desk-music__generation-content label { min-width:0; }
+body.desk-app .desk-music__generation-inputs { margin-top:2px; }
+body.desk-app .desk-music__generation-inputs h4 { margin:0 0 8px; font-size:11px; font-weight:600; color:var(--desk-node-muted-ink); }
+body.desk-app .desk-music__generation-reference-row { display:flex; flex-wrap:wrap; align-items:flex-end; gap:8px 16px; margin-bottom:4px; }
+body.desk-app .desk-music__generation-reference-row > .desk-music__connections { min-width:0; max-width:100%; }
+body.desk-app .desk-music__generation-format { flex:none; }
+body.desk-app .desk-music__generation-format > label { flex-direction:row; align-items:center; gap:8px; white-space:nowrap; }
+body.desk-app .desk-music__generation-format :is(select,.desk-select-shell) { width:100px; }
+body.desk-app .desk-music__generation-format :is(select,.desk-select-trigger) { height:34px; box-sizing:border-box; }
+body.desk-app .desk-music__generation-inputs .desk-music__connections { background:transparent; padding:0; overflow-wrap:anywhere; }
+body.desk-app .desk-music__generation-inputs .desk-music__connections label { max-width:100%; flex-wrap:wrap; }
+body.desk-app .desk-music__generation-inputs .desk-music__connections select { flex-shrink:0; }
+body.desk-app .desk-music__generation-footer { flex:none; display:flex; justify-content:flex-end; align-items:flex-end; gap:16px; padding:4px 2px 0; }
+body.desk-app .desk-music__generation-footer .desk-music__actions { flex:none; flex-wrap:nowrap; align-items:flex-end; }
+/* Only the audio controller drives these states. No image task state is reused. */
+body.desk-app[data-theme] .desk-node .desk-music__generate[aria-busy="true"] {
+  opacity:1; cursor:progress;
+}
+/* Same suspended progress material as image nodes, with per-node music state. */
+body.desk-app .desk-music__progress { position:absolute; top:calc(100% + 2px); left:0; width:100%; }
+body.desk-app .desk-music__progress .desk-progress-float__percent { min-width:160px; font-size:13px; }
+body.desk-app .desk-music__progress.is-visible.is-indeterminate [data-progress-bar] { animation:desk-music-progress-flow 1.6s ease-in-out infinite alternate; }
+@keyframes desk-music-progress-flow { from { left:2px; } to { left:calc(70% - 2px); } }
+@media (prefers-reduced-motion:reduce) {
+    body.desk-app .desk-music__progress.is-visible.is-indeterminate [data-progress-bar] { animation:none; left:35%; }
+}

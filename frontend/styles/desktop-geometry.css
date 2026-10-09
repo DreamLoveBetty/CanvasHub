@@ -9,9 +9,23 @@ body.desk-app[data-theme] {
   --desk-shadow-soft: var(--desk-shadow-panel-soft);
 }
 
+/* Ordinary shells reserve the same frame on every side and in both themes.
+   The image-group mother owns its liquid outline and remains an exception. */
+body.desk-app[data-theme] .desk-canvas .desk-node:not(.desk-node--image-group) {
+  border-width: var(--desk-node-border-width);
+  border-style: solid;
+  border-radius: var(--desk-node-radius);
+}
+
 /* Top-level layers. Component internals continue to use local stacking contexts. */
 body.desk-app :is(.desk-rail, .desk-history, .desk-zoom-controls) {
   z-index: var(--desk-layer-node);
+}
+
+/* The taller preset menu may extend over history. Elevate only while open;
+   ordinary canvas navigation stays on the shared node layer. */
+body.desk-app .desk-zoom-controls:has(.desk-zoom-presets:not([hidden])) {
+  z-index: var(--desk-layer-chrome);
 }
 
 body.desk-app :is(
@@ -267,6 +281,37 @@ body.desk-app[data-theme] .desk-prompt-editor__image img {
   flex-basis: 18px;
 }
 
+body.desk-app[data-theme] .desk-prompt-editor__media-icon {
+  display: inline-grid;
+  width: 18px;
+  height: 18px;
+  flex-basis: 18px;
+  flex-grow: 0;
+  flex-shrink: 0;
+  place-items: center;
+  font-size: 8px;
+  border-radius: 5px;
+}
+
+body.desk-app[data-theme] .desk-prompt-editor__media--video {
+  border-style: dashed;
+}
+
+body.desk-app[data-theme] .desk-prompt-image-menu__kind {
+  position: absolute;
+  z-index: 2;
+  right: 4px;
+  bottom: 4px;
+  padding: 1px 4px;
+  font-size: 9px;
+  font-weight: 650;
+  line-height: 1.25;
+  pointer-events: none;
+  border-width: 1px;
+  border-style: solid;
+  border-radius: 999px;
+}
+
 body.desk-app[data-theme] .desk-prompt-editor__remove {
   width: 12px;
   height: 12px;
@@ -341,6 +386,21 @@ body.desk-app[data-theme] .desk-prompt-drawer.is-open .desk-prompt-image-menu bu
 }
 
 body.desk-app[data-theme] .desk-prompt-image-menu img {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  display: block;
+  width: calc(100% - 4px);
+  height: calc(100% - 4px);
+  min-width: 0;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: cover;
+  object-position: center;
+  border-radius: calc(var(--desk-radius-control) - 1px);
+}
+
+body.desk-app[data-theme] .desk-prompt-image-menu video {
   position: absolute;
   top: 2px;
   left: 2px;
@@ -1278,28 +1338,193 @@ body.desk-app[data-theme] :is(.desk-prompt-help, .desk-prompt-template__stats di
   border-radius: var(--desk-radius-surface);
 }
 
-/* Settings: increase density coherently and keep errors inspectable. */
+/* Settings owns a compact scale; do not shrink canvas/auth controls globally.
+   Geometry stays here; colors and interaction states stay in the theme adapters.
+   The settings centre is a drawer docked between the title bar and the status bar,
+   sliding in from the canvas' left edge (right of the tool rail) over the canvas —
+   the canvas is never resized. Width: --desk-settings-width, owned by
+   desktop-settings-drawer.js (560–1100px, persisted). */
 body.desk-app[data-theme] .desk-settings {
-  width: min(460px, calc(100vw - 190px));
-  min-width: 380px;
-  height: min(560px, calc(100vh - var(--desk-bottombar-clearance) - 8px));
-  max-height: min(560px, calc(100vh - var(--desk-bottombar-clearance) - 8px));
-  gap: var(--desk-space-4);
-  padding: var(--desk-space-5);
+  --desk-settings-tab-height: var(--desk-control-height-xs);
+  --desk-settings-control-height: var(--desk-control-height-xs);
+  --desk-settings-control-font: var(--desk-font-size-caption);
+  --desk-settings-label-width: 100px;
+  --desk-settings-drawer-top: 42px;
+  --desk-settings-drawer-bottom: 36px;
+  --desk-settings-drawer-left: 72px;
+  --desk-settings-nav-width: 136px;
+  --desk-settings-nav-item-height: 28px;
+  position: fixed;
+  top: var(--desk-settings-drawer-top);
+  right: auto;
+  bottom: var(--desk-settings-drawer-bottom);
+  left: var(--desk-settings-drawer-left);
+  grid-template-rows: auto minmax(0, 1fr);
+  width: var(--desk-settings-width, 760px);
+  min-width: 0;
+  max-width: calc(100vw - var(--desk-settings-drawer-left) - 24px);
+  height: auto;
+  max-height: none;
+  gap: 0;
+  padding: 0;
+  overflow: visible;
+  transform: translateX(-24px);
+  transform-origin: 0 50%;
+  transition:
+    opacity 180ms ease,
+    transform 220ms cubic-bezier(0.16, 1, 0.3, 1),
+    visibility 180ms ease;
+}
+
+body.desk-app[data-theme] .desk-settings.is-open {
+  transform: translateX(0);
+}
+
+/* A large surface over the canvas: no backdrop blur, so canvas panning never
+   re-blurs it (glass performance rule); the near-opaque paint is in the tokens. */
+body.desk-app[data-theme] .desk-settings--drawer {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+body.desk-app[data-theme] .desk-settings.is-resizing {
+  transition: none;
+  user-select: none;
+}
+
+body.desk-app[data-theme] .desk-settings__layout {
+  display: grid;
+  grid-template-columns: var(--desk-settings-nav-width) minmax(0, 1fr);
+  min-height: 0;
+  overflow: hidden;
+  border-radius: 0 0 inherit inherit;
+}
+
+body.desk-app[data-theme] .desk-settings__main {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 8px;
+  min-width: 0;
+  min-height: 0;
+  padding: var(--desk-space-3) var(--desk-space-4) var(--desk-space-4);
+}
+
+/* Cards flow in two columns once the content column is wide enough. */
+body.desk-app[data-theme] .desk-settings__main {
+  container-type: inline-size;
+  container-name: desk-settings-content;
+}
+
+@container desk-settings-content (min-width: 820px) {
+  body.desk-app[data-theme] .desk-settings__body {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+  }
+}
+
+body.desk-app[data-theme] .desk-settings__resize {
+  position: absolute;
+  top: 12px;
+  right: -5px;
+  bottom: 12px;
+  z-index: 3;
+  width: 10px;
+  border-radius: 5px;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+body.desk-app[data-theme] .desk-settings-search {
+  position: relative;
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  max-width: 420px;
+  height: 28px;
+  padding: 0 8px;
+  border-radius: var(--desk-radius-control);
+}
+
+body.desk-app[data-theme] .desk-settings-search > svg {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+}
+
+body.desk-app[data-theme] .desk-settings #deskSettingsSearchInput {
+  flex: 1 1 auto;
+  border-width: 0;
+  border-radius: 0;
+  min-width: 0;
+  height: 100%;
+  padding: 0;
+}
+
+body.desk-app[data-theme] .desk-settings-search__results {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  left: 0;
+  z-index: 6;
+  display: grid;
+  max-height: min(360px, 60vh);
+  padding: 4px;
+  overflow: auto;
+  border-radius: var(--desk-radius-control);
+}
+
+body.desk-app[data-theme] .desk-settings-search__results[hidden] {
+  display: none;
+}
+
+body.desk-app[data-theme] .desk-settings-search__option {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: baseline;
+  column-gap: 6px;
+  padding: 6px 8px;
+  border-radius: var(--desk-radius-control);
+  cursor: pointer;
+}
+
+body.desk-app[data-theme] .desk-settings-search__option strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body.desk-app[data-theme] .desk-settings-search__option small {
+  grid-column: 2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body.desk-app[data-theme] .desk-settings-search__empty {
+  padding: 8px;
+}
+
+body.desk-app[data-theme] .desk-settings-search mark {
+  border-radius: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body.desk-app[data-theme] .desk-settings {
+    transform: none;
+    transition: opacity 1ms linear, visibility 1ms linear;
+  }
 }
 
 body.desk-app[data-theme] .desk-settings :where(
-  span,
-  strong,
-  em,
-  p,
-  label,
-  dt,
-  dd,
-  button,
-  input,
-  select,
-  textarea
+  span, strong, em, p, small, label, dt, dd, button, input, select, textarea
 ) {
   font-size: var(--desk-font-size-caption);
   line-height: var(--desk-line-height-caption);
@@ -1307,36 +1532,572 @@ body.desk-app[data-theme] .desk-settings :where(
 }
 
 body.desk-app[data-theme] .desk-settings :where(button, input, select, textarea) {
-  font-size: var(--desk-font-size-label);
+  box-sizing: border-box;
+  font-family: var(--desk-font-family-sans);
+  font-size: var(--desk-settings-control-font);
+}
+
+body.desk-app[data-theme] .desk-settings__header {
+  min-height: var(--desk-settings-control-height);
+  gap: 12px;
+  padding: var(--desk-space-3) var(--desk-space-4);
+  border-bottom: 1px solid var(--desk-settings-nav-divider);
 }
 
 body.desk-app[data-theme] .desk-settings__title h2 {
-  font-size: var(--desk-font-size-panel-title);
+  font-size: 15px;
+  font-weight: var(--desk-font-weight-medium);
 }
 
 body.desk-app[data-theme] .desk-settings__version {
   font-size: var(--desk-font-size-micro);
 }
 
-body.desk-app[data-theme] .desk-settings-tabs button,
-body.desk-app[data-theme] .desk-settings-account__actions button {
-  min-height: var(--desk-control-height-sm);
-  height: auto;
-  border-radius: var(--desk-radius-surface);
+body.desk-app[data-theme] .desk-settings :is(.desk-settings-tabs, .desk-segment) {
+  gap: 2px;
+  padding: 2px;
 }
 
-/* The expanded group has two 28px rows plus its row gap and top padding.
-   Keep the animated max-height in sync with standardized control geometry. */
-body.desk-app[data-theme] .desk-settings-tabs.is-expanded .desk-settings-tabs__extra {
-  max-height: calc(var(--desk-control-height-sm) + var(--desk-control-height-sm) + 6px);
+body.desk-app[data-theme] .desk-settings .desk-segment {
+  margin-bottom: 0;
+}
+
+/* Vertical category navigation: every category visible, grouped. Scoped under
+   .desk-settings to outrank the shared tabs/segment track rule above. */
+body.desk-app[data-theme] .desk-settings .desk-settings-tabs {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+  padding: var(--desk-space-3) var(--desk-space-2);
+  overflow: auto;
+  border-width: 0 1px 0 0;
+  border-radius: 0;
+}
+
+body.desk-app[data-theme] .desk-settings-tabs__group {
+  display: grid;
+  gap: 2px;
+}
+
+body.desk-app[data-theme] .desk-settings-tabs__group-label {
+  padding: 0 var(--desk-space-2) 2px;
+  font-size: var(--desk-font-size-micro);
+  font-weight: var(--desk-font-weight-medium);
+  letter-spacing: 0.02em;
 }
 
 body.desk-app[data-theme] .desk-settings :is(
-  input:not([type="checkbox"]):not([type="radio"]),
+  .desk-segment button,
+  .desk-settings-canvas-interaction__segment button,
+  .desk-settings-form__actions button,
+  .desk-settings-account__actions button,
+  .desk-button,
+  .desk-video-runtime-mode button,
+  .desk-krea2-tools__inspection > button,
+  .desk-qwen21-tools__inspection > button,
+  .desk-krea2-tools__progress > button,
+  .desk-qwen21-tools__progress > button,
+  .desk-krea2-tools__model > button,
+  .desk-qwen21-tools__model > button
+) {
+  min-height: var(--desk-settings-control-height);
+  height: auto;
+  min-width: 0;
+  padding: var(--desk-space-1) var(--desk-space-3);
+  font-size: var(--desk-settings-control-font);
+  font-weight: var(--desk-font-weight-medium);
+  line-height: var(--desk-line-height-caption);
+  border-radius: var(--desk-radius-control);
+}
+
+/* Hierarchy comes from placement and weight, not oversized tab buttons. */
+body.desk-app[data-theme] .desk-settings-tabs button {
+  width: 100%;
+  height: var(--desk-settings-nav-item-height);
+  min-height: var(--desk-settings-nav-item-height);
+  min-width: 0;
+  padding: var(--desk-space-1) var(--desk-space-3);
+  font-size: var(--desk-settings-control-font);
+  font-weight: var(--desk-font-weight-medium);
+  line-height: var(--desk-line-height-caption);
+  text-align: left;
+  justify-content: flex-start;
+  border-radius: var(--desk-radius-control);
+}
+
+/* Inset paint supplies the track outline without adding to its height. Keep
+   the whole segment at the 24px scale, without clipping wrapped labels. */
+body.desk-app[data-theme] .desk-settings :is(
+  .desk-segment,
+  .desk-settings-canvas-interaction__segment,
+  .desk-video-runtime-mode
+) {
+  box-sizing: border-box;
+  gap: var(--desk-space-1);
+  padding: 0;
+  border-width: 0;
+  border-radius: var(--desk-radius-control);
+}
+
+body.desk-app[data-theme] .desk-settings__body {
+  gap: 6px;
+}
+
+body.desk-app[data-theme] .desk-settings-card {
+  gap: var(--desk-space-3);
+  padding: var(--desk-space-4);
+}
+
+body.desk-app[data-theme] .desk-settings-card h3 {
+  font-size: var(--desk-font-size-caption);
+  line-height: var(--desk-line-height-caption);
+  font-weight: var(--desk-font-weight-medium);
+}
+
+body.desk-app[data-theme] .desk-settings .desk-settings-form {
+  gap: var(--desk-space-2) var(--desk-space-3);
+}
+
+/* Include fields in nested runtime/supervisor sections, not just direct form
+   children. Textareas and file pickers keep their full-width stacked layout. */
+body.desk-app[data-theme] .desk-settings .desk-settings-form :is(
+  label:has(> input:not([type="file"]):not([type="hidden"]), > select, > .desk-select-shell),
+  .desk-settings-secret-field:has(> input)
+) {
+  grid-template-columns: var(--desk-settings-label-width) minmax(0, 1fr);
+  align-items: center;
+  column-gap: var(--desk-space-3);
+  min-height: var(--desk-settings-control-height);
+}
+
+/* A separate trailing command keeps clear actions out of narrow label columns.
+   The existing DOM, keyboard order and secret-clear confirmation are intact. */
+body.desk-app[data-theme] .desk-settings .desk-settings-secret-field:has(> input) {
+  position: relative;
+  padding-inline-end: 0;
+}
+
+body.desk-app[data-theme] .desk-settings .desk-settings-secret-field:has(> input):has(.desk-settings-secret-clear) {
+  padding-inline-end: 42px;
+}
+
+body.desk-app[data-theme] .desk-settings .desk-settings-secret-field:has(> input) .desk-settings-secret-clear {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-end: 0;
+  width: 36px;
+  height: var(--desk-settings-control-height);
+  margin-block: auto;
+}
+
+/* Async feedback text is longer than “清除”; reserve its space as well. */
+body.desk-app[data-theme] .desk-settings .desk-settings-secret-field:has(> input):has(
+  .desk-settings-secret-clear:is(.is-loading, .is-done)
+) {
+  padding-inline-end: 70px;
+}
+
+body.desk-app[data-theme] .desk-settings .desk-settings-secret-field:has(> input) .desk-settings-secret-clear:is(.is-loading, .is-done) {
+  width: 64px;
+}
+
+body.desk-app[data-theme] .desk-settings-secret-field__label {
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+body.desk-app[data-theme] .desk-settings .desk-settings-form :is(label > span, .desk-settings-secret-field__label > span) {
+  font-weight: 500;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+body.desk-app[data-theme] .desk-settings-canvas-interaction__label {
+  font-weight: 500;
+}
+
+body.desk-app[data-theme] .desk-settings :is(
+  input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not([type="file"]),
   select,
   .desk-select-trigger
 ) {
-  min-height: var(--desk-control-height-md);
+  min-height: var(--desk-settings-control-height);
+  height: var(--desk-settings-control-height);
+  min-width: 0;
+  max-width: 100%;
+  padding: 0 var(--desk-space-3);
+  font-size: var(--desk-settings-control-font);
+  font-weight: var(--desk-font-weight-regular);
+  border-width: 1px;
+  border-style: solid;
+  border-radius: var(--desk-radius-control);
+}
+
+/* Multi-line fields keep their own height and vertical resize affordance. */
+body.desk-app[data-theme] .desk-settings textarea {
+  width: 100%;
+  min-width: 0;
+  min-height: calc(var(--desk-control-height-xs) * 2);
+  padding: var(--desk-space-3) var(--desk-space-4);
+  font-size: var(--desk-settings-control-font);
+  font-weight: var(--desk-font-weight-regular);
+  line-height: var(--desk-line-height-normal);
+  border-width: 1px;
+  border-style: solid;
+  border-radius: var(--desk-radius-control);
+  resize: vertical;
+}
+
+body.desk-app[data-theme] .desk-settings input[type="file"] {
+  width: 100%;
+  min-width: 0;
+  font-size: var(--desk-settings-control-font);
+}
+
+body.desk-app[data-theme] .desk-settings input[type="file"]::file-selector-button {
+  min-height: var(--desk-settings-control-height);
+  margin-right: var(--desk-space-4);
+  padding: var(--desk-space-2) var(--desk-space-4);
+  border-radius: var(--desk-radius-control);
+  font: inherit;
+  border-width: 1px;
+  border-style: solid;
+  cursor: pointer;
+}
+
+body.desk-app[data-theme] .desk-settings :is(
+  .desk-krea2-tools__inspection,
+  .desk-qwen21-tools__inspection,
+  .desk-krea2-tools__progress,
+  .desk-qwen21-tools__progress,
+  .desk-krea2-tools__model,
+  .desk-qwen21-tools__model
+) > button {
+  border-width: 1px;
+  border-style: solid;
+}
+
+body.desk-app[data-theme] .desk-settings .desk-select-value {
+  font-size: var(--desk-settings-control-font);
+  font-weight: inherit;
+}
+
+body.desk-app[data-theme] .desk-settings .desk-select-chev {
+  width: 7px;
+  height: 7px;
+  margin-right: 2px;
+}
+
+body.desk-app[data-theme] .desk-settings .desk-settings-form input[type="checkbox"] {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+}
+
+body.desk-app[data-theme] .desk-settings-secret-clear {
+  min-height: var(--desk-control-height-xs);
+  height: auto;
+  padding: 2px 5px;
+  font-size: var(--desk-settings-control-font);
+  font-weight: var(--desk-font-weight-medium);
+  line-height: var(--desk-line-height-caption);
+  border-radius: var(--desk-radius-control);
+  white-space: nowrap;
+}
+
+body.desk-app[data-theme] .desk-settings .desk-settings-form__actions {
+  gap: 4px;
+  margin-top: 0;
+}
+
+body.desk-app[data-theme] .desk-settings :is(.desk-settings-form__hint, .desk-settings-form__activity) {
+  font-size: var(--desk-font-size-caption);
+  line-height: var(--desk-line-height-normal);
+  font-weight: var(--desk-font-weight-regular);
+}
+
+/* Model tools also render bare text in inspection containers. Normalize that
+   root, not only named text tags, and keep long guidance below field labels. */
+body.desk-app[data-theme] .desk-settings :is(
+  .desk-krea2-tools__inspection,
+  .desk-qwen21-tools__inspection,
+  .desk-krea2-tools__progress,
+  .desk-qwen21-tools__progress
+) {
+  font-size: var(--desk-font-size-caption);
+  line-height: var(--desk-line-height-normal);
+  font-weight: var(--desk-font-weight-regular);
+}
+
+body.desk-app[data-theme] .desk-settings :is(
+  .desk-krea2-tools__card,
+  .desk-qwen21-tools__card
+) .desk-settings-form__hint {
+  font-size: var(--desk-font-size-caption);
+  line-height: var(--desk-line-height-normal);
+  font-weight: var(--desk-font-weight-regular);
+  overflow-wrap: anywhere;
+}
+
+body.desk-app[data-theme] .desk-settings :is(
+  .desk-krea2-tools__inspection,
+  .desk-qwen21-tools__inspection
+) {
+  gap: var(--desk-space-2);
+  padding: var(--desk-space-3) var(--desk-space-4);
+  border-radius: var(--desk-radius-control);
+  overflow-wrap: anywhere;
+}
+
+body.desk-app[data-theme] .desk-settings :is(
+  .desk-krea2-tools__inspection,
+  .desk-qwen21-tools__inspection
+) :where(strong, span, p, small) {
+  font-size: inherit;
+  line-height: inherit;
+}
+
+body.desk-app[data-theme] .desk-settings :is(
+  .desk-krea2-tools__inspection,
+  .desk-qwen21-tools__inspection
+) strong {
+  font-weight: var(--desk-font-weight-medium);
+}
+
+body.desk-app[data-theme] .desk-settings :is(
+  .desk-krea2-tools__inspection,
+  .desk-qwen21-tools__inspection
+) span {
+  font-weight: var(--desk-font-weight-regular);
+}
+
+/* Subsections use alignment and dividers rather than another padded card. */
+body.desk-app[data-theme] .desk-settings .desk-settings-canvas-interaction {
+  grid-template-columns: minmax(0, 1fr) 112px;
+  min-height: 0;
+  gap: var(--desk-space-2) var(--desk-space-4);
+  padding: 0;
+  border-width: 0;
+}
+
+body.desk-app[data-theme] .desk-settings .desk-settings-canvas-interaction__segment {
+  width: 112px;
+}
+
+body.desk-app[data-theme] .desk-settings :is(.desk-video-runtime-panel, .desk-video-supervisor) {
+  gap: var(--desk-space-2);
+  padding: var(--desk-space-3) 0 0;
+  border-width: 1px 0 0;
+  border-style: solid;
+  border-radius: 0;
+}
+
+body.desk-app[data-theme] .desk-settings .desk-settings-form__section-title {
+  gap: var(--desk-space-1);
+  padding-top: 0;
+}
+
+body.desk-app[data-theme] .desk-settings :is(.desk-video-runtime-status, .desk-video-supervisor-status) {
+  gap: var(--desk-space-3);
+  padding: var(--desk-space-2) var(--desk-space-3);
+  border-width: 0;
+  border-radius: var(--desk-radius-control);
+}
+
+body.desk-app[data-theme] .desk-settings .desk-video-supervisor-status {
+  grid-template-columns: 6px minmax(0, 1fr) auto;
+}
+
+body.desk-app[data-theme] .desk-settings .desk-video-supervisor-status__actions {
+  grid-column: 3;
+  grid-row: 1;
+}
+
+body.desk-app[data-theme] .desk-settings :is(.desk-video-runtime-status > span, .desk-video-supervisor-status__dot) {
+  width: 6px;
+  height: 6px;
+}
+
+body.desk-app[data-theme] .desk-settings .desk-settings__body strong {
+  font-weight: var(--desk-font-weight-medium);
+}
+
+body.desk-app[data-theme] .desk-settings .desk-settings__body :is(
+  p, small, em,
+  .desk-settings-form__section-title span,
+  .desk-settings-account__meta,
+  .desk-settings-account__error,
+  .desk-krea2-tools__paths span,
+  .desk-qwen21-tools__paths span,
+  .desk-krea2-tools__model span,
+  .desk-qwen21-tools__model span
+) {
+  font-weight: var(--desk-font-weight-regular);
+}
+
+body.desk-app[data-theme] .desk-settings :is(.desk-krea2-tools__form, .desk-qwen21-tools__form) {
+  gap: var(--desk-space-3);
+  margin-top: 0;
+}
+
+body.desk-app[data-theme] .desk-settings :is(.desk-krea2-tools__form, .desk-qwen21-tools__form) label {
+  gap: var(--desk-space-1);
+}
+
+body.desk-app[data-theme] .desk-settings :is(.desk-krea2-tools__form, .desk-qwen21-tools__form) label > span {
+  font-weight: 500;
+}
+
+/* Full-width source/decoder rows can align; half-width conversion options
+   keep stacked labels so long model names still have room to display. */
+body.desk-app[data-theme] .desk-settings :is(.desk-krea2-tools__form, .desk-qwen21-tools__form) label:is(
+  .desk-krea2-tools__wide, .desk-qwen21-tools__wide
+) {
+  grid-template-columns: var(--desk-settings-label-width) minmax(0, 1fr);
+  align-items: center;
+  column-gap: var(--desk-space-3);
+}
+
+body.desk-app[data-theme] .desk-settings :is(.desk-krea2-tools__paths, .desk-qwen21-tools__paths) > div {
+  gap: var(--desk-space-1);
+  padding: var(--desk-space-2) var(--desk-space-3);
+  border-width: 0;
+  border-radius: var(--desk-radius-control);
+}
+
+body.desk-app[data-theme] .desk-settings :is(.desk-krea2-tools__model, .desk-qwen21-tools__model) {
+  gap: var(--desk-space-3);
+  padding: var(--desk-space-3) var(--desk-space-4);
+  border-radius: var(--desk-radius-control);
+}
+
+body.desk-app[data-theme] .desk-settings :is(.desk-krea2-tools__inspection, .desk-qwen21-tools__inspection).is-empty {
+  padding: 0;
+  border-width: 0;
+}
+
+body.desk-app[data-theme] .desk-settings .desk-settings-details {
+  border-width: 1px 0 0;
+  border-radius: 0;
+}
+
+body.desk-app[data-theme] .desk-settings .desk-settings-details + .desk-settings-details {
+  margin-top: var(--desk-space-1);
+}
+
+body.desk-app[data-theme] .desk-settings .desk-settings-form--compact {
+  padding: var(--desk-space-1) 0 var(--desk-space-3);
+}
+
+body.desk-app[data-theme] .desk-settings .desk-settings-pool-toolbar {
+  padding: 0;
+  border-width: 0;
+}
+
+/* The settings-only LoRA key field is not a legacy settings-form descendant.
+   Give it a full row rather than squeezing it beside differently sized actions. */
+body.desk-app[data-theme] .desk-settings .desk-lora-settings .desk-lora-actions {
+  justify-content: flex-end;
+  gap: var(--desk-space-3);
+  margin: var(--desk-space-3) 0;
+}
+
+body.desk-app[data-theme] .desk-settings .desk-lora-settings .desk-lora-actions input {
+  flex: 1 1 100%;
+  width: 100%;
+  min-width: 0;
+}
+
+/* Contextual Settings help must not inherit a tooltip header's min-content
+   width. Long subtitles otherwise enlarge the implicit grid and get clipped. */
+body.desk-app[data-theme] .desk-settings-info-tip {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+body.desk-app[data-theme] .desk-settings-info-tip :is(
+  .desk-status-tip__head,
+  .desk-status-tip__summary,
+  .desk-settings-info-tip__content
+) {
+  min-width: 0;
+}
+
+body.desk-app[data-theme] .desk-settings-info-tip .desk-status-tip__head > div {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+body.desk-app[data-theme] .desk-settings-info-tip .desk-status-tip__head span {
+  max-width: 100%;
+}
+
+body.desk-app[data-theme] .desk-settings-info-tip .desk-status-tip__head button {
+  flex: 0 0 auto;
+  min-width: var(--desk-control-height-xs);
+  width: var(--desk-control-height-xs);
+  min-height: var(--desk-control-height-xs);
+  height: var(--desk-control-height-xs);
+}
+
+body.desk-app[data-theme] .desk-settings-info-tip__section li {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 720px) {
+  body.desk-app[data-theme] .desk-settings :is(.desk-krea2-tools__form, .desk-qwen21-tools__form) label {
+    grid-template-columns: var(--desk-settings-label-width) minmax(0, 1fr);
+    align-items: center;
+    column-gap: var(--desk-space-3);
+  }
+}
+
+@media (max-width: 560px) {
+  body.desk-app[data-theme] .desk-settings .desk-video-supervisor-status {
+    grid-template-columns: 6px minmax(0, 1fr);
+  }
+
+  body.desk-app[data-theme] .desk-settings .desk-video-supervisor-status__actions {
+    grid-column: 2;
+    grid-row: auto;
+    flex-wrap: wrap;
+  }
+
+  body.desk-app[data-theme] .desk-settings-account {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  body.desk-app[data-theme] .desk-settings-account__actions {
+    grid-column: 1;
+    grid-row: auto;
+    flex-wrap: wrap;
+  }
+
+  body.desk-app[data-theme] .desk-settings :is(.desk-krea2-tools__form, .desk-qwen21-tools__form) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+body.desk-app[data-theme] .desk-settings-pool-summary {
+  gap: 4px;
+}
+
+body.desk-app[data-theme] .desk-settings-pool-summary span {
+  min-height: 20px;
+  padding: 1px 6px;
+  font-size: 10px;
+  font-weight: var(--desk-font-weight-medium);
+}
+
+body.desk-app[data-theme] .desk-settings-details summary {
+  min-height: var(--desk-settings-control-height);
+  gap: 6px;
+  padding: var(--desk-space-1) 0;
+}
+
+body.desk-app[data-theme] .desk-settings-details summary em {
+  font-size: 10px;
 }
 
 body.desk-app[data-theme] .desk-settings-account__error {
@@ -1513,10 +2274,4 @@ body.desk-app .desk-canvas-world[data-zoom-tier="overview"] :is(
     width: 100%;
   }
 
-  body.desk-app[data-theme] .desk-settings {
-    right: 8px;
-    left: 8px;
-    width: auto;
-    min-width: 0;
-  }
 }

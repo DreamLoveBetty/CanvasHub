@@ -5,26 +5,40 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="canvashub-version" content="V26.2.2">
   <title>图像画布</title>
-  <link rel="stylesheet" href="styles/desktop-tokens.css?v=20260901-agent-task-shelve1">
-  <link rel="stylesheet" href="styles/desktop-liquid.css?v=20260831-status-silk2">
+  <link rel="stylesheet" href="styles/desktop-tokens.css?v=20261009-settings-drawer2">
+  <link rel="stylesheet" href="styles/desktop-liquid.css?v=20261009-settings-drawer2">
   <link rel="stylesheet" href="styles/desktop-video.css?v=20260816-h3-supervisor-buttons1">
-  <link rel="stylesheet" href="styles/desktop-layout.css?v=20260831-status-silk2">
+  <link rel="stylesheet" href="styles/desktop-layout.css?v=20260914-google-pool-compact1">
   <link rel="stylesheet" href="styles/desktop-pose.css?v=20260831-status-silk2">
   <link rel="stylesheet" href="styles/desktop-file-results.css?v=20260831-status-silk2">
   <link rel="stylesheet" href="styles/desktop-prompt-library.css?v=20260831-status-silk2">
-  <link rel="stylesheet" href="styles/desktop-shell.css?v=20260831-status-silk2">
-  <link rel="stylesheet" href="styles/desktop-canvas-nodes.css?v=20260831-status-silk2">
-  <link rel="stylesheet" href="styles/desktop-image-group.css?v=20260825-image-group-module3">
-  <link rel="stylesheet" href="styles/desktop-prompt-assistant.css?v=20260902-agent-task-actions1">
+  <link rel="stylesheet" href="styles/desktop-shell.css?v=20261006-node-palette-frost1">
+  <link rel="stylesheet" href="styles/desktop-canvas-nodes.css?v=20261007-connection-arc1">
+  <link rel="stylesheet" href="styles/desktop-image-group.css?v=20261004-node-selection-frames1">
+  <link rel="stylesheet" href="styles/desktop-prompt-assistant.css?v=20260929-prompt-video1">
   <link rel="stylesheet" href="styles/desktop-gallery.css?v=20260827-style-cleanup1">
-  <link rel="stylesheet" href="styles/desktop-settings-auth.css?v=20260827-style-cleanup1">
+  <link rel="stylesheet" href="styles/desktop-settings-auth.css?v=20261009-settings-drawer2">
   <link rel="stylesheet" href="styles/desktop-creation-tools.css?v=20260831-status-silk2">
-  <link rel="stylesheet" href="styles/desktop-controls.css?v=20260831-blue-silk1">
-  <link rel="stylesheet" href="styles/desktop-geometry.css?v=20260902-agent-task-actions1">
-  <link rel="stylesheet" href="styles/desktop-motion.css?v=20260902-agent-task-actions1">
-  <link rel="stylesheet" href="styles/desktop-performance.css?v=20260825-canvas-performance1">
+  <link rel="stylesheet" href="styles/desktop-controls.css?v=20261009-settings-drawer2">
+  <link rel="stylesheet" href="styles/desktop-geometry.css?v=20261009-settings-drawer2">
+  <link rel="stylesheet" href="styles/desktop-motion.css?v=20261004-state-icons1">
+  <link rel="stylesheet" href="styles/desktop-video-control.css?v=20261004-state-icons1">
+  <link rel="stylesheet" href="styles/desktop-topaz-video.css?v=20261005-topaz-pipeline1">
+  <link rel="stylesheet" href="styles/desktop-topaz-video-workbench.css?v=20261006-topaz-panel-polish2">
+  <link rel="stylesheet" href="styles/desktop-music.css?v=20261004-state-icons1">
+  <link rel="stylesheet" href="styles/desktop-audio.css?v=20261004-node-surfaces1">
+  <link rel="stylesheet" href="styles/desktop-performance.css?v=20261006-canvas-grid-isolation1">
+  <link rel="stylesheet" href="styles/desktop-topaz.css?v=20261009-generation-action-unify1">
+  <link rel="stylesheet" href="styles/desktop-cyimg.css?v=20261009-generation-action-unify1">
+  <link rel="stylesheet" href="styles/desktop-krea2.css?v=20261003-auto-image-mode1">
+  <link rel="stylesheet" href="styles/desktop-lora.css?v=20261003-lora-quick-add1">
+  <link rel="stylesheet" href="styles/desktop-qwen21.css?v=20261003-auto-image-mode1">
+  <link rel="stylesheet" href="styles/desktop-compare.css?v=20260922-compare-zoom2">
+  <link rel="stylesheet" href="styles/desktop-progress.css?v=20261007-node-progress4">
+  <link rel="stylesheet" href="styles/desktop-ambient-controls.css?v=20261009-control-material2">
+  <link rel="stylesheet" href="styles/desktop-control-material.css?v=20261009-control-material3">
 </head>
-<body class="desk-app" data-theme="light" data-app-version="V26.2.2">
+<body id="deskApp" class="desk-app" data-theme="light" data-app-version="V26.2.2">
   <script>
     (() => {
       let theme = 'light';
@@ -376,7 +390,7 @@
         </button>
       </div>
       <div class="desk-zoom-controls desk-glass" aria-label="画布导航">
-        <div class="desk-minimap" id="deskMiniMap" aria-hidden="true">
+        <div class="desk-minimap" id="deskMiniMap" role="group" tabindex="-1" aria-hidden="true" aria-label="小地图：点击或拖动定位，方向键移动视界" title="小地图：点击或拖动定位，方向键移动视界">
           <div class="desk-minimap__world" id="deskMiniMapWorld"></div>
           <div class="desk-minimap__viewport" id="deskMiniMapViewport"></div>
         </div>
@@ -392,6 +406,8 @@
           </button>
         </div>
         <div class="desk-zoom-presets" id="deskZoomPresetMenu" role="menu" aria-label="固定缩放比" hidden>
+          <button type="button" role="menuitemradio" aria-checked="false" data-zoom-preset="0.1">10%</button>
+          <button type="button" role="menuitemradio" aria-checked="false" data-zoom-preset="0.2">20%</button>
           <button type="button" role="menuitemradio" aria-checked="false" data-zoom-preset="0.3">30%</button>
           <button type="button" role="menuitemradio" aria-checked="false" data-zoom-preset="0.5">50%</button>
           <button type="button" role="menuitemradio" aria-checked="false" data-zoom-preset="0.75">75%</button>
@@ -444,6 +460,13 @@
               <option>1k</option>
               <option selected>2k</option>
               <option>4k</option>
+            </select>
+          </label>
+          <label data-provider-param="google" hidden>
+            <span>线路</span>
+            <select class="desk-select" data-field="googleProviderRoute">
+              <option value="third_party">第三方 API</option>
+              <option value="google_pool">Google OAuth</option>
             </select>
           </label>
           <label data-provider-param="google" hidden>
@@ -570,10 +593,11 @@
           </div>
           <button type="button" class="desk-button desk-button--primary desk-manual-send" id="deskSendOriginalBtn" data-send-original disabled>手动发送</button>
           <div class="desk-action-row">
-            <button type="button" class="desk-button desk-button--generate" data-result-run id="deskNodeGenerateBtn" title="生成" aria-label="生成">
+            <button type="button" class="desk-generation-action" data-result-run id="deskNodeGenerateBtn" title="开始生成" aria-label="开始生成">
               <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M13 3 5 14h6l-1 7 8-11h-6l1-7Z"></path>
+                <path d="m13.5 2-9 12h6l-1 8 10-13h-7z"></path>
               </svg>
+              <span class="desk-generation-action__label">开始生成</span>
             </button>
           </div>
         </div>
@@ -646,13 +670,18 @@
         </div>
       </div>
       <div class="desk-gallery__toolbar">
-        <div class="desk-gallery-tabs" role="tablist" aria-label="资产库视图">
-          <button type="button" id="deskGalleryTabImages" class="is-active" role="tab" aria-selected="true" aria-controls="deskGalleryGrid" data-gallery-view="images">图片</button>
-          <button type="button" id="deskGalleryTabVideos" role="tab" aria-selected="false" aria-controls="deskGalleryGrid" tabindex="-1" data-gallery-view="videos">视频</button>
-          <button type="button" id="deskGalleryTabFiles" role="tab" aria-selected="false" aria-controls="deskGalleryGrid" tabindex="-1" data-gallery-view="files">文件</button>
-          <button type="button" id="deskGalleryTabPinterest" role="tab" aria-selected="false" aria-controls="deskGalleryGrid" tabindex="-1" data-gallery-view="pinterest">Pinterest</button>
-          <button type="button" id="deskGalleryTabSources" role="tab" aria-selected="false" aria-controls="deskGalleryGrid" tabindex="-1" data-gallery-view="sources">远程源</button>
-          <button type="button" id="deskGalleryTabSets" role="tab" aria-selected="false" aria-controls="deskGalleryGrid" tabindex="-1" data-gallery-view="sets">候选集</button>
+        <div class="desk-gallery-tab-groups" role="tablist" aria-label="资产库视图">
+          <div class="desk-gallery-tabs" role="group" aria-label="产出资产">
+            <button type="button" id="deskGalleryTabImages" class="is-active" role="tab" aria-selected="true" aria-controls="deskGalleryGrid" data-gallery-view="images">图片</button>
+            <button type="button" id="deskGalleryTabVideos" role="tab" aria-selected="false" aria-controls="deskGalleryGrid" tabindex="-1" data-gallery-view="videos">视频</button>
+            <button type="button" id="deskGalleryTabFiles" role="tab" aria-selected="false" aria-controls="deskGalleryGrid" tabindex="-1" data-gallery-view="files">文件</button>
+            <button type="button" id="deskGalleryTabPinterest" role="tab" aria-selected="false" aria-controls="deskGalleryGrid" tabindex="-1" data-gallery-view="pinterest">Pinterest</button>
+            <button type="button" id="deskGalleryTabSources" role="tab" aria-selected="false" aria-controls="deskGalleryGrid" tabindex="-1" data-gallery-view="sources">远程源</button>
+            <button type="button" id="deskGalleryTabSets" role="tab" aria-selected="false" aria-controls="deskGalleryGrid" tabindex="-1" data-gallery-view="sets">候选集</button>
+          </div>
+          <div class="desk-gallery-tabs desk-gallery-tabs--models" role="group" aria-label="模型资产">
+            <button type="button" id="deskGalleryTabLoras" role="tab" aria-selected="false" aria-controls="deskGalleryGrid" tabindex="-1" data-gallery-view="loras">LoRA</button>
+          </div>
         </div>
         <div class="desk-gallery-video-source" id="deskGalleryVideoSource" role="group" aria-label="视频来源" hidden>
           <button type="button" class="is-active" data-gallery-video-source="generated" aria-pressed="true">
@@ -682,7 +711,7 @@
           <option value="layout">排版导出</option>
           <option value="linked">有任务记录</option>
           <option value="orphan">仅归档文件</option>
-          <option value="missing_history">记录缺图</option>
+          <option value="missing_history">未归档记录</option>
           <option value="landscape">横图</option>
           <option value="portrait">竖图</option>
           <option value="square">方图</option>
@@ -870,18 +899,23 @@
       </div>
       <footer class="desk-prompt-library__statusbar" aria-label="快捷输入说明">
         <div class="desk-prompt-library__syntax">
-          <span><kbd>@</kbd> 引用画布节点或图片</span>
+          <span><kbd>@</kbd> 引用画布图片或视频</span>
           <span><kbd>/</kbd> 插入提示词素材块</span>
           <span><kbd>#</kbd> 浏览与插入色彩方案</span>
         </div>
       </footer>
     </section>
 
-    <section class="desk-settings desk-glass" id="deskSettingsPanel" aria-label="设置中心" aria-hidden="true">
+    <section class="desk-settings desk-settings--drawer" id="deskSettingsPanel" role="dialog" aria-modal="false" aria-label="设置中心" aria-hidden="true">
       <div class="desk-settings__header">
         <div class="desk-settings__title">
           <h2>设置中心</h2>
           <span class="desk-settings__version" aria-label="版本 V26.2.2">V26.2.2</span>
+        </div>
+        <div class="desk-settings-search" role="search">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"></circle><path d="m16 16 4 4"></path></svg>
+          <input type="search" id="deskSettingsSearchInput" class="desk-settings-search__input" placeholder="搜索设置：卡片或字段名" aria-label="搜索设置" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="deskSettingsSearchResults" autocomplete="off" spellcheck="false">
+          <div class="desk-settings-search__results" id="deskSettingsSearchResults" role="listbox" aria-label="设置搜索结果" hidden></div>
         </div>
         <div class="desk-settings__actions">
           <button type="button" id="deskSettingsInfoBtn" class="desk-settings-info-trigger" title="查看当前页说明" aria-label="查看当前页说明" aria-haspopup="dialog" aria-expanded="false" aria-controls="deskSettingsInfoTip" hidden>
@@ -895,31 +929,42 @@
           </button>
         </div>
       </div>
-      <div class="desk-settings-tabs" id="deskSettingsTabs" role="tablist" aria-label="设置分类">
-        <div class="desk-settings-tabs__primary">
-          <button type="button" class="is-active" data-settings-tab="status">状态</button>
-          <button type="button" data-settings-tab="system">系统</button>
-          <button type="button" data-settings-tab="telegram">Telegram</button>
-          <button type="button" data-settings-tab="provider">Provider</button>
-          <button type="button" class="desk-settings-tabs__toggle" id="deskSettingsTabsToggle" aria-label="展开更多设置分类" aria-expanded="false" aria-controls="deskSettingsExtraTabs">
-            <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m6 8 4 4 4-4"></path></svg>
-          </button>
+      <div class="desk-settings__layout">
+        <nav class="desk-settings-tabs" id="deskSettingsTabs" role="tablist" aria-orientation="vertical" aria-label="设置分类">
+          <div class="desk-settings-tabs__group" data-settings-group="常用">
+            <span class="desk-settings-tabs__group-label" aria-hidden="true">常用</span>
+            <button type="button" class="is-active" role="tab" aria-controls="deskSettingsBody" data-settings-tab="status">状态</button>
+            <button type="button" role="tab" aria-controls="deskSettingsBody" data-settings-tab="system">系统</button>
+          </div>
+          <div class="desk-settings-tabs__group" data-settings-group="生成线路">
+            <span class="desk-settings-tabs__group-label" aria-hidden="true">生成线路</span>
+            <button type="button" role="tab" aria-controls="deskSettingsBody" data-settings-tab="provider">Provider</button>
+            <button type="button" role="tab" aria-controls="deskSettingsBody" data-settings-tab="third-party">第三方</button>
+            <button type="button" role="tab" aria-controls="deskSettingsBody" data-settings-tab="chatgpt-pool">账号池</button>
+            <button type="button" role="tab" aria-controls="deskSettingsBody" data-settings-tab="telegram">Telegram</button>
+          </div>
+          <div class="desk-settings-tabs__group" data-settings-group="本地模型">
+            <span class="desk-settings-tabs__group-label" aria-hidden="true">本地模型</span>
+            <button type="button" role="tab" aria-controls="deskSettingsBody" data-settings-tab="model-tools">模型工具</button>
+            <button type="button" role="tab" aria-controls="deskSettingsBody" data-settings-tab="comfy">ComfyUI</button>
+            <button type="button" role="tab" aria-controls="deskSettingsBody" data-settings-tab="video-inference">视频推理</button>
+          </div>
+          <div class="desk-settings-tabs__group" data-settings-group="其它">
+            <span class="desk-settings-tabs__group-label" aria-hidden="true">其它</span>
+            <button type="button" role="tab" aria-controls="deskSettingsBody" data-settings-tab="prompt">润色</button>
+            <button type="button" role="tab" aria-controls="deskSettingsBody" data-settings-tab="paths">路径</button>
+          </div>
+        </nav>
+        <div class="desk-settings__main">
+          <div class="desk-settings__summary" id="deskSettingsSummary">
+            <span>等待诊断</span>
+          </div>
+          <div class="desk-settings__body" id="deskSettingsBody">
+            <div class="desk-settings-empty">打开后会读取当前服务状态。</div>
+          </div>
         </div>
-        <div class="desk-settings-tabs__extra" id="deskSettingsExtraTabs" aria-hidden="true">
-          <button type="button" data-settings-tab="third-party">第三方</button>
-          <button type="button" data-settings-tab="chatgpt-pool">账号池</button>
-          <button type="button" data-settings-tab="prompt">润色</button>
-          <button type="button" data-settings-tab="paths">路径</button>
-          <button type="button" data-settings-tab="comfy">ComfyUI</button>
-          <button type="button" data-settings-tab="video-inference">视频推理</button>
-        </div>
       </div>
-      <div class="desk-settings__summary" id="deskSettingsSummary">
-        <span>等待诊断</span>
-      </div>
-      <div class="desk-settings__body" id="deskSettingsBody">
-        <div class="desk-settings-empty">打开后会读取当前服务状态。</div>
-      </div>
+      <div class="desk-settings__resize" id="deskSettingsResize" role="separator" aria-orientation="vertical" aria-label="调整设置中心宽度（方向键调整，双击恢复默认）" tabindex="0"></div>
     </section>
     <section class="desk-status-tip desk-settings-info-tip" id="deskSettingsInfoTip" role="dialog" aria-label="设置页说明" hidden>
       <header class="desk-status-tip__head">
@@ -1081,15 +1126,23 @@
           </div>
         </div>
         <div class="desk-compare__body">
-          <div class="desk-compare__stage" id="deskCompareStage">
-            <img id="deskCompareBaseImg" alt="对比图片 A">
+          <div class="desk-compare__stage" id="deskCompareStage" tabindex="0" role="region" aria-label="图片细节对比：滚轮缩放，放大后拖动图片，拖动分界线对比">
+            <img id="deskCompareBaseImg" alt="对比图片 B">
             <div class="desk-compare__overlay" id="deskCompareOverlay">
-              <img id="deskCompareTopImg" alt="对比图片 B">
+              <img id="deskCompareTopImg" alt="对比图片 A">
             </div>
             <span class="desk-compare__label desk-compare__label--left" id="deskCompareLeftLabel">A</span>
             <span class="desk-compare__label desk-compare__label--right" id="deskCompareRightLabel">B</span>
             <span class="desk-compare__divider" id="deskCompareDivider"></span>
             <input id="deskCompareRange" type="range" min="0" max="100" value="50" step="0.1" aria-label="对比滑杆">
+            <div class="desk-compare__tools" data-compare-tools role="group" aria-label="对比图片缩放">
+              <button type="button" data-compare-zoom="out" aria-label="缩小对比图片" title="缩小（−）">−</button>
+              <output data-compare-zoom-value aria-label="相对适应画面的放大倍数">1×</output>
+              <button type="button" data-compare-zoom="in" aria-label="放大对比图片" title="放大（+）">+</button>
+              <button type="button" data-compare-zoom="fit" title="适应画面（0）">适应</button>
+              <button type="button" data-compare-zoom="pixel" title="按图片 A 原始像素查看，两图保持同步（1）">1:1</button>
+              <span class="desk-compare__hint">滚轮缩放 · 拖动看细节</span>
+            </div>
           </div>
           <aside class="desk-compare__info" aria-label="对比差异">
             <section class="desk-compare__section">
@@ -1159,13 +1212,13 @@
                   </svg>
                   <span class="desk-prompt-task-mode__label" aria-hidden="true">普通会话</span>
                 </button>
-                <button type="button" data-prompt-task-mode="image_analysis" role="radio" aria-label="图片分析" aria-checked="false">
+                <button type="button" data-prompt-task-mode="image_analysis" role="radio" aria-label="媒体分析" aria-checked="false">
                   <svg class="desk-prompt-task-mode__icon" viewBox="0 0 24 24" aria-hidden="true">
                     <rect x="3.5" y="4.5" width="17" height="15" rx="2.5"></rect>
                     <circle cx="9" cy="10" r="1.7"></circle>
                     <path d="m5.5 17 4.2-4.2 3.1 3.1 2.2-2.2 3.5 3.3"></path>
                   </svg>
-                  <span class="desk-prompt-task-mode__label" aria-hidden="true">图片分析</span>
+                  <span class="desk-prompt-task-mode__label" aria-hidden="true">媒体分析</span>
                 </button>
                 <button type="button" data-prompt-task-mode="video_prompt" role="radio" aria-label="视频提示" aria-checked="false">
                   <svg class="desk-prompt-task-mode__icon" viewBox="0 0 24 24" aria-hidden="true">
@@ -1182,7 +1235,7 @@
             <div class="desk-prompt-chat__messages" id="deskPromptChatMessages"></div>
             <div class="desk-prompt-chat__input">
               <div class="desk-prompt-chat__textwrap" id="deskPromptChatTextWrap">
-                <div id="deskPromptChatInput" class="desk-prompt-editor" contenteditable="true" role="textbox" aria-multiline="true" data-placeholder="输入讨论内容，或输入 @ 选择画布图片节点。"></div>
+                <div id="deskPromptChatInput" class="desk-prompt-editor" contenteditable="true" role="textbox" aria-multiline="true" data-placeholder="输入讨论内容，或输入 @ 选择画布图片/视频节点。"></div>
                 <div class="desk-prompt-image-menu" id="deskPromptImageMenu" hidden></div>
               </div>
               <div class="desk-prompt-chat__actions">
@@ -1245,7 +1298,7 @@
             </header>
             <div class="desk-agent-goal-body">
               <div class="desk-agent-goal-editor-wrap" id="deskAgentGoalWrap">
-                <div id="deskAgentGoal" class="desk-agent-goal-editor desk-prompt-editor" contenteditable="true" role="textbox" aria-multiline="true" aria-label="Agent 目标" data-maxlength="2000" data-placeholder="描述目标；@ 引用图片，# 选择配色，/ 插入提示词素材。"></div>
+                <div id="deskAgentGoal" class="desk-agent-goal-editor desk-prompt-editor" contenteditable="true" role="textbox" aria-multiline="true" aria-label="Agent 目标" data-maxlength="2000" data-placeholder="描述目标；@ 引用图片或视频，# 选择配色，/ 插入提示词素材。"></div>
                 <div class="desk-prompt-image-menu desk-agent-image-menu" id="deskAgentImageMenu" hidden></div>
               </div>
               <div class="desk-agent-context" id="deskAgentContext"></div>
@@ -1459,19 +1512,21 @@
     </div>
 
     <footer class="desk-bottombar desk-glass">
-      <div class="desk-bottombar__status">
-        <div class="desk-status-group desk-status-group--run">
-          <span class="desk-status-chip desk-status-chip--ok desk-status-chip--service"><i class="desk-live-dot"></i>服务 18463 在线</span>
-          <span class="desk-status-chip desk-status-chip--checking" id="deskSidecarStatus">账号池 检查中</span>
-          <span class="desk-status-chip desk-status-chip--ok" id="deskFallbackStatus">GPT fallback 可用</span>
-        </div>
-        <div class="desk-status-group desk-status-group--task">
-          <span class="desk-status-chip desk-status-chip--ok" id="deskTodayCount">今日任务 --</span>
-          <span class="desk-status-chip desk-status-chip--ok" id="deskQueueCount">队列 --</span>
-        </div>
-        <div class="desk-status-group desk-status-group--output">
-          <span class="desk-status-chip desk-status-chip--ok" id="deskArchiveStatus">归档开启</span>
-          <span class="desk-status-chip desk-status-chip--ok" id="deskTelegramStatus">Telegram 开启</span>
+      <div class="desk-bottombar__status" id="deskStatusBarStatus">
+        <div class="desk-status-indicators" role="group" aria-labelledby="deskTodayCount deskQueueCount" tabindex="0">
+          <div class="desk-status-group desk-status-group--run">
+            <span class="desk-status-chip desk-status-chip--ok desk-status-chip--service"><i class="desk-live-dot"></i>服务 18463 在线</span>
+            <span class="desk-status-chip desk-status-chip--checking" id="deskSidecarStatus">账号池 检查中</span>
+            <span class="desk-status-chip desk-status-chip--ok" id="deskFallbackStatus">GPT fallback 可用</span>
+          </div>
+          <div class="desk-status-group desk-status-group--task">
+            <span class="desk-status-chip desk-status-chip--ok" id="deskTodayCount">今日任务 --</span>
+            <span class="desk-status-chip desk-status-chip--ok" id="deskQueueCount">队列 --</span>
+          </div>
+          <div class="desk-status-group desk-status-group--output">
+            <span class="desk-status-chip desk-status-chip--ok" id="deskArchiveStatus">归档开启</span>
+            <span class="desk-status-chip desk-status-chip--ok" id="deskTelegramStatus">Telegram 开启</span>
+          </div>
         </div>
         <div class="desk-status-group desk-status-group--feedback" aria-live="polite">
           <button type="button" class="desk-status-feedback-trigger" id="deskStatusMessage" data-tone="info" aria-haspopup="dialog" aria-expanded="false" aria-controls="deskStatusTip">就绪</button>
@@ -1590,6 +1645,7 @@
     </section>
     <aside class="desk-layout-inspector">
       <strong>属性</strong>
+      <p class="desk-layout-status desk-layout-font-warning is-error" id="deskLayoutFontWarning" role="status" aria-live="polite" hidden></p>
       <div class="desk-layout-empty-state" id="deskLayoutInspectorEmpty">
         <strong>未选中图层</strong>
         <span>选择文字或图片后，在这里调整内容和层级。</span>
@@ -1758,25 +1814,98 @@
     <input id="deskLayoutImageInput" type="file" accept="image/*" hidden>
   </div>
 
-  <script src="scripts/desktop-i18n.js?v=20260716-user-split-rules1"></script>
+  <script src="scripts/desktop-i18n.js?v=20261006-node-palette-groups1"></script>
   <script src="scripts/auth-api.js?v=20260824-auth-debug-clean1"></script>
   <script src="vendor/fabric.min.js?v=5.3.0"></script>
   <script src="vendor/fabric-eraser.mixin.js?v=20260628-image-editor-pin16"></script>
-  <script src="scripts/desktop-state.js?v=20260818-canvas-persist2"></script>
-  <script src="scripts/desktop-preferences.js?v=20260825-canvas-performance1"></script>
-  <script src="scripts/desktop-select.js?v=20260825-desktop-motion1"></script>
-  <script src="scripts/desktop-api.js?v=20260902-agent-task-actions1"></script>
+  <script src="scripts/desktop-state.js?v=20260914-google-pool1"></script>
+  <script src="scripts/desktop-progress-model.js?v=20261007-node-progress4"></script>
+  <script src="scripts/desktop-progress-materials.js?v=20261007-node-progress4"></script>
+  <script src="scripts/desktop-progress-renderer.js?v=20261007-node-progress4"></script>
+  <script src="scripts/desktop-progress.js?v=20261007-node-progress4"></script>
+  <script src="scripts/desktop-control-material.js?v=20261009-control-material1"></script>
+  <script src="scripts/desktop-settings-drawer.js?v=20261009-settings-drawer2"></script>
+  <script src="scripts/desktop-preferences.js?v=20261009-settings-drawer2"></script>
+  <script src="scripts/desktop-select.js?v=20261006-krea-model-menu1"></script>
+  <script src="scripts/desktop-tasks.js?v=20260921-task-contract1"></script>
+  <script src="scripts/desktop-task-output-adapter.js?v=20260921-task-contract1"></script>
+  <script src="scripts/desktop-state-icon.js?v=20261004-state-icons1"></script>
+  <script src="scripts/desktop-topaz-model.js?v=20260924-topaz-wonder-min1"></script>
+  <script src="scripts/desktop-topaz-api.js?v=20260924-topaz-wonder-min1"></script>
+  <script src="scripts/desktop-canvas-topaz.js?v=20261009-generation-action-unify1"></script>
+  <script src="scripts/desktop-lora-data.js?v=20261002-lora-library3"></script>
+  <script src="scripts/desktop-lora-settings.js?v=20261002-lora-library3"></script>
+  <script src="scripts/desktop-lora-view.js?v=20261003-lora-quick-add1"></script>
+  <script src="scripts/desktop-api.js?v=20261002-lora-library3"></script>
+  <script src="scripts/desktop-krea2-model.js?v=20261006-bf16-transformer1"></script>
+  <script src="scripts/desktop-krea2-api.js?v=20260929-krea2-layout-3"></script>
+  <script src="scripts/desktop-krea2-tools.js?v=20261006-bf16-transformer1"></script>
+  <script src="scripts/desktop-canvas-krea2.js?v=20261009-generation-action-unify1"></script>
+  <script src="scripts/desktop-qwen21-model.js?v=20261006-qwen-base-retirement1"></script>
+  <script src="scripts/desktop-qwen21-api.js?v=20261002-qwen21-vae1"></script>
+  <script src="scripts/desktop-qwen21-tools.js?v=20261006-qwen-base-retirement1"></script>
+  <script src="scripts/desktop-canvas-qwen21.js?v=20261009-generation-action-unify1"></script>
+  <script src="scripts/desktop-cyimg-model.js?v=20260927-cyimg3"></script>
+  <script src="scripts/desktop-cyimg-api.js?v=20260927-cyimg2"></script>
+  <script src="scripts/desktop-canvas-cyimg.js?v=20261009-generation-action-unify1"></script>
   <script src="scripts/desktop-video-config.js?v=20260808-video-4x2-controls1"></script>
-  <script src="scripts/desktop-canvas.js?v=20260825-canvas-performance1"></script>
+  <script src="scripts/desktop-audio-assets.js?v=20260915-audio-node1"></script>
+  <script src="scripts/desktop-audio-meter.js?v=20260915-audio-meter1"></script>
+  <script src="scripts/desktop-canvas-audio.js?v=20261004-state-icons1"></script>
+  <script src="scripts/desktop-video-control-model.js?v=20260920-reshot2"></script>
+  <script src="scripts/desktop-video-control-api.js?v=20260925-topaz-video1"></script>
+  <script src="scripts/desktop-video-control-view.js?v=20261007-node-progress4"></script>
+  <script src="scripts/desktop-canvas-video-control.js?v=20260920-reshot3"></script>
+  <script src="scripts/desktop-topaz-video-pipeline.js?v=20261005-topaz-pipeline1"></script>
+  <script src="scripts/desktop-topaz-video-inspector.js?v=20261005-topaz-pipeline1"></script>
+  <script src="scripts/desktop-topaz-video-model.js?v=20261005-topaz-pipeline1"></script>
+  <script src="scripts/desktop-topaz-video-api.js?v=20261005-topaz-pipeline1"></script>
+  <script src="scripts/desktop-topaz-video-view.js?v=20261007-node-progress4"></script>
+  <script src="scripts/desktop-topaz-video-workbench.js?v=20261005-topaz-pipeline1"></script>
+  <script src="scripts/desktop-canvas-topaz-video.js?v=20261005-topaz-pipeline1"></script>
+  <script src="scripts/desktop-music-api.js?v=20260921-task-contract1"></script>
+  <script src="scripts/desktop-music-model.js?v=20260919-music-status2"></script>
+  <script src="scripts/desktop-music-score.js?v=20260919-score-title2"></script>
+  <script src="scripts/desktop-music-view.js?v=20261007-node-progress4"></script>
+  <script src="scripts/desktop-music-workflow.js?v=20260917-music-chain1"></script>
+  <script src="scripts/desktop-canvas-music.js?v=20260919-music-status2"></script>
+  <script src="scripts/desktop-canvas-geometry.js?v=20261002-curve-direct1"></script>
+  <script src="scripts/desktop-canvas-port-geometry.js?v=20260911-canvas-port-geometry1"></script>
+  <script src="scripts/desktop-canvas-selection.js?v=20260913-canvas-collision1"></script>
+  <script src="scripts/desktop-canvas-viewport.js?v=20261006-pan-click-guard1"></script>
+  <script src="scripts/desktop-canvas-workflow.js?v=20261001-qwen21-adapters-1"></script>
+  <script src="scripts/desktop-canvas-prompt-document.js?v=20260912-canvas-business1"></script>
+  <script src="scripts/desktop-canvas-text-editor.js?v=20260913-agent-prompt-bootstrap1"></script>
+  <script src="scripts/desktop-canvas-image-group-model.js?v=20260912-canvas-business1"></script>
+  <script src="scripts/desktop-canvas-image-group-liquid-field.js?v=20261003-image-group-radial1"></script>
+  <script src="scripts/desktop-canvas-image-group-interaction.js?v=20261005-minimap-navigation2"></script>
+  <script src="scripts/desktop-canvas-image-editor-tools.js?v=20260912-canvas-business1"></script>
+  <script src="scripts/desktop-canvas-image-editor.js?v=20260912-canvas-business1"></script>
+  <script src="scripts/desktop-canvas-media-import.js?v=20260912-canvas-business1"></script>
+  <script src="scripts/desktop-canvas-references.js?v=20260929-prompt-video1"></script>
+  <script src="scripts/desktop-canvas-nodes.js?v=20261007-node-progress4"></script>
+  <script src="scripts/desktop-canvas-model-nodes.js?v=20261009-generation-action-unify1"></script>
+  <script src="scripts/desktop-canvas-connections.js?v=20261007-connection-feedback-natural1"></script>
+  <script src="scripts/desktop-canvas-connection-feedback.js?v=20261007-connection-arc1"></script>
+  <script src="scripts/desktop-canvas-port-interaction.js?v=20261007-connection-feedback1"></script>
+  <script src="scripts/desktop-canvas-generation-config.js?v=20260920-reshot2"></script>
+  <script src="scripts/desktop-canvas-generation.js?v=20260922-topaz-node5"></script>
+  <script src="scripts/desktop-canvas-collision.js?v=20260913-canvas-collision1"></script>
+  <script src="scripts/desktop-canvas-lora.js?v=20261002-lora-library3"></script>
+  <script src="scripts/desktop-canvas.js?v=20261007-node-progress4"></script>
   <script type="module" src="scripts/desktop-pose-studio.js?v=20260705-pose-legacy-skeleton1"></script>
-  <script src="scripts/desktop-layout-editor.js?v=20260621-websearch1"></script>
+  <script src="scripts/desktop-layout-editor.js?v=20260908-layout-fonts2"></script>
   <script src="scripts/desktop-file-results.js?v=20260711-file-board-list3"></script>
-  <script src="scripts/desktop-results.js?v=20260807-h3-node3"></script>
-  <script src="scripts/desktop-history.js?v=20260829-panel-focus1"></script>
-  <script src="scripts/desktop-settings.js?v=20260829-panel-focus1"></script>
-  <script src="scripts/desktop-prompt-editor.js?v=20260830-agent-mode-slider2"></script>
-  <script src="scripts/desktop-prompt-drawer.js?v=20260825-canvas-performance1"></script>
-  <script src="scripts/desktop-prompt-agent.js?v=20260902-agent-task-actions3"></script>
+  <script src="scripts/desktop-results.js?v=20261007-node-progress4"></script>
+  <script src="scripts/desktop-compare-viewport.js?v=20260922-compare-zoom2"></script>
+  <script src="scripts/desktop-history.js?v=20261002-lora-library3"></script>
+  <script src="scripts/desktop-google-pool.js?v=20260914-google-pool-compact1"></script>
+  <script src="scripts/desktop-settings-search.js?v=20261009-settings-drawer2"></script>
+  <script src="scripts/desktop-settings.js?v=20261009-settings-drawer2"></script>
+  <script src="scripts/desktop-prompt-media.js?v=20260929-prompt-video1"></script>
+  <script src="scripts/desktop-prompt-editor.js?v=20260929-prompt-video1"></script>
+  <script src="scripts/desktop-prompt-drawer.js?v=20260929-prompt-video1"></script>
+  <script src="scripts/desktop-prompt-agent.js?v=20260929-prompt-video1"></script>
   <script src="scripts/desktop-color-extractor.js?v=20260719-color-image-analysis10"></script>
   <script src="scripts/desktop-prompt-library.js?v=20260829-panel-focus1"></script>
   <script src="scripts/desktop-prompt-insert.js?v=20260827-agent-references-fix1"></script>

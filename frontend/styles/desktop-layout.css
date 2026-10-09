@@ -110,6 +110,15 @@
   color: #27ae60;
 }
 
+.desk-layout-font-warning {
+  max-width: none;
+  margin: 0;
+  overflow: visible;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.5;
+}
+
 .desk-layout-actions select {
   width: 150px;
   min-height: 30px;
@@ -1518,3 +1527,33 @@
   color: #fff;
   background: var(--desk-blue);
 }
+
+/* Independent Google OAuth settings panel; do not change GPT card layout. */
+.desk-app .desk-google-pool-tabs { margin: 0 0 12px; }
+.desk-app .desk-google-pool-tabs--compact { margin-bottom: 4px; }
+.desk-app .desk-google-pool { gap: 6px; }
+.desk-app .desk-google-pool p { margin: 0; overflow-wrap: anywhere; line-height: 1.45; }
+.desk-app .desk-google-pool-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 6px; flex-wrap: wrap; }
+.desk-app .desk-google-pool .desk-settings-form__actions { margin: 0; gap: 4px; align-items: center; }
+.desk-app .desk-google-pool .desk-settings-form__actions button { padding-inline: 7px; white-space: nowrap; }
+.desk-app .desk-google-pool-note { color: var(--desk-muted); font-size: 10px; }
+.desk-app .desk-google-pool-feedback { color: var(--desk-ink); font-size: 10px; }
+.desk-app .desk-google-pool-oauth { display: grid; gap: 5px; padding: 7px; border: 1px solid var(--desk-settings-details-border, var(--desk-line)); border-radius: 7px; }
+.desk-app .desk-google-pool-oauth a { color: var(--desk-ink); font-size: 11px; font-weight: 750; text-underline-offset: 2px; }
+.desk-app .desk-google-pool-callback { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 5px; align-items: center; }
+.desk-app .desk-google-pool-callback .desk-settings-form__actions { grid-column: auto; }
+.desk-app .desk-google-pool-import summary { width: fit-content; cursor: pointer; color: var(--desk-muted); font-size: 11px; font-weight: 700; line-height: 24px; }
+.desk-app .desk-google-pool-import__body { display: grid; gap: 5px; padding-top: 4px; }
+.desk-app .desk-google-pool textarea { box-sizing: border-box; width: 100%; min-height: 56px; padding: 6px 7px; resize: vertical; }
+.desk-app .desk-google-pool-account { display: grid; gap: 4px; padding: 8px 0; border-top: 1px solid var(--desk-settings-account-border, var(--desk-line)); min-width: 0; }
+.desk-app .desk-google-pool-account:last-child { padding-bottom: 0; }
+.desk-app .desk-google-pool-account__head { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 6px; }
+.desk-app .desk-google-pool-account__head strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; color: var(--desk-ink); }
+.desk-app .desk-google-pool-account__head .desk-settings-form__actions { grid-column: auto; }
+.desk-app .desk-google-pool-models { display: flex; flex-wrap: wrap; gap: 4px; }
+.desk-app .desk-google-pool-model { display: inline-flex; gap: 6px; min-width: 0; max-width: 100%; padding: 2px 5px; border: 1px solid var(--desk-settings-pool-chip-border, var(--desk-line)); border-radius: 5px; font-size: 10px; color: var(--desk-muted); overflow-wrap: anywhere; }
+.desk-app .desk-google-pool-model b { flex: none; white-space: nowrap; color: var(--desk-ink); }
+.desk-app .desk-google-pool-error { color: var(--desk-red, #b42348); font-size: 10px; }
+.desk-app .desk-google-pool-empty { padding: 8px 0 2px; color: var(--desk-muted); font-size: 11px; }
+
+.desk-app .desk-param-grid > label:has([data-field="googleProviderRoute"]) { grid-column: span 2; }

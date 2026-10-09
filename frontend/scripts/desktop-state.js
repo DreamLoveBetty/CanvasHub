@@ -59,6 +59,7 @@
       gptTaskType: 'image',
       promptMode: 'smart',
       gptProviderRoute: 'codex',
+      googleProviderRoute: 'third_party',
       gptMainModel: 'gpt-5.5',
       gptModelsByRoute: {
         codex: 'gpt-5.5',

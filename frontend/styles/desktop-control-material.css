@@ -1,0 +1,88 @@
+/* Ambient control material: adaptation layer for buttons inside canvas nodes.
+   Upstream lighting/material rules come from desktop-ambient-controls.css (generated,
+   verbatim bodies). This file keeps production geometry and only replaces paint, depth,
+   ink and state feedback. Every rule is scoped to the opt-in body attribute set by
+   desktop-control-material.js; with the default "现有" material nothing here matches.
+   The #deskApp scope outranks production's class-based button rules without !important. */
+
+#deskApp[data-control-material="ambient"] {
+  --amb-curve-scale: .8;
+  --desk-control-depth: .65;
+}
+
+/* Dark theme: a graphite key body (our adaptation — upstream ships no dark recipe).
+   Upstream lighting mixes 15% of a hue-234 tint into --amb-lit, which turns a dark
+   neutral albedo slate-blue; neutral light (saturation 0) keeps the key on the
+   production graphite. A user-chosen key colour (data-control-tinted) and Glass keep
+   upstream lighting. */
+#deskApp[data-control-material="ambient"][data-theme="dark"]:not([data-control-tinted]):not([data-control-finish="glass"]) {
+  --amb-albedo: #454d4f;
+  --amb-light-saturation: 0%;
+  --desk-control-face-ink: #e7ecf1;
+}
+#deskApp[data-control-material="ambient"][data-control-finish="glass"][data-theme="dark"] {
+  --desk-control-face-ink: #e7ecf1;
+}
+
+/* The production button is the key cap. */
+#deskApp[data-control-material="ambient"] .desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action) {
+  position: relative;
+  isolation: isolate;
+  --amb-thickness: var(--desk-control-depth);
+  --amb-chamfer-width: .65;
+  border-color: transparent;
+  background-image: none;
+  color: var(--desk-control-face-ink, var(--amb-label));
+  text-shadow: none;
+  filter: none;
+  transform: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  transition: box-shadow 100ms ease-out, background-color 100ms ease-out, color 100ms ease-out;
+}
+#deskApp[data-control-material="ambient"] .desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action) :is(svg, span, em, strong) { color: inherit; }
+/* Production gloss layers would sit over the cap: retire ::before, keep ::after for the
+   upstream dish (generated rule owns its content/geometry). */
+#deskApp[data-control-material="ambient"] .desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action)::before { content: none; }
+#deskApp[data-control-material="ambient"] .desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action)::after {
+  opacity: 1;
+  filter: none;
+  transform: none;
+  box-shadow: none;
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+/* Press feedback: only depth changes, like the upstream button (no repaint/jump). */
+#deskApp[data-control-material="ambient"] .desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action):hover:not(:disabled) {
+  --amb-thickness: calc(var(--desk-control-depth) + .08);
+  color: var(--desk-control-hover-ink, var(--amb-highlight-color));
+  transform: none;
+}
+#deskApp[data-control-material="ambient"] .desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action):active:not(:disabled) {
+  --amb-thickness: calc(var(--desk-control-depth) * .35);
+  transform: none;
+}
+#deskApp[data-control-material="ambient"] .desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action):disabled {
+  --amb-thickness: .1;
+  opacity: .62;
+  cursor: not-allowed;
+}
+#deskApp[data-control-material="ambient"] .desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action):focus-visible {
+  outline: 2px solid var(--amb-highlight-color);
+  outline-offset: 2px;
+}
+
+/* Surface shape is Matte-only (upstream surface classes overwrite material
+   backgrounds). Concave keeps the upstream cap dish; flat and convex drop it. */
+#deskApp[data-control-material="ambient"][data-control-finish="matte"]:is([data-control-surface="flat"], [data-control-surface="convex"]) .desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action)::after,
+#deskApp[data-control-material="ambient"][data-control-finish="glass"] .desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action)::after { content: none; }
+
+/* Glass: translucent pane, label follows the node ink. */
+#deskApp[data-control-material="ambient"][data-control-finish="glass"] .desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action) {
+  color: var(--desk-control-face-ink, var(--amb-label));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #deskApp[data-control-material="ambient"] .desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action) { transition: none; }
+}

@@ -420,10 +420,9 @@ body.desk-app {
   --desk-status-feedback-background: rgba(255, 255, 255, 0.34);
   --desk-status-feedback-border: rgba(255, 255, 255, 0.34);
   --desk-status-feedback-shadow:
-    0 5px 10px rgba(var(--desk-blue-midnight-rgb), 0.1),
-    0 1px 2px rgba(255, 255, 255, 0.26),
-    inset 0 1px 0 rgba(255, 255, 255, 0.82),
-    inset 0 -1px 0 rgba(115, 130, 144, 0.06);
+    inset 0 2px 5px rgba(13, 91, 57, 0.24),
+    inset 0 1px 1px rgba(13, 91, 57, 0.18),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.72);
   --desk-status-feedback-hover-background: rgba(255, 255, 255, 0.5);
   --desk-status-feedback-hover-border: rgba(255, 255, 255, 0.56);
   --desk-status-warning-feedback-background: var(--desk-status-warning-background);
@@ -494,7 +493,7 @@ body.desk-app {
 
   --desk-canvas-palette-ink: var(--desk-blue-ink);
   --desk-canvas-palette-muted-ink: var(--desk-blue-secondary);
-  --desk-canvas-palette-background: rgba(255, 255, 255, 0.48);
+  --desk-canvas-palette-background: rgba(255, 255, 255, 0.62);
   --desk-canvas-palette-border: rgba(255, 255, 255, 0.62);
   --desk-canvas-palette-shadow:
     0 18px 48px rgba(var(--desk-blue-midnight-rgb), 0.1),
@@ -642,30 +641,35 @@ body.desk-app {
   --desk-node-muted-ink: var(--desk-blue-secondary);
   --desk-node-eyebrow-ink: var(--desk-blue-royal);
   --desk-node-glass-background: #f7fafd;
-  --desk-node-glass-border: rgba(255, 255, 255, 0.54);
-  --desk-node-glass-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.78),
-    0 18px 30px -24px rgba(var(--desk-blue-midnight-rgb), 0.3);
-  --desk-node-glass-active-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.82),
-    0 22px 36px -27px rgba(var(--desk-blue-midnight-rgb), 0.32);
-  --desk-node-glass-selected-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.82),
-    0 18px 30px -24px rgba(var(--desk-blue-midnight-rgb), 0.3);
+  --desk-node-glass-border: rgba(255, 255, 255, 0.18);
+  /* Structural frame: keep port geometry stable even on borderless surfaces. */
+  --desk-node-border-width: 1px;
+  --desk-node-stroke: var(--desk-node-glass-border);
+  --desk-node-glass-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72),
+    0 0 0 1px rgba(var(--desk-blue-midnight-rgb), 0.05),
+    0 1px 2px -1px rgba(var(--desk-blue-midnight-rgb), 0.08),
+    0 3px 6px -2px rgba(var(--desk-blue-midnight-rgb), 0.06);
+  --desk-node-glass-active-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.76),
+    0 0 0 1px rgba(var(--desk-blue-midnight-rgb), 0.06),
+    0 2px 4px -2px rgba(var(--desk-blue-midnight-rgb), 0.1),
+    0 5px 10px -4px rgba(var(--desk-blue-midnight-rgb), 0.08);
+  --desk-node-glass-selected-shadow: var(--desk-node-selected-shadow);
   --desk-node-sheen-background: linear-gradient(145deg, rgba(255, 255, 255, 0.62), transparent 44%, rgba(var(--desk-blue-royal-rgb), 0.08));
   --desk-node-selected-sheen-background: var(--desk-node-sheen-background);
   --desk-node-selected-border: var(--desk-canvas-selection-stroke);
-  --desk-node-selected-shadow: 0 26px 70px rgba(var(--desk-blue-midnight-rgb), 0.18);
+  --desk-node-selected-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72),
+    0 1px 2px -1px rgba(var(--desk-blue-midnight-rgb), 0.08),
+    0 3px 6px -2px rgba(var(--desk-blue-midnight-rgb), 0.06);
   --desk-node-text-background: rgba(255, 255, 255, 0.36);
-  --desk-node-text-border: rgba(83, 103, 124, 0.22);
-  --desk-node-text-shadow: 0 14px 34px rgba(var(--desk-blue-midnight-rgb), 0.1);
-  --desk-node-image-shadow: 0 18px 46px rgba(var(--desk-blue-midnight-rgb), 0.16);
-  --desk-node-image-selected-shadow: 0 22px 56px rgba(var(--desk-blue-midnight-rgb), 0.2);
+  --desk-node-text-border: var(--desk-node-glass-border);
+  --desk-node-text-shadow: var(--desk-node-glass-shadow);
+  --desk-node-image-shadow: var(--desk-node-glass-shadow);
+  --desk-node-image-selected-shadow: none;
   --desk-node-image-placeholder-ink: var(--desk-blue-secondary);
   --desk-node-image-placeholder-title-ink: var(--desk-blue-navy);
   --desk-node-image-placeholder-background: rgba(255, 255, 255, 0.52);
   --desk-node-image-placeholder-border: rgba(103, 121, 144, 0.34);
-  --desk-node-image-placeholder-shadow: 0 18px 46px rgba(var(--desk-blue-midnight-rgb), 0.12);
+  --desk-node-image-placeholder-shadow: var(--desk-node-glass-shadow);
   --desk-node-image-upload-ink: var(--desk-blue-ink);
   --desk-node-image-upload-accent: var(--desk-blue-royal);
   --desk-node-image-upload-background: rgba(255, 255, 255, 0.72);
@@ -707,7 +711,7 @@ body.desk-app {
     drop-shadow(0 2.4px 4.8px rgba(17, 38, 42, 0.08))
     drop-shadow(0 16.8px 33.6px rgba(31, 57, 61, 0.16));
   --desk-image-group-liquid-fill: rgba(255, 255, 255, 0.99);
-  --desk-image-group-selection-border: rgba(var(--desk-blue-royal-rgb), 0.68);
+  --desk-image-group-selection-border: var(--desk-canvas-selection-stroke);
   --desk-image-group-selection-shadow: none;
   --desk-image-group-title-ink: var(--desk-blue-ink);
   --desk-image-group-meta-ink: var(--desk-blue-secondary);
@@ -892,6 +896,9 @@ body.desk-app {
     0 0 0 3px rgba(var(--desk-blue-royal-rgb), 0.08);
   --desk-prompt-assistant-mention-remove-ink: #ffffff;
   --desk-prompt-assistant-mention-remove-background: rgba(var(--desk-blue-navy-rgb), 0.72);
+  --desk-prompt-assistant-media-kind-ink: var(--desk-prompt-assistant-mention-remove-ink);
+  --desk-prompt-assistant-media-kind-background: var(--desk-prompt-assistant-mention-remove-background);
+  --desk-prompt-assistant-media-kind-border: var(--desk-prompt-assistant-mention-border);
   --desk-prompt-assistant-toggle-background: rgba(var(--desk-blue-secondary-rgb), 0.18);
   --desk-prompt-assistant-toggle-border: rgba(var(--desk-blue-secondary-rgb), 0.2);
   --desk-prompt-assistant-toggle-checked-background: rgba(var(--desk-blue-royal-rgb), 0.32);
@@ -1406,23 +1413,32 @@ body.desk-app {
   --desk-settings-muted-ink: var(--desk-blue-secondary);
   --desk-settings-accent-ink: var(--desk-blue-royal);
   --desk-settings-version-ink: rgba(var(--desk-blue-royal-rgb), 0.62);
+  /* The settings drawer is a large surface over the canvas: near-opaque instead of a
+     backdrop blur, so panning the canvas never re-blurs it (glass performance rule). */
   --desk-settings-panel-background:
-    linear-gradient(145deg, rgba(255, 255, 255, 0.54), rgba(232, 244, 252, 0.24) 58%, rgba(255, 255, 255, 0.34)),
-    rgba(248, 252, 255, 0.2);
+    linear-gradient(145deg, rgba(252, 253, 255, 0.97), rgba(238, 245, 251, 0.97) 58%, rgba(248, 251, 254, 0.98));
   --desk-settings-panel-border: rgba(255, 255, 255, 0.62);
   --desk-settings-panel-shadow: var(--desk-shadow-panel);
   --desk-settings-tabs-background: rgba(255, 255, 255, 0.34);
   --desk-settings-tabs-border: rgba(255, 255, 255, 0.42);
   --desk-settings-tabs-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.38);
   --desk-settings-tabs-ink: rgba(72, 91, 112, 0.92);
-  --desk-settings-tabs-toggle-ink: rgba(72, 91, 112, 0.74);
+  --desk-settings-tabs-group-ink: rgba(72, 91, 112, 0.6);
+  --desk-settings-nav-divider: rgba(60, 78, 100, 0.1);
+  --desk-settings-search-background: rgba(255, 255, 255, 0.86);
+  --desk-settings-search-border: rgba(60, 78, 100, 0.16);
+  --desk-settings-search-results-background: rgba(252, 253, 255, 0.99);
+  --desk-settings-search-active-background: rgba(var(--desk-blue-royal-rgb), 0.08);
+  --desk-settings-search-mark: rgba(var(--desk-blue-royal-rgb), 0.16);
+  --desk-settings-hit-ring: rgba(var(--desk-blue-royal-rgb), 0.55);
+  --desk-settings-resize-hover: rgba(var(--desk-blue-royal-rgb), 0.35);
   --desk-settings-summary-ink: var(--desk-blue-secondary);
   --desk-settings-summary-background: rgba(255, 255, 255, 0.58);
   --desk-settings-summary-border: rgba(255, 255, 255, 0.64);
   --desk-settings-summary-shadow: none;
-  --desk-settings-summary-ok-ink: var(--desk-status-success-on-fill);
-  --desk-settings-summary-ok-background: var(--desk-status-success-silk-background);
-  --desk-settings-summary-ok-border: var(--desk-status-success-silk-border);
+  --desk-settings-summary-ok-ink: var(--desk-status-success-soft-ink);
+  --desk-settings-summary-ok-background: var(--desk-status-success-soft-background);
+  --desk-settings-summary-ok-border: var(--desk-status-success-soft-border);
   --desk-settings-summary-warn-ink: var(--desk-status-warning-on-fill);
   --desk-settings-summary-warn-background: var(--desk-status-warning-silk-background);
   --desk-settings-summary-warn-border: var(--desk-status-warning-silk-border);
@@ -1448,8 +1464,8 @@ body.desk-app {
   --desk-settings-path-border: rgba(255, 255, 255, 0.5);
   --desk-settings-path-shadow: none;
   --desk-settings-selected-border: rgba(var(--desk-blue-royal-rgb), 0.28);
-  --desk-settings-badge-ok-ink: var(--desk-status-success-on-fill);
-  --desk-settings-badge-ok-background: var(--desk-status-success-silk-background);
+  --desk-settings-badge-ok-ink: var(--desk-status-success-soft-ink);
+  --desk-settings-badge-ok-background: var(--desk-status-success-soft-background);
   --desk-settings-badge-warn-ink: var(--desk-status-warning-on-fill);
   --desk-settings-badge-warn-background: var(--desk-status-warning-silk-background);
   --desk-settings-field-ink: var(--desk-blue-ink);
@@ -1477,9 +1493,9 @@ body.desk-app {
   --desk-settings-activity-ink: var(--desk-blue-royal);
   --desk-settings-activity-background: rgba(14, 115, 238, 0.08);
   --desk-settings-activity-border: rgba(var(--desk-blue-royal-rgb), 0.14);
-  --desk-settings-done-ink: var(--desk-status-success-on-fill);
-  --desk-settings-done-background: var(--desk-status-success-silk-background);
-  --desk-settings-done-border: var(--desk-status-success-silk-border);
+  --desk-settings-done-ink: var(--desk-status-success-soft-ink);
+  --desk-settings-done-background: var(--desk-status-success-soft-background);
+  --desk-settings-done-border: var(--desk-status-success-soft-border);
   --desk-settings-pool-toolbar-background: rgba(255, 255, 255, 0.34);
   --desk-settings-pool-toolbar-border: rgba(255, 255, 255, 0.5);
   --desk-settings-pool-toolbar-shadow: none;
@@ -1487,9 +1503,9 @@ body.desk-app {
   --desk-settings-pool-chip-background: rgba(255, 255, 255, 0.58);
   --desk-settings-pool-chip-border: rgba(255, 255, 255, 0.62);
   --desk-settings-pool-chip-shadow: none;
-  --desk-settings-pool-chip-ok-ink: var(--desk-status-success-on-fill);
-  --desk-settings-pool-chip-ok-background: var(--desk-status-success-silk-background);
-  --desk-settings-pool-chip-ok-border: var(--desk-status-success-silk-border);
+  --desk-settings-pool-chip-ok-ink: var(--desk-status-success-soft-ink);
+  --desk-settings-pool-chip-ok-background: var(--desk-status-success-soft-background);
+  --desk-settings-pool-chip-ok-border: var(--desk-status-success-soft-border);
   --desk-settings-pool-chip-warn-ink: var(--desk-status-warning-on-fill);
   --desk-settings-pool-chip-warn-background: var(--desk-status-warning-silk-background);
   --desk-settings-pool-chip-warn-border: var(--desk-status-warning-silk-border);
@@ -1926,6 +1942,7 @@ body.desk-app {
   --desk-motion-duration-fast: 120ms;
   --desk-motion-duration-base: 150ms;
   --desk-motion-duration-normal: 180ms;
+  --desk-motion-duration-exit: 120ms;
   --desk-motion-duration-slow: 280ms;
   --desk-motion-duration-panel: 360ms;
   --desk-motion-ease-standard: ease;
@@ -1937,6 +1954,10 @@ body.desk-app {
   --desk-motion-distance-sm: 2px;
   --desk-motion-distance-md: 6px;
   --desk-motion-scale-subtle: 0.985;
+  --desk-motion-distance-exit: 2px;
+  --desk-motion-scale-exit: 0.995;
+  --desk-motion-icon-blur: 1px;
+  --desk-motion-icon-scale: 0.82;
   --desk-motion-control-transition:
     color var(--desk-motion-duration-fast) var(--desk-motion-ease-standard),
     background-color var(--desk-motion-duration-base) var(--desk-motion-ease-standard),
@@ -1962,9 +1983,9 @@ body.desk-app {
     transform var(--desk-motion-duration-slow) var(--desk-motion-ease-emphasized),
     visibility 0s linear 0s;
   --desk-motion-surface-exit-transition:
-    opacity var(--desk-motion-duration-normal) var(--desk-motion-ease-exit),
-    transform var(--desk-motion-duration-normal) var(--desk-motion-ease-exit),
-    visibility 0s linear var(--desk-motion-duration-normal);
+    opacity var(--desk-motion-duration-exit) var(--desk-motion-ease-exit),
+    transform var(--desk-motion-duration-exit) var(--desk-motion-ease-exit),
+    visibility 0s linear var(--desk-motion-duration-exit);
 }
 
 body.desk-app[data-theme="dark"] {
@@ -2290,7 +2311,10 @@ body.desk-app[data-theme="dark"] {
   --desk-status-checking-ink: rgba(190, 199, 201, 0.62);
   --desk-status-feedback-background: var(--desk-status-chip-background);
   --desk-status-feedback-border: rgba(255, 255, 255, 0.11);
-  --desk-status-feedback-shadow: var(--desk-status-chip-shadow);
+  --desk-status-feedback-shadow:
+    inset 0 2px 6px rgba(0, 0, 0, 0.5),
+    inset 0 1px 2px rgba(0, 0, 0, 0.28),
+    inset 0 -1px 0 rgba(142, 224, 178, 0.15);
   --desk-status-feedback-hover-background: rgba(42, 50, 52, 0.78);
   --desk-status-feedback-hover-border: rgba(255, 106, 34, 0.24);
   --desk-status-warning-feedback-background: var(--desk-status-warning-background);
@@ -2361,8 +2385,7 @@ body.desk-app[data-theme="dark"] {
   --desk-canvas-palette-ink: #edf2f3;
   --desk-canvas-palette-muted-ink: rgba(190, 199, 201, 0.68);
   --desk-canvas-palette-background:
-    linear-gradient(180deg, rgba(48, 56, 58, 0.86), rgba(31, 37, 39, 0.92)),
-    rgba(32, 38, 40, 0.84);
+    linear-gradient(180deg, rgba(48, 56, 58, 0.70), rgba(31, 37, 39, 0.76));
   --desk-canvas-palette-border: rgba(255, 255, 255, 0.07);
   --desk-canvas-palette-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.08),
@@ -2521,19 +2544,16 @@ body.desk-app[data-theme="dark"] {
   --desk-node-muted-ink: rgba(190, 199, 201, 0.68);
   --desk-node-eyebrow-ink: #ff6a22;
   --desk-node-glass-background: linear-gradient(180deg, #363f41, #2b3234);
-  --desk-node-glass-border: rgba(255, 255, 255, 0.07);
-  --desk-node-glass-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.08),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.42),
-    0 18px 30px -22px rgba(0, 0, 0, 0.56);
-  --desk-node-glass-active-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.09),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.44),
-    0 22px 36px -25px rgba(0, 0, 0, 0.62);
-  --desk-node-glass-selected-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.08),
-    0 0 0 3px rgba(255, 90, 31, 0.14),
-    0 20px 34px -24px rgba(0, 0, 0, 0.6);
+  --desk-node-glass-border: rgba(255, 255, 255, 0.025);
+  --desk-node-glass-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    0 0 0 1px rgba(0, 0, 0, 0.16),
+    0 1px 2px -1px rgba(0, 0, 0, 0.26),
+    0 3px 6px -2px rgba(0, 0, 0, 0.2);
+  --desk-node-glass-active-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 0 0 1px rgba(0, 0, 0, 0.18),
+    0 2px 4px -2px rgba(0, 0, 0, 0.3),
+    0 5px 10px -4px rgba(0, 0, 0, 0.24);
+  --desk-node-glass-selected-shadow: var(--desk-node-selected-shadow);
   --desk-node-sheen-background:
     linear-gradient(145deg, rgba(255, 255, 255, 0.08), transparent 42%, rgba(0, 0, 0, 0.16)),
     radial-gradient(circle at 86% 12%, rgba(255, 90, 31, 0.07), transparent 34%);
@@ -2541,22 +2561,19 @@ body.desk-app[data-theme="dark"] {
     linear-gradient(145deg, rgba(255, 255, 255, 0.1), transparent 42%, rgba(0, 0, 0, 0.18)),
     radial-gradient(circle at 84% 14%, rgba(255, 90, 31, 0.14), transparent 34%);
   --desk-node-selected-border: var(--desk-canvas-selection-stroke);
-  --desk-node-selected-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.08),
-    0 0 0 3px rgba(255, 90, 31, 0.14),
-    0 30px 78px rgba(0, 0, 0, 0.38);
+  --desk-node-selected-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    0 1px 2px -1px rgba(0, 0, 0, 0.26),
+    0 3px 6px -2px rgba(0, 0, 0, 0.2);
   --desk-node-text-background: linear-gradient(180deg, rgba(51, 59, 61, 0.94), rgba(39, 46, 48, 0.97));
-  --desk-node-text-border: rgba(255, 255, 255, 0.07);
-  --desk-node-text-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.07),
-    0 18px 42px rgba(0, 0, 0, 0.32);
-  --desk-node-image-shadow: 0 18px 46px rgba(0, 0, 0, 0.28);
-  --desk-node-image-selected-shadow: 0 30px 78px rgba(0, 0, 0, 0.38);
+  --desk-node-text-border: var(--desk-node-glass-border);
+  --desk-node-text-shadow: var(--desk-node-glass-shadow);
+  --desk-node-image-shadow: var(--desk-node-glass-shadow);
+  --desk-node-image-selected-shadow: none;
   --desk-node-image-placeholder-ink: rgba(190, 199, 201, 0.68);
   --desk-node-image-placeholder-title-ink: #ff9b68;
   --desk-node-image-placeholder-background: linear-gradient(180deg, rgba(49, 57, 59, 0.86), rgba(36, 43, 45, 0.9));
   --desk-node-image-placeholder-border: rgba(255, 255, 255, 0.08);
-  --desk-node-image-placeholder-shadow: 0 18px 46px rgba(0, 0, 0, 0.28);
+  --desk-node-image-placeholder-shadow: var(--desk-node-glass-shadow);
   --desk-node-image-upload-ink: #edf2f3;
   --desk-node-image-upload-accent: #ff9b68;
   --desk-node-image-upload-background: rgba(28, 34, 36, 0.72);
@@ -2599,7 +2616,7 @@ body.desk-app[data-theme="dark"] {
     drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3))
     drop-shadow(0 15px 30px rgba(0, 0, 0, 0.38));
   --desk-image-group-liquid-fill: #252a2c;
-  --desk-image-group-selection-border: rgba(255, 126, 57, 0.68);
+  --desk-image-group-selection-border: var(--desk-canvas-selection-stroke);
   --desk-image-group-selection-shadow: 0 0 0 3px rgba(255, 106, 34, 0.11);
   --desk-image-group-title-ink: #f2f4f4;
   --desk-image-group-meta-ink: rgba(213, 220, 221, 0.62);
@@ -2794,6 +2811,9 @@ body.desk-app[data-theme="dark"] {
     0 0 0 3px rgba(255, 90, 31, 0.11);
   --desk-prompt-assistant-mention-remove-ink: #ffffff;
   --desk-prompt-assistant-mention-remove-background: rgba(185, 51, 18, 0.82);
+  --desk-prompt-assistant-media-kind-ink: var(--desk-prompt-assistant-mention-remove-ink);
+  --desk-prompt-assistant-media-kind-background: var(--desk-prompt-assistant-mention-remove-background);
+  --desk-prompt-assistant-media-kind-border: var(--desk-prompt-assistant-mention-border);
   --desk-prompt-assistant-toggle-background: rgba(92, 112, 132, 0.18);
   --desk-prompt-assistant-toggle-border: rgba(92, 112, 132, 0.2);
   --desk-prompt-assistant-toggle-checked-background: rgba(255, 106, 34, 0.34);
@@ -3287,8 +3307,7 @@ body.desk-app[data-theme="dark"] {
   --desk-settings-accent-ink: #ff5a1f;
   --desk-settings-version-ink: rgba(255, 176, 137, 0.72);
   --desk-settings-panel-background:
-    linear-gradient(180deg, rgba(48, 56, 58, 0.86), rgba(31, 37, 39, 0.92)),
-    rgba(32, 38, 40, 0.84);
+    linear-gradient(180deg, rgba(46, 53, 55, 0.98), rgba(31, 37, 39, 0.99));
   --desk-settings-panel-border: rgba(255, 255, 255, 0.07);
   --desk-settings-panel-shadow: var(--desk-shadow-panel);
   --desk-settings-tabs-background: rgba(28, 34, 36, 0.58);
@@ -3297,16 +3316,24 @@ body.desk-app[data-theme="dark"] {
     inset 0 1px 0 rgba(255, 255, 255, 0.05),
     0 10px 24px rgba(0, 0, 0, 0.16);
   --desk-settings-tabs-ink: rgba(190, 199, 201, 0.68);
-  --desk-settings-tabs-toggle-ink: rgba(190, 199, 201, 0.68);
+  --desk-settings-tabs-group-ink: rgba(190, 199, 201, 0.48);
+  --desk-settings-nav-divider: rgba(255, 255, 255, 0.06);
+  --desk-settings-search-background: rgba(24, 29, 31, 0.72);
+  --desk-settings-search-border: rgba(255, 255, 255, 0.09);
+  --desk-settings-search-results-background: rgba(36, 42, 44, 0.99);
+  --desk-settings-search-active-background: rgba(255, 90, 31, 0.12);
+  --desk-settings-search-mark: rgba(255, 90, 31, 0.26);
+  --desk-settings-hit-ring: rgba(255, 122, 69, 0.7);
+  --desk-settings-resize-hover: rgba(255, 122, 69, 0.4);
   --desk-settings-summary-ink: rgba(214, 220, 221, 0.76);
   --desk-settings-summary-background: rgba(28, 34, 36, 0.58);
   --desk-settings-summary-border: rgba(255, 255, 255, 0.08);
   --desk-settings-summary-shadow:
     0 5px 11px rgba(0, 0, 0, 0.16),
     inset 0 1px 0 rgba(255, 255, 255, 0.05);
-  --desk-settings-summary-ok-ink: var(--desk-status-success-on-fill);
-  --desk-settings-summary-ok-background: var(--desk-status-success-silk-background);
-  --desk-settings-summary-ok-border: var(--desk-status-success-silk-border);
+  --desk-settings-summary-ok-ink: var(--desk-status-success-soft-ink);
+  --desk-settings-summary-ok-background: var(--desk-status-success-soft-background);
+  --desk-settings-summary-ok-border: var(--desk-status-success-soft-border);
   --desk-settings-summary-warn-ink: var(--desk-status-warning-on-fill);
   --desk-settings-summary-warn-background: var(--desk-status-warning-silk-background);
   --desk-settings-summary-warn-border: var(--desk-status-warning-silk-border);
@@ -3334,8 +3361,8 @@ body.desk-app[data-theme="dark"] {
     inset 0 1px 0 rgba(255, 255, 255, 0.05),
     0 10px 24px rgba(0, 0, 0, 0.16);
   --desk-settings-selected-border: rgba(255, 106, 34, 0.3);
-  --desk-settings-badge-ok-ink: var(--desk-status-success-on-fill);
-  --desk-settings-badge-ok-background: var(--desk-status-success-silk-background);
+  --desk-settings-badge-ok-ink: var(--desk-status-success-soft-ink);
+  --desk-settings-badge-ok-background: var(--desk-status-success-soft-background);
   --desk-settings-badge-warn-ink: var(--desk-status-warning-on-fill);
   --desk-settings-badge-warn-background: var(--desk-status-warning-silk-background);
   --desk-settings-field-ink: #edf2f3;
@@ -3365,9 +3392,9 @@ body.desk-app[data-theme="dark"] {
   --desk-settings-activity-ink: #ffd1b8;
   --desk-settings-activity-background: rgba(255, 106, 34, 0.1);
   --desk-settings-activity-border: rgba(255, 106, 34, 0.2);
-  --desk-settings-done-ink: var(--desk-status-success-on-fill);
-  --desk-settings-done-background: var(--desk-status-success-silk-background);
-  --desk-settings-done-border: var(--desk-status-success-silk-border);
+  --desk-settings-done-ink: var(--desk-status-success-soft-ink);
+  --desk-settings-done-background: var(--desk-status-success-soft-background);
+  --desk-settings-done-border: var(--desk-status-success-soft-border);
   --desk-settings-pool-toolbar-background: rgba(28, 34, 36, 0.58);
   --desk-settings-pool-toolbar-border: rgba(255, 255, 255, 0.07);
   --desk-settings-pool-toolbar-shadow:
@@ -3381,9 +3408,9 @@ body.desk-app[data-theme="dark"] {
   --desk-settings-pool-chip-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.08),
     0 6px 14px rgba(0, 0, 0, 0.16);
-  --desk-settings-pool-chip-ok-ink: var(--desk-status-success-on-fill);
-  --desk-settings-pool-chip-ok-background: var(--desk-status-success-silk-background);
-  --desk-settings-pool-chip-ok-border: var(--desk-status-success-silk-border);
+  --desk-settings-pool-chip-ok-ink: var(--desk-status-success-soft-ink);
+  --desk-settings-pool-chip-ok-background: var(--desk-status-success-soft-background);
+  --desk-settings-pool-chip-ok-border: var(--desk-status-success-soft-border);
   --desk-settings-pool-chip-warn-ink: var(--desk-status-warning-on-fill);
   --desk-settings-pool-chip-warn-background: var(--desk-status-warning-silk-background);
   --desk-settings-pool-chip-warn-border: var(--desk-status-warning-silk-border);
@@ -3817,11 +3844,16 @@ body.desk-app[data-theme="dark"] {
     --desk-motion-duration-fast: 1ms;
     --desk-motion-duration-base: 1ms;
     --desk-motion-duration-normal: 1ms;
+    --desk-motion-duration-exit: 1ms;
     --desk-motion-duration-slow: 1ms;
     --desk-motion-duration-panel: 1ms;
     --desk-motion-distance-xs: 0px;
     --desk-motion-distance-sm: 0px;
     --desk-motion-distance-md: 0px;
     --desk-motion-scale-subtle: 1;
+    --desk-motion-distance-exit: 0px;
+    --desk-motion-scale-exit: 1;
+    --desk-motion-icon-blur: 0px;
+    --desk-motion-icon-scale: 1;
   }
 }

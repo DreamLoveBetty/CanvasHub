@@ -78,12 +78,16 @@
     const refs = [];
     const seen = new Set();
     (Array.isArray(images) ? images : []).forEach((item, index) => {
-      const assetId = String(item?.assetId || item?.asset_id || '').trim();
       const taskId = String(item?.taskId || item?.task_id || '').trim();
+      const rawAssetId = String(item?.assetId || item?.asset_id || '').trim();
+      // Old saved canvas nodes may carry a history task ID as sourceAssetId.
+      // Preserve the task + image locator, not a fabricated gallery identity.
+      const assetId = rawAssetId === taskId ? '' : rawAssetId;
       const imageUrl = stableReferenceUrl(item);
+      const file = String(item?.file || '').slice(0, 160);
       const sourceNodeId = String(item?.sourceNodeId || '').trim();
       if (!assetId && !taskId && !imageUrl && !sourceNodeId) return;
-      const key = assetId || ((taskId || imageUrl) ? `${taskId}:${imageUrl}` : '') || sourceNodeId;
+      const key = assetId || ((taskId || imageUrl || file) ? `${taskId}:${imageUrl}:${file}` : '') || sourceNodeId;
       if (seen.has(key)) return;
       seen.add(key);
       refs.push({
@@ -92,7 +96,7 @@
         image_url: imageUrl,
         title: String(item?.title || item?.name || item?.file || `参考图 ${index + 1}`).slice(0, 160),
         prompt: String(item?.prompt || '').slice(0, 500),
-        file: String(item?.file || '').slice(0, 160),
+        file,
         source: String(item?.source || '').slice(0, 48),
         source_node_id: sourceNodeId,
         index
@@ -171,6 +175,7 @@
         quality: DesktopState.normalizeResolution(params.resolution, '2k'),
         model: googleModel,
         params: {
+          google_provider_route: params.googleProviderRoute === 'google_pool' ? 'google_pool' : 'third_party',
           archive_enabled: archiveEnabled,
           telegram_enabled: telegramEnabled
         }
@@ -185,6 +190,10 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body)
       });
+    }
+
+    if (provider === 'topaz') {
+      return window.DesktopTopazApi.submit(client,{config,images,lineage,telegramEnabled});
     }
 
     if (provider === 'upscale') {
@@ -266,6 +275,10 @@
     }
     const outputControls = DesktopState.state.output || {};
     const batchParams = { ...(config.params || {}) };
+    if (provider === 'google') {
+      batchParams.google_provider_route = batchParams.googleProviderRoute === 'google_pool' ? 'google_pool' : 'third_party';
+    }
+    delete batchParams.googleProviderRoute;
     if (batchParams.archiveEnabled == null && batchParams.archive_enabled == null) {
       batchParams.archive_enabled = outputControls.archiveEnabled !== false;
     }
@@ -342,6 +355,10 @@
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload || {})
     });
+  }
+
+  function getTopazModels() {
+    return window.DesktopTopazApi.catalog(requireApi());
   }
 
   function getUpscaleModels() {
@@ -1027,6 +1044,14 @@
     });
   }
 
+  function analyzePromptVideo(payload = {}) {
+    return requireApi().json('/api/prompt/video-analysis', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+  }
+
   function generatePromptVersions(payload = {}) {
     return requireApi().json('/api/prompt/versions/generate', {
       method: 'POST',
@@ -1343,24 +1368,59 @@
     });
   }
 
+  function googlePool(action = 'status', body) {
+    if (!['status', 'config', 'oauth-start', 'oauth-finish', 'accounts-import', 'account-refresh', 'account-update', 'account-delete'].includes(action)) {
+      throw new Error('未知 Google 账号池操作');
+    }
+    return requireApi().json('/api/google-pool/' + action, action === 'status' ? {} : {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body || {})
+    });
+  }
+
+  function taskArtifacts(raw) {
+    if (Array.isArray(raw.artifacts)) return raw.artifacts;
+    if (Array.isArray(raw.tasks)) return raw.tasks.flatMap(taskArtifacts);
+    const video = raw.video_paths || (raw.video_path ? [raw.video_path] : []);
+    const images = raw.image_paths || (raw.image_path ? [raw.image_path] : []);
+    const files = raw.result_files || raw.output_files || (raw.result_file ? [raw.result_file] : []);
+    return [...video.map(url => ({kind: 'video', url})), ...images.map(url => ({kind: 'image', url})),
+      ...files.map(name => ({kind: 'file', name}))];
+  }
+  const taskClients = {};
+  const taskClient = domain => taskClients[domain] ||= window.DesktopTasks.createClient({
+    domain, submit: domain === 'batch' ? submitBatchConfig : domain === 'video' ? submitVideoTask : submitTaskConfig,
+    progress: domain === 'batch' ? getBatch : getStatus,
+    cancel: domain === 'batch' ? id => controlBatch(id, 'cancel') : cancelTask, artifacts: taskArtifacts,
+  });
+  const tasks = Object.freeze(Object.fromEntries(['generation', 'video', 'batch'].map(domain => [domain, Object.freeze({
+    submit: (...args) => taskClient(domain).submit(...args), progress: (...args) => taskClient(domain).progress(...args),
+    cancel: (...args) => taskClient(domain).cancel(...args), result: (...args) => taskClient(domain).result(...args),
+  })])));
+  const originalReceipt = command => (...args) => command(...args).then(receipt => receipt.raw);
+
+  let loraLibrary;
   window.DesktopApi = {
-    submitTaskConfig,
-    submitBatchConfig,
+    get lora() { return loraLibrary ||= window.DesktopLoRAData.create({ getClient: requireApi }); },
+    tasks,
+    googlePool,
+    submitTaskConfig: originalReceipt(tasks.generation.submit),
+    submitBatchConfig: originalReceipt(tasks.batch.submit),
     submitCurrentTask,
-    getStatus,
+    getStatus: originalReceipt(tasks.generation.progress),
     listAgentRuns,
     createAgentRun,
     getAgentRun,
     deleteAgentRun,
     controlAgentRun,
     submitAgentAction,
+    getTopazModels,
     getUpscaleModels,
     getUpscaleComponentStatus,
     installUpscaleComponent,
     removeUpscaleComponent,
     getBatch,
     controlBatch,
-    cancelTask,
+    cancelTask: originalReceipt(tasks.generation.cancel),
     retryTask,
     getHistory,
     getAssets,
@@ -1397,7 +1457,7 @@
     testVideoRuntime,
     testVideoSupervisor,
     startVideoRuntime,
-    submitVideoTask,
+    submitVideoTask: originalReceipt(tasks.video.submit),
     getGptConfig,
     getGptModels,
     saveGptConfig,
@@ -1431,6 +1491,7 @@
     promptAssistantChatStream,
     safeRewritePrompt,
     analyzePromptImage,
+    analyzePromptVideo,
     generatePromptVersions,
     compileVideoPrompt,
     getStylePresets,

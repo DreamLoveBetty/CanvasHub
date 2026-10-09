@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import unittest
 
+from backend import provider_change2pro as change2pro
 from backend.api_client import (
     _chat_completions_url,
     _extract_image_from_openai_chat,
@@ -55,15 +56,21 @@ class GoogleApiErrorFormattingTest(unittest.TestCase):
         self.assertEqual(message, "HTTP 错误 401：API key is required")
         self.assertEqual(error_type, "http_401")
 
-    def test_openai_chat_endpoint_detection_for_change2pro_root(self) -> None:
-        self.assertTrue(_uses_openai_chat_endpoint("https://api.change2pro.com"))
+    def test_change2pro_root_uses_documented_google_contract(self) -> None:
+        self.assertTrue(change2pro.uses_documented_google_api("https://api.change2pro.com"))
+        self.assertFalse(_uses_openai_chat_endpoint("https://api.change2pro.com"))
         self.assertEqual(
-            _chat_completions_url("https://api.change2pro.com"),
-            "https://api.change2pro.com/v1/chat/completions",
+            change2pro.google_url(
+                "https://api.change2pro.com",
+                "gemini-3.1-flash-image",
+                stream=False,
+            ),
+            "https://api.change2pro.com/v1beta/models/gemini-3.1-flash-image:generateContent",
         )
+        self.assertTrue(_uses_openai_chat_endpoint("https://provider.example"))
         self.assertEqual(
-            _chat_completions_url("https://api.change2pro.com/v1"),
-            "https://api.change2pro.com/v1/chat/completions",
+            _chat_completions_url("https://provider.example/v1"),
+            "https://provider.example/v1/chat/completions",
         )
         self.assertFalse(_uses_openai_chat_endpoint("https://provider.example/v1beta"))
 

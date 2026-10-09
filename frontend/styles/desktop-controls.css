@@ -290,18 +290,6 @@ body.desk-app[data-theme] .desk-file-preview-modal__actions #deskFilePreviewSend
   transform: translateY(calc(0px - var(--desk-motion-distance-xs)));
 }
 
-body.desk-app[data-theme] .desk-node--input .desk-button--generate:not(:disabled) {
-  box-shadow:
-    0 20px 36px var(--desk-action-primary-shadow),
-    inset 0 1px 0 var(--desk-action-primary-highlight);
-}
-
-body.desk-app[data-theme] .desk-node--input .desk-button--generate:hover:not(:disabled) {
-  box-shadow:
-    0 22px 40px var(--desk-action-primary-shadow-strong),
-    inset 0 1px 0 var(--desk-action-primary-highlight-hover);
-}
-
 body.desk-app[data-theme] :is(
   .desk-settings,
   .desk-layout-editor,
@@ -343,10 +331,6 @@ body.desk-app[data-theme] .desk-file-preview-modal__actions #deskFilePreviewSend
   border-color: var(--desk-action-primary-hover-border);
   box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
   transform: translateY(0);
-}
-
-body.desk-app[data-theme] .desk-node--input .desk-button--generate:active:not(:disabled) {
-  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 body.desk-app[data-theme] :is(
@@ -547,6 +531,48 @@ body.desk-app[data-theme] .desk-select-shell:not([data-select-variant="language"
 
 body.desk-app[data-theme] .desk-select-shell:not([data-select-variant="language"]):not([data-select-variant="image-group-role"]).is-disabled .desk-select-trigger,
 body.desk-app[data-theme] .desk-select-shell:not([data-select-variant="language"]):not([data-select-variant="image-group-role"]) .desk-select-trigger:disabled {
+  color: var(--desk-color-text-disabled);
+  background: var(--desk-color-control-bg-disabled);
+  border-color: var(--desk-color-control-border-disabled);
+  box-shadow: none;
+  opacity: 1;
+}
+
+/* Settings selects are fields, not frosted buttons. The generic button edge is
+   nearly white in day mode; use the same baseline as adjacent text inputs.
+   Native fallback and enhanced selects share paint, without changing geometry. */
+body.desk-app[data-theme] .desk-settings select:not(.desk-select-native),
+body.desk-app[data-theme] .desk-settings .desk-select-shell:not([data-select-variant="language"]):not([data-select-variant="image-group-role"]) .desk-select-trigger {
+  color: var(--desk-settings-field-ink);
+  background: var(--desk-settings-field-background);
+  border-color: var(--desk-settings-field-border);
+  box-shadow: var(--desk-settings-field-shadow);
+  transition: var(--desk-motion-field-transition);
+}
+
+body.desk-app[data-theme] .desk-settings select:not(.desk-select-native):hover:not(:disabled),
+body.desk-app[data-theme] .desk-settings .desk-select-shell:not([data-select-variant="language"]):not([data-select-variant="image-group-role"]) .desk-select-trigger:hover:not(:disabled) {
+  background: var(--desk-color-control-bg-hover);
+  border-color: var(--desk-color-control-border-hover);
+}
+
+body.desk-app[data-theme] .desk-settings select:not(.desk-select-native):active:not(:disabled),
+body.desk-app[data-theme] .desk-settings .desk-select-shell:not([data-select-variant="language"]):not([data-select-variant="image-group-role"]) .desk-select-trigger:active:not(:disabled) {
+  background: var(--desk-color-control-bg-active);
+  border-color: var(--desk-color-control-border-active);
+}
+
+body.desk-app[data-theme] .desk-settings select:not(.desk-select-native):focus-visible,
+body.desk-app[data-theme] .desk-settings .desk-select-shell:not([data-select-variant="language"]):not([data-select-variant="image-group-role"]) .desk-select-trigger:focus-visible,
+body.desk-app[data-theme] .desk-settings .desk-select-shell:not([data-select-variant="language"]):not([data-select-variant="image-group-role"]).is-open .desk-select-trigger {
+  border-color: var(--desk-color-focus-border);
+  box-shadow: var(--desk-shadow-focus);
+  outline: none;
+}
+
+body.desk-app[data-theme] .desk-settings select:not(.desk-select-native):disabled,
+body.desk-app[data-theme] .desk-settings .desk-select-shell:not([data-select-variant="language"]):not([data-select-variant="image-group-role"]).is-disabled .desk-select-trigger,
+body.desk-app[data-theme] .desk-settings .desk-select-shell:not([data-select-variant="language"]):not([data-select-variant="image-group-role"]) .desk-select-trigger:disabled {
   color: var(--desk-color-text-disabled);
   background: var(--desk-color-control-bg-disabled);
   border-color: var(--desk-color-control-border-disabled);
@@ -995,4 +1021,265 @@ body.desk-app[data-theme] .desk-prompt-library__tabs button[aria-selected="true"
   ) {
     scroll-behavior: auto;
   }
+}
+
+/* Canvas generate action: the single, complete style source for every node's
+   72px "开始生成" button (图像输入, Qwen, Krea, 绘栾, Topaz Gigapixel, 音乐, ReShot,
+   Topaz Video). Controllers own state only: `disabled` while unavailable and
+   `aria-busy="true"` while a job runs; a busy button keeps the primary finish even
+   when disabled. Comfy / upscale / video-inference runs are a separate compact
+   variant (.desk-button--generate) and do not use this class. */
+body.desk-app[data-theme] .desk-node .desk-generation-action {
+  display:flex; flex:none; flex-direction:column; align-items:center; justify-content:center;
+  gap:4px; box-sizing:border-box; width:72px; height:72px; min-width:72px; min-height:72px;
+  padding:8px 4px; border-radius:var(--desk-node-radius);
+  transition:var(--desk-motion-control-transition),var(--desk-motion-material-transition);
+}
+body.desk-app[data-theme] .desk-node .desk-generation-action:not(:disabled),
+body.desk-app[data-theme] .desk-node .desk-generation-action[aria-busy="true"] {
+  border:1px solid var(--desk-action-primary-border);
+  color:var(--desk-action-primary-ink); background:var(--desk-action-primary-gloss);
+  background-size:var(--desk-action-primary-silk-background-size);
+  background-position:var(--desk-action-primary-silk-position);
+  box-shadow:0 5px 14px var(--desk-action-primary-shadow);
+}
+body.desk-app[data-theme] .desk-node .desk-generation-action[aria-busy="true"] { opacity:1; cursor:progress; }
+body.desk-app[data-theme] .desk-node .desk-generation-action:disabled:not([aria-busy="true"]) {
+  border:1px solid var(--desk-action-primary-disabled-border);
+  color:var(--desk-action-primary-disabled-ink);
+  background:var(--desk-action-primary-gradient-disabled);
+  background-position:0 0; background-size:100% 100%;
+  box-shadow:none; opacity:1; transform:none;
+}
+body.desk-app[data-theme] .desk-node .desk-generation-action svg { width:28px; height:28px; flex:none; fill:currentColor; filter:none; }
+body.desk-app[data-theme] .desk-node .desk-generation-action__label { font-size:10px; font-weight:500; line-height:1.3; white-space:nowrap; }
+body.desk-app[data-theme] .desk-node .desk-generation-action:hover:not(:disabled) {
+  background-image:var(--desk-action-primary-gloss-hover);
+  background-position:var(--desk-action-primary-silk-position-hover);
+  border-color:var(--desk-action-primary-hover-border);
+  box-shadow:0 8px 20px var(--desk-action-primary-shadow-strong);
+  transform:translateY(calc(0px - var(--desk-motion-distance-xs)));
+}
+body.desk-app[data-theme] .desk-node .desk-generation-action:active:not(:disabled) {
+  background-image:var(--desk-action-primary-gloss-active);
+  background-position:var(--desk-action-primary-silk-position-active);
+  box-shadow:inset 0 2px 4px var(--desk-action-primary-shadow);
+  transform:translateY(0);
+}
+
+/* Settings-only model tools and native file pickers use shared command states.
+   Geometry and density remain in desktop-geometry.css. */
+/* Standalone model-tool commands do not sit in the legacy form action bar. */
+body.desk-app[data-theme] .desk-settings :is(
+  .desk-krea2-tools__inspection,
+  .desk-qwen21-tools__inspection,
+  .desk-krea2-tools__progress,
+  .desk-qwen21-tools__progress
+) > button {
+  color: var(--desk-color-control-ink);
+  background: var(--desk-color-control-bg);
+  border-color: var(--desk-color-control-border);
+  box-shadow: var(--desk-shadow-button);
+  transition: var(--desk-motion-control-transition);
+}
+
+body.desk-app[data-theme] .desk-settings :is(
+  .desk-krea2-tools__inspection,
+  .desk-qwen21-tools__inspection,
+  .desk-krea2-tools__progress,
+  .desk-qwen21-tools__progress
+) > button:hover:not(:disabled) {
+  background: var(--desk-color-control-bg-hover);
+  border-color: var(--desk-color-control-border-hover);
+}
+
+body.desk-app[data-theme] .desk-settings :is(
+  .desk-krea2-tools__inspection,
+  .desk-qwen21-tools__inspection,
+  .desk-krea2-tools__progress,
+  .desk-qwen21-tools__progress
+) > button:disabled {
+  color: var(--desk-color-text-disabled);
+  background: var(--desk-color-control-bg-disabled);
+  border-color: var(--desk-color-control-border-disabled);
+  box-shadow: none;
+}
+
+body.desk-app[data-theme] .desk-settings input[type="file"]::file-selector-button {
+  color: var(--desk-color-control-ink);
+  background: var(--desk-color-control-bg);
+  border-color: var(--desk-color-control-border);
+  box-shadow: var(--desk-shadow-button);
+}
+
+body.desk-app[data-theme] .desk-settings :is(
+  .desk-krea2-tools__progress,
+  .desk-qwen21-tools__progress,
+  .desk-krea2-tools__model,
+  .desk-qwen21-tools__model
+) > button.is-danger {
+  color: var(--desk-settings-danger-control-ink);
+  background: var(--desk-settings-danger-control-background);
+  border-color: var(--desk-settings-danger-control-border);
+  box-shadow: var(--desk-settings-danger-control-shadow);
+  transition: var(--desk-motion-control-transition);
+}
+
+body.desk-app[data-theme] .desk-settings :is(
+  .desk-krea2-tools__progress,
+  .desk-qwen21-tools__progress,
+  .desk-krea2-tools__model,
+  .desk-qwen21-tools__model
+) > button.is-danger:hover:not(:disabled) {
+  color: var(--desk-settings-danger-control-hover-ink);
+  background: var(--desk-settings-danger-control-hover-background);
+  border-color: var(--desk-settings-danger-control-hover-border);
+  box-shadow: var(--desk-settings-danger-control-hover-shadow);
+}
+
+body.desk-app[data-theme] .desk-settings :is(
+  .desk-krea2-tools__progress,
+  .desk-qwen21-tools__progress,
+  .desk-krea2-tools__model,
+  .desk-qwen21-tools__model
+) > button.is-danger:disabled,
+body.desk-app[data-theme] .desk-settings input[type="file"]:disabled::file-selector-button {
+  color: var(--desk-color-text-disabled);
+  background: var(--desk-color-control-bg-disabled);
+  border-color: var(--desk-color-control-border-disabled);
+  box-shadow: none;
+}
+
+body.desk-app[data-theme] .desk-settings input[type="file"]:hover:not(:disabled)::file-selector-button {
+  background: var(--desk-color-control-bg-hover);
+  border-color: var(--desk-color-control-border-hover);
+}
+
+/* The Settings host owns its elevation; canvas, other panels and Auth do not
+   consume this compact material. Primary save commands retain a shallow lift. */
+body.desk-app[data-theme] .desk-settings {
+  --desk-shadow-button: none;
+}
+
+body.desk-app[data-theme] .desk-settings .desk-settings__body {
+  --desk-shadow-button: none;
+  --desk-settings-danger-control-shadow: none;
+  --desk-settings-danger-control-hover-shadow: inset 0 0 0 1px var(--desk-settings-danger-control-hover-border);
+}
+
+body.desk-app[data-theme] .desk-settings .desk-settings__body button:is(
+  .is-primary, .is-active, .desk-button--primary
+):not(:disabled):not(:active) {
+  box-shadow:
+    inset 0 1px 0 var(--desk-action-primary-highlight),
+    inset 0 -1px 0 var(--desk-action-primary-edge-lowlight),
+    0 1px 3px color-mix(in srgb, var(--desk-action-primary-shadow) 45%, transparent);
+}
+
+body.desk-app[data-theme] .desk-settings .desk-settings__body button:is(
+  .is-primary, .is-active, .desk-button--primary
+):hover:not(:disabled):not(:active) {
+  box-shadow:
+    inset 0 1px 0 var(--desk-action-primary-highlight-hover),
+    inset 0 -1px 0 var(--desk-action-primary-edge-lowlight-hover),
+    0 1px 4px color-mix(in srgb, var(--desk-action-primary-shadow-strong) 45%, transparent);
+}
+
+body.desk-app[data-theme] .desk-settings .desk-settings__body button:is(
+  .is-primary, .is-active, .desk-button--primary
+):active:not(:disabled) {
+  box-shadow: inset 0 1px 2px var(--desk-action-primary-edge-lowlight);
+}
+
+/* Category/mode selection is context, not a primary command. All four Settings
+   segment families use a soft accent instead of a glossy raised action skin. */
+body.desk-app[data-theme] .desk-settings :is(
+  .desk-segment, .desk-settings-canvas-interaction__segment, .desk-video-runtime-mode
+) {
+  background: var(--desk-settings-segment-background);
+  box-shadow: inset 0 0 0 1px var(--desk-settings-segment-border);
+}
+
+body.desk-app[data-theme] .desk-settings :is(
+  .desk-settings-tabs, .desk-segment, .desk-settings-canvas-interaction__segment, .desk-video-runtime-mode
+) button:not(.is-active):not(.desk-settings-tabs__toggle):not(:disabled) {
+  color: var(--desk-settings-muted-ink);
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  transform: none;
+}
+
+body.desk-app[data-theme] .desk-settings :is(
+  .desk-settings-tabs, .desk-segment, .desk-settings-canvas-interaction__segment, .desk-video-runtime-mode
+) button:hover:not(.is-active):not(.desk-settings-tabs__toggle):not(:disabled) {
+  color: var(--desk-settings-accent-ink);
+  background: var(--desk-color-accent-soft);
+}
+
+body.desk-app[data-theme] .desk-settings :is(
+  .desk-settings-tabs, .desk-segment, .desk-settings-canvas-interaction__segment, .desk-video-runtime-mode
+) button.is-active:not(.desk-settings-tabs__toggle):not(:disabled) {
+  color: var(--desk-settings-accent-ink);
+  background: var(--desk-color-accent-soft);
+  border-color: transparent;
+  box-shadow: none;
+  transition: var(--desk-motion-control-transition);
+  transform: none;
+}
+
+body.desk-app[data-theme] .desk-settings :is(
+  .desk-settings-tabs, .desk-segment, .desk-settings-canvas-interaction__segment, .desk-video-runtime-mode
+) button.is-active:hover:not(.desk-settings-tabs__toggle):not(:disabled) {
+  background: color-mix(in srgb, var(--desk-color-accent-soft) 80%, var(--desk-color-control-bg-hover));
+  border-color: transparent;
+  box-shadow: none;
+}
+
+body.desk-app[data-theme] .desk-settings :is(
+  .desk-settings-tabs, .desk-segment, .desk-settings-canvas-interaction__segment, .desk-video-runtime-mode
+) button:active:not(.desk-settings-tabs__toggle):not(:disabled),
+body.desk-app[data-theme] .desk-settings :is(
+  .desk-settings-tabs, .desk-segment, .desk-settings-canvas-interaction__segment, .desk-video-runtime-mode
+) button.is-active:active:not(.desk-settings-tabs__toggle):not(:disabled) {
+  color: var(--desk-settings-accent-ink);
+  background: var(--desk-color-control-bg-active);
+  border-color: var(--desk-color-control-border-active);
+  box-shadow: none;
+  transform: none;
+}
+
+body.desk-app[data-theme] .desk-settings :is(
+  .desk-settings-tabs, .desk-segment, .desk-settings-canvas-interaction__segment, .desk-video-runtime-mode
+) button:disabled:not(.desk-settings-tabs__toggle) {
+  color: var(--desk-color-text-disabled);
+  background: var(--desk-color-control-bg-disabled);
+  border-color: transparent;
+  box-shadow: none;
+  opacity: 1;
+  transform: none;
+}
+
+body.desk-app[data-theme] .desk-settings :is(
+  .desk-settings-tabs, .desk-segment, .desk-settings-canvas-interaction__segment, .desk-video-runtime-mode
+) button:focus-visible:not(.desk-settings-tabs__toggle):not(:disabled) {
+  outline: 2px solid var(--desk-color-accent);
+  outline-offset: -2px;
+}
+
+body.desk-app[data-theme] .desk-settings .desk-settings-secret-clear {
+  transform: none;
+}
+
+body.desk-app[data-theme] .desk-settings .desk-settings-secret-clear:hover:not(:disabled) {
+  color: var(--desk-settings-danger-control-ink);
+  background: var(--desk-settings-danger-control-background);
+  border-color: var(--desk-settings-danger-control-hover-border);
+  box-shadow: none;
+}
+
+body.desk-app[data-theme] .desk-settings .desk-settings-secret-clear:active:not(:disabled) {
+  background: var(--desk-color-control-bg-active);
+  box-shadow: none;
+  transform: none;
 }
