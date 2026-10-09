@@ -30,6 +30,7 @@ from .app_config import (
     load_app_settings,
 )
 from .prompt_library import TYPE_SPECS, built_in_templates
+from .services.prompt_video import summarize_video_references, video_summaries_prompt_context
 
 CODEX_SCRIPTS_DIR = BASE_DIR / "backend" / "codex_image_runtime" / "scripts"
 if str(CODEX_SCRIPTS_DIR) not in sys.path:
@@ -823,11 +824,11 @@ def _event_text_delta(event: dict[str, Any]) -> str:
     return ""
 
 
-def _call_gpt_oauth_stream(prompt: str, system: str, model: str, reasoning_effort: str) -> Iterator[str]:
+def _call_gpt_oauth_stream(prompt: str, system: str, model: str, reasoning_effort: str, images: list[str] | None = None) -> Iterator[str]:
     if not build_text_request or not extract_text or not codex_headers or not get_codex_auth or not iter_sse_events or not codex_api_base:
         raise RuntimeError("Codex OAuth 流式客户端不可用")
     _, env_overrides = _gpt_oauth_env_overrides()
-    request = build_text_request(
+    request = _build_multimodal_text_request(prompt, images, system, model, reasoning_effort) if images else build_text_request(
         prompt=prompt,
         model=model,
         system=system,
@@ -891,16 +892,19 @@ def _call_gpt_oauth_stream(prompt: str, system: str, model: str, reasoning_effor
     raise RuntimeError("stream disconnected before completion")
 
 
-def _call_openai_compatible_stream(provider: dict[str, Any], prompt: str, system: str, model: str) -> Iterator[str]:
+def _call_openai_compatible_stream(provider: dict[str, Any], prompt: str, system: str, model: str, images: list[str] | None = None) -> Iterator[str]:
     api_base = str(provider.get("api_base") or "").rstrip("/")
     api_key = str(provider.get("api_key") or os.environ.get(str(provider.get("api_key_env") or "")) or "")
     if not api_base:
         raise RuntimeError("第三方 provider 未配置 api_base")
+    content = ([{"type": "text", "text": prompt}] + [
+        {"type": "image_url", "image_url": {"url": image_url}} for image_url in images
+    ]) if images else prompt
     body = {
         "model": model,
         "messages": [
             {"role": "system", "content": system},
-            {"role": "user", "content": prompt},
+            {"role": "user", "content": content},
         ],
         "temperature": float(provider.get("temperature", 0.4)),
         "stream": True,
@@ -939,11 +943,16 @@ def _call_openai_compatible_stream(provider: dict[str, Any], prompt: str, system
         raise RuntimeError(f"第三方模型流式请求失败（HTTP {exc.code}）：{body_text[:500]}") from exc
 
 
-def _call_prompt_provider_stream(provider_id: str, prompt: str, system: str, model: str, reasoning_effort: str) -> Iterator[str]:
-    if provider_id == DEFAULT_PROMPT_SKILL_PROVIDER:
-        yield from _call_gpt_oauth_stream(prompt, system, model, reasoning_effort)
+def _call_prompt_provider_stream(provider_id: str, prompt: str, system: str, model: str, reasoning_effort: str, images: list[str] | None = None) -> Iterator[str]:
+    if images and provider_id == "chatgpt_pool":
+        reply, _ = _chatgpt_pool_image_json_reply(prompt, system, images)
+        yield reply
         return
-    yield from _call_openai_compatible_stream(_as_dict(_provider_settings().get(provider_id)), prompt, system, model)
+    image_options = {"images": images} if images else {}
+    if provider_id == DEFAULT_PROMPT_SKILL_PROVIDER:
+        yield from _call_gpt_oauth_stream(prompt, system, model, reasoning_effort, **image_options)
+        return
+    yield from _call_openai_compatible_stream(_as_dict(_provider_settings().get(provider_id)), prompt, system, model, **image_options)
 
 
 # Keep the imported symbol referenced so old monkeypatch-based checks fail loudly
@@ -1017,7 +1026,9 @@ def _call_openai_compatible_image_json(provider: dict[str, Any], prompt: str, sy
     return str(payload.get("choices", [{}])[0].get("message", {}).get("content") or "").strip()
 
 
-def _call_prompt_provider(provider_id: str, prompt: str, system: str, model: str, reasoning_effort: str) -> str:
+def _call_prompt_provider(provider_id: str, prompt: str, system: str, model: str, reasoning_effort: str, images: list[str] | None = None) -> str:
+    if images:
+        return _call_prompt_provider_image_json(provider_id, prompt, system, images, model, reasoning_effort)
     if provider_id == DEFAULT_PROMPT_SKILL_PROVIDER:
         return _call_gpt_oauth(prompt, system, model, reasoning_effort)
     return _call_openai_compatible(_as_dict(_provider_settings().get(provider_id)), prompt, system, model)
@@ -1068,8 +1079,8 @@ def _chatgpt_pool_chat_reply(prompt: str, system: str, timeout_seconds: int = 18
     return content, str(payload.get("model") or "auto")
 
 
-def _fallback_prompt_chat_to_pool(prompt: str, system: str, error: Exception) -> tuple[str, str, str]:
-    reply, model = _chatgpt_pool_chat_reply(prompt, system)
+def _fallback_prompt_chat_to_pool(prompt: str, system: str, error: Exception, images: list[str] | None = None) -> tuple[str, str, str]:
+    reply, model = _chatgpt_pool_image_json_reply(prompt, system, images) if images else _chatgpt_pool_chat_reply(prompt, system)
     warning = f"{_prompt_pool_fallback_reason(error)}：{error}"
     print(f"⚠️ Prompt Assistant Chat fallback to account pool: {error}")
     return reply, model, warning
@@ -2387,6 +2398,25 @@ def _assistant_chat_request(text: str, message: str, options: dict[str, Any] | N
     user_message = str(message or "").strip()
     if not current_text and not user_message:
         raise ValueError("请输入聊天内容或选择文本节点")
+    image_inputs = options.get("images", [])
+    if not isinstance(image_inputs, list) or len(image_inputs) > 4:
+        raise ValueError("引用图片必须是列表，最多支持 4 张图片")
+    images = _normalize_image_analysis_inputs(image_inputs)
+    if len(images) != len(image_inputs):
+        raise ValueError("引用图片缺少有效图像数据，请重新选择图片")
+    supplied_video_summaries = options.get("video_summaries")
+    if supplied_video_summaries is not None and not isinstance(supplied_video_summaries, list):
+        raise ValueError("视频分析摘要必须是列表")
+    video_summaries = supplied_video_summaries or summarize_video_references(
+        options.get("videos", []),
+        call_model=call_prompt_model,
+        options={
+            "provider": options.get("provider"),
+            "model": options.get("model"),
+            "reasoning_effort": options.get("reasoning_effort") or options.get("reasoningEffort") or "low",
+        },
+    )
+    video_context = video_summaries_prompt_context(video_summaries)
 
     config = get_prompt_skill_config()
     provider_id = str(options.get("provider") or config.get("provider") or DEFAULT_PROMPT_SKILL_PROVIDER).strip()
@@ -2434,6 +2464,14 @@ def _assistant_chat_request(text: str, message: str, options: dict[str, Any] | N
         ),
         f"当前文本节点内容：\n<<<\n{current_text}\n>>>" if current_text else "当前文本节点内容：空",
         f"当前风格预设：{style_title}\n{style_text}" if (style_title or style_text) else "",
+        (
+            "本轮实际附带图片（按附件顺序对应引用编号，请直接查看图像内容）：\n"
+            + "\n".join(f"第 {index + 1} 张：{item['id']}（{item['label']}）" for index, item in enumerate(images))
+        ) if images else "",
+        (
+            "本轮 @ 引用视频的 12--24 帧时序分析（这是参考素材，不是待生成视频的首帧）：\n"
+            + video_context
+        ) if video_context else "",
         "最近对话：\n" + "\n".join(history_lines) if history_lines else "",
         f"用户消息：\n{user_message}" if user_message else "用户消息：请基于当前文本节点给出方向建议。",
     ] if part).strip()
@@ -2445,6 +2483,8 @@ def _assistant_chat_request(text: str, message: str, options: dict[str, Any] | N
         "reasoning_effort": reasoning_effort,
         "system": H3_ASSISTANT_CHAT_SYSTEM if is_h3 else ASSISTANT_CHAT_SYSTEM,
         "task_domain": "video" if is_h3 else "image",
+        "images": [item["image_url"] for item in images],
+        "video_summaries": video_summaries,
     }
 
 
@@ -2455,14 +2495,15 @@ def assistant_chat(text: str, message: str, options: dict[str, Any] | None = Non
     model = request["model"]
     reasoning_effort = request["reasoning_effort"]
     system_prompt = str(request.get("system") or ASSISTANT_CHAT_SYSTEM)
+    image_options = {"images": request["images"]} if request.get("images") else {}
     started = time.time()
     warning = ""
     try:
-        reply = _call_prompt_provider(provider_id, request["prompt"], system_prompt, model, reasoning_effort)
+        reply = _call_prompt_provider(provider_id, request["prompt"], system_prompt, model, reasoning_effort, **image_options)
     except Exception as exc:
         if not _should_fallback_prompt_chat_to_pool(provider_id, exc):
             raise
-        reply, model, warning = _fallback_prompt_chat_to_pool(request["prompt"], system_prompt, exc)
+        reply, model, warning = _fallback_prompt_chat_to_pool(request["prompt"], system_prompt, exc, **image_options)
         provider_id = "chatgpt_pool"
         reasoning_effort = ""
     if not reply:
@@ -4063,6 +4104,7 @@ def assistant_chat_stream(text: str, message: str, options: dict[str, Any] | Non
     model = request["model"]
     reasoning_effort = request["reasoning_effort"]
     system_prompt = str(request.get("system") or ASSISTANT_CHAT_SYSTEM)
+    image_options = {"images": request["images"]} if request.get("images") else {}
     started = time.time()
     yield {
         "type": "meta",
@@ -4075,7 +4117,7 @@ def assistant_chat_stream(text: str, message: str, options: dict[str, Any] | Non
     emitted = False
     warning = ""
     try:
-        for chunk in _call_prompt_provider_stream(provider_id, request["prompt"], system_prompt, model, reasoning_effort):
+        for chunk in _call_prompt_provider_stream(provider_id, request["prompt"], system_prompt, model, reasoning_effort, **image_options):
             text_chunk = str(chunk or "")
             if not text_chunk:
                 continue
@@ -4086,16 +4128,16 @@ def assistant_chat_stream(text: str, message: str, options: dict[str, Any] | Non
         if emitted:
             raise
         if _should_fallback_prompt_chat_to_pool(provider_id, stream_error):
-            reply, model, warning = _fallback_prompt_chat_to_pool(request["prompt"], system_prompt, stream_error)
+            reply, model, warning = _fallback_prompt_chat_to_pool(request["prompt"], system_prompt, stream_error, **image_options)
             provider_id = "chatgpt_pool"
             reasoning_effort = ""
         else:
             try:
-                reply = _call_prompt_provider(provider_id, request["prompt"], system_prompt, model, reasoning_effort)
+                reply = _call_prompt_provider(provider_id, request["prompt"], system_prompt, model, reasoning_effort, **image_options)
             except Exception as full_error:
                 if not _should_fallback_prompt_chat_to_pool(provider_id, full_error):
                     raise
-                reply, model, warning = _fallback_prompt_chat_to_pool(request["prompt"], system_prompt, full_error)
+                reply, model, warning = _fallback_prompt_chat_to_pool(request["prompt"], system_prompt, full_error, **image_options)
                 provider_id = "chatgpt_pool"
                 reasoning_effort = ""
         if not reply:
@@ -5467,6 +5509,164 @@ def analyze_prompt_image(message: str, images: list[Any], options: dict[str, Any
     if fallback_warning:
         result["warning"] = fallback_warning
         result["fallback"] = "chatgpt_pool_multimodal_chat"
+    return result
+
+
+VIDEO_PROMPT_ANALYSIS_SYSTEM = """你是视频参考素材分析器。你会收到由 12--24 个等距关键帧分批得到的时序摘要，可能还附带少量图片参考。
+请把证据整理成可用于图像或视频创作的分析结果。不要把参考视频误称为首帧，不要声称看到了未提供的音频，也不要虚构摘要中不存在的事件。
+只输出一个 JSON 对象，不要 Markdown。字段必须为：visual_summary、motion、camera、timing、style、visible_text、prompt_candidate、warnings。
+其中 warnings 必须是字符串数组，其余字段必须是字符串。prompt_candidate 应是一段可直接投喂生成模型、同时保留主体、时序动作、镜头、光色与风格锚点的中文提示词。"""
+
+
+def analyze_prompt_video(
+    message: str,
+    videos: list[Any],
+    options: dict[str, Any] | None = None,
+    *,
+    images: list[Any] | None = None,
+) -> dict[str, Any]:
+    """Analyze browser-sampled video references without transporting raw video."""
+    options = options or {}
+    started = time.time()
+    model_options = {
+        "provider": options.get("provider"),
+        "model": options.get("model"),
+        "reasoning_effort": options.get("reasoning_effort") or options.get("reasoningEffort") or "medium",
+    }
+    summaries = summarize_video_references(
+        videos,
+        call_model=call_prompt_model,
+        options=model_options,
+    )
+    if not summaries:
+        raise ValueError("缺少要分析的视频")
+
+    normalized_images = _normalize_image_analysis_inputs(images if isinstance(images, list) else [])
+    if images and len(normalized_images) != len(images):
+        raise ValueError("附加图片缺少有效图像数据，请重新选择图片")
+    video_context = video_summaries_prompt_context(summaries)
+    prompt = "\n\n".join(part for part in [
+        f"用户分析要求：{str(message or '').strip()}" if str(message or "").strip() else "用户分析要求：提取可复用的视觉与运动方向。",
+        "视频关键帧时序摘要：\n" + video_context,
+        (
+            "另有图片参考：" + "、".join(
+                f"{item.get('id')}（{item.get('label')}）" for item in normalized_images
+            )
+        ) if normalized_images else "",
+        "综合各批摘要的先后关系；如果跨批无法确认连续动作，请在 warnings 中说明。",
+    ] if part)
+    final_result = call_prompt_model(
+        prompt,
+        VIDEO_PROMPT_ANALYSIS_SYSTEM,
+        model_options,
+        images=[item["image_url"] for item in normalized_images[:4]],
+        error_label="视频参考分析",
+    )
+    raw_text = str(final_result.get("text") or "").strip()
+    if not raw_text:
+        raise RuntimeError("视频参考分析模型没有返回内容")
+    try:
+        parsed = json.loads(_extract_first_json_block(raw_text))
+    except Exception as exc:
+        raise ValueError(f"视频参考分析模型返回的 JSON 无效：{exc}") from exc
+    if not isinstance(parsed, dict):
+        raise ValueError("视频参考分析模型返回的 JSON 结构无效")
+
+    def clean_field(key: str, fallback: str = "") -> str:
+        value = parsed.get(key)
+        if isinstance(value, (dict, list)):
+            value = json.dumps(value, ensure_ascii=False)
+        clean = str(value or fallback).strip()
+        return clean[:12_000]
+
+    warnings_value = parsed.get("warnings")
+    warnings = [str(item).strip() for item in warnings_value] if isinstance(warnings_value, list) else []
+    warnings = [item for item in warnings if item]
+    for summary in summaries:
+        warnings.extend(str(item).strip() for item in summary.get("warnings") or [] if str(item).strip())
+        if not summary.get("recommended_frame_minimum_met"):
+            warnings.append(f"{summary.get('label') or summary.get('id')} 少于建议的 12 帧，时序判断可信度较低。")
+    warnings = list(dict.fromkeys(warnings))
+
+    visual_summary = clean_field("visual_summary", summaries[0].get("summary") or "")
+    motion = clean_field("motion")
+    camera = clean_field("camera")
+    timing = clean_field("timing")
+    style = clean_field("style")
+    visible_text = clean_field("visible_text")
+    prompt_candidate = clean_field("prompt_candidate") or "；".join(
+        value for value in (visual_summary, motion, camera, timing, style) if value
+    )
+    if not prompt_candidate:
+        raise ValueError("视频参考分析缺少可用提示词候选")
+
+    public_summaries = [{
+        key: copy_value
+        for key, copy_value in summary.items()
+        if key != "batch_summaries"
+    } for summary in summaries]
+    analysis = {
+        "visual_summary": visual_summary,
+        "motion": motion,
+        "camera": camera,
+        "timing": timing,
+        "style": style,
+        "visible_text": visible_text,
+        "warnings": warnings,
+        "video_references": public_summaries,
+        "sampling": {
+            "strategy": "browser_uniform_frames",
+            "frame_range": "12-24",
+            "batch_size": 8,
+        },
+    }
+    analysis_id = f"video_analysis_{int(time.time())}_{hashlib.sha1(video_context.encode('utf-8')).hexdigest()[:8]}"
+    candidate = {
+        "id": f"{analysis_id}_main",
+        "kind": "video_analysis_main",
+        "label": "视频参考分析主候选",
+        "badge": "视频",
+        "text": prompt_candidate,
+        "base_text": prompt_candidate,
+    }
+    module_specs = [
+        ("visual_summary", "视觉概述", visual_summary, "summary"),
+        ("motion", "动作变化", motion, "summary"),
+        ("camera", "镜头语言", camera, "summary"),
+        ("timing", "节奏与时序", timing, "summary"),
+        ("style", "光色与风格", style, "prompt"),
+        ("visible_text", "可见文字", visible_text, "text"),
+        ("warnings", "不确定项", "\n".join(warnings), "summary"),
+    ]
+    modules = [
+        {"id": module_id, "title": title, "text": text, "kind": kind, "editable": False}
+        for module_id, title, text, kind in module_specs
+        if text
+    ]
+    modules.append({
+        "id": "full_json",
+        "title": "完整 JSON",
+        "kind": "json",
+        "text": json.dumps(analysis, ensure_ascii=False, indent=2),
+        "json": analysis,
+    })
+    result = {
+        "ok": True,
+        "mode": "video",
+        "analysis_id": analysis_id,
+        "analysis": analysis,
+        "candidate": candidate,
+        "candidates": [candidate],
+        "modules": modules,
+        "provider": final_result.get("provider"),
+        "model": final_result.get("model"),
+        "reasoning_effort": final_result.get("reasoning_effort"),
+        "latency_seconds": round(time.time() - started, 2),
+    }
+    if final_result.get("warning"):
+        result["warning"] = final_result["warning"]
+    if final_result.get("fallback"):
+        result["fallback"] = final_result["fallback"]
     return result
 
 

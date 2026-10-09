@@ -16,7 +16,7 @@ services:
     volumes:
       - canvashub_data:/app/data
     command: >
-      uvicorn sidecars.chatgpt_pool.app:app
+      uvicorn sidecars.account_service:app
       --host 0.0.0.0 --port 18080
     restart: unless-stopped
 

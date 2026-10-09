@@ -353,6 +353,20 @@ def get_third_party_image_config() -> dict[str, Any]:
     }
 
 
+def get_cyimg_config() -> dict[str, Any]:
+    """绘栾 uses its own asynchronous API, not the OpenAI-compatible provider."""
+    section = load_app_settings().get("cyimg") or {}
+    if not isinstance(section, dict):
+        section = {}
+    api_key = _as_str(os.environ.get("CYIMG_API_KEY") or section.get("api_key"))
+    timeout = _as_int(section.get("task_timeout_seconds"), 3600, minimum=60)
+    return {
+        "api_key": api_key,
+        "api_key_configured": bool(api_key),
+        "task_timeout_seconds": min(timeout, 7200),
+    }
+
+
 def get_comfy_config() -> dict[str, Any]:
     """Return ComfyUI connection settings with environment overrides."""
     settings = load_app_settings()

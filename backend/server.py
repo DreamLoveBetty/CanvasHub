@@ -45,6 +45,7 @@ import subprocess
 import sys
 import hmac
 import hashlib
+from functools import partial
 import ipaddress
 import re
 import copy
@@ -68,6 +69,7 @@ from .app_config import (
     get_chatgpt_pool_config,
     get_chatgpt_pool_public_config,
     get_comfy_config,
+    get_cyimg_config,
     get_managed_codex_oauth_public_config,
     get_allowed_cors_origins,
     get_max_concurrent_tasks,
@@ -103,11 +105,89 @@ from .generation_tracking import (
     translate_generation_error,
 )
 from .api_client import generate_image, edit_image, save_image, send_telegram
+from .services.google_pool import GooglePoolClient
+from .provider_google_pool import GooglePoolProvider
+from .routes.google_pool_routes import create_router as create_google_pool_router
+from .audio.runtime import Runtime as AudioRuntime
+from .video_control.service import VideoControlService
+from .video_control.runtime import Runtime as VideoControlRuntime
+from .routes.video_control_routes import create_router as create_video_control_router
+from .routes.cyimg_routes import create_router as create_cyimg_router
+from .services.cyimg_generation import CyimgService
+from .krea2.runtime import Runtime as Krea2Runtime
+from .krea2.service import Service as Krea2Service
+from .routes.krea2_routes import create_router as create_krea2_router
+from .qwen21.runtime import Runtime as Qwen21Runtime
+from .qwen21.service import Service as Qwen21Service
+from .routes.qwen21_routes import create_router as create_qwen21_router
+from .qwen21.profiles import ADAPTERS as QWEN21_MANAGED_ADAPTERS
+from .lora_library.service import Service as LoRALibraryService
+from .lora_library.civitai import Civitai as CivitaiMetadataProvider
+from .routes.lora_library_routes import create_router as create_lora_library_router
+from .runtime_resources import IdleWorkerCoordinator
+from .topaz_video.service import TopazVideoService
+from .topaz_video.runtime import TopazVideoRuntime
+from .routes.topaz_video_routes import create_router as create_topaz_video_router
+from .audio.service import AudioService
+from .routes.audio_routes import create_router as create_audio_router
 from .api_client_gpt import send_telegram_result, send_tg_document
 from .provider_gpt_codex import generate_image_gpt_codex, edit_image_gpt_codex, get_gpt_provider_auth_status
 from .provider_chatgpt_pool import chat_chatgpt_pool, edit_image_gpt_pool, generate_editable_file_gpt_pool, generate_image_gpt_pool, search_chatgpt_pool
 from .provider_third_party_image import generate_image_third_party, edit_image_third_party
 from .provider_psd import generate_editable_psd_native
+from .frontend_assets import load_frontend_assets
+from .routes.asset_delete_routes import (
+    handle_asset_delete as _handle_asset_delete,
+    handle_asset_delete_batch as _handle_asset_delete_batch,
+    handle_asset_undo_delete as _handle_asset_undo_delete,
+)
+from .routes.asset_meta_routes import handle_asset_meta as _handle_asset_meta
+from .routes.asset_routes import (
+    handle_asset_detail as _handle_asset_detail,
+    handle_asset_health as _handle_asset_health,
+    handle_assets as _handle_assets,
+)
+from .routes.asset_set_routes import (
+    handle_asset_set_delete as _handle_asset_set_delete,
+    handle_asset_set_post as _handle_asset_set_post,
+    handle_asset_sets as _handle_asset_sets,
+)
+from .routes.base import ProtectedRouter
+from .routes.history_routes import handle_history as _handle_history
+from .routes.task_routes import (
+    handle_generation_events as _handle_generation_events,
+    handle_generation_runs as _handle_generation_runs,
+    handle_status as _handle_status,
+)
+from .routes.editable_routes import (
+    handle_editable_file as _handle_editable_file,
+    handle_editable_file_delete as _handle_editable_file_delete,
+    handle_editable_file_send as _handle_editable_file_send,
+    handle_editable_files as _handle_editable_files,
+)
+from .services.asset_delete import delete_gallery_assets as _delete_gallery_assets_service
+from .services.asset_health import collect_asset_health as _collect_asset_health_service
+from .services.history_format import format_history_task as _serialize_history_task
+from .services.history_policy import (
+    dedupe_key as _policy_dedupe_key,
+    page_int as _policy_page_int,
+    task_result_files as _policy_task_result_files,
+    task_should_render as _policy_task_should_render,
+    task_timestamp as _policy_task_timestamp,
+)
+from .services.history_query import (
+    collect_renderable_history_tasks as _query_renderable_history_tasks,
+    load_database_history_tasks as _query_database_history_tasks,
+    load_legacy_history_tasks as _query_legacy_history_tasks,
+)
+from .services.layout_publish import publish_layout_draft as _publish_layout_draft
+from .routes.layout_routes import (
+    handle_layout_draft_get as _handle_layout_draft_get,
+    handle_layout_draft_list as _handle_layout_draft_list,
+    handle_layout_draft_post as _handle_layout_draft_post,
+    handle_layout_font_file as _handle_layout_font_file,
+    handle_layout_fonts as _handle_layout_fonts,
+)
 from .gpt_model_catalog import DEFAULT_POOL_MODEL, get_gpt_model_catalog, normalize_model_id, resolve_route_model
 from .image_resolution import build_resolution_metadata, normalize_actual_sizes
 from .managed_codex_oauth import (
@@ -124,6 +204,7 @@ from .editable_file_service import delete_editable_item, list_editable_files, re
 from .spell_client import generate_structured_spell_prompt
 from .prompt_skill_client import (
     analyze_prompt_image,
+    analyze_prompt_video,
     assistant_chat,
     assistant_chat_stream,
     discover_prompt_models,
@@ -138,12 +219,14 @@ from .prompt_skill_client import (
 from .h3_prompt_compiler import H3PromptCompileError, compile_h3_prompt
 from .storage_paths import IMAGE_ARCHIVE_DIR, SOURCE_IMAGE_DIR, archive_scan_roots, daily_output_dir, image_lookup_roots, source_image_roots, write_obsidian_prompt_sidecar
 from .upscale_runtime import (
-    UPSCALE_MODELS,
     UpscaleRuntimeError,
-    available_upscale_models,
     default_upscale_model_dir,
-    normalize_upscale_model,
-    upscale_image_file,
+)
+from .topaz.runtime import Runtime as TopazRuntime
+from .topaz import routes as topaz_routes, service as topaz_service
+from .services.upscale_backends import (
+    MODELS as UPSCALE_MODELS, normalize_model as normalize_upscale_model,
+    available_models as _available_upscale_models, execute as _execute_upscale,
 )
 from .optional_components import (
     get_upscale_component_status,
@@ -252,12 +335,67 @@ from .video_runtime import (
     submit_runtime_job as submit_video_runtime_job,
 )
 
+from .services import asset_files as _domain_services_asset_files
+from .routes import asset_maintenance_routes as _domain_routes_asset_maintenance_routes
+
+from .services import media_lookup as _domain_services_media_lookup
+from .services import archive_sidecars as _domain_services_archive_sidecars
+from .services import archive_video as _domain_services_archive_video
+from .services import image_import as _domain_services_image_import
+from .routes import media_routes as _domain_routes_media_routes
+
+from .services import auth_policy as _domain_services_auth_policy
+from .services import system_settings as _domain_services_system_settings
+from .routes import system_routes as _domain_routes_system_routes
+from .routes import auth_routes as _domain_routes_auth_routes
+
+from .services import provider_accounts as _domain_services_provider_accounts
+from .routes import provider_account_routes as _domain_routes_provider_account_routes
+
+from .services import prompt_presets as _domain_services_prompt_presets
+from .services import prompt_enrichment as _domain_services_prompt_enrichment
+from .routes import prompt_routes as _domain_routes_prompt_routes
+
+from .routes import remote_source_routes as _domain_routes_remote_source_routes
+from .routes import agent_routes as _domain_routes_agent_routes
+
+from .services import task_tracking as _domain_services_task_tracking
+from .routes import task_control_routes as _domain_routes_task_control_routes
+
+from .services import task_retry as _domain_services_task_retry
+from .services import task_batch as _domain_services_task_batch
+from .services import task_execution as _domain_services_task_execution
+
+from .services import generation_policy as _domain_services_generation_policy
+from .services import provider_errors as _domain_services_provider_errors
+from .services import provider_routing as _domain_services_provider_routing
+from .services import generation_progress as _domain_services_generation_progress
+
+from .services import gpt_generation as _domain_services_gpt_generation
+from .services import editable_generation as _domain_services_editable_generation
+from .routes import gpt_generation_routes as _domain_routes_gpt_generation_routes
+
+from .services import google_generation as _domain_services_google_generation
+from .services import telegram_notifications as _domain_services_telegram_notifications
+from .routes import google_generation_routes as _domain_routes_google_generation_routes
+
+from .services import upscale_generation as _domain_services_upscale_generation
+from .services import video_generation as _domain_services_video_generation
+from .services import comfy_workflows as _domain_services_comfy_workflows
+from .services import comfy_gateway as _domain_services_comfy_gateway
+from .services import comfy_generation as _domain_services_comfy_generation
+from .services import comfy_transport as _domain_services_comfy_transport
+from .routes import runtime_generation_routes as _domain_routes_runtime_generation_routes
+
+from .routes import http_responses as _domain_routes_http_responses
+from .services import server_lifecycle as _domain_services_server_lifecycle
+
 SERVER_CONFIG = get_server_config()
 SERVER_HOST = SERVER_CONFIG["host"]
 PORT = SERVER_CONFIG["port"]
 PROJECT_ROOT = BASE_DIR
 BACKEND_ROOT = Path(__file__).resolve().parent
-FRONTEND_ROOT = PROJECT_ROOT / "frontend"
+FRONTEND_ROOT, FRONTEND_STATIC_ROOT, IMMUTABLE_FRONTEND_PATHS = load_frontend_assets(PROJECT_ROOT)
 DIRECTORY = str(APP_DATA_DIR)
 PROMPT_DATA_DIR = APP_DATA_DIR / 'data'
 STYLE_PRESETS_FILE = PROMPT_DATA_DIR / 'style_presets.json'
@@ -267,50 +405,19 @@ MAX_GPT_IMAGE_COUNT = 8
 
 def _coerce_gpt_image_count(data, prompt=''):
     """Accept frontend count aliases, with a light prompt fallback."""
-    aliases = ('image_count', 'imageCount', 'count', 'n', 'num_images', 'numImages')
-    raw = None
-    for key in aliases:
-        if key in data:
-            raw = data.get(key)
-            break
-
-    if raw is None and prompt:
-        text = str(prompt)
-        match = re.search(r'(?:生成|出|做|来)?\s*([1-8])\s*(?:张|幅|个|images?|pics?)', text, re.I)
-        if not match:
-            cn_digits = {
-                '一': 1, '二': 2, '两': 2, '三': 3, '四': 4, '五': 5,
-                '六': 6, '七': 7, '八': 8,
-            }
-            match = re.search(r'(?:生成|出|做|来)?\s*([一二两三四五六七八])\s*(?:张|幅|个)', text)
-            raw = cn_digits.get(match.group(1)) if match else None
-        else:
-            raw = match.group(1)
-
-    try:
-        count = int(raw or 1)
-    except (TypeError, ValueError):
-        count = 1
-    return max(1, min(MAX_GPT_IMAGE_COUNT, count))
+    return _domain_services_generation_policy._coerce_gpt_image_count(data, prompt, MAX_GPT_IMAGE_COUNT=MAX_GPT_IMAGE_COUNT, re=re)
 
 
 def _coerce_gpt_quality(value):
-    quality = str(value or 'auto').strip().lower()
-    return quality if quality in ('low', 'medium', 'high', 'auto') else 'auto'
+    return _domain_services_generation_policy._coerce_gpt_quality(value)
 
 
 def _coerce_gpt_moderation(value):
-    moderation = str(value or 'auto').strip().lower()
-    return moderation if moderation in ('auto', 'low') else 'auto'
+    return _domain_services_generation_policy._coerce_gpt_moderation(value)
 
 
 def _coerce_prompt_mode(value):
-    mode = str(value or 'smart').strip().lower()
-    if mode in ('faithful', 'literal', '忠实原文'):
-        return 'faithful'
-    if mode in ('web_search', 'search', 'research', '联网检索', '联网搜索'):
-        return 'web_search'
-    return 'smart'
+    return _domain_services_generation_policy._coerce_prompt_mode(value)
 
 
 GENERIC_19_FIDELITY_MARKER = '【同图忠实复现｜高保真模块】'
@@ -318,82 +425,43 @@ GENERIC_19_LEGACY_FIDELITY_MARKERS = ('【同图忠实复现｜19模块】',)
 
 
 def _is_generic_19_fidelity_prompt(prompt):
-    prompt_text = str(prompt or '')
-    return any(
-        marker in prompt_text
-        for marker in (GENERIC_19_FIDELITY_MARKER, *GENERIC_19_LEGACY_FIDELITY_MARKERS)
+    return _domain_services_generation_policy._is_generic_19_fidelity_prompt(
+        prompt, GENERIC_19_FIDELITY_MARKER=GENERIC_19_FIDELITY_MARKER, GENERIC_19_LEGACY_FIDELITY_MARKERS=GENERIC_19_LEGACY_FIDELITY_MARKERS,
     )
 
 
 def _effective_prompt_mode(prompt, value):
-    if _is_generic_19_fidelity_prompt(prompt):
-        return 'faithful'
-    return _coerce_prompt_mode(value)
+    return _domain_services_generation_policy._effective_prompt_mode(
+        prompt, value, _coerce_prompt_mode=_coerce_prompt_mode,
+        _is_generic_19_fidelity_prompt=_is_generic_19_fidelity_prompt,
+    )
 
 
 def _coerce_gpt_task_type(value):
-    task_type = str(value or 'image').strip().lower()
-    if task_type in ('ppt', 'powerpoint', 'presentation'):
-        return 'ppt'
-    if task_type in ('psd', 'photoshop'):
-        return 'psd'
-    return 'image'
+    return _domain_services_generation_policy._coerce_gpt_task_type(value)
 
 
 def _coerce_bool(value, default=True):
-    if value is None:
-        return bool(default)
-    if isinstance(value, bool):
-        return value
-    if isinstance(value, (int, float)):
-        return value != 0
-    raw = str(value).strip().lower()
-    if raw in {'1', 'true', 'yes', 'on', 'enabled', '开启'}:
-        return True
-    if raw in {'0', 'false', 'no', 'off', 'disabled', '关闭'}:
-        return False
-    return bool(default)
+    return _domain_services_generation_policy._coerce_bool(value, default)
 
 
 def _coerce_use_third_party_api(*values):
-    for value in values:
-        if value is not None:
-            return _coerce_bool(value, False)
-    return False
+    return _domain_services_generation_policy._coerce_use_third_party_api(*values, _coerce_bool=_coerce_bool)
 
 
 def _coerce_gpt_provider_route(value):
-    route = str(value or 'codex').strip().lower()
-    if route in ('managed_codex_oauth', 'managed_codex', 'managed_oauth', 'codex_oauth', 'oauth_codex'):
-        return 'codex'
-    if route in ('chatgpt_pool', 'pool', 'sidecar', 'web_api', 'account_pool'):
-        return 'chatgpt_pool'
-    if route in ('third_party_image_api', 'third_party_api', 'third_party', 'external_api', 'yunwu'):
-        return 'third_party_image_api'
-    if route in ('codex', 'local', 'local_codex'):
-        return 'codex'
-    return 'codex'
+    return _domain_services_generation_policy._coerce_gpt_provider_route(value)
 
 
 def _gpt_route_uses_third_party(route):
-    return _coerce_gpt_provider_route(route) == 'third_party_image_api'
+    return _domain_services_generation_policy._gpt_route_uses_third_party(route, _coerce_gpt_provider_route=_coerce_gpt_provider_route)
 
 
 def _resolve_codex_provider_env() -> tuple[dict | None, str]:
     """Prefer project-managed Codex OAuth, then fall back to local Codex auth."""
-    try:
-        managed_status = get_managed_codex_oauth_status()
-    except Exception as exc:
-        print(f"⚠️ managed Codex status unavailable: {exc}")
-        managed_status = {}
-
-    if managed_status.get("enabled") and managed_status.get("configured"):
-        try:
-            return get_managed_codex_provider_env(), "managed_codex_oauth"
-        except Exception as exc:
-            print(f"⚠️ managed Codex auth unavailable; falling back to local Codex: {exc}")
-
-    return None, "codex"
+    return _domain_services_generation_policy._resolve_codex_provider_env(
+        get_managed_codex_oauth_status=get_managed_codex_oauth_status, get_managed_codex_provider_env=get_managed_codex_provider_env,
+    )
 
 
 VALID_GPT_MAIN_MODELS = set(GPT_IMAGE_MAIN_MODELS)
@@ -402,213 +470,85 @@ VALID_GPT_TRANSPORT_MODES = set(GPT_TRANSPORT_MODES)
 
 
 def _coerce_gpt_main_model(value):
-    if value in (None, ''):
-        value = get_gpt_provider_config().get('image_main_model')
-    return normalize_model_id(value, DEFAULT_GPT_IMAGE_MAIN_MODEL)
+    return _domain_services_generation_policy._coerce_gpt_main_model(
+        value, DEFAULT_GPT_IMAGE_MAIN_MODEL=DEFAULT_GPT_IMAGE_MAIN_MODEL, get_gpt_provider_config=get_gpt_provider_config,
+        normalize_model_id=normalize_model_id,
+    )
 
 
 def _coerce_gpt_reasoning_effort(value):
-    if value in (None, ''):
-        value = get_gpt_provider_config().get('reasoning_effort')
-    effort = str(value or DEFAULT_GPT_REASONING_EFFORT).strip().lower()
-    return effort if effort in VALID_GPT_REASONING_EFFORTS else DEFAULT_GPT_REASONING_EFFORT
+    return _domain_services_generation_policy._coerce_gpt_reasoning_effort(
+        value, DEFAULT_GPT_REASONING_EFFORT=DEFAULT_GPT_REASONING_EFFORT, VALID_GPT_REASONING_EFFORTS=VALID_GPT_REASONING_EFFORTS,
+        get_gpt_provider_config=get_gpt_provider_config,
+    )
 
 
 def _coerce_gpt_transport_mode(value):
-    if value in (None, ''):
-        value = get_gpt_provider_config().get('transport_mode')
-    mode = str(value or DEFAULT_GPT_TRANSPORT_MODE).strip().lower()
-    return mode if mode in VALID_GPT_TRANSPORT_MODES else DEFAULT_GPT_TRANSPORT_MODE
+    return _domain_services_generation_policy._coerce_gpt_transport_mode(
+        value, DEFAULT_GPT_TRANSPORT_MODE=DEFAULT_GPT_TRANSPORT_MODE, VALID_GPT_TRANSPORT_MODES=VALID_GPT_TRANSPORT_MODES,
+        get_gpt_provider_config=get_gpt_provider_config,
+    )
 
 
 def _coerce_gpt_provider_total_timeout(value):
-    if value in (None, ''):
-        value = get_gpt_provider_config().get('total_timeout_seconds')
-    try:
-        timeout = int(value or DEFAULT_GPT_PROVIDER_TOTAL_TIMEOUT_SECONDS)
-    except (TypeError, ValueError):
-        timeout = DEFAULT_GPT_PROVIDER_TOTAL_TIMEOUT_SECONDS
-    return max(30, min(1800, timeout))
+    return _domain_services_generation_policy._coerce_gpt_provider_total_timeout(
+        value, DEFAULT_GPT_PROVIDER_TOTAL_TIMEOUT_SECONDS=DEFAULT_GPT_PROVIDER_TOTAL_TIMEOUT_SECONDS, get_gpt_provider_config=get_gpt_provider_config,
+    )
 
 
 def _merge_task_params(task_id, patch):
-    if not isinstance(patch, dict) or not patch:
-        return
-    task = get_task(task_id) or {}
-    params = task.get('params') if isinstance(task.get('params'), dict) else {}
-    params.update({k: v for k, v in patch.items() if v not in (None, '')})
-    update_task_fields(task_id, params=json.dumps(params, ensure_ascii=False))
+    return _domain_services_task_tracking._merge_task_params(task_id, patch, get_task=get_task, json=json, update_task_fields=update_task_fields)
 
 
 def _append_task_route_trace(task_id, route, status, message='', **extra):
-    task = get_task(task_id) or {}
-    params = task.get('params') if isinstance(task.get('params'), dict) else {}
-    trace = params.get('route_trace')
-    if not isinstance(trace, list):
-        trace = []
-    entry = {
-        'route': str(route or '').strip(),
-        'status': str(status or '').strip(),
-        'at': int(time.time()),
-    }
-    if message:
-        entry['message'] = str(message)[:500]
-    if str(status or '').strip() == 'failed':
-        entry['error_category'] = _classify_route_error(route, message)
-    for key, value in extra.items():
-        if value not in (None, ''):
-            entry[key] = value
-    trace.append(entry)
-    params['route_trace'] = trace[-20:]
-    update_task_fields(task_id, params=json.dumps(params, ensure_ascii=False))
-    if str(status or '').strip() in ('started', 'succeeded', 'failed', 'canceled', 'skipped'):
-        payload = {
-            'route': str(route or '').strip(),
-            'status': str(status or '').strip(),
-            'message': str(message or '').strip(),
-        }
-        if extra:
-            payload.update({k: v for k, v in extra.items() if v not in (None, '')})
-        _record_generation_event(task_id, f'route_{str(status or "").strip() or "update"}', message, stage=str(status or '').strip(), severity='error' if str(status or '').strip() == 'failed' else 'info', payload=payload)
+    return _domain_services_task_tracking._append_task_route_trace(
+        task_id, route, status,
+        message, extra=extra, _classify_route_error=_classify_route_error,
+        _record_generation_event=_record_generation_event, get_task=get_task, json=json,
+        time=time, update_task_fields=update_task_fields,
+    )
 
 
 def _classify_route_error(route, message=''):
     """Coarse failure labels for route trace UI; never include secrets."""
-    text = str(message or '').lower()
-    route_text = str(route or '').lower()
-    if 'browser verification' in text or '需要浏览器验证' in text or 'turnstile' in text or 'arkose' in text:
-        return 'verification_required'
-    if 'connection refused' in text or 'failed to establish a new connection' in text or 'offline' in text:
-        return 'offline'
-    if 'unauthorized' in text or 'http 401' in text or 'auth' in text and 'key' in text:
-        return 'auth'
-    if 'http 429' in text or 'rate limit' in text or '限流' in text:
-        return 'rate_limited'
-    if 'no available image quota' in text or 'quota' in text or '额度' in text:
-        return 'quota'
-    if 'timeout' in text or 'timed out' in text or '超时' in text:
-        return 'timeout'
-    if (
-        'sslerror' in text
-        or 'ssl eof' in text
-        or 'unexpected_eof_while_reading' in text
-        or 'remote end closed connection' in text
-        or 'connection reset' in text
-        or 'connection aborted' in text
-    ):
-        return 'transport'
-    if 'finished without image output' in text or 'did not return any images' in text or 'upstream did not return image output' in text:
-        return 'no_image_output'
-    if 'download url' in text or 'download_url' in text or 'artifact' in text:
-        return 'artifact_download'
-    if 'refus' in text or 'violat' in text or '安全策略' in text:
-        return 'model_refusal'
-    if 'proxyerror' in text or 'unable to connect to proxy' in text or 'remote end closed connection' in text:
-        return 'proxy'
-    if 'chatgpt_pool' in route_text or 'sidecar' in text:
-        return 'sidecar'
-    if 'codex' in route_text or 'provider' in text:
-        return 'provider'
-    return 'unknown'
+    return _domain_services_task_tracking._classify_route_error(route, message)
 
 
 def _generation_run_task(task_id):
-    task = get_task(task_id) or {}
-    params = task.get('params') if isinstance(task.get('params'), dict) else {}
-    return task, params
+    return _domain_services_task_tracking._generation_run_task(task_id, get_task=get_task)
 
 
 def _generation_last_run_id(task_id):
-    task, params = _generation_run_task(task_id)
-    run_id = str(task.get('last_run_id') or params.get('last_run_id') or '').strip()
-    return run_id
+    return _domain_services_task_tracking._generation_last_run_id(task_id, _generation_run_task=_generation_run_task)
 
 
 def _record_generation_event(task_id, event_type, message='', stage='', severity='info', payload=None):
-    run_id = _generation_last_run_id(task_id)
-    if not run_id:
-        return None
-    try:
-        return record_generation_event(
-            run_id,
-            task_id,
-            event_type,
-            message,
-            stage=stage,
-            severity=severity,
-            payload=payload or {},
-        )
-    except Exception as exc:
-        print(f"⚠️ generation event write failed: {task_id} {run_id} {event_type} - {exc}")
-        return None
+    return _domain_services_task_tracking._record_generation_event(
+        task_id, event_type, message,
+        stage, severity, payload,
+        _generation_last_run_id=_generation_last_run_id, record_generation_event=record_generation_event,
+    )
 
 
 def _generation_run_route(task_id, fallback=''):
-    task, params = _generation_run_task(task_id)
-    route = (
-        params.get('gpt_provider_route')
-        or params.get('provider_route')
-        or task.get('type')
-        or fallback
-    )
-    return str(route or fallback or '').strip()
+    return _domain_services_task_tracking._generation_run_route(task_id, fallback, _generation_run_task=_generation_run_task)
 
 
 def _start_generation_audit(task_id, task_type, prompt, params, *, provider='', route='', stage='preparing', parent_run_id=''):
-    try:
-        run = start_generation_run(
-            task_id,
-            task_type,
-            provider=provider,
-            route=route,
-            prompt=prompt,
-            params=params,
-            stage=stage,
-            parent_run_id=parent_run_id,
-        )
-        _record_generation_event(
-            task_id,
-            'run_started',
-            f'开始处理 {task_type}',
-            stage=stage,
-            severity='info',
-            payload={
-                'provider': provider,
-                'route': route,
-                'task_type': task_type,
-            },
-        )
-        return run['run_id']
-    except Exception as exc:
-        print(f"⚠️ generation run start failed: {task_id} - {exc}")
-        return ''
+    return _domain_services_task_tracking._start_generation_audit(
+        task_id, task_type, prompt,
+        params, provider=provider, route=route,
+        stage=stage, parent_run_id=parent_run_id, _record_generation_event=_record_generation_event,
+        start_generation_run=start_generation_run,
+    )
 
 
 def _translate_generation_failure(task_id, raw_error, *, provider='', route='', task_type='', stage='', exception_name=''):
-    info = translate_generation_error(
-        raw_error,
-        provider=provider,
-        route=route,
-        task_type=task_type,
-        stage=stage,
-        exception_name=exception_name,
+    return _domain_services_task_tracking._translate_generation_failure(
+        task_id, raw_error, provider=provider,
+        route=route, task_type=task_type, stage=stage,
+        exception_name=exception_name, _record_generation_event=_record_generation_event, translate_generation_error=translate_generation_error,
     )
-    _record_generation_event(
-        task_id,
-        'run_failed',
-        info.get('display_error') or str(raw_error or ''),
-        stage=stage,
-        severity='error',
-        payload={
-            'error_code': info.get('error_code') or '',
-            'error_category': info.get('error_category') or '',
-            'raw_error': info.get('raw_error') or str(raw_error or ''),
-            'provider': provider,
-            'route': route,
-            'task_type': task_type,
-        },
-    )
-    return info
 
 
 def _finalize_generation_task(
@@ -628,113 +568,21 @@ def _finalize_generation_task(
     task_type='',
     extra=None,
 ):
-    result_files_json = None
-    if isinstance(result_files, list):
-        result_files_json = json.dumps(result_files, ensure_ascii=False)
-    elif isinstance(result_files, str):
-        result_files_json = result_files
-    task_field_names = {
-        'status', 'stage', 'progress_text', 'progress', 'result_file', 'result_files', 'error',
-        'error_code', 'display_error', 'error_category', 'raw_error',
-        'transport_error_type', 'heartbeat_at', 'first_byte_at', 'bytes_received',
-        'ttfb_ms', 'started_at', 'finished_at', 'last_run_id', 'run_count', 'params',
-        'type', 'updated_at',
-    }
-    payload = {
-        'stage': stage,
-        'progress_text': progress_text,
-        'result_file': result_file,
-        'result_files': result_files_json,
-        'error_code': error_info.get('error_code') if isinstance(error_info, dict) else None,
-        'display_error': error_info.get('display_error') if isinstance(error_info, dict) else None,
-        'error_category': error_info.get('error_category') if isinstance(error_info, dict) else None,
-        'raw_error': error_info.get('raw_error') if isinstance(error_info, dict) else None,
-        'transport_error_type': error_type or None,
-    }
-    if extra:
-        payload.update(extra)
-    if status in ('succeeded', 'succeeded_no_telegram', 'failed', 'telegram_failed', 'canceled'):
-        payload.setdefault('progress', 100)
-    if status in ('succeeded', 'succeeded_no_telegram'):
-        payload['error'] = None
-        if not result_files_json and result_files is not None:
-            payload['result_files'] = json.dumps(result_files, ensure_ascii=False)
-        payload['error_code'] = ''
-        payload['display_error'] = ''
-        payload['error_category'] = ''
-        payload['raw_error'] = ''
-    elif isinstance(error_info, dict):
-        payload['error'] = error_info.get('display_error') or error_info.get('raw_error') or progress_text
-    task_payload = {k: v for k, v in payload.items() if k in task_field_names and k != 'error' and v is not None}
-    update_task(task_id, status, error=payload.get('error'), **task_payload)
-    if run_id:
-        finish_generation_run(
-            run_id,
-            task_id,
-            status=status,
-            stage=stage,
-            provider=provider,
-            route=route,
-            result_file=result_file or '',
-            result_files=result_files if isinstance(result_files, list) else None,
-            image_count=image_count,
-            error_info=error_info,
-            error_type=error_type,
-            meta=extra,
-        )
+    return _domain_services_task_tracking._finalize_generation_task(
+        task_id, status, run_id=run_id,
+        stage=stage, progress_text=progress_text, result_file=result_file,
+        result_files=result_files, image_count=image_count, error_info=error_info,
+        error_type=error_type, provider=provider, route=route,
+        task_type=task_type, extra=extra, finish_generation_run=finish_generation_run,
+        json=json, update_task=update_task,
+    )
 
 
 def _status_response_task(task):
-    task = dict(task or {})
-    params = task.get('params') if isinstance(task.get('params'), dict) else {}
-    if task.get('type') == H3_VIDEO_TASK_TYPE:
-        params = _public_h3_task_params(params)
-        task['params'] = params
-    provider_failure = params.get('provider_failure') if isinstance(params.get('provider_failure'), dict) else {}
-    for key in ('timed_out', 'partial_errors', 'completed_image_count', 'requested_image_count'):
-        if provider_failure.get(key) is not None:
-            task[key] = provider_failure.get(key)
-    result_files, primary_output = _history_task_result_files(task)
-    if result_files:
-        task['result_file'] = primary_output
-        task['result_files'] = result_files
-        task['output_files'] = result_files
-        if task.get('type') == H3_VIDEO_TASK_TYPE:
-            video_paths = [f"/video/{urllib.parse.quote(safe_basename(name))}" for name in result_files]
-            task['image_paths'] = []
-            task['image_count'] = 0
-            task['video_paths'] = video_paths
-            task['video_path'] = video_paths[0] if video_paths else ''
-            task['video_count'] = len(video_paths)
-            task['video_metadata'] = {
-                key: params.get(key)
-                for key in ('width', 'height', 'fps', 'frame_count', 'duration_seconds', 'video_size_bytes', 'seed', 'elapsed_seconds', 'acceleration')
-                if params.get(key) is not None
-            }
-        elif task.get('type') == 'gpt-file':
-            task['image_paths'] = []
-            params = task.get('params') if isinstance(task.get('params'), dict) else {}
-            if isinstance(params.get('file_manifest'), dict):
-                task['file_manifest'] = params.get('file_manifest')
-            task['artifact_type'] = params.get('artifact_type') or params.get('task_type')
-        else:
-            task['image_paths'] = [f"/gpt_outputs/{name}" for name in result_files] if task.get('type') in ('gpt', 'gpt-edit') else [f"/image/{name}" for name in result_files]
-        task['image_count'] = len(result_files)
-    else:
-        task.setdefault('result_files', [])
-        task.setdefault('output_files', [])
-        task.setdefault('image_paths', [])
-        task.setdefault('image_count', 0)
-        if task.get('type') == H3_VIDEO_TASK_TYPE:
-            task.setdefault('video_paths', [])
-            task.setdefault('video_path', '')
-            task.setdefault('video_count', 0)
-    task.setdefault('display_error', task.get('error') or '')
-    task.setdefault('error_code', '')
-    task.setdefault('error_category', '')
-    task.setdefault('raw_error', task.get('error') or '')
-    task.setdefault('last_run_id', '')
-    task.setdefault('run_count', 0)
+    task = _domain_services_task_tracking._status_response_task(
+        task, H3_VIDEO_TASK_TYPE=H3_VIDEO_TASK_TYPE, _history_task_result_files=_history_task_result_files,
+        _public_h3_task_params=_public_h3_task_params, safe_basename=safe_basename, urllib=urllib,
+    )
     task.setdefault('progress', 100 if task.get('status') in ('succeeded', 'success', 'failed', 'telegram_failed', 'canceled') else 0)
     return task
 
@@ -746,98 +594,45 @@ VALID_IMAGE_RATIOS = {
 
 
 def _coerce_image_ratio(value, default='1:1'):
-    ratio = str(value or '').strip().lower()
-    return ratio if ratio in VALID_IMAGE_RATIOS else default
+    return _domain_services_generation_policy._coerce_image_ratio(value, default, VALID_IMAGE_RATIOS=VALID_IMAGE_RATIOS)
 
 
 def _effective_image_ratio(prompt, value, default='1:1'):
     """Honor the source ratio embedded by a complete generic_19 bundle."""
-    selected = _coerce_image_ratio(value, default)
-    if not _is_generic_19_fidelity_prompt(prompt):
-        return selected
-    match = re.search(r'【原图比例\s*[：:]\s*([0-9]+\s*:\s*[0-9]+)】', str(prompt or ''))
-    if not match:
-        return selected
-    locked_ratio = re.sub(r'\s+', '', match.group(1))
-    return locked_ratio if locked_ratio in VALID_IMAGE_RATIOS else selected
+    return _domain_services_generation_policy._effective_image_ratio(
+        prompt, value, default,
+        VALID_IMAGE_RATIOS=VALID_IMAGE_RATIOS, _coerce_image_ratio=_coerce_image_ratio, _is_generic_19_fidelity_prompt=_is_generic_19_fidelity_prompt,
+        re=re,
+    )
 
 
 def _coerce_gpt_resolution(value):
-    resolution = str(value or '1k').strip().lower()
-    return resolution if resolution in ('1k', '2k', '4k') else '1k'
+    return _domain_services_generation_policy._coerce_gpt_resolution(value)
 
 
 def _result_path_dimensions(path_value):
-    path_text = str(path_value or '').strip()
-    if not path_text:
-        return None
-    try:
-        path = Path(path_text)
-    except Exception:
-        return None
-    if not path.is_absolute():
-        path = PROJECT_ROOT / path_text.lstrip('/\\')
-    try:
-        with Image.open(path) as img:
-            return img.size
-    except Exception:
-        return None
+    return _domain_services_generation_policy._result_path_dimensions(path_value, Image=Image, PROJECT_ROOT=PROJECT_ROOT, Path=Path)
 
 
 def _result_actual_sizes(result):
-    result = result if isinstance(result, dict) else {}
-    sizes = normalize_actual_sizes(result.get('actual_sizes'))
-    if sizes:
-        return sizes
-    paths = []
-    for item in result.get('image_paths') or []:
-        if item:
-            paths.append(item)
-    if result.get('image_path'):
-        paths.append(result.get('image_path'))
-    discovered = []
-    seen = set()
-    for item in paths:
-        key = str(item or '').strip()
-        if not key or key in seen:
-            continue
-        seen.add(key)
-        dimensions = _result_path_dimensions(key)
-        if dimensions:
-            discovered.append({'width': dimensions[0], 'height': dimensions[1]})
-    return discovered
+    return _domain_services_generation_policy._result_actual_sizes(
+        result, _result_path_dimensions=_result_path_dimensions, normalize_actual_sizes=normalize_actual_sizes,
+    )
 
 
 def _augment_result_resolution_metadata(result, requested_resolution):
-    if not isinstance(result, dict):
-        return {}
-    metadata = build_resolution_metadata(
-        requested_resolution,
-        _result_actual_sizes(result),
-        result.get('requested_size'),
+    return _domain_services_generation_policy._augment_result_resolution_metadata(
+        result, requested_resolution, _result_actual_sizes=_result_actual_sizes,
+        build_resolution_metadata=build_resolution_metadata,
     )
-    for key, value in metadata.items():
-        if value not in (None, ''):
-            result[key] = value
-    return metadata
 
 
 def _coerce_google_quality(value, default='2k'):
-    quality = str(value or default).strip().lower()
-    aliases = {
-        'standard': '1k',
-        'normal': '1k',
-        'hd': '4k',
-    }
-    quality = aliases.get(quality, quality)
-    return quality if quality in ('1k', '2k', '4k') else default
+    return _domain_services_generation_policy._coerce_google_quality(value, default)
 
 
 def _coerce_google_edit_quality(value):
-    quality = str(value or 'hd').strip().lower()
-    if quality in ('1k', 'standard', 'normal'):
-        return 'standard'
-    return 'hd' if quality in ('2k', '4k', 'hd') else 'hd'
+    return _domain_services_generation_policy._coerce_google_edit_quality(value)
 
 
 DEFAULT_GOOGLE_IMAGE_MODEL = 'gemini-3.1-flash-image'
@@ -845,241 +640,53 @@ DEFAULT_GOOGLE_MAX_TOKENS = 4096
 
 
 def _coerce_model(value, default=DEFAULT_GOOGLE_IMAGE_MODEL):
-    model = str(value or '').strip()
-    aliases = {
-        'gemini-3-pro-image-preview': 'gemini-3-pro-image',
-        'gemini-3.1-flash-image-preview': 'gemini-3.1-flash-image',
-    }
-    return aliases.get(model, model) or default
+    return _domain_services_generation_policy._coerce_model(value, default)
 
 
 def _coerce_google_max_tokens(value, default=DEFAULT_GOOGLE_MAX_TOKENS):
-    try:
-        tokens = int(value)
-    except Exception:
-        tokens = default
-    return tokens if tokens > 0 else default
+    return _domain_services_generation_policy._coerce_google_max_tokens(value, default)
 
 
 def _coerce_google_temperature(value):
-    if value is None or value == '':
-        return None
-    try:
-        return float(value)
-    except Exception:
-        return None
+    return _domain_services_generation_policy._coerce_google_temperature(value)
 
 
 def _coerce_google_output_controls(params):
-    params = params if isinstance(params, dict) else {}
-    archive_enabled = _coerce_bool(params.get('archive_enabled', params.get('archiveEnabled')), True)
-    telegram_enabled = _coerce_bool(params.get('telegram_enabled', params.get('telegramEnabled')), True)
-    return archive_enabled, telegram_enabled
+    return _domain_services_generation_policy._coerce_google_output_controls(params, _coerce_bool=_coerce_bool)
 
 
 def _short_text(value, limit=500):
-    text = " ".join(str(value or "").split())
-    return text[:limit]
+    return _domain_services_generation_policy._short_text(value, limit)
 
 
 def _stable_lineage_url(value):
-    url = str(value or "").strip()
-    if not url or url.startswith("data:") or url.startswith("blob:"):
-        return ""
-    return url[:500]
+    return _domain_services_generation_policy._stable_lineage_url(value)
 
 
 def _normalize_lineage_reference(item, index=0):
-    if not isinstance(item, dict):
-        return None
-    asset_id = _short_text(item.get("asset_id") or item.get("assetId") or item.get("id"), 120)
-    task_id = _short_text(item.get("task_id") or item.get("taskId"), 120)
-    image_url = _stable_lineage_url(item.get("image_url") or item.get("imageUrl") or item.get("imagePath") or item.get("url"))
-    source_node_id = _short_text(item.get("source_node_id") or item.get("sourceNodeId"), 120)
-    if not asset_id and not task_id and not image_url and not source_node_id:
-        return None
-    return {
-        "asset_id": asset_id,
-        "task_id": task_id,
-        "image_url": image_url,
-        "title": _short_text(item.get("title") or item.get("name") or item.get("file") or f"参考图 {index + 1}", 160),
-        "prompt": _short_text(item.get("prompt"), 500),
-        "file": _short_text(item.get("file"), 180),
-        "source": _short_text(item.get("source"), 48),
-        "source_node_id": source_node_id,
-        "index": index,
-    }
+    return _domain_services_generation_policy._normalize_lineage_reference(item, index, _short_text=_short_text, _stable_lineage_url=_stable_lineage_url)
 
 
 def _extract_lineage_payload(data):
-    if not isinstance(data, dict):
-        return {}
-    raw = data.get("lineage") if isinstance(data.get("lineage"), dict) else {}
-    raw_refs = raw.get("reference_assets") or raw.get("referenceAssets") or data.get("reference_assets") or data.get("referenceAssets") or []
-    refs = []
-    seen = set()
-    if isinstance(raw_refs, list):
-        for index, item in enumerate(raw_refs[:16]):
-            ref = _normalize_lineage_reference(item, index)
-            if not ref:
-                continue
-            key = ref.get("asset_id") or (f"{ref.get('task_id')}:{ref.get('image_url')}" if ref.get("task_id") or ref.get("image_url") else "") or ref.get("source_node_id")
-            if key in seen:
-                continue
-            seen.add(key)
-            refs.append(ref)
-    if not refs:
-        return {}
-    asset_ids = []
-    task_ids = []
-    for ref in refs:
-        if ref.get("asset_id") and ref["asset_id"] not in asset_ids:
-            asset_ids.append(ref["asset_id"])
-        if ref.get("task_id") and ref["task_id"] not in task_ids:
-            task_ids.append(ref["task_id"])
-    return {
-        "reference_assets": refs,
-        "reference_asset_ids": asset_ids,
-        "source_task_ids": task_ids,
-    }
+    return _domain_services_generation_policy._extract_lineage_payload(data, _normalize_lineage_reference=_normalize_lineage_reference)
 
 
 def _attach_lineage_params(params, data):
-    lineage = _extract_lineage_payload(data)
-    if lineage:
-        params["lineage"] = lineage
-    return params
+    return _domain_services_generation_policy._attach_lineage_params(params, data, _extract_lineage_payload=_extract_lineage_payload)
 
 
 def _format_gpt_provider_error(error):
     """Turn common local provider failures into user-readable status text."""
-    text = str(error or '').strip()
-    if not text:
-        return '本地 provider 失败'
-
-    lower_text = text.lower()
-
-    if 'usage_limit_reached' in text or 'usage limit has been reached' in text.lower():
-        reset_text = ''
-        match = re.search(r'"resets_at"\s*:\s*(\d+)', text)
-        if match:
-            try:
-                reset_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(int(match.group(1))))
-                reset_text = f'，预计 {reset_time} 恢复'
-            except (TypeError, ValueError, OverflowError):
-                reset_text = ''
-        return f'本地 GPT 授权额度已用完{reset_text}'
-
-    if 'moderation_blocked' in text or 'safety_violations' in text or 'rejected by the safety system' in lower_text:
-        request_id = ''
-        match = re.search(r'(?:request_id=|request ID\s+)([A-Za-z0-9_-]+)', text, re.I)
-        if match:
-            request_id = f'（request_id: {match.group(1)}）'
-        return f'本地 GPT provider 被安全系统拒绝{request_id}，请降低敏感姿势、暴露、低角度或擦边描述后重试'
-
-    if 'did not return image output' in lower_text and 'output_text=' in lower_text:
-        if any(marker in lower_text for marker in ('violate', 'policy', 'safety', 'cannot', 'refuse', 'sorry', '违反', '安全', '抱歉', '拒绝')):
-            return '本地 GPT provider 返回了文字而不是图片，可能触发安全/内容边界；请修改提示词后重新生成'
-        return '本地 GPT provider 返回了文字而不是图片；请把需求改成明确的图片生成描述后重试'
-
-    if 'did not return image output' in lower_text or 'missing image output' in lower_text:
-        return '本地 GPT provider 没有返回图片数据，通常是上游生成失败或返回了非图片结果'
-
-    if 'chunkedencodingerror' in lower_text or 'response ended prematurely' in lower_text:
-        if 'last_event=response.image_generation_call.generating' in lower_text:
-            return '本地 GPT provider 连接中途断开：已进入图片生成阶段，但上游/网络没有完整返回图片流；可稍后重试，连续发生时检查网络/代理或降低分辨率'
-        if 'before first event' in lower_text:
-            return '本地 GPT provider 连接在收到模型响应前断开；请优先检查网络、代理或稍后重试'
-        return '本地 GPT provider 连接中途断开，通常是上游图片流提前结束或网络/代理中断'
-
-    if 'stream disconnected' in lower_text:
-        return '本地 GPT provider 图片流未完整返回，通常是上游连接提前结束或网络/代理中断'
-
-    if 'response.failed' in text or 'server_error' in text:
-        request_id = ''
-        match = re.search(r'(?:request_id=|request ID\s+)([A-Za-z0-9_-]+)', text, re.I)
-        if match:
-            request_id = f'（request_id: {match.group(1)}）'
-        return f'OpenAI/Codex 上游临时错误{request_id}'
-
-    if 'total timeout after' in text.lower():
-        match = re.search(r'total timeout after\s+(\d+)s', text, re.I)
-        waited = f"{match.group(1)}s" if match else '超时阈值'
-        return f'本地 GPT provider 调用超时（{waited}）'
-
-    if text.startswith('HTTP 429'):
-        return '本地 GPT provider 返回 429 限流'
-
-    return f'本地 provider 失败：{text[:120]}'
+    return _domain_services_provider_errors._format_gpt_provider_error(error, re=re, time=time)
 
 
 def _first_user_error_line(error):
-    text = str(error or '').strip()
-    for line in text.splitlines():
-        line = line.strip()
-        if not line:
-            continue
-        if line.startswith('at ') or line.startswith('File '):
-            continue
-        if re.match(r'^\^+$', line):
-            continue
-        line = re.sub(r'^(?:Error|RuntimeError|Exception):\s*', '', line).strip()
-        if line:
-            return line
-    return ''
+    return _domain_services_provider_errors._first_user_error_line(error, re=re)
 
 
 def _format_gpt_pool_error(error):
     """Turn account-pool sidecar failures into user-readable status text."""
-    text = str(error or '').strip()
-    if not text:
-        return 'ChatGPT 账号池托底失败'
-    lower_text = text.lower()
-    if 'browser verification' in lower_text or '需要浏览器验证' in text or 'turnstile' in lower_text or 'arkose' in lower_text:
-        return 'ChatGPT 账号池需要浏览器验证'
-    if (
-        'image quota exhausted' in lower_text
-        or 'image generation quota reached' in lower_text
-        or 'image generations requests' in lower_text
-        or 'free plan limit' in lower_text
-        or '图片创建上限' in text
-        or '图片生成额度' in text
-        or '恢复时间' in text
-    ):
-        reset_text = ''
-        match = re.search(r'(?:reset_after=|恢复时间\s*)([0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9:.+-]+)', text)
-        if match:
-            reset_raw = match.group(1)
-            try:
-                reset_dt = datetime.fromisoformat(reset_raw.replace('Z', '+00:00'))
-                reset_text = f'，预计 {reset_dt.astimezone().strftime("%Y-%m-%d %H:%M:%S")} 恢复'
-            except Exception:
-                reset_text = f'，恢复时间 {reset_raw}'
-        elif 'resets_after_text=' in text:
-            match = re.search(r'resets_after_text=([^;|]+)', text)
-            if match:
-                reset_text = f'，{match.group(1).strip()}后恢复'
-        return f'ChatGPT 账号池图片生成额度已用完{reset_text}'
-    if 'disabled' in lower_text:
-        return 'ChatGPT 账号池未启用'
-    if 'connection refused' in lower_text or 'failed to establish a new connection' in lower_text:
-        return 'ChatGPT 账号池 sidecar 未在线'
-    if 'unauthorized' in lower_text or 'http 401' in lower_text:
-        return 'ChatGPT 账号池鉴权失败，请确认 server.py 与 sidecar 使用同一个 auth key'
-    if 'no available image quota' in lower_text:
-        return 'ChatGPT 账号池没有可用账号或额度'
-    if (
-        'finished without image output' in lower_text
-        or 'did not return any images' in lower_text
-        or 'upstream did not return image output' in lower_text
-    ):
-        return 'ChatGPT 账号池上游会话已结束但没有返回图片，请重试或切换线路'
-    if 'timeout' in lower_text or 'timed out' in lower_text:
-        return 'ChatGPT 账号池生成等待超时'
-    if 'http 429' in lower_text or 'rate limit' in lower_text or '限流' in text:
-        return 'ChatGPT 账号池账号被限流'
-    summary = _first_user_error_line(text)
-    return f'ChatGPT 账号池托底失败：{summary[:120]}' if summary else 'ChatGPT 账号池托底失败'
+    return _domain_services_provider_errors._format_gpt_pool_error(error, _first_user_error_line=_first_user_error_line, datetime=datetime, re=re)
 
 
 class ChatgptPoolGenerationError(RuntimeError):
@@ -1089,567 +696,126 @@ class ChatgptPoolGenerationError(RuntimeError):
 
 
 def _chatgpt_pool_failure_metadata(error):
-    result = getattr(error, 'provider_result', None)
-    if not isinstance(result, dict):
-        return {}
-    metadata = {}
-    for key in ('error_code', 'timed_out', 'partial_errors', 'completed_image_count', 'requested_image_count'):
-        if result.get(key) is not None:
-            metadata[key] = result.get(key)
-    return metadata
+    return _domain_services_provider_errors._chatgpt_pool_failure_metadata(error)
 
 
 def _prepare_chatgpt_pool_generation_prompt(task_id, prompt, prompt_mode):
     """Use the configured prompt skill before Web-conversation image generation."""
-    raw_prompt = str(prompt or '')
-    if _is_generic_19_fidelity_prompt(raw_prompt):
-        return raw_prompt, {
-            'prompt_fidelity_locked': True,
-            'prompt_optimized': False,
-            'prompt_optimized_by': 'generic_19_fidelity_bundle',
-        }
-    if _coerce_prompt_mode(prompt_mode) != 'smart':
-        return raw_prompt, {}
-    try:
-        update_task_status(task_id, 'processing', '正在调用提示词润色模型...', stage='polishing_prompt')
-        result = polish_prompt(str(prompt or ''), {})
-        cfg = get_prompt_skill_config()
-        preferred_key = str(cfg.get('default_output') or 'full_prompt')
-        optimized = str(result.get(preferred_key) or result.get('full_prompt') or result.get('compact_prompt') or '').strip()
-        if not optimized:
-            return str(prompt or ''), {'prompt_polish_error': '润色结果为空'}
-        return optimized, {
-            'prompt_optimized': True,
-            'prompt_optimized_by': 'prompt_skill',
-            'prompt_skill_provider': result.get('provider'),
-            'prompt_skill_model': result.get('model'),
-            'prompt_skill': result.get('skill'),
-            'prompt_skill_output': preferred_key,
-            'prompt_skill_latency_seconds': result.get('latency_seconds'),
-            'original_prompt': str(prompt or ''),
-            'optimized_prompt': optimized,
-        }
-    except Exception as exc:
-        error = str(exc)
-        print(f"⚠️ ChatGPT 账号池本地提示词润色失败，尝试账号池 chat 兜底：{error}")
-        return _prepare_chatgpt_pool_generation_prompt_with_chat(task_id, prompt, error)
+    return _domain_services_prompt_enrichment._prepare_chatgpt_pool_generation_prompt(
+        task_id, prompt, prompt_mode,
+        _coerce_prompt_mode=_coerce_prompt_mode, _is_generic_19_fidelity_prompt=_is_generic_19_fidelity_prompt, _prepare_chatgpt_pool_generation_prompt_with_chat=_prepare_chatgpt_pool_generation_prompt_with_chat,
+        get_prompt_skill_config=get_prompt_skill_config, polish_prompt=polish_prompt, update_task_status=update_task_status,
+    )
 
 
 def _extract_json_object_from_text(text):
-    cleaned = re.sub(r"^```(?:json)?\s*|\s*```$", "", str(text or "").strip(), flags=re.IGNORECASE | re.MULTILINE)
-    start = cleaned.find("{")
-    if start < 0:
-        raise ValueError("模型未返回 JSON 对象")
-    depth = 0
-    in_string = False
-    escape = False
-    for index in range(start, len(cleaned)):
-        ch = cleaned[index]
-        if in_string:
-            if escape:
-                escape = False
-            elif ch == "\\":
-                escape = True
-            elif ch == '"':
-                in_string = False
-            continue
-        if ch == '"':
-            in_string = True
-            continue
-        if ch == "{":
-            depth += 1
-        elif ch == "}":
-            depth -= 1
-            if depth == 0:
-                return json.loads(cleaned[start:index + 1])
-    raise ValueError("模型返回的 JSON 不完整")
+    return _domain_services_prompt_enrichment._extract_json_object_from_text(text, json=json, re=re)
 
 
 def _chatgpt_pool_chat_content(result):
-    payload = result.get("result") if isinstance(result, dict) else {}
-    choices = payload.get("choices") if isinstance(payload, dict) else []
-    first = choices[0] if isinstance(choices, list) and choices and isinstance(choices[0], dict) else {}
-    message = first.get("message") if isinstance(first.get("message"), dict) else {}
-    return str(message.get("content") or "").strip(), payload
+    return _domain_services_prompt_enrichment._chatgpt_pool_chat_content(result)
 
 
 def _prompt_polish_chat_messages(original):
-    system_prompt = (
-        "你是图像生成提示词优化助手。只做提示词润色和结构整理，不要联网检索，不要研究资料。"
-        "请把用户文本改写为图像模型可直接使用的成片提示词，保留用户语义，不新增无根据的主体。"
-        "只返回合法 JSON 对象，不要 markdown，不要解释。JSON 字段必须包含 full_prompt、compact_prompt、warnings。"
-    )
-    user_prompt = "\n".join([
-        "请优化下面的图像提示词。",
-        "要求：",
-        "- full_prompt 是较完整的成片提示词，包含主体、场景、构图、光影、材质/媒介、负面约束。",
-        "- compact_prompt 是更短的可投喂版本。",
-        "- warnings 是字符串数组，可为空。",
-        "",
-        "原始提示词：",
-        "<<<",
-        original,
-        ">>>",
-    ])
-    return [
-        {"role": "system", "content": system_prompt},
-        {"role": "user", "content": user_prompt},
-    ]
+    return _domain_services_prompt_enrichment._prompt_polish_chat_messages(original)
 
 
 def _polish_prompt_with_chatgpt_pool_chat(prompt, polish_error):
-    original = str(prompt or '').strip()
-    if not original:
-        raise ValueError("缺少要润色的文本")
-    started = time.time()
-    result = chat_chatgpt_pool(
-        _prompt_polish_chat_messages(original),
-        model="auto",
-        timeout_seconds=180,
+    return _domain_services_prompt_enrichment._polish_prompt_with_chatgpt_pool_chat(
+        prompt, polish_error, _chatgpt_pool_chat_content=_chatgpt_pool_chat_content,
+        _extract_json_object_from_text=_extract_json_object_from_text, _prompt_polish_chat_messages=_prompt_polish_chat_messages, chat_chatgpt_pool=chat_chatgpt_pool,
+        time=time,
     )
-    if not result.get("ok"):
-        raise RuntimeError(result.get("error") or "账号池 chat 失败")
-    content, payload = _chatgpt_pool_chat_content(result)
-    data = _extract_json_object_from_text(content)
-    full_prompt = str(data.get('full_prompt') or data.get('完整提示词') or '').strip()
-    compact_prompt = str(data.get('compact_prompt') or data.get('精简提示词') or data.get('精简可投喂版') or '').strip()
-    if not full_prompt and compact_prompt:
-        full_prompt = compact_prompt
-    if not compact_prompt and full_prompt:
-        compact_prompt = full_prompt
-    if not full_prompt:
-        raise RuntimeError("账号池 chat 润色结果为空")
-    warnings = data.get('warnings') if isinstance(data.get('warnings'), list) else []
-    modules = data.get('modules') if isinstance(data.get('modules'), list) else []
-    return {
-        'ok': True,
-        'full_prompt': full_prompt,
-        'compact_prompt': compact_prompt,
-        'modules': modules,
-        'warnings': warnings,
-        'router_summary': str(data.get('router_summary') or '').strip(),
-        'original_text': original,
-        'provider': 'chatgpt_pool',
-        'model': payload.get('model') if isinstance(payload, dict) else 'auto',
-        'skill': 'chat_fallback',
-        'reasoning_effort': '',
-        'expanded': False,
-        'latency_seconds': round(time.time() - started, 2),
-        'fallback': 'chatgpt_pool_chat',
-        'prompt_polish_fallback': 'chatgpt_pool_chat',
-        'prompt_polish_error': str(polish_error)[:300],
-    }
 
 
 def _prepare_chatgpt_pool_generation_prompt_with_chat(task_id, prompt, polish_error):
-    update_task_status(task_id, 'processing', '本地润色失败，正在用账号池 chat 兜底润色...', stage='polishing_prompt')
-    original = str(prompt or '').strip()
-    if not original:
-        return str(prompt or ''), {'prompt_polish_error': str(polish_error)[:300]}
-    try:
-        result = _polish_prompt_with_chatgpt_pool_chat(original, polish_error)
-        cfg = get_prompt_skill_config()
-        preferred_key = str(cfg.get('default_output') or 'full_prompt')
-        optimized = str(result.get(preferred_key) or result.get('full_prompt') or result.get('compact_prompt') or '').strip()
-        if not optimized:
-            raise RuntimeError("账号池 chat 润色结果为空")
-        return optimized, {
-            'prompt_optimized': True,
-            'prompt_optimized_by': 'chatgpt_pool_chat',
-            'prompt_skill_provider': 'chatgpt_pool',
-            'prompt_skill_model': result.get('model') or 'auto',
-            'prompt_skill': 'chat_fallback',
-            'prompt_skill_output': preferred_key,
-            'prompt_polish_fallback': 'chatgpt_pool_chat',
-            'prompt_polish_error': str(polish_error)[:300],
-            'original_prompt': original,
-            'optimized_prompt': optimized,
-        }
-    except Exception as exc:
-        chat_error = str(exc)
-        print(f"⚠️ ChatGPT 账号池 chat 润色兜底失败，改用原 prompt：{chat_error}")
-        return str(prompt or ''), {
-            'prompt_polish_error': str(polish_error)[:300],
-            'prompt_pool_chat_error': chat_error[:300],
-        }
+    return _domain_services_prompt_enrichment._prepare_chatgpt_pool_generation_prompt_with_chat(
+        task_id, prompt, polish_error,
+        _polish_prompt_with_chatgpt_pool_chat=_polish_prompt_with_chatgpt_pool_chat, get_prompt_skill_config=get_prompt_skill_config, update_task_status=update_task_status,
+    )
 
 
 def _source_summary_list(sources, limit=5):
-    items = []
-    for source in sources if isinstance(sources, list) else []:
-        if not isinstance(source, dict):
-            continue
-        url = str(source.get('url') or '').strip()
-        title = str(source.get('title') or '').strip()
-        snippet = str(source.get('snippet') or '').strip()
-        if not url and not title and not snippet:
-            continue
-        items.append({'title': title, 'url': url, 'snippet': snippet[:240], 'source_type': str(source.get('source_type') or '').strip()})
-        if len(items) >= limit:
-            break
-    return items
+    return _domain_services_prompt_enrichment._source_summary_list(sources, limit)
 
 
 def _prepare_web_search_generation_prompt(task_id, prompt):
-    original = str(prompt or '').strip()
-    if not original:
-        return str(prompt or ''), {'web_search_error': 'prompt is empty'}
-    update_task_status(task_id, 'processing', '正在联网检索并整理提示词...', stage='web_search_prompt')
-    _append_task_route_trace(task_id, 'chatgpt_pool_search', 'started', '正在执行联网检索')
-    query = "\n".join([
-        "围绕下面的图像生成需求做联网检索或研究。",
-        "目标是提取可用于图像创作的真实事实、视觉细节、时代/地点/物体特征、风格参考和注意事项。",
-        "不要直接生成图片提示词，先给出检索结论和来源。",
-        "",
-        "图像生成需求：",
-        "<<<",
-        original,
-        ">>>",
-    ])
-    search_response = search_chatgpt_pool(query, timeout_seconds=300)
-    if not search_response.get('ok'):
-        error = str(search_response.get('error') or '账号池联网检索失败')
-        _append_task_route_trace(task_id, 'chatgpt_pool_search', 'failed', error)
-        raise RuntimeError(f"联网检索失败：{error}")
-    search_result = search_response.get('result') if isinstance(search_response.get('result'), dict) else {}
-    answer = str(search_result.get('answer') or '').strip()
-    sources = _source_summary_list(search_result.get('sources') or [])
-    if not answer:
-        raise RuntimeError("联网检索没有返回可用正文")
-    _append_task_route_trace(
-        task_id,
-        'chatgpt_pool_search',
-        'succeeded',
-        '联网检索完成',
-        conversation_id=str(search_result.get('conversation_id') or ''),
-        source_count=len(sources),
+    return _domain_services_prompt_enrichment._prepare_web_search_generation_prompt(
+        task_id, prompt, _append_task_route_trace=_append_task_route_trace,
+        _chatgpt_pool_chat_content=_chatgpt_pool_chat_content, _extract_json_object_from_text=_extract_json_object_from_text, _source_summary_list=_source_summary_list,
+        chat_chatgpt_pool=chat_chatgpt_pool, get_prompt_skill_config=get_prompt_skill_config, json=json,
+        search_chatgpt_pool=search_chatgpt_pool, update_task_status=update_task_status,
     )
-    update_task_status(task_id, 'processing', '正在将检索结果整理为图像提示词...', stage='web_search_prompt')
-    system_prompt = (
-        "你是图像生成提示词整理助手。你会收到用户原始需求、联网检索结论和来源。"
-        "请把这些材料整理成图像模型可直接使用的提示词。"
-        "只使用检索材料中有依据的信息，不编造事实；来源只用于理解，不要在提示词里写 URL。"
-        "只返回合法 JSON 对象，不要 markdown，不要解释。JSON 字段必须包含 full_prompt、compact_prompt、warnings。"
-    )
-    user_prompt = "\n".join([
-        "用户原始需求：",
-        "<<<",
-        original,
-        ">>>",
-        "",
-        "联网检索结论：",
-        "<<<",
-        answer,
-        ">>>",
-        "",
-        "来源摘要：",
-        json.dumps(sources, ensure_ascii=False),
-        "",
-        "请输出：",
-        "- full_prompt：融合检索结论的完整图像提示词。",
-        "- compact_prompt：更短的可投喂版本。",
-        "- warnings：不确定、冲突或不适合直接视觉化的点。",
-    ])
-    chat_response = chat_chatgpt_pool(
-        [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt},
-        ],
-        model="auto",
-        timeout_seconds=180,
-    )
-    if not chat_response.get('ok'):
-        raise RuntimeError(f"检索结果整理失败：{chat_response.get('error') or '账号池 chat 失败'}")
-    content, payload = _chatgpt_pool_chat_content(chat_response)
-    data = _extract_json_object_from_text(content)
-    full_prompt = str(data.get('full_prompt') or data.get('完整提示词') or '').strip()
-    compact_prompt = str(data.get('compact_prompt') or data.get('精简提示词') or data.get('精简可投喂版') or '').strip()
-    cfg = get_prompt_skill_config()
-    preferred_key = str(cfg.get('default_output') or 'full_prompt')
-    optimized = str(data.get(preferred_key) or full_prompt or compact_prompt).strip()
-    if not optimized:
-        raise RuntimeError("检索结果整理为空")
-    return optimized, {
-        'prompt_optimized': True,
-        'prompt_optimized_by': 'chatgpt_pool_search',
-        'prompt_skill_provider': 'chatgpt_pool',
-        'prompt_skill_model': payload.get('model') if isinstance(payload, dict) else 'auto',
-        'prompt_skill': 'web_search_prompt',
-        'prompt_skill_output': preferred_key,
-        'original_prompt': original,
-        'optimized_prompt': optimized,
-        'web_search_answer': answer[:4000],
-        'web_search_sources': sources,
-        'web_search_conversation_id': str(search_result.get('conversation_id') or ''),
-        'web_search_model': search_response.get('model'),
-    }
 
 
 def _format_gpt_failure_error(error):
     """Format final GPT task failures without leaking raw stack traces to users."""
-    text = str(error or '').strip()
-    if not text:
-        return 'GPT 生成失败'
-
-    parts = re.split(r'\s*\|\s*账号池托底失败[:：]\s*', text, maxsplit=1)
-    if len(parts) == 2:
-        provider_part = re.sub(
-            r'^本地\s*(?:GPT\s*)?provider\s*(?:失败|异常)?[:：]\s*',
-            '',
-            parts[0].strip(),
-            flags=re.I,
-        )
-        return f'{_format_gpt_provider_error(provider_part)}；{_format_gpt_pool_error(parts[1])}'
-
-    if '本地 provider 失败' in text or '本地 GPT provider' in text:
-        provider_part = re.sub(
-            r'^本地\s*(?:GPT\s*)?provider\s*(?:失败|异常)?[:：]\s*',
-            '',
-            text,
-            flags=re.I,
-        )
-        return _format_gpt_provider_error(provider_part)
-
-    summary = _first_user_error_line(text)
-    return summary[:180] if summary else 'GPT 生成失败'
+    return _domain_services_provider_errors._format_gpt_failure_error(
+        error, _first_user_error_line=_first_user_error_line, _format_gpt_pool_error=_format_gpt_pool_error,
+        _format_gpt_provider_error=_format_gpt_provider_error, re=re,
+    )
 
 
 def _result_image_filenames(result):
-    paths = result.get('image_paths') or [result.get('image_path')]
-    filenames = []
-    for path in paths:
-        if not path:
-            continue
-        filename = os.path.basename(str(path))
-        if filename and filename not in filenames:
-            filenames.append(filename)
-    return filenames
+    return _domain_services_generation_policy._result_image_filenames(result, os=os)
 
 
 def _missing_task_payload(task_id):
-    now = int(time.time())
-    return {
-        "task_id": task_id,
-        "status": "failed",
-        "stage": "failed",
-        "type": "unknown",
-        "prompt": "",
-        "params": {},
-        "error": "Task not found",
-        "message": "任务不存在或已过期，请重新提交。",
-        "progress_text": "任务不存在或已过期，请重新提交。",
-        "progress": 100,
-        "created_at": now,
-        "updated_at": now,
-        "result_files": [],
-        "output_files": [],
-        "image_paths": [],
-        "image_count": 0,
-    }
+    return _domain_services_task_tracking._missing_task_payload(task_id, time=time)
 
 
 def _history_task_should_render(status, result_files):
-    if result_files:
-        return True
-    status_key = str(status or '').strip().lower()
-    return status_key in {
-        'pending',
-        'preparing',
-        'processing',
-        'fallback_running',
-        'queued',
-        'running',
-    }
+    return _policy_task_should_render(status, result_files)
 
 
 def _history_page_int(raw_value, default, minimum=0, maximum=500):
-    try:
-        value = int(raw_value)
-    except Exception:
-        return default
-    return max(minimum, min(value, maximum))
+    return _policy_page_int(raw_value, default, minimum=minimum, maximum=maximum)
 
 
 def _history_task_result_files(task):
-    result_files = task.get('result_files') or []
-    if isinstance(result_files, str):
-        try:
-            parsed = json.loads(result_files)
-            result_files = parsed if isinstance(parsed, list) else []
-        except Exception:
-            result_files = [result_files]
-    if not isinstance(result_files, list):
-        result_files = []
-    result_files = [str(name or '').strip() for name in result_files if str(name or '').strip()]
-
-    primary_output = str(task.get('result_file') or task.get('output_file') or '').strip()
-    if not result_files and primary_output:
-        result_files = [primary_output]
-    if not primary_output and result_files:
-        primary_output = result_files[0]
-    return result_files, primary_output
+    return _policy_task_result_files(task)
 
 
 def _history_task_timestamp(task):
-    try:
-        return int(task.get('created_at') or task.get('timestamp') or 0)
-    except Exception:
-        return 0
+    return _policy_task_timestamp(task)
 
 
 def _history_dedupe_key(task):
-    result_files, primary_output = _history_task_result_files(task)
-    filename = safe_basename(primary_output or (result_files[0] if result_files else ''))
-    if filename:
-        return ('file', filename)
-
-    task_id = str(task.get('task_id') or '').strip()
-    if task_id:
-        return ('task', task_id)
-
-    prompt = str(task.get('prompt') or '')[:120]
-    return ('time', _history_task_timestamp(task), prompt)
+    return _policy_dedupe_key(
+        task,
+        task_result_files=_history_task_result_files,
+        task_timestamp=_history_task_timestamp,
+        safe_basename=safe_basename,
+    )
 
 
 def _load_database_history_tasks():
-    tasks = []
-    batch_size = 1000
-    offset = 0
-    while True:
-        batch = get_all_tasks(limit=batch_size, offset=offset)
-        if not batch:
-            break
-        tasks.extend(batch)
-        if len(batch) < batch_size:
-            break
-        offset += len(batch)
-    return tasks
+    return _query_database_history_tasks(get_all_tasks=get_all_tasks)
 
 
 def _load_legacy_history_tasks():
-    history_path = Path(DIRECTORY) / 'history.jsonl'
-    if not history_path.exists():
-        return []
-
-    old_tasks = []
-    try:
-        with open(history_path, 'r', encoding='utf-8') as f:
-            for line in f:
-                if not line.strip():
-                    continue
-                try:
-                    task = json.loads(line)
-                except Exception:
-                    continue
-                timestamp = task.get('timestamp', task.get('created_at', 0)) or 0
-                output_file = task.get('output_file') or task.get('result_file')
-                legacy_key = f"{timestamp}:{safe_basename(output_file)}:{len(old_tasks)}"
-                legacy_hash = hashlib.sha1(legacy_key.encode('utf-8')).hexdigest()[:8]
-                old_tasks.append({
-                    'task_id': f"old_{timestamp}_{legacy_hash}",
-                    'status': 'success' if task.get('status') == 'success' else task.get('status', 'failed'),
-                    'prompt': task.get('prompt', ''),
-                    'params': task.get('params', {}),
-                    'output_file': output_file,
-                    'result_file': output_file,
-                    'error': task.get('error'),
-                    'created_at': timestamp,
-                    'timestamp': timestamp,
-                    'updated_at': int(timestamp or 0) + int(task.get('duration', 0) or 0),
-                    'duration': task.get('duration', 0),
-                    'type': task.get('type', 'google-gen'),
-                    'is_old': True,
-                })
-    except Exception as e:
-        print(f"⚠️ 读取旧 history.jsonl 失败：{e}")
-    return old_tasks
+    return _query_legacy_history_tasks(directory=DIRECTORY, safe_basename=safe_basename)
 
 
 def _collect_renderable_history_tasks():
-    combined = _load_database_history_tasks() + _load_legacy_history_tasks()
-    combined.sort(key=_history_task_timestamp, reverse=True)
-
-    renderable = []
-    seen = set()
-    for task in combined:
-        result_files, _primary_output = _history_task_result_files(task)
-        if not _history_task_should_render(task.get('status'), result_files):
-            continue
-        key = _history_dedupe_key(task)
-        if key in seen:
-            continue
-        seen.add(key)
-        renderable.append(task)
-    return renderable
+    return _query_renderable_history_tasks(
+        load_database_tasks=_load_database_history_tasks,
+        load_legacy_tasks=_load_legacy_history_tasks,
+        task_timestamp=_history_task_timestamp,
+        task_result_files=_history_task_result_files,
+        should_render=_history_task_should_render,
+        dedupe_key=_history_dedupe_key,
+    )
 
 
 def _format_history_task(task):
-    result_files, primary_output = _history_task_result_files(task)
-    params = task.get('params') if isinstance(task.get('params'), dict) else {}
-    if task.get('type') == H3_VIDEO_TASK_TYPE:
-        params = _public_h3_task_params(params)
-    image_paths = []
-    video_paths = []
-    if task.get('type') == 'gpt-file':
-        image_paths = []
-    elif task.get('type') == H3_VIDEO_TASK_TYPE:
-        video_paths = [f"/video/{urllib.parse.quote(safe_basename(name))}" for name in result_files]
-    elif task.get('type') in ('gpt', 'gpt-edit'):
-        image_paths = [f"/gpt_outputs/{name}" for name in result_files]
-    elif result_files:
-        image_paths = [f"/image/{name}" for name in result_files]
-
-    return {
-        'task_id': task.get('task_id', ''),
-        'status': 'success' if task.get('status') == 'succeeded' else task.get('status', 'failed'),
-        'prompt': task.get('prompt', ''),
-        'params': params,
-        'prompt_mode': params.get('prompt_mode'),
-        'gpt_provider_route': params.get('gpt_provider_route'),
-        'main_model': params.get('main_model'),
-        'reasoning_effort': params.get('reasoning_effort'),
-        'revised_prompt': params.get('revised_prompt'),
-        'revised_prompts': params.get('revised_prompts') if isinstance(params.get('revised_prompts'), list) else [],
-        'output_file': primary_output,
-        'result_file': primary_output,
-        'output_files': result_files,
-        'result_files': result_files,
-        'image_paths': image_paths,
-        'image_count': 0 if task.get('type') == H3_VIDEO_TASK_TYPE else len(result_files),
-        'video_paths': video_paths,
-        'video_path': video_paths[0] if video_paths else '',
-        'video_count': len(video_paths),
-        'video_metadata': {
-            key: params.get(key)
-            for key in ('width', 'height', 'fps', 'frame_count', 'duration_seconds', 'video_size_bytes', 'seed', 'elapsed_seconds', 'acceleration')
-            if params.get(key) is not None
-        } if task.get('type') == H3_VIDEO_TASK_TYPE else None,
-        'file_manifest': params.get('file_manifest') if isinstance(params.get('file_manifest'), dict) else None,
-        'artifact_type': params.get('artifact_type') or params.get('task_type'),
-        'error': task.get('error'),
-        'display_error': task.get('display_error') or task.get('error'),
-        'error_code': task.get('error_code', ''),
-        'error_category': task.get('error_category', ''),
-        'raw_error': task.get('raw_error', ''),
-        'last_run_id': task.get('last_run_id', ''),
-        'run_count': task.get('run_count', 0),
-        'created_at': task.get('created_at', task.get('timestamp', 0)),
-        'timestamp': task.get('created_at', task.get('timestamp', 0)),
-        'updated_at': task.get('updated_at', task.get('created_at', 0)),
-        'duration': task.get('duration', 0),
-        'type': task.get('type', 'google-gen'),
-        'stage': task.get('stage'),
-        'progress_text': task.get('progress_text'),
-        'progress': task.get('progress', 0),
-        'heartbeat_at': task.get('heartbeat_at'),
-        'first_byte_at': task.get('first_byte_at'),
-        'bytes_received': task.get('bytes_received', 0),
-        'transport_error_type': task.get('transport_error_type'),
-        'ttfb_ms': task.get('ttfb_ms'),
-        'started_at': task.get('started_at'),
-        'finished_at': task.get('finished_at'),
-        'is_old': task.get('is_old', False),
-    }
+    return _serialize_history_task(
+        task,
+        task_result_files=_history_task_result_files,
+        h3_task_type=H3_VIDEO_TASK_TYPE,
+        public_h3_params=_public_h3_task_params,
+        safe_basename=safe_basename,
+    )
 
 
 FAILED_RETRY_STATUSES = {'failed', 'telegram_failed'}
@@ -1690,661 +856,221 @@ class GenerationQueueFullError(TaskRetryError):
 
 
 def _retry_task_id_prefix(task_type, params=None):
-    params = params if isinstance(params, dict) else {}
-    if task_type == 'custom':
-        return 'custom'
-    if task_type == 'gpt-file':
-        return 'gpt'
-    if task_type == 'google-gen':
-        return 'gen'
-    if task_type == 'gpt' and not (params.get('prompt_mode') or params.get('gpt_provider_route') or params.get('task_type')):
-        return 'gen'
-    return 'gpt'
+    return _domain_services_task_retry._retry_task_id_prefix(task_type, params)
 
 
 def _make_retry_task_id(task_type, params=None):
-    return f"{_retry_task_id_prefix(task_type, params)}_{int(time.time())}_{random.randint(1000, 9999)}"
+    return _domain_services_task_retry._make_retry_task_id(task_type, params, _retry_task_id_prefix=_retry_task_id_prefix, random=random, time=time)
 
 
 def _copy_retry_params(original_task, new_task_id):
-    params = copy.deepcopy(original_task.get('params') if isinstance(original_task.get('params'), dict) else {})
-    for key in RETRY_PARAM_RESULT_KEYS:
-        params.pop(key, None)
-    previous_attempt = int(params.get('attempt_no') or 1)
-    params['retry_of'] = original_task.get('task_id', '')
-    params['attempt_no'] = max(2, previous_attempt + 1)
-    params['retry_source_status'] = original_task.get('status') or ''
-    if original_task.get('error'):
-        params['retry_source_error'] = str(original_task.get('error') or '')[:800]
-    params['retried_at'] = int(time.time())
-    params['retry_task_id'] = new_task_id
-    return params
+    return _domain_services_task_retry._copy_retry_params(
+        original_task, new_task_id, RETRY_PARAM_RESULT_KEYS=RETRY_PARAM_RESULT_KEYS,
+        copy=copy, time=time,
+    )
 
 
 def _is_gpt_image_retry(task_type, params):
-    return task_type == 'gpt' and (
-        params.get('prompt_mode') or params.get('gpt_provider_route') or params.get('task_type')
-    )
+    return _domain_services_task_retry._is_gpt_image_retry(task_type, params)
 
 
 def _validate_retry_payload(task_type, params):
-    if task_type != 'gpt-file':
-        return
-    kind = _coerce_gpt_task_type(params.get('task_type') or params.get('artifact_type'))
-    if kind not in ('ppt', 'psd'):
-        raise TaskRetryError('这个 GPT 文件任务缺少可重跑的文件类型。')
-    if kind == 'psd':
-        raise TaskRetryError('PSD 任务依赖原始参考图，当前历史记录未保存原图，暂不能直接重跑。')
+    return _domain_services_task_retry._validate_retry_payload(task_type, params, TaskRetryError=TaskRetryError, _coerce_gpt_task_type=_coerce_gpt_task_type)
 
 
 def _start_retry_thread(task_type, task_id, prompt, params):
-    if task_type == 'gpt-file':
-        kind = _coerce_gpt_task_type(params.get('task_type') or params.get('artifact_type'))
-        target = process_gpt_editable_file_task
-        args = (
-            task_id,
-            kind,
-            prompt,
-            [],
-            _coerce_prompt_mode(params.get('prompt_mode', 'smart')),
-            'chatgpt_pool',
-            _coerce_bool(params.get('archive_enabled'), True),
-            _coerce_bool(params.get('telegram_enabled'), True),
-        )
-    elif _is_gpt_image_retry(task_type, params):
-        target = process_gpt_task
-        args = (
-            task_id,
-            prompt,
-            _coerce_image_ratio(params.get('ratio'), '1:1'),
-            _coerce_gpt_resolution(params.get('resolution')),
-            _coerce_gpt_quality(params.get('quality', 'auto')),
-            _coerce_gpt_image_count({'image_count': params.get('image_count')}, prompt),
-            _coerce_gpt_moderation(params.get('moderation', 'auto')),
-            _coerce_prompt_mode(params.get('prompt_mode', 'smart')),
-            _coerce_gpt_main_model(params.get('main_model')),
-            _coerce_gpt_reasoning_effort(params.get('reasoning_effort')),
-            _coerce_gpt_provider_route(params.get('gpt_provider_route', 'codex')),
-            _coerce_use_third_party_api(params.get('use_third_party_api'), params.get('useThirdPartyApi')),
-            _coerce_bool(params.get('archive_enabled'), True),
-            _coerce_bool(params.get('telegram_enabled'), True),
-        )
-    elif task_type in ('google-gen', 'gpt'):
-        target = process_task
-        args = (task_id, prompt, params)
-    elif task_type == 'custom':
-        target = process_custom_task
-        args = (
-            task_id,
-            prompt,
-            _coerce_image_ratio(params.get('ratio'), '1:1'),
-            _coerce_gpt_resolution(params.get('resolution')),
-            _coerce_gpt_quality(params.get('quality', 'auto')),
-            _coerce_gpt_moderation(params.get('moderation', 'auto')),
-        )
-    else:
-        raise TaskRetryError('这个任务类型暂不支持重跑。')
-    if not _start_generation_thread(target, args=args):
-        message = _generation_busy_message()
-        update_task(
-            task_id,
-            'failed',
-            error=message,
-            stage='rejected',
-            progress_text=message,
-            transport_error_type='GenerationQueueFull',
-        )
-        raise GenerationQueueFullError(message)
-
-
-def retry_failed_task(original_task):
-    if not original_task:
-        raise TaskRetryError('找不到要重跑的任务。')
-    if original_task.get('is_old'):
-        raise TaskRetryError('旧版 history.jsonl 记录不能直接重跑。')
-    status = str(original_task.get('status') or '')
-    if status not in FAILED_RETRY_STATUSES:
-        raise TaskRetryError('只有失败任务可以重跑。')
-    task_type = str(original_task.get('type') or 'google-gen')
-    if task_type in ('gpt-edit', 'google-edit'):
-        raise TaskRetryError('图片编辑任务依赖原始图片/蒙版，当前历史记录未保存完整输入，暂不能直接重跑。')
-    if task_type not in RETRYABLE_TASK_TYPES:
-        raise TaskRetryError(f'{task_type} 任务暂不支持重跑。')
-    prompt = str(original_task.get('prompt') or '').strip()
-    if not prompt:
-        raise TaskRetryError('这个任务没有可重跑的提示词。')
-
-    task_id = _make_retry_task_id(task_type, original_task.get('params'))
-    params = _copy_retry_params(original_task, task_id)
-    _validate_retry_payload(task_type, params)
-    create_task(task_id, prompt, params, status='queued', task_type=task_type)
-    _start_retry_thread(task_type, task_id, prompt, params)
-    retry_task = get_task(task_id) or {
-        'task_id': task_id,
-        'status': 'queued',
-        'prompt': prompt,
-        'params': params,
-        'type': task_type,
-    }
-    retry_task['ok'] = True
-    retry_task['message'] = '已创建重跑任务。'
-    retry_task['retry_of'] = original_task.get('task_id', '')
-    return retry_task
-
-
-def _batch_prompt_items(data):
-    prompts = data.get('prompts')
-    if isinstance(prompts, list):
-        items = prompts
-    else:
-        raw = str(data.get('prompt') or '')
-        items = re.split(r'\n\s*\n|\r?\n', raw)
-    cleaned = []
-    for item in items:
-        prompt = str(item or '').strip()
-        if prompt:
-            cleaned.append(prompt)
-    return cleaned
-
-
-def _batch_task_id(provider, params, index):
-    task_type = _batch_task_type(provider, params)
-    prefix = _retry_task_id_prefix(task_type, params)
-    return f"{prefix}_{int(time.time())}_{random.randint(1000, 9999)}_{index + 1}"
-
-
-def _batch_task_type(provider, params):
-    if provider == 'google':
-        return 'google-gen'
-    if provider == 'gpt':
-        kind = _coerce_gpt_task_type(params.get('gptTaskType') or params.get('task_type'))
-        return 'gpt-file' if kind != 'image' else 'gpt'
-    return provider
-
-
-def _make_batch_task_params(provider, incoming_params, prompt, batch_id, index, total, lineage=None):
-    incoming_params = incoming_params if isinstance(incoming_params, dict) else {}
-    if provider == 'google':
-        archive_enabled = _coerce_bool(incoming_params.get('archiveEnabled', incoming_params.get('archive_enabled')), True)
-        telegram_enabled = _coerce_bool(incoming_params.get('telegramEnabled', incoming_params.get('telegram_enabled')), True)
-        params = {
-            'ratio': _effective_image_ratio(prompt, incoming_params.get('ratio'), '1:1'),
-            'quality': _coerce_google_quality(incoming_params.get('resolution', incoming_params.get('quality', '2k')), '2k'),
-            'model': _coerce_model(incoming_params.get('model', DEFAULT_GOOGLE_IMAGE_MODEL)),
-            'max_tokens': _coerce_google_max_tokens(incoming_params.get('maxTokens', incoming_params.get('max_tokens'))),
-            'archive_enabled': archive_enabled,
-            'telegram_enabled': telegram_enabled,
-        }
-        temperature = _coerce_google_temperature(incoming_params.get('temperature'))
-        if temperature is not None:
-            params['temperature'] = temperature
-    elif provider == 'gpt':
-        task_type = _coerce_gpt_task_type(incoming_params.get('gptTaskType') or incoming_params.get('task_type'))
-        gpt_provider_route = 'chatgpt_pool' if task_type != 'image' else _coerce_gpt_provider_route(incoming_params.get('gptProviderRoute', incoming_params.get('gpt_provider_route', 'codex')))
-        use_third_party_api = _gpt_route_uses_third_party(gpt_provider_route) or _coerce_use_third_party_api(
-            incoming_params.get('useThirdPartyApi'),
-            incoming_params.get('use_third_party_api'),
-        )
-        params = {
-            'ratio': _effective_image_ratio(prompt, incoming_params.get('ratio'), '1:1'),
-            'resolution': _coerce_gpt_resolution(incoming_params.get('resolution')),
-            'quality': _coerce_gpt_quality(incoming_params.get('quality', 'auto')),
-            'image_count': _coerce_gpt_image_count({'image_count': incoming_params.get('imageCount', incoming_params.get('image_count'))}, prompt),
-            'moderation': _coerce_gpt_moderation(incoming_params.get('moderation', 'auto')),
-            'task_type': task_type,
-            'prompt_mode': _coerce_prompt_mode(incoming_params.get('promptMode', incoming_params.get('prompt_mode', 'smart'))),
-            'gpt_provider_route': gpt_provider_route,
-            'main_model': _coerce_gpt_main_model(incoming_params.get('gptMainModel', incoming_params.get('main_model'))),
-            'reasoning_effort': _coerce_gpt_reasoning_effort(incoming_params.get('reasoningEffort', incoming_params.get('reasoning_effort'))),
-            'archive_enabled': _coerce_bool(incoming_params.get('archiveEnabled', incoming_params.get('archive_enabled')), True),
-            'telegram_enabled': _coerce_bool(incoming_params.get('telegramEnabled', incoming_params.get('telegram_enabled')), True),
-            'use_third_party_api': use_third_party_api,
-        }
-    else:
-        raise TaskRetryError(f'批量暂不支持 {provider}。')
-    if lineage:
-        params['lineage'] = lineage
-    params.update({
-        'batch_id': batch_id,
-        'batch_index': index + 1,
-        'batch_total': total,
-        'batch_control': 'running',
-        'batch_status': 'queued',
-        'queued_at': int(time.time()),
-    })
-    return params
-
-
-def _create_batch_tasks(provider, prompts, params, lineage=None):
-    batch_id = f"batch_{int(time.time())}_{random.randint(1000, 9999)}"
-    total = len(prompts)
-    created = []
-    for index, prompt in enumerate(prompts):
-        task_params = _make_batch_task_params(provider, params, prompt, batch_id, index, total, lineage=lineage)
-        task_type = _batch_task_type(provider, task_params)
-        if task_type in ('gpt-edit', 'google-edit') or task_params.get('source_image_count'):
-            raise TaskRetryError('批量第一版只支持纯生成任务，暂不支持批量图片编辑。')
-        if task_type == 'gpt-file' and _coerce_gpt_task_type(task_params.get('task_type')) == 'psd':
-            raise TaskRetryError('PSD 批量任务需要逐项参考图，第一版暂不支持。')
-        task_id = _batch_task_id(provider, task_params, index)
-        task_params['batch_task_id'] = task_id
-        create_task(task_id, prompt, task_params, status='queued', task_type=task_type)
-        created.append({
-            'task_id': task_id,
-            'prompt': prompt,
-            'params': task_params,
-            'type': task_type,
-            'status': 'queued',
-        })
-    return batch_id, created
-
-
-def _run_batch_task(task):
-    task_id = task['task_id']
-    prompt = task['prompt']
-    params = task['params']
-    task_type = task['type']
-    if task_type == 'google-gen':
-        process_task(task_id, prompt, params)
-    elif task_type == 'gpt':
-        process_gpt_task(
-            task_id,
-            prompt,
-            _coerce_image_ratio(params.get('ratio'), '1:1'),
-            _coerce_gpt_resolution(params.get('resolution')),
-            _coerce_gpt_quality(params.get('quality', 'auto')),
-            _coerce_gpt_image_count({'image_count': params.get('image_count')}, prompt),
-            _coerce_gpt_moderation(params.get('moderation', 'auto')),
-            _coerce_prompt_mode(params.get('prompt_mode', 'smart')),
-            _coerce_gpt_main_model(params.get('main_model')),
-            _coerce_gpt_reasoning_effort(params.get('reasoning_effort')),
-            _coerce_gpt_provider_route(params.get('gpt_provider_route', 'codex')),
-            _coerce_use_third_party_api(params.get('use_third_party_api'), params.get('useThirdPartyApi')),
-            _coerce_bool(params.get('archive_enabled'), True),
-            _coerce_bool(params.get('telegram_enabled'), True),
-        )
-    elif task_type == 'gpt-file':
-        process_gpt_editable_file_task(
-            task_id,
-            _coerce_gpt_task_type(params.get('task_type')),
-            prompt,
-            [],
-            _coerce_prompt_mode(params.get('prompt_mode', 'smart')),
-            'chatgpt_pool',
-            _coerce_bool(params.get('archive_enabled'), True),
-            _coerce_bool(params.get('telegram_enabled'), True),
-        )
-    else:
-        update_task(task_id, 'failed', error=f'批量暂不支持 {task_type}', stage='failed', progress_text=f'批量暂不支持 {task_type}')
-
-
-def _batch_task_uses_chatgpt_pool(task):
-    if not isinstance(task, dict) or task.get('type') != 'gpt':
-        return False
-    params = task.get('params') if isinstance(task.get('params'), dict) else {}
-    if _coerce_use_third_party_api(params.get('use_third_party_api'), params.get('useThirdPartyApi')):
-        return False
-    return _coerce_gpt_provider_route(params.get('gpt_provider_route', 'codex')) == 'chatgpt_pool'
-
-
-def _batch_task_requested_image_count(task):
-    params = task.get('params') if isinstance(task.get('params'), dict) else {}
-    return _coerce_gpt_image_count({'image_count': params.get('image_count')}, task.get('prompt') or '')
-
-
-def _batch_chatgpt_pool_parallel_limit(tasks):
-    if not tasks or not all(_batch_task_uses_chatgpt_pool(task) for task in tasks):
-        return 1
-    try:
-        status = _collect_chatgpt_pool_status()
-        stats = status.get('stats') if isinstance(status.get('stats'), dict) else {}
-        capacity = int(stats.get('capacity') or stats.get('available') or 0)
-    except Exception as exc:
-        print(f"⚠️ 批量任务读取账号池容量失败，改为顺序执行：{exc}")
-        capacity = 0
-    if capacity <= 0:
-        return 1
-    per_task_count = max(1, max(_batch_task_requested_image_count(task) for task in tasks))
-    by_pool = max(1, capacity // per_task_count)
-    return max(1, min(len(tasks), by_pool, _current_generation_limit()))
-
-
-def _wait_acquire_generation_slot_for_batch(batch_id):
-    sem = _GENERATION_SEMAPHORE
-    if sem is None:
-        return True
-    while True:
-        control = get_batch_control(batch_id)
-        if control == 'canceled':
-            return False
-        if control == 'paused':
-            time.sleep(1)
-            continue
-        if sem.acquire(timeout=1):
-            return True
-
-
-def _run_batch_task_guarded(batch_id, task):
-    while get_batch_control(batch_id) == 'paused':
-        time.sleep(1)
-    if get_batch_control(batch_id) == 'canceled':
-        return False
-    current = get_task(task['task_id'])
-    if current and current.get('status') == 'canceled':
-        return True
-    try:
-        _run_batch_task(task)
-    except Exception as e:
-        error = str(e)
-        print(f"❌ 批量子任务失败：{task['task_id']} - {error}")
-        update_task(task['task_id'], 'failed', error=error, stage='failed', progress_text=error, transport_error_type=type(e).__name__)
-    return True
-
-
-def _run_batch_tasks_parallel(batch_id, tasks, parallel_limit):
-    task_queue: queue.Queue = queue.Queue()
-    for task in tasks:
-        task_queue.put(task)
-
-    def worker(use_parent_slot=False):
-        while True:
-            try:
-                task = task_queue.get_nowait()
-            except queue.Empty:
-                return
-            acquired = False
-            try:
-                if not use_parent_slot:
-                    acquired = _wait_acquire_generation_slot_for_batch(batch_id)
-                    if not acquired:
-                        return
-                if not _run_batch_task_guarded(batch_id, task):
-                    return
-            finally:
-                if acquired:
-                    _release_generation_slot()
-                task_queue.task_done()
-
-    threads = [
-        threading.Thread(target=worker, name=f"batch-{batch_id}-{index}", daemon=True)
-        for index in range(max(0, int(parallel_limit or 1) - 1))
-    ]
-    for thread in threads:
-        thread.start()
-    worker(use_parent_slot=True)
-    for thread in threads:
-        thread.join()
-
-
-def process_batch_tasks(batch_id, tasks):
-    parallel_limit = _batch_chatgpt_pool_parallel_limit(tasks)
-    mode_text = f"账号池并发 {parallel_limit}" if parallel_limit > 1 else "顺序执行"
-    print(f"📦 开始处理批量任务：{batch_id}（{len(tasks)} 个，{mode_text}）")
-    if parallel_limit > 1:
-        _run_batch_tasks_parallel(batch_id, tasks, parallel_limit)
-    else:
-        for task in tasks:
-            if not _run_batch_task_guarded(batch_id, task):
-                break
-    if get_batch_control(batch_id) == 'canceled':
-        cancel_batch_queued_tasks(batch_id)
-    print(f"✅ 批量任务处理完成：{batch_id}")
-
-
-def _batch_tasks(batch_id):
-    tasks = [
-        task for task in get_all_tasks(limit=5000, offset=0)
-        if isinstance(task.get('params'), dict) and task['params'].get('batch_id') == batch_id
-    ]
-    tasks.sort(key=lambda task: int((task.get('params') or {}).get('batch_index') or 0))
-    return tasks
-
-
-def get_batch_control(batch_id):
-    for task in _batch_tasks(batch_id):
-        control = str((task.get('params') or {}).get('batch_control') or '').strip().lower()
-        if control:
-            return control
-    return 'running'
-
-
-def set_batch_control(batch_id, control):
-    control = str(control or '').strip().lower()
-    if control not in ('running', 'paused', 'canceled'):
-        raise ValueError('无效的批量控制状态')
-    tasks = _batch_tasks(batch_id)
-    if not tasks:
-        return 0
-    now = int(time.time())
-    for task in tasks:
-        params = copy.deepcopy(task.get('params') or {})
-        params['batch_control'] = control
-        params['batch_control_at'] = now
-        update_task_fields(task['task_id'], params=json.dumps(params, ensure_ascii=False))
-    return len(tasks)
-
-
-def cancel_batch_queued_tasks(batch_id):
-    changed = 0
-    now = int(time.time())
-    for task in _batch_tasks(batch_id):
-        status = str(task.get('status') or '')
-        if status in ('succeeded', 'success', 'succeeded_no_telegram', 'failed', 'telegram_failed', 'canceled'):
-            continue
-        update_task_fields(
-            task['task_id'],
-            status='canceled',
-            stage='canceled',
-            progress_text='批量任务已取消',
-            error='',
-            transport_error_type='BatchCanceled',
-            heartbeat_at=now,
-            finished_at=now,
-        )
-        changed += 1
-    return changed
-
-
-def get_batch_summary(batch_id):
-    tasks = _batch_tasks(batch_id)
-    counts = {
-        'total': len(tasks),
-        'queued': 0,
-        'processing': 0,
-        'succeeded': 0,
-        'failed': 0,
-        'canceled': 0,
-    }
-    for task in tasks:
-        status = str(task.get('status') or '')
-        if status in ('succeeded', 'success', 'succeeded_no_telegram'):
-            counts['succeeded'] += 1
-        elif status in FAILED_RETRY_STATUSES:
-            counts['failed'] += 1
-        elif status == 'canceled':
-            counts['canceled'] += 1
-        elif status in ('queued', 'pending'):
-            counts['queued'] += 1
-        else:
-            counts['processing'] += 1
-    control = get_batch_control(batch_id) if tasks else ''
-    status = 'completed' if counts['total'] and counts['succeeded'] + counts['failed'] + counts['canceled'] >= counts['total'] else 'running'
-    if status == 'running' and control == 'paused':
-        status = 'paused'
-    if status == 'running' and control == 'canceled':
-        status = 'canceling'
-    if not counts['total']:
-        status = 'missing'
-    return {
-        'ok': bool(tasks),
-        'batch_id': batch_id,
-        'status': status,
-        'control': control,
-        'counts': counts,
-        'tasks': [_format_history_task(task) for task in tasks],
-    }
-
-
-def _prompt_chat_english_feed(text):
-    text = str(text or '').strip()
-    if not text:
-        return ''
-    return (
-        "Image prompt in English: "
-        f"{text}\n\n"
-        "Keep the subject, composition, atmosphere, lighting, materials, and camera details explicit. "
-        "Avoid vague decorative wording."
+    return _domain_services_task_retry._start_retry_thread(
+        task_type, task_id, prompt,
+        params, GenerationQueueFullError=GenerationQueueFullError, TaskRetryError=TaskRetryError,
+        _coerce_bool=_coerce_bool, _coerce_gpt_image_count=_coerce_gpt_image_count, _coerce_gpt_main_model=_coerce_gpt_main_model,
+        _coerce_gpt_moderation=_coerce_gpt_moderation, _coerce_gpt_provider_route=_coerce_gpt_provider_route, _coerce_gpt_quality=_coerce_gpt_quality,
+        _coerce_gpt_reasoning_effort=_coerce_gpt_reasoning_effort, _coerce_gpt_resolution=_coerce_gpt_resolution, _coerce_gpt_task_type=_coerce_gpt_task_type,
+        _coerce_image_ratio=_coerce_image_ratio, _coerce_prompt_mode=_coerce_prompt_mode, _coerce_use_third_party_api=_coerce_use_third_party_api,
+        _generation_busy_message=_generation_busy_message, _is_gpt_image_retry=_is_gpt_image_retry, _start_generation_thread=_start_generation_thread,
+        process_custom_task=process_custom_task, process_gpt_editable_file_task=process_gpt_editable_file_task, process_gpt_task=process_gpt_task,
+        process_task=process_task, update_task=update_task,
     )
 
 
+def retry_failed_task(original_task):
+    return _domain_services_task_retry.retry_failed_task(
+        original_task, FAILED_RETRY_STATUSES=FAILED_RETRY_STATUSES, RETRYABLE_TASK_TYPES=RETRYABLE_TASK_TYPES,
+        TaskRetryError=TaskRetryError, _copy_retry_params=_copy_retry_params, _make_retry_task_id=_make_retry_task_id,
+        _start_retry_thread=_start_retry_thread, _validate_retry_payload=_validate_retry_payload, create_task=create_task,
+        get_task=get_task,
+    )
+
+
+def _batch_prompt_items(data):
+    return _domain_services_task_batch._batch_prompt_items(data, re=re)
+
+
+def _batch_task_id(provider, params, index):
+    return _domain_services_task_batch._batch_task_id(
+        provider, params, index,
+        _batch_task_type=_batch_task_type, _retry_task_id_prefix=_retry_task_id_prefix, random=random,
+        time=time,
+    )
+
+
+def _batch_task_type(provider, params):
+    return _domain_services_task_batch._batch_task_type(provider, params, _coerce_gpt_task_type=_coerce_gpt_task_type)
+
+
+def _make_batch_task_params(provider, incoming_params, prompt, batch_id, index, total, lineage=None):
+    return _domain_services_task_batch._make_batch_task_params(
+        provider, incoming_params, prompt,
+        batch_id, index, total,
+        lineage, DEFAULT_GOOGLE_IMAGE_MODEL=DEFAULT_GOOGLE_IMAGE_MODEL, TaskRetryError=TaskRetryError,
+        _coerce_bool=_coerce_bool, _coerce_google_max_tokens=_coerce_google_max_tokens, _coerce_google_quality=_coerce_google_quality,
+        _coerce_google_temperature=_coerce_google_temperature, _coerce_gpt_image_count=_coerce_gpt_image_count, _coerce_gpt_main_model=_coerce_gpt_main_model,
+        _coerce_gpt_moderation=_coerce_gpt_moderation, _coerce_gpt_provider_route=_coerce_gpt_provider_route, _coerce_gpt_quality=_coerce_gpt_quality,
+        _coerce_gpt_reasoning_effort=_coerce_gpt_reasoning_effort, _coerce_gpt_resolution=_coerce_gpt_resolution, _coerce_gpt_task_type=_coerce_gpt_task_type,
+        _coerce_model=_coerce_model, _coerce_prompt_mode=_coerce_prompt_mode, _coerce_use_third_party_api=_coerce_use_third_party_api,
+        _effective_image_ratio=_effective_image_ratio, _gpt_route_uses_third_party=_gpt_route_uses_third_party, time=time,
+    )
+
+
+def _create_batch_tasks(provider, prompts, params, lineage=None):
+    return _domain_services_task_batch._create_batch_tasks(
+        provider, prompts, params,
+        lineage, TaskRetryError=TaskRetryError, _batch_task_id=_batch_task_id,
+        _batch_task_type=_batch_task_type, _coerce_gpt_task_type=_coerce_gpt_task_type, _make_batch_task_params=_make_batch_task_params,
+        create_task=create_task, random=random, time=time,
+    )
+
+
+def _run_batch_task(task):
+    return _domain_services_task_batch._run_batch_task(
+        task, _coerce_bool=_coerce_bool, _coerce_gpt_image_count=_coerce_gpt_image_count,
+        _coerce_gpt_main_model=_coerce_gpt_main_model, _coerce_gpt_moderation=_coerce_gpt_moderation, _coerce_gpt_provider_route=_coerce_gpt_provider_route,
+        _coerce_gpt_quality=_coerce_gpt_quality, _coerce_gpt_reasoning_effort=_coerce_gpt_reasoning_effort, _coerce_gpt_resolution=_coerce_gpt_resolution,
+        _coerce_gpt_task_type=_coerce_gpt_task_type, _coerce_image_ratio=_coerce_image_ratio, _coerce_prompt_mode=_coerce_prompt_mode,
+        _coerce_use_third_party_api=_coerce_use_third_party_api, process_gpt_editable_file_task=process_gpt_editable_file_task, process_gpt_task=process_gpt_task,
+        process_task=process_task, update_task=update_task,
+    )
+
+
+def _batch_task_uses_chatgpt_pool(task):
+    return _domain_services_task_batch._batch_task_uses_chatgpt_pool(
+        task, _coerce_gpt_provider_route=_coerce_gpt_provider_route, _coerce_use_third_party_api=_coerce_use_third_party_api,
+    )
+
+
+def _batch_task_requested_image_count(task):
+    return _domain_services_task_batch._batch_task_requested_image_count(task, _coerce_gpt_image_count=_coerce_gpt_image_count)
+
+
+def _batch_chatgpt_pool_parallel_limit(tasks):
+    return _domain_services_task_batch._batch_chatgpt_pool_parallel_limit(
+        tasks, _batch_task_requested_image_count=_batch_task_requested_image_count, _batch_task_uses_chatgpt_pool=_batch_task_uses_chatgpt_pool,
+        _collect_chatgpt_pool_status=_collect_chatgpt_pool_status, _current_generation_limit=_current_generation_limit,
+    )
+
+
+def _wait_acquire_generation_slot_for_batch(batch_id):
+    return _domain_services_task_batch._wait_acquire_generation_slot_for_batch(
+        batch_id, _GENERATION_SEMAPHORE=_GENERATION_SEMAPHORE, get_batch_control=get_batch_control,
+        time=time,
+    )
+
+
+def _run_batch_task_guarded(batch_id, task):
+    return _domain_services_task_batch._run_batch_task_guarded(
+        batch_id, task, _run_batch_task=_run_batch_task,
+        get_batch_control=get_batch_control, get_task=get_task, time=time,
+        update_task=update_task,
+    )
+
+
+def _run_batch_tasks_parallel(batch_id, tasks, parallel_limit):
+    return _domain_services_task_batch._run_batch_tasks_parallel(
+        batch_id, tasks, parallel_limit,
+        _release_generation_slot=_release_generation_slot, _run_batch_task_guarded=_run_batch_task_guarded, _wait_acquire_generation_slot_for_batch=_wait_acquire_generation_slot_for_batch,
+        queue=queue, threading=threading,
+    )
+
+
+def process_batch_tasks(batch_id, tasks):
+    return _domain_services_task_batch.process_batch_tasks(
+        batch_id, tasks, _batch_chatgpt_pool_parallel_limit=_batch_chatgpt_pool_parallel_limit,
+        _run_batch_task_guarded=_run_batch_task_guarded, _run_batch_tasks_parallel=_run_batch_tasks_parallel, cancel_batch_queued_tasks=cancel_batch_queued_tasks,
+        get_batch_control=get_batch_control,
+    )
+
+
+def _batch_tasks(batch_id):
+    return _domain_services_task_batch._batch_tasks(batch_id, get_all_tasks=get_all_tasks)
+
+
+def get_batch_control(batch_id):
+    return _domain_services_task_batch.get_batch_control(batch_id, _batch_tasks=_batch_tasks)
+
+
+def set_batch_control(batch_id, control):
+    return _domain_services_task_batch.set_batch_control(
+        batch_id, control, _batch_tasks=_batch_tasks,
+        copy=copy, json=json, time=time,
+        update_task_fields=update_task_fields,
+    )
+
+
+def cancel_batch_queued_tasks(batch_id):
+    return _domain_services_task_batch.cancel_batch_queued_tasks(batch_id, _batch_tasks=_batch_tasks, time=time, update_task_fields=update_task_fields)
+
+
+def get_batch_summary(batch_id):
+    return _domain_services_task_batch.get_batch_summary(
+        batch_id, FAILED_RETRY_STATUSES=FAILED_RETRY_STATUSES, _batch_tasks=_batch_tasks,
+        _format_history_task=_format_history_task, get_batch_control=get_batch_control,
+    )
+
+
+def _prompt_chat_english_feed(text):
+    return _domain_services_prompt_presets._prompt_chat_english_feed(text)
+
+
 def _prompt_chat_style_enhanced(text, style):
-    text = str(text or '').strip()
-    if not text:
-        return ''
-    style = style if isinstance(style, dict) else {}
-    style_text = str(style.get('promptTemplate') or style.get('prompt_style') or style.get('description') or '').strip()
-    title = str(style.get('title') or style.get('name') or '').strip()
-    if style_text:
-        return f"{text}\n\n风格增强：{style_text}"
-    if title:
-        return f"{text}\n\n风格增强：保持「{title}」的视觉语言，强化构图、光影、材质和情绪一致性。"
-    return f"{text}\n\n风格增强：强化画面主体、构图层次、光影方向、材质细节和整体情绪，保持可执行的图像生成描述。"
+    return _domain_services_prompt_presets._prompt_chat_style_enhanced(text, style)
 
 
 def _prompt_version_candidates(base, message="", style=None, polished=None):
     """Build formal prompt candidates for the text-node assistant, excluding Original."""
-    base = str(base or "").strip()
-    message = str(message or "").strip()
-    style = style if isinstance(style, dict) else {}
-    polished = polished if isinstance(polished, dict) else {}
-    candidates = []
-
-    def add_candidate(kind, label, text, badge=""):
-        text = str(text or "").strip()
-        if not text:
-            return
-        if kind == "original":
-            return
-        if text == base and kind in {"compact", "polished"}:
-            return
-        if any(item["text"] == text for item in candidates):
-            return
-        candidates.append({
-            "id": f"{kind}_{len(candidates) + 1}",
-            "kind": kind,
-            "label": label,
-            "badge": badge,
-            "text": text,
-            "created_at": int(time.time()),
-        })
-
-    full_prompt = polished.get("full_prompt") or polished.get("fullPrompt") or ""
-    compact_prompt = polished.get("compact_prompt") or polished.get("compactPrompt") or ""
-    generation_base = full_prompt or base
-    add_candidate("polished", "完整成片版", full_prompt, "完整")
-    add_candidate("compact", "精简投喂版", compact_prompt or _short_text(base, 260), "精简")
-    add_candidate("english_feed", "英文投喂版", _prompt_chat_english_feed(generation_base), "英文")
-    add_candidate("style_enhanced", "风格增强版", _prompt_chat_style_enhanced(generation_base, style), "风格")
-    if message:
-        direction_text = "\n\n".join(part for part in [
-            generation_base,
-            f"方向聚焦：{message}。请围绕这个方向强化主体、构图、光影、材质和避免跑偏的约束。"
-        ] if part)
-        add_candidate("custom_direction", "自定义方向版", direction_text, "方向")
-    return candidates[:5]
+    return _domain_services_prompt_presets._prompt_version_candidates(
+        base, message, style,
+        polished, _prompt_chat_english_feed=_prompt_chat_english_feed, _prompt_chat_style_enhanced=_prompt_chat_style_enhanced,
+        _short_text=_short_text, time=time,
+    )
 
 
 def _read_versioned_json(path, root_key):
-    try:
-        if not path.exists():
-            return {"version": 1, root_key: []}
-        data = json.loads(path.read_text(encoding='utf-8') or '{}')
-        if not isinstance(data, dict):
-            return {"version": 1, root_key: []}
-        items = data.get(root_key)
-        if not isinstance(items, list):
-            data[root_key] = []
-        data.setdefault("version", 1)
-        return data
-    except Exception:
-        return {"version": 1, root_key: []}
+    return _domain_services_prompt_presets._read_versioned_json(path, root_key, json=json)
 
 
 def _write_versioned_json(path, root_key, items):
-    PROMPT_DATA_DIR.mkdir(parents=True, exist_ok=True)
-    payload = {"version": 1, root_key: items}
-    tmp = path.with_suffix(path.suffix + '.tmp')
-    tmp.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding='utf-8')
-    tmp.replace(path)
-    return payload
+    return _domain_services_prompt_presets._write_versioned_json(path, root_key, items, PROMPT_DATA_DIR=PROMPT_DATA_DIR, json=json)
 
 
 def list_style_presets():
-    return _read_versioned_json(STYLE_PRESETS_FILE, "presets").get("presets", [])
+    return _domain_services_prompt_presets.list_style_presets(STYLE_PRESETS_FILE=STYLE_PRESETS_FILE, _read_versioned_json=_read_versioned_json)
 
 
 def save_style_preset(data):
-    name = str(data.get("name") or data.get("title") or "").strip()[:48]
-    prompt_style = str(data.get("prompt_style") or data.get("promptTemplate") or data.get("text") or "").strip()
-    if not name:
-        raise ValueError("风格名称不能为空")
-    if not prompt_style:
-        raise ValueError("风格内容不能为空")
-    now = int(time.time())
-    preset_id = str(data.get("id") or f"style_{now}_{random.randint(1000, 9999)}").strip()
-    presets = [item for item in list_style_presets() if item.get("id") != preset_id]
-    preset = {
-        "id": preset_id,
-        "name": name,
-        "title": name,
-        "description": str(data.get("description") or "").strip()[:500],
-        "positive_style": str(data.get("positive_style") or prompt_style).strip(),
-        "avoid": str(data.get("avoid") or "").strip()[:1000],
-        "best_for": str(data.get("best_for") or "").strip()[:500],
-        "prompt_style": prompt_style,
-        "promptTemplate": prompt_style,
-        "tags": data.get("tags") if isinstance(data.get("tags"), list) else [],
-        "created_at": int(data.get("created_at") or now),
-        "updated_at": now,
-        "source": str(data.get("source") or "prompt_drawer"),
-    }
-    presets.append(preset)
-    _write_versioned_json(STYLE_PRESETS_FILE, "presets", presets[-200:])
-    return preset
+    return _domain_services_prompt_presets.save_style_preset(
+        data, STYLE_PRESETS_FILE=STYLE_PRESETS_FILE, _write_versioned_json=_write_versioned_json,
+        list_style_presets=list_style_presets, random=random, time=time,
+    )
 
 
 def list_prompt_versions(limit=200):
-    versions = _read_versioned_json(PROMPT_VERSIONS_FILE, "versions").get("versions", [])
-    return sorted(versions, key=lambda item: int(item.get("created_at") or 0), reverse=True)[:limit]
+    return _domain_services_prompt_presets.list_prompt_versions(limit, PROMPT_VERSIONS_FILE=PROMPT_VERSIONS_FILE, _read_versioned_json=_read_versioned_json)
 
 
 def save_prompt_version(data):
-    text = str(data.get("text") or "").strip()
-    if not text:
-        raise ValueError("提示词版本内容不能为空")
-    now = int(time.time())
-    version = {
-        "id": str(data.get("id") or f"prompt_version_{now}_{random.randint(1000, 9999)}"),
-        "type": str(data.get("type") or data.get("kind") or "custom"),
-        "label": str(data.get("label") or data.get("type") or "Prompt Version")[:80],
-        "text": text,
-        "source_message": str(data.get("source_message") or data.get("message") or "")[:1000],
-        "target": data.get("target") if isinstance(data.get("target"), dict) else {},
-        "style": data.get("style") if isinstance(data.get("style"), dict) else {},
-        "created_at": int(data.get("created_at") or now),
-    }
-    for key in ("language", "task_type", "intent", "risk_score", "risk_level", "risk_flags", "changed_terms", "warnings", "adapter"):
-        value = data.get(key)
-        if key in {"risk_flags", "changed_terms", "warnings"} and isinstance(value, list):
-            version[key] = value
-        elif key in {"task_type", "intent", "adapter"} and isinstance(value, dict):
-            version[key] = value
-        elif key in {"language", "risk_score", "risk_level"} and value not in (None, ""):
-            version[key] = value
-    versions = _read_versioned_json(PROMPT_VERSIONS_FILE, "versions").get("versions", [])
-    versions.append(version)
-    _write_versioned_json(PROMPT_VERSIONS_FILE, "versions", versions[-1000:])
-    return version
+    return _domain_services_prompt_presets.save_prompt_version(
+        data, PROMPT_VERSIONS_FILE=PROMPT_VERSIONS_FILE, _read_versioned_json=_read_versioned_json,
+        _write_versioned_json=_write_versioned_json, random=random, time=time,
+    )
 COMFY_CLIENT_ID = os.environ.get('COMFY_CLIENT_ID', f"tg-mini-app-{uuid.uuid4().hex[:12]}")
 COMFY_WORKFLOW_DIR = PROJECT_ROOT / 'workflows'
 COMFY_PREVIEW_DIR = APP_DATA_DIR / 'data' / 'comfy' / 'previews'
@@ -2352,6 +1078,9 @@ UPSCALE_MODEL_DIR = Path(
     os.environ.get('UPSCALE_MODEL_DIR')
     or (APP_DATA_DIR / 'components' / 'upscale' / 'current' / 'models' if os.environ.get('CANVASHUB_DATA_DIR') else default_upscale_model_dir(PROJECT_ROOT))
 ).expanduser()
+_topaz_runtime = TopazRuntime(APP_DATA_DIR / 'components' / 'topaz')
+available_upscale_models = _available_upscale_models
+upscale_image_file = _execute_upscale
 COMFY_RATIO_SIZES = {
     '1:1': (1024, 1024),
     '2:3': (832, 1216),
@@ -2381,66 +1110,25 @@ AUTH_COOKIE_MAX_AGE = int(os.environ.get('MINIAPP_AUTH_MAX_AGE', str(7 * 24 * 60
 
 
 def _load_auth_password():
-    return get_miniapp_access_password()
+    return _domain_services_auth_policy._load_auth_password(get_miniapp_access_password=get_miniapp_access_password)
 
 
 AUTH_PASSWORD = _load_auth_password()
 
 
 def _effective_access_password_configured(settings=None):
-    env_password = (
-        os.environ.get("MINIAPP_ACCESS_PASSWORD")
-        or os.environ.get("MINIAPP_AUTH_PASSWORD")
-        or ""
-    ).strip()
-    if env_password:
-        return True
-    if settings is None:
-        return bool(AUTH_PASSWORD)
-    return bool(str(_settings_dict(settings).get("miniapp_access_password") or "").strip())
+    return _domain_services_auth_policy._effective_access_password_configured(settings, AUTH_PASSWORD=AUTH_PASSWORD, _settings_dict=_settings_dict, os=os)
 
 
 def _validate_public_mode_password(settings=None, *, server_config=None):
-    cfg = server_config or get_server_config()
-    if cfg.get("public_mode") and not _effective_access_password_configured(settings):
-        raise ValueError("公网模式必须先设置访问密码")
+    return _domain_services_auth_policy._validate_public_mode_password(
+        settings, server_config=server_config, _effective_access_password_configured=_effective_access_password_configured,
+        get_server_config=get_server_config,
+    )
 
 
 def _server_config_from_settings_snapshot(settings):
-    section = _settings_dict(_settings_dict(settings).get("server"))
-    public_mode = _coerce_bool(
-        os.environ.get("MINIAPP_PUBLIC_MODE")
-        or os.environ.get("PUBLIC_MODE")
-        or section.get("public_mode"),
-        False,
-    )
-    try:
-        port = int(
-            os.environ.get("PORT")
-            or os.environ.get("MINIAPP_PORT")
-            or section.get("port")
-            or 18463
-        )
-    except (TypeError, ValueError):
-        port = 18463
-    port = max(1, min(65535, port))
-    requested_host = str(
-        os.environ.get("HOST")
-        or os.environ.get("BIND_HOST")
-        or os.environ.get("MINIAPP_HOST")
-        or section.get("host")
-        or ""
-    ).strip()
-    if public_mode:
-        host = requested_host or "0.0.0.0"
-    else:
-        host = "127.0.0.1"
-    return {
-        "host": host,
-        "requested_host": requested_host,
-        "port": port,
-        "public_mode": public_mode,
-    }
+    return _domain_services_auth_policy._server_config_from_settings_snapshot(settings, _coerce_bool=_coerce_bool, _settings_dict=_settings_dict, os=os)
 
 _LOGIN_FAILURES = {}
 _LOGIN_FAILURE_LOCK = threading.Lock()
@@ -2466,305 +1154,135 @@ def _init_generation_semaphore():
 
 
 def _current_generation_limit():
-    if _GENERATION_CONCURRENCY_LIMIT is not None:
-        return _GENERATION_CONCURRENCY_LIMIT
-    return get_max_concurrent_tasks()
+    return _domain_services_task_execution._current_generation_limit(
+        _GENERATION_CONCURRENCY_LIMIT=_GENERATION_CONCURRENCY_LIMIT, get_max_concurrent_tasks=get_max_concurrent_tasks,
+    )
 
 
 def _generation_busy_message():
-    return f"生成任务已满（最多 {_current_generation_limit()} 个并发），请稍后重试"
+    return _domain_services_task_execution._generation_busy_message(_current_generation_limit=_current_generation_limit)
 
 
 def _generation_busy_payload():
-    return {
-        "ok": False,
-        "error": "GenerationQueueFull",
-        "message": _generation_busy_message(),
-        "max_concurrent_tasks": _current_generation_limit(),
-    }
+    return _domain_services_task_execution._generation_busy_payload(
+        _current_generation_limit=_current_generation_limit, _generation_busy_message=_generation_busy_message,
+    )
 
 
 def _acquire_generation_slot():
     """Try to acquire a generation slot. Returns False (no slot) without blocking."""
-    sem = _GENERATION_SEMAPHORE
-    if sem is None:
-        return True
-    acquired = sem.acquire(blocking=False)
-    return bool(acquired)
+    return _domain_services_task_execution._acquire_generation_slot(_GENERATION_SEMAPHORE=_GENERATION_SEMAPHORE)
 
 
 def _release_generation_slot():
     """Release a generation slot. Safe to call even if semaphore is unset."""
-    sem = _GENERATION_SEMAPHORE
-    if sem is None:
-        return
-    try:
-        sem.release()
-    except ValueError:
-        pass
+    return _domain_services_task_execution._release_generation_slot(_GENERATION_SEMAPHORE=_GENERATION_SEMAPHORE)
 
 
 def _run_generation_target(target, args, kwargs):
-    try:
-        target(*args, **kwargs)
-    finally:
-        _release_generation_slot()
+    return _domain_services_task_execution._run_generation_target(target, args, kwargs, _release_generation_slot=_release_generation_slot)
 
 
 def _start_generation_thread(target, args=(), kwargs=None):
-    if not _acquire_generation_slot():
-        return None
-    kwargs = kwargs or {}
-    thread = threading.Thread(
-        target=_run_generation_target,
-        args=(target, args, kwargs),
-        daemon=True,
+    return _domain_services_task_execution._start_generation_thread(
+        target, args, kwargs,
+        _acquire_generation_slot=_acquire_generation_slot, _release_generation_slot=_release_generation_slot, _run_generation_target=_run_generation_target,
+        threading=threading,
     )
-    try:
-        thread.start()
-    except Exception:
-        _release_generation_slot()
-        raise
-    return thread
 
 
 def _auth_enabled():
-    return bool(AUTH_PASSWORD)
+    return _domain_services_auth_policy._auth_enabled(AUTH_PASSWORD=AUTH_PASSWORD)
 
 
 def _request_client_ip(headers, client_address):
-    cf_ip = str(headers.get('CF-Connecting-IP') or '').strip()
-    if cf_ip:
-        return cf_ip
-    xff = str(headers.get('X-Forwarded-For') or '').strip()
-    if xff:
-        return xff.split(',', 1)[0].strip()
-    real_ip = str(headers.get('X-Real-IP') or '').strip()
-    if real_ip:
-        return real_ip
-    try:
-        return str(client_address[0] or '').strip()
-    except Exception:
-        return ''
+    return _domain_services_auth_policy._request_client_ip(headers, client_address)
 
 
 def _login_lock_state(client_ip, now=None):
-    now = now or time.time()
-    with _LOGIN_FAILURE_LOCK:
-        failures = [
-            ts for ts in _LOGIN_FAILURES.get(client_ip, [])
-            if now - ts < _LOGIN_FAILURE_WINDOW_SECONDS
-        ]
-        if failures:
-            _LOGIN_FAILURES[client_ip] = failures
-        else:
-            _LOGIN_FAILURES.pop(client_ip, None)
-        if len(failures) < _LOGIN_FAILURE_LIMIT:
-            return False, 0
-        retry_after = max(1, int(_LOGIN_LOCKOUT_SECONDS - (now - failures[-1])))
-        if retry_after <= 0:
-            _LOGIN_FAILURES.pop(client_ip, None)
-            return False, 0
-        return True, retry_after
+    return _domain_services_auth_policy._login_lock_state(
+        client_ip, now, _LOGIN_FAILURES=_LOGIN_FAILURES,
+        _LOGIN_FAILURE_LIMIT=_LOGIN_FAILURE_LIMIT, _LOGIN_FAILURE_LOCK=_LOGIN_FAILURE_LOCK, _LOGIN_FAILURE_WINDOW_SECONDS=_LOGIN_FAILURE_WINDOW_SECONDS,
+        _LOGIN_LOCKOUT_SECONDS=_LOGIN_LOCKOUT_SECONDS, time=time,
+    )
 
 
 def _record_login_failure(client_ip, now=None):
-    now = now or time.time()
-    with _LOGIN_FAILURE_LOCK:
-        failures = [
-            ts for ts in _LOGIN_FAILURES.get(client_ip, [])
-            if now - ts < _LOGIN_FAILURE_WINDOW_SECONDS
-        ]
-        failures.append(now)
-        _LOGIN_FAILURES[client_ip] = failures
-        if len(failures) < _LOGIN_FAILURE_LIMIT:
-            return False, 0
-        retry_after = max(1, int(_LOGIN_LOCKOUT_SECONDS - (now - failures[-1])))
-        return True, retry_after
+    return _domain_services_auth_policy._record_login_failure(
+        client_ip, now, _LOGIN_FAILURES=_LOGIN_FAILURES,
+        _LOGIN_FAILURE_LIMIT=_LOGIN_FAILURE_LIMIT, _LOGIN_FAILURE_LOCK=_LOGIN_FAILURE_LOCK, _LOGIN_FAILURE_WINDOW_SECONDS=_LOGIN_FAILURE_WINDOW_SECONDS,
+        _LOGIN_LOCKOUT_SECONDS=_LOGIN_LOCKOUT_SECONDS, time=time,
+    )
 
 
 def _clear_login_failures(client_ip):
-    with _LOGIN_FAILURE_LOCK:
-        _LOGIN_FAILURES.pop(client_ip, None)
+    return _domain_services_auth_policy._clear_login_failures(client_ip, _LOGIN_FAILURES=_LOGIN_FAILURES, _LOGIN_FAILURE_LOCK=_LOGIN_FAILURE_LOCK)
 
 
 def _login_locked_payload(retry_after):
-    return {
-        "ok": False,
-        "error": "TooManyLoginAttempts",
-        "message": "登录失败次数过多，请稍后重试",
-        "retry_after_seconds": retry_after,
-    }
+    return _domain_services_auth_policy._login_locked_payload(retry_after)
 
 
 def _sensitive_db_base_paths():
-    paths = [
-        Path(get_database_path()),
-        Path(DIRECTORY) / 'assets.db',
-        Path(DIRECTORY) / 'prompt_sources.db',
-        Path(DIRECTORY) / 'prompt_library.db',
-    ]
-    try:
-        pool_db = get_chatgpt_pool_config().get('db_path')
-        if pool_db:
-            paths.append(Path(pool_db))
-    except Exception as exc:
-        print(f"⚠️ ChatGPT 账号池 DB 路径读取失败: {exc}")
-    unique = []
-    seen = set()
-    for path in paths:
-        key = str(path.expanduser())
-        if key not in seen:
-            unique.append(path.expanduser())
-            seen.add(key)
-    return unique
+    return _domain_services_auth_policy._sensitive_db_base_paths(
+        DIRECTORY=DIRECTORY, Path=Path, get_chatgpt_pool_config=get_chatgpt_pool_config,
+        get_database_path=get_database_path,
+    )
 
 
 def _ensure_db_file_permissions():
-    changed = []
-    for db_path in _sensitive_db_base_paths():
-        try:
-            if db_path.parent.exists() and db_path.name == 'accounts.db':
-                db_path.parent.chmod(0o700)
-            for candidate in (
-                db_path,
-                Path(f"{db_path}-wal"),
-                Path(f"{db_path}-shm"),
-                Path(f"{db_path}-journal"),
-            ):
-                if candidate.exists() and candidate.is_file():
-                    candidate.chmod(0o600)
-                    changed.append(str(candidate))
-        except Exception as exc:
-            print(f"⚠️ DB 文件权限收紧失败：{db_path} - {exc}")
-    if changed:
-        print(f"🔒 已收紧 {len(changed)} 个敏感 DB 文件权限")
+    return _domain_services_auth_policy._ensure_db_file_permissions(Path=Path, _sensitive_db_base_paths=_sensitive_db_base_paths)
 
 
 def _load_telegram_auth_config():
-    try:
-        cfg = get_telegram_auth_config()
-        bot_token = str(cfg.get('bot_token', '') or '').strip()
-        allowed_ids = cfg.get('allowed_user_ids') or set()
-        return bot_token, {str(x).strip() for x in allowed_ids if str(x).strip()}
-    except Exception as e:
-        print(f"⚠️ Telegram 鉴权配置读取失败: {e}")
-        return '', set()
+    return _domain_services_auth_policy._load_telegram_auth_config(get_telegram_auth_config=get_telegram_auth_config)
 
 
 TELEGRAM_AUTH_BOT_TOKEN, TELEGRAM_AUTH_ALLOWED_IDS = _load_telegram_auth_config()
 
 
 def _verify_telegram_init_data(init_data):
-    if not init_data or not TELEGRAM_AUTH_BOT_TOKEN:
-        return False
-    try:
-        pairs = urllib.parse.parse_qsl(init_data, keep_blank_values=True)
-        data = dict(pairs)
-        received_hash = data.pop('hash', '')
-        if not received_hash:
-            return False
-
-        data_check_string = '\n'.join(f"{key}={value}" for key, value in sorted(data.items()))
-        secret_key = hmac.new(
-            b'WebAppData',
-            TELEGRAM_AUTH_BOT_TOKEN.encode('utf-8'),
-            hashlib.sha256,
-        ).digest()
-        expected_hash = hmac.new(
-            secret_key,
-            data_check_string.encode('utf-8'),
-            hashlib.sha256,
-        ).hexdigest()
-        if not hmac.compare_digest(expected_hash, received_hash):
-            return False
-
-        user_raw = data.get('user') or '{}'
-        try:
-            user = json.loads(user_raw)
-        except Exception:
-            user = {}
-        user_id = str(user.get('id') or '').strip()
-        if TELEGRAM_AUTH_ALLOWED_IDS and user_id not in TELEGRAM_AUTH_ALLOWED_IDS:
-            print(f"⚠️ Telegram WebApp 鉴权拒绝：user_id={user_id}")
-            return False
-
-        auth_date_raw = str(data.get('auth_date') or '')
-        if auth_date_raw.isdigit():
-            max_age = int(os.environ.get('MINIAPP_TELEGRAM_AUTH_MAX_AGE', str(7 * 24 * 60 * 60)))
-            if int(auth_date_raw) + max_age < int(time.time()):
-                return False
-
-        return True
-    except Exception as e:
-        print(f"⚠️ Telegram initData 校验失败: {e}")
-        return False
+    return _domain_services_auth_policy._verify_telegram_init_data(
+        init_data, TELEGRAM_AUTH_ALLOWED_IDS=TELEGRAM_AUTH_ALLOWED_IDS, TELEGRAM_AUTH_BOT_TOKEN=TELEGRAM_AUTH_BOT_TOKEN,
+        hashlib=hashlib, hmac=hmac, json=json,
+        os=os, time=time, urllib=urllib,
+    )
 
 
 def _auth_secret():
-    seed = f"{AUTH_PASSWORD}|{DIRECTORY}|miniapp-auth-v1"
-    return hashlib.sha256(seed.encode('utf-8')).digest()
+    return _domain_services_auth_policy._auth_secret(AUTH_PASSWORD=AUTH_PASSWORD, DIRECTORY=DIRECTORY, hashlib=hashlib)
 
 
 def _build_auth_cookie_value(issued_at=None):
-    issued_at = int(issued_at or time.time())
-    payload = str(issued_at)
-    signature = hmac.new(_auth_secret(), payload.encode('utf-8'), hashlib.sha256).hexdigest()
-    return f"{payload}.{signature}"
+    return _domain_services_auth_policy._build_auth_cookie_value(issued_at, _auth_secret=_auth_secret, hashlib=hashlib, hmac=hmac, time=time)
 
 
 def _verify_auth_cookie_value(cookie_value):
-    if not _auth_enabled():
-        return True
-    if not cookie_value or '.' not in cookie_value:
-        return False
-    issued_at_raw, signature = cookie_value.split('.', 1)
-    if not issued_at_raw.isdigit() or not signature:
-        return False
-    expected = hmac.new(_auth_secret(), issued_at_raw.encode('utf-8'), hashlib.sha256).hexdigest()
-    if not hmac.compare_digest(signature, expected):
-        return False
-    issued_at = int(issued_at_raw)
-    if issued_at + AUTH_COOKIE_MAX_AGE < int(time.time()):
-        return False
-    return True
+    return _domain_services_auth_policy._verify_auth_cookie_value(
+        cookie_value, AUTH_COOKIE_MAX_AGE=AUTH_COOKIE_MAX_AGE, _auth_enabled=_auth_enabled,
+        _auth_secret=_auth_secret, hashlib=hashlib, hmac=hmac,
+        time=time,
+    )
 
 
 def _new_comfy_session():
-    session = requests.Session()
-    session.trust_env = False
-    session.proxies = {}
-    session.headers.update({'User-Agent': 'MiniApp-ComfyProxy/1.0'})
-    return session
+    return _domain_services_comfy_workflows._new_comfy_session(requests=requests)
 
 
 def _comfy_workflow_catalog_settings():
-    settings = load_app_settings()
-    section = settings.get('comfy') if isinstance(settings.get('comfy'), dict) else {}
-    catalog = section.get('workflow_catalog') if isinstance(section.get('workflow_catalog'), dict) else {}
-    return catalog
+    return _domain_services_comfy_workflows._comfy_workflow_catalog_settings(load_app_settings=load_app_settings)
 
 
 def _comfy_workflow_preview_path(workflow_name):
-    safe_name = Path(str(workflow_name or '')).name
-    digest = hashlib.sha256(safe_name.encode('utf-8')).hexdigest()[:20]
-    return COMFY_PREVIEW_DIR / f'{digest}.webp'
+    return _domain_services_comfy_workflows._comfy_workflow_preview_path(workflow_name, COMFY_PREVIEW_DIR=COMFY_PREVIEW_DIR, Path=Path, hashlib=hashlib)
 
 
 def _comfy_workflow_uses_token(path, token):
-    try:
-        return token in path.read_text(encoding='utf-8', errors='ignore')
-    except Exception:
-        return False
+    return _domain_services_comfy_workflows._comfy_workflow_uses_token(path, token)
 
 
 def _default_comfy_workflow_label(filename):
-    stem = Path(filename).stem.replace('_', ' ').replace('-', ' ').strip()
-    aliases = {
-        'sd15 text to image': 'SD 1.5 文生图',
-        'lumina 2 upscale': 'Lumina 2 放大',
-    }
-    return aliases.get(stem.lower(), stem or filename)
+    return _domain_services_comfy_workflows._default_comfy_workflow_label(filename, Path=Path)
 
 
 COMFY_PARAMETER_LABELS = {
@@ -2841,445 +1359,104 @@ COMFY_DIMENSION_STEP = 8
 
 
 def _comfy_parameter_label(name):
-    label = COMFY_PARAMETER_LABELS.get(name)
-    if label:
-        return label
-    readable = str(name or '').replace('_', ' ').strip()
-    return f'自定义参数（{readable or "未命名"}）'
+    return _domain_services_comfy_workflows._comfy_parameter_label(name, COMFY_PARAMETER_LABELS=COMFY_PARAMETER_LABELS)
 
 
 def _normalize_comfy_dimension(value, fallback=1024):
-    try:
-        number = int(round(float(value)))
-    except (TypeError, ValueError):
-        try:
-            number = int(round(float(fallback)))
-        except (TypeError, ValueError):
-            number = 1024
-    number = max(COMFY_DIMENSION_MIN, min(COMFY_DIMENSION_MAX, number))
-    number = int(round(number / COMFY_DIMENSION_STEP) * COMFY_DIMENSION_STEP)
-    return max(COMFY_DIMENSION_MIN, min(COMFY_DIMENSION_MAX, number))
+    return _domain_services_comfy_workflows._normalize_comfy_dimension(
+        value, fallback, COMFY_DIMENSION_MAX=COMFY_DIMENSION_MAX,
+        COMFY_DIMENSION_MIN=COMFY_DIMENSION_MIN, COMFY_DIMENSION_STEP=COMFY_DIMENSION_STEP,
+    )
 
 
 def _extract_comfy_workflow_default_size(workflow, fallback=(1024, 1024)):
-    fallback_width = _normalize_comfy_dimension(fallback[0] if fallback else 1024, 1024)
-    fallback_height = _normalize_comfy_dimension(fallback[1] if fallback else 1024, 1024)
-    if not isinstance(workflow, dict):
-        return fallback_width, fallback_height
-    candidates = []
-    for node in workflow.values():
-        if not isinstance(node, dict):
-            continue
-        inputs = node.get('inputs') if isinstance(node.get('inputs'), dict) else {}
-        raw_width = inputs.get('width')
-        raw_height = inputs.get('height')
-        if isinstance(raw_width, bool) or isinstance(raw_height, bool):
-            continue
-        if isinstance(raw_width, (dict, list)) or isinstance(raw_height, (dict, list)):
-            continue
-        try:
-            width = float(raw_width)
-            height = float(raw_height)
-        except (TypeError, ValueError):
-            continue
-        priority = 0 if str(node.get('class_type') or '').lower() == 'emptylatentimage' else 1
-        candidates.append((priority, width, height))
-    if not candidates:
-        return fallback_width, fallback_height
-    _, width, height = min(candidates, key=lambda item: item[0])
-    return _normalize_comfy_dimension(width, fallback_width), _normalize_comfy_dimension(height, fallback_height)
+    return _domain_services_comfy_workflows._extract_comfy_workflow_default_size(workflow, fallback, _normalize_comfy_dimension=_normalize_comfy_dimension)
 
 
 def _comfy_workflow_has_image_input(workflow):
-    if not isinstance(workflow, dict):
-        return False
-    for node in workflow.values():
-        if not isinstance(node, dict):
-            continue
-        class_key = str(node.get('class_type') or '').lower().replace('_', '')
-        inputs = node.get('inputs') if isinstance(node.get('inputs'), dict) else {}
-        if 'loadimage' in class_key and 'image' in inputs:
-            return True
-    return False
+    return _domain_services_comfy_workflows._comfy_workflow_has_image_input(workflow)
 
 
 def _comfy_ratio_from_size(width, height):
-    width = _normalize_comfy_dimension(width, 1024)
-    height = _normalize_comfy_dimension(height, 1024)
-    divisor = math.gcd(width, height) or 1
-    return f'{width // divisor}:{height // divisor}'
+    return _domain_services_comfy_workflows._comfy_ratio_from_size(width, height, _normalize_comfy_dimension=_normalize_comfy_dimension, math=math)
 
 
 def _comfy_parameter_number_bounds(name, value):
-    specs = {
-        'seed': (-1, 2**31 - 1, 1),
-        'steps': (1, 200, 1),
-        'cfg': (0, 100, 0.1),
-        'denoise': (0, 1, 0.01),
-        'strength_model': (-10, 10, 0.05),
-        'strength_clip': (-10, 10, 0.05),
-        'scale_by': (0.1, 8, 0.05),
-        'batch_size': (1, 8, 1),
-        'resolution': (64, 8192, 64),
-        'max_resolution': (0, 8192, 64),
-        'input_noise_scale': (0, 10, 0.01),
-        'latent_noise_scale': (0, 10, 0.01),
-        'temporal_overlap': (0, 256, 1),
-        'prepend_frames': (0, 256, 1),
-        'blocks_to_swap': (0, 128, 1),
-    }
-    if name in specs:
-        return specs[name]
-    if isinstance(value, int) and not isinstance(value, bool):
-        return (-1000000, 1000000, 1)
-    return (-1000000, 1000000, 0.01)
+    return _domain_services_comfy_workflows._comfy_parameter_number_bounds(name, value)
 
 
 def _extract_comfy_workflow_parameters(workflow):
-    if not isinstance(workflow, dict):
-        return []
-    parameters = []
-    for raw_node_id, node in workflow.items():
-        if not isinstance(node, dict):
-            continue
-        node_id = str(raw_node_id)
-        class_type = str(node.get('class_type') or 'Node').strip()
-        class_key = class_type.lower()
-        if class_type in ('SaveImage', 'PreviewImage') or class_key.endswith('loader') or 'loadmodel' in class_key:
-            continue
-        inputs = node.get('inputs') if isinstance(node.get('inputs'), dict) else {}
-        node_title = str((node.get('_meta') or {}).get('title') or class_type).strip()[:100]
-        for raw_name, raw_value in inputs.items():
-            name = str(raw_name)
-            if name in COMFY_PARAMETER_EXCLUDED_INPUTS or (name.startswith('text_') and name[5:].isdigit()):
-                continue
-            if isinstance(raw_value, (dict, list)) or raw_value is None:
-                continue
-            if not isinstance(raw_value, (str, int, float, bool)):
-                continue
-            value = raw_value
-            if isinstance(value, str) and '{{' in value:
-                if name != 'seed':
-                    continue
-                value = -1
-            parameter_type = 'text'
-            parameter = {
-                'id': f'{node_id}:{name}',
-                'node_id': node_id,
-                'input_name': name,
-                'node_title': node_title,
-                'class_type': class_type,
-                'label': _comfy_parameter_label(name),
-                'default': value,
-            }
-            if isinstance(value, bool):
-                parameter_type = 'boolean'
-            elif isinstance(value, (int, float)) and not isinstance(value, bool):
-                parameter_type = 'number'
-                minimum, maximum, step = _comfy_parameter_number_bounds(name, value)
-                parameter.update({'min': minimum, 'max': maximum, 'step': step})
-            elif name in COMFY_PARAMETER_OPTIONS:
-                parameter_type = 'select'
-                options = list(COMFY_PARAMETER_OPTIONS[name])
-                if value not in options:
-                    options.insert(0, value)
-                parameter['options'] = options
-            parameter['type'] = parameter_type
-            parameters.append(parameter)
-            if len(parameters) >= 256:
-                return parameters
-    return parameters
+    return _domain_services_comfy_workflows._extract_comfy_workflow_parameters(
+        workflow, COMFY_PARAMETER_EXCLUDED_INPUTS=COMFY_PARAMETER_EXCLUDED_INPUTS, COMFY_PARAMETER_OPTIONS=COMFY_PARAMETER_OPTIONS,
+        _comfy_parameter_label=_comfy_parameter_label, _comfy_parameter_number_bounds=_comfy_parameter_number_bounds,
+    )
 
 
 def _coerce_comfy_parameter_value(parameter, value):
-    parameter_type = parameter.get('type')
-    if parameter_type == 'boolean':
-        return _coerce_bool(value, bool(parameter.get('default')))
-    if parameter_type == 'number':
-        try:
-            number = float(value)
-        except (TypeError, ValueError):
-            return parameter.get('default')
-        number = max(float(parameter.get('min', -1000000)), min(float(parameter.get('max', 1000000)), number))
-        step = float(parameter.get('step', 1) or 1)
-        if isinstance(parameter.get('default'), int) and not isinstance(parameter.get('default'), bool) and step.is_integer():
-            return int(round(number))
-        return number
-    if parameter_type == 'select':
-        text = str(value or '')
-        return text if text in (parameter.get('options') or []) else parameter.get('default')
-    return str(value or '')[:4096]
+    return _domain_services_comfy_workflows._coerce_comfy_parameter_value(parameter, value, _coerce_bool=_coerce_bool)
 
 
 def _apply_comfy_parameter_overrides(workflow, overrides):
-    if not isinstance(overrides, dict) or not overrides:
-        return workflow, {}
-    schema = {item['id']: item for item in _extract_comfy_workflow_parameters(workflow)}
-    applied = {}
-    for parameter_id, raw_value in overrides.items():
-        parameter = schema.get(str(parameter_id))
-        if not parameter:
-            continue
-        node = workflow.get(parameter['node_id'])
-        inputs = node.get('inputs') if isinstance(node, dict) and isinstance(node.get('inputs'), dict) else None
-        if inputs is None:
-            continue
-        value = _coerce_comfy_parameter_value(parameter, raw_value)
-        inputs[parameter['input_name']] = value
-        applied[parameter['id']] = value
-    return workflow, applied
+    return _domain_services_comfy_workflows._apply_comfy_parameter_overrides(
+        workflow, overrides, _coerce_comfy_parameter_value=_coerce_comfy_parameter_value,
+        _extract_comfy_workflow_parameters=_extract_comfy_workflow_parameters,
+    )
 
 
 def _collect_comfy_workflows(include_disabled=False):
-    catalog = _comfy_workflow_catalog_settings()
-    items = []
-    def bounded_int(value, default, minimum, maximum):
-        try:
-            return max(minimum, min(maximum, int(value)))
-        except (TypeError, ValueError):
-            return default
-    for path in sorted(COMFY_WORKFLOW_DIR.glob('*.json')):
-        workflow_id = path.name
-        meta = catalog.get(workflow_id) if isinstance(catalog.get(workflow_id), dict) else {}
-        try:
-            workflow_data = json.loads(path.read_text(encoding='utf-8'))
-        except Exception:
-            workflow_data = {}
-        parameters = _extract_comfy_workflow_parameters(workflow_data)
-        default_ratio = str(meta.get('default_ratio') or '1:1')
-        ratio_width, ratio_height = _resolve_comfy_size(default_ratio, '1k')
-        detected_width, detected_height = _extract_comfy_workflow_default_size(
-            workflow_data,
-            (ratio_width, ratio_height),
-        )
-        default_width = _normalize_comfy_dimension(meta.get('default_width'), detected_width)
-        default_height = _normalize_comfy_dimension(meta.get('default_height'), detected_height)
-        auto_accepts_image = (
-            _comfy_workflow_uses_token(path, '{{IMAGE}}')
-            or _comfy_workflow_uses_token(path, '{{IMAGE_')
-            or _comfy_workflow_has_image_input(workflow_data)
-        )
-        accepts_image = _coerce_bool(meta.get('accepts_image'), auto_accepts_image)
-        enabled = _coerce_bool(meta.get('enabled'), True)
-        if not include_disabled and not enabled:
-            continue
-        max_images = bounded_int(meta.get('max_images'), 1 if accepts_image else 0, 0, 8)
-        output_count = bounded_int(meta.get('output_count'), 1, 1, 8)
-        preview_path = _comfy_workflow_preview_path(workflow_id)
-        label = str(meta.get('label') or _default_comfy_workflow_label(workflow_id)).strip()[:120]
-        summary = str(meta.get('summary') or ('图生图 · 需要参考图' if accepts_image else '文生图 · 单图')).strip()[:180]
-        items.append({
-            'id': workflow_id,
-            'label': label,
-            'summary': summary,
-            'enabled': enabled,
-            'is_default': _coerce_bool(meta.get('is_default'), False),
-            'order': bounded_int(meta.get('order'), 100, 0, 9999),
-            'default_ratio': default_ratio,
-            'default_width': default_width,
-            'default_height': default_height,
-            'accepts_text': _coerce_bool(meta.get('accepts_text'), True),
-            'accepts_image': accepts_image,
-            'max_images': max_images,
-            'output_count': output_count,
-            'parameter_count': len(parameters),
-            'parameters': parameters,
-            'thumbnail_url': f'/api/comfy/workflow-thumbnail?id={urllib.parse.quote(workflow_id)}&v={preview_path.stat().st_mtime_ns}' if preview_path.exists() else '',
-        })
-    items.sort(key=lambda item: (item['order'], item['label'].lower(), item['id'].lower()))
-    default_item = next((item for item in items if item['is_default'] and item['enabled']), None)
-    if default_item is None:
-        default_item = next((item for item in items if item['enabled']), None)
-    return {
-        'workflows': [item['id'] for item in items if item['enabled']],
-        'items': items,
-        'default_workflow': default_item['id'] if default_item else '',
-    }
+    return _domain_services_comfy_gateway._collect_comfy_workflows(
+        include_disabled, COMFY_WORKFLOW_DIR=COMFY_WORKFLOW_DIR, _coerce_bool=_coerce_bool,
+        _comfy_workflow_catalog_settings=_comfy_workflow_catalog_settings, _comfy_workflow_has_image_input=_comfy_workflow_has_image_input, _comfy_workflow_preview_path=_comfy_workflow_preview_path,
+        _comfy_workflow_uses_token=_comfy_workflow_uses_token, _default_comfy_workflow_label=_default_comfy_workflow_label, _extract_comfy_workflow_default_size=_extract_comfy_workflow_default_size,
+        _extract_comfy_workflow_parameters=_extract_comfy_workflow_parameters, _normalize_comfy_dimension=_normalize_comfy_dimension, _resolve_comfy_size=_resolve_comfy_size,
+        json=json, urllib=urllib,
+    )
 
 
 def _save_comfy_workflow_config(data):
-    workflow_id = Path(str(data.get('id') or data.get('workflow') or '')).name
-    workflow_path = COMFY_WORKFLOW_DIR / workflow_id
-    if not workflow_id or not workflow_path.exists() or workflow_path.suffix.lower() != '.json':
-        raise FileNotFoundError('工作流不存在')
-
-    thumbnail_data = str(data.get('thumbnail_data') or '').strip()
-    thumbnail_bytes = None
-    if thumbnail_data:
-        image_bytes, _mime_type, _extension = _decode_data_uri_image(thumbnail_data)
-        buffer = __import__('io').BytesIO()
-        with Image.open(__import__('io').BytesIO(image_bytes)) as source:
-            preview = source.convert('RGB')
-            preview.thumbnail((640, 400), Image.Resampling.LANCZOS)
-            preview.save(buffer, 'WEBP', quality=84, method=6)
-        thumbnail_bytes = buffer.getvalue()
-
-    settings = load_app_settings()
-    section = settings.get('comfy') if isinstance(settings.get('comfy'), dict) else {}
-    section = dict(section)
-    catalog = section.get('workflow_catalog') if isinstance(section.get('workflow_catalog'), dict) else {}
-    catalog = dict(catalog)
-    previous = catalog.get(workflow_id) if isinstance(catalog.get(workflow_id), dict) else {}
-    meta = dict(previous)
-    for key, limit in (('label', 120), ('summary', 180), ('default_ratio', 16)):
-        if key in data:
-            meta[key] = str(data.get(key) or '').strip()[:limit]
-    for key in ('enabled', 'is_default', 'accepts_text', 'accepts_image'):
-        if key in data:
-            meta[key] = _coerce_bool(data.get(key), False)
-    for key, minimum, maximum in (('order', 0, 9999), ('max_images', 0, 8), ('output_count', 1, 8)):
-        if key in data:
-            try:
-                meta[key] = max(minimum, min(maximum, int(data.get(key))))
-            except (TypeError, ValueError):
-                pass
-    for key in ('default_width', 'default_height'):
-        if key in data:
-            meta[key] = _normalize_comfy_dimension(data.get(key), previous.get(key, 1024))
-    if meta.get('is_default'):
-        for existing_id, existing_meta in list(catalog.items()):
-            if isinstance(existing_meta, dict) and existing_id != workflow_id and existing_meta.get('is_default'):
-                catalog[existing_id] = {**existing_meta, 'is_default': False}
-    catalog[workflow_id] = meta
-    section['workflow_catalog'] = catalog
-    settings['comfy'] = section
-    save_app_settings(settings)
-
-    if thumbnail_bytes is not None:
-        COMFY_PREVIEW_DIR.mkdir(parents=True, exist_ok=True)
-        _comfy_workflow_preview_path(workflow_id).write_bytes(thumbnail_bytes)
-    elif _coerce_bool(data.get('clear_thumbnail'), False):
-        try:
-            _comfy_workflow_preview_path(workflow_id).unlink()
-        except FileNotFoundError:
-            pass
-    return next((item for item in _collect_comfy_workflows(include_disabled=True)['items'] if item['id'] == workflow_id), None)
+    return _domain_services_comfy_gateway._save_comfy_workflow_config(
+        data, COMFY_PREVIEW_DIR=COMFY_PREVIEW_DIR, COMFY_WORKFLOW_DIR=COMFY_WORKFLOW_DIR,
+        Image=Image, Path=Path, _coerce_bool=_coerce_bool,
+        _collect_comfy_workflows=_collect_comfy_workflows, _comfy_workflow_preview_path=_comfy_workflow_preview_path, _decode_data_uri_image=_decode_data_uri_image,
+        _normalize_comfy_dimension=_normalize_comfy_dimension, load_app_settings=load_app_settings, save_app_settings=save_app_settings,
+    )
 
 
 def _normalize_comfy_base_url(value):
-    base_url = str(value or '').strip().rstrip('/')
-    parsed = urllib.parse.urlparse(base_url)
-    if parsed.scheme not in ('http', 'https') or not parsed.hostname:
-        raise ValueError('ComfyUI Base URL 必须是完整的 http:// 或 https:// 地址')
-    return base_url
+    return _domain_services_comfy_gateway._normalize_comfy_base_url(value, urllib=urllib)
 
 
 def _collect_comfy_health(overrides=None):
-    config = dict(get_comfy_config())
-    overrides = overrides if isinstance(overrides, dict) else {}
-    if str(overrides.get('base_url') or '').strip():
-        config['base_url'] = _normalize_comfy_base_url(overrides.get('base_url'))
-    if str(overrides.get('timeout_seconds') or '').strip():
-        try:
-            config['timeout_seconds'] = max(5, min(1800, int(overrides.get('timeout_seconds'))))
-        except (TypeError, ValueError):
-            raise ValueError('ComfyUI 请求超时必须是 5 到 1800 之间的整数')
-    started = time.perf_counter()
-    with _new_comfy_session() as session:
-        response = session.get(f"{config['base_url']}/system_stats", timeout=min(config['timeout_seconds'], 10))
-        response.raise_for_status()
-        stats = response.json() if response.content else {}
-        queue_response = session.get(f"{config['base_url']}/queue", timeout=min(config['timeout_seconds'], 10))
-        queue_response.raise_for_status()
-        queue_data = queue_response.json() if queue_response.content else {}
-    pending = queue_data.get('queue_pending') if isinstance(queue_data, dict) else []
-    running = queue_data.get('queue_running') if isinstance(queue_data, dict) else []
-    return {
-        'ok': True,
-        'online': True,
-        'latency_ms': round((time.perf_counter() - started) * 1000),
-        'queue_pending': len(pending) if isinstance(pending, list) else 0,
-        'queue_running': len(running) if isinstance(running, list) else 0,
-        'system': stats if isinstance(stats, dict) else {},
-    }
+    return _domain_services_comfy_gateway._collect_comfy_health(
+        overrides, _new_comfy_session=_new_comfy_session, _normalize_comfy_base_url=_normalize_comfy_base_url,
+        get_comfy_config=get_comfy_config, time=time,
+    )
 
 
 def _load_comfy_workflow(workflow_name):
-    if not workflow_name:
-        raise ValueError('缺少工作流名称')
-
-    workflow_path = (COMFY_WORKFLOW_DIR / Path(workflow_name).name).resolve()
-    if workflow_path.parent != COMFY_WORKFLOW_DIR.resolve() or not workflow_path.exists():
-        raise FileNotFoundError(f'工作流不存在：{workflow_name}')
-
-    with open(workflow_path, 'r', encoding='utf-8') as f:
-        return json.load(f), workflow_path.name
+    return _domain_services_comfy_gateway._load_comfy_workflow(workflow_name, COMFY_WORKFLOW_DIR=COMFY_WORKFLOW_DIR, Path=Path, json=json)
 
 
 def _resolve_comfy_size(ratio, resolution='1k'):
-    width, height = COMFY_RATIO_SIZES.get(str(ratio or '1:1').strip(), COMFY_RATIO_SIZES['1:1'])
-    target_long_edge = COMFY_RESOLUTION_LONG_EDGES.get(str(resolution or '1k').strip().lower(), 0)
-    if not target_long_edge:
-        return width, height
-    try:
-        ratio_width, ratio_height = (max(1, int(part)) for part in str(ratio or '1:1').split(':', 1))
-    except (TypeError, ValueError):
-        ratio_width, ratio_height = 1, 1
-    if ratio_width >= ratio_height:
-        width = target_long_edge
-        height = max(64, round(target_long_edge * ratio_height / ratio_width / 64) * 64)
-    else:
-        height = target_long_edge
-        width = max(64, round(target_long_edge * ratio_width / ratio_height / 64) * 64)
-    return width, height
+    return _domain_services_comfy_gateway._resolve_comfy_size(
+        ratio, resolution, COMFY_RATIO_SIZES=COMFY_RATIO_SIZES,
+        COMFY_RESOLUTION_LONG_EDGES=COMFY_RESOLUTION_LONG_EDGES,
+    )
 
 
 def _replace_comfy_tokens(value, replacements):
-    if isinstance(value, dict):
-        return {k: _replace_comfy_tokens(v, replacements) for k, v in value.items()}
-    if isinstance(value, list):
-        return [_replace_comfy_tokens(v, replacements) for v in value]
-    if isinstance(value, str):
-        if value in replacements:
-            return replacements[value]
-        updated = value
-        for token, replacement in replacements.items():
-            updated = updated.replace(token, str(replacement))
-        return updated
-    return value
+    return _domain_services_comfy_gateway._replace_comfy_tokens(value, replacements, _replace_comfy_tokens=_replace_comfy_tokens)
 
 
 def _decode_data_uri_image(data):
-    if not data:
-        raise ValueError('缺少图片数据')
-
-    mime_type = 'image/png'
-    payload = data
-    if ',' in data:
-        header, payload = data.split(',', 1)
-        if ';base64' not in header:
-            raise ValueError('仅支持 base64 data URI')
-        if header.startswith('data:'):
-            mime_type = header[5:].split(';', 1)[0] or mime_type
-
-    image_bytes = base64.b64decode(payload)
-    extension = '.png'
-    if '/' in mime_type:
-        subtype = mime_type.split('/', 1)[1].split('+', 1)[0].lower()
-        if subtype in ('jpeg', 'jpg'):
-            extension = '.jpg'
-        elif subtype == 'webp':
-            extension = '.webp'
-
-    return image_bytes, mime_type, extension
+    return _domain_services_comfy_gateway._decode_data_uri_image(data, base64=base64)
 
 
 def _upload_comfy_image(image_data):
-    image_bytes, mime_type, extension = _decode_data_uri_image(image_data)
-    filename = f"miniapp_{int(time.time())}_{random.randint(1000, 9999)}{extension}"
-
-    config = get_comfy_config()
-    with _new_comfy_session() as session:
-        response = session.post(
-            f"{config['base_url']}/upload/image",
-            files={'image': (filename, image_bytes, mime_type)},
-            data={'type': 'input', 'overwrite': 'true'},
-            timeout=config['timeout_seconds'],
-        )
-        response.raise_for_status()
-        result = response.json()
-
-    return result.get('name') or filename
+    return _domain_services_comfy_gateway._upload_comfy_image(
+        image_data, _decode_data_uri_image=_decode_data_uri_image, _new_comfy_session=_new_comfy_session,
+        get_comfy_config=get_comfy_config, random=random, time=time,
+    )
 
 
 def _prepare_comfy_workflow(
@@ -3292,215 +1469,70 @@ def _prepare_comfy_workflow(
     width=None,
     height=None,
 ):
-    fallback_width, fallback_height = _resolve_comfy_size(ratio, resolution)
-    width = _normalize_comfy_dimension(width, fallback_width)
-    height = _normalize_comfy_dimension(height, fallback_height)
-    prepared = json.loads(json.dumps(workflow))
-    image_names = [str(name).strip() for name in (uploaded_image_names or []) if str(name).strip()]
-    if uploaded_image_name and uploaded_image_name not in image_names:
-        image_names.insert(0, uploaded_image_name)
-    replacements = {
-        '{{PROMPT}}': prompt or '',
-        '{{WIDTH}}': width,
-        '{{HEIGHT}}': height,
-        '{{SEED}}': random.randint(1, 2**31 - 1),
-        '{{IMAGE}}': image_names[0] if image_names else '',
-    }
-    for index, image_name in enumerate(image_names, start=1):
-        replacements[f'{{{{IMAGE_{index}}}}}'] = image_name
-    prepared = _replace_comfy_tokens(prepared, replacements)
-
-    load_image_index = 0
-    for node in prepared.values():
-        if not isinstance(node, dict):
-            continue
-
-        class_type = str(node.get('class_type') or '')
-        class_key = class_type.lower().replace('_', '')
-        inputs = node.get('inputs') if isinstance(node.get('inputs'), dict) else None
-        if not inputs:
-            continue
-
-        if class_type == 'EmptyLatentImage':
-            inputs['width'] = width
-            inputs['height'] = height
-        else:
-            if 'width' in inputs and not isinstance(inputs.get('width'), (dict, list)):
-                inputs['width'] = width
-            if 'height' in inputs and not isinstance(inputs.get('height'), (dict, list)):
-                inputs['height'] = height
-
-        if prompt and isinstance(inputs.get('prompt'), str):
-            inputs['prompt'] = prompt
-
-        if image_names and 'loadimage' in class_key and 'image' in inputs and not isinstance(inputs.get('image'), (dict, list)):
-            inputs['image'] = image_names[min(load_image_index, len(image_names) - 1)]
-            load_image_index += 1
-
-    return prepared
+    return _domain_services_comfy_gateway._prepare_comfy_workflow(
+        workflow, prompt, ratio,
+        uploaded_image_name, uploaded_image_names, resolution,
+        width, height, _normalize_comfy_dimension=_normalize_comfy_dimension,
+        _replace_comfy_tokens=_replace_comfy_tokens, _resolve_comfy_size=_resolve_comfy_size, json=json,
+        random=random,
+    )
 
 
 def _proxy_comfy_json(method, path, *, params=None, payload=None):
-    config = get_comfy_config()
-    with _new_comfy_session() as session:
-        response = session.request(
-            method,
-            f"{config['base_url']}{path}",
-            params=params,
-            json=payload,
-            timeout=config['timeout_seconds'],
-        )
-        response.raise_for_status()
-        return response.json()
+    return _domain_services_comfy_gateway._proxy_comfy_json(
+        method, path, params=params,
+        payload=payload, _new_comfy_session=_new_comfy_session, get_comfy_config=get_comfy_config,
+    )
 
 
 def _fetch_comfy_binary(filename, subfolder='', file_type='output'):
-    params = {
-        'filename': filename,
-        'subfolder': subfolder or '',
-        'type': file_type or 'output',
-    }
-    config = get_comfy_config()
-    with _new_comfy_session() as session:
-        response = session.get(
-            f"{config['base_url']}/view",
-            params=params,
-            timeout=config['timeout_seconds'],
-        )
-        response.raise_for_status()
-        return response.content, response.headers.get('Content-Type', 'application/octet-stream')
+    return _domain_services_comfy_gateway._fetch_comfy_binary(
+        filename, subfolder, file_type,
+        _new_comfy_session=_new_comfy_session, get_comfy_config=get_comfy_config,
+    )
 
 
 def _find_comfy_images(outputs):
-    if not isinstance(outputs, dict):
-        return []
-
-    final_images = []
-    temp_images = []
-    seen = set()
-    for node_output in outputs.values():
-        images = node_output.get('images') if isinstance(node_output, dict) else None
-        if not images:
-            continue
-        for image in images:
-            if not isinstance(image, dict):
-                continue
-            key = (image.get('filename'), image.get('subfolder'), image.get('type'))
-            if not key[0] or key in seen:
-                continue
-            seen.add(key)
-            if image.get('type') == 'output':
-                final_images.append(image)
-            else:
-                temp_images.append(image)
-
-    return final_images or temp_images
+    return _domain_services_comfy_gateway._find_comfy_images(outputs)
 
 
 def _find_best_comfy_image(outputs):
-    images = _find_comfy_images(outputs)
-    return images[0] if images else None
+    return _domain_services_comfy_gateway._find_best_comfy_image(outputs, _find_comfy_images=_find_comfy_images)
 
 
 def _save_task_params(task_id, params):
-    update_task_fields(task_id, params=json.dumps(params, ensure_ascii=False))
+    return _domain_services_comfy_gateway._save_task_params(task_id, params, json=json, update_task_fields=update_task_fields)
 
 
 def _extract_comfy_error(entry):
-    status = entry.get('status') if isinstance(entry, dict) else {}
-    if isinstance(status, dict):
-        for key in ('messages', 'error', 'status_str'):
-            value = status.get(key)
-            if isinstance(value, str) and value.strip():
-                return value.strip()
-            if isinstance(value, list) and value:
-                return str(value[-1])
-    return 'ComfyUI 任务失败'
+    return _domain_services_comfy_gateway._extract_comfy_error(entry)
 
 
 def _sync_comfy_task(prompt_id, entry):
-    task = get_task(prompt_id)
-    if not task:
-        return
-
-    status = entry.get('status') if isinstance(entry, dict) else {}
-    outputs = entry.get('outputs') if isinstance(entry, dict) else {}
-    completed = bool(status.get('completed')) if isinstance(status, dict) else False
-    status_str = str(status.get('status_str', '') if isinstance(status, dict) else '').lower()
-    comfy_images = _find_comfy_images(outputs)
-    comfy_image = comfy_images[0] if comfy_images else None
-
-    params = task.get('params') or {}
-    updated_params = dict(params)
-    if comfy_image:
-        updated_params['comfy_image'] = comfy_image
-        updated_params['comfy_images'] = comfy_images
-
-    if completed and comfy_image:
-        update_task_status(
-            prompt_id,
-            'processing',
-            'ComfyUI 已完成，正在整理结果...',
-            stage='comfy_completed',
-            result_file=comfy_image.get('filename'),
-            params=json.dumps(updated_params, ensure_ascii=False),
-        )
-        return {
-            'completed': True,
-            'image': comfy_image,
-            'images': comfy_images,
-            'params': updated_params,
-            'progress_text': 'ComfyUI 已完成，正在整理结果...',
-        }
-
-    if completed and not comfy_image:
-        error_msg = _extract_comfy_error(entry)
-        update_task(
-            prompt_id,
-            'failed',
-            error=error_msg,
-            stage='failed',
-            progress_text=error_msg,
-            params=json.dumps(updated_params, ensure_ascii=False),
-        )
-        return {
-            'completed': True,
-            'error': error_msg,
-            'params': updated_params,
-            'progress_text': error_msg,
-        }
-
-    progress_text = 'ComfyUI 生成中...'
-    if status_str:
-        progress_text = f'ComfyUI {status_str}...'
-    update_task_status(
-        prompt_id,
-        'processing',
-        progress_text,
-        stage='processing',
-        params=json.dumps(updated_params, ensure_ascii=False),
+    return _domain_services_comfy_gateway._sync_comfy_task(
+        prompt_id, entry, _extract_comfy_error=_extract_comfy_error,
+        _find_comfy_images=_find_comfy_images, get_task=get_task, json=json,
+        update_task=update_task, update_task_status=update_task_status,
     )
-    return {
-        'completed': False,
-        'params': updated_params,
-        'progress_text': progress_text,
-    }
 
 
 def _fetch_comfy_history_entry(prompt_id):
-    result = _proxy_comfy_json('GET', f'/history/{urllib.parse.quote(prompt_id)}')
-    if isinstance(result, dict) and prompt_id not in result and 'outputs' in result:
-        result = {prompt_id: result}
-    entry = result.get(prompt_id) if isinstance(result, dict) else None
-    return result, entry
+    return _domain_services_comfy_gateway._fetch_comfy_history_entry(prompt_id, _proxy_comfy_json=_proxy_comfy_json, urllib=urllib)
+
+
+def _wait_for_comfy_websocket(
+    prompt_id, client_id, *, base_url, deadline, is_cancelled,
+    on_event=None, completion_probe=None, probe_interval=15.0, receive_timeout=1.0,
+):
+    return _domain_services_comfy_transport.wait_for_comfy_websocket(
+        prompt_id, client_id, base_url=base_url, deadline=deadline,
+        is_cancelled=is_cancelled, on_event=on_event, completion_probe=completion_probe,
+        probe_interval=probe_interval, receive_timeout=receive_timeout,
+    )
 
 
 def _coerce_upscale_tile(value, fallback=256, minimum=64, maximum=2048):
-    try:
-        parsed = int(value)
-    except Exception:
-        parsed = fallback
-    return max(minimum, min(maximum, parsed))
+    return _domain_services_upscale_generation._coerce_upscale_tile(value, fallback, minimum, maximum)
 
 
 def _upscale_progress_callback(task_id):
@@ -3527,213 +1559,43 @@ def _upscale_progress_callback(task_id):
 
 
 def _write_upscale_sidecar(output_path, prompt, params, result_meta):
-    sidecar = Path(output_path).with_suffix('.txt')
-    lines = [
-        str(prompt or '高清放大').strip() or '高清放大',
-        '',
-        f"task_type: upscale",
-        f"model: {result_meta.model}",
-        f"scale: {result_meta.scale}x",
-        f"input_size: {result_meta.input_width}x{result_meta.input_height}",
-        f"output_size: {result_meta.output_width}x{result_meta.output_height}",
-        f"device: {result_meta.device}",
-    ]
-    lineage = params.get('lineage') if isinstance(params.get('lineage'), dict) else {}
-    refs = lineage.get('reference_assets') if isinstance(lineage, dict) else []
-    if refs:
-        lines.append('')
-        lines.append('source_refs:')
-        for ref in refs[:8]:
-            if not isinstance(ref, dict):
-                continue
-            title = ref.get('title') or ref.get('file') or ref.get('image_url') or ref.get('source_node_id') or 'source'
-            lines.append(f"- {title}")
-    try:
-        write_obsidian_prompt_sidecar(Path(output_path), '\n'.join(lines), txt_path=sidecar)
-    except Exception as exc:
-        print(f"⚠️ 写入高清放大 sidecar 失败: {exc}")
+    return _domain_services_upscale_generation._write_upscale_sidecar(
+        output_path, prompt, params,
+        result_meta, Path=Path, write_obsidian_prompt_sidecar=write_obsidian_prompt_sidecar,
+    )
+
+
+def _process_image_enhancement_task(task_id, prompt, image_data, params, engine=None):
+    """后台线程：本地高清放大任务。"""
+    return _domain_services_upscale_generation.process_upscale_task(
+        task_id, prompt, image_data,
+        params, Path=Path, UPSCALE_MODELS=UPSCALE_MODELS,
+        UPSCALE_MODEL_DIR=UPSCALE_MODEL_DIR, UpscaleRuntimeError=UpscaleRuntimeError, _coerce_bool=_coerce_bool,
+        _coerce_upscale_tile=_coerce_upscale_tile, _decode_data_uri_image=_decode_data_uri_image, _finalize_generation_task=_finalize_generation_task,
+        _merge_task_params=_merge_task_params, _record_generation_event=_record_generation_event, _start_generation_audit=_start_generation_audit,
+        _translate_generation_failure=_translate_generation_failure, _upscale_progress_callback=_upscale_progress_callback, _write_upscale_sidecar=_write_upscale_sidecar,
+        daily_output_dir=daily_output_dir, datetime=datetime, normalize_upscale_model=normalize_upscale_model,
+        os=os, random=random, re=re,
+        save_thumbnail=save_thumbnail, send_status_notification=send_status_notification, send_tg_document=send_tg_document,
+        tempfile=tempfile, update_task_status=update_task_status, upscale_image_file=upscale_image_file,
+        is_task_canceled=_is_task_canceled, engine=engine,
+    )
 
 
 def process_upscale_task(task_id, prompt, image_data, params):
-    """后台线程：本地高清放大任务。"""
-    temp_path = None
-    run_id = ''
-    task_kind = 'upscale'
-    task_provider = 'local_upscale'
-    task_route = 'spandrel'
-    try:
-        model_name = normalize_upscale_model(params.get('model'))
-        model_label = UPSCALE_MODELS.get(model_name, {}).get('label', model_name)
-        archive_enabled = True
-        telegram_enabled = _coerce_bool(params.get('telegram_enabled', params.get('telegramEnabled')), True)
-        params = dict(params or {})
-        params['archive_enabled'] = archive_enabled
-        params['telegram_enabled'] = telegram_enabled
-        params['model'] = model_name
-        params['scale'] = 4
-        _merge_task_params(task_id, params)
+    return _process_image_enhancement_task(task_id, prompt, image_data, params)
 
-        run_id = _start_generation_audit(
-            task_id,
-            task_kind,
-            prompt,
-            params,
-            provider=task_provider,
-            route=task_route,
-            stage='preparing',
-        )
-        update_task_status(task_id, 'preparing', '正在准备高清放大...', stage='preparing', progress=4)
-        send_status_notification(task_id, f'已提交高清放大：{model_label}', '✅')
 
-        image_bytes, _mime_type, extension = _decode_data_uri_image(image_data)
-        with tempfile.NamedTemporaryFile(delete=False, suffix=extension or '.png') as tmp:
-            tmp.write(image_bytes)
-            temp_path = tmp.name
-
-        now = datetime.now()
-        timestamp = now.strftime('%Y%m%d_%H%M%S')
-        model_slug = re.sub(r'[^a-zA-Z0-9]+', '_', model_name).strip('_').lower() or 'upscale'
-        filename = f"upscale_{model_slug}_{timestamp}_{random.randint(1000, 9999)}.png"
-        output_dir = daily_output_dir(now)
-        output_dir.mkdir(parents=True, exist_ok=True)
-        output_path = output_dir / filename
-
-        update_task_status(task_id, 'processing', '正在载入高清放大模型...', stage='loading_model', progress=8)
-        _record_generation_event(task_id, 'provider_call_started', '开始执行本地高清放大', stage='loading_model', payload={'provider': task_provider, 'route': task_route, 'model': model_name})
-        result_meta = upscale_image_file(
-            Path(temp_path),
-            output_path,
-            model_name=model_name,
-            model_dir=UPSCALE_MODEL_DIR,
-            device=params.get('device') or 'auto',
-            tile_size=_coerce_upscale_tile(params.get('tile_size', params.get('tileSize')), 256),
-            tile_overlap=_coerce_upscale_tile(params.get('tile_overlap', params.get('tileOverlap')), 32, minimum=0, maximum=256),
-            progress=_upscale_progress_callback(task_id),
-        )
-
-        _write_upscale_sidecar(output_path, prompt, params, result_meta)
-        save_thumbnail(str(output_path), filename)
-
-        _merge_task_params(task_id, {
-            'model': result_meta.model,
-            'scale': result_meta.scale,
-            'device': result_meta.device,
-            'input_size': f'{result_meta.input_width}x{result_meta.input_height}',
-            'output_size': f'{result_meta.output_width}x{result_meta.output_height}',
-            'archive_dir': str(output_dir),
-        })
-
-        telegram_success = False
-        if telegram_enabled:
-            update_task_status(task_id, 'processing', '正在发送高清结果到 Telegram...', stage='sending_telegram', progress=96)
-            _record_generation_event(task_id, 'telegram_send_started', '开始发送高清放大结果到 Telegram', stage='sending_telegram')
-            caption = f"高清放大 | {model_label} | {result_meta.input_width}x{result_meta.input_height} -> {result_meta.output_width}x{result_meta.output_height}"
-            prompt_line = str(prompt or '').strip()
-            if prompt_line:
-                caption = f"{caption}\n{prompt_line[:400]}"
-            try:
-                send_tg_document(output_path, caption=caption[:1000])
-                telegram_success = True
-            except Exception as exc:
-                print(f"❌ 高清放大 Telegram 发送失败：{exc}")
-        else:
-            update_task_status(task_id, 'processing', 'Telegram 已关闭，正在整理高清结果...', stage='saving', progress=98)
-            _record_generation_event(task_id, 'telegram_send_skipped', '已按节点开关跳过 Telegram', stage='saving')
-
-        if telegram_success or not telegram_enabled:
-            progress_text = '高清放大完成' if telegram_enabled else '高清放大完成，已按节点开关跳过 Telegram'
-            final_status = 'succeeded' if telegram_enabled else 'succeeded_no_telegram'
-        else:
-            progress_text = '高清放大完成，但 Telegram 发送失败'
-            final_status = 'succeeded_no_telegram'
-
-        _finalize_generation_task(
-            task_id,
-            final_status,
-            run_id=run_id,
-            provider=task_provider,
-            route=task_route,
-            task_type=task_kind,
-            result_file=filename,
-            stage='done',
-            progress_text=progress_text,
-            result_files=[filename],
-            image_count=1,
-            extra={
-                'model': result_meta.model,
-                'scale': result_meta.scale,
-                'device': result_meta.device,
-                'output_size': f'{result_meta.output_width}x{result_meta.output_height}',
-            },
-        )
-        _record_generation_event(task_id, 'run_succeeded', progress_text, stage='done', payload={'provider': task_provider, 'route': task_route, 'model': model_name, 'scale': result_meta.scale})
-        send_status_notification(task_id, '✅ 高清放大完成！', '🎉')
-    except Exception as e:
-        raw_error_msg = str(e)
-        error_type = type(e).__name__
-        error_info = _translate_generation_failure(
-            task_id,
-            raw_error_msg,
-            provider=task_provider,
-            route=task_route,
-            task_type=task_kind,
-            stage='failed',
-            exception_name=error_type,
-        )
-        display = error_info.get('display_error') or raw_error_msg
-        if isinstance(e, UpscaleRuntimeError):
-            display = raw_error_msg
-            error_info['display_error'] = display
-        _finalize_generation_task(
-            task_id,
-            'failed',
-            run_id=run_id,
-            provider=task_provider,
-            route=task_route,
-            task_type=task_kind,
-            stage='failed',
-            progress_text=display,
-            error_info=error_info,
-            error_type=error_type,
-        )
-        send_status_notification(task_id, f'❌ 高清放大失败：{display[:100]}', '⚠️')
-        print(f"❌ 高清放大任务失败：{task_id} - {raw_error_msg}")
-    finally:
-        if temp_path and os.path.exists(temp_path):
-            try:
-                os.unlink(temp_path)
-            except Exception:
-                pass
+def process_topaz_task(task_id, prompt, image_data, params):
+    return _process_image_enhancement_task(task_id, prompt, image_data, params,
+                                          topaz_service.engine(_topaz_runtime, params))
 
 
 H3_VIDEO_TASK_TYPE = 'minimax-h3-video'
 
 
 def _sanitize_h3_prompt_metadata(value):
-    source = value if isinstance(value, dict) else {}
-    string_keys = {
-        'skill_id', 'source_repository', 'source_commit', 'source_path',
-        'compiler_version', 'schema_version', 'mode', 'provider', 'model',
-        'reasoning_effort',
-    }
-    boolean_keys = {'reference_image_used', 'repair_applied', 'bilingual_output'}
-    integer_keys = {'verified_files', 'minimum_shot_count'}
-    clean = {}
-    for key in string_keys:
-        text = str(source.get(key) or '').strip()
-        if text:
-            clean[key] = text[:500]
-    for key in boolean_keys:
-        if key in source:
-            clean[key] = bool(source.get(key))
-    for key in integer_keys:
-        try:
-            number = int(source.get(key))
-        except (TypeError, ValueError):
-            continue
-        if number >= 0:
-            clean[key] = min(number, 1000)
-    return clean
+    return _domain_services_video_generation._sanitize_h3_prompt_metadata(value)
 H3_VIDEO_MAX_REFERENCE_BYTES = 64 * 1024 * 1024
 H3_VIDEO_DEFAULT_TASK_TIMEOUT_SECONDS = 6 * 60 * 60
 _H3_PUBLIC_TASK_PARAM_KEYS = frozenset({
@@ -3794,461 +1656,69 @@ _H3_PUBLIC_ACCELERATION_KEYS = frozenset({
 
 
 def _public_h3_acceleration(value):
-    if not isinstance(value, dict):
-        return {}
-    public = {}
-    for key in _H3_PUBLIC_ACCELERATION_KEYS:
-        item = value.get(key)
-        if item is None or isinstance(item, (dict, list, tuple, set, bytes, bytearray)):
-            continue
-        if isinstance(item, str):
-            item = item[:200]
-        public[key] = item
-    return public
+    return _domain_services_video_generation._public_h3_acceleration(value, _H3_PUBLIC_ACCELERATION_KEYS=_H3_PUBLIC_ACCELERATION_KEYS)
 
 
 def _public_h3_runtime_output(runtime_job):
-    raw = runtime_job.get('output') if isinstance(runtime_job, dict) and isinstance(runtime_job.get('output'), dict) else {}
-    public = {
-        key: raw.get(key)
-        for key in _H3_PUBLIC_RUNTIME_OUTPUT_KEYS
-        if raw.get(key) is not None and not isinstance(raw.get(key), (dict, list, tuple, set, bytes, bytearray))
-    }
-    acceleration = _public_h3_acceleration(raw.get('acceleration'))
-    if acceleration:
-        public['acceleration'] = acceleration
-    return public
+    return _domain_services_video_generation._public_h3_runtime_output(
+        runtime_job, _H3_PUBLIC_RUNTIME_OUTPUT_KEYS=_H3_PUBLIC_RUNTIME_OUTPUT_KEYS, _public_h3_acceleration=_public_h3_acceleration,
+    )
 
 
 def _public_h3_task_params(params):
-    if not isinstance(params, dict):
-        return {}
-    public = {
-        key: value
-        for key, value in params.items()
-        if key in _H3_PUBLIC_TASK_PARAM_KEYS
-    }
-    seed = public.get('seed')
-    if isinstance(seed, int) and abs(seed) > 9_007_199_254_740_991:
-        public['seed'] = str(seed)
-    if 'acceleration' in public:
-        public['acceleration'] = _public_h3_acceleration(public.get('acceleration'))
-    if isinstance(public.get('sidecar_files'), dict):
-        public['sidecar_files'] = {
-            str(key)[:40]: safe_basename(value)
-            for key, value in public['sidecar_files'].items()
-            if value
-        }
-    return public
+    return _domain_services_video_generation._public_h3_task_params(
+        params, _H3_PUBLIC_TASK_PARAM_KEYS=_H3_PUBLIC_TASK_PARAM_KEYS, _public_h3_acceleration=_public_h3_acceleration,
+        safe_basename=safe_basename,
+    )
 
 
 def _write_text_atomic(path, content):
-    path = Path(path)
-    temporary_path = path.with_name(f'.{path.name}.{uuid.uuid4().hex}.tmp')
-    try:
-        temporary_path.write_text(str(content or ''), encoding='utf-8')
-        os.replace(temporary_path, path)
-    finally:
-        if temporary_path.exists():
-            try:
-                temporary_path.unlink()
-            except OSError:
-                pass
+    return _domain_services_video_generation._write_text_atomic(path, content, Path=Path, os=os, uuid=uuid)
 
 
 def _decode_h3_reference_image(data):
-    raw = str(data or '').strip()
-    if not raw:
-        raise ValueError('缺少首帧图片数据')
-    if len(raw) > H3_VIDEO_MAX_REFERENCE_BYTES * 2:
-        raise ValueError('首帧图片过大')
-    image_bytes, mime_type, extension = _decode_data_uri_image(raw)
-    if len(image_bytes) > H3_VIDEO_MAX_REFERENCE_BYTES:
-        raise ValueError('首帧图片不能超过 64 MB')
-    if not str(mime_type or '').lower().startswith('image/'):
-        raise ValueError('首帧必须是图片文件')
-    try:
-        with Image.open(io.BytesIO(image_bytes)) as image:
-            image.verify()
-    except Exception as exc:
-        raise ValueError('首帧图片无法识别或文件已损坏') from exc
-    return {
-        'filename': f'first_frame{extension or ".png"}',
-        'content': image_bytes,
-        'content_type': mime_type or 'image/png',
-    }
+    return _domain_services_video_generation._decode_h3_reference_image(
+        data, H3_VIDEO_MAX_REFERENCE_BYTES=H3_VIDEO_MAX_REFERENCE_BYTES, Image=Image,
+        _decode_data_uri_image=_decode_data_uri_image, io=io,
+    )
 
 
 def _h3_phase_label(phase, fallback=''):
-    labels = {
-        'receiving': '正在接收任务',
-        'queued': '已进入 GPU 队列',
-        'starting': '正在启动 H3 推理',
-        'loading_models': '正在加载 H3 模型',
-        'conditioning': '正在编码提示词与参考图',
-        'sampling': '正在进行音视频联合采样',
-        'decoding_video': '正在解码视频',
-        'decoding_audio': '正在解码音频',
-        'muxing': '正在封装 MP4',
-        'completed': 'H3 视频生成完成',
-        'cancelled': '任务已取消',
-        'failed': 'H3 推理失败',
-    }
-    return str(fallback or labels.get(str(phase or '').strip().lower()) or 'H3 视频生成中...')
+    return _domain_services_video_generation._h3_phase_label(phase, fallback)
 
 
 def _archive_h3_reference_image(output_path, upload):
     """Persist the verified H3 input image beside a new output when available."""
-    if not isinstance(upload, dict):
-        return None
-    content = upload.get('content')
-    if not isinstance(content, (bytes, bytearray)) or not content:
-        return None
-    suffix = Path(str(upload.get('filename') or '')).suffix.lower()
-    if suffix not in _ARCHIVE_IMAGE_EXTENSIONS:
-        content_type = str(upload.get('content_type') or '').lower()
-        suffix = {
-            'image/jpeg': '.jpg',
-            'image/jpg': '.jpg',
-            'image/webp': '.webp',
-        }.get(content_type, '.png')
-    reference_path = Path(output_path).with_name(f'{Path(output_path).stem}_reference{suffix}')
-    temporary_path = reference_path.with_name(f'.{reference_path.name}.{uuid.uuid4().hex}.tmp')
-    try:
-        if reference_path.exists():
-            if reference_path.is_symlink() or not reference_path.is_file():
-                return None
-            return reference_path
-        temporary_path.write_bytes(bytes(content))
-        os.replace(temporary_path, reference_path)
-        if reference_path.stat().st_size != len(content):
-            return None
-    except OSError as exc:
-        print(f'⚠️ H3 参考图归档失败（视频仍保留）：{exc}')
-        return None
-    finally:
-        if temporary_path.exists():
-            try:
-                temporary_path.unlink()
-            except OSError:
-                pass
-    return reference_path
+    return _domain_services_video_generation._archive_h3_reference_image(
+        output_path, upload, Path=Path,
+        _ARCHIVE_IMAGE_EXTENSIONS=_ARCHIVE_IMAGE_EXTENSIONS, os=os, uuid=uuid,
+    )
 
 
 def _write_h3_video_sidecars(output_path, prompt, params, runtime_job, task_id='', reference_image_name=''):
-    output_path = Path(output_path)
-    runtime_output = _public_h3_runtime_output(runtime_job)
-    details = {
-        'task_type': H3_VIDEO_TASK_TYPE,
-        'runtime_job_id': runtime_job.get('id'),
-        'task_id': str(task_id or '').strip(),
-        'mode': params.get('mode'),
-        'aspect_ratio': params.get('aspect_ratio'),
-        'pixel_budget_mp': params.get('pixel_budget_mp'),
-        'actual_megapixels': params.get('actual_megapixels'),
-        'width': params.get('width'),
-        'height': params.get('height'),
-        'size': f"{params.get('width')}x{params.get('height')}",
-        'duration_seconds': params.get('duration_seconds'),
-        'steps': params.get('steps'),
-        'denoise': params.get('denoise'),
-        'crf': params.get('crf'),
-        'seed': (runtime_job.get('params') or {}).get('seed', params.get('seed')),
-        'acceleration_mode': params.get('acceleration_mode'),
-        'first_block_cache_threshold': params.get('first_block_cache_threshold'),
-        'prompt_metadata': _sanitize_h3_prompt_metadata(params.get('prompt_metadata')),
-        'runtime_output': runtime_output,
-    }
-    if reference_image_name:
-        details['reference_image'] = str(reference_image_name)
-    txt_path = output_path.with_suffix('.txt')
-    txt_lines = [str(prompt or '').strip(), '', json.dumps(details, ensure_ascii=False, indent=2)]
-    _write_text_atomic(txt_path, '\n'.join(txt_lines).rstrip() + '\n')
-
-    prompt_text = str(prompt or '').strip()
-    longest = max((len(match.group(0)) for match in re.finditer(r'`+', prompt_text)), default=0)
-    fence = '`' * max(3, longest + 1)
-    md_path = output_path.with_suffix('.md')
-    _write_text_atomic(md_path, '\n'.join([
-        '---',
-        'source: tg-mini-app-img-gen',
-        'type: video_prompt',
-        f'generated_date: {json.dumps(output_path.parent.name, ensure_ascii=False)}',
-        f'task_id: {json.dumps(str(task_id or output_path.stem), ensure_ascii=False)}',
-        f'video: {json.dumps(output_path.name, ensure_ascii=False)}',
-        f'txt_file: {json.dumps(txt_path.name, ensure_ascii=False)}',
-        *( [f'reference_image: {json.dumps(str(reference_image_name), ensure_ascii=False)}'] if reference_image_name else [] ),
-        '---',
-        '',
-        f'![[{output_path.name}]]',
-        *( [f'![[{str(reference_image_name)}]]', ''] if reference_image_name else [] ),
-        '',
-        '## Prompt',
-        '',
-        f'{fence}text',
-        prompt_text,
-        fence,
-        '',
-        '## Parameters',
-        '',
-        '```json',
-        json.dumps(details, ensure_ascii=False, indent=2),
-        '```',
-        '',
-    ]))
-    sidecars = {'txt': str(txt_path), 'markdown': str(md_path)}
-    if reference_image_name:
-        sidecars['reference_image'] = str(output_path.with_name(reference_image_name))
-    return sidecars
+    return _domain_services_video_generation._write_h3_video_sidecars(
+        output_path, prompt, params,
+        runtime_job, task_id, reference_image_name,
+        H3_VIDEO_TASK_TYPE=H3_VIDEO_TASK_TYPE, Path=Path, _public_h3_runtime_output=_public_h3_runtime_output,
+        _sanitize_h3_prompt_metadata=_sanitize_h3_prompt_metadata, _write_text_atomic=_write_text_atomic, json=json,
+        re=re,
+    )
 
 
 def process_h3_video_task(task_id, prompt, upload, params):
     """Background bridge from the main task system to H3_Runtime_Server."""
-    run_id = ''
-    target = None
-    runtime_job_id = ''
-    task_provider = 'minimax_h3'
-    task_route = 'h3_runtime'
-    params = dict(params or {})
-    try:
-        run_id = _start_generation_audit(
-            task_id,
-            H3_VIDEO_TASK_TYPE,
-            prompt,
-            params,
-            provider=task_provider,
-            route=task_route,
-            stage='preparing',
-        )
-        update_task_status(task_id, 'preparing', '正在连接 H3 Runtime...', stage='runtime_connecting', progress=2)
-        runtime_params = {
-            'mode': params.get('mode', 'image_to_video'),
-            'prompt': prompt,
-            'width': params.get('width'),
-            'height': params.get('height'),
-            'duration_seconds': params.get('duration_seconds'),
-            'steps': params.get('steps'),
-            'denoise': params.get('denoise'),
-            'crf': params.get('crf'),
-            'seed': params.get('seed'),
-            'acceleration_mode': params.get('acceleration_mode'),
-            'first_block_cache_threshold': params.get('first_block_cache_threshold'),
-        }
-        runtime_uploads = {
-            'first_frame' if params.get('mode') == 'image_to_video' else 'reference_images': upload,
-        }
-        _record_generation_event(task_id, 'provider_call_started', '开始提交 H3 Runtime 任务', stage='runtime_submitting', payload={
-            'provider': task_provider,
-            'route': task_route,
-            'width': params.get('width'),
-            'height': params.get('height'),
-            'duration_seconds': params.get('duration_seconds'),
-            'acceleration_mode': params.get('acceleration_mode'),
-        })
-        target, runtime_job = submit_video_runtime_job(runtime_params, runtime_uploads)
-        runtime_job_id = str(runtime_job.get('id') or '')
-        _merge_task_params(task_id, {
-            'runtime_job_id': runtime_job_id,
-            'runtime_mode': target.get('mode'),
-            'runtime_base_url': target.get('base_url'),
-            'runtime_version': target.get('version'),
-        })
-        update_task_status(task_id, 'processing', 'H3 任务已进入 GPU 队列', stage='queued', progress=5)
-
-        timeout_seconds = max(300, min(24 * 60 * 60, int(params.get('task_timeout_seconds') or H3_VIDEO_DEFAULT_TASK_TIMEOUT_SECONDS)))
-        deadline = time.monotonic() + timeout_seconds
-        last_success_at = time.monotonic()
-        last_phase = ''
-        while time.monotonic() < deadline:
-            if _is_task_canceled(task_id):
-                try:
-                    cancel_video_runtime_job(target, runtime_job_id)
-                except Exception as exc:
-                    print(f'⚠️ 取消 H3 Runtime 任务失败：{exc}')
-                _finalize_generation_task(
-                    task_id,
-                    'canceled',
-                    run_id=run_id,
-                    provider=task_provider,
-                    route=task_route,
-                    task_type=H3_VIDEO_TASK_TYPE,
-                    stage='canceled',
-                    progress_text='H3 视频任务已取消',
-                )
-                return
-            try:
-                runtime_job = get_video_runtime_job(target, runtime_job_id)
-                last_success_at = time.monotonic()
-            except Exception as exc:
-                if time.monotonic() - last_success_at > 120:
-                    raise RuntimeError(f'H3 Runtime 状态连续 120 秒不可达：{exc}') from exc
-                update_task_status(task_id, 'processing', 'H3 Runtime 暂时不可达，正在重试...', stage='runtime_reconnecting')
-                time.sleep(3)
-                continue
-
-            runtime_status = str(runtime_job.get('status') or '').strip().lower()
-            phase = str(runtime_job.get('phase') or runtime_status or 'processing').strip().lower()
-            try:
-                runtime_progress = max(0.0, min(1.0, float(runtime_job.get('progress') or 0)))
-            except Exception:
-                runtime_progress = 0.0
-            progress = min(95, max(5, round(5 + runtime_progress * 90)))
-            message = _h3_phase_label(phase, runtime_job.get('message'))
-            update_task_status(task_id, 'processing', message, stage=phase, progress=progress)
-            if phase != last_phase:
-                _record_generation_event(task_id, 'runtime_phase', message, stage=phase, payload={
-                    'runtime_job_id': runtime_job_id,
-                    'progress': runtime_progress,
-                })
-                last_phase = phase
-
-            if runtime_status == 'succeeded':
-                break
-            if runtime_status in {'cancelled', 'canceled'}:
-                _finalize_generation_task(
-                    task_id,
-                    'canceled',
-                    run_id=run_id,
-                    provider=task_provider,
-                    route=task_route,
-                    task_type=H3_VIDEO_TASK_TYPE,
-                    stage='canceled',
-                    progress_text='H3 Runtime 已取消任务',
-                )
-                return
-            if runtime_status == 'failed':
-                raise RuntimeError(str(runtime_job.get('error') or runtime_job.get('message') or 'H3 Runtime 推理失败'))
-            time.sleep(2)
-        else:
-            try:
-                cancel_video_runtime_job(target, runtime_job_id)
-            except Exception:
-                pass
-            raise TimeoutError(f'H3 视频任务超过 {timeout_seconds} 秒仍未完成')
-
-        update_task_status(task_id, 'processing', '正在下载并归档 H3 视频...', stage='saving', progress=97)
-        now = datetime.now()
-        timestamp = now.strftime('%Y%m%d_%H%M%S')
-        suffix = re.sub(r'[^A-Za-z0-9]+', '', runtime_job_id)[-8:] or f'{random.randint(1000, 9999)}'
-        filename = f'h3_{timestamp}_{suffix}.mp4'
-        output_dir = daily_output_dir(now)
-        output_dir.mkdir(parents=True, exist_ok=True)
-        output_path = output_dir / filename
-        download_meta = download_video_runtime_result(target, runtime_job_id, output_path)
-        reference_path = _archive_h3_reference_image(output_path, upload)
-        sidecars = {}
-        try:
-            sidecars = _write_h3_video_sidecars(
-                output_path,
-                prompt,
-                params,
-                runtime_job,
-                task_id=task_id,
-                reference_image_name=reference_path.name if reference_path else '',
-            )
-        except Exception as exc:
-            print(f'⚠️ H3 提示词侧车写入失败（MP4 已保留）：{exc}')
-            _record_generation_event(
-                task_id,
-                'artifact_sidecar_warning',
-                'H3 MP4 已归档，但提示词侧车写入失败',
-                stage='saving',
-                payload={'filename': filename, 'error_type': type(exc).__name__},
-            )
-        runtime_output = _public_h3_runtime_output(runtime_job)
-        result_meta = {
-            'runtime_job_id': runtime_job_id,
-            'video_filename': filename,
-            'video_url': f'/video/{urllib.parse.quote(filename)}',
-            'video_size_bytes': int(download_meta.get('bytes') or output_path.stat().st_size),
-            'width': int(runtime_output.get('width') or params.get('width') or 0),
-            'height': int(runtime_output.get('height') or params.get('height') or 0),
-            'fps': int(runtime_output.get('fps') or 24),
-            'frame_count': int(runtime_output.get('frame_count') or 0),
-            'duration_seconds': float(runtime_output.get('duration_seconds') or params.get('duration_seconds') or 0),
-            'seed': runtime_output.get('seed', (runtime_job.get('params') or {}).get('seed', params.get('seed'))),
-            'elapsed_seconds': runtime_output.get('elapsed_seconds'),
-            'acceleration': runtime_output.get('acceleration') if isinstance(runtime_output.get('acceleration'), dict) else {},
-            'archive_date': output_dir.name,
-            'sidecar_files': {
-                key: Path(value).name
-                for key, value in sidecars.items()
-                if key in {'txt', 'markdown'} and value
-            },
-        }
-        if reference_path:
-            result_meta['reference_image_filename'] = reference_path.name
-        _merge_task_params(task_id, result_meta)
-        _record_generation_event(task_id, 'artifact_saved', 'H3 MP4 已归档', stage='saving', payload={
-            'filename': filename,
-            'bytes': result_meta['video_size_bytes'],
-        })
-
-        telegram_enabled = _coerce_bool(params.get('telegram_enabled', params.get('telegramEnabled')), False)
-        telegram_success = False
-        if telegram_enabled:
-            update_task_status(task_id, 'processing', '正在发送 H3 视频到 Telegram...', stage='sending_telegram', progress=99)
-            caption = f"MiniMax H3 | {result_meta['width']}×{result_meta['height']} | {result_meta['duration_seconds']:.2f}s"
-            if prompt:
-                caption += f"\n{str(prompt)[:700]}"
-            try:
-                send_tg_document(output_path, caption=caption[:1000])
-                telegram_success = True
-            except Exception as exc:
-                print(f'❌ H3 视频 Telegram 发送失败：{exc}')
-
-        if telegram_enabled and not telegram_success:
-            final_status = 'succeeded_no_telegram'
-            progress_text = 'H3 视频生成并归档完成，但 Telegram 发送失败'
-        elif telegram_enabled:
-            final_status = 'succeeded'
-            progress_text = 'H3 视频生成、归档并发送完成'
-        else:
-            final_status = 'succeeded_no_telegram'
-            progress_text = 'H3 视频生成并归档完成'
-
-        _finalize_generation_task(
-            task_id,
-            final_status,
-            run_id=run_id,
-            provider=task_provider,
-            route=task_route,
-            task_type=H3_VIDEO_TASK_TYPE,
-            result_file=filename,
-            result_files=[filename],
-            image_count=0,
-            stage='done',
-            progress_text=progress_text,
-            extra={'runtime_job_id': runtime_job_id, **result_meta},
-        )
-        _record_generation_event(task_id, 'run_succeeded', progress_text, stage='done', payload=result_meta)
-    except Exception as exc:
-        raw_error = str(exc)
-        error_type = type(exc).__name__
-        error_info = _translate_generation_failure(
-            task_id,
-            raw_error,
-            provider=task_provider,
-            route=task_route,
-            task_type=H3_VIDEO_TASK_TYPE,
-            stage='failed',
-            exception_name=error_type,
-        )
-        # Runtime messages are generally already suitable for direct display.
-        error_info['display_error'] = raw_error[:500] or 'H3 视频生成失败'
-        _finalize_generation_task(
-            task_id,
-            'failed',
-            run_id=run_id,
-            provider=task_provider,
-            route=task_route,
-            task_type=H3_VIDEO_TASK_TYPE,
-            stage='failed',
-            progress_text=error_info['display_error'],
-            error_info=error_info,
-            error_type=error_type,
-        )
-        print(f'❌ H3 视频任务失败：{task_id} - {raw_error}')
+    return _domain_services_video_generation.process_h3_video_task(
+        task_id, prompt, upload,
+        params, H3_VIDEO_DEFAULT_TASK_TIMEOUT_SECONDS=H3_VIDEO_DEFAULT_TASK_TIMEOUT_SECONDS, H3_VIDEO_TASK_TYPE=H3_VIDEO_TASK_TYPE,
+        Path=Path, _archive_h3_reference_image=_archive_h3_reference_image, _coerce_bool=_coerce_bool,
+        _finalize_generation_task=_finalize_generation_task, _h3_phase_label=_h3_phase_label, _is_task_canceled=_is_task_canceled,
+        _merge_task_params=_merge_task_params, _public_h3_runtime_output=_public_h3_runtime_output, _record_generation_event=_record_generation_event,
+        _start_generation_audit=_start_generation_audit, _translate_generation_failure=_translate_generation_failure, _write_h3_video_sidecars=_write_h3_video_sidecars,
+        cancel_video_runtime_job=cancel_video_runtime_job, daily_output_dir=daily_output_dir, datetime=datetime,
+        download_video_runtime_result=download_video_runtime_result, get_video_runtime_job=get_video_runtime_job, random=random,
+        re=re, send_tg_document=send_tg_document, submit_video_runtime_job=submit_video_runtime_job,
+        time=time, update_task_status=update_task_status, urllib=urllib,
+    )
 
 
 _COMFY_ARCHIVE_MANIFEST_VERSION = 1
@@ -4256,377 +1726,64 @@ _COMFY_TELEGRAM_STATES = frozenset(('pending', 'sending', 'sent', 'failed'))
 
 
 def _comfy_archive_date(params):
-    manifest = params.get('comfy_archive_manifest') if isinstance(params.get('comfy_archive_manifest'), dict) else {}
-    for value in (params.get('comfy_archive_date'), manifest.get('archive_date')):
-        text = str(value or '').strip()
-        try:
-            parsed = datetime.strptime(text, '%Y-%m-%d')
-        except (TypeError, ValueError):
-            continue
-        if parsed.strftime('%Y-%m-%d') == text:
-            return text
-    return datetime.now().strftime('%Y-%m-%d')
+    return _domain_services_comfy_generation._comfy_archive_date(params, datetime=datetime)
 
 
 def _comfy_archive_source_key(task_id, item):
-    payload = [
-        str(task_id or ''),
-        str(item.get('filename') or '').strip(),
-        str(item.get('subfolder') or '').strip(),
-        str(item.get('type') or 'output').strip() or 'output',
-    ]
-    encoded = json.dumps(payload, ensure_ascii=False, separators=(',', ':')).encode('utf-8')
-    return hashlib.sha256(encoded).hexdigest()
+    return _domain_services_comfy_generation._comfy_archive_source_key(task_id, item, hashlib=hashlib, json=json)
 
 
 def _comfy_archive_filename(task_id, item, source_key):
-    filename = str(item.get('filename') or '').strip()
-    suffix = Path(filename).suffix or '.png'
-    if suffix.lower() not in ('.png', '.jpg', '.jpeg', '.webp'):
-        suffix = '.png'
-    else:
-        suffix = suffix.lower()
-    source_stem = re.sub(r'[^A-Za-z0-9_-]+', '_', Path(filename).stem).strip('_')[:48] or 'output'
-    task_key = hashlib.sha256(str(task_id or '').encode('utf-8')).hexdigest()[:16]
-    return f'comfy_{task_key}_{source_stem}_{source_key[:16]}{suffix}'
+    return _domain_services_comfy_generation._comfy_archive_filename(task_id, item, source_key, Path=Path, hashlib=hashlib, re=re)
 
 
 def _comfy_archive_file_ready(path):
-    try:
-        return path.is_file() and path.stat().st_size > 0
-    except OSError:
-        return False
+    return _domain_services_comfy_generation._comfy_archive_file_ready(path)
 
 
 def _build_comfy_archive_manifest(task_id, params, comfy_images, archive_date):
-    previous = params.get('comfy_archive_manifest') if isinstance(params.get('comfy_archive_manifest'), dict) else {}
-    previous_items = previous.get('items') if isinstance(previous.get('items'), list) else []
-    previous_by_key = {
-        str(item.get('source_key')): item
-        for item in previous_items
-        if isinstance(item, dict) and item.get('source_key')
-    }
-    legacy_all_sent = bool(params.get('comfy_telegram_sent'))
-    items = []
-    for image in comfy_images:
-        source_key = _comfy_archive_source_key(task_id, image)
-        old_item = previous_by_key.get(source_key) or {}
-        telegram_state = str(old_item.get('telegram_state') or '').strip().lower()
-        if telegram_state not in _COMFY_TELEGRAM_STATES:
-            telegram_state = 'sent' if old_item.get('telegram_sent') or legacy_all_sent else 'pending'
-        item = {
-            'source_key': source_key,
-            'filename': str(image.get('filename') or '').strip(),
-            'subfolder': str(image.get('subfolder') or '').strip(),
-            'type': str(image.get('type') or 'output').strip() or 'output',
-            'archive_file': _comfy_archive_filename(task_id, image, source_key),
-            'archived': bool(old_item.get('archived')),
-            'telegram_state': telegram_state,
-            'telegram_sent': telegram_state == 'sent',
-        }
-        for key in ('archived_at', 'telegram_attempted_at', 'telegram_sent_at'):
-            if old_item.get(key) is not None:
-                item[key] = old_item.get(key)
-        items.append(item)
-    return {
-        'version': _COMFY_ARCHIVE_MANIFEST_VERSION,
-        'archive_date': archive_date,
-        'items': items,
-    }
+    return _domain_services_comfy_generation._build_comfy_archive_manifest(
+        task_id, params, comfy_images,
+        archive_date, _COMFY_ARCHIVE_MANIFEST_VERSION=_COMFY_ARCHIVE_MANIFEST_VERSION, _COMFY_TELEGRAM_STATES=_COMFY_TELEGRAM_STATES,
+        _comfy_archive_filename=_comfy_archive_filename, _comfy_archive_source_key=_comfy_archive_source_key,
+    )
 
 
 def _atomic_write_comfy_text(path, text):
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fd, temp_name = tempfile.mkstemp(prefix=f'.{path.name}.', suffix='.tmp', dir=str(path.parent))
-    try:
-        with os.fdopen(fd, 'w', encoding='utf-8') as handle:
-            handle.write(text)
-        os.replace(temp_name, path)
-    finally:
-        try:
-            if os.path.exists(temp_name):
-                os.unlink(temp_name)
-        except Exception:
-            pass
+    return _domain_services_comfy_generation._atomic_write_comfy_text(path, text, os=os, tempfile=tempfile)
 
 
 def _send_comfy_result(task_id, prompt, workflow, ratio, comfy_image, params):
-    if _is_task_canceled(task_id):
-        return
-    params = dict(params or {})
-    width = _normalize_comfy_dimension(params.get('width'), 1024)
-    height = _normalize_comfy_dimension(params.get('height'), 1024)
-    size_label = f'{width}×{height}'
-    comfy_images = params.get('comfy_images') if isinstance(params.get('comfy_images'), list) else []
-    if not comfy_images and isinstance(comfy_image, dict):
-        comfy_images = [comfy_image]
-    try:
-        expected_count = max(1, min(8, int(params.get('comfy_expected_output_count') or len(comfy_images) or 1)))
-    except (TypeError, ValueError):
-        expected_count = 1
-    comfy_images = [
-        item for item in comfy_images
-        if isinstance(item, dict) and str(item.get('filename') or '').strip()
-    ][:expected_count]
-    if not comfy_images:
-        raise RuntimeError('ComfyUI 输出缺少图片')
-
-    archive_date = _comfy_archive_date(params)
-    output_dir = daily_output_dir(datetime.strptime(archive_date, '%Y-%m-%d'))
-    output_dir.mkdir(parents=True, exist_ok=True)
-    manifest = _build_comfy_archive_manifest(task_id, params, comfy_images, archive_date)
-    manifest_items = manifest['items']
-    params['comfy_image'] = comfy_images[0]
-    params['comfy_images'] = comfy_images
-    params['archive_enabled'] = True
-    params['archive_dir'] = str(output_dir)
-    params['comfy_archive_date'] = archive_date
-    params['comfy_archive_manifest'] = manifest
-
-    def persist_manifest():
-        archived_names = []
-        for manifest_item in manifest_items:
-            archive_path = output_dir / manifest_item['archive_file']
-            if manifest_item.get('archived') and _comfy_archive_file_ready(archive_path):
-                archived_names.append(manifest_item['archive_file'])
-        params['archive_files'] = archived_names
-        if archived_names:
-            params['archive_file'] = archived_names[0]
-        else:
-            params.pop('archive_file', None)
-        params['comfy_archive_manifest'] = manifest
-        _save_task_params(task_id, params)
-
-    # Fix the archive date and deterministic names before touching final storage.
-    persist_manifest()
-
-    staged_files = {}
-    with tempfile.TemporaryDirectory(prefix='.comfy-stage-', dir=str(output_dir)) as stage_dir_name:
-        stage_dir = Path(stage_dir_name)
-        for item in manifest_items:
-            if _is_task_canceled(task_id):
-                return
-            archive_path = output_dir / item['archive_file']
-            if _comfy_archive_file_ready(archive_path):
-                continue
-            image_bytes, _ = _fetch_comfy_binary(item['filename'], item['subfolder'], item['type'])
-            if not isinstance(image_bytes, (bytes, bytearray)) or not image_bytes:
-                raise RuntimeError(f"ComfyUI 输出图片为空：{item['filename']}")
-            stage_path = stage_dir / f"{item['archive_file']}.tmp"
-            stage_path.write_bytes(image_bytes)
-            staged_files[item['source_key']] = stage_path
-
-        # All remote downloads succeeded. Only now expose files in the archive.
-        if _is_task_canceled(task_id):
-            return
-        for item in manifest_items:
-            stage_path = staged_files.get(item['source_key'])
-            if stage_path is not None:
-                os.replace(stage_path, output_dir / item['archive_file'])
-
-    archive_paths = []
-    archive_names = []
-    total = len(comfy_images)
-    workflow_parameters = params.get('workflow_parameters') if isinstance(params.get('workflow_parameters'), dict) else {}
-    for index, item in enumerate(manifest_items, start=1):
-        if _is_task_canceled(task_id):
-            return
-        archive_name = item['archive_file']
-        archive_path = output_dir / archive_name
-        if not _comfy_archive_file_ready(archive_path):
-            raise RuntimeError(f"ComfyUI 归档文件写入失败：{archive_name}")
-        archive_paths.append(archive_path)
-        archive_names.append(archive_name)
-
-        sidecar = archive_path.with_suffix('.txt')
-        sidecar_lines = [
-            str(prompt or '').strip(),
-            '',
-            f'workflow: {workflow}',
-            f'ratio: {ratio}',
-            f'size: {width}x{height}',
-            'provider: comfy',
-            f'candidate: {index}/{total}',
-        ]
-        if workflow_parameters:
-            sidecar_lines.append('parameters:')
-            sidecar_lines.extend(f'- {key}: {value}' for key, value in workflow_parameters.items())
-        sidecar_text = '\n'.join(sidecar_lines).strip()
-        _atomic_write_comfy_text(sidecar, sidecar_text + '\n')
-        try:
-            write_obsidian_prompt_sidecar(archive_path, sidecar_text, txt_path=sidecar)
-        except Exception as exc:
-            print(f"⚠️ 写入 ComfyUI sidecar 失败: {exc}")
-        try:
-            save_thumbnail(str(archive_path), archive_name)
-        except Exception as exc:
-            print(f"⚠️ 保存 ComfyUI 缩略图失败: {exc}")
-        item['archived'] = True
-        item.setdefault('archived_at', int(time.time()))
-        persist_manifest()
-
-    if not archive_paths:
-        raise RuntimeError('ComfyUI 输出没有可归档的图片')
-
-    telegram_enabled = _coerce_bool(params.get('telegram_enabled', params.get('telegramEnabled')), True)
-    has_pending_telegram = telegram_enabled and any(
-        item.get('telegram_state') == 'pending'
-        for item in manifest_items
+    return _domain_services_comfy_generation._send_comfy_result(
+        task_id, prompt, workflow,
+        ratio, comfy_image, params,
+        Path=Path, _atomic_write_comfy_text=_atomic_write_comfy_text, _build_comfy_archive_manifest=_build_comfy_archive_manifest,
+        _coerce_bool=_coerce_bool, _comfy_archive_date=_comfy_archive_date, _comfy_archive_file_ready=_comfy_archive_file_ready,
+        _fetch_comfy_binary=_fetch_comfy_binary, _is_task_canceled=_is_task_canceled, _normalize_comfy_dimension=_normalize_comfy_dimension,
+        _save_task_params=_save_task_params, daily_output_dir=daily_output_dir, datetime=datetime,
+        json=json, os=os, save_thumbnail=save_thumbnail,
+        send_status_notification=send_status_notification, send_telegram=send_telegram, tempfile=tempfile,
+        time=time, update_task=update_task, update_task_status=update_task_status,
+        write_obsidian_prompt_sidecar=write_obsidian_prompt_sidecar,
     )
-    if _is_task_canceled(task_id):
-        return
-    if has_pending_telegram:
-        update_task_status(task_id, 'processing', 'ComfyUI 已归档，正在发送到 Telegram...', stage='sending_telegram')
-        send_status_notification(task_id, 'ComfyUI 已完成，正在发送图片...', '📤')
-    for index, (item, archive_path) in enumerate(zip(manifest_items, archive_paths), start=1):
-        caption_parts = [part for part in (f'ComfyUI {workflow}'.strip(), size_label, f'{index}/{len(archive_paths)}' if len(archive_paths) > 1 else '') if part]
-        caption = ' | '.join(caption_parts)
-        if prompt:
-            caption = f"{caption}\n{prompt}" if caption else prompt
-        caption = caption[:500] + '...' if len(caption) > 500 else caption
-        if not telegram_enabled or item.get('telegram_state') != 'pending':
-            continue
-        if _is_task_canceled(task_id):
-            return
-        item['telegram_state'] = 'sending'
-        item['telegram_sent'] = False
-        item['telegram_attempted_at'] = int(time.time())
-        persist_manifest()
-        sent = bool(send_telegram(None, str(archive_path), caption))
-        item['telegram_state'] = 'sent' if sent else 'failed'
-        item['telegram_sent'] = sent
-        if sent:
-            item['telegram_sent_at'] = int(time.time())
-        persist_manifest()
 
-    if _is_task_canceled(task_id):
-        return
-    telegram_success = telegram_enabled and all(
-        item.get('telegram_state') == 'sent'
-        for item in manifest_items
+
+def process_comfy_task(task_id, prompt, workflow, ratio, client_id=None):
+    return _domain_services_comfy_generation.process_comfy_task(
+        task_id, prompt, workflow,
+        ratio, client_id, _fetch_comfy_history_entry=_fetch_comfy_history_entry, _is_task_canceled=_is_task_canceled,
+        _send_comfy_result=_send_comfy_result, _sync_comfy_task=_sync_comfy_task, get_comfy_config=get_comfy_config,
+        _wait_for_comfy_websocket=_wait_for_comfy_websocket,
+        send_status_notification=send_status_notification, time=time, update_task=update_task,
+        update_task_status=update_task_status,
     )
-    params['archive_file'] = archive_names[0]
-    params['archive_files'] = archive_names
-    params['telegram_enabled'] = telegram_enabled
-    params['comfy_telegram_sent'] = telegram_success
-    params['comfy_telegram_sent_at'] = int(time.time()) if telegram_success else None
-
-    if telegram_enabled and telegram_success:
-        final_status = 'succeeded'
-        progress_text = 'ComfyUI 生成成功'
-    elif telegram_enabled:
-        final_status = 'succeeded_no_telegram'
-        progress_text = 'ComfyUI 已生成，但 Telegram 发送未全部成功'
-    else:
-        final_status = 'succeeded_no_telegram'
-        progress_text = 'ComfyUI 已生成并归档，已按节点开关跳过 Telegram'
-    update_task(
-        task_id,
-        final_status,
-        result_file=archive_names[0],
-        result_files=json.dumps(archive_names, ensure_ascii=False),
-        stage='done',
-        progress_text=progress_text,
-        params=json.dumps(params, ensure_ascii=False),
-    )
-    if telegram_enabled and telegram_success:
-        send_status_notification(task_id, '✅ ComfyUI 图片生成成功！', '🎉')
-    elif telegram_enabled:
-        send_status_notification(task_id, '❌ ComfyUI 已生成，但 Telegram 发送未全部成功', '⚠️')
-
-
-def process_comfy_task(task_id, prompt, workflow, ratio):
-    config = get_comfy_config()
-    if _is_task_canceled(task_id):
-        return
-    deadline = time.time() + config['task_timeout_seconds']
-    update_task_status(task_id, 'processing', 'ComfyUI 任务已提交，等待执行...', stage='queued')
-    send_status_notification(task_id, f'已提交 ComfyUI 任务：{workflow}', '✅')
-    last_notified_text = None
-
-    while time.time() < deadline:
-        if _is_task_canceled(task_id):
-            return
-        try:
-            _, entry = _fetch_comfy_history_entry(task_id)
-            if isinstance(entry, dict):
-                sync_state = _sync_comfy_task(task_id, entry)
-                progress_text = sync_state.get('progress_text')
-                if progress_text and progress_text != last_notified_text:
-                    status_text = str(entry.get('status', {}).get('status_str', '')).lower()
-                    icon = '⏳'
-                    if status_text and status_text not in ('success', 'succeeded'):
-                        icon = '🤖'
-                    send_status_notification(task_id, progress_text, icon)
-                    last_notified_text = progress_text
-                if sync_state.get('completed'):
-                    comfy_image = sync_state.get('image')
-                    if comfy_image:
-                        if _is_task_canceled(task_id):
-                            return
-                        params = sync_state.get('params') or {}
-                        if not params.get('comfy_telegram_sent'):
-                            _send_comfy_result(task_id, prompt, workflow, ratio, comfy_image, params)
-                        return
-                    return
-            else:
-                progress_text = 'ComfyUI 排队中...'
-                update_task_status(task_id, 'processing', progress_text, stage='queued')
-                if progress_text != last_notified_text:
-                    send_status_notification(task_id, progress_text, '⏳')
-                    last_notified_text = progress_text
-        except Exception as e:
-            msg = f'等待 ComfyUI 状态失败：{str(e)[:120]}'
-            update_task_status(task_id, 'processing', msg, stage='waiting_history')
-            if msg != last_notified_text:
-                send_status_notification(task_id, msg, '⚠️')
-                last_notified_text = msg
-
-        time.sleep(config['poll_interval_seconds'])
-
-    if _is_task_canceled(task_id):
-        return
-    update_task(
-        task_id,
-        'failed',
-        error='ComfyUI 任务超时',
-        stage='failed',
-        progress_text='ComfyUI 任务超时',
-    )
-    send_status_notification(task_id, '❌ ComfyUI 任务超时', '⚠️')
 
 
 def _resolve_download_file(filename):
-    if not filename:
-        return None
-
-    for downloads_root in image_lookup_roots():
-        direct_path = downloads_root / filename
-        if direct_path.exists():
-            return direct_path
-
-        today_path = downloads_root / time.strftime('%Y-%m-%d') / filename
-        if today_path.exists():
-            return today_path
-
-        try:
-            subdirs = sorted(
-                (p for p in downloads_root.iterdir() if p.is_dir()),
-                key=lambda p: p.name,
-                reverse=True,
-            )
-        except FileNotFoundError:
-            continue
-
-        for subdir in subdirs:
-            candidate = subdir / filename
-            if candidate.exists():
-                return candidate
-
-    return None
+    return _domain_services_media_lookup._resolve_download_file(filename, image_lookup_roots=image_lookup_roots, time=time)
 
 
-_ARCHIVE_IMAGE_EXTENSIONS = frozenset({'.png', '.jpg', '.jpeg', '.webp'})
+_ARCHIVE_IMAGE_EXTENSIONS = frozenset({'.png', '.jpg', '.jpeg', '.webp', '.tif', '.tiff'})
 _ARCHIVE_VIDEO_EXTENSIONS = frozenset({'.mp4', '.webm', '.mov', '.m4v'})
 _ARCHIVE_VIDEO_TEXT_EXTENSIONS = frozenset({'.txt', '.md'})
 _ARCHIVE_VIDEO_SOURCE_TYPES = frozenset({'generated', 'imported', 'all'})
@@ -4642,244 +1799,79 @@ _ARCHIVE_VIDEO_METADATA_CACHE_LIMIT = 512
 
 def _resolve_archive_resource_file(rel_path, extensions):
     """Resolve a regular archive file while rejecting traversal and symlink hops."""
-    raw = urllib.parse.unquote(str(rel_path or '').strip()).replace('\\', '/')
-    if not raw or raw.startswith('/') or '\x00' in raw:
-        return None
-    path_parts = raw.split('/')
-    if any(not part or part in {'.', '..'} for part in path_parts):
-        return None
-
-    roots = archive_scan_roots()
-    root_map = {key: path for key, path in roots}
-    if path_parts[0] in root_map:
-        if len(path_parts) < 2:
-            return None
-        candidates = [(root_map[path_parts[0]], path_parts[1:])]
-    else:
-        candidates = [(root_path, path_parts) for _, root_path in roots]
-
-    allowed_extensions = {str(extension or '').lower() for extension in (extensions or ())}
-    for root_path, relative_parts in candidates:
-        try:
-            root = root_path.expanduser().resolve()
-            candidate = root.joinpath(*relative_parts)
-        except Exception:
-            continue
-        cursor = root
-        unsafe = False
-        for part in relative_parts:
-            cursor = cursor / part
-            try:
-                if cursor.is_symlink():
-                    unsafe = True
-                    break
-            except OSError:
-                unsafe = True
-                break
-        if unsafe:
-            continue
-        try:
-            resolved = candidate.resolve()
-        except Exception:
-            continue
-        if resolved != root and root not in resolved.parents:
-            continue
-        if not resolved.is_file() or resolved.is_symlink():
-            continue
-        if allowed_extensions and resolved.suffix.lower() not in allowed_extensions:
-            continue
-        return resolved
-    return None
+    return _domain_services_media_lookup._resolve_archive_resource_file(rel_path, extensions, archive_scan_roots=archive_scan_roots, urllib=urllib)
 
 
 def _resolve_archive_image_file(rel_path):
-    return _resolve_archive_resource_file(rel_path, _ARCHIVE_IMAGE_EXTENSIONS)
+    return _domain_services_media_lookup._resolve_archive_image_file(
+        rel_path, _ARCHIVE_IMAGE_EXTENSIONS=_ARCHIVE_IMAGE_EXTENSIONS, _resolve_archive_resource_file=_resolve_archive_resource_file,
+    )
 
 
 def _coerce_archive_video_source(value, default='generated'):
-    source = str(value or default).strip().lower()
-    return source if source in _ARCHIVE_VIDEO_SOURCE_TYPES else default
+    return _domain_services_archive_sidecars._coerce_archive_video_source(value, default, _ARCHIVE_VIDEO_SOURCE_TYPES=_ARCHIVE_VIDEO_SOURCE_TYPES)
 
 
 def _read_archive_video_sidecar(path):
     """Read a bounded, regular sibling sidecar without following symlinks."""
-    sidecar = Path(path)
-    try:
-        if sidecar.is_symlink() or not sidecar.is_file():
-            return ''
-        with sidecar.open('rb') as stream:
-            payload = stream.read(_ARCHIVE_VIDEO_SIDECAR_MAX_BYTES + 1)
-    except OSError:
-        return ''
-    if len(payload) > _ARCHIVE_VIDEO_SIDECAR_MAX_BYTES:
-        return ''
-    return payload.decode('utf-8', errors='replace')
+    return _domain_services_archive_sidecars._read_archive_video_sidecar(path, Path=Path, _ARCHIVE_VIDEO_SIDECAR_MAX_BYTES=_ARCHIVE_VIDEO_SIDECAR_MAX_BYTES)
 
 
 def _decode_archive_sidecar_value(value):
-    raw = str(value or '').strip()
-    try:
-        return json.loads(raw)
-    except (TypeError, ValueError, json.JSONDecodeError):
-        return raw.split(' #', 1)[0].strip().strip("'\"")
+    return _domain_services_archive_sidecars._decode_archive_sidecar_value(value, json=json)
 
 
 def _parse_archive_markdown_frontmatter(content):
-    text = str(content or '').lstrip('\ufeff')
-    lines = text.splitlines()
-    if not lines or lines[0].strip() != '---':
-        return {}, text
-    closing_index = next(
-        (index for index, line in enumerate(lines[1:], start=1) if line.strip() in {'---', '...'}),
-        None,
-    )
-    if closing_index is None:
-        return {}, text
-    metadata = {}
-    for line in lines[1:closing_index]:
-        key, separator, value = line.partition(':')
-        key = key.strip()
-        if separator and key:
-            metadata[key] = _decode_archive_sidecar_value(value)
-    return metadata, '\n'.join(lines[closing_index + 1:])
+    return _domain_services_archive_sidecars._parse_archive_markdown_frontmatter(content, _decode_archive_sidecar_value=_decode_archive_sidecar_value)
 
 
 def _archive_markdown_section(content, title):
-    heading = re.search(
-        rf'(?im)^#{{1,6}}[ \t]+{re.escape(str(title or "").strip())}[ \t]*$',
-        str(content or ''),
-    )
-    if not heading:
-        return ''
-    tail = str(content or '')[heading.end():]
-    next_heading = re.search(r'(?m)^#{1,6}[ \t]+\S.*$', tail)
-    section = tail[:next_heading.start()] if next_heading else tail
-    return section.strip()
+    return _domain_services_archive_sidecars._archive_markdown_section(content, title, re=re)
 
 
 def _strip_archive_markdown_fence(content):
-    lines = str(content or '').strip().splitlines()
-    if len(lines) < 2:
-        return '\n'.join(lines).strip()
-    opening = re.fullmatch(r'[ \t]*(`{3,}|~{3,})[^`~]*[ \t]*', lines[0])
-    if not opening:
-        return '\n'.join(lines).strip()
-    fence = opening.group(1)
-    closing_index = next(
-        (
-            index
-            for index in range(len(lines) - 1, 0, -1)
-            if re.fullmatch(rf'[ \t]*{re.escape(fence[0])}{{{len(fence)},}}[ \t]*', lines[index])
-        ),
-        None,
-    )
-    if closing_index is None:
-        return '\n'.join(lines).strip()
-    return '\n'.join(lines[1:closing_index]).strip()
+    return _domain_services_archive_sidecars._strip_archive_markdown_fence(content, re=re)
 
 
 def _extract_archive_json_object(content, preferred_task_type=''):
-    text = str(content or '')
-    decoder = json.JSONDecoder()
-    best = None
-    for match in re.finditer(r'\{', text):
-        start = match.start()
-        try:
-            payload, end = decoder.raw_decode(text, start)
-        except (TypeError, ValueError, json.JSONDecodeError):
-            continue
-        if not isinstance(payload, dict):
-            continue
-        task_type = str(payload.get('task_type') or '').strip()
-        score = (
-            int(bool(preferred_task_type and task_type == preferred_task_type)),
-            int(bool(task_type)),
-            end - start,
-            start,
-        )
-        if best is None or score > best[0]:
-            best = (score, payload, start, end)
-    if best is None:
-        return {}, None, None
-    return dict(best[1]), best[2], best[3]
+    return _domain_services_archive_sidecars._extract_archive_json_object(content, preferred_task_type, json=json, re=re)
 
 
 def _parse_archive_video_text_sidecar(video_path):
-    content = _read_archive_video_sidecar(Path(video_path).with_suffix('.txt'))
-    if not content:
-        return {'prompt': '', 'parameters': {}}
-    parameters, json_start, json_end = _extract_archive_json_object(
-        content,
-        preferred_task_type=H3_VIDEO_TASK_TYPE,
+    return _domain_services_archive_sidecars._parse_archive_video_text_sidecar(
+        video_path, H3_VIDEO_TASK_TYPE=H3_VIDEO_TASK_TYPE, Path=Path,
+        _extract_archive_json_object=_extract_archive_json_object, _read_archive_video_sidecar=_read_archive_video_sidecar, _strip_archive_markdown_fence=_strip_archive_markdown_fence,
     )
-    if json_start is None:
-        prompt = content.strip()
-    else:
-        prompt_parts = [content[:json_start].strip(), content[json_end:].strip()]
-        prompt = '\n\n'.join(part for part in prompt_parts if part)
-    return {
-        'prompt': _strip_archive_markdown_fence(prompt)[:20_000],
-        'parameters': parameters,
-    }
 
 
 def _parse_archive_video_markdown_sidecar(video_path):
-    content = _read_archive_video_sidecar(Path(video_path).with_suffix('.md'))
-    if not content:
-        return {'frontmatter': {}, 'prompt': '', 'parameters': {}, 'links': []}
-    frontmatter, body = _parse_archive_markdown_frontmatter(content)
-    prompt = _strip_archive_markdown_fence(_archive_markdown_section(body, 'Prompt'))[:20_000]
-    parameters_section = _archive_markdown_section(body, 'Parameters')
-    parameters, _, _ = _extract_archive_json_object(
-        parameters_section,
-        preferred_task_type=H3_VIDEO_TASK_TYPE,
+    return _domain_services_archive_sidecars._parse_archive_video_markdown_sidecar(
+        video_path, H3_VIDEO_TASK_TYPE=H3_VIDEO_TASK_TYPE, Path=Path,
+        _archive_markdown_section=_archive_markdown_section, _extract_archive_json_object=_extract_archive_json_object, _parse_archive_markdown_frontmatter=_parse_archive_markdown_frontmatter,
+        _read_archive_video_sidecar=_read_archive_video_sidecar, _strip_archive_markdown_fence=_strip_archive_markdown_fence, re=re,
     )
-    links = []
-    links.extend(match.group(1).strip() for match in re.finditer(r'!\[\[([^\]|#]+)', body))
-    for match in re.finditer(r'!\[[^\]]*\]\((?:<([^>]+)>|([^\)]+))\)', body):
-        links.append(str(match.group(1) or match.group(2) or '').strip())
-    return {
-        'frontmatter': frontmatter,
-        'prompt': prompt,
-        'parameters': parameters,
-        'links': links,
-    }
 
 
 def _parse_archive_video_sidecars(video_path):
-    text_data = _parse_archive_video_text_sidecar(video_path)
-    markdown_data = _parse_archive_video_markdown_sidecar(video_path)
-    parameters = dict(markdown_data.get('parameters') or {})
-    parameters.update(text_data.get('parameters') or {})
-    markdown_generated = str((markdown_data.get('frontmatter') or {}).get('type') or '').strip().casefold() == 'video_prompt'
-    text_generated = str(parameters.get('task_type') or '').strip() == H3_VIDEO_TASK_TYPE
-    if text_generated and text_data.get('prompt'):
-        prompt = text_data.get('prompt')
-    else:
-        prompt = markdown_data.get('prompt') or text_data.get('prompt') or ''
-    return {
-        'prompt': str(prompt or '')[:20_000],
-        'parameters': parameters,
-        'frontmatter': dict(markdown_data.get('frontmatter') or {}),
-        'links': list(markdown_data.get('links') or []),
-        'markdown_generated': markdown_generated,
-        'text_generated': text_generated,
-    }
+    return _domain_services_archive_sidecars._parse_archive_video_sidecars(
+        video_path, H3_VIDEO_TASK_TYPE=H3_VIDEO_TASK_TYPE, _parse_archive_video_markdown_sidecar=_parse_archive_video_markdown_sidecar,
+        _parse_archive_video_text_sidecar=_parse_archive_video_text_sidecar,
+    )
 
 
 def _archive_video_markdown_is_generated(video_path):
-    return bool(_parse_archive_video_sidecars(video_path).get('markdown_generated'))
+    return _domain_services_archive_sidecars._archive_video_markdown_is_generated(video_path, _parse_archive_video_sidecars=_parse_archive_video_sidecars)
 
 
 def _archive_video_text_is_generated(video_path):
-    return bool(_parse_archive_video_sidecars(video_path).get('text_generated'))
+    return _domain_services_archive_sidecars._archive_video_text_is_generated(video_path, _parse_archive_video_sidecars=_parse_archive_video_sidecars)
 
 
 def _classify_archive_video_source(video_path, sidecar_data=None):
-    sidecar_data = sidecar_data or _parse_archive_video_sidecars(video_path)
-    is_generated = bool(sidecar_data.get('markdown_generated') or sidecar_data.get('text_generated'))
-    source_type = 'generated' if is_generated else 'imported'
-    return source_type, _ARCHIVE_VIDEO_SOURCE_LABELS[source_type], is_generated
+    return _domain_services_archive_sidecars._classify_archive_video_source(
+        video_path, sidecar_data, _ARCHIVE_VIDEO_SOURCE_LABELS=_ARCHIVE_VIDEO_SOURCE_LABELS,
+        _parse_archive_video_sidecars=_parse_archive_video_sidecars,
+    )
 
 
 _ARCHIVE_REFERENCE_PARAM_KEYS = frozenset({
@@ -4906,345 +1898,85 @@ _ARCHIVE_ASSOCIATED_IMAGE_TOKENS = frozenset({
 
 
 def _archive_resource_url(resource_type, public_path):
-    encoded = urllib.parse.quote(public_path, safe='/')
-    if resource_type == 'video':
-        return f'/video/{encoded}'
-    if resource_type == 'image':
-        return f'/archive_image/{encoded}'
-    return f'/archive_resource/{encoded}'
+    return _domain_services_archive_sidecars._archive_resource_url(resource_type, public_path, urllib=urllib)
 
 
 def _archive_resource_entry(filepath, root_key, root, resource_type, role, label):
-    filepath = Path(filepath)
-    try:
-        if filepath.is_symlink() or not filepath.is_file():
-            return None
-        resolved = filepath.resolve()
-        if resolved != root and root not in resolved.parents:
-            return None
-        stat_result = resolved.stat()
-        relative_path = resolved.relative_to(root).as_posix()
-    except (OSError, ValueError):
-        return None
-    public_path = f'{root_key}/{relative_path}'
-    mime_type = mimetypes.guess_type(resolved.name)[0] or 'application/octet-stream'
-    modified_at = datetime.fromtimestamp(stat_result.st_mtime).astimezone().isoformat(timespec='seconds')
-    resource_id = hashlib.sha256(f'{role}:{public_path}'.encode('utf-8')).hexdigest()[:24]
-    return {
-        'id': resource_id,
-        'type': resource_type,
-        'kind': resource_type,
-        'role': role,
-        'label': label,
-        'name': resolved.name,
-        'file_name': resolved.name,
-        'path': public_path,
-        'relative_path': relative_path,
-        'root_key': root_key,
-        'url': _archive_resource_url(resource_type, public_path),
-        'resource_url': _archive_resource_url(resource_type, public_path),
-        'mime_type': mime_type,
-        'file_size_bytes': stat_result.st_size,
-        'modified_at': modified_at,
-    }
+    return _domain_services_archive_sidecars._archive_resource_entry(
+        filepath, root_key, root,
+        resource_type, role, label,
+        Path=Path, _archive_resource_url=_archive_resource_url, datetime=datetime,
+        hashlib=hashlib, mimetypes=mimetypes,
+    )
 
 
 def _iter_archive_reference_values(value, key=''):
-    key_name = re.sub(r'[^a-z0-9_]+', '_', str(key or '').strip().casefold()).strip('_')
-    if isinstance(value, dict):
-        for child_key, child_value in value.items():
-            yield from _iter_archive_reference_values(child_value, child_key)
-        return
-    if isinstance(value, (list, tuple)):
-        for child_value in value:
-            yield from _iter_archive_reference_values(child_value, key)
-        return
-    if key_name in _ARCHIVE_REFERENCE_PARAM_KEYS and isinstance(value, str):
-        text = value.strip()
-        if text:
-            yield text
+    yield from _domain_services_archive_sidecars._iter_archive_reference_values(
+        value, key, _ARCHIVE_REFERENCE_PARAM_KEYS=_ARCHIVE_REFERENCE_PARAM_KEYS,
+        _iter_archive_reference_values=_iter_archive_reference_values, re=re,
+    )
 
 
 def _resolve_same_directory_archive_image(reference, video_path):
     """Resolve an explicitly referenced image and require the video's directory."""
-    raw = str(reference or '').strip().strip('<>')
-    if not raw or raw.startswith(('data:', 'http://', 'https://')):
-        return None
-    raw = raw.split('|', 1)[0].split('#', 1)[0].strip()
-    if not raw or raw.startswith(('/', '\\')) or '\x00' in raw:
-        return None
-    raw = urllib.parse.unquote(raw).replace('\\', '/')
-    basename = raw.rsplit('/', 1)[-1]
-    if not basename or basename in {'.', '..'}:
-        return None
-    if '/' not in raw or raw.startswith('./'):
-        candidate = Path(video_path).parent / basename
-        try:
-            if candidate.is_symlink() or not candidate.is_file():
-                return None
-            resolved = candidate.resolve()
-        except OSError:
-            return None
-    else:
-        resolved = _resolve_archive_resource_file(raw, _ARCHIVE_IMAGE_EXTENSIONS)
-        if not resolved:
-            return None
-    if resolved.suffix.lower() not in _ARCHIVE_IMAGE_EXTENSIONS:
-        return None
-    try:
-        if resolved.parent != Path(video_path).parent.resolve() or resolved.is_symlink():
-            return None
-    except OSError:
-        return None
-    return resolved
+    return _domain_services_archive_sidecars._resolve_same_directory_archive_image(
+        reference, video_path, Path=Path,
+        _ARCHIVE_IMAGE_EXTENSIONS=_ARCHIVE_IMAGE_EXTENSIONS, _resolve_archive_resource_file=_resolve_archive_resource_file, urllib=urllib,
+    )
 
 
 def _archive_image_name_looks_associated(video_stem, image_name):
-    stem = str(video_stem or '').casefold()
-    image_stem = Path(image_name).stem.casefold()
-    if not stem or image_stem == stem:
-        return bool(stem and image_stem == stem)
-    if not image_stem.startswith(stem):
-        return False
-    suffix = image_stem[len(stem):].lstrip('_-. ')
-    return any(token in suffix for token in _ARCHIVE_ASSOCIATED_IMAGE_TOKENS)
+    return _domain_services_archive_sidecars._archive_image_name_looks_associated(
+        video_stem, image_name, Path=Path,
+        _ARCHIVE_ASSOCIATED_IMAGE_TOKENS=_ARCHIVE_ASSOCIATED_IMAGE_TOKENS,
+    )
 
 
 def _archive_video_folder_info(root_key, relative_path):
-    relative = Path(relative_path)
-    directory = relative.parent.as_posix()
-    if directory == '.':
-        directory = ''
-    public_path = f'{root_key}/{relative.as_posix()}'
-    return {
-        'id': hashlib.sha256(public_path.encode('utf-8')).hexdigest()[:24],
-        'name': relative.stem,
-        'path': public_path,
-        'relative_path': relative.as_posix(),
-        'directory': directory,
-        'root_key': root_key,
-    }
+    return _domain_services_archive_sidecars._archive_video_folder_info(root_key, relative_path, Path=Path, hashlib=hashlib)
 
 
 def _collect_archive_video_resources(filepath, root_key, relative_path, sidecar_data):
-    filepath = Path(filepath)
-    try:
-        root = next(
-            root_path.expanduser().resolve()
-            for key, root_path in archive_scan_roots()
-            if key == root_key
-        )
-    except (StopIteration, OSError):
-        return []
-
-    resources = []
-    seen_paths = set()
-
-    def add(path, resource_type, role, label):
-        try:
-            key = str(Path(path).resolve())
-        except OSError:
-            return
-        if key in seen_paths:
-            return
-        resource = _archive_resource_entry(path, root_key, root, resource_type, role, label)
-        if not resource:
-            return
-        seen_paths.add(key)
-        resources.append(resource)
-
-    add(filepath, 'video', 'output_video', '视频')
-    txt_path = filepath.with_suffix('.txt')
-    md_path = filepath.with_suffix('.md')
-    add(txt_path, 'text', 'prompt_text', '提示词 TXT')
-    add(md_path, 'markdown', 'prompt_markdown', '提示词 Markdown')
-
-    references = []
-    parameters = sidecar_data.get('parameters') if isinstance(sidecar_data, dict) else {}
-    references.extend(_iter_archive_reference_values(parameters))
-    frontmatter = sidecar_data.get('frontmatter') if isinstance(sidecar_data, dict) else {}
-    references.extend(_iter_archive_reference_values(frontmatter))
-    references.extend(sidecar_data.get('links') or [] if isinstance(sidecar_data, dict) else [])
-    for reference in references:
-        resolved = _resolve_same_directory_archive_image(reference, filepath)
-        if resolved:
-            add(resolved, 'image', 'reference_image', '参考图片')
-
-    try:
-        directory_entries = list(filepath.parent.iterdir())
-    except OSError:
-        directory_entries = []
-    for entry in directory_entries:
-        try:
-            if entry.is_symlink() or not entry.is_file() or entry.suffix.lower() not in _ARCHIVE_IMAGE_EXTENSIONS:
-                continue
-        except OSError:
-            continue
-        if not _archive_image_name_looks_associated(filepath.stem, entry.name):
-            continue
-        role = 'reference_image' if any(
-            token in entry.stem.casefold() for token in ('reference', 'first_frame', 'source', 'input')
-        ) else 'associated_image'
-        label = '参考图片' if role == 'reference_image' else '关联图片'
-        add(entry, 'image', role, label)
-    return resources
+    return _domain_services_archive_sidecars._collect_archive_video_resources(
+        filepath, root_key, relative_path,
+        sidecar_data, Path=Path, _ARCHIVE_IMAGE_EXTENSIONS=_ARCHIVE_IMAGE_EXTENSIONS,
+        _archive_image_name_looks_associated=_archive_image_name_looks_associated, _archive_resource_entry=_archive_resource_entry, _iter_archive_reference_values=_iter_archive_reference_values,
+        _resolve_same_directory_archive_image=_resolve_same_directory_archive_image, archive_scan_roots=archive_scan_roots,
+    )
 
 
 def _resolve_ffprobe_executable():
-    executable_name = 'ffprobe.exe' if os.name == 'nt' else 'ffprobe'
-    candidates = [
-        os.environ.get('FFPROBE_PATH'),
-        os.environ.get('FFPROBE_BINARY'),
-        shutil.which(executable_name),
-        Path(sys.executable).resolve().parent / executable_name,
-        Path(BASE_DIR) / executable_name,
-    ]
-    if os.name != 'nt':
-        candidates.extend((
-            '/opt/homebrew/bin/ffprobe',
-            '/usr/local/bin/ffprobe',
-            '/usr/bin/ffprobe',
-        ))
-    for candidate in candidates:
-        if not candidate:
-            continue
-        try:
-            path = Path(candidate).expanduser().resolve()
-        except (OSError, RuntimeError):
-            continue
-        if path.is_file() and os.access(path, os.X_OK):
-            return str(path)
-    return ''
+    return _domain_services_archive_video._resolve_ffprobe_executable(BASE_DIR=BASE_DIR, Path=Path, os=os, shutil=shutil, sys=sys)
 
 
 def _resolve_archive_video_file(rel_path):
     """Resolve a public archive-relative video path without escaping its root."""
-    return _resolve_archive_resource_file(rel_path, _ARCHIVE_VIDEO_EXTENSIONS)
+    return _domain_services_archive_video._resolve_archive_video_file(
+        rel_path, _ARCHIVE_VIDEO_EXTENSIONS=_ARCHIVE_VIDEO_EXTENSIONS, _resolve_archive_resource_file=_resolve_archive_resource_file,
+    )
 
 
 def _parse_video_frame_rate(value):
-    raw = str(value or '').strip()
-    if not raw or raw in {'0/0', 'N/A'}:
-        return None
-    try:
-        if '/' in raw:
-            numerator, denominator = raw.split('/', 1)
-            rate = float(numerator) / float(denominator)
-        else:
-            rate = float(raw)
-    except (TypeError, ValueError, ZeroDivisionError):
-        return None
-    if not math.isfinite(rate) or rate <= 0:
-        return None
-    return round(rate, 3)
+    return _domain_services_archive_video._parse_video_frame_rate(value, math=math)
 
 
 def _positive_archive_media_number(value, integer=False):
-    try:
-        number = float(value)
-    except (TypeError, ValueError):
-        return None
-    if not math.isfinite(number) or number <= 0:
-        return None
-    return int(number) if integer else number
+    return _domain_services_archive_video._positive_archive_media_number(value, integer, math=math)
 
 
 def _probe_archive_video_metadata(filepath, stat_result=None):
     """Read video metadata when ffprobe is available; failures are non-fatal."""
-    filepath = Path(filepath)
-    try:
-        stat_result = stat_result or filepath.stat()
-        cache_key = (str(filepath.resolve()), stat_result.st_mtime_ns, stat_result.st_size)
-    except OSError:
-        return {}
-
-    with _ARCHIVE_VIDEO_METADATA_CACHE_LOCK:
-        cached = _ARCHIVE_VIDEO_METADATA_CACHE.get(cache_key)
-        if cached is not None:
-            return dict(cached)
-
-    metadata = {}
-    ffprobe = _resolve_ffprobe_executable()
-    if ffprobe:
-        try:
-            result = subprocess.run(
-                [
-                    ffprobe,
-                    '-v', 'error',
-                    '-select_streams', 'v:0',
-                    '-show_entries',
-                    'stream=width,height,avg_frame_rate,r_frame_rate,duration:format=duration',
-                    '-of', 'json',
-                    str(filepath),
-                ],
-                capture_output=True,
-                text=True,
-                timeout=8,
-                check=False,
-            )
-            if result.returncode == 0:
-                payload = json.loads(result.stdout or '{}')
-                streams = payload.get('streams') if isinstance(payload, dict) else []
-                stream = streams[0] if isinstance(streams, list) and streams else {}
-                format_data = payload.get('format') if isinstance(payload, dict) else {}
-                width = int(stream.get('width') or 0)
-                height = int(stream.get('height') or 0)
-                fps = _parse_video_frame_rate(stream.get('avg_frame_rate') or stream.get('r_frame_rate'))
-                duration_raw = stream.get('duration') or (
-                    format_data.get('duration') if isinstance(format_data, dict) else None
-                )
-                duration = float(duration_raw or 0)
-                if width > 0:
-                    metadata['width'] = width
-                if height > 0:
-                    metadata['height'] = height
-                if fps is not None:
-                    metadata['fps'] = fps
-                if math.isfinite(duration) and duration > 0:
-                    metadata['duration_seconds'] = round(duration, 3)
-        except (OSError, subprocess.SubprocessError, TypeError, ValueError, json.JSONDecodeError):
-            pass
-
-    with _ARCHIVE_VIDEO_METADATA_CACHE_LOCK:
-        stale_keys = [key for key in _ARCHIVE_VIDEO_METADATA_CACHE if key[0] == cache_key[0]]
-        for key in stale_keys:
-            _ARCHIVE_VIDEO_METADATA_CACHE.pop(key, None)
-        _ARCHIVE_VIDEO_METADATA_CACHE[cache_key] = dict(metadata)
-        while len(_ARCHIVE_VIDEO_METADATA_CACHE) > _ARCHIVE_VIDEO_METADATA_CACHE_LIMIT:
-            _ARCHIVE_VIDEO_METADATA_CACHE.pop(next(iter(_ARCHIVE_VIDEO_METADATA_CACHE)))
-    return metadata
+    return _domain_services_archive_video._probe_archive_video_metadata(
+        filepath, stat_result, Path=Path,
+        _ARCHIVE_VIDEO_METADATA_CACHE=_ARCHIVE_VIDEO_METADATA_CACHE, _ARCHIVE_VIDEO_METADATA_CACHE_LIMIT=_ARCHIVE_VIDEO_METADATA_CACHE_LIMIT, _ARCHIVE_VIDEO_METADATA_CACHE_LOCK=_ARCHIVE_VIDEO_METADATA_CACHE_LOCK,
+        _parse_video_frame_rate=_parse_video_frame_rate, _resolve_ffprobe_executable=_resolve_ffprobe_executable, json=json,
+        math=math, subprocess=subprocess,
+    )
 
 
 def _archive_video_task_map():
     """Map archived H3 result basenames to an unambiguous persisted task."""
-    mapping = {}
-    try:
-        tasks = get_all_tasks(limit=5000, offset=0)
-    except Exception:
-        return mapping
-    for task in tasks or []:
-        if str(task.get('type') or '').strip() != H3_VIDEO_TASK_TYPE:
-            continue
-        task_id = str(task.get('task_id') or '').strip()
-        if not task_id:
-            continue
-        result_files = task.get('result_files') if isinstance(task.get('result_files'), list) else []
-        result_files = list(result_files)
-        if task.get('result_file'):
-            result_files.append(task.get('result_file'))
-        params = task.get('params') if isinstance(task.get('params'), dict) else {}
-        if params.get('video_filename'):
-            result_files.append(params.get('video_filename'))
-        for result_file in result_files:
-            name = Path(str(result_file or '')).name
-            if not name:
-                continue
-            previous = mapping.get(name)
-            if previous is None or str(previous.get('task_id') or '') == task_id:
-                mapping[name] = task
-            else:
-                mapping[name] = {}
-    return {name: task for name, task in mapping.items() if task}
+    return _domain_services_archive_video._archive_video_task_map(H3_VIDEO_TASK_TYPE=H3_VIDEO_TASK_TYPE, Path=Path, get_all_tasks=get_all_tasks)
 
 
 _ARCHIVE_VIDEO_PUBLIC_PARAMETER_KEYS = (
@@ -5269,1072 +2001,192 @@ _ARCHIVE_VIDEO_PUBLIC_PARAMETER_KEYS = (
 
 def _public_archive_video_parameters(sidecar_parameters, task=None, metadata=None):
     """Return only generation controls and measured media values to the UI."""
-    combined = {}
-    if isinstance(sidecar_parameters, dict):
-        combined.update(sidecar_parameters)
-        runtime_output = sidecar_parameters.get('runtime_output')
-        if isinstance(runtime_output, dict):
-            for key in ('width', 'height', 'fps', 'frame_count', 'duration_seconds', 'seed', 'elapsed_seconds'):
-                if runtime_output.get(key) is not None:
-                    combined[key] = runtime_output.get(key)
-    if isinstance(task, dict) and isinstance(task.get('params'), dict):
-        for key, value in task.get('params').items():
-            if value is not None and value != '':
-                combined[key] = value
-    if isinstance(metadata, dict):
-        for key in ('width', 'height', 'fps', 'duration_seconds'):
-            if combined.get(key) in (None, '', 0) and metadata.get(key) is not None:
-                combined[key] = metadata.get(key)
-    if (not combined.get('width') or not combined.get('height')) and combined.get('size'):
-        match = re.fullmatch(r'\s*(\d+)\s*[x×]\s*(\d+)\s*', str(combined.get('size')))
-        if match:
-            combined.setdefault('width', int(match.group(1)))
-            combined.setdefault('height', int(match.group(2)))
-    public = {}
-    for key in _ARCHIVE_VIDEO_PUBLIC_PARAMETER_KEYS:
-        value = combined.get(key)
-        if value is None or value == '' or isinstance(value, (dict, list, tuple)):
-            continue
-        if key == 'seed' and isinstance(value, int) and abs(value) > 9_007_199_254_740_991:
-            value = str(value)
-        public[key] = value
-    return public
+    return _domain_services_archive_video._public_archive_video_parameters(
+        sidecar_parameters, task, metadata,
+        _ARCHIVE_VIDEO_PUBLIC_PARAMETER_KEYS=_ARCHIVE_VIDEO_PUBLIC_PARAMETER_KEYS, re=re,
+    )
 
 
 def _list_archive_videos(limit=200, offset=0, query='', source='generated'):
     """List archived videos using only public root-relative path information."""
-    search = str(query or '').strip().casefold()
-    source_filter = _coerce_archive_video_source(source)
-    task_map = _archive_video_task_map()
-    seen_files = set()
-    candidates = []
-    for root_key, root_path in archive_scan_roots():
-        try:
-            root = root_path.expanduser().resolve()
-        except Exception:
-            continue
-        try:
-            walker = os.walk(root, followlinks=False)
-            for directory, _, filenames in walker:
-                for filename in filenames:
-                    if Path(filename).suffix.lower() not in _ARCHIVE_VIDEO_EXTENSIONS:
-                        continue
-                    candidate = Path(directory) / filename
-                    try:
-                        if candidate.is_symlink():
-                            continue
-                        resolved = candidate.resolve()
-                        if resolved != root and root not in resolved.parents:
-                            continue
-                        stat_result = resolved.stat()
-                        relative_path = resolved.relative_to(root).as_posix()
-                    except (OSError, ValueError):
-                        continue
-                    physical_key = (
-                        ('inode', stat_result.st_dev, stat_result.st_ino)
-                        if stat_result.st_ino
-                        else ('path', str(resolved))
-                    )
-                    if physical_key in seen_files:
-                        continue
-                    public_path = f'{root_key}/{relative_path}'
-                    sidecar_data = _parse_archive_video_sidecars(resolved)
-                    task = task_map.get(filename)
-                    task_prompt = str(task.get('prompt') or '') if isinstance(task, dict) else ''
-                    if search:
-                        search_parameters = _public_archive_video_parameters(
-                            sidecar_data.get('parameters'),
-                            task=task,
-                        )
-                        search_text = '\n'.join((
-                            filename,
-                            public_path,
-                            str(sidecar_data.get('prompt') or ''),
-                            task_prompt,
-                            json.dumps(search_parameters, ensure_ascii=False),
-                        )).casefold()
-                        if search not in search_text:
-                            continue
-                    seen_files.add(physical_key)
-                    if isinstance(task, dict):
-                        source_type, source_label, is_generated = 'generated', _ARCHIVE_VIDEO_SOURCE_LABELS['generated'], True
-                    else:
-                        source_type, source_label, is_generated = _classify_archive_video_source(resolved, sidecar_data)
-                    candidates.append((
-                        stat_result.st_mtime,
-                        public_path,
-                        root_key,
-                        relative_path,
-                        resolved,
-                        stat_result,
-                        source_type,
-                        source_label,
-                        is_generated,
-                        sidecar_data,
-                    ))
-        except OSError:
-            continue
-
-    candidates.sort(key=lambda item: (-item[0], item[1].casefold()))
-    source_counts = {
-        'generated': sum(1 for item in candidates if item[6] == 'generated'),
-        'imported': sum(1 for item in candidates if item[6] == 'imported'),
-        'all': len(candidates),
-    }
-    filtered_candidates = (
-        candidates
-        if source_filter == 'all'
-        else [item for item in candidates if item[6] == source_filter]
+    return _domain_services_archive_video._list_archive_videos(
+        limit, offset, query,
+        source, Path=Path, _ARCHIVE_VIDEO_EXTENSIONS=_ARCHIVE_VIDEO_EXTENSIONS,
+        _ARCHIVE_VIDEO_SOURCE_LABELS=_ARCHIVE_VIDEO_SOURCE_LABELS, _archive_video_folder_info=_archive_video_folder_info, _archive_video_task_map=_archive_video_task_map,
+        _classify_archive_video_source=_classify_archive_video_source, _coerce_archive_video_source=_coerce_archive_video_source, _collect_archive_video_resources=_collect_archive_video_resources,
+        _parse_archive_video_sidecars=_parse_archive_video_sidecars, _positive_archive_media_number=_positive_archive_media_number, _probe_archive_video_metadata=_probe_archive_video_metadata,
+        _public_archive_video_parameters=_public_archive_video_parameters, archive_scan_roots=archive_scan_roots, datetime=datetime,
+        hashlib=hashlib, json=json, mimetypes=mimetypes,
+        os=os, thumb_url_for_media_url=thumb_url_for_media_url, urllib=urllib,
     )
-    total = len(filtered_candidates)
-    format_counts = {}
-    total_file_size_bytes = 0
-    for _, _, _, _, filepath, stat_result, _, _, _, _ in filtered_candidates:
-        extension = filepath.suffix.lower().lstrip('.') or 'unknown'
-        format_counts[extension] = format_counts.get(extension, 0) + 1
-        total_file_size_bytes += stat_result.st_size
-    page = filtered_candidates[offset:offset + limit]
-    videos = []
-    for (
-        modified_timestamp,
-        public_path,
-        root_key,
-        relative_path,
-        filepath,
-        stat_result,
-        source_type,
-        source_label,
-        is_generated,
-        sidecar_data,
-    ) in page:
-        metadata = _probe_archive_video_metadata(filepath, stat_result)
-        mime_type = mimetypes.guess_type(filepath.name)[0] or 'application/octet-stream'
-        modified_at = datetime.fromtimestamp(modified_timestamp).astimezone().isoformat(timespec='seconds')
-        video_url = f"/video/{urllib.parse.quote(public_path, safe='/')}"
-        resources = _collect_archive_video_resources(filepath, root_key, relative_path, sidecar_data)
-        folder = _archive_video_folder_info(root_key, relative_path)
-        task = task_map.get(filepath.name)
-        task_id = str(task.get('task_id') or '').strip() if isinstance(task, dict) else ''
-        if not task_id:
-            candidate_task_id = str((sidecar_data.get('frontmatter') or {}).get('task_id') or '').strip()
-            task_id = candidate_task_id if candidate_task_id.startswith('h3v_') else ''
-        prompt = str(task.get('prompt') or '').strip() if isinstance(task, dict) else ''
-        prompt = prompt or str(sidecar_data.get('prompt') or '')
-        parameters = _public_archive_video_parameters(
-            sidecar_data.get('parameters'),
-            task=task,
-            metadata=metadata,
-        )
-        media_width = _positive_archive_media_number(metadata.get('width'), integer=True) or _positive_archive_media_number(parameters.get('width'), integer=True)
-        media_height = _positive_archive_media_number(metadata.get('height'), integer=True) or _positive_archive_media_number(parameters.get('height'), integer=True)
-        media_duration = _positive_archive_media_number(metadata.get('duration_seconds')) or _positive_archive_media_number(parameters.get('duration_seconds'))
-        media_fps = _positive_archive_media_number(metadata.get('fps')) or _positive_archive_media_number(parameters.get('fps'))
-        reference_images = [resource for resource in resources if resource.get('type') == 'image']
-        videos.append({
-            'id': hashlib.sha256(public_path.encode('utf-8')).hexdigest()[:24],
-            'name': filepath.name,
-            'file_name': filepath.name,
-            'url': video_url,
-            'video_url': video_url,
-            'poster_url': thumb_url_for_media_url(video_url, size=480),
-            'path': public_path,
-            'relative_path': relative_path,
-            'root_key': root_key,
-            'mime_type': mime_type,
-            'file_size': stat_result.st_size,
-            'file_size_bytes': stat_result.st_size,
-            'created_at': modified_at,
-            'modified_at': modified_at,
-            'width': media_width,
-            'height': media_height,
-            'duration_seconds': media_duration,
-            'fps': media_fps,
-            'task_id': task_id,
-            'prompt': prompt[:20_000],
-            'parameters': parameters,
-            'resources': resources,
-            'resource_count': len(resources),
-            'resource_folder': folder,
-            'reference_images': reference_images,
-            'has_prompt': bool(prompt),
-            'has_parameters': bool(parameters),
-            'has_reference_images': bool(reference_images),
-            'source_type': source_type,
-            'source_label': source_label,
-            'is_generated': is_generated,
-        })
-    return {
-        'ok': True,
-        'videos': videos,
-        'count': len(videos),
-        'total': total,
-        'stats': {
-            'total': total,
-            'all': source_counts['all'],
-            'generated': source_counts['generated'],
-            'imported': source_counts['imported'],
-            'by_source': dict(source_counts),
-            'total_file_size_bytes': total_file_size_bytes,
-            'by_format': format_counts,
-        },
-        'limit': limit,
-        'offset': offset,
-        'source': source_filter,
-        'has_more': offset + len(videos) < total,
-    }
 
 
 def _resolve_download_image(filename):
     """Compatibility wrapper for history original-image export."""
-    return _resolve_download_file(filename)
+    return _domain_services_media_lookup._resolve_download_image(filename, _resolve_download_file=_resolve_download_file)
 
 
 def _load_telegram_notify_config():
-    telegram_cfg = get_telegram_config()
-    return (
-        telegram_cfg.get('bot_token', ''),
-        telegram_cfg.get('chat_id', ''),
-        telegram_cfg.get('proxy_url', ''),
-    )
+    return _domain_services_telegram_notifications._load_telegram_notify_config(get_telegram_config=get_telegram_config)
 
 
 def _path_diagnostics(path_value, expect_dir=False):
-    path = Path(path_value).expanduser()
-    exists = path.exists()
-    is_dir = path.is_dir()
-    parent = path if is_dir else path.parent
-    return {
-        "path": str(path),
-        "exists": exists,
-        "is_dir": is_dir,
-        "is_file": path.is_file(),
-        "parent_exists": parent.exists(),
-        "writable": os.access(str(path if exists else parent), os.W_OK) if (exists or parent.exists()) else False,
-        "expected_type": "directory" if expect_dir else "file",
-    }
+    return _domain_services_system_settings._path_diagnostics(path_value, expect_dir, Path=Path, os=os)
 
 
 def _collect_chatgpt_pool_status():
     """Return safe sidecar health/config without exposing the Bearer auth key."""
-    cfg = get_chatgpt_pool_config(ensure_auth_key=True)
-    status = get_chatgpt_pool_public_config()
-    status.update({
-        "online": False,
-        "health_error": "",
-        "stats": {},
-    })
-    try:
-        session = requests.Session()
-        session.trust_env = False
-        response = session.get(f"{cfg['base_url'].rstrip('/')}/health", timeout=2)
-        data = response.json() if response.text else {}
-        if response.status_code >= 400:
-            raise RuntimeError(f"HTTP {response.status_code}")
-        status["online"] = bool(data.get("ok", True)) if isinstance(data, dict) else True
-        if isinstance(data, dict):
-            status["stats"] = data.get("stats") if isinstance(data.get("stats"), dict) else {}
-            status["model"] = data.get("model") or status.get("generation_model")
-            stats = status["stats"]
-            status["summary"] = {
-                "total": int(stats.get("total") or 0),
-                "active": int(stats.get("active") or 0),
-                "available": int(stats.get("available") or 0),
-                "inflight": int(stats.get("inflight") or 0),
-                "limited": int(stats.get("limited") or 0),
-                "abnormal": int(stats.get("abnormal") or 0),
-                "refreshable": int(stats.get("refreshable") or 0),
-            }
-    except Exception as exc:
-        status["health_error"] = str(exc)[:240]
-    return status
+    return _domain_services_provider_accounts._collect_chatgpt_pool_status(
+        get_chatgpt_pool_config=get_chatgpt_pool_config, get_chatgpt_pool_public_config=get_chatgpt_pool_public_config, requests=requests,
+    )
 
 
 def _chatgpt_pool_request(method, path, payload=None, timeout=None):
-    cfg = get_chatgpt_pool_config(ensure_auth_key=True)
-    auth_key = str(cfg.get("auth_key") or "").strip()
-    if not auth_key:
-        raise RuntimeError("ChatGPT pool auth key missing")
-    endpoint = f"{str(cfg.get('base_url') or '').rstrip('/')}{path}"
-    session = requests.Session()
-    session.trust_env = False
-    headers = {
-        "Authorization": f"Bearer {auth_key}",
-        "Content-Type": "application/json",
-    }
-    response = session.request(
-        str(method or "GET").upper(),
-        endpoint,
-        headers=headers,
-        json=payload if payload is not None else None,
-        timeout=timeout or min(30, int(cfg.get("timeout_seconds") or 30)),
+    return _domain_services_provider_accounts._chatgpt_pool_request(
+        method, path, payload,
+        timeout, get_chatgpt_pool_config=get_chatgpt_pool_config, requests=requests,
     )
-    data = response.json() if response.text else {}
-    if response.status_code >= 400:
-        detail = data.get("detail") if isinstance(data, dict) else ""
-        if isinstance(detail, dict):
-            detail = detail.get("error") or detail.get("message") or detail
-        message = detail
-        if not message and isinstance(data, dict):
-            message = data.get("error") or data.get("message")
-        if not message:
-            message = response.text[:300] or f"HTTP {response.status_code}"
-        raise RuntimeError(str(message))
-    return data if isinstance(data, dict) else {"ok": True, "data": data}
 
 
 def _chatgpt_pool_safe_auth_candidates():
     """Return local Codex auth files that diagnostics already considers valid."""
-    status = get_gpt_provider_auth_status()
-    candidates = []
-    for item in status.get("candidates") or []:
-        if not isinstance(item, dict):
-            continue
-        if not item.get("exists") or not item.get("readable") or not item.get("has_access_token"):
-            continue
-        path = str(item.get("path") or "").strip()
-        if not path:
-            continue
-        try:
-            candidates.append(Path(path).expanduser().resolve())
-        except Exception:
-            continue
-    selected = str(status.get("selected_path") or "").strip()
-    if selected:
-        try:
-            selected_path = Path(selected).expanduser().resolve()
-            if selected_path not in candidates and selected_path.exists():
-                candidates.insert(0, selected_path)
-        except Exception:
-            pass
-    return candidates
+    return _domain_services_provider_accounts._chatgpt_pool_safe_auth_candidates(Path=Path, get_gpt_provider_auth_status=get_gpt_provider_auth_status)
 
 
 def _chatgpt_pool_build_local_auth_account(requested_path=""):
     """Load one safe local Codex auth file and normalize it for sidecar import."""
-    candidates = _chatgpt_pool_safe_auth_candidates()
-    if not candidates:
-        raise RuntimeError("未找到可导入的本机 Codex Auth 文件")
-
-    if requested_path:
-        target = Path(str(requested_path)).expanduser().resolve()
-        if target not in candidates:
-            raise RuntimeError("只能导入本机诊断页识别到的 Codex Auth 文件")
-    else:
-        target = candidates[0]
-
-    try:
-        raw = json.loads(target.read_text(encoding="utf-8"))
-    except Exception as exc:
-        raise RuntimeError(f"本机 Auth JSON 读取失败：{target}") from exc
-    if not isinstance(raw, dict):
-        raise RuntimeError("本机 Auth JSON 格式错误")
-
-    token_obj = raw.get("tokens") if isinstance(raw.get("tokens"), dict) else raw
-    access_token = str(token_obj.get("access_token") or raw.get("access_token") or "").strip()
-    refresh_token = str(token_obj.get("refresh_token") or raw.get("refresh_token") or "").strip()
-    id_token = str(token_obj.get("id_token") or raw.get("id_token") or "").strip()
-    if not access_token:
-        raise RuntimeError("本机 Auth 缺少 access_token")
-    if not refresh_token:
-        raise RuntimeError("本机 Auth 缺少 refresh_token，无法加入可自动续期的账号池")
-
-    return {
-        "access_token": access_token,
-        "refresh_token": refresh_token,
-        "id_token": id_token,
-        "account_id": str(token_obj.get("account_id") or raw.get("account_id") or "").strip(),
-        "email": str(token_obj.get("email") or raw.get("email") or "").strip(),
-        "source_type": "local_codex_auth",
-    }, str(target)
+    return _domain_services_provider_accounts._chatgpt_pool_build_local_auth_account(
+        requested_path, Path=Path, _chatgpt_pool_safe_auth_candidates=_chatgpt_pool_safe_auth_candidates,
+        json=json,
+    )
 
 
 def _chatgpt_pool_open_authorize_url_clean(authorize_url):
     """Open an OpenAI authorize URL in an isolated Chrome profile."""
-    url = str(authorize_url or "").strip()
-    parsed = urllib.parse.urlparse(url)
-    query = urllib.parse.parse_qs(parsed.query)
-    if parsed.scheme != "https" or parsed.netloc != "auth.openai.com" or parsed.path != "/api/accounts/authorize":
-        raise RuntimeError("只能打开 OpenAI 授权链接")
-    if (query.get("client_id") or [""])[0] != "app_2SKx67EdpoN0G6j64rFvigXD":
-        raise RuntimeError("授权链接 client_id 不匹配")
-    if (query.get("redirect_uri") or [""])[0] != "https://platform.openai.com/auth/callback":
-        raise RuntimeError("授权链接 redirect_uri 不匹配")
-
-    profile_dir = Path(tempfile.gettempdir()) / "tg-mini-app-chatgpt-pool-oauth-chrome"
-    profile_dir.mkdir(parents=True, exist_ok=True)
-    subprocess.Popen(
-        [
-            "open",
-            "-na",
-            "Google Chrome",
-            "--args",
-            f"--user-data-dir={profile_dir}",
-            "--no-first-run",
-            "--disable-extensions",
-            "--new-window",
-            url,
-        ],
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-    )
-    return {"ok": True, "profile_dir": str(profile_dir)}
+    return _domain_services_provider_accounts._chatgpt_pool_open_authorize_url_clean(authorize_url, Path=Path, subprocess=subprocess, tempfile=tempfile, urllib=urllib)
 
 
 def _chatgpt_pool_account_by_id(account_id):
-    target_id = str(account_id or "").strip()
-    if not target_id:
-        raise RuntimeError("缺少账号 ID")
-    accounts_payload = _chatgpt_pool_request("GET", "/accounts")
-    accounts = accounts_payload.get("items") if isinstance(accounts_payload, dict) else []
-    account = next(
-        (
-            item
-            for item in accounts or []
-            if isinstance(item, dict)
-            and str(item.get("account_id") or "").strip() == target_id
-        ),
-        None,
-    )
-    if not account:
-        raise RuntimeError("账号不存在或已删除")
-    return account
+    return _domain_services_provider_accounts._chatgpt_pool_account_by_id(account_id, _chatgpt_pool_request=_chatgpt_pool_request)
 
 
 def _chatgpt_pool_verification_profile_dir(account_or_id):
-    root = APP_DATA_DIR / "chatgpt_pool" / "verify_chrome_profiles"
-    email = ""
-    if isinstance(account_or_id, dict):
-        email = str(account_or_id.get("email") or "").strip()
-        raw_key = (
-            str(account_or_id.get("user_id") or "").strip()
-            or email
-            or str(account_or_id.get("account_id") or "").strip()
-        )
-    else:
-        raw_key = str(account_or_id or "").strip()
-    safe_id = re.sub(r"[^A-Za-z0-9_.-]+", "-", raw_key)[:96] or "account"
-    stable_dir = root / safe_id
-    if stable_dir.exists() or not email or not root.exists():
-        return stable_dir
-    try:
-        for candidate in root.iterdir():
-            prefs = candidate / "Default" / "Preferences"
-            if not prefs.exists() or not candidate.is_dir():
-                continue
-            text = prefs.read_text(encoding="utf-8", errors="ignore")
-            if email in text:
-                return candidate
-    except Exception:
-        pass
-    return stable_dir
+    return _domain_services_provider_accounts._chatgpt_pool_verification_profile_dir(account_or_id, APP_DATA_DIR=APP_DATA_DIR, re=re)
 
 
 def _chatgpt_pool_find_free_port():
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-        sock.bind(("127.0.0.1", 0))
-        return int(sock.getsockname()[1])
+    return _domain_services_provider_accounts._chatgpt_pool_find_free_port(socket=socket)
 
 
 def _chatgpt_pool_complete_account_verification(account_id, debug_port=None):
-    target_id = str(account_id or "").strip()
-    if not target_id:
-        raise RuntimeError("缺少账号 ID")
-    account = _chatgpt_pool_account_by_id(target_id)
-    email = str(account.get("email") or "").strip()
-    profile_dir = _chatgpt_pool_verification_profile_dir(account)
-    data = _chatgpt_pool_request(
-        "POST",
-        "/accounts/update",
-        {
-            "account_id": target_id,
-            "status": "正常",
-            "image_quota_unknown": True,
-            "restore_at": "",
-            "last_refresh_error": "",
-        },
+    return _domain_services_provider_accounts._chatgpt_pool_complete_account_verification(
+        account_id, debug_port, _chatgpt_pool_account_by_id=_chatgpt_pool_account_by_id,
+        _chatgpt_pool_request=_chatgpt_pool_request, _chatgpt_pool_verification_profile_dir=_chatgpt_pool_verification_profile_dir,
     )
-    if isinstance(data, dict):
-        data.update({
-            "ok": True,
-            "account_id": target_id,
-            "email": email,
-            "profile_dir": str(profile_dir),
-            "message": "账号已恢复为正常，后续请求使用轻量 HTTP 链路",
-        })
-    return data
 
 
 def _collect_system_diagnostics():
-    telegram_cfg = get_telegram_config()
-    storage_cfg = get_storage_config()
-    server_cfg = get_server_config()
-    database_path = get_database_path()
-    prompt_skill_cfg = get_prompt_skill_config()
-    third_party_cfg = get_third_party_image_config()
-    managed_codex_cfg = get_managed_codex_oauth_status()
-    comfy_cfg = get_comfy_config()
-    video_inference_cfg = get_video_inference_public_config()
-
-    return {
-        "ok": True,
-        "auth": {
-            "password_enabled": _auth_enabled(),
-            "telegram_init_data_enabled": bool(TELEGRAM_AUTH_BOT_TOKEN),
-            "allowed_user_count": len(TELEGRAM_AUTH_ALLOWED_IDS),
-        },
-        "server": {
-            "host": SERVER_HOST,
-            "port": PORT,
-            "url": f"http://{SERVER_HOST}:{PORT}",
-            "public_mode": bool(server_cfg.get("public_mode")),
-            "configured_host": server_cfg.get("host", SERVER_HOST),
-            "configured_port": server_cfg.get("port", PORT),
-            "password_required": bool(server_cfg.get("public_mode")),
-            "password_configured": bool(get_miniapp_access_password()),
-            "restart_required": (
-                str(server_cfg.get("host", SERVER_HOST)) != str(SERVER_HOST)
-                or int(server_cfg.get("port", PORT)) != int(PORT)
-            ),
-        },
-        "telegram": {
-            "bot_token_configured": bool(telegram_cfg.get("bot_token")),
-            "chat_id_configured": bool(telegram_cfg.get("chat_id")),
-            "proxy_url": telegram_cfg.get("proxy_url", ""),
-            "delivery_method": "sendDocument",
-        },
-        "yunwu": {
-            "api_key_configured": bool(get_yunwu_api_key()),
-            "base_url": get_yunwu_api_base_url(),
-        },
-        "nano_banana_api": {
-            "api_key_configured": bool(get_nano_banana_api_key()),
-            "base_url": get_nano_banana_api_base_url(),
-        },
-        "third_party_image_api": {
-            "api_key_configured": bool(third_party_cfg.get("api_key_configured")),
-            "base_url": third_party_cfg.get("base_url", ""),
-            "model": third_party_cfg.get("model", ""),
-            "generate_path": third_party_cfg.get("generate_path", ""),
-            "edit_path": third_party_cfg.get("edit_path", ""),
-            "format": third_party_cfg.get("format", "png"),
-            "timeout_seconds": third_party_cfg.get("timeout_seconds", 900),
-        },
-        "comfy": {
-            "base_url": comfy_cfg.get("base_url", ""),
-            "configured": bool(comfy_cfg.get("base_url")),
-            "environment_managed": bool(comfy_cfg.get("environment_managed")),
-            "workflow_count": len(_collect_comfy_workflows().get("items") or []),
-        },
-        "video_inference": {
-            "runtime_mode": video_inference_cfg.get("runtime_mode", "auto"),
-            "local_base_url": (video_inference_cfg.get("local") or {}).get("base_url", ""),
-            "lan_base_url": (video_inference_cfg.get("lan") or {}).get("base_url", ""),
-            "manager_base_url": video_inference_cfg.get("manager_base_url", ""),
-            "lan_api_key_configured": bool((video_inference_cfg.get("lan") or {}).get("api_key_configured")),
-            "environment_managed": bool(video_inference_cfg.get("environment_managed")),
-            "component": collect_video_runtime_component_status(),
-        },
-        "storage": {
-            "image_archive_dir": _path_diagnostics(storage_cfg["image_archive_dir"], expect_dir=True),
-            "source_image_dir": _path_diagnostics(storage_cfg["source_image_dir"], expect_dir=True),
-            "archive_read_roots": [{"key": key, "path": str(path)} for key, path in archive_scan_roots()],
-            "source_image_read_roots": [{"key": key, "path": str(path)} for key, path in source_image_roots()],
-        },
-        "database": {
-            "tasks_db": _path_diagnostics(database_path),
-        },
-        "gpt_provider": get_gpt_provider_auth_status(),
-        "managed_codex_oauth": managed_codex_cfg,
-        "chatgpt_pool": _collect_chatgpt_pool_status(),
-        "prompt_skill": {
-            "provider": prompt_skill_cfg.get("provider", ""),
-            "skill": prompt_skill_cfg.get("skill", ""),
-            "model": prompt_skill_cfg.get("model", ""),
-            "reasoning_effort": prompt_skill_cfg.get("reasoning_effort", ""),
-            "default_output": prompt_skill_cfg.get("default_output", ""),
-        },
-    }
+    return _domain_services_system_settings._collect_system_diagnostics(
+        PORT=PORT, SERVER_HOST=SERVER_HOST, TELEGRAM_AUTH_ALLOWED_IDS=TELEGRAM_AUTH_ALLOWED_IDS,
+        TELEGRAM_AUTH_BOT_TOKEN=TELEGRAM_AUTH_BOT_TOKEN, _auth_enabled=_auth_enabled, _collect_chatgpt_pool_status=_collect_chatgpt_pool_status,
+        _collect_comfy_workflows=_collect_comfy_workflows, _path_diagnostics=_path_diagnostics, archive_scan_roots=archive_scan_roots,
+        collect_video_runtime_component_status=collect_video_runtime_component_status, get_comfy_config=get_comfy_config, get_cyimg_config=get_cyimg_config, get_database_path=get_database_path,
+        get_gpt_provider_auth_status=get_gpt_provider_auth_status, get_managed_codex_oauth_status=get_managed_codex_oauth_status, get_miniapp_access_password=get_miniapp_access_password,
+        get_nano_banana_api_base_url=get_nano_banana_api_base_url, get_nano_banana_api_key=get_nano_banana_api_key, get_prompt_skill_config=get_prompt_skill_config,
+        get_server_config=get_server_config, get_storage_config=get_storage_config, get_telegram_config=get_telegram_config,
+        get_third_party_image_config=get_third_party_image_config, get_video_inference_public_config=get_video_inference_public_config, get_yunwu_api_base_url=get_yunwu_api_base_url,
+        get_yunwu_api_key=get_yunwu_api_key, source_image_roots=source_image_roots,
+    )
 
 
 def _collect_gpt_runtime_config():
-    provider_cfg = get_gpt_provider_config()
-    return {
-        "ok": True,
-        "gpt_provider": {
-            "image_main_model": provider_cfg.get("image_main_model") or DEFAULT_GPT_IMAGE_MAIN_MODEL,
-            "reasoning_effort": provider_cfg.get("reasoning_effort") or DEFAULT_GPT_REASONING_EFFORT,
-            "transport_mode": provider_cfg.get("transport_mode") or DEFAULT_GPT_TRANSPORT_MODE,
-            "total_timeout_seconds": provider_cfg.get("total_timeout_seconds") or DEFAULT_GPT_PROVIDER_TOTAL_TIMEOUT_SECONDS,
-            "allowed_image_main_models": provider_cfg.get("allowed_image_main_models") or sorted(VALID_GPT_MAIN_MODELS),
-            "allowed_reasoning_efforts": provider_cfg.get("allowed_reasoning_efforts") or sorted(VALID_GPT_REASONING_EFFORTS),
-            "allowed_transport_modes": provider_cfg.get("allowed_transport_modes") or sorted(VALID_GPT_TRANSPORT_MODES),
-        },
-    }
+    return _domain_services_system_settings._collect_gpt_runtime_config(
+        DEFAULT_GPT_IMAGE_MAIN_MODEL=DEFAULT_GPT_IMAGE_MAIN_MODEL, DEFAULT_GPT_PROVIDER_TOTAL_TIMEOUT_SECONDS=DEFAULT_GPT_PROVIDER_TOTAL_TIMEOUT_SECONDS, DEFAULT_GPT_REASONING_EFFORT=DEFAULT_GPT_REASONING_EFFORT,
+        DEFAULT_GPT_TRANSPORT_MODE=DEFAULT_GPT_TRANSPORT_MODE, VALID_GPT_MAIN_MODELS=VALID_GPT_MAIN_MODELS, VALID_GPT_REASONING_EFFORTS=VALID_GPT_REASONING_EFFORTS,
+        VALID_GPT_TRANSPORT_MODES=VALID_GPT_TRANSPORT_MODES, get_gpt_provider_config=get_gpt_provider_config,
+    )
 
 
 def _collect_system_settings():
     """Return editable settings without exposing secret values."""
-    ensure_pinterest_auth_storage()
-    telegram_cfg = get_telegram_config()
-    storage_cfg = get_storage_config()
-    server_cfg = get_server_config()
-    provider_cfg = get_gpt_provider_config()
-    managed_codex_cfg = get_managed_codex_oauth_public_config()
-    pool_cfg = get_chatgpt_pool_public_config()
-    prompt_cfg = get_prompt_skill_config()
-    third_party_cfg = get_third_party_image_config()
-    proxy_cfg = get_proxy_config()
-    prompt_source_proxy_cfg = get_proxy_config("prompt_source")
-    comfy_cfg = get_comfy_config()
-    video_inference_cfg = get_video_inference_public_config()
-    pinterest_cfg = get_pinterest_config()
-    pinterest_browser = get_pinterest_browser_login_capability()
-    return {
-        "ok": True,
-        "settings": {
-            "auth": {
-                "miniapp_access_password_configured": bool(get_miniapp_access_password()),
-            },
-            "server": {
-                "host": server_cfg.get("host", SERVER_HOST),
-                "port": server_cfg.get("port", PORT),
-                "public_mode": bool(server_cfg.get("public_mode")),
-                "runtime_host": SERVER_HOST,
-                "runtime_port": PORT,
-                "restart_required": (
-                    str(server_cfg.get("host", SERVER_HOST)) != str(SERVER_HOST)
-                    or int(server_cfg.get("port", PORT)) != int(PORT)
-                ),
-            },
-            "telegram": {
-                "bot_token_configured": bool(telegram_cfg.get("bot_token")),
-                "chat_id": telegram_cfg.get("chat_id", ""),
-                "allowed_user_ids": sorted(TELEGRAM_AUTH_ALLOWED_IDS),
-                "proxy_url": telegram_cfg.get("proxy_url", ""),
-            },
-            "yunwu": {
-                "api_key_configured": bool(get_yunwu_api_key()),
-                "base_url": get_yunwu_api_base_url(),
-            },
-            "nano_banana_api": {
-                "api_key_configured": bool(get_nano_banana_api_key()),
-                "base_url": get_nano_banana_api_base_url(),
-            },
-            "third_party_image_api": {
-                "api_key_configured": bool(third_party_cfg.get("api_key_configured")),
-                "base_url": third_party_cfg.get("base_url", ""),
-                "model": third_party_cfg.get("model", ""),
-                "generate_path": third_party_cfg.get("generate_path", ""),
-                "edit_path": third_party_cfg.get("edit_path", ""),
-                "format": third_party_cfg.get("format", "png"),
-                "timeout_seconds": third_party_cfg.get("timeout_seconds", 900),
-            },
-            "comfy": {
-                "base_url": comfy_cfg.get("base_url", ""),
-                "timeout_seconds": comfy_cfg.get("timeout_seconds", 120),
-                "task_timeout_seconds": comfy_cfg.get("task_timeout_seconds", 1800),
-                "poll_interval_seconds": comfy_cfg.get("poll_interval_seconds", 2),
-                "environment_managed": bool(comfy_cfg.get("environment_managed")),
-                "environment_fields": comfy_cfg.get("environment_fields") or [],
-            },
-            "video_inference": video_inference_cfg,
-            "pinterest": {
-                "enabled": bool(pinterest_cfg.get("enabled")),
-                "profile_url": pinterest_cfg.get("profile_url", ""),
-                "sync_profile_url": pinterest_cfg.get("sync_profile_url", ""),
-                "auth_configured": bool(pinterest_cfg.get("auth_configured")),
-                "auth_status": pinterest_cfg.get("auth_status", "not_configured"),
-                "auth_updated_at": pinterest_cfg.get("auth_updated_at", ""),
-                "last_verified_at": pinterest_cfg.get("last_verified_at", ""),
-                "auth_source": pinterest_cfg.get("auth_source", "none"),
-                "auth_username": pinterest_cfg.get("auth_username", ""),
-                "auth_display_name": pinterest_cfg.get("auth_display_name", ""),
-                "auth_profile_url": pinterest_cfg.get("auth_profile_url", ""),
-                "browser_login_available": bool(pinterest_browser.get("available")),
-                "browser_name": pinterest_browser.get("browser", ""),
-                "sync_mode": pinterest_cfg.get("sync_mode", "auto"),
-                "download_originals": bool(pinterest_cfg.get("download_originals", True)),
-                "max_pins_per_board": pinterest_cfg.get("max_pins_per_board", 500),
-                "request_timeout_seconds": pinterest_cfg.get("request_timeout_seconds", 20),
-            },
-            "paths": {
-                "image_archive_dir": str(storage_cfg["image_archive_dir"]),
-                "source_image_dir": str(storage_cfg["source_image_dir"]),
-                "tasks_db": str(get_database_path()),
-                "archive_read_roots": [{"key": key, "path": str(path)} for key, path in archive_scan_roots()],
-                "source_image_read_roots": [{"key": key, "path": str(path)} for key, path in source_image_roots()],
-            },
-            "managed_codex_oauth": managed_codex_cfg,
-            "chatgpt_pool": pool_cfg,
-            "prompt_skill": prompt_cfg,
-            "proxy": proxy_cfg,
-            "prompt_source_proxy": prompt_source_proxy_cfg,
-        },
-    }
+    return _domain_services_system_settings._collect_system_settings(
+        PORT=PORT, SERVER_HOST=SERVER_HOST, TELEGRAM_AUTH_ALLOWED_IDS=TELEGRAM_AUTH_ALLOWED_IDS,
+        archive_scan_roots=archive_scan_roots, ensure_pinterest_auth_storage=ensure_pinterest_auth_storage, get_chatgpt_pool_public_config=get_chatgpt_pool_public_config,
+        get_comfy_config=get_comfy_config, get_cyimg_config=get_cyimg_config, get_database_path=get_database_path, get_gpt_provider_config=get_gpt_provider_config,
+        get_managed_codex_oauth_public_config=get_managed_codex_oauth_public_config, get_miniapp_access_password=get_miniapp_access_password, get_nano_banana_api_base_url=get_nano_banana_api_base_url,
+        get_nano_banana_api_key=get_nano_banana_api_key, get_pinterest_browser_login_capability=get_pinterest_browser_login_capability, get_pinterest_config=get_pinterest_config,
+        get_prompt_skill_config=get_prompt_skill_config, get_proxy_config=get_proxy_config, get_server_config=get_server_config,
+        get_storage_config=get_storage_config, get_telegram_config=get_telegram_config, get_third_party_image_config=get_third_party_image_config,
+        get_video_inference_public_config=get_video_inference_public_config, get_yunwu_api_base_url=get_yunwu_api_base_url, get_yunwu_api_key=get_yunwu_api_key,
+        source_image_roots=source_image_roots,
+    )
 
 
 def _settings_dict(value):
-    return value if isinstance(value, dict) else {}
+    return _domain_services_system_settings._settings_dict(value)
 
 
 def _clean_text(value, max_len=4096):
-    return str(value or "").strip()[:max_len]
+    return _domain_services_system_settings._clean_text(value, max_len)
 
 
 def _clean_text_list(value):
-    if isinstance(value, (list, tuple, set)):
-        return [_clean_text(item, 128) for item in value if _clean_text(item, 128)]
-    text = _clean_text(value, 4096)
-    if not text:
-        return []
-    return [_clean_text(item, 128) for item in re.split(r"[\n,，\s]+", text) if _clean_text(item, 128)]
+    return _domain_services_system_settings._clean_text_list(value, _clean_text=_clean_text, re=re)
 
 
 def _patch_text(target, source, key, max_len=4096, allow_empty=True):
-    if key not in source:
-        return
-    value = _clean_text(source.get(key), max_len=max_len)
-    if value or allow_empty:
-        target[key] = value
+    return _domain_services_system_settings._patch_text(target, source, key, max_len, allow_empty, _clean_text=_clean_text)
 
 
 def _patch_secret(target, source, key, clear_key=None, max_len=8192):
-    clear_key = clear_key or f"clear_{key}"
-    if _coerce_bool(source.get(clear_key), False):
-        target.pop(key, None)
-        return
-    if key not in source:
-        return
-    value = _clean_text(source.get(key), max_len=max_len)
-    if value:
-        target[key] = value
+    return _domain_services_system_settings._patch_secret(target, source, key, clear_key, max_len, _clean_text=_clean_text, _coerce_bool=_coerce_bool)
 
 
 def _normalize_pinterest_profile_url(value):
-    text = _clean_text(value, max_len=2048)
-    if not text:
-        return ""
-    parsed = urllib.parse.urlparse(text if "://" in text else f"https://{text}")
-    host = (parsed.hostname or "").lower().rstrip(".")
-    if parsed.scheme not in {"http", "https"} or not (host == "pinterest.com" or host.endswith(".pinterest.com")):
-        raise ValueError("Pinterest 主页地址必须使用 pinterest.com 域名")
-    path = re.sub(r"/+", "/", parsed.path or "/")
-    return urllib.parse.urlunparse(("https", host, path, "", "", ""))
+    return _domain_services_system_settings._normalize_pinterest_profile_url(value, _clean_text=_clean_text, re=re, urllib=urllib)
 
 
 def _normalize_pinterest_cookie_header(value):
-    text = str(value or "").strip()
-    if text.lower().startswith("cookie:"):
-        text = text.split(":", 1)[1].strip()
-    text = re.sub(r"[\r\n]+", " ", text).strip()
-    return text[:65536]
+    return _domain_services_system_settings._normalize_pinterest_cookie_header(value, re=re)
 
 
 def _sanitize_system_settings_patch(payload):
-    if not isinstance(payload, dict):
-        return None
-    data = _settings_dict(payload.get("settings")) or payload
-    settings = load_app_settings()
-    if not isinstance(settings, dict):
-        settings = {}
-
-    _patch_secret(settings, data, "miniapp_access_password")
-    _patch_secret(settings, data, "yunwu_api_key")
-    _patch_text(settings, data, "yunwu_api_base_url", max_len=2048)
-
-    nano_banana = _settings_dict(settings.get("nano_banana_api")).copy()
-    nano_banana_data = _settings_dict(data.get("nano_banana_api"))
-    _patch_secret(nano_banana, nano_banana_data, "api_key")
-    _patch_text(nano_banana, nano_banana_data, "base_url", max_len=2048)
-    if _coerce_bool(nano_banana_data.get("clear_api_key"), False):
-        settings.pop("nano_banana_api_key", None)
-        settings.pop("yunwu_api_key", None)
-    if "base_url" in nano_banana_data and not _clean_text(nano_banana_data.get("base_url"), max_len=2048):
-        settings.pop("nano_banana_api_base_url", None)
-        settings.pop("yunwu_api_base_url", None)
-    if nano_banana_data:
-        settings["nano_banana_api"] = nano_banana
-
-    server = _settings_dict(settings.get("server")).copy()
-    server_data = _settings_dict(data.get("server"))
-    if "public_mode" in server_data:
-        server["public_mode"] = _coerce_bool(server_data.get("public_mode"), False)
-    _patch_text(server, server_data, "host", max_len=255)
-    if "port" in server_data:
-        try:
-            server["port"] = max(1, min(65535, int(server_data.get("port"))))
-        except (TypeError, ValueError):
-            pass
-    if server_data:
-        settings["server"] = server
-
-    telegram = _settings_dict(settings.get("telegram")).copy()
-    telegram_data = _settings_dict(data.get("telegram"))
-    _patch_secret(telegram, telegram_data, "bot_token")
-    _patch_text(telegram, telegram_data, "chat_id", max_len=128)
-    _patch_text(telegram, telegram_data, "proxy_url", max_len=512)
-    if "allowed_user_ids" in telegram_data:
-        telegram["allowed_user_ids"] = _clean_text_list(telegram_data.get("allowed_user_ids"))
-    if telegram_data:
-        settings["telegram"] = telegram
-
-    paths = _settings_dict(settings.get("paths")).copy()
-    paths_data = _settings_dict(data.get("paths"))
-    for key in ("image_archive_dir", "source_image_dir", "tasks_db"):
-        _patch_text(paths, paths_data, key, max_len=2048)
-    if paths_data:
-        settings["paths"] = paths
-
-    provider = _settings_dict(settings.get("gpt_provider")).copy()
-    provider_data = _settings_dict(data.get("gpt_provider"))
-    for key in ("auth_file", "auth_dir", "api_base"):
-        _patch_text(provider, provider_data, key, max_len=2048)
-    if "image_main_model" in provider_data:
-        provider["image_main_model"] = _coerce_gpt_main_model(provider_data.get("image_main_model"))
-    if "reasoning_effort" in provider_data:
-        provider["reasoning_effort"] = _coerce_gpt_reasoning_effort(provider_data.get("reasoning_effort"))
-    if "transport_mode" in provider_data:
-        provider["transport_mode"] = _coerce_gpt_transport_mode(provider_data.get("transport_mode"))
-    if "total_timeout_seconds" in provider_data:
-        provider["total_timeout_seconds"] = _coerce_gpt_provider_total_timeout(provider_data.get("total_timeout_seconds"))
-    if provider_data:
-        settings["gpt_provider"] = provider
-
-    third_party = _settings_dict(settings.get("third_party_image_api")).copy()
-    third_party_data = _settings_dict(data.get("third_party_image_api"))
-    _patch_secret(third_party, third_party_data, "api_key")
-    for key in ("base_url", "model", "generate_path", "edit_path", "format"):
-        _patch_text(third_party, third_party_data, key, max_len=2048 if key in ("base_url", "generate_path", "edit_path") else 128)
-    if "timeout_seconds" in third_party_data:
-        try:
-            third_party["timeout_seconds"] = max(30, min(1800, int(third_party_data.get("timeout_seconds"))))
-        except (TypeError, ValueError):
-            pass
-    if third_party_data:
-        settings["third_party_image_api"] = third_party
-
-    comfy = _settings_dict(settings.get("comfy")).copy()
-    comfy_data = _settings_dict(data.get("comfy"))
-    _patch_text(comfy, comfy_data, "base_url", max_len=2048)
-    if "base_url" in comfy_data:
-        comfy["base_url"] = _normalize_comfy_base_url(comfy.get("base_url"))
-    for key, minimum, maximum in (
-        ("timeout_seconds", 5, 1800),
-        ("task_timeout_seconds", 60, 86400),
-    ):
-        if key in comfy_data:
-            try:
-                comfy[key] = max(minimum, min(maximum, int(comfy_data.get(key))))
-            except (TypeError, ValueError):
-                pass
-    if "poll_interval_seconds" in comfy_data:
-        try:
-            comfy["poll_interval_seconds"] = max(0.25, min(30.0, float(comfy_data.get("poll_interval_seconds"))))
-        except (TypeError, ValueError):
-            pass
-    if comfy_data:
-        settings["comfy"] = comfy
-
-    video_inference = _settings_dict(settings.get("video_inference")).copy()
-    video_inference_data = _settings_dict(data.get("video_inference"))
-    runtime_mode = _clean_text(video_inference_data.get("runtime_mode"), max_len=16).lower()
-    if runtime_mode in {"auto", "local", "lan"}:
-        video_inference["runtime_mode"] = runtime_mode
-    if "manager_base_url" in video_inference_data:
-        raw_manager_url = _clean_text(video_inference_data.get("manager_base_url"), max_len=2048)
-        video_inference["manager_base_url"] = normalize_supervisor_base_url(raw_manager_url, allow_empty=True)
-
-    video_local = _settings_dict(video_inference.get("local")).copy()
-    video_local_data = _settings_dict(video_inference_data.get("local"))
-    if "base_url" in video_local_data:
-        raw_url = _clean_text(video_local_data.get("base_url"), max_len=2048)
-        video_local["base_url"] = normalize_runtime_base_url(raw_url) if raw_url else ""
-    _patch_text(video_local, video_local_data, "component_dir", max_len=2048)
-    start_mode = _clean_text(video_local_data.get("start_mode"), max_len=24).lower()
-    if start_mode in {"manual", "on_demand", "always"}:
-        video_local["start_mode"] = start_mode
-    if video_local_data:
-        video_inference["local"] = video_local
-
-    video_lan = _settings_dict(video_inference.get("lan")).copy()
-    video_lan_data = _settings_dict(video_inference_data.get("lan"))
-    if "base_url" in video_lan_data:
-        raw_url = _clean_text(video_lan_data.get("base_url"), max_len=2048)
-        video_lan["base_url"] = normalize_runtime_base_url(raw_url, allow_empty=True)
-    _patch_secret(video_lan, video_lan_data, "api_key")
-    if "connect_timeout_seconds" in video_lan_data:
-        try:
-            video_lan["connect_timeout_seconds"] = max(0.5, min(30.0, float(video_lan_data.get("connect_timeout_seconds"))))
-        except (TypeError, ValueError):
-            pass
-    if video_lan_data:
-        video_inference["lan"] = video_lan
-
-    video_defaults = _settings_dict(video_inference.get("defaults")).copy()
-    video_defaults_data = _settings_dict(video_inference_data.get("defaults"))
-    aspect_ratio = _clean_text(video_defaults_data.get("aspect_ratio"), max_len=16)
-    if aspect_ratio in {"16:9", "9:16", "3:4", "4:3", "2:3", "3:2", "1:1", "21:9", "9:21"}:
-        video_defaults["aspect_ratio"] = aspect_ratio
-    acceleration_mode = _clean_text(video_defaults_data.get("acceleration_mode"), max_len=32).lower()
-    if acceleration_mode in {"off", "first_block_cache", "sol_attn", "combined"}:
-        video_defaults["acceleration_mode"] = acceleration_mode
-    for key, minimum, maximum in (
-        ("pixel_budget_mp", 0.1, 8.0),
-        ("first_block_cache_threshold", 0.001, 1.0),
-    ):
-        if key in video_defaults_data:
-            try:
-                video_defaults[key] = max(minimum, min(maximum, float(video_defaults_data.get(key))))
-            except (TypeError, ValueError):
-                pass
-    if "duration_seconds" in video_defaults_data:
-        try:
-            video_defaults["duration_seconds"] = max(1, min(120, int(video_defaults_data.get("duration_seconds"))))
-        except (TypeError, ValueError):
-            pass
-    if video_defaults_data:
-        video_inference["defaults"] = video_defaults
-    if video_inference_data:
-        settings["video_inference"] = video_inference
-
-    pinterest = _settings_dict(settings.get("pinterest")).copy()
-    pinterest_data = _settings_dict(data.get("pinterest"))
-    had_legacy_auth_file = "auth_file" in pinterest
-    pinterest.pop("auth_file", None)
-    if "enabled" in pinterest_data:
-        pinterest["enabled"] = _coerce_bool(pinterest_data.get("enabled"), False)
-    if "profile_url" in pinterest_data:
-        pinterest["profile_url"] = _normalize_pinterest_profile_url(pinterest_data.get("profile_url"))
-    if "sync_profile_url" in pinterest_data:
-        sync_profile_url = _normalize_pinterest_profile_url(pinterest_data.get("sync_profile_url"))
-        if sync_profile_url:
-            pinterest["sync_profile_url"] = sync_profile_url
-        else:
-            pinterest.pop("sync_profile_url", None)
-    if "sync_mode" in pinterest_data:
-        sync_mode = _clean_text(pinterest_data.get("sync_mode"), max_len=32).lower()
-        if sync_mode in {"auto", "rss", "authenticated_browser"}:
-            pinterest["sync_mode"] = sync_mode
-    if "download_originals" in pinterest_data:
-        pinterest["download_originals"] = _coerce_bool(pinterest_data.get("download_originals"), True)
-    for key, minimum, maximum in (
-        ("max_pins_per_board", 20, 5000),
-        ("request_timeout_seconds", 5, 60),
-    ):
-        if key in pinterest_data:
-            try:
-                pinterest[key] = max(minimum, min(maximum, int(pinterest_data.get(key))))
-            except (TypeError, ValueError):
-                pass
-    clear_pinterest_auth = _coerce_bool(pinterest_data.get("clear_auth_cookie"), False)
-    if clear_pinterest_auth:
-        for key in ("auth_cookie", "auth_updated_at", "last_verified_at"):
-            pinterest.pop(key, None)
-        pinterest["auth_status"] = "not_configured"
-    elif _coerce_bool(pinterest_data.get("clear_legacy_auth_cookie"), False):
-        pinterest.pop("auth_cookie", None)
-    if pinterest_data or had_legacy_auth_file:
-        settings["pinterest"] = pinterest
-
-    pool = _settings_dict(settings.get("chatgpt_pool")).copy()
-    pool_data = _settings_dict(data.get("chatgpt_pool"))
-    if "enabled" in pool_data:
-        pool["enabled"] = _coerce_bool(pool_data.get("enabled"), True)
-    for key in ("base_url", "generation_model", "db_path"):
-        _patch_text(pool, pool_data, key, max_len=2048)
-    if "timeout_seconds" in pool_data:
-        try:
-            pool["timeout_seconds"] = max(60, min(900, int(pool_data.get("timeout_seconds"))))
-        except (TypeError, ValueError):
-            pass
-    _patch_secret(pool, pool_data, "auth_key")
-    if pool_data:
-        settings["chatgpt_pool"] = pool
-
-    managed_codex = _settings_dict(settings.get("managed_codex_oauth")).copy()
-    managed_codex_data = _settings_dict(data.get("managed_codex_oauth"))
-    if "enabled" in managed_codex_data:
-        managed_codex["enabled"] = _coerce_bool(managed_codex_data.get("enabled"), True)
-    for key in ("auth_file", "accounts_dir", "api_base", "redirect_uri"):
-        _patch_text(managed_codex, managed_codex_data, key, max_len=2048)
-    if managed_codex_data:
-        settings["managed_codex_oauth"] = managed_codex
-
-    for bool_key, url_key, section_key in (
-        ("proxy_enabled", "proxy_url", "proxy"),
-        ("prompt_source_proxy_enabled", "prompt_source_proxy_url", "prompt_source_proxy"),
-    ):
-        proxy_data = _settings_dict(data.get(section_key))
-        if "enabled" in proxy_data:
-            settings[bool_key] = _coerce_bool(proxy_data.get("enabled"), False)
-        if "proxy_url" in proxy_data:
-            settings[url_key] = _clean_text(proxy_data.get("proxy_url"), max_len=512)
-
-    _validate_public_mode_password(settings, server_config=_server_config_from_settings_snapshot(settings))
-    return settings
+    return _domain_services_system_settings._sanitize_system_settings_patch(
+        payload, _clean_text=_clean_text, _clean_text_list=_clean_text_list,
+        _coerce_bool=_coerce_bool, _coerce_gpt_main_model=_coerce_gpt_main_model, _coerce_gpt_provider_total_timeout=_coerce_gpt_provider_total_timeout,
+        _coerce_gpt_reasoning_effort=_coerce_gpt_reasoning_effort, _coerce_gpt_transport_mode=_coerce_gpt_transport_mode, _normalize_comfy_base_url=_normalize_comfy_base_url,
+        _normalize_pinterest_profile_url=_normalize_pinterest_profile_url, _patch_secret=_patch_secret, _patch_text=_patch_text,
+        _server_config_from_settings_snapshot=_server_config_from_settings_snapshot, _settings_dict=_settings_dict, _validate_public_mode_password=_validate_public_mode_password,
+        load_app_settings=load_app_settings, normalize_runtime_base_url=normalize_runtime_base_url, normalize_supervisor_base_url=normalize_supervisor_base_url,
+    )
 
 
 def _sanitize_gpt_provider_patch(data):
-    allowed = {}
-    transport_mode = str(data.get("transport_mode") or data.get("transportMode") or "").strip().lower()
-    if transport_mode in GPT_TRANSPORT_MODES:
-        allowed["transport_mode"] = transport_mode
-    timeout_value = data.get("total_timeout_seconds", data.get("totalTimeoutSeconds"))
-    if timeout_value not in (None, ""):
-        allowed["total_timeout_seconds"] = _coerce_gpt_provider_total_timeout(timeout_value)
-    return allowed
+    return _domain_services_system_settings._sanitize_gpt_provider_patch(
+        data, GPT_TRANSPORT_MODES=GPT_TRANSPORT_MODES, _coerce_gpt_provider_total_timeout=_coerce_gpt_provider_total_timeout,
+    )
 
 
 def _collect_prompt_skill_runtime_config(provider_id=None):
-    config = get_prompt_skill_config()
-    models_payload = discover_prompt_models(provider_id or config.get("provider"))
-    return {
-        "ok": True,
-        "prompt_skill": config,
-        "providers": list_prompt_providers(),
-        "models": models_payload.get("models") or [],
-        "default_model": models_payload.get("default_model") or "",
-        "warning": models_payload.get("warning") or "",
-    }
+    return _domain_services_system_settings._collect_prompt_skill_runtime_config(
+        provider_id, discover_prompt_models=discover_prompt_models, get_prompt_skill_config=get_prompt_skill_config,
+        list_prompt_providers=list_prompt_providers,
+    )
 
 
 def _sanitize_prompt_skill_patch(data):
-    allowed = {}
-    provider = str(data.get("provider") or "").strip()
-    skill = str(data.get("skill") or "").strip()
-    model = str(data.get("model") or "").strip()
-    reasoning_effort = str(data.get("reasoning_effort") or data.get("reasoningEffort") or "").strip().lower()
-    default_output = str(data.get("default_output") or data.get("defaultOutput") or "").strip().lower()
-    if provider:
-        allowed["provider"] = provider[:80]
-    if skill:
-        allowed["skill"] = skill[:120]
-    allowed["model"] = model[:160]
-    if reasoning_effort in GPT_REASONING_EFFORTS:
-        allowed["reasoning_effort"] = reasoning_effort
-    if default_output in {"full_prompt", "compact_prompt"}:
-        allowed["default_output"] = default_output
-    return allowed
+    return _domain_services_system_settings._sanitize_prompt_skill_patch(data, GPT_REASONING_EFFORTS=GPT_REASONING_EFFORTS)
 
 
 def save_thumbnail(image_path, output_filename):
     """为历史记录生成缩略图到 google_outputs/thumb_*.png"""
-    try:
-        google_outputs_dir = os.path.join(DIRECTORY, 'google_outputs')
-        os.makedirs(google_outputs_dir, exist_ok=True)
-        thumb_path = os.path.join(google_outputs_dir, f'thumb_{output_filename}')
-        with Image.open(image_path) as img:
-            # 与 /thumb/ 的 420px 上限对齐，让 sidecar 可以直接作为图库缩略图转码源
-            img.thumbnail((THUMB_MAX_SIDE, THUMB_MAX_SIDE), Image.LANCZOS)
-            img.save(thumb_path, 'PNG', quality=80)
-        print(f"🖼️ 缩略图已保存：{thumb_path}")
-        return True
-    except Exception as e:
-        print(f"⚠️ 缩略图生成失败：{e}")
-        return False
+    return _domain_services_media_lookup.save_thumbnail(
+        image_path, output_filename, DIRECTORY=DIRECTORY,
+        Image=Image, THUMB_MAX_SIDE=THUMB_MAX_SIDE, os=os,
+    )
 
 def safe_basename(filename):
-    return os.path.basename(str(filename or '').strip())
+    return _domain_services_media_lookup.safe_basename(filename, os=os)
 
 
 REMOTE_IMAGE_IMPORT_MAX_BYTES = 32 * 1024 * 1024
@@ -6364,779 +2216,240 @@ _REMOTE_IMAGE_MIME_EXTENSION = {
 
 def _validated_remote_image_url(value):
     """Allow public HTTP(S) image sources while blocking local-network fetches."""
-    raw_url = str(value or '').strip()
-    if not raw_url or len(raw_url) > 8192:
-        raise ValueError('图片地址无效')
-    try:
-        parsed = urllib.parse.urlparse(raw_url)
-        port = parsed.port
-    except ValueError as exc:
-        raise ValueError('图片地址端口无效') from exc
-    if parsed.scheme.lower() not in {'http', 'https'}:
-        raise ValueError('仅支持 HTTP 或 HTTPS 图片地址')
-    if parsed.username or parsed.password:
-        raise ValueError('图片地址不能包含登录信息')
-    hostname = str(parsed.hostname or '').strip().rstrip('.')
-    if not hostname:
-        raise ValueError('图片地址缺少主机名')
-    if hostname.lower() == 'localhost' or hostname.lower().endswith('.localhost'):
-        raise ValueError('不能导入本机或局域网图片地址')
-    try:
-        addresses = socket.getaddrinfo(hostname, port or (443 if parsed.scheme.lower() == 'https' else 80), type=socket.SOCK_STREAM)
-    except OSError as exc:
-        raise ValueError('图片地址无法解析') from exc
-    if not addresses:
-        raise ValueError('图片地址无法解析')
-    for entry in addresses:
-        address_text = str(entry[4][0] or '').split('%', 1)[0]
-        try:
-            address = ipaddress.ip_address(address_text)
-        except ValueError as exc:
-            raise ValueError('图片地址解析结果无效') from exc
-        if not address.is_global and address not in REMOTE_IMAGE_PROXY_FAKE_NETWORK:
-            raise ValueError('不能导入本机或局域网图片地址')
-    return parsed.geturl()
+    return _domain_services_image_import._validated_remote_image_url(
+        value, REMOTE_IMAGE_PROXY_FAKE_NETWORK=REMOTE_IMAGE_PROXY_FAKE_NETWORK, ipaddress=ipaddress,
+        socket=socket, urllib=urllib,
+    )
 
 
 def _sniff_remote_image_mime(image_bytes):
-    head = bytes(image_bytes[:4096])
-    if head.startswith(b'\x89PNG\r\n\x1a\n'):
-        return 'image/png'
-    if head.startswith(b'\xff\xd8\xff'):
-        return 'image/jpeg'
-    if head.startswith((b'GIF87a', b'GIF89a')):
-        return 'image/gif'
-    if len(head) >= 12 and head.startswith(b'RIFF') and head[8:12] == b'WEBP':
-        return 'image/webp'
-    if head.startswith(b'BM'):
-        return 'image/bmp'
-    if head.startswith(b'\x00\x00\x01\x00'):
-        return 'image/x-icon'
-    if len(head) >= 16 and head[4:8] == b'ftyp' and (b'avif' in head[:32] or b'avis' in head[:32]):
-        return 'image/avif'
-    text_head = head.lstrip(b'\xef\xbb\xbf\x00\t\r\n ')
-    if text_head.startswith(b'<svg') or (text_head.startswith(b'<?xml') and b'<svg' in text_head[:2048]):
-        return 'image/svg+xml'
-    try:
-        with Image.open(io.BytesIO(image_bytes)) as image:
-            image.verify()
-            return _REMOTE_IMAGE_FORMAT_MIME.get(str(image.format or '').upper(), '')
-    except Exception:
-        return ''
+    return _domain_services_image_import._sniff_remote_image_mime(image_bytes, Image=Image, _REMOTE_IMAGE_FORMAT_MIME=_REMOTE_IMAGE_FORMAT_MIME, io=io)
 
 
 def _remote_image_filename(url, mime_type):
-    parsed = urllib.parse.urlparse(str(url or ''))
-    raw_name = safe_basename(urllib.parse.unquote(parsed.path or ''))
-    clean_name = re.sub(r'[\x00-\x1f<>:"/\\|?*]+', '_', raw_name).strip(' ._')[:180]
-    extension = _REMOTE_IMAGE_MIME_EXTENSION.get(mime_type, '.png')
-    if not clean_name:
-        return f'imported-image{extension}'
-    accepted_extensions = set(_REMOTE_IMAGE_MIME_EXTENSION.values()) | {'.jpeg', '.jfif'}
-    if Path(clean_name).suffix.lower() not in accepted_extensions:
-        clean_name = f'{clean_name}{extension}'
-    return clean_name
+    return _domain_services_image_import._remote_image_filename(
+        url, mime_type, Path=Path,
+        _REMOTE_IMAGE_MIME_EXTENSION=_REMOTE_IMAGE_MIME_EXTENSION, re=re, safe_basename=safe_basename,
+        urllib=urllib,
+    )
 
 
 def _download_remote_image_for_import(url):
-    current_url = _validated_remote_image_url(url)
-    headers = {
-        'Accept': 'image/avif,image/webp,image/png,image/jpeg,image/gif,image/svg+xml,image/*;q=0.8,*/*;q=0.2',
-        'User-Agent': 'CanvasHub/1.0 image-import',
-    }
-    with requests.Session() as client:
-        client.trust_env = False
-        proxy_config = get_proxy_config('prompt_source')
-        if not proxy_config.get('enabled') or not proxy_config.get('proxy_url'):
-            proxy_config = get_proxy_config()
-        proxy_url = str(proxy_config.get('proxy_url') or '').strip() if proxy_config.get('enabled') else ''
-        if proxy_url:
-            client.proxies.update({'http': proxy_url, 'https': proxy_url})
-        for redirect_index in range(REMOTE_IMAGE_IMPORT_MAX_REDIRECTS + 1):
-            try:
-                response = client.get(
-                    current_url,
-                    headers=headers,
-                    stream=True,
-                    timeout=REMOTE_IMAGE_IMPORT_TIMEOUT,
-                    allow_redirects=False,
-                )
-            except requests.RequestException as exc:
-                raise ValueError(f'图片下载失败：{exc}') from exc
-            with response:
-                if response.status_code in {301, 302, 303, 307, 308}:
-                    if redirect_index >= REMOTE_IMAGE_IMPORT_MAX_REDIRECTS:
-                        raise ValueError('图片地址重定向次数过多')
-                    location = str(response.headers.get('Location') or '').strip()
-                    if not location:
-                        raise ValueError('图片地址重定向缺少目标')
-                    current_url = _validated_remote_image_url(urllib.parse.urljoin(current_url, location))
-                    continue
-                if response.status_code < 200 or response.status_code >= 300:
-                    raise ValueError(f'图片服务器返回 HTTP {response.status_code}')
-                declared_length = str(response.headers.get('Content-Length') or '').strip()
-                if declared_length:
-                    try:
-                        declared_size = int(declared_length)
-                    except ValueError:
-                        declared_size = 0
-                    if declared_size > REMOTE_IMAGE_IMPORT_MAX_BYTES:
-                        raise ValueError('远程图片不能超过 32 MB')
-                chunks = []
-                total = 0
-                try:
-                    for chunk in response.iter_content(chunk_size=128 * 1024):
-                        if not chunk:
-                            continue
-                        total += len(chunk)
-                        if total > REMOTE_IMAGE_IMPORT_MAX_BYTES:
-                            raise ValueError('远程图片不能超过 32 MB')
-                        chunks.append(chunk)
-                except requests.RequestException as exc:
-                    raise ValueError(f'图片下载中断：{exc}') from exc
-                image_bytes = b''.join(chunks)
-                if not image_bytes:
-                    raise ValueError('图片内容为空')
-                mime_type = _sniff_remote_image_mime(image_bytes)
-                if not mime_type:
-                    raise ValueError('远程内容不是支持的图片格式')
-                return {
-                    'content': image_bytes,
-                    'content_type': mime_type,
-                    'filename': _remote_image_filename(current_url, mime_type),
-                    'source_url': current_url,
-                }
-    raise ValueError('图片下载失败')
+    return _domain_services_image_import._download_remote_image_for_import(
+        url, REMOTE_IMAGE_IMPORT_MAX_BYTES=REMOTE_IMAGE_IMPORT_MAX_BYTES, REMOTE_IMAGE_IMPORT_MAX_REDIRECTS=REMOTE_IMAGE_IMPORT_MAX_REDIRECTS,
+        REMOTE_IMAGE_IMPORT_TIMEOUT=REMOTE_IMAGE_IMPORT_TIMEOUT, _remote_image_filename=_remote_image_filename, _sniff_remote_image_mime=_sniff_remote_image_mime,
+        _validated_remote_image_url=_validated_remote_image_url, get_proxy_config=get_proxy_config, requests=requests,
+        urllib=urllib,
+    )
 
 def ensure_gpt_preview_image(filename, max_side=2048):
     """为 GPT 原图生成查看页用 2K 预览图，并缓存到 gpt_outputs。"""
-    safe_name = safe_basename(filename)
-    if not safe_name.endswith('_preview.png'):
-        return None
-
-    preview_path = Path(DIRECTORY) / 'gpt_outputs' / safe_name
-    if preview_path.exists():
-        return preview_path
-
-    source_name = safe_name.replace('_preview.png', '.png')
-    source_path = Path(DIRECTORY) / 'gpt_outputs' / source_name
-    if not source_path.exists():
-        return None
-
-    try:
-        with Image.open(source_path) as img:
-            img = img.convert('RGB') if img.mode not in ('RGB', 'RGBA') else img.copy()
-            img.thumbnail((max_side, max_side), Image.LANCZOS)
-            img.save(preview_path, 'PNG', optimize=True)
-        print(f"🖼️ GPT 2K 预览已生成：{preview_path.name}")
-        return preview_path
-    except Exception as e:
-        print(f"⚠️ GPT 2K 预览生成失败：{e}")
-        return None
+    return _domain_services_media_lookup.ensure_gpt_preview_image(filename, max_side, DIRECTORY=DIRECTORY, Image=Image, Path=Path, safe_basename=safe_basename)
 
 
 def _path_is_inside(path: Path, root: Path) -> bool:
-    try:
-        resolved = path.expanduser().resolve()
-        resolved_root = root.expanduser().resolve()
-        return resolved == resolved_root or resolved_root in resolved.parents
-    except Exception:
-        return False
+    return _domain_services_asset_files._path_is_inside(
+        path, root,
+    )
 
 
 def _allowed_asset_delete_roots():
-    roots = [
-        Path(root).expanduser()
-        for root in image_lookup_roots()
-    ]
-    roots.extend([
-        Path(DIRECTORY) / 'gpt_outputs',
-        Path(DIRECTORY) / 'google_outputs',
-    ])
-    return roots
+    return _domain_services_asset_files._allowed_asset_delete_roots(
+        DIRECTORY=DIRECTORY, Path=Path, image_lookup_roots=image_lookup_roots,
+    )
 
 
 def _unique_trash_path(filename):
-    trash_dir = Path.home() / '.Trash'
-    trash_dir.mkdir(parents=True, exist_ok=True)
-    clean_name = safe_basename(filename) or f"deleted_asset_{int(time.time())}"
-    target = trash_dir / clean_name
-    if not target.exists():
-        return target
-    stem = target.stem
-    suffix = target.suffix
-    for index in range(1, 1000):
-        candidate = trash_dir / f"{stem} {index}{suffix}"
-        if not candidate.exists():
-            return candidate
-    return trash_dir / f"{stem}_{uuid.uuid4().hex[:8]}{suffix}"
+    return _domain_services_asset_files._unique_trash_path(
+        filename, Path=Path, safe_basename=safe_basename,
+        time=time, uuid=uuid,
+    )
 
 
 def _move_asset_file_to_trash(path, deleted, missing, skipped, moves=None):
-    if not path:
-        return
-    candidate = Path(path).expanduser()
-    if not candidate.exists():
-        missing.append(candidate.name)
-        return
-    if not candidate.is_file():
-        skipped.append(candidate.name)
-        return
-    if not any(_path_is_inside(candidate, root) for root in _allowed_asset_delete_roots()):
-        skipped.append(candidate.name)
-        return
-    target = _unique_trash_path(candidate.name)
-    shutil.move(str(candidate), str(target))
-    deleted.append(candidate.name)
-    if isinstance(moves, list):
-        moves.append({
-            "original_path": str(candidate),
-            "trash_path": str(target),
-            "filename": candidate.name,
-        })
+    return _domain_services_asset_files._move_asset_file_to_trash(
+        path, deleted, missing,
+        skipped, moves, Path=Path,
+        _allowed_asset_delete_roots=_allowed_asset_delete_roots, _path_is_inside=_path_is_inside, _unique_trash_path=_unique_trash_path,
+        shutil=shutil,
+    )
 
 
 def _asset_delete_candidates(asset):
-    filename = safe_basename(asset.get('file') or urllib.parse.urlparse(str(asset.get('imageUrl') or '')).path.split('/')[-1])
-    archive_rel = str(asset.get('archiveRelPath') or asset.get('archive_rel_path') or '').strip()
-    archive_path = _resolve_archive_image_file(archive_rel)
-    if not filename and not archive_path:
-        return []
-
-    provider = str(asset.get('provider') or '').lower()
-    project_gpt_dir = Path(DIRECTORY) / 'gpt_outputs'
-    project_google_dir = Path(DIRECTORY) / 'google_outputs'
-    candidates = []
-
-    if archive_path:
-        candidates.append(archive_path)
-        candidates.append(archive_path.with_suffix('.txt'))
-
-    original = _resolve_download_file(filename)
-    if original:
-        candidates.append(original)
-        candidates.append(original.with_suffix('.txt'))
-
-    if provider == 'gpt':
-        gpt_file = project_gpt_dir / filename
-        candidates.append(gpt_file)
-        candidates.append(gpt_file.with_suffix('.txt'))
-        candidates.append(project_gpt_dir / f"{Path(filename).stem}_thumb.png")
-        candidates.append(project_gpt_dir / f"{Path(filename).stem}_preview.png")
-    else:
-        candidates.append(project_google_dir / f"thumb_{filename}")
-
-    deduped = []
-    seen = set()
-    for path in candidates:
-        key = str(Path(path).expanduser())
-        if key in seen:
-            continue
-        seen.add(key)
-        deduped.append(Path(path))
-    return deduped
+    return _domain_services_asset_files._asset_delete_candidates(
+        asset, DIRECTORY=DIRECTORY, Path=Path,
+        _resolve_archive_image_file=_resolve_archive_image_file, _resolve_download_file=_resolve_download_file, safe_basename=safe_basename,
+        urllib=urllib,
+    )
 
 
 def _asset_filename(asset):
-    return safe_basename(
-        asset.get('file')
-        or urllib.parse.urlparse(str(asset.get('imageUrl') or asset.get('image_url') or '')).path.split('/')[-1]
+    return _domain_services_asset_files._asset_filename(
+        asset, safe_basename=safe_basename, urllib=urllib,
     )
 
 
 def _asset_url_file_exists(url):
-    raw_url = str(url or '').strip()
-    if not raw_url:
-        return False
-    if raw_url.startswith(('http://', 'https://', 'data:', 'blob:')):
-        return True
-    parsed = urllib.parse.urlparse(raw_url)
-    path = urllib.parse.unquote(parsed.path or raw_url)
-    filename = safe_basename(path)
-    if path.startswith('/archive_image/'):
-        return bool(_resolve_archive_image_file(path[len('/archive_image/'):]))
-    if path.startswith('/gpt_outputs/') and filename:
-        return (Path(DIRECTORY) / 'gpt_outputs' / filename).exists() or bool(_resolve_download_file(filename))
-    if path.startswith('/google_outputs/') and filename:
-        return (Path(DIRECTORY) / 'google_outputs' / filename).exists()
-    if path.startswith('/image/') and filename:
-        return bool(_resolve_download_file(filename))
-    if filename:
-        return bool(_resolve_download_file(filename))
-    return True
+    return _domain_services_asset_files._asset_url_file_exists(
+        url, DIRECTORY=DIRECTORY, Path=Path,
+        _resolve_archive_image_file=_resolve_archive_image_file, _resolve_download_file=_resolve_download_file, safe_basename=safe_basename,
+        urllib=urllib,
+    )
 
 
 def _asset_file_exists(asset):
-    filename = _asset_filename(asset)
-    provider = str(asset.get('provider') or '').lower()
-    archive_rel = str(asset.get('archiveRelPath') or asset.get('archive_rel_path') or '').strip()
-    if archive_rel and _resolve_archive_image_file(archive_rel):
-        return True
-    if filename:
-        if provider == 'gpt':
-            if (Path(DIRECTORY) / 'gpt_outputs' / filename).exists():
-                return True
-            if _resolve_download_file(filename):
-                return True
-            if _asset_url_file_exists(asset.get('imageUrl') or asset.get('image_url') or asset.get('thumbUrl') or ''):
-                return True
-            return False
-        if _resolve_download_file(filename):
-            return True
-        if (Path(DIRECTORY) / 'google_outputs' / filename).exists():
-            return True
-        if (Path(DIRECTORY) / 'gpt_outputs' / filename).exists():
-            return True
-    return _asset_url_file_exists(asset.get('imageUrl') or asset.get('image_url') or asset.get('thumbUrl') or '')
+    return _domain_services_asset_files._asset_file_exists(
+        asset, DIRECTORY=DIRECTORY, Path=Path,
+        _asset_filename=_asset_filename, _asset_url_file_exists=_asset_url_file_exists, _resolve_archive_image_file=_resolve_archive_image_file,
+        _resolve_download_file=_resolve_download_file,
+    )
 
 
 def _remove_old_history_asset(asset, filename, removed_lines=None):
-    timestamp = int(asset.get('createdAt') or asset.get('created_at') or 0)
-    if not timestamp:
-        raw_task_id = str(asset.get('taskId') or asset.get('task_id') or '')
-        match = re.match(r'old_(\d+)', raw_task_id)
-        timestamp = int(match.group(1)) if match else 0
-    if not timestamp:
-        return False
-
-    history_path = Path(DIRECTORY) / 'history.jsonl'
-    if not history_path.exists():
-        return False
-
-    removed = False
-    kept = []
-    with open(history_path, 'r', encoding='utf-8') as f:
-        for line in f:
-            if not line.strip():
-                continue
-            try:
-                item = json.loads(line)
-            except Exception:
-                kept.append(line)
-                continue
-            same_time = int(item.get('timestamp') or item.get('created_at') or -1) == timestamp
-            same_file = safe_basename(item.get('output_file') or item.get('result_file') or '') == filename
-            if same_time and same_file:
-                removed = True
-                if isinstance(removed_lines, list):
-                    removed_lines.append(line.rstrip('\n'))
-                continue
-            kept.append(line)
-
-    if removed:
-        with open(history_path, 'w', encoding='utf-8') as f:
-            f.writelines(kept)
-    return removed
+    return _domain_services_asset_files._remove_old_history_asset(
+        asset, filename, removed_lines,
+        DIRECTORY=DIRECTORY, Path=Path, json=json,
+        re=re, safe_basename=safe_basename,
+    )
 
 
 def _restore_old_history_lines(lines):
-    clean_lines = [str(line or '').strip() for line in (lines or []) if str(line or '').strip()]
-    if not clean_lines:
-        return 0
-    history_path = Path(DIRECTORY) / 'history.jsonl'
-    existing = set()
-    if history_path.exists():
-        with open(history_path, 'r', encoding='utf-8') as f:
-            existing = {line.strip() for line in f if line.strip()}
-    restored = 0
-    with open(history_path, 'a', encoding='utf-8') as f:
-        for line in clean_lines:
-            if line in existing:
-                continue
-            f.write(line + '\n')
-            existing.add(line)
-            restored += 1
-    return restored
+    return _domain_services_asset_files._restore_old_history_lines(
+        lines, DIRECTORY=DIRECTORY, Path=Path,
+    )
 
 
 def _remove_asset_from_task(asset, removed_history=None):
-    task_id = str(asset.get('taskId') or asset.get('task_id') or '').strip()
-    filename = _asset_filename(asset)
-    if not task_id or not filename:
-        return False
-    if task_id.startswith('old_'):
-        return _remove_old_history_asset(asset, filename, removed_history)
-    task = get_task(task_id)
-    if not task:
-        return False
-    files = list(task.get('result_files') or [])
-    primary = task.get('result_file') or ''
-    if not files and primary:
-        files = [primary]
-    if filename not in files and filename != primary:
-        return False
-    remaining = [item for item in files if item != filename]
-    if not remaining:
-        update_task_fields(
-            task_id,
-            result_file='',
-            result_files=json.dumps([], ensure_ascii=False),
-            progress_text='图片资产已从图库移除',
-        )
-        return True
-    update_task_fields(
-        task_id,
-        result_file=remaining[0],
-        result_files=json.dumps(remaining, ensure_ascii=False),
-        progress_text='部分图片已从图库移除',
+    return _domain_services_asset_files._remove_asset_from_task(
+        asset, removed_history, _asset_filename=_asset_filename,
+        _remove_old_history_asset=_remove_old_history_asset, get_task=get_task, json=json,
+        update_task_fields=update_task_fields,
     )
-    return True
 
 
 def _remove_assets_from_tasks(assets, removed_history=None):
-    grouped = {}
-    old_assets = []
-    for asset in assets or []:
-        task_id = str(asset.get('taskId') or asset.get('task_id') or '').strip()
-        filename = _asset_filename(asset)
-        if not task_id or not filename:
-            continue
-        if task_id.startswith('old_'):
-            old_assets.append((asset, filename))
-            continue
-        grouped.setdefault(task_id, set()).add(filename)
-
-    changed = 0
-    for asset, filename in old_assets:
-        if _remove_old_history_asset(asset, filename, removed_history):
-            changed += 1
-
-    for task_id, filenames in grouped.items():
-        task = get_task(task_id)
-        if not task:
-            continue
-        files = list(task.get('result_files') or [])
-        primary = task.get('result_file') or ''
-        if not files and primary:
-            files = [primary]
-        if not files:
-            continue
-        remaining = [item for item in files if safe_basename(item) not in filenames]
-        if len(remaining) == len(files):
-            continue
-        if not remaining:
-            update_task_fields(
-                task_id,
-                result_file='',
-                result_files=json.dumps([], ensure_ascii=False),
-                progress_text='图片资产已从图库移除',
-            )
-        else:
-            update_task_fields(
-                task_id,
-                result_file=remaining[0],
-                result_files=json.dumps(remaining, ensure_ascii=False),
-                progress_text='部分图片已从图库移除',
-            )
-        changed += 1
-    return changed
+    return _domain_services_asset_files._remove_assets_from_tasks(
+        assets, removed_history, _asset_filename=_asset_filename,
+        _remove_old_history_asset=_remove_old_history_asset, get_task=get_task, json=json,
+        safe_basename=safe_basename, update_task_fields=update_task_fields,
+    )
 
 
 def _delete_gallery_assets(asset_ids):
-    clean_ids = []
-    seen_ids = set()
-    for raw_id in asset_ids or []:
-        asset_id = str(raw_id or '').strip()
-        if not asset_id or asset_id in seen_ids:
-            continue
-        seen_ids.add(asset_id)
-        clean_ids.append(asset_id)
-    if not clean_ids:
-        raise ValueError("缺少资产 ID")
-    if len(clean_ids) > 120:
-        raise ValueError("单次最多删除 120 张图片")
-
-    data = list_gallery_assets(limit=5000, offset=0, include_hidden=True)
-    missing_data = list_gallery_assets(limit=5000, offset=0, include_hidden=True, source='missing_history')
-    asset_map = {
-        str(asset.get('id') or asset.get('asset_id') or ''): asset
-        for asset in (data.get('assets') or []) + (missing_data.get('assets') or [])
-        if asset.get('id') or asset.get('asset_id')
-    }
-    assets = []
-    missing_asset_ids = []
-    for asset_id in clean_ids:
-        asset = asset_map.get(asset_id) or get_gallery_asset(asset_id)
-        if asset:
-            assets.append(asset)
-        else:
-            missing_asset_ids.append(asset_id)
-    if not assets:
-        raise FileNotFoundError("资产不存在")
-
-    task_snapshots = {}
-    set_snapshots = {}
-    for asset in assets:
-        task_id = str(asset.get('taskId') or asset.get('task_id') or '').strip()
-        if task_id and not task_id.startswith('old_') and task_id not in task_snapshots:
-            task = get_task(task_id)
-            if task:
-                task_snapshots[task_id] = task
-        for snapshot in snapshot_sets_for_asset(str(asset.get('id') or asset.get('asset_id') or '')):
-            set_id = str(snapshot.get('set_id') or '').strip()
-            if set_id:
-                set_snapshots[set_id] = snapshot
-
-    deleted = []
-    missing = []
-    skipped = []
-    moves = []
-    seen_paths = set()
-    for asset in assets:
-        for path in _asset_delete_candidates(asset):
-            path_key = str(Path(path).expanduser())
-            if path_key in seen_paths:
-                continue
-            seen_paths.add(path_key)
-            _move_asset_file_to_trash(path, deleted, missing, skipped, moves=moves)
-
-    removed_history = []
-    task_updates = _remove_assets_from_tasks(assets, removed_history=removed_history)
-    hidden_updates = 0
-    set_updates = 0
-    processed_ids = []
-    for asset in assets:
-        asset_id = str(asset.get('id') or asset.get('asset_id') or '').strip()
-        if not asset_id:
-            continue
-        processed_ids.append(asset_id)
-        try:
-            update_asset_meta(asset_id, hidden=True)
-            hidden_updates += 1
-        except Exception:
-            pass
-        set_updates += remove_asset_from_sets(asset_id)
-
-    journal = record_delete_batch({
-        "asset_ids": processed_ids,
-        "assets": assets,
-        "moves": moves,
-        "task_snapshots": list(task_snapshots.values()),
-        "task_snapshot": next(iter(task_snapshots.values()), None),
-        "old_history_lines": removed_history,
-        "set_snapshots": list(set_snapshots.values()),
-        "deleted_files": deleted,
-        "missing_files": missing,
-        "skipped_files": skipped,
-    })
-
-    return {
-        "ok": True,
-        "asset_ids": processed_ids,
-        "asset_id": processed_ids[0] if len(processed_ids) == 1 else "",
-        "missing_asset_ids": missing_asset_ids,
-        "delete_batch_id": journal.get("batch_id"),
-        "undo_id": journal.get("batch_id"),
-        "deleted_files": deleted,
-        "missing_files": missing,
-        "skipped_files": skipped,
-        "task_updates": task_updates,
-        "task_updated": task_updates > 0,
-        "hidden_updates": hidden_updates,
-        "set_updates": set_updates,
-        "message": "资产文件已移入废纸篓" if deleted else "资产已从图库移除",
-    }
+    return _delete_gallery_assets_service(
+        asset_ids,
+        list_assets=list_gallery_assets,
+        get_asset=get_gallery_asset,
+        get_task=get_task,
+        snapshot_sets=snapshot_sets_for_asset,
+        delete_candidates=_asset_delete_candidates,
+        move_to_trash=_move_asset_file_to_trash,
+        remove_from_tasks=_remove_assets_from_tasks,
+        update_meta=update_asset_meta,
+        remove_from_sets=remove_asset_from_sets,
+        record_batch=record_delete_batch,
+    )
 
 
 def _collect_asset_health():
-    data = list_gallery_assets(limit=3000, offset=0, include_hidden=True)
-    stats = data.get('stats') if isinstance(data.get('stats'), dict) else {}
-    assets = [asset for asset in data.get('assets', []) if asset.get('id') or asset.get('asset_id')]
-    missing_assets = []
-    valid_asset_ids = set()
-    all_asset_ids = set()
-    for asset in assets:
-        asset_id = str(asset.get('id') or asset.get('asset_id') or '').strip()
-        if not asset_id:
-            continue
-        all_asset_ids.add(asset_id)
-        if _asset_file_exists(asset):
-            valid_asset_ids.add(asset_id)
-        else:
-            missing_assets.append({
-                "asset_id": asset_id,
-                "id": asset_id,
-                "task_id": asset.get('taskId') or asset.get('task_id') or '',
-                "title": asset.get('title') or '',
-                "file": asset.get('file') or '',
-                "imageUrl": asset.get('imageUrl') or asset.get('image_url') or '',
-                "provider": asset.get('provider') or '',
-            })
-
-    sets_data = list_asset_sets(limit=300, offset=0)
-    invalid_set_refs = 0
-    empty_sets = []
-    for asset_set in sets_data.get('sets', []):
-        ids = [str(value or '').strip() for value in (asset_set.get('assetIds') or asset_set.get('asset_ids') or []) if str(value or '').strip()]
-        valid_count = sum(1 for asset_id in ids if asset_id in valid_asset_ids)
-        invalid_set_refs += sum(1 for asset_id in ids if asset_id not in valid_asset_ids)
-        if ids and valid_count <= 0:
-            empty_sets.append({
-                "set_id": asset_set.get('id') or asset_set.get('set_id') or '',
-                "name": asset_set.get('name') or '未命名候选集',
-                "count": len(ids),
-            })
-
-    invalid_lineage_refs = 0
-    invalid_lineage_tasks = 0
-    no_image_history = 0
-    for task in get_all_tasks(limit=3000, offset=0):
-        result_files = task.get('result_files') or []
-        primary = task.get('result_file') or ''
-        if not result_files and primary:
-            result_files = [primary]
-        if not _history_task_should_render(task.get('status'), result_files):
-            no_image_history += 1
-
-        params = task.get('params') if isinstance(task.get('params'), dict) else {}
-        lineage = params.get('lineage') if isinstance(params.get('lineage'), dict) else {}
-        refs = lineage.get('reference_assets') or lineage.get('referenceAssets') or []
-        if not isinstance(refs, list):
-            continue
-        missing_refs = [
-            ref for ref in refs
-            if isinstance(ref, dict)
-            and str(ref.get('asset_id') or ref.get('assetId') or ref.get('id') or '').strip()
-            and str(ref.get('asset_id') or ref.get('assetId') or ref.get('id') or '').strip() not in valid_asset_ids
-        ]
-        if missing_refs:
-            invalid_lineage_refs += len(missing_refs)
-            invalid_lineage_tasks += 1
-
-    history_missing_count = int(stats.get('history_missing_count') or 0)
-    issue_count = len(missing_assets) + invalid_set_refs + len(empty_sets) + invalid_lineage_refs + no_image_history + history_missing_count
-    return {
-        "ok": issue_count == 0,
-        "assets_total": len(assets),
-        "assets_valid": len(valid_asset_ids),
-        "missing_count": len(missing_assets),
-        "missing_assets": missing_assets[:120],
-        "missing_assets_all": missing_assets,
-        "invalid_set_refs": invalid_set_refs,
-        "empty_sets": empty_sets,
-        "empty_set_count": len(empty_sets),
-        "invalid_lineage_refs": invalid_lineage_refs,
-        "invalid_lineage_tasks": invalid_lineage_tasks,
-        "no_image_history": no_image_history,
-        "valid_asset_ids": sorted(valid_asset_ids),
-        "all_asset_ids": sorted(all_asset_ids),
-        "issue_count": issue_count,
-        "stats": stats,
-        "obsidian_image_count": stats.get('obsidian_image_count', len(assets)),
-        "archive_image_count": stats.get('archive_image_count', len(assets)),
-        "gallery_asset_count": stats.get('gallery_asset_count', len(assets)),
-        "indexed_asset_count": stats.get('indexed_asset_count', len(assets)),
-        "task_record_image_count": stats.get('task_record_image_count', 0),
-        "linked_asset_count": stats.get('linked_asset_count', 0),
-        "orphan_asset_count": stats.get('orphan_asset_count', 0),
-        "archive_only_count": stats.get('archive_only_count', 0),
-        "history_result_count": stats.get('history_result_count', 0),
-        "history_missing_count": history_missing_count,
-        "history_missing_archive_count": stats.get('history_missing_archive_count', history_missing_count),
-    }
+    return _collect_asset_health_service(
+        list_assets=list_gallery_assets,
+        list_sets=list_asset_sets,
+        list_tasks=get_all_tasks,
+        asset_exists=_asset_file_exists,
+        should_render_history=_history_task_should_render,
+    )
 
 
 def _cleanup_lineage_refs(valid_asset_ids):
-    valid_ids = {str(value or '').strip() for value in (valid_asset_ids or []) if str(value or '').strip()}
-    removed = 0
-    updated_tasks = 0
-    for task in get_all_tasks(limit=3000, offset=0):
-        task_id = str(task.get('task_id') or '').strip()
-        params = task.get('params') if isinstance(task.get('params'), dict) else {}
-        lineage = params.get('lineage') if isinstance(params.get('lineage'), dict) else {}
-        refs = lineage.get('reference_assets') or lineage.get('referenceAssets') or []
-        if not task_id or not isinstance(refs, list):
-            continue
-        next_refs = []
-        for ref in refs:
-            if not isinstance(ref, dict):
-                continue
-            ref_id = str(ref.get('asset_id') or ref.get('assetId') or ref.get('id') or '').strip()
-            if ref_id and ref_id not in valid_ids:
-                removed += 1
-                continue
-            next_refs.append(ref)
-        if len(next_refs) == len(refs):
-            continue
-        asset_ids = []
-        task_ids = []
-        for ref in next_refs:
-            ref_id = str(ref.get('asset_id') or ref.get('assetId') or ref.get('id') or '').strip()
-            ref_task_id = str(ref.get('task_id') or ref.get('taskId') or '').strip()
-            if ref_id and ref_id not in asset_ids:
-                asset_ids.append(ref_id)
-            if ref_task_id and ref_task_id not in task_ids:
-                task_ids.append(ref_task_id)
-        lineage['reference_assets'] = next_refs
-        lineage['referenceAssets'] = next_refs
-        lineage['reference_asset_ids'] = asset_ids
-        lineage['referenceAssetIds'] = asset_ids
-        lineage['source_task_ids'] = task_ids
-        lineage['sourceTaskIds'] = task_ids
-        params['lineage'] = lineage
-        update_task_fields(task_id, params=json.dumps(params, ensure_ascii=False))
-        updated_tasks += 1
-    return {"removed_refs": removed, "updated_tasks": updated_tasks}
+    return _domain_services_asset_files._cleanup_lineage_refs(
+        valid_asset_ids, get_all_tasks=get_all_tasks, json=json,
+        update_task_fields=update_task_fields,
+    )
 
 
 def _cleanup_no_image_history():
-    removed = 0
-    for task in get_all_tasks(limit=3000, offset=0):
-        result_files = task.get('result_files') or []
-        primary = task.get('result_file') or ''
-        if not result_files and primary:
-            result_files = [primary]
-        if _history_task_should_render(task.get('status'), result_files):
-            continue
-        task_id = str(task.get('task_id') or '').strip()
-        if task_id and delete_task(task_id):
-            removed += 1
-
-    history_path = Path(DIRECTORY) / 'history.jsonl'
-    if history_path.exists():
-        kept = []
-        old_removed = 0
-        with open(history_path, 'r', encoding='utf-8') as f:
-            for line in f:
-                if not line.strip():
-                    continue
-                try:
-                    item = json.loads(line)
-                except Exception:
-                    kept.append(line)
-                    continue
-                filename = safe_basename(item.get('output_file') or item.get('result_file') or '')
-                status = item.get('status') or 'success'
-                if not _history_task_should_render(status, [filename] if filename else []):
-                    old_removed += 1
-                    continue
-                kept.append(line)
-        if old_removed:
-            with open(history_path, 'w', encoding='utf-8') as f:
-                f.writelines(kept)
-            removed += old_removed
-    return removed
+    return _domain_services_asset_files._cleanup_no_image_history(
+        DIRECTORY=DIRECTORY, Path=Path, _history_task_should_render=_history_task_should_render,
+        delete_task=delete_task, get_all_tasks=get_all_tasks, json=json,
+        safe_basename=safe_basename,
+    )
 
 
 def _restore_trash_move(move):
-    original_raw = str(move.get('original_path') or '').strip()
-    trash_raw = str(move.get('trash_path') or '').strip()
-    if not original_raw or not trash_raw:
-        return "skipped"
-    original = Path(original_raw).expanduser()
-    trash_path = Path(trash_raw).expanduser()
-    trash_root = Path.home() / '.Trash'
-    if not _path_is_inside(trash_path, trash_root):
-        return "skipped"
-    if not any(_path_is_inside(original, root) for root in _allowed_asset_delete_roots()):
-        return "skipped"
-    if original.exists():
-        return "exists"
-    if not trash_path.exists() or not trash_path.is_file():
-        return "missing"
-    original.parent.mkdir(parents=True, exist_ok=True)
-    shutil.move(str(trash_path), str(original))
-    return "restored"
+    return _domain_services_asset_files._restore_trash_move(
+        move, Path=Path, _allowed_asset_delete_roots=_allowed_asset_delete_roots,
+        _path_is_inside=_path_is_inside, shutil=shutil,
+    )
+
+
+# Keep compatibility entrypoints on RequestHandler while moving their bodies.
+# This table only consumes explicitly migrated, authenticated endpoints.
+_google_pool_client = GooglePoolClient(get_chatgpt_pool_config)
+_google_pool_provider = GooglePoolProvider(
+    _google_pool_client, is_cancelled=lambda task_id: (get_task(task_id) or {}).get("status") in {"canceled", "cancelled"})
+_GOOGLE_POOL_ROUTES = create_google_pool_router(_google_pool_client)
+_CYIMG_SERVICE = CyimgService(
+    get_config=get_cyimg_config, create_task=create_task, get_task=get_task,
+    get_all_tasks=get_all_tasks, update_task=update_task, update_task_status=update_task_status,
+    update_task_fields=update_task_fields, daily_output_dir=daily_output_dir,
+    send_document=send_tg_document)
+_CYIMG_ROUTES = create_cyimg_router(_CYIMG_SERVICE)
+_KREA2_SERVICE = Krea2Service(
+    APP_DATA_DIR / 'data' / 'krea2', APP_DATA_DIR / 'components' / 'krea2',
+    Krea2Runtime(APP_DATA_DIR / 'components' / 'krea2'),
+    create_task=create_task, get_task=get_task, get_all_tasks=get_all_tasks,
+    update_task=update_task, update_task_status=update_task_status,
+    update_task_fields=update_task_fields, daily_output_dir=daily_output_dir,
+    write_prompt_sidecar=write_obsidian_prompt_sidecar, send_document=send_tg_document)
+_KREA2_ROUTES = create_krea2_router(_KREA2_SERVICE)
+_QWEN21_SERVICE = Qwen21Service(
+    APP_DATA_DIR / 'data' / 'qwen21', APP_DATA_DIR / 'components' / 'qwen21',
+    Qwen21Runtime(APP_DATA_DIR / 'components' / 'qwen21'),
+    create_task=create_task, get_task=get_task, get_all_tasks=get_all_tasks,
+    update_task=update_task, update_task_status=update_task_status,
+    update_task_fields=update_task_fields, daily_output_dir=daily_output_dir,
+    write_prompt_sidecar=write_obsidian_prompt_sidecar, send_document=send_tg_document)
+_QWEN21_ROUTES = create_qwen21_router(_QWEN21_SERVICE)
+_LORA_LIBRARY = LoRALibraryService(
+    APP_DATA_DIR / 'data' / 'lora_library',
+    catalogs={'krea2': _KREA2_SERVICE.loras.library_snapshot,
+              'qwen21': _QWEN21_SERVICE.loras.library_snapshot},
+    resolvers={'krea2': _KREA2_SERVICE.loras.resolve, 'qwen21': _QWEN21_SERVICE.loras.resolve},
+    deleters={'krea2': _KREA2_SERVICE.delete_lora, 'qwen21': _QWEN21_SERVICE.delete_lora},
+    excluded_ids=[item['sha256'] for item in QWEN21_MANAGED_ADAPTERS.values()],
+    provider=CivitaiMetadataProvider(APP_DATA_DIR / 'data' / 'lora_library'))
+_LORA_LIBRARY_ROUTES = create_lora_library_router(_LORA_LIBRARY)
+_LOCAL_IMAGE_MEMORY = IdleWorkerCoordinator({
+    'krea2': _KREA2_SERVICE.runtime.close, 'qwen21': _QWEN21_SERVICE.runtime.close})
+_KREA2_SERVICE.runtime.before_load = lambda: _LOCAL_IMAGE_MEMORY.release_other('krea2')
+_QWEN21_SERVICE.runtime.before_load = lambda: _LOCAL_IMAGE_MEMORY.release_other('qwen21')
+_topaz_runtime.before_load = _LOCAL_IMAGE_MEMORY.release_all
+_VIDEO_CONTROL_ROUTES = create_video_control_router(VideoControlService(
+    APP_DATA_DIR / 'data' / 'video-control', VideoControlRuntime(
+        APP_DATA_DIR / 'components' / 'reshot', before_load=_LOCAL_IMAGE_MEMORY.release_all)))
+_TOPAZ_VIDEO_ROUTES = create_topaz_video_router(TopazVideoService(
+    APP_DATA_DIR / 'data' / 'topaz-video', TopazVideoRuntime(
+        APP_DATA_DIR / 'components' / 'topaz-video', before_load=_LOCAL_IMAGE_MEMORY.release_all)))
+_AUDIO_ROUTES = create_audio_router(AudioService(
+    APP_DATA_DIR / 'data' / 'audio', AudioRuntime(
+        APP_DATA_DIR / 'components' / 'audio-yue', before_load=_LOCAL_IMAGE_MEMORY.release_all)))
+
+_MIGRATED_ROUTES = ProtectedRouter({
+    ("GET", "/api/history"): lambda handler: handler.handle_history(),
+    ("GET", "/api/layout/fonts"): lambda handler: handler.handle_layout_fonts(),
+    ("GET", "/api/layout/drafts"): lambda handler: handler.handle_layout_draft_list(
+        urllib.parse.urlparse(handler.path)),
+    ("GET", "/api/editable-files"): lambda handler: handler.handle_editable_files(
+        urllib.parse.urlparse(handler.path)),
+})
+
+
+def _reload_auth_state():
+    """Refresh the process-owned auth bindings after a successful settings save."""
+    global AUTH_PASSWORD, TELEGRAM_AUTH_BOT_TOKEN, TELEGRAM_AUTH_ALLOWED_IDS
+    AUTH_PASSWORD = _load_auth_password()
+    TELEGRAM_AUTH_BOT_TOKEN, TELEGRAM_AUTH_ALLOWED_IDS = _load_telegram_auth_config()
 
 
 class RequestHandler(http.server.SimpleHTTPRequestHandler):
@@ -7156,7 +2469,7 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
         if parts[0] in {"scripts", "styles", "assets", "vendor"}:
             return str(FRONTEND_ROOT.joinpath(*parts))
         if parts[0] == "static":
-            return str(PROJECT_ROOT.joinpath(*parts))
+            return str(FRONTEND_STATIC_ROOT.joinpath(*parts[1:]))
         # Do not expose project databases, settings, source code, or auth files
         # through SimpleHTTPRequestHandler's catch-all static fallback.
         return str(FRONTEND_ROOT / "__not_found__")
@@ -7176,6 +2489,8 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
                 self.send_header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
                 self.send_header('Pragma', 'no-cache')
                 self.send_header('Expires', '0')
+            elif path in IMMUTABLE_FRONTEND_PATHS:
+                self.send_header('Cache-Control', 'public, max-age=31536000, immutable')
             elif path.startswith(('/scripts/', '/styles/')):
                 if 'v=' in query:
                     self.send_header('Cache-Control', 'public, max-age=31536000, immutable')
@@ -7186,84 +2501,27 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
         super().end_headers()
 
     def _get_cookie_value(self, name):
-        raw = self.headers.get('Cookie', '')
-        if not raw:
-            return ''
-        try:
-            cookie = SimpleCookie()
-            cookie.load(raw)
-            morsel = cookie.get(name)
-            return morsel.value if morsel else ''
-        except Exception:
-            return ''
+        return _domain_routes_auth_routes._get_cookie_value(self, name, SimpleCookie=SimpleCookie)
 
     def is_authenticated(self):
-        if not _auth_enabled():
-            return True
-        init_data = self.headers.get(TELEGRAM_INIT_DATA_HEADER_NAME, '')
-        encoded_init_data = self.headers.get(TELEGRAM_INIT_DATA_ENCODED_HEADER_NAME, '')
-        if not init_data and encoded_init_data:
-            try:
-                init_data = urllib.parse.unquote(encoded_init_data)
-            except Exception:
-                init_data = ''
-        if init_data and _verify_telegram_init_data(init_data):
-            return True
-        header_token = self.headers.get(AUTH_HEADER_NAME, '')
-        if header_token and _verify_auth_cookie_value(header_token):
-            return True
-        try:
-            query = urllib.parse.parse_qs(urllib.parse.urlparse(getattr(self, 'path', '') or '').query)
-            query_token = (
-                query.get('miniappAuth', [''])[0]
-                or query.get('authToken', [''])[0]
-                or query.get('auth_token', [''])[0]
-            )
-            if query_token and _verify_auth_cookie_value(query_token):
-                return True
-        except Exception:
-            pass
-        return _verify_auth_cookie_value(self._get_cookie_value(AUTH_COOKIE_NAME))
+        return _domain_routes_auth_routes.is_authenticated(
+            self, AUTH_COOKIE_NAME=AUTH_COOKIE_NAME, AUTH_HEADER_NAME=AUTH_HEADER_NAME,
+            TELEGRAM_INIT_DATA_ENCODED_HEADER_NAME=TELEGRAM_INIT_DATA_ENCODED_HEADER_NAME, TELEGRAM_INIT_DATA_HEADER_NAME=TELEGRAM_INIT_DATA_HEADER_NAME, _auth_enabled=_auth_enabled,
+            _verify_auth_cookie_value=_verify_auth_cookie_value, _verify_telegram_init_data=_verify_telegram_init_data, urllib=urllib,
+        )
 
     def require_auth(self):
-        if self.is_authenticated():
-            return True
-        self.send_json({
-            "ok": False,
-            "error": "Unauthorized",
-            "message": "需要先输入访问密码"
-        }, 401)
-        return False
+        return _domain_routes_auth_routes.require_auth(self)
 
     def _apply_cors_headers(self):
-        if getattr(self, '_cors_headers_applied', False):
-            return
-        self._cors_headers_applied = True
-        origin = str(self.headers.get('Origin') or '').strip().rstrip('/')
-        if not origin:
-            return
-        if origin in set(get_allowed_cors_origins()):
-            self.send_header('Access-Control-Allow-Origin', origin)
-            self.send_header('Vary', 'Origin')
+        return _domain_routes_http_responses._apply_cors_headers(self, get_allowed_cors_origins=get_allowed_cors_origins)
 
     def start_generation_task(self, task_id, target, args=(), task_ids=None):
-        thread = _start_generation_thread(target, args=args)
-        if thread:
-            return True
-        message = _generation_busy_message()
-        for rejected_id in (task_ids or [task_id]):
-            update_task(
-                rejected_id,
-                'failed',
-                error=message,
-                stage='rejected',
-                progress_text=message,
-                transport_error_type='GenerationQueueFull',
-            )
-        payload = _generation_busy_payload()
-        payload['task_id'] = task_id
-        self.send_json(payload, 503)
-        return False
+        return _domain_routes_task_control_routes.start_generation_task(
+            self, task_id, target,
+            args, task_ids, _generation_busy_message=_generation_busy_message,
+            _generation_busy_payload=_generation_busy_payload, _start_generation_thread=_start_generation_thread, update_task=update_task,
+        )
 
     def do_OPTIONS(self):
         """处理 CORS 预检请求"""
@@ -7272,6 +2530,15 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
         self.send_header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS')
         self.send_header('Access-Control-Allow-Headers', f'Content-Type, {TELEGRAM_INIT_DATA_HEADER_NAME}, {TELEGRAM_INIT_DATA_ENCODED_HEADER_NAME}, {AUTH_HEADER_NAME}')
         self.end_headers()
+
+    def do_HEAD(self):
+        path = urllib.parse.urlparse(self.path).path
+        if path.startswith('/font/'):
+            if not self.require_auth():
+                return
+            self.handle_layout_font_file(path[len('/font/'):])
+            return
+        super().do_HEAD()
 
     def do_GET(self):
         """处理 GET 请求"""
@@ -7283,12 +2550,27 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
             super().do_GET()
             return
 
+        if _VIDEO_CONTROL_ROUTES.dispatch(self, 'GET', path):
+            return
+        if _CYIMG_ROUTES.dispatch(self, 'GET', path):
+            return
+        if _KREA2_ROUTES.dispatch(self, 'GET', path):
+            return
+        if _QWEN21_ROUTES.dispatch(self, 'GET', path):
+            return
+        if _LORA_LIBRARY_ROUTES.dispatch(self, 'GET', path):
+            return
+        if _TOPAZ_VIDEO_ROUTES.dispatch(self, 'GET', path):
+            return
+        if _AUDIO_ROUTES.dispatch(self, 'GET', path):
+            return
+        if _GOOGLE_POOL_ROUTES.dispatch(self, 'GET', path):
+            return
+        if _MIGRATED_ROUTES.dispatch(self, 'GET', path):
+            return
+
         # API 路由
-        if path == '/api/history':
-            if not self.require_auth():
-                return
-            self.handle_history()
-        elif path == '/api/assets':
+        if path == '/api/assets':
             if not self.require_auth():
                 return
             self.handle_assets(parsed)
@@ -7360,10 +2642,6 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
             if not self.require_auth():
                 return
             self.handle_chatgpt_pool_accounts()
-        elif path == '/api/editable-files':
-            if not self.require_auth():
-                return
-            self.handle_editable_files(parsed)
         elif path == '/api/prompt/config':
             if not self.require_auth():
                 return
@@ -7437,6 +2715,10 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
                 return
             task_id = path.split('/')[-1]
             self.handle_status(task_id)
+        elif path == '/api/topaz/models':
+            if not self.require_auth():
+                return
+            topaz_routes.models(self, _topaz_runtime)
         elif path == '/api/upscale/models':
             if not self.require_auth():
                 return
@@ -7445,6 +2727,10 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
             if not self.require_auth():
                 return
             self.handle_upscale_component_status()
+        elif path.startswith('/font/'):
+            if not self.require_auth():
+                return
+            self.handle_layout_font_file(path[len('/font/'):])
         elif path.startswith('/image/'):
             if not self.require_auth():
                 return
@@ -7509,14 +2795,6 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
             if not self.require_auth():
                 return
             self.handle_comfy_image()
-        elif path == '/api/layout/fonts':
-            if not self.require_auth():
-                return
-            self.handle_layout_fonts()
-        elif path == '/api/layout/drafts':
-            if not self.require_auth():
-                return
-            self.handle_layout_draft_list(parsed)
         elif path.startswith('/api/layout/drafts/'):
             if not self.require_auth():
                 return
@@ -7564,6 +2842,23 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
         """处理 POST 请求"""
         parsed = urllib.parse.urlparse(self.path)
         path = parsed.path
+        if _VIDEO_CONTROL_ROUTES.dispatch(self, 'POST', path):
+            return
+        if _CYIMG_ROUTES.dispatch(self, 'POST', path):
+            return
+        if _KREA2_ROUTES.dispatch(self, 'POST', path):
+            return
+        if _QWEN21_ROUTES.dispatch(self, 'POST', path):
+            return
+        if _LORA_LIBRARY_ROUTES.dispatch(self, 'POST', path):
+            return
+        if _TOPAZ_VIDEO_ROUTES.dispatch(self, 'POST', path):
+            return
+        if _AUDIO_ROUTES.dispatch(self, 'POST', path):
+            return
+        if _GOOGLE_POOL_ROUTES.dispatch(self, 'POST', path):
+            return
+
         
         # API 路由
         if path == '/api/images/import-url':
@@ -7594,6 +2889,11 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
             if not self.require_auth():
                 return
             self.handle_gpt_edit()
+        elif path == '/api/topaz/run':
+            if not self.require_auth():
+                return
+            topaz_routes.submit(self, runtime=_topaz_runtime, create_task=create_task,
+                process_task=process_topaz_task, attach_lineage=_attach_lineage_params)
         elif path == '/api/upscale/run':
             if not self.require_auth():
                 return
@@ -7714,6 +3014,10 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
             if not self.require_auth():
                 return
             self.handle_prompt_image_analysis()
+        elif path == '/api/prompt/video-analysis':
+            if not self.require_auth():
+                return
+            self.handle_prompt_video_analysis()
         elif path == '/api/prompt/versions/generate':
             if not self.require_auth():
                 return
@@ -7882,78 +3186,27 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
 
     def send_json(self, data, status=200, extra_headers=None):
         """发送 JSON 响应；大响应在客户端支持时做 gzip 压缩（提示词文本可压约 10x）。"""
-        body = json.dumps(data).encode()
-        content_encoding = ''
-        if len(body) > 51200:
-            accept_encoding = str(self.headers.get('Accept-Encoding') or '').lower()
-            if 'gzip' in accept_encoding:
-                try:
-                    body = gzip.compress(body, compresslevel=5)
-                    content_encoding = 'gzip'
-                except Exception:
-                    content_encoding = ''
-        self.send_response(status)
-        self.send_header('Content-Type', 'application/json')
-        if content_encoding:
-            self.send_header('Content-Encoding', content_encoding)
-            self.send_header('Vary', 'Accept-Encoding')
-        self.send_header('Content-Length', str(len(body)))
-        self._apply_cors_headers()
-        if extra_headers:
-            for key, value in extra_headers.items():
-                self.send_header(key, value)
-        self.end_headers()
-        self.wfile.write(body)
+        return _domain_routes_http_responses.send_json(self, data, status, extra_headers, gzip=gzip, json=json)
 
     def read_json_body(self, max_bytes=64 * 1024 * 1024):
-        content_length = int(self.headers.get('Content-Length', 0))
-        if content_length > max_bytes:
-            raise ValueError('请求体过大')
-        body = self.rfile.read(content_length)
-        return json.loads(body or b'{}')
+        return _domain_routes_http_responses.read_json_body(self, max_bytes, json=json)
 
     def _agent_run_route_parts(self, parsed):
-        return [urllib.parse.unquote(part) for part in parsed.path.strip('/').split('/')]
+        return _domain_routes_agent_routes._agent_run_route_parts(self, parsed, urllib=urllib)
 
     def _send_agent_error(self, error):
-        if isinstance(error, AgentRunNotFound):
-            self.send_json({"ok": False, "error": str(error)}, 404)
-        elif isinstance(error, AgentRunConflict):
-            self.send_json({"ok": False, "error": str(error)}, 409)
-        elif isinstance(error, (ValueError, AgentRuntimeError)):
-            self.send_json({"ok": False, "error": str(error)}, 400)
-        else:
-            print(f"❌ Agent API 失败：{error}")
-            self.send_json({"ok": False, "error": str(error)}, 500)
+        return _domain_routes_agent_routes._send_agent_error(
+            self, error, AgentRunConflict=AgentRunConflict,
+            AgentRunNotFound=AgentRunNotFound, AgentRuntimeError=AgentRuntimeError,
+        )
 
     def handle_agent_runs(self, parsed):
         """List persisted Agent runs without exposing server configuration."""
-        try:
-            query = urllib.parse.parse_qs(parsed.query)
-            limit = int(query.get('limit', [20])[0])
-            offset = int(query.get('offset', [0])[0])
-            status = str(query.get('status', [''])[0] or '').strip()
-            self.send_json(get_agent_runtime().list_runs(limit=limit, offset=offset, status=status))
-        except Exception as error:
-            self._send_agent_error(error)
+        return _domain_routes_agent_routes.handle_agent_runs(self, parsed, get_agent_runtime=get_agent_runtime, urllib=urllib)
 
     def handle_agent_run_get(self, parsed):
         """Return one run plus incremental audit events."""
-        try:
-            parts = self._agent_run_route_parts(parsed)
-            if len(parts) != 4 or parts[:3] != ['api', 'agent', 'runs'] or not parts[3]:
-                self.send_json({"ok": False, "error": "Agent 运行路径不存在"}, 404)
-                return
-            query = urllib.parse.parse_qs(parsed.query)
-            events_since = int(query.get('events_since', query.get('since', [0]))[0])
-            event_limit = int(query.get('event_limit', query.get('limit', [240]))[0])
-            self.send_json(get_agent_runtime().get_run(
-                parts[3],
-                events_since=events_since,
-                event_limit=event_limit,
-            ))
-        except Exception as error:
-            self._send_agent_error(error)
+        return _domain_routes_agent_routes.handle_agent_run_get(self, parsed, get_agent_runtime=get_agent_runtime, urllib=urllib)
 
     def handle_agent_run_delete(self, parsed):
         """Permanently delete one inactive Agent run and its audit events."""
@@ -7968,2694 +3221,605 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
 
     def handle_agent_run_post(self, parsed):
         """Create or control a supervised Agent run."""
-        try:
-            parts = self._agent_run_route_parts(parsed)
-            if parts == ['api', 'agent', 'runs']:
-                payload = self.read_json_body(max_bytes=64 * 1024 * 1024)
-                self.send_json(get_agent_runtime().create_run(payload), 201)
-                return
-            if len(parts) < 5 or parts[:3] != ['api', 'agent', 'runs'] or not parts[3]:
-                self.send_json({"ok": False, "error": "Agent 操作路径不存在"}, 404)
-                return
-
-            run_id = parts[3]
-            action = parts[4]
-            payload = self.read_json_body(max_bytes=2 * 1024 * 1024)
-            runtime = get_agent_runtime()
-            if len(parts) == 5 and action == 'approve':
-                approval = payload.get('approval') if isinstance(payload.get('approval'), dict) else payload
-                self.send_json(runtime.approve_run(run_id, approval))
-                return
-            if len(parts) == 5 and action == 'revise':
-                instruction = str(payload.get('instruction') or payload.get('message') or '').strip()
-                self.send_json(runtime.revise_run(run_id, instruction))
-                return
-            if len(parts) == 5 and action == 'pause':
-                self.send_json(runtime.pause_run(run_id))
-                return
-            if len(parts) == 5 and action == 'resume':
-                self.send_json(runtime.resume_run(run_id))
-                return
-            if len(parts) == 5 and action == 'cancel':
-                self.send_json(runtime.cancel_run(run_id))
-                return
-            if len(parts) == 5 and action == 'rollback':
-                self.send_json(runtime.request_rollback(run_id))
-                return
-            if len(parts) == 6 and action == 'actions' and parts[5]:
-                error = str(payload.get('error') or '').strip()
-                if payload.get('ok') is False and not error:
-                    error = '桌面动作执行失败'
-                result = payload.get('result') if isinstance(payload.get('result'), dict) else {}
-                self.send_json(runtime.submit_action_result(
-                    run_id,
-                    parts[5],
-                    result=result,
-                    error=error,
-                ))
-                return
-            self.send_json({"ok": False, "error": "Agent 操作不存在"}, 404)
-        except Exception as error:
-            self._send_agent_error(error)
+        return _domain_routes_agent_routes.handle_agent_run_post(self, parsed, get_agent_runtime=get_agent_runtime)
 
     def handle_desktop_workflow_save(self):
-        """Save a desktop workflow JSON file to a user-provided local path."""
-        tmp_path = None
-        try:
-            data = self.read_json_body(max_bytes=192 * 1024 * 1024)
-            payload = data.get('payload')
-            if not isinstance(payload, dict):
-                self.send_json({"ok": False, "error": "工作流内容格式错误"}, 400)
-                return
-
-            raw_path = str(data.get('path') or data.get('file_path') or data.get('filePath') or '').strip()
-            if not raw_path or '\x00' in raw_path:
-                self.send_json({"ok": False, "error": "请填写保存路径"}, 400)
-                return
-
-            target = Path(raw_path).expanduser()
-            if not target.is_absolute():
-                target = Path.home() / 'Downloads' / target
-            target = target.resolve()
-            if not target.name.lower().endswith(('.tcflow.json', '.json')):
-                self.send_json({"ok": False, "error": "工作流文件必须保存为 .tcflow.json 或 .json"}, 400)
-                return
-            if target.exists() and target.is_dir():
-                self.send_json({"ok": False, "error": "保存路径不能是文件夹"}, 400)
-                return
-            if target.exists() and not _coerce_bool(data.get('overwrite'), False):
-                self.send_json({"ok": False, "error": "文件已存在", "path": str(target)}, 409)
-                return
-
-            target.parent.mkdir(parents=True, exist_ok=True)
-            tmp_path = target.parent / f".{target.name}.{uuid.uuid4().hex}.tmp"
-            tmp_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding='utf-8')
-            os.replace(tmp_path, target)
-            self.send_json({
-                "ok": True,
-                "path": str(target),
-                "filename": target.name,
-                "bytes": target.stat().st_size,
-            })
-        except ValueError as e:
-            self.send_json({"ok": False, "error": str(e)}, 400)
-        except Exception as e:
-            print(f"❌ 工作流文件保存失败：{e}")
-            self.send_json({"ok": False, "error": str(e)}, 500)
-        finally:
-            try:
-                if tmp_path and tmp_path.exists():
-                    tmp_path.unlink()
-            except Exception:
-                pass
+        """Save a desktop workflow JSON file (.tcflow.json or .json) to a local path."""
+        return _domain_routes_agent_routes.handle_desktop_workflow_save(self, Path=Path, _coerce_bool=_coerce_bool, json=json, os=os, uuid=uuid)
 
     def handle_pose_assets_status(self):
-        try:
-            self.send_json(pose_assets_status())
-        except Exception as e:
-            print(f"❌ pose assets status failed: {e}")
-            self.send_json({"ok": False, "error": str(e)}, 500)
+        return _domain_routes_system_routes.handle_pose_assets_status(self, pose_assets_status=pose_assets_status)
 
     def handle_layout_fonts(self):
-        """列出项目内置字体，供排版编辑器按需加载。"""
-        font_dir = PROJECT_ROOT / 'font'
-        extensions = {'.ttf', '.otf', '.ttc', '.woff', '.woff2'}
+        """Compatibility entrypoint; resolve the font directory per request."""
+        return _handle_layout_fonts(self, font_dir=PROJECT_ROOT / 'font')
 
-        def infer_weight(stem):
-            lower = stem.lower()
-            if 'thin' in lower:
-                return 100
-            if 'extralight' in lower or lower.endswith('-el'):
-                return 200
-            if 'light' in lower or lower.endswith('-l'):
-                return 300
-            if 'medium' in lower or lower.endswith('-m'):
-                return 500
-            if 'semibold' in lower or lower.endswith('-sb') or 'demibold' in lower:
-                return 600
-            if 'extrabold' in lower or lower.endswith('-h'):
-                return 800
-            if 'black' in lower or 'heavy' in lower:
-                return 900
-            if 'bold' in lower or lower.endswith('-b'):
-                return 700
-            return 400
-
-        def normalize_family(stem):
-            family = stem
-            suffixes = [
-                'VariableFont_wght',
-                'ExtraLight',
-                'ExtraBold',
-                'SemiBold',
-                'Regular',
-                'Medium',
-                'Light',
-                'Black',
-                'Heavy',
-                'Bold',
-                'Thin',
-                'EL',
-                'SB',
-                'B',
-                'H',
-                'L',
-                'M',
-                'R',
-            ]
-            changed = True
-            while changed:
-                changed = False
-                for suffix in suffixes:
-                    for separator in ('-', '_', ' '):
-                        tail = f'{separator}{suffix}'
-                        if family.endswith(tail):
-                            family = family[:-len(tail)]
-                            changed = True
-            return family.strip('-_ ') or stem
-
-        if not font_dir.exists():
-            self.send_json({"fonts": []})
-            return
-
-        groups = {}
-        for path in sorted(font_dir.iterdir(), key=lambda item: item.name.lower()):
-            if not path.is_file() or path.suffix.lower() not in extensions:
-                continue
-            stem = path.stem
-            family = normalize_family(stem)
-            face = {
-                "file": path.name,
-                "url": f"/font/{urllib.parse.quote(path.name)}",
-                "weight": infer_weight(stem),
-                "style": "normal",
-            }
-            groups.setdefault(family, {
-                "family": family,
-                "label": family,
-                "faces": [],
-            })["faces"].append(face)
-
-        fonts = sorted(groups.values(), key=lambda item: item["label"].lower())
-        self.send_json({"fonts": fonts})
-
-    def send_binary_file(self, path):
-        file_path = Path(path)
-        content_type = mimetypes.guess_type(str(file_path))[0] or 'application/octet-stream'
-        self.send_response(200)
-        self.send_header('Content-Type', content_type)
-        self.send_header('Content-Length', str(file_path.stat().st_size))
-        self.send_header('Cache-Control', 'private, max-age=60')
-        self._apply_cors_headers()
-        self.end_headers()
-        with open(file_path, 'rb') as f:
-            self.wfile.write(f.read())
-
-    def handle_layout_draft_get(self, parsed):
-        """读取排版草稿、预览图、导出图或草稿资产。"""
-        parts = parsed.path.strip('/').split('/')
-        if len(parts) < 4:
-            self.send_json({"error": "缺少草稿 ID"}, 400)
-            return
-
-        draft_id = parts[3]
-        try:
-            if len(parts) == 4:
-                self.send_json(load_layout_draft(draft_id))
-                return
-
-            kind = parts[4]
-            if kind in ('preview', 'export'):
-                self.send_binary_file(get_layout_draft_file(draft_id, kind))
-                return
-            if kind == 'assets' and len(parts) >= 6:
-                asset_name = urllib.parse.unquote(parts[5])
-                self.send_binary_file(get_layout_draft_file(draft_id, 'asset', asset_name))
-                return
-
-            self.send_json({"error": "排版草稿资源不存在"}, 404)
-        except FileNotFoundError as e:
-            self.send_json({"error": str(e)}, 404)
-        except Exception as e:
-            self.send_json({"error": str(e)}, 400)
-
-    def handle_layout_draft_list(self, parsed):
-        """列出排版草稿。"""
-        try:
-            query = urllib.parse.parse_qs(parsed.query)
-            limit = int(query.get('limit', [50])[0])
-            offset = int(query.get('offset', [0])[0])
-            self.send_json({"drafts": list_layout_drafts(limit=limit, offset=offset)})
-        except Exception as e:
-            self.send_json({"error": str(e)}, 400)
-
-    def handle_layout_draft_post(self, parsed):
-        """创建或更新排版草稿。"""
-        parts = parsed.path.strip('/').split('/')
-        try:
-            data = self.read_json_body()
-        except Exception:
-            self.send_json({"error": "请求体格式错误"}, 400)
-            return
-
-        try:
-            if parsed.path == '/api/layout/drafts':
-                draft = create_layout_draft(
-                    title=str(data.get('title') or '排版工作区'),
-                    node_id=str(data.get('node_id') or ''),
-                    project=data.get('project') or {},
-                    preview_data_url=str(data.get('preview_data_url') or ''),
-                    export_data_url=str(data.get('export_data_url') or ''),
-                )
-                self.send_json(draft, 201)
-                return
-
-            if len(parts) < 4:
-                self.send_json({"error": "缺少草稿 ID"}, 400)
-                return
-
-            draft_id = parts[3]
-            if len(parts) == 4:
-                draft = update_layout_draft(
-                    draft_id,
-                    title=data.get('title') if 'title' in data else None,
-                    node_id=data.get('node_id') if 'node_id' in data else None,
-                    project=data.get('project') if 'project' in data else None,
-                    preview_data_url=str(data.get('preview_data_url') or ''),
-                    export_data_url=str(data.get('export_data_url') or ''),
-                )
-                self.send_json(draft)
-                return
-
-            action = parts[4]
-            if action == 'asset':
-                asset = save_layout_draft_asset(
-                    draft_id,
-                    filename=str(data.get('filename') or ''),
-                    data_url=str(data.get('data_url') or ''),
-                )
-                self.send_json(asset, 201)
-                return
-
-            if action in ('preview', 'export'):
-                draft = update_layout_draft(
-                    draft_id,
-                    preview_data_url=str(data.get('data_url') or '') if action == 'preview' else '',
-                    export_data_url=str(data.get('data_url') or '') if action == 'export' else '',
-                )
-                self.send_json(draft)
-                return
-
-            if action == 'publish':
-                self.send_json(self.publish_layout_draft(draft_id, data), 201)
-                return
-
-            self.send_json({"error": "排版草稿操作不存在"}, 404)
-        except FileNotFoundError as e:
-            self.send_json({"error": str(e)}, 404)
-        except Exception as e:
-            self.send_json({"error": str(e)}, 400)
-
-    def publish_layout_draft(self, draft_id, data):
-        """把排版草稿导出为正式历史记录。"""
-        draft = load_layout_draft(draft_id)
-        title = str(data.get('title') or draft.get('title') or '排版导出').strip()
-        prompt = str(data.get('prompt') or title or '排版导出').strip()
-        node_id = str(data.get('node_id') or draft.get('node_id') or '').strip()
-        data_url = str(data.get('data_url') or '').strip()
-
-        from datetime import datetime
-        now = datetime.now()
-        created_at = int(time.time())
-        timestamp = now.strftime('%Y%m%d_%H%M%S')
-        draft_suffix = str(draft_id)[-8:]
-
-        if data_url:
-            image_bytes, _mime_type, extension = _decode_data_uri_image(data_url)
-            filename = f"layout_{timestamp}_{draft_suffix}{extension}"
-        else:
-            source_path = get_layout_draft_file(draft_id, 'export')
-            extension = source_path.suffix.lower() if source_path.suffix.lower() in ('.png', '.jpg', '.jpeg', '.webp') else '.png'
-            filename = f"layout_{timestamp}_{draft_suffix}{extension}"
-
-        output_dir = daily_output_dir(now)
-        output_dir.mkdir(parents=True, exist_ok=True)
-        output_path = output_dir / filename
-
-        if data_url:
-            with open(output_path, 'wb') as f:
-                f.write(image_bytes)
-        else:
-            shutil.copyfile(source_path, output_path)
-
-        sidecar = output_dir / f"{Path(filename).stem}.txt"
-        with open(sidecar, 'w', encoding='utf-8') as f:
-            f.write(prompt)
-            f.write('\n\n')
-            f.write(f"layout_draft_id: {draft_id}\n")
-            if node_id:
-                f.write(f"layout_node_id: {node_id}\n")
-        try:
-            sidecar_content = sidecar.read_text(encoding='utf-8')
-            write_obsidian_prompt_sidecar(output_path, sidecar_content, txt_path=sidecar)
-        except Exception as exc:
-            print(f"⚠️ 写入 Obsidian 提示词 md 失败: {exc}")
-
-        save_thumbnail(str(output_path), filename)
-
-        task_id = f"layout_{created_at}_{random.randint(1000, 9999)}"
-        params = {
-            'draft_id': draft_id,
-            'node_id': node_id,
-            'title': title,
-            'ratio': 'layout',
-            'archive_dir': str(output_dir),
-        }
-        create_task(task_id, prompt, params, status='succeeded', task_type='layout-export')
-        update_task(
-            task_id,
-            'succeeded',
-            result_file=filename,
-            result_files=json.dumps([filename], ensure_ascii=False),
-            stage='done',
-            progress_text='排版导出完成',
-            finished_at=created_at,
+    def handle_layout_font_file(self, encoded_name):
+        return _handle_layout_font_file(
+            self, encoded_name, font_dir=PROJECT_ROOT / 'font',
+            head_only=self.command == 'HEAD',
         )
 
-        return {
-            'ok': True,
-            'task_id': task_id,
-            'status': 'succeeded',
-            'type': 'layout-export',
-            'prompt': prompt,
-            'params': params,
-            'result_file': filename,
-            'output_file': filename,
-            'result_files': [filename],
-            'output_files': [filename],
-            'image_paths': [f"/image/{filename}"],
-            'primary_image_path': f"/image/{filename}",
-            'created_at': created_at,
-            'updated_at': created_at,
-            'progress_text': '排版导出完成',
-        }
+    def send_binary_file(self, path):
+        return _domain_routes_http_responses.send_binary_file(self, path, Path=Path, mimetypes=mimetypes)
+
+    def handle_layout_draft_get(self, parsed):
+        """Compatibility entrypoint; keep storage functions resolved per request."""
+        return _handle_layout_draft_get(
+            self, parsed, load_draft=load_layout_draft, get_file=get_layout_draft_file,
+        )
+
+    def handle_layout_draft_list(self, parsed):
+        return _handle_layout_draft_list(self, parsed, list_drafts=list_layout_drafts)
+
+    def handle_layout_draft_post(self, parsed):
+        """Compatibility entrypoint; storage writes and publication stay unchanged."""
+        return _handle_layout_draft_post(
+            self, parsed, create_draft=create_layout_draft,
+            update_draft=update_layout_draft, save_asset=save_layout_draft_asset,
+        )
+
+    def publish_layout_draft(self, draft_id, data):
+        """Compatibility entrypoint; resolve publication dependencies per request."""
+        return _publish_layout_draft(
+            draft_id, data,
+            load_draft=load_layout_draft, get_draft_file=get_layout_draft_file,
+            decode_image=_decode_data_uri_image, daily_output_dir=daily_output_dir,
+            write_prompt_sidecar=write_obsidian_prompt_sidecar,
+            save_thumbnail=save_thumbnail, create_task=create_task, update_task=update_task,
+            time_now=time.time, random_int=random.randint,
+        )
     
     def handle_login(self):
         """处理密码登录并写入 HttpOnly Cookie"""
-        if not _auth_enabled():
-            self.send_json({
-                "ok": True,
-                "auth_enabled": False,
-                "message": "未配置访问密码，鉴权自动关闭"
-            })
-            return
-
-        client_ip = _request_client_ip(self.headers, self.client_address)
-        locked, retry_after = _login_lock_state(client_ip)
-        if locked:
-            self.send_json(_login_locked_payload(retry_after), 429)
-            return
-
-        try:
-            content_length = int(self.headers.get('Content-Length', 0))
-            body = self.rfile.read(content_length)
-            data = json.loads(body or b'{}')
-        except Exception:
-            self.send_json({"ok": False, "error": "请求体格式错误"}, 400)
-            return
-
-        password = str(data.get('password') or data.get('apiKey') or '').strip()
-        if password != AUTH_PASSWORD:
-            locked, retry_after = _record_login_failure(client_ip)
-            if locked:
-                self.send_json(_login_locked_payload(retry_after), 429)
-                return
-            self.send_json({"ok": False, "error": "密码错误"}, 401)
-            return
-
-        _clear_login_failures(client_ip)
-        cookie_value = _build_auth_cookie_value()
-        cookie_parts = [
-            f"{AUTH_COOKIE_NAME}={cookie_value}",
-            f"Max-Age={AUTH_COOKIE_MAX_AGE}",
-            "Path=/",
-            "HttpOnly",
-            "SameSite=Lax",
-        ]
-        self.send_json({
-            "ok": True,
-            "auth_enabled": True,
-            "auth_token": cookie_value,
-            "max_age": AUTH_COOKIE_MAX_AGE,
-            "message": "登录成功"
-        }, extra_headers={"Set-Cookie": "; ".join(cookie_parts)})
+        return _domain_routes_auth_routes.handle_login(
+            self, AUTH_COOKIE_MAX_AGE=AUTH_COOKIE_MAX_AGE, AUTH_COOKIE_NAME=AUTH_COOKIE_NAME,
+            AUTH_PASSWORD=AUTH_PASSWORD, _auth_enabled=_auth_enabled, _build_auth_cookie_value=_build_auth_cookie_value,
+            _clear_login_failures=_clear_login_failures, _login_lock_state=_login_lock_state, _login_locked_payload=_login_locked_payload,
+            _record_login_failure=_record_login_failure, _request_client_ip=_request_client_ip, json=json,
+        )
 
     def _presented_auth_token(self):
         """按 is_authenticated 的优先级取出请求携带的鉴权 token。"""
-        header_token = self.headers.get(AUTH_HEADER_NAME, '')
-        if header_token:
-            return header_token
-        try:
-            query = urllib.parse.parse_qs(urllib.parse.urlparse(getattr(self, 'path', '') or '').query)
-            query_token = (
-                query.get('miniappAuth', [''])[0]
-                or query.get('authToken', [''])[0]
-                or query.get('auth_token', [''])[0]
-            )
-            if query_token:
-                return query_token
-        except Exception:
-            pass
-        return self._get_cookie_value(AUTH_COOKIE_NAME)
+        return _domain_routes_auth_routes._presented_auth_token(self, AUTH_COOKIE_NAME=AUTH_COOKIE_NAME, AUTH_HEADER_NAME=AUTH_HEADER_NAME, urllib=urllib)
 
     def _reusable_auth_token(self):
         """仍在前半有效期内的合法 token 原样复用，保持媒体 URL 跨启动稳定（浏览器缓存命中）。"""
-        token = str(self._presented_auth_token() or '')
-        if not token or '.' not in token:
-            return ''
-        try:
-            # token 可能来自 query/header 的不可信字节（如非 ASCII），校验失败一律回退铸新
-            if not _verify_auth_cookie_value(token):
-                return ''
-        except Exception:
-            return ''
-        issued_at_raw = token.split('.', 1)[0]
-        if not issued_at_raw.isdigit():
-            return ''
-        if int(issued_at_raw) + AUTH_COOKIE_MAX_AGE // 2 < int(time.time()):
-            return ''
-        return token
+        return _domain_routes_auth_routes._reusable_auth_token(
+            self, AUTH_COOKIE_MAX_AGE=AUTH_COOKIE_MAX_AGE, _verify_auth_cookie_value=_verify_auth_cookie_value,
+            time=time,
+        )
 
     def _send_auth_success_cookie(self, message, cookie_value=None):
-        cookie_value = cookie_value or _build_auth_cookie_value()
-        cookie_parts = [
-            f"{AUTH_COOKIE_NAME}={cookie_value}",
-            f"Max-Age={AUTH_COOKIE_MAX_AGE}",
-            "Path=/",
-            "HttpOnly",
-            "SameSite=Lax",
-        ]
-        self.send_json({
-            "ok": True,
-            "auth_enabled": True,
-            "auth_token": cookie_value,
-            "max_age": AUTH_COOKIE_MAX_AGE,
-            "message": message
-        }, extra_headers={"Set-Cookie": "; ".join(cookie_parts)})
+        return _domain_routes_auth_routes._send_auth_success_cookie(
+            self, message, cookie_value,
+            AUTH_COOKIE_MAX_AGE=AUTH_COOKIE_MAX_AGE, AUTH_COOKIE_NAME=AUTH_COOKIE_NAME, _build_auth_cookie_value=_build_auth_cookie_value,
+        )
     
     def handle_auth_verify(self):
         """验证当前 Cookie 是否有效"""
-        if not _auth_enabled():
-            self.send_json({
-                "ok": True,
-                "auth_enabled": False,
-                "message": "未配置访问密码，鉴权自动关闭"
-            })
-            return
-
-        if self.is_authenticated():
-            self._send_auth_success_cookie("验证成功", cookie_value=self._reusable_auth_token() or None)
-            return
-
-        self.send_json({
-            "ok": False,
-            "auth_enabled": True,
-            "error": "Unauthorized",
-            "message": "需要先输入访问密码"
-        }, 401)
+        return _domain_routes_auth_routes.handle_auth_verify(self, _auth_enabled=_auth_enabled)
     
     def handle_generate(self, force_caller=None):
         """处理生成请求（支持 skill 调用托底策略）"""
-        try:
-            content_length = int(self.headers.get('Content-Length', 0))
-            body = self.rfile.read(content_length)
-            data = json.loads(body)
-
-            prompt = data.get('prompt', '')
-            incoming_params = data.get('params', {}) if isinstance(data.get('params'), dict) else {}
-            params = {
-                'ratio': _effective_image_ratio(prompt, data.get('ratio', incoming_params.get('ratio', '1:1')), '1:1'),
-                'style': str(data.get('style', incoming_params.get('style', 'raw')) or 'raw').strip() or 'raw',
-                'quality': _coerce_google_quality(data.get('quality', incoming_params.get('quality', '2k')), '2k'),
-                'model': _coerce_model(data.get('model', incoming_params.get('model', DEFAULT_GOOGLE_IMAGE_MODEL))),
-                'max_tokens': _coerce_google_max_tokens(data.get('max_tokens', data.get('maxTokens', incoming_params.get('max_tokens', incoming_params.get('maxTokens'))))),
-                'archive_enabled': _coerce_bool(
-                    data.get(
-                        'archive_enabled',
-                        data.get('archiveEnabled', incoming_params.get('archive_enabled', incoming_params.get('archiveEnabled')))
-                    ),
-                    True,
-                ),
-                'telegram_enabled': _coerce_bool(
-                    data.get(
-                        'telegram_enabled',
-                        data.get('telegramEnabled', incoming_params.get('telegram_enabled', incoming_params.get('telegramEnabled')))
-                    ),
-                    True,
-                ),
-            }
-            temperature = _coerce_google_temperature(data.get('temperature', incoming_params.get('temperature')))
-            if temperature is not None:
-                params['temperature'] = temperature
-            for k, v in incoming_params.items():
-                params.setdefault(k, v)
-            params['max_tokens'] = _coerce_google_max_tokens(params.get('max_tokens'))
-            temperature = _coerce_google_temperature(params.get('temperature'))
-            if temperature is None:
-                params.pop('temperature', None)
-            else:
-                params['temperature'] = temperature
-            if 'fallback_resolution' in params:
-                params['fallback_resolution'] = _coerce_gpt_resolution(params.get('fallback_resolution'))
-            model = params.get('model', '')
-            _attach_lineage_params(params, data)
-
-            if not prompt:
-                self.send_json({"error": "Prompt is required"}, 400)
-                return
-
-            # 统一 caller：query/body/force_caller
-            caller = (force_caller or data.get('caller') or params.get('caller') or 'webapp').strip().lower()
-            if caller not in ('webapp', 'skill'):
-                caller = 'webapp'
-            params['caller'] = caller
-
-            # skill 默认开启托底（可被显式关闭）
-            fallback_cfg = params.get('fallback') if isinstance(params.get('fallback'), dict) else {}
-            if caller == 'skill':
-                fallback_cfg.setdefault('enabled', True)
-                fallback_cfg.setdefault('target', 'gpt')
-                fallback_cfg.setdefault('retryable_only', True)
-            params['fallback'] = fallback_cfg
-
-            # 生成任务 ID
-            task_id = f"gen_{int(time.time())}_{random.randint(1000, 9999)}"
-
-            # 根据 model 确定任务类型
-            task_type = 'gpt' if 'gpt' in str(model).lower() else 'google-gen'
-
-            # 创建任务记录（状态为 queued）
-            create_task(task_id, prompt, params, status='queued', task_type=task_type)
-
-            # 启动后台线程处理
-            if not self.start_generation_task(task_id, process_task, (task_id, prompt, params)):
-                return
-
-            self.send_json({
-                "task_id": task_id,
-                "status": "queued",
-                "message": "已提交图片生成任务，请等待...",
-                "type": task_type,
-                "caller": caller,
-                "fallback": fallback_cfg
-            }, 202)
-
-        except Exception as e:
-            self.send_json({"error": str(e)}, 500)
+        return _domain_routes_google_generation_routes.handle_generate(
+            self, force_caller, DEFAULT_GOOGLE_IMAGE_MODEL=DEFAULT_GOOGLE_IMAGE_MODEL,
+            _attach_lineage_params=_attach_lineage_params, _coerce_bool=_coerce_bool, _coerce_google_max_tokens=_coerce_google_max_tokens,
+            _coerce_google_quality=_coerce_google_quality, _coerce_google_temperature=_coerce_google_temperature, _coerce_gpt_resolution=_coerce_gpt_resolution,
+            _coerce_model=_coerce_model, _effective_image_ratio=_effective_image_ratio, create_task=create_task,
+            json=json, process_task=process_task, random=random,
+            time=time,
+        )
     
     def handle_edit(self, force_caller=None):
         """处理编辑请求（支持 skill 调用托底策略）"""
-        try:
-            content_length = int(self.headers.get('Content-Length', 0))
-            body = self.rfile.read(content_length)
-            data = json.loads(body)
-
-            prompt = data.get('prompt', '')
-            images = data.get('images', [])
-
-            incoming_params = data.get('params', {}) if isinstance(data.get('params'), dict) else {}
-
-            # 兼容前端顶层字段 + params 字段
-            params = {
-                'ratio': _effective_image_ratio(prompt, data.get('ratio', incoming_params.get('ratio', '1:1')), '1:1'),
-                'quality': _coerce_google_edit_quality(data.get('quality', incoming_params.get('quality', 'hd'))),
-                'model': _coerce_model(data.get('model', incoming_params.get('model', DEFAULT_GOOGLE_IMAGE_MODEL))),
-                'max_tokens': _coerce_google_max_tokens(data.get('max_tokens', data.get('maxTokens', incoming_params.get('max_tokens', incoming_params.get('maxTokens'))))),
-                'feature': str(data.get('feature', incoming_params.get('feature', 'edit')) or 'edit').strip() or 'edit',
-                'style': str(data.get('style', incoming_params.get('style', 'raw')) or 'raw').strip() or 'raw',
-                'archive_enabled': _coerce_bool(
-                    data.get(
-                        'archive_enabled',
-                        data.get('archiveEnabled', incoming_params.get('archive_enabled', incoming_params.get('archiveEnabled')))
-                    ),
-                    True,
-                ),
-                'telegram_enabled': _coerce_bool(
-                    data.get(
-                        'telegram_enabled',
-                        data.get('telegramEnabled', incoming_params.get('telegram_enabled', incoming_params.get('telegramEnabled')))
-                    ),
-                    True,
-                ),
-            }
-            temperature = _coerce_google_temperature(data.get('temperature', incoming_params.get('temperature')))
-            if temperature is not None:
-                params['temperature'] = temperature
-
-            # 保留其余参数（如 fallback）
-            for k, v in incoming_params.items():
-                params.setdefault(k, v)
-            params['max_tokens'] = _coerce_google_max_tokens(params.get('max_tokens'))
-            temperature = _coerce_google_temperature(params.get('temperature'))
-            if temperature is None:
-                params.pop('temperature', None)
-            else:
-                params['temperature'] = temperature
-            _attach_lineage_params(params, data)
-
-            if not prompt:
-                self.send_json({"error": "Prompt is required"}, 400)
-                return
-
-            if not images or len(images) == 0:
-                self.send_json({"error": "请上传至少一张图片"}, 400)
-                return
-
-            # 统一 caller：query/body/force_caller
-            caller = (force_caller or data.get('caller') or params.get('caller') or 'webapp').strip().lower()
-            if caller not in ('webapp', 'skill'):
-                caller = 'webapp'
-            params['caller'] = caller
-
-            # skill 默认开启托底（可被显式关闭）
-            fallback_cfg = params.get('fallback') if isinstance(params.get('fallback'), dict) else {}
-            if caller == 'skill':
-                fallback_cfg.setdefault('enabled', True)
-                fallback_cfg.setdefault('target', 'gpt')
-                fallback_cfg.setdefault('retryable_only', True)
-            params['fallback'] = fallback_cfg
-
-            # 生成任务 ID
-            task_id = f"edit_{int(time.time())}_{random.randint(1000, 9999)}"
-
-            # 创建任务记录（状态为 queued）
-            create_task(task_id, prompt, params, status='queued', task_type='google-edit')
-
-            # 启动后台线程处理
-            if not self.start_generation_task(task_id, process_edit_task, (task_id, prompt, images, params)):
-                return
-
-            self.send_json({
-                "task_id": task_id,
-                "status": "queued",
-                "message": "已提交图片编辑任务，请等待...",
-                "caller": caller,
-                "fallback": fallback_cfg,
-            }, 202)
-
-        except Exception as e:
-            self.send_json({"error": str(e)}, 500)
+        return _domain_routes_google_generation_routes.handle_edit(
+            self, force_caller, DEFAULT_GOOGLE_IMAGE_MODEL=DEFAULT_GOOGLE_IMAGE_MODEL,
+            _attach_lineage_params=_attach_lineage_params, _coerce_bool=_coerce_bool, _coerce_google_edit_quality=_coerce_google_edit_quality,
+            _coerce_google_max_tokens=_coerce_google_max_tokens, _coerce_google_temperature=_coerce_google_temperature, _coerce_model=_coerce_model,
+            _effective_image_ratio=_effective_image_ratio, create_task=create_task, json=json,
+            process_edit_task=process_edit_task, random=random, time=time,
+        )
     
     def handle_gpt_generate(self):
         """处理 GPT 生成请求（使用 ChatGPT/Codex 浏览器自动化）"""
-        try:
-            content_length = int(self.headers.get('Content-Length', 0))
-            body = self.rfile.read(content_length)
-            data = json.loads(body)
-            
-            prompt = data.get('prompt', '')
-            ratio = _effective_image_ratio(prompt, data.get('ratio'), '1:1')
-            resolution = _coerce_gpt_resolution(data.get('resolution'))
-            quality = _coerce_gpt_quality(data.get('quality', 'auto'))
-            moderation = _coerce_gpt_moderation(data.get('moderation', 'auto'))
-            gpt_task_type = _coerce_gpt_task_type(data.get('task_type', data.get('taskType', data.get('gpt_task_type', data.get('gptTaskType')))))
-            prompt_mode = _coerce_prompt_mode(data.get('prompt_mode', data.get('promptMode', 'smart')))
-            gpt_provider_route = _coerce_gpt_provider_route(
-                data.get('gpt_provider_route', data.get('gptProviderRoute', data.get('provider_route', data.get('providerRoute'))))
-            )
-            if gpt_task_type == 'ppt':
-                gpt_provider_route = 'chatgpt_pool'
-            main_model = _coerce_gpt_main_model(data.get('main_model', data.get('mainModel')))
-            reasoning_effort = _coerce_gpt_reasoning_effort(data.get('reasoning_effort', data.get('reasoningEffort')))
-            image_count = _coerce_gpt_image_count(data, prompt)
-            archive_enabled = _coerce_bool(data.get('archive_enabled', data.get('archiveEnabled')), True)
-            telegram_enabled = _coerce_bool(data.get('telegram_enabled', data.get('telegramEnabled')), True)
-            use_third_party_api = _gpt_route_uses_third_party(gpt_provider_route) or _coerce_use_third_party_api(
-                data.get('use_third_party_api'),
-                data.get('useThirdPartyApi'),
-                data.get('third_party_api'),
-                data.get('thirdPartyApi'),
-            )
-            editable_images = data.get('base64_images') if isinstance(data.get('base64_images'), list) else data.get('images')
-            if not isinstance(editable_images, list):
-                editable_images = []
-            
-            if not prompt:
-                self.send_json({"error": "Prompt is required"}, 400)
-                return
-
-            # 生成任务 ID
-            task_id = f"gpt_{int(time.time())}_{random.randint(1000, 9999)}"
-            
-            # 创建任务记录
-            params = {
-                'ratio': ratio,
-                'resolution': resolution,
-                'quality': quality,
-                'image_count': image_count,
-                'moderation': moderation,
-                'task_type': gpt_task_type,
-                'prompt_mode': prompt_mode,
-                'gpt_provider_route': gpt_provider_route,
-                'main_model': main_model,
-                'reasoning_effort': reasoning_effort,
-                'archive_enabled': archive_enabled,
-                'telegram_enabled': telegram_enabled,
-                'use_third_party_api': use_third_party_api,
-            }
-            _attach_lineage_params(params, data)
-            create_task(task_id, prompt, params, status='queued', task_type='gpt-file' if gpt_task_type != 'image' else 'gpt')
-            
-            if gpt_task_type != 'image':
-                target = process_gpt_editable_file_task
-                args = (task_id, gpt_task_type, prompt, editable_images, prompt_mode, gpt_provider_route, archive_enabled, telegram_enabled)
-            else:
-                target = process_gpt_task
-                args = (task_id, prompt, ratio, resolution, quality, image_count, moderation, prompt_mode, main_model, reasoning_effort, gpt_provider_route, use_third_party_api, archive_enabled, telegram_enabled)
-            if not self.start_generation_task(task_id, target, args):
-                return
-            
-            self.send_json({
-                "task_id": task_id,
-                "status": "queued",
-                "message": "已提交 GPT 图片生成任务，请等待..."
-            }, 202)
-            
-        except Exception as e:
-            self.send_json({"error": str(e)}, 500)
+        return _domain_routes_gpt_generation_routes.handle_gpt_generate(
+            self, _attach_lineage_params=_attach_lineage_params, _coerce_bool=_coerce_bool,
+            _coerce_gpt_image_count=_coerce_gpt_image_count, _coerce_gpt_main_model=_coerce_gpt_main_model, _coerce_gpt_moderation=_coerce_gpt_moderation,
+            _coerce_gpt_provider_route=_coerce_gpt_provider_route, _coerce_gpt_quality=_coerce_gpt_quality, _coerce_gpt_reasoning_effort=_coerce_gpt_reasoning_effort,
+            _coerce_gpt_resolution=_coerce_gpt_resolution, _coerce_gpt_task_type=_coerce_gpt_task_type, _coerce_prompt_mode=_coerce_prompt_mode,
+            _coerce_use_third_party_api=_coerce_use_third_party_api, _effective_image_ratio=_effective_image_ratio, _gpt_route_uses_third_party=_gpt_route_uses_third_party,
+            create_task=create_task, json=json, process_gpt_editable_file_task=process_gpt_editable_file_task,
+            process_gpt_task=process_gpt_task, random=random, time=time,
+        )
 
     def handle_gpt_edit(self):
         """处理 GPT 图像编辑请求（使用本地 Codex runtime）"""
-        try:
-            content_length = int(self.headers.get('Content-Length', 0))
-            body = self.rfile.read(content_length)
-            data = json.loads(body or b'{}')
-
-            prompt = data.get('prompt', '')
-            images = data.get('images', [])
-            ratio = _effective_image_ratio(prompt, data.get('ratio'), '1:1')
-            resolution = _coerce_gpt_resolution(data.get('resolution'))
-            quality = _coerce_gpt_quality(data.get('quality', 'auto'))
-            moderation = _coerce_gpt_moderation(data.get('moderation', 'auto'))
-            prompt_mode = _coerce_prompt_mode(data.get('prompt_mode', data.get('promptMode', 'smart')))
-            gpt_provider_route = _coerce_gpt_provider_route(
-                data.get('gpt_provider_route', data.get('gptProviderRoute', data.get('provider_route', data.get('providerRoute'))))
-            )
-            main_model = _coerce_gpt_main_model(data.get('main_model', data.get('mainModel')))
-            reasoning_effort = _coerce_gpt_reasoning_effort(data.get('reasoning_effort', data.get('reasoningEffort')))
-            archive_enabled = _coerce_bool(data.get('archive_enabled', data.get('archiveEnabled')), True)
-            telegram_enabled = _coerce_bool(data.get('telegram_enabled', data.get('telegramEnabled')), True)
-            use_third_party_api = _gpt_route_uses_third_party(gpt_provider_route) or _coerce_use_third_party_api(
-                data.get('use_third_party_api'),
-                data.get('useThirdPartyApi'),
-                data.get('third_party_api'),
-                data.get('thirdPartyApi'),
-            )
-            mask = data.get('mask')
-
-            if not prompt:
-                self.send_json({"error": "Prompt is required"}, 400)
-                return
-            if not images:
-                self.send_json({"error": "请上传至少一张图片"}, 400)
-                return
-
-            task_id = f"gpt_edit_{int(time.time())}_{random.randint(1000, 9999)}"
-            params = {
-                'ratio': ratio,
-                'resolution': resolution,
-                'quality': quality,
-                'image_count': 1,
-                'source_image_count': len(images),
-                'moderation': moderation,
-                'prompt_mode': prompt_mode,
-                'gpt_provider_route': gpt_provider_route,
-                'main_model': main_model,
-                'reasoning_effort': reasoning_effort,
-                'archive_enabled': archive_enabled,
-                'telegram_enabled': telegram_enabled,
-                'use_third_party_api': use_third_party_api,
-                'feature': 'edit',
-            }
-            if mask:
-                params['has_mask'] = True
-            _attach_lineage_params(params, data)
-            create_task(task_id, prompt, params, status='queued', task_type='gpt-edit')
-
-            if not self.start_generation_task(
-                task_id,
-                process_gpt_edit_task,
-                (task_id, prompt, images, ratio, resolution, quality, moderation, mask, prompt_mode, main_model, reasoning_effort, use_third_party_api, gpt_provider_route, archive_enabled, telegram_enabled),
-            ):
-                return
-
-            self.send_json({
-                "task_id": task_id,
-                "status": "queued",
-                "message": "已提交 GPT 图片编辑任务，请等待..."
-            }, 202)
-
-        except Exception as e:
-            self.send_json({"error": str(e)}, 500)
+        return _domain_routes_gpt_generation_routes.handle_gpt_edit(
+            self, _attach_lineage_params=_attach_lineage_params, _coerce_bool=_coerce_bool,
+            _coerce_gpt_main_model=_coerce_gpt_main_model, _coerce_gpt_moderation=_coerce_gpt_moderation, _coerce_gpt_provider_route=_coerce_gpt_provider_route,
+            _coerce_gpt_quality=_coerce_gpt_quality, _coerce_gpt_reasoning_effort=_coerce_gpt_reasoning_effort, _coerce_gpt_resolution=_coerce_gpt_resolution,
+            _coerce_prompt_mode=_coerce_prompt_mode, _coerce_use_third_party_api=_coerce_use_third_party_api, _effective_image_ratio=_effective_image_ratio,
+            _gpt_route_uses_third_party=_gpt_route_uses_third_party, create_task=create_task, json=json,
+            process_gpt_edit_task=process_gpt_edit_task, random=random, time=time,
+        )
 
     def handle_upscale_models(self):
         """返回本地高清放大模型状态。"""
-        try:
-            self.send_json({
-                "ok": True,
-                "model_dir": str(UPSCALE_MODEL_DIR),
-                "models": available_upscale_models(UPSCALE_MODEL_DIR),
-                "component": get_upscale_component_status(),
-            })
-        except Exception as e:
-            self.send_json({"error": str(e)}, 500)
+        return _domain_routes_system_routes.handle_upscale_models(
+            self, UPSCALE_MODEL_DIR=UPSCALE_MODEL_DIR, available_upscale_models=available_upscale_models,
+            get_upscale_component_status=get_upscale_component_status,
+        )
 
     def handle_upscale_component_status(self):
-        try:
-            self.send_json({"ok": True, **get_upscale_component_status()})
-        except Exception as e:
-            self.send_json({"error": str(e)}, 500)
+        return _domain_routes_system_routes.handle_upscale_component_status(self, get_upscale_component_status=get_upscale_component_status)
 
     def handle_upscale_component_install(self):
-        try:
-            content_length = int(self.headers.get('Content-Length', 0))
-            body = self.rfile.read(content_length) if content_length else b'{}'
-            data = json.loads(body or b'{}')
-            self.send_json({"ok": True, **start_upscale_component_install(bool(data.get('force')))}, 202)
-        except Exception as e:
-            self.send_json({"error": str(e)}, 500)
+        return _domain_routes_system_routes.handle_upscale_component_install(self, json=json, start_upscale_component_install=start_upscale_component_install)
 
     def handle_upscale_component_remove(self):
-        try:
-            self.send_json({"ok": True, **remove_upscale_component()})
-        except Exception as e:
-            self.send_json({"error": str(e)}, 409)
+        return _domain_routes_system_routes.handle_upscale_component_remove(self, remove_upscale_component=remove_upscale_component)
 
     def handle_upscale_run(self):
         """处理本地高清放大请求。"""
-        try:
-            content_length = int(self.headers.get('Content-Length', 0))
-            body = self.rfile.read(content_length)
-            data = json.loads(body or b'{}')
-
-            images = data.get('images', [])
-            if not isinstance(images, list):
-                images = []
-            image_data = next((str(item or '').strip() for item in images if str(item or '').strip()), '')
-            if not image_data:
-                self.send_json({"error": "请先连接或上传一张图片"}, 400)
-                return
-
-            incoming_params = data.get('params') if isinstance(data.get('params'), dict) else {}
-            model_name = normalize_upscale_model(data.get('model', incoming_params.get('model')))
-            model_status = next((item for item in available_upscale_models(UPSCALE_MODEL_DIR) if item.get('id') == model_name), {})
-            if not model_status.get('available'):
-                self.send_json({
-                    "error": "高清放大组件尚未安装，请先完成组件下载。",
-                    "component": get_upscale_component_status(),
-                }, 409)
-                return
-            prompt = str(data.get('prompt') or incoming_params.get('prompt') or f'高清放大：{model_name}').strip()
-            params = {
-                'model': model_name,
-                'scale': 4,
-                'tile_size': _coerce_upscale_tile(data.get('tile_size', data.get('tileSize', incoming_params.get('tile_size', incoming_params.get('tileSize')))), 256),
-                'tile_overlap': _coerce_upscale_tile(data.get('tile_overlap', data.get('tileOverlap', incoming_params.get('tile_overlap', incoming_params.get('tileOverlap')))), 32, minimum=0, maximum=256),
-                'device': str(data.get('device', incoming_params.get('device', 'auto')) or 'auto').strip() or 'auto',
-                'archive_enabled': True,
-                'telegram_enabled': _coerce_bool(data.get('telegram_enabled', data.get('telegramEnabled', incoming_params.get('telegram_enabled', incoming_params.get('telegramEnabled')))), True),
-                'source_image_count': len(images),
-            }
-            _attach_lineage_params(params, data)
-
-            task_id = f"upscale_{int(time.time())}_{random.randint(1000, 9999)}"
-            create_task(task_id, prompt, params, status='queued', task_type='upscale')
-            if not self.start_generation_task(task_id, process_upscale_task, (task_id, prompt, image_data, params)):
-                return
-
-            self.send_json({
-                "task_id": task_id,
-                "status": "queued",
-                "message": "已提交高清放大任务，请等待...",
-                "type": "upscale",
-            }, 202)
-        except Exception as e:
-            self.send_json({"error": str(e)}, 500)
+        return _domain_routes_runtime_generation_routes.handle_upscale_run(
+            self, UPSCALE_MODEL_DIR=UPSCALE_MODEL_DIR, _attach_lineage_params=_attach_lineage_params,
+            _coerce_bool=_coerce_bool, _coerce_upscale_tile=_coerce_upscale_tile, available_upscale_models=available_upscale_models,
+            create_task=create_task, get_upscale_component_status=get_upscale_component_status, json=json,
+            normalize_upscale_model=normalize_upscale_model, process_upscale_task=process_upscale_task, random=random,
+            time=time,
+        )
     
     def handle_custom_generate(self):
         """处理 Custom API 生成请求（GPT-5.4 @ localhost:8080）"""
-        try:
-            content_length = int(self.headers.get('Content-Length', 0))
-            body = self.rfile.read(content_length)
-            data = json.loads(body)
-            
-            prompt = data.get('prompt', '')
-            ratio = _coerce_image_ratio(data.get('ratio'), '1:1')
-            resolution = _coerce_gpt_resolution(data.get('resolution'))
-            quality = _coerce_gpt_quality(data.get('quality', 'auto'))
-            moderation = _coerce_gpt_moderation(data.get('moderation', 'auto'))
-            
-            if not prompt:
-                self.send_json({"error": "Prompt is required"}, 400)
-                return
-            
-            # 生成任务 ID
-            task_id = f"custom_{int(time.time())}_{random.randint(1000, 9999)}"
-            
-            # 创建任务记录
-            params = {
-                'ratio': ratio,
-                'resolution': resolution,
-                'quality': quality,
-                'moderation': moderation,
-                'model': 'GPT-5.4'
-            }
-            create_task(task_id, prompt, params, status='queued', task_type='custom')
-            
-            # 启动后台线程处理
-            if not self.start_generation_task(task_id, process_custom_task, (task_id, prompt, ratio, resolution, quality, moderation)):
-                return
-            
-            self.send_json({
-                "task_id": task_id,
-                "status": "queued",
-                "message": "已提交 Custom API 图片生成任务，请等待..."
-            }, 202)
-            
-        except Exception as e:
-            self.send_json({"error": str(e)}, 500)
+        return _domain_routes_gpt_generation_routes.handle_custom_generate(
+            self, _coerce_gpt_moderation=_coerce_gpt_moderation, _coerce_gpt_quality=_coerce_gpt_quality,
+            _coerce_gpt_resolution=_coerce_gpt_resolution, _coerce_image_ratio=_coerce_image_ratio, create_task=create_task,
+            json=json, process_custom_task=process_custom_task, random=random,
+            time=time,
+        )
 
     def handle_spell_generate_prompt(self):
         """处理咒术模块的结构化提示词生成请求"""
-        try:
-            content_length = int(self.headers.get('Content-Length', 0))
-            body = self.rfile.read(content_length)
-            data = json.loads(body or b'{}')
-
-            topic = str(data.get('topic') or data.get('prompt') or '').strip()
-            if not topic:
-                self.send_json({"error": "Topic is required"}, 400)
-                return
-
-            result = generate_structured_spell_prompt(topic)
-            self.send_json(result)
-        except ValueError as e:
-            self.send_json({"error": str(e)}, 400)
-        except Exception as e:
-            self.send_json({"error": str(e)}, 500)
+        return _domain_routes_prompt_routes.handle_spell_generate_prompt(self, generate_structured_spell_prompt=generate_structured_spell_prompt, json=json)
 
     def handle_status(self, task_id):
         """处理状态查询"""
-        task = get_task(task_id)
-        if not task:
-            # Old cached Telegram WebViews may keep polling stale task ids.
-            # Return a terminal failed state instead of 404 so the client can recover.
-            self.send_json(_missing_task_payload(task_id))
-            return
-
-        self.send_json(_status_response_task(task))
+        return _handle_status(
+            self, task_id, get_task=get_task,
+            missing_task_payload=_missing_task_payload, status_response_task=_status_response_task,
+        )
 
     def handle_generation_runs(self, parsed, task_id):
         """返回任务的 generation runs。"""
-        try:
-            query = urllib.parse.parse_qs(parsed.query or '')
-            limit = _history_page_int((query.get('limit') or ['20'])[0], 20, minimum=1, maximum=200)
-            offset = _history_page_int((query.get('offset') or ['0'])[0], 0, minimum=0, maximum=100000)
-            runs = get_generation_runs(task_id, limit=limit, offset=offset)
-            self.send_json({
-                'task_id': task_id,
-                'runs': runs,
-                'count': len(runs),
-            })
-        except Exception as e:
-            self.send_json({'error': str(e)}, 500)
+        return _handle_generation_runs(
+            self, parsed, task_id, page_int=_history_page_int, get_runs=get_generation_runs,
+        )
 
     def handle_generation_events(self, parsed, run_id):
         """返回指定 generation run 的事件流。"""
-        try:
-            query = urllib.parse.parse_qs(parsed.query or '')
-            limit = _history_page_int((query.get('limit') or ['200'])[0], 200, minimum=1, maximum=1000)
-            offset = _history_page_int((query.get('offset') or ['0'])[0], 0, minimum=0, maximum=100000)
-            run = get_generation_run(run_id)
-            events = get_generation_events(run_id, limit=limit, offset=offset)
-            self.send_json({
-                'run_id': run_id,
-                'task_id': run.get('task_id') if isinstance(run, dict) else '',
-                'run': run,
-                'events': events,
-                'count': len(events),
-            })
-        except Exception as e:
-            self.send_json({'error': str(e)}, 500)
+        return _handle_generation_events(
+            self, parsed, run_id, page_int=_history_page_int,
+            get_run=get_generation_run, get_events=get_generation_events,
+        )
 
     def handle_assets(self, parsed):
         """返回图库资产索引。"""
-        try:
-            query = urllib.parse.parse_qs(parsed.query)
-            limit = int(query.get('limit', [200])[0])
-            offset = int(query.get('offset', [0])[0])
-            search = str(query.get('query', [''])[0] or '').strip()
-            filter_value = str(query.get('filter', ['all'])[0] or 'all').strip().lower()
-            tag = str(query.get('tag', [''])[0] or '').strip()
-
-            provider = filter_value if filter_value in ('gpt', 'google', 'comfy', 'layout') else 'all'
-            source = query.get('source', [''])[0] or ''
-            if not source and filter_value in ('linked', 'history', 'task_record', 'orphan', 'archive_only', 'missing_history'):
-                source = filter_value
-            orientation = str(query.get('orientation', [''])[0] or '').strip().lower()
-            if not orientation and filter_value in ('landscape', 'portrait', 'square'):
-                orientation = filter_value
-            file_format = str(query.get('format', query.get('file_format', ['']))[0] or '').strip().lower()
-            if not file_format and filter_value in ('png', 'jpg', 'jpeg', 'webp'):
-                file_format = filter_value
-            resolution = str(query.get('resolution', [''])[0] or '').strip().lower()
-            if not resolution and filter_value in ('1k', '2k', '4k'):
-                resolution = filter_value
-            ratio = str(query.get('ratio', [''])[0] or '').strip().lower()
-            favorite = filter_value == 'favorite' or str(query.get('favorite', [''])[0]).lower() in ('1', 'true', 'yes')
-            hidden = filter_value == 'hidden' or str(query.get('hidden', [''])[0]).lower() in ('1', 'true', 'yes')
-            include_hidden = hidden or str(query.get('include_hidden', [''])[0]).lower() in ('1', 'true', 'yes')
-            fields = str(query.get('fields', [''])[0] or '').strip().lower()
-            refresh = str(query.get('refresh', [''])[0]).lower() in ('1', 'true', 'yes')
-            if refresh:
-                # 显式刷新逃生阀：绕过成品索引缓存的 TTL/指纹判定，强制重建
-                invalidate_asset_index_cache()
-
-            self.send_json(list_gallery_assets(
-                limit=limit,
-                offset=offset,
-                query=search,
-                provider=provider,
-                tag=tag,
-                favorite=favorite,
-                hidden=hidden,
-                include_hidden=include_hidden,
-                source=source,
-                ratio=ratio,
-                orientation=orientation,
-                file_format=file_format,
-                resolution=resolution,
-                fields=fields,
-            ))
-        except Exception as e:
-            self.send_json({"error": str(e)}, 400)
+        return _handle_assets(
+            self, parsed, invalidate_cache=invalidate_asset_index_cache, list_assets=list_gallery_assets,
+        )
 
     def handle_asset_videos(self, parsed):
         """返回归档目录中的视频资产，不暴露本机绝对路径。"""
-        try:
-            query = urllib.parse.parse_qs(parsed.query or '')
-            limit = _history_page_int((query.get('limit') or ['200'])[0], 200, minimum=1, maximum=500)
-            offset = _history_page_int((query.get('offset') or ['0'])[0], 0, minimum=0, maximum=100000)
-            search = str((query.get('query') or [''])[0] or '').strip()
-            source_value = str((query.get('source') or [''])[0] or '').strip().lower()
-            filter_alias = str((query.get('filter') or [''])[0] or '').strip().lower()
-            if not source_value and filter_alias in _ARCHIVE_VIDEO_SOURCE_TYPES:
-                source_value = filter_alias
-            source = _coerce_archive_video_source(source_value)
-            self.send_json(_list_archive_videos(limit=limit, offset=offset, query=search, source=source))
-        except Exception as e:
-            print(f'❌ video assets list failed: {e}')
-            self.send_json({'ok': False, 'error': '视频资产列表读取失败'}, 500)
+        return _domain_routes_media_routes.handle_asset_videos(
+            self, parsed, _ARCHIVE_VIDEO_SOURCE_TYPES=_ARCHIVE_VIDEO_SOURCE_TYPES,
+            _coerce_archive_video_source=_coerce_archive_video_source, _history_page_int=_history_page_int, _list_archive_videos=_list_archive_videos,
+            urllib=urllib,
+        )
 
     def handle_asset_detail(self, parsed):
         """按 id 返回单个资产的完整字段（瘦身列表的详情补全）。"""
-        try:
-            query = urllib.parse.parse_qs(parsed.query)
-            asset_id = str(query.get('id', [''])[0] or '').strip()
-            if not asset_id:
-                self.send_json({"ok": False, "error": "缺少 id 参数"}, 400)
-                return
-            asset = get_gallery_asset(asset_id)
-            if not asset:
-                self.send_json({"ok": False, "error": "资产不存在"}, 404)
-                return
-            self.send_json({"ok": True, "asset": asset})
-        except Exception as e:
-            self.send_json({"ok": False, "error": str(e)}, 400)
+        return _handle_asset_detail(self, parsed, get_asset=get_gallery_asset)
 
     def handle_asset_sets(self, parsed):
         """返回图库候选集。"""
-        try:
-            query = urllib.parse.parse_qs(parsed.query)
-            limit = int(query.get('limit', [80])[0])
-            offset = int(query.get('offset', [0])[0])
-            search = str(query.get('query', [''])[0] or '').strip()
-            tag = str(query.get('tag', [''])[0] or '').strip()
-            self.send_json(list_asset_sets(
-                limit=limit,
-                offset=offset,
-                query=search,
-                tag=tag,
-            ))
-        except Exception as e:
-            self.send_json({"error": str(e)}, 400)
+        return _handle_asset_sets(self, parsed, list_sets=list_asset_sets)
 
     def handle_prompt_sources(self):
         """返回独立远程提示词源状态。"""
-        try:
-            self.send_json(list_prompt_sources())
-        except Exception as e:
-            self.send_json({"ok": False, "error": str(e)}, 500)
+        return _domain_routes_remote_source_routes.handle_prompt_sources(self, list_prompt_sources=list_prompt_sources)
 
     def handle_pinterest_library(self, parsed):
         """Return local or remote Pinterest Pins without importing them into the asset index."""
-        try:
-            ensure_pinterest_auth_storage()
-            query = urllib.parse.parse_qs(parsed.query)
-            board_id = str(query.get("board_id", [""])[0] or "").strip()
-            limit = int(query.get("limit", [200])[0])
-            refresh = str(query.get("refresh", [""])[0] or "").strip().lower() in {"1", "true", "yes"}
-            local_only = str(query.get("local_only", [""])[0] or "").strip().lower() in {"1", "true", "yes"}
-            self.send_json(get_pinterest_library(
-                board_id=board_id,
-                limit=limit,
-                refresh=refresh,
-                local_only=local_only,
-            ))
-        except ValueError as e:
-            self.send_json({"ok": False, "error": str(e)}, 400)
-        except Exception as e:
-            print(f"❌ Pinterest 图库读取失败：{e}")
-            self.send_json({"ok": False, "error": str(e)}, 502)
+        return _domain_routes_remote_source_routes.handle_pinterest_library(
+            self, parsed, ensure_pinterest_auth_storage=ensure_pinterest_auth_storage,
+            get_pinterest_library=get_pinterest_library, urllib=urllib,
+        )
 
     @staticmethod
     def _pinterest_board_and_pins(board_id, *, refresh=False):
-        clean_board_id = str(board_id or "").strip()
-        if not clean_board_id:
-            raise ValueError("缺少 Pinterest 图板 ID")
-        ensure_pinterest_auth_storage()
-        config = get_pinterest_config()
-        library = get_pinterest_library(
-            board_id=clean_board_id,
-            limit=int(config.get("max_pins_per_board") or 500),
-            refresh=refresh,
+        return _domain_routes_remote_source_routes._pinterest_board_and_pins(
+            board_id, refresh=refresh, ensure_pinterest_auth_storage=ensure_pinterest_auth_storage,
+            get_pinterest_config=get_pinterest_config, get_pinterest_library=get_pinterest_library,
         )
-        board = next(
-            (
-                item for item in library.get("boards") or []
-                if str(item.get("id") or "") == clean_board_id
-            ),
-            None,
-        )
-        if not board:
-            raise ValueError("Pinterest 图板不存在")
-        return board, list(library.get("pins") or [])
 
     def handle_pinterest_download_pin(self):
         """Download one Pinterest Pin into SOURCE_IMAGE_DIR/pinterest."""
-        try:
-            data = self.read_json_body(max_bytes=64 * 1024)
-            board_id = str(data.get("board_id") or "").strip()
-            pin_id = str(data.get("pin_id") or "").strip()
-            if not pin_id:
-                raise ValueError("缺少 Pinterest Pin ID")
-            board, pins = self._pinterest_board_and_pins(board_id)
-            pin = next(
-                (
-                    item for item in pins
-                    if str(item.get("pin_id") or "") == pin_id
-                    or str(item.get("id") or "") == pin_id
-                    or str(item.get("id") or "") == f"pinterest_{pin_id}"
-                ),
-                None,
-            )
-            if not pin:
-                raise ValueError("Pinterest Pin 不存在或未加载")
-            result = download_pinterest_pin(board, pin, force=bool(data.get("force")))
-            self.send_json({"ok": True, "pin_id": pin_id, "cache": result})
-        except ValueError as e:
-            self.send_json({"ok": False, "error": str(e)}, 400)
-        except Exception as e:
-            print(f"❌ Pinterest 单图下载失败：{e}")
-            self.send_json({"ok": False, "error": str(e)}, 502)
+        return _domain_routes_remote_source_routes.handle_pinterest_download_pin(self, download_pinterest_pin=download_pinterest_pin)
 
     def handle_pinterest_prompt_save(self):
         """Persist an analyzed prompt beside a synchronized Pinterest image."""
-        try:
-            data = self.read_json_body(max_bytes=320 * 1024)
-            result = save_pinterest_pin_prompt(
-                data.get("board_id"),
-                data.get("pin_id"),
-                data.get("prompt"),
-            )
-            self.send_json(result)
-        except ValueError as e:
-            self.send_json({"ok": False, "error": str(e)}, 400)
-        except Exception as e:
-            print(f"❌ Pinterest 图片提示词保存失败：{e}")
-            self.send_json({"ok": False, "error": str(e)}, 500)
+        return _domain_routes_remote_source_routes.handle_pinterest_prompt_save(self, save_pinterest_pin_prompt=save_pinterest_pin_prompt)
 
     def handle_pinterest_download_board(self):
         """Create a pollable run and discover/download the board in its worker."""
-        try:
-            data = self.read_json_body(max_bytes=64 * 1024)
-            board_id = str(data.get("board_id") or "").strip()
-            refresh = bool(data.get("refresh"))
-            discover_board = type(self)._pinterest_board_and_pins
-
-            def discover():
-                return discover_board(board_id, refresh=refresh)
-
-            result = start_pinterest_board_sync(board_id, discover)
-            self.send_json(result, 202 if result.get("started") else 200)
-        except ValueError as e:
-            self.send_json({"ok": False, "error": str(e)}, 400)
-        except Exception as e:
-            print(f"❌ Pinterest 图板下载启动失败：{e}")
-            self.send_json({"ok": False, "error": str(e)}, 502)
+        return _domain_routes_remote_source_routes.handle_pinterest_download_board(self, start_pinterest_board_sync=start_pinterest_board_sync)
 
     def handle_pinterest_download_status(self, parsed):
         """Return progress for a Pinterest board download."""
-        try:
-            query = urllib.parse.parse_qs(parsed.query)
-            run_id = str(query.get("run_id", [""])[0] or "").strip()
-            run = get_pinterest_board_download(run_id)
-            if not run:
-                self.send_json({"ok": False, "error": "Pinterest 图板下载任务不存在"}, 404)
-                return
-            self.send_json({"ok": True, "run": run})
-        except Exception as e:
-            self.send_json({"ok": False, "error": str(e)}, 500)
+        return _domain_routes_remote_source_routes.handle_pinterest_download_status(self, parsed, get_pinterest_board_download=get_pinterest_board_download, urllib=urllib)
 
     def handle_pinterest_sync_status(self, parsed):
         """Return a remote/local Pinterest difference summary without remote image URLs."""
-        try:
-            ensure_pinterest_auth_storage()
-            query = urllib.parse.parse_qs(parsed.query)
-            limit = int(query.get("limit", [5000])[0])
-            refresh = str(query.get("refresh", [""])[0] or "").strip().lower() in {"1", "true", "yes"}
-            self.send_json(get_pinterest_sync_status(limit=limit, refresh=refresh))
-        except ValueError as e:
-            self.send_json({"ok": False, "error": str(e)}, 400)
-        except Exception as e:
-            print(f"❌ Pinterest 同步状态检查失败：{e}")
-            self.send_json({"ok": False, "error": str(e)}, 502)
+        return _domain_routes_remote_source_routes.handle_pinterest_sync_status(
+            self, parsed, ensure_pinterest_auth_storage=ensure_pinterest_auth_storage,
+            get_pinterest_sync_status=get_pinterest_sync_status, urllib=urllib,
+        )
 
     def handle_prompt_source_items(self, parsed):
         """返回远程提示词源本地化条目，不进入图库资产索引。"""
-        try:
-            query = urllib.parse.parse_qs(parsed.query)
-            limit = int(query.get('limit', [200])[0])
-            offset = int(query.get('offset', [0])[0])
-            self.send_json(list_prompt_source_items(
-                source_slug=str(query.get('source', [''])[0] or '').strip(),
-                query=str(query.get('query', [''])[0] or '').strip(),
-                tag=str(query.get('tag', [''])[0] or '').strip(),
-                style=str(query.get('style', [''])[0] or '').strip(),
-                subject=str(query.get('subject', [''])[0] or '').strip(),
-                item_type=str(query.get('type', [''])[0] or query.get('item_type', [''])[0] or '').strip(),
-                limit=limit,
-                offset=offset,
-            ))
-        except Exception as e:
-            self.send_json({"ok": False, "error": str(e)}, 400)
+        return _domain_routes_remote_source_routes.handle_prompt_source_items(self, parsed, list_prompt_source_items=list_prompt_source_items, urllib=urllib)
 
     def handle_prompt_source_sync(self):
         """启动远程提示词源同步任务。"""
-        try:
-            data = self.read_json_body(max_bytes=64 * 1024)
-            self.send_json(start_prompt_source_sync(str(data.get('source') or 'all')), 202)
-        except Exception as e:
-            self.send_json({"ok": False, "error": str(e)}, 400)
+        return _domain_routes_remote_source_routes.handle_prompt_source_sync(self, start_prompt_source_sync=start_prompt_source_sync)
 
     def handle_prompt_source_stop(self):
         """停止正在运行的远程提示词源同步任务。"""
-        try:
-            data = self.read_json_body(max_bytes=64 * 1024)
-            self.send_json(stop_prompt_source_sync(str(data.get('run_id') or data.get('runId') or '')))
-        except Exception as e:
-            self.send_json({"ok": False, "error": str(e)}, 400)
+        return _domain_routes_remote_source_routes.handle_prompt_source_stop(self, stop_prompt_source_sync=stop_prompt_source_sync)
 
     def handle_prompt_source_run(self, run_id):
         """查询远程提示词源同步任务。"""
-        try:
-            run = get_prompt_source_run(run_id)
-            if not run:
-                self.send_json({"ok": False, "error": "同步任务不存在"}, 404)
-                return
-            self.send_json({"ok": True, "run": run})
-        except Exception as e:
-            self.send_json({"ok": False, "error": str(e)}, 500)
+        return _domain_routes_remote_source_routes.handle_prompt_source_run(self, run_id, get_prompt_source_run=get_prompt_source_run)
 
     def handle_asset_set_post(self):
         """新建或更新图库候选集。"""
-        try:
-            data = self.read_json_body(max_bytes=4 * 1024 * 1024)
-            set_id = data.get('set_id') or data.get('id') or ''
-            if set_id:
-                payload = {}
-                if 'name' in data:
-                    payload['name'] = data.get('name') or ''
-                if 'asset_ids' in data or 'assetIds' in data:
-                    payload['asset_ids'] = data.get('asset_ids') or data.get('assetIds') or []
-                if 'tags' in data:
-                    payload['tags'] = data.get('tags') or []
-                if 'assets' in data:
-                    payload['assets'] = data.get('assets') or []
-                item = update_asset_set(set_id, **payload)
-                self.send_json({"ok": True, "set": item})
-            else:
-                payload = {
-                    "name": data.get('name') or '',
-                    "asset_ids": data.get('asset_ids') or data.get('assetIds') or [],
-                    "tags": data.get('tags') or [],
-                    "assets": data.get('assets') or [],
-                }
-                item = create_asset_set(**payload)
-                self.send_json({"ok": True, "set": item}, 201)
-        except Exception as e:
-            self.send_json({"ok": False, "error": str(e)}, 400)
+        return _handle_asset_set_post(self, create_set=create_asset_set, update_set=update_asset_set)
 
     def handle_asset_set_delete(self, set_id):
         """删除图库候选集。"""
-        try:
-            item = delete_asset_set(set_id)
-            self.send_json({"ok": True, "set": item})
-        except Exception as e:
-            self.send_json({"ok": False, "error": str(e)}, 400)
+        return _handle_asset_set_delete(self, set_id, delete_set=delete_asset_set)
 
     def handle_asset_health(self):
         """检查图库资产、候选集和溯源引用健康状态。"""
-        try:
-            health = _collect_asset_health()
-            public_health = {key: value for key, value in health.items() if key not in ('valid_asset_ids', 'all_asset_ids', 'missing_assets_all')}
-            self.send_json({"ok": True, "health": public_health})
-        except Exception as e:
-            print(f"❌ 图库体检失败：{e}")
-            self.send_json({"ok": False, "error": str(e)}, 500)
+        return _handle_asset_health(self, collect_health=_collect_asset_health)
 
     def handle_system_diagnostics(self):
         """Return safe runtime configuration status without secret values."""
-        try:
-            self.send_json(_collect_system_diagnostics())
-        except Exception as e:
-            print(f"❌ 系统诊断失败：{e}")
-            self.send_json({"ok": False, "error": str(e)}, 500)
+        return _domain_routes_system_routes.handle_system_diagnostics(self, _collect_system_diagnostics=_collect_system_diagnostics)
 
     def handle_app_update_status(self):
         """Return the latest public CanvasHub release without exposing configuration."""
-        self.send_json({"ok": True, **get_app_update_status()})
+        return _domain_routes_system_routes.handle_app_update_status(self, get_app_update_status=get_app_update_status)
 
     def handle_system_settings(self):
         """Return editable project settings without secret values."""
-        try:
-            self.send_json(_collect_system_settings())
-        except Exception as e:
-            print(f"❌ 系统设置读取失败：{e}")
-            self.send_json({"ok": False, "error": str(e)}, 500)
+        return _domain_routes_system_routes.handle_system_settings(self, _collect_system_settings=_collect_system_settings)
 
     def handle_system_settings_save(self):
         """Persist whitelisted project settings into settings.json."""
-        try:
-            ensure_pinterest_auth_storage()
-            data = self.read_json_body(max_bytes=128 * 1024)
-            data = copy.deepcopy(data)
-            data_root = _settings_dict(data.get("settings")) or data
-            pinterest_data = _settings_dict(data_root.get("pinterest"))
-            cookie_to_import = _normalize_pinterest_cookie_header(pinterest_data.get("auth_cookie"))
-            clear_pinterest_auth = _coerce_bool(pinterest_data.get("clear_auth_cookie"), False)
-            if cookie_to_import:
-                pinterest_data.pop("auth_cookie", None)
-                pinterest_data["clear_legacy_auth_cookie"] = True
-            settings = _sanitize_system_settings_patch(data)
-            if settings is None:
-                self.send_json({"ok": False, "error": "设置格式错误"}, 400)
-                return
-            save_app_settings(settings)
-            if clear_pinterest_auth:
-                delete_pinterest_auth()
-            elif cookie_to_import:
-                pinterest_cfg = get_pinterest_config()
-                import_pinterest_cookie_header(
-                    cookie_to_import,
-                    pinterest_cfg.get("profile_url", ""),
-                )
-            global AUTH_PASSWORD, TELEGRAM_AUTH_BOT_TOKEN, TELEGRAM_AUTH_ALLOWED_IDS
-            AUTH_PASSWORD = _load_auth_password()
-            TELEGRAM_AUTH_BOT_TOKEN, TELEGRAM_AUTH_ALLOWED_IDS = _load_telegram_auth_config()
-            self.send_json(_collect_system_settings())
-        except ValueError as e:
-            self.send_json({"ok": False, "error": str(e)}, 400)
-        except Exception as e:
-            print(f"❌ 系统设置保存失败：{e}")
-            self.send_json({"ok": False, "error": str(e)}, 500)
+        return _domain_routes_system_routes.handle_system_settings_save(
+            self, _coerce_bool=_coerce_bool, _collect_system_settings=_collect_system_settings,
+            _normalize_pinterest_cookie_header=_normalize_pinterest_cookie_header, _reload_auth_state=_reload_auth_state, _sanitize_system_settings_patch=_sanitize_system_settings_patch,
+            _settings_dict=_settings_dict, copy=copy, delete_pinterest_auth=delete_pinterest_auth,
+            ensure_pinterest_auth_storage=ensure_pinterest_auth_storage, get_pinterest_config=get_pinterest_config, import_pinterest_cookie_header=import_pinterest_cookie_header,
+            save_app_settings=save_app_settings,
+        )
 
     def handle_video_runtime_status(self, parsed=None):
         """Return H3 Runtime routing and optionally perform a live probe."""
-        try:
-            query = urllib.parse.parse_qs(parsed.query) if parsed else {}
-            probe = _coerce_bool((query.get("probe") or ["0"])[0], False)
-            self.send_json(collect_video_runtime_status(probe=probe))
-        except ValueError as e:
-            self.send_json({"ok": False, "online": False, "error": str(e)}, 400)
-        except Exception as e:
-            print(f"❌ H3 Runtime 状态读取失败：{e}")
-            self.send_json({"ok": False, "online": False, "error": str(e)}, 500)
+        return _domain_routes_runtime_generation_routes.handle_video_runtime_status(
+            self, parsed, _coerce_bool=_coerce_bool,
+            collect_video_runtime_status=collect_video_runtime_status, urllib=urllib,
+        )
 
     def handle_video_supervisor_status(self, parsed=None):
         """Return the configured H3 Supervisor address and optional health probe."""
-        try:
-            query = urllib.parse.parse_qs(parsed.query) if parsed else {}
-            probe = _coerce_bool((query.get("probe") or ["0"])[0], False)
-            self.send_json(collect_video_supervisor_status(probe=probe))
-        except Exception as e:
-            print(f"❌ H3 Supervisor 状态读取失败：{e}")
-            self.send_json({"ok": False, "online": False, "error": str(e)}, 500)
+        return _domain_routes_runtime_generation_routes.handle_video_supervisor_status(
+            self, parsed, _coerce_bool=_coerce_bool,
+            collect_video_supervisor_status=collect_video_supervisor_status, urllib=urllib,
+        )
 
     def handle_video_runtime_capabilities(self):
         """Return live H3 capabilities, or a bounded offline fallback."""
-        try:
-            self.send_json(collect_video_runtime_capabilities())
-        except Exception as e:
-            print(f"❌ H3 Runtime 能力读取失败：{e}")
-            self.send_json({"ok": False, "runtime_online": False, "error": str(e)}, 500)
+        return _domain_routes_runtime_generation_routes.handle_video_runtime_capabilities(self, collect_video_runtime_capabilities=collect_video_runtime_capabilities)
 
     def handle_video_runtime_test(self):
         """Probe unsaved local/LAN fields from the settings panel."""
-        try:
-            payload = self.read_json_body(max_bytes=64 * 1024)
-            self.send_json(collect_video_runtime_status(probe=True, overrides=payload))
-        except ValueError as e:
-            self.send_json({"ok": False, "online": False, "error": str(e)}, 400)
-        except Exception as e:
-            self.send_json({"ok": False, "online": False, "error": str(e)}, 502)
+        return _domain_routes_runtime_generation_routes.handle_video_runtime_test(self, collect_video_runtime_status=collect_video_runtime_status)
 
     def handle_video_supervisor_test(self):
         """Probe an unsaved Supervisor URL from the settings panel."""
-        try:
-            payload = self.read_json_body(max_bytes=16 * 1024)
-            self.send_json(collect_video_supervisor_status(
-                probe=True,
-                base_url=payload.get("manager_base_url") if isinstance(payload, dict) else None,
-            ))
-        except ValueError as e:
-            self.send_json({"ok": False, "online": False, "error": str(e)}, 400)
-        except Exception as e:
-            self.send_json({"ok": False, "online": False, "error": str(e)}, 502)
+        return _domain_routes_runtime_generation_routes.handle_video_supervisor_test(self, collect_video_supervisor_status=collect_video_supervisor_status)
 
     def handle_video_runtime_start(self):
         """Start a separately installed local H3 Runtime component on Windows."""
-        try:
-            result = start_local_video_runtime()
-            self.send_json(result, 202 if result.get("ok") else 409)
-        except Exception as e:
-            print(f"❌ H3 Runtime 启动失败：{e}")
-            self.send_json({"ok": False, "started": False, "error": str(e)}, 500)
+        return _domain_routes_runtime_generation_routes.handle_video_runtime_start(self, start_local_video_runtime=start_local_video_runtime)
 
     def handle_video_prompt_compile(self):
         """Compile an I2VA request with the pinned official MiniMax H3 skill."""
-        try:
-            payload = self.read_json_body(max_bytes=64 * 1024 * 1024)
-            self.send_json(compile_h3_prompt(payload))
-        except ValueError as e:
-            self.send_json({"ok": False, "error": str(e)}, 400)
-        except H3PromptCompileError as e:
-            self.send_json({"ok": False, "error": str(e)}, 502)
-        except RuntimeError as e:
-            print(f"❌ H3 提示词模型调用失败：{e}")
-            self.send_json({"ok": False, "error": str(e)}, 502)
-        except Exception as e:
-            print(f"❌ H3 提示词编译失败：{e}")
-            self.send_json({"ok": False, "error": str(e)}, 500)
+        return _domain_routes_runtime_generation_routes.handle_video_prompt_compile(self, H3PromptCompileError=H3PromptCompileError, compile_h3_prompt=compile_h3_prompt)
 
     def handle_video_generate(self):
         """Create a tracked MiniMax H3 video task without exposing Runtime secrets."""
-        try:
-            data = self.read_json_body(max_bytes=140 * 1024 * 1024)
-            prompt = str(data.get('prompt') or '').strip()
-            if not prompt:
-                raise ValueError('请连接一个包含提示词的文本节点')
-            if len(prompt) > 20_000:
-                raise ValueError('提示词不能超过 20000 字符')
-
-            mode = str(data.get('mode') or 'image_to_video').strip().lower()
-            if mode not in {'image_to_video', 'reference_to_video'}:
-                raise ValueError('mode 必须是 image_to_video 或 reference_to_video')
-            aspect_ratio = str(data.get('aspect_ratio') or '3:4').strip()
-            if aspect_ratio not in {'16:9', '9:16', '3:4', '4:3', '2:3', '3:2', '1:1', '21:9', '9:21'}:
-                raise ValueError('不支持的 H3 画幅比例')
-
-            capabilities_payload = collect_video_runtime_capabilities()
-            capabilities = capabilities_payload.get('capabilities') if isinstance(capabilities_payload, dict) else {}
-            constraints = capabilities.get('constraints') if isinstance(capabilities, dict) and isinstance(capabilities.get('constraints'), dict) else {}
-            dimension_multiple = max(1, int(constraints.get('dimension_multiple') or 32))
-            max_pixels = max(1, int(constraints.get('max_pixels') or 1_032_192))
-            duration_range = constraints.get('duration_seconds') if isinstance(constraints.get('duration_seconds'), dict) else {}
-            min_duration = max(1.0, float(duration_range.get('min') or 1))
-            max_duration = max(min_duration, float(duration_range.get('max') or 15))
-
-            width = int(float(data.get('width') or 0))
-            height = int(float(data.get('height') or 0))
-            if width <= 0 or height <= 0:
-                raise ValueError('视频宽高必须大于 0')
-            if width % dimension_multiple or height % dimension_multiple:
-                raise ValueError(f'视频宽高必须都是 {dimension_multiple} 的倍数')
-            if width * height > max_pixels:
-                raise ValueError(f'当前 H3 Runtime 最大允许 {max_pixels:,} 像素')
-            try:
-                pixel_budget_mp = float(data.get('pixel_budget_mp'))
-            except (TypeError, ValueError):
-                pixel_budget_mp = round(width * height / 1_000_000, 3)
-            if not 0.1 <= pixel_budget_mp <= 8:
-                raise ValueError('质量（像素量）参数无效')
-
-            duration_seconds = float(data.get('duration_seconds') or 15)
-            if not min_duration <= duration_seconds <= max_duration:
-                raise ValueError(f'视频时长必须在 {min_duration:g} 到 {max_duration:g} 秒之间')
-            steps = int(float(data.get('steps') or 20))
-            if not 1 <= steps <= 100:
-                raise ValueError('采样步数必须在 1 到 100 之间')
-            denoise = 1.0
-            crf = int(float(data.get('crf') if data.get('crf') is not None else 23))
-            if not 0 <= crf <= 51:
-                raise ValueError('视频 CRF 必须在 0 到 51 之间')
-            acceleration_mode = str(data.get('acceleration_mode') or 'first_block_cache').strip().lower()
-            if acceleration_mode not in {'off', 'first_block_cache', 'sol_attn', 'combined'}:
-                raise ValueError('不支持的 H3 加速模式')
-            first_block_cache_threshold = float(data.get('first_block_cache_threshold') or 0.08)
-            if not 0 < first_block_cache_threshold <= 1:
-                raise ValueError('FirstBlockCache 阈值必须大于 0 且不超过 1')
-            seed = ''
-            prompt_metadata = _sanitize_h3_prompt_metadata(data.get('prompt_metadata'))
-
-            first_frame = data.get('first_frame') or data.get('reference_image')
-            upload = _decode_h3_reference_image(first_frame)
-            params = {
-                'provider': 'minimax_h3',
-                'mode': mode,
-                'aspect_ratio': aspect_ratio,
-                'pixel_budget_mp': pixel_budget_mp,
-                'actual_megapixels': round(width * height / 1_000_000, 3),
-                'width': width,
-                'height': height,
-                'duration_seconds': duration_seconds,
-                'steps': steps,
-                'denoise': denoise,
-                'crf': crf,
-                'seed': seed,
-                'acceleration_mode': acceleration_mode,
-                'first_block_cache_threshold': first_block_cache_threshold,
-                'archive_enabled': True,
-                'telegram_enabled': _coerce_bool(data.get('telegram_enabled'), False),
-                'runtime_capability_source': capabilities_payload.get('source') if isinstance(capabilities_payload, dict) else 'fallback',
-                'prompt_metadata': prompt_metadata,
-                'dimension_multiple': dimension_multiple,
-                'max_pixels': max_pixels,
-            }
-            task_id = f"h3v_{int(time.time())}_{random.randint(1000, 9999)}"
-            create_task(task_id, prompt, params, status='queued', task_type=H3_VIDEO_TASK_TYPE)
-            if not self.start_generation_task(task_id, process_h3_video_task, (task_id, prompt, upload, params)):
-                return
-            self.send_json({
-                'ok': True,
-                'task_id': task_id,
-                'status': 'queued',
-                'progress': 0,
-                'message': 'MiniMax H3 视频任务已提交',
-            }, 202)
-        except ValueError as e:
-            self.send_json({'ok': False, 'error': str(e)}, 400)
-        except Exception as e:
-            print(f'❌ H3 视频任务提交失败：{e}')
-            self.send_json({'ok': False, 'error': str(e)}, 500)
+        return _domain_routes_runtime_generation_routes.handle_video_generate(
+            self, H3_VIDEO_TASK_TYPE=H3_VIDEO_TASK_TYPE, _coerce_bool=_coerce_bool,
+            _decode_h3_reference_image=_decode_h3_reference_image, _sanitize_h3_prompt_metadata=_sanitize_h3_prompt_metadata, collect_video_runtime_capabilities=collect_video_runtime_capabilities,
+            create_task=create_task, process_h3_video_task=process_h3_video_task, random=random,
+            time=time,
+        )
 
     def handle_pinterest_auth_start(self):
         """Open an isolated local browser for Pinterest login."""
-        try:
-            payload = self.read_json_body(max_bytes=64 * 1024)
-            profile_url = _normalize_pinterest_profile_url(payload.get("profile_url"))
-            self.send_json(start_pinterest_browser_login(profile_url))
-        except ValueError as e:
-            self.send_json({"ok": False, "error": str(e)}, 400)
-        except Exception as e:
-            print(f"❌ Pinterest 登录浏览器启动失败：{e}")
-            self.send_json({"ok": False, "error": str(e)}, 500)
+        return _domain_routes_remote_source_routes.handle_pinterest_auth_start(
+            self, _normalize_pinterest_profile_url=_normalize_pinterest_profile_url, start_pinterest_browser_login=start_pinterest_browser_login,
+        )
 
     def handle_pinterest_auth_complete(self):
         """Capture the isolated browser state after the user logs in."""
-        try:
-            payload = self.read_json_body(max_bytes=64 * 1024)
-            self.send_json(complete_pinterest_browser_login(payload.get("session_id")))
-        except ValueError as e:
-            self.send_json({"ok": False, "error": str(e)}, 400)
-        except Exception as e:
-            print(f"❌ Pinterest 登录完成失败：{e}")
-            self.send_json({"ok": False, "error": str(e)}, 502)
+        return _domain_routes_remote_source_routes.handle_pinterest_auth_complete(self, complete_pinterest_browser_login=complete_pinterest_browser_login)
 
     def handle_pinterest_auth_cancel(self):
         """Close and remove an unfinished Pinterest login browser."""
-        try:
-            payload = self.read_json_body(max_bytes=64 * 1024)
-            self.send_json(cancel_pinterest_browser_login(payload.get("session_id")))
-        except Exception as e:
-            print(f"❌ Pinterest 登录取消失败：{e}")
-            self.send_json({"ok": False, "error": str(e)}, 500)
+        return _domain_routes_remote_source_routes.handle_pinterest_auth_cancel(self, cancel_pinterest_browser_login=cancel_pinterest_browser_login)
 
     def handle_pinterest_auth_verify(self):
         """Verify saved Pinterest browser state without exposing it."""
-        try:
-            self.send_json(verify_pinterest_saved_auth())
-        except ValueError as e:
-            self.send_json({"ok": False, "error": str(e)}, 400)
-        except Exception as e:
-            print(f"❌ Pinterest 登录态验证失败：{e}")
-            self.send_json({"ok": False, "error": str(e)}, 502)
+        return _domain_routes_remote_source_routes.handle_pinterest_auth_verify(self, verify_pinterest_saved_auth=verify_pinterest_saved_auth)
 
     def handle_pinterest_auth_logout(self):
         """Delete saved Pinterest browser authentication."""
-        try:
-            self.send_json(delete_pinterest_auth())
-        except Exception as e:
-            print(f"❌ Pinterest 退出登录失败：{e}")
-            self.send_json({"ok": False, "error": str(e)}, 500)
+        return _domain_routes_remote_source_routes.handle_pinterest_auth_logout(self, delete_pinterest_auth=delete_pinterest_auth)
 
     def handle_gpt_config(self):
         """Return safe GPT runtime options for the desktop UI."""
-        try:
-            self.send_json(_collect_gpt_runtime_config())
-        except Exception as e:
-            print(f"❌ GPT 配置读取失败：{e}")
-            self.send_json({"ok": False, "error": str(e)}, 500)
+        return _domain_routes_provider_account_routes.handle_gpt_config(self, _collect_gpt_runtime_config=_collect_gpt_runtime_config)
 
     def handle_gpt_config_save(self):
         """Persist non-secret GPT provider settings into project settings.json."""
-        try:
-            content_length = int(self.headers.get('Content-Length', 0))
-            body = self.rfile.read(content_length)
-            data = json.loads(body or b'{}')
-            patch = _sanitize_gpt_provider_patch(data)
-            if not patch:
-                self.send_json({"ok": False, "error": "没有可保存的 GPT 配置"}, 400)
-                return
-            update_app_settings_section("gpt_provider", patch)
-            self.send_json(_collect_gpt_runtime_config())
-        except Exception as e:
-            print(f"❌ GPT 配置保存失败：{e}")
-            self.send_json({"ok": False, "error": str(e)}, 500)
+        return _domain_routes_provider_account_routes.handle_gpt_config_save(
+            self, _collect_gpt_runtime_config=_collect_gpt_runtime_config, _sanitize_gpt_provider_patch=_sanitize_gpt_provider_patch,
+            json=json, update_app_settings_section=update_app_settings_section,
+        )
 
     def _read_json_body(self):
-        content_length = int(self.headers.get('Content-Length', 0))
-        body = self.rfile.read(content_length)
-        if not body:
-            return {}
-        data = json.loads(body)
-        return data if isinstance(data, dict) else {}
+        return _domain_routes_http_responses._read_json_body(self, json=json)
 
     def handle_chatgpt_pool_status(self):
         """Return safe ChatGPT account-pool status for desktop settings."""
-        try:
-            self.send_json({"ok": True, "chatgpt_pool": _collect_chatgpt_pool_status()})
-        except Exception as e:
-            print(f"❌ ChatGPT 账号池状态读取失败：{e}")
-            self.send_json({"ok": False, "error": str(e)}, 500)
+        return _domain_routes_provider_account_routes.handle_chatgpt_pool_status(self, _collect_chatgpt_pool_status=_collect_chatgpt_pool_status)
 
     def handle_gpt_models(self, parsed):
         """Return account-scoped generation models for each GPT route."""
-        try:
-            query = urllib.parse.parse_qs(parsed.query or '')
-            refresh = _coerce_bool((query.get('refresh') or [''])[0], False)
-            self.send_json(get_gpt_model_catalog(force=refresh))
-        except Exception as e:
-            print(f"❌ GPT 模型目录读取失败：{e}")
-            self.send_json({"ok": False, "error": str(e)}, 502)
+        return _domain_routes_provider_account_routes.handle_gpt_models(
+            self, parsed, _coerce_bool=_coerce_bool,
+            get_gpt_model_catalog=get_gpt_model_catalog, urllib=urllib,
+        )
 
     def handle_chatgpt_pool_accounts(self):
         """Proxy account list through server.py so the UI never sees sidecar auth."""
-        try:
-            data = _chatgpt_pool_request("GET", "/accounts")
-            self.send_json(data)
-        except Exception as e:
-            print(f"❌ ChatGPT 账号池账号读取失败：{e}")
-            self.send_json({"ok": False, "error": str(e)}, 502)
+        return _domain_routes_provider_account_routes.handle_chatgpt_pool_accounts(self, _chatgpt_pool_request=_chatgpt_pool_request)
 
     def handle_managed_codex_oauth_status(self):
         """Return safe managed Codex OAuth status for desktop settings."""
-        try:
-            self.send_json({"ok": True, "managed_codex_oauth": get_managed_codex_oauth_status()})
-        except Exception as e:
-            print(f"❌ Managed Codex OAuth 状态读取失败：{e}")
-            self.send_json({"ok": False, "error": str(e)}, 500)
+        return _domain_routes_provider_account_routes.handle_managed_codex_oauth_status(self, get_managed_codex_oauth_status=get_managed_codex_oauth_status)
 
     def handle_managed_codex_oauth_post(self, path):
         """Handle project-managed Codex OAuth mutations."""
-        try:
-            payload = self._read_json_body()
-        except json.JSONDecodeError:
-            self.send_json({"ok": False, "error": "请求体格式错误"}, 400)
-            return
-
-        try:
-            if path == "/api/managed-codex-oauth/start":
-                data = start_managed_codex_oauth_login(
-                    open_browser=_coerce_bool(payload.get("open_browser", payload.get("openBrowser")), True),
-                    force_reauth=_coerce_bool(payload.get("force_reauth", payload.get("forceReauth")), False),
-                    email_hint=str(payload.get("email_hint") or payload.get("emailHint") or "").strip(),
-                )
-                self.send_json(data)
-                return
-            if path == "/api/managed-codex-oauth/finish":
-                data = finish_managed_codex_oauth_callback(
-                    callback_url=payload.get("callback_url") or payload.get("callback") or "",
-                    code=payload.get("code") or "",
-                    state=payload.get("state") or "",
-                    session_id=payload.get("session_id") or payload.get("sessionId") or "",
-                )
-                self.send_json(data)
-                return
-            if path == "/api/managed-codex-oauth/refresh":
-                self.send_json(refresh_managed_auth(
-                    account_id=str(payload.get("account_id") or payload.get("accountId") or "").strip(),
-                    refresh_all=_coerce_bool(payload.get("all", payload.get("refresh_all", payload.get("refreshAll"))), False),
-                ))
-                return
-            if path == "/api/managed-codex-oauth/import":
-                self.send_json(import_managed_auth_accounts(payload))
-                return
-            if path == "/api/managed-codex-oauth/update":
-                account_id = str(payload.get("account_id") or payload.get("accountId") or "").strip()
-                disabled = payload.get("disabled")
-                if disabled is None and "status" in payload:
-                    disabled = str(payload.get("status") or "").strip() in {"禁用", "disabled", "off"}
-                self.send_json(update_managed_auth_account(
-                    account_id,
-                    disabled=None if disabled is None else _coerce_bool(disabled, False),
-                    select=_coerce_bool(payload.get("select"), False),
-                ))
-                return
-            if path == "/api/managed-codex-oauth/select":
-                account_id = str(payload.get("account_id") or payload.get("accountId") or "").strip()
-                self.send_json(update_managed_auth_account(account_id, disabled=False, select=True))
-                return
-            if path == "/api/managed-codex-oauth/delete":
-                self.send_json(delete_managed_auth(
-                    account_id=str(payload.get("account_id") or payload.get("accountId") or "").strip(),
-                    delete_all=_coerce_bool(payload.get("all", payload.get("delete_all", payload.get("deleteAll"))), False),
-                ))
-                return
-            if path == "/api/managed-codex-oauth/logout":
-                self.send_json(delete_managed_auth(delete_all=True))
-                return
-            self.send_json({"ok": False, "error": "未知 managed_codex_oauth 操作"}, 404)
-        except Exception as e:
-            print(f"❌ Managed Codex OAuth 操作失败：{path} {e}")
-            self.send_json({"ok": False, "error": str(e)}, 502)
+        return _domain_routes_provider_account_routes.handle_managed_codex_oauth_post(
+            self, path, _coerce_bool=_coerce_bool,
+            delete_managed_auth=delete_managed_auth, finish_managed_codex_oauth_callback=finish_managed_codex_oauth_callback, import_managed_auth_accounts=import_managed_auth_accounts,
+            json=json, refresh_managed_auth=refresh_managed_auth, start_managed_codex_oauth_login=start_managed_codex_oauth_login,
+            update_managed_auth_account=update_managed_auth_account,
+        )
 
     def handle_chatgpt_pool_post(self, path):
         """Proxy account-pool management mutations to the local sidecar."""
-        if path == "/api/gpt-pool/oauth/open-clean":
-            try:
-                payload = self._read_json_body()
-                data = _chatgpt_pool_open_authorize_url_clean(payload.get("authorize_url") or "")
-                self.send_json(data)
-            except json.JSONDecodeError:
-                self.send_json({"ok": False, "error": "请求体格式错误"}, 400)
-            except Exception as e:
-                print(f"❌ ChatGPT 账号池干净窗口打开失败：{e}")
-                self.send_json({"ok": False, "error": str(e)}, 400)
-            return
-
-        if path == "/api/gpt-pool/accounts/import-local-auth":
-            try:
-                payload = self._read_json_body()
-                account, source_path = _chatgpt_pool_build_local_auth_account(payload.get("path") or "")
-                data = _chatgpt_pool_request("POST", "/accounts/import", {"accounts": [account]})
-                if isinstance(data, dict):
-                    data["imported_from"] = source_path
-                self.send_json(data)
-            except json.JSONDecodeError:
-                self.send_json({"ok": False, "error": "请求体格式错误"}, 400)
-            except Exception as e:
-                print(f"❌ ChatGPT 账号池本机 Auth 导入失败：{e}")
-                self.send_json({"ok": False, "error": str(e)}, 502)
-            return
-
-        if path == "/api/gpt-pool/accounts/verify/start":
-            try:
-                payload = self._read_json_body()
-                data = _chatgpt_pool_open_account_verification(
-                    payload.get("account_id") or payload.get("accountId") or ""
-                )
-                self.send_json(data)
-            except json.JSONDecodeError:
-                self.send_json({"ok": False, "error": "请求体格式错误"}, 400)
-            except Exception as e:
-                print(f"❌ ChatGPT 账号池验证窗口打开失败：{e}")
-                self.send_json({"ok": False, "error": str(e)}, 502)
-            return
-
-        if path == "/api/gpt-pool/accounts/verify/complete":
-            try:
-                payload = self._read_json_body()
-                data = _chatgpt_pool_complete_account_verification(
-                    payload.get("account_id") or payload.get("accountId") or "",
-                    payload.get("debug_port") or payload.get("debugPort"),
-                )
-                self.send_json(data)
-            except json.JSONDecodeError:
-                self.send_json({"ok": False, "error": "请求体格式错误"}, 400)
-            except Exception as e:
-                print(f"❌ ChatGPT 账号池验证会话同步失败：{e}")
-                self.send_json({"ok": False, "error": str(e)}, 502)
-            return
-
-        if path == "/api/gpt-pool/search":
-            try:
-                payload = self._read_json_body()
-                data = search_chatgpt_pool(
-                    str(payload.get("prompt") or payload.get("query") or ""),
-                    model=str(payload.get("model") or ""),
-                    timeout_seconds=payload.get("timeout_seconds") or payload.get("timeout"),
-                )
-                self.send_json(data)
-            except json.JSONDecodeError:
-                self.send_json({"ok": False, "error": "请求体格式错误"}, 400)
-            except Exception as e:
-                print(f"❌ ChatGPT 账号池检索失败：{e}")
-                self.send_json({"ok": False, "error": str(e)}, 502)
-            return
-
-        routes = {
-            "/api/gpt-pool/oauth/start": "/accounts/oauth/start",
-            "/api/gpt-pool/oauth/finish": "/accounts/oauth/finish",
-            "/api/gpt-pool/accounts/import": "/accounts/import",
-            "/api/gpt-pool/accounts/refresh": "/accounts/refresh",
-            "/api/gpt-pool/accounts/update": "/accounts/update",
-            "/api/gpt-pool/accounts/delete": "/accounts/delete",
-        }
-        sidecar_path = routes.get(path)
-        if not sidecar_path:
-            self.send_json({"ok": False, "error": "未知账号池操作"}, 404)
-            return
-        try:
-            payload = self._read_json_body()
-            if path == "/api/gpt-pool/oauth/finish" and payload.get("callback_url") and not payload.get("callback"):
-                payload["callback"] = payload.get("callback_url")
-            request_timeout = 130 if path == "/api/gpt-pool/oauth/finish" else None
-            data = _chatgpt_pool_request("POST", sidecar_path, payload, timeout=request_timeout)
-            self.send_json(data)
-        except json.JSONDecodeError:
-            self.send_json({"ok": False, "error": "请求体格式错误"}, 400)
-        except Exception as e:
-            print(f"❌ ChatGPT 账号池代理失败：{path} {e}")
-            self.send_json({"ok": False, "error": str(e)}, 502)
+        return _domain_routes_provider_account_routes.handle_chatgpt_pool_post(
+            self, path, _chatgpt_pool_build_local_auth_account=_chatgpt_pool_build_local_auth_account,
+            _chatgpt_pool_complete_account_verification=_chatgpt_pool_complete_account_verification, _chatgpt_pool_open_account_verification=lambda *args, **kwargs: _chatgpt_pool_open_account_verification(*args, **kwargs), _chatgpt_pool_open_authorize_url_clean=_chatgpt_pool_open_authorize_url_clean,
+            _chatgpt_pool_request=_chatgpt_pool_request, json=json, search_chatgpt_pool=search_chatgpt_pool,
+        )
 
     def handle_prompt_config(self, parsed):
         """Return prompt-skill settings and runtime model options."""
-        try:
-            query = urllib.parse.parse_qs(parsed.query)
-            provider = query.get("provider", [""])[0] or None
-            self.send_json(_collect_prompt_skill_runtime_config(provider))
-        except Exception as e:
-            print(f"❌ Prompt Skill 配置读取失败：{e}")
-            self.send_json({"ok": False, "error": str(e)}, 500)
+        return _domain_routes_prompt_routes.handle_prompt_config(
+            self, parsed, _collect_prompt_skill_runtime_config=_collect_prompt_skill_runtime_config,
+            urllib=urllib,
+        )
 
     def handle_prompt_models(self, parsed):
         """Return dynamically discovered text model options for a prompt provider."""
-        try:
-            query = urllib.parse.parse_qs(parsed.query)
-            provider = query.get("provider", [""])[0] or None
-            self.send_json(discover_prompt_models(provider))
-        except Exception as e:
-            print(f"❌ Prompt Skill 模型读取失败：{e}")
-            self.send_json({"ok": False, "error": str(e)}, 500)
+        return _domain_routes_prompt_routes.handle_prompt_models(self, parsed, discover_prompt_models=discover_prompt_models, urllib=urllib)
 
     def handle_prompt_style_presets(self):
         """Return project-local style presets saved by the Prompt Drawer."""
-        try:
-            self.send_json({"ok": True, "presets": list_style_presets()})
-        except Exception as e:
-            print(f"❌ 风格预设读取失败：{e}")
-            self.send_json({"ok": False, "error": str(e)}, 500)
+        return _domain_routes_prompt_routes.handle_prompt_style_presets(self, list_style_presets=list_style_presets)
 
     def handle_prompt_versions(self, parsed):
         """Return saved prompt versions."""
-        try:
-            query = urllib.parse.parse_qs(parsed.query)
-            limit = _history_page_int(query.get('limit', [200])[0], 200, minimum=1, maximum=1000)
-            self.send_json({"ok": True, "versions": list_prompt_versions(limit=limit)})
-        except Exception as e:
-            print(f"❌ Prompt versions 读取失败：{e}")
-            self.send_json({"ok": False, "error": str(e)}, 500)
+        return _domain_routes_prompt_routes.handle_prompt_versions(
+            self, parsed, _history_page_int=_history_page_int,
+            list_prompt_versions=list_prompt_versions, urllib=urllib,
+        )
 
     def handle_prompt_color_schemes(self):
         """Return active built-in and user-defined color schemes."""
-        try:
-            self.send_json({"ok": True, "color_schemes": list_color_schemes()})
-        except Exception as e:
-            print(f"❌ 色彩方案读取失败：{e}")
-            self.send_json({"ok": False, "error": str(e)}, 500)
+        return _domain_routes_prompt_routes.handle_prompt_color_schemes(self, list_color_schemes=list_color_schemes)
 
     def handle_prompt_color_scheme_save(self):
         """Create or update one user-defined color scheme."""
-        try:
-            color_scheme = save_color_scheme(self.read_json_body(max_bytes=2 * 1024 * 1024))
-            self.send_json({"ok": True, "color_scheme": color_scheme})
-        except ColorSchemeNotFoundError as e:
-            self.send_json({"ok": False, "error": str(e)}, 404)
-        except ValueError as e:
-            self.send_json({"ok": False, "error": str(e)}, 400)
-        except Exception as e:
-            print(f"❌ 色彩方案保存失败：{e}")
-            self.send_json({"ok": False, "error": str(e)}, 500)
+        return _domain_routes_prompt_routes.handle_prompt_color_scheme_save(self, ColorSchemeNotFoundError=ColorSchemeNotFoundError, save_color_scheme=save_color_scheme)
 
     def handle_prompt_color_scheme_delete(self):
         """Soft-delete one user-defined color scheme."""
-        try:
-            data = self.read_json_body(max_bytes=64 * 1024)
-            if not isinstance(data, dict):
-                raise ValueError("请求体格式错误")
-            color_scheme = delete_color_scheme(data.get('id') or data.get('color_scheme_id'))
-            self.send_json({"ok": True, "color_scheme": color_scheme})
-        except ColorSchemeNotFoundError as e:
-            self.send_json({"ok": False, "error": str(e)}, 404)
-        except ValueError as e:
-            self.send_json({"ok": False, "error": str(e)}, 400)
-        except Exception as e:
-            print(f"❌ 色彩方案删除失败：{e}")
-            self.send_json({"ok": False, "error": str(e)}, 500)
+        return _domain_routes_prompt_routes.handle_prompt_color_scheme_delete(
+            self, ColorSchemeNotFoundError=ColorSchemeNotFoundError, delete_color_scheme=delete_color_scheme,
+        )
 
     def handle_prompt_color_scheme_favorite(self):
         """Persist an explicit favorite state for one color scheme."""
-        try:
-            data = self.read_json_body(max_bytes=64 * 1024)
-            if not isinstance(data, dict):
-                raise ValueError("请求体格式错误")
-            if 'favorite' not in data:
-                raise ValueError("缺少 favorite")
-            color_scheme = set_color_scheme_favorite(
-                data.get('id') or data.get('color_scheme_id'),
-                data.get('favorite'),
-            )
-            self.send_json({"ok": True, "color_scheme": color_scheme})
-        except ColorSchemeNotFoundError as e:
-            self.send_json({"ok": False, "error": str(e)}, 404)
-        except ValueError as e:
-            self.send_json({"ok": False, "error": str(e)}, 400)
-        except Exception as e:
-            print(f"❌ 色彩方案收藏状态保存失败：{e}")
-            self.send_json({"ok": False, "error": str(e)}, 500)
+        return _domain_routes_prompt_routes.handle_prompt_color_scheme_favorite(
+            self, ColorSchemeNotFoundError=ColorSchemeNotFoundError, set_color_scheme_favorite=set_color_scheme_favorite,
+        )
 
     def handle_prompt_color_schemes_migrate_legacy(self):
         """Import color schemes and favorites from the former localStorage keys."""
-        try:
-            data = self.read_json_body(max_bytes=4 * 1024 * 1024)
-            if not isinstance(data, dict):
-                raise ValueError("请求体格式错误")
-            result = migrate_legacy_color_schemes(
-                data.get('custom_schemes'),
-                data.get('favorite_ids'),
-            )
-            self.send_json({"ok": True, **result})
-        except ValueError as e:
-            self.send_json({"ok": False, "error": str(e)}, 400)
-        except Exception as e:
-            print(f"❌ 旧版色彩方案迁移失败：{e}")
-            self.send_json({"ok": False, "error": str(e)}, 500)
+        return _domain_routes_prompt_routes.handle_prompt_color_schemes_migrate_legacy(self, migrate_legacy_color_schemes=migrate_legacy_color_schemes)
 
     def handle_prompt_library_blocks_list(self, parsed):
         """Return reusable short prompt blocks for slash insertion and editors."""
-        try:
-            query = urllib.parse.parse_qs(parsed.query)
-            result = list_prompt_blocks(
-                query=str(query.get('query', [''])[0] or '').strip(),
-                module_type=str(query.get('module_type', [''])[0] or '').strip(),
-                primary_type=str(query.get('primary_type', [''])[0] or '').strip(),
-                favorite=_coerce_bool(query.get('favorite', [False])[0], False),
-                limit=_history_page_int(query.get('limit', [500])[0], 500, minimum=1, maximum=1000),
-                offset=_history_page_int(query.get('offset', [0])[0], 0, minimum=0, maximum=1000000),
-            )
-            self.send_json({"ok": True, **result})
-        except Exception as e:
-            print(f"❌ 提示词素材块读取失败：{e}")
-            self.send_json({"ok": False, "error": str(e)}, 500)
+        return _domain_routes_prompt_routes.handle_prompt_library_blocks_list(
+            self, parsed, _coerce_bool=_coerce_bool,
+            _history_page_int=_history_page_int, list_prompt_blocks=list_prompt_blocks, urllib=urllib,
+        )
 
     def handle_prompt_library_templates_list(self):
         """Return active system and user-defined prompt split rules."""
-        try:
-            self.send_json({"ok": True, "templates": list_prompt_templates()})
-        except Exception as e:
-            print(f"❌ 提示词模板读取失败：{e}")
-            self.send_json({"ok": False, "error": str(e)}, 500)
+        return _domain_routes_prompt_routes.handle_prompt_library_templates_list(self, list_prompt_templates=list_prompt_templates)
 
     def handle_prompt_library_template_save(self):
         """Create or update one user-defined prompt split rule."""
-        try:
-            template = save_prompt_template(self.read_json_body(max_bytes=2 * 1024 * 1024))
-            self.send_json({"ok": True, "template": template})
-        except ValueError as e:
-            self.send_json({"ok": False, "error": str(e)}, 400)
-        except Exception as e:
-            print(f"❌ 拆分规则保存失败：{e}")
-            self.send_json({"ok": False, "error": str(e)}, 500)
+        return _domain_routes_prompt_routes.handle_prompt_library_template_save(self, save_prompt_template=save_prompt_template)
 
     def handle_prompt_library_template_delete(self):
         """Soft-delete one user-defined prompt split rule."""
-        try:
-            data = self.read_json_body(max_bytes=64 * 1024)
-            template = delete_prompt_template(data.get('id') or data.get('template_id'))
-            self.send_json({"ok": True, "template": template})
-        except ValueError as e:
-            self.send_json({"ok": False, "error": str(e)}, 400)
-        except Exception as e:
-            print(f"❌ 拆分规则删除失败：{e}")
-            self.send_json({"ok": False, "error": str(e)}, 500)
+        return _domain_routes_prompt_routes.handle_prompt_library_template_delete(self, delete_prompt_template=delete_prompt_template)
 
     def handle_prompt_config_save(self):
         """Persist non-secret prompt-skill settings into project settings.json."""
-        try:
-            content_length = int(self.headers.get('Content-Length', 0))
-            body = self.rfile.read(content_length)
-            data = json.loads(body or b'{}')
-            patch = _sanitize_prompt_skill_patch(data)
-            if not patch:
-                self.send_json({"ok": False, "error": "没有可保存的配置"}, 400)
-                return
-            update_app_settings_section("prompt_skill", patch)
-            self.send_json(_collect_prompt_skill_runtime_config(patch.get("provider")))
-        except Exception as e:
-            print(f"❌ Prompt Skill 配置保存失败：{e}")
-            self.send_json({"ok": False, "error": str(e)}, 500)
+        return _domain_routes_prompt_routes.handle_prompt_config_save(
+            self, _collect_prompt_skill_runtime_config=_collect_prompt_skill_runtime_config, _sanitize_prompt_skill_patch=_sanitize_prompt_skill_patch,
+            json=json, update_app_settings_section=update_app_settings_section,
+        )
 
     def handle_prompt_polish(self):
         """Run the selected prompt skill and return full/compact prompt variants."""
-        try:
-            content_length = int(self.headers.get('Content-Length', 0))
-            body = self.rfile.read(content_length)
-            data = json.loads(body or b'{}')
-            text = str(data.get("text") or data.get("prompt") or "").strip()
-            options = {
-                "provider": data.get("provider"),
-                "skill": data.get("skill"),
-                "model": data.get("model"),
-                "reasoning_effort": data.get("reasoning_effort") or data.get("reasoningEffort"),
-            }
-            try:
-                result = polish_prompt(text, options)
-            except Exception as exc:
-                if not text:
-                    raise
-                print(f"⚠️ Prompt Skill 润色失败，尝试账号池 chat 兜底：{exc}")
-                try:
-                    result = _polish_prompt_with_chatgpt_pool_chat(text, exc)
-                except Exception as fallback_exc:
-                    print(f"⚠️ Prompt Skill 账号池 chat 兜底失败：{fallback_exc}")
-                    raise exc
-            self.send_json(result)
-        except ValueError as e:
-            self.send_json({"ok": False, "error": str(e)}, 400)
-        except Exception as e:
-            print(f"❌ Prompt Skill 润色失败：{e}")
-            self.send_json({"ok": False, "error": str(e)}, 500)
+        return _domain_routes_prompt_routes.handle_prompt_polish(
+            self, _polish_prompt_with_chatgpt_pool_chat=_polish_prompt_with_chatgpt_pool_chat, json=json,
+            polish_prompt=polish_prompt,
+        )
 
     def handle_prompt_style_preset_save(self):
         """Persist one project-local style preset."""
-        try:
-            preset = save_style_preset(self.read_json_body(max_bytes=512 * 1024))
-            self.send_json({"ok": True, "preset": preset})
-        except ValueError as e:
-            self.send_json({"ok": False, "error": str(e)}, 400)
-        except Exception as e:
-            print(f"❌ 风格预设保存失败：{e}")
-            self.send_json({"ok": False, "error": str(e)}, 500)
+        return _domain_routes_prompt_routes.handle_prompt_style_preset_save(self, save_style_preset=save_style_preset)
 
     def handle_prompt_style_preset_extract(self):
         """Extract a reusable style preset draft from text-node context."""
-        try:
-            data = self.read_json_body(max_bytes=512 * 1024)
-            preset = extract_style_preset(
-                str(data.get("text") or data.get("prompt") or "").strip(),
-                str(data.get("message") or data.get("direction") or "").strip(),
-                {
-                    "candidate": data.get("candidate") or "",
-                    "history": data.get("history") if isinstance(data.get("history"), list) else [],
-                    "provider": data.get("provider"),
-                    "model": data.get("model"),
-                    "reasoning_effort": data.get("reasoning_effort") or data.get("reasoningEffort") or "low",
-                },
-            )
-            self.send_json({"ok": True, "preset": preset})
-        except ValueError as e:
-            self.send_json({"ok": False, "error": str(e)}, 400)
-        except Exception as e:
-            print(f"❌ 风格预设提取失败：{e}")
-            self.send_json({"ok": False, "error": str(e)}, 500)
+        return _domain_routes_prompt_routes.handle_prompt_style_preset_extract(self, extract_style_preset=extract_style_preset)
 
     def handle_prompt_version_save(self):
         """Persist one prompt candidate/version."""
-        try:
-            version = save_prompt_version(self.read_json_body(max_bytes=1024 * 1024))
-            self.send_json({"ok": True, "version": version})
-        except ValueError as e:
-            self.send_json({"ok": False, "error": str(e)}, 400)
-        except Exception as e:
-            print(f"❌ Prompt version 保存失败：{e}")
-            self.send_json({"ok": False, "error": str(e)}, 500)
+        return _domain_routes_prompt_routes.handle_prompt_version_save(self, save_prompt_version=save_prompt_version)
 
     def handle_prompt_library_block_save(self):
         """Create or update one reusable short prompt block."""
-        try:
-            block = save_prompt_block(self.read_json_body(max_bytes=2 * 1024 * 1024))
-            self.send_json({"ok": True, "block": block})
-        except ValueError as e:
-            self.send_json({"ok": False, "error": str(e)}, 400)
-        except Exception as e:
-            print(f"❌ 提示词素材块保存失败：{e}")
-            self.send_json({"ok": False, "error": str(e)}, 500)
+        return _domain_routes_prompt_routes.handle_prompt_library_block_save(self, save_prompt_block=save_prompt_block)
 
     def handle_prompt_library_block_delete(self):
         """Soft-delete one reusable short prompt block."""
-        try:
-            data = self.read_json_body(max_bytes=64 * 1024)
-            block = delete_prompt_block(data.get('id') or data.get('block_id'))
-            self.send_json({"ok": True, "block": block})
-        except ValueError as e:
-            self.send_json({"ok": False, "error": str(e)}, 404)
-        except Exception as e:
-            print(f"❌ 提示词素材块删除失败：{e}")
-            self.send_json({"ok": False, "error": str(e)}, 500)
+        return _domain_routes_prompt_routes.handle_prompt_library_block_delete(self, delete_prompt_block=delete_prompt_block)
 
     def handle_prompt_library_block_use(self):
         """Update block usage ranking after slash insertion."""
-        try:
-            data = self.read_json_body(max_bytes=64 * 1024)
-            block = mark_prompt_block_used(data.get('id') or data.get('block_id'))
-            self.send_json({"ok": True, "block": block})
-        except ValueError as e:
-            self.send_json({"ok": False, "error": str(e)}, 404)
-        except Exception as e:
-            print(f"❌ 提示词素材块使用状态更新失败：{e}")
-            self.send_json({"ok": False, "error": str(e)}, 500)
+        return _domain_routes_prompt_routes.handle_prompt_library_block_use(self, mark_prompt_block_used=mark_prompt_block_used)
 
     def handle_prompt_library_blocks_extract(self):
         """Extract editable prompt-block candidates from text or one uploaded image."""
-        started_at = time.time()
-        request_label = f"split_{int(started_at)}_{random.randint(1000, 9999)}"
-        try:
-            data = self.read_json_body(max_bytes=64 * 1024 * 1024)
-            mode = str(data.get('mode') or 'text').strip().lower()
-            primary_type = str(data.get('primary_type') or '').strip()
-            rule_id = str(data.get('rule_id') or '').strip()
-            module_scope = str(data.get('module_scope') or '').strip().lower()
-            if module_scope == 'generic_19':
-                split_rule = generic_19_prompt_block_split_rule()
-            elif module_scope:
-                raise ValueError("不支持的素材块模块范围")
-            else:
-                split_rule = resolve_prompt_template(rule_id, primary_type)
-                if rule_id and not split_rule:
-                    raise ValueError("拆分规则不存在或已删除")
-            if split_rule:
-                primary_type = str(split_rule.get('primary_type') or primary_type).strip()
-            default_reasoning_effort = (
-                "medium"
-                if mode == "image" and module_scope == "generic_19"
-                else ("medium" if mode == "image" else "low")
-            )
-            default_model = "gpt-5.6-sol" if mode == "image" and module_scope == "generic_19" else None
-            options = {
-                "provider": data.get("provider"),
-                "model": data.get("model") or default_model,
-                "reasoning_effort": data.get("reasoning_effort") or data.get("reasoningEffort") or default_reasoning_effort,
-            }
-            print(
-                f"🧩 素材块拆分开始：{request_label} "
-                f"mode={mode} scope={module_scope or 'template'} "
-                f"model={options.get('model') or 'configured'} effort={options['reasoning_effort']}",
-                flush=True,
-            )
-            if mode == 'image':
-                images = data.get('images') if isinstance(data.get('images'), list) else []
-                result = extract_reusable_prompt_blocks_from_image(
-                    str(data.get('message') or data.get('direction') or '').strip(),
-                    images,
-                    primary_type,
-                    options,
-                    split_rule,
-                )
-            elif mode == 'text':
-                result = extract_reusable_prompt_blocks(
-                    str(data.get('text') or data.get('prompt') or '').strip(),
-                    primary_type,
-                    options,
-                    split_rule,
-                )
-            else:
-                self.send_json({"ok": False, "error": "不支持的素材块提取模式"}, 400)
-                return
-            print(
-                f"✅ 素材块拆分完成：{request_label} "
-                f"elapsed={time.time() - started_at:.2f}s provider={result.get('provider') or '-'} "
-                f"model={result.get('model') or '-'} blocks={len(result.get('blocks') or [])}",
-                flush=True,
-            )
-            self.send_json(result)
-        except ValueError as e:
-            print(f"❌ 素材块拆分失败：{request_label} elapsed={time.time() - started_at:.2f}s error={e}", flush=True)
-            self.send_json({"ok": False, "error": str(e)}, 400)
-        except Exception as e:
-            print(f"❌ 提示词素材块提取失败：{request_label} elapsed={time.time() - started_at:.2f}s error={e}", flush=True)
-            self.send_json({"ok": False, "error": str(e)}, 500)
+        return _domain_routes_prompt_routes.handle_prompt_library_blocks_extract(
+            self, extract_reusable_prompt_blocks=extract_reusable_prompt_blocks, extract_reusable_prompt_blocks_from_image=extract_reusable_prompt_blocks_from_image,
+            generic_19_prompt_block_split_rule=generic_19_prompt_block_split_rule, random=random, resolve_prompt_template=resolve_prompt_template,
+            time=time,
+        )
 
     def handle_prompt_assistant_chat(self):
         """Lightweight text-node Prompt Copilot discussion endpoint."""
-        try:
-            data = self.read_json_body(max_bytes=512 * 1024)
-            text = str(data.get("text") or data.get("prompt") or "").strip()
-            message = str(data.get("message") or "").strip()
-            result = assistant_chat(text, message, {
-                "provider": data.get("provider"),
-                "model": data.get("model"),
-                "reasoning_effort": data.get("reasoning_effort") or data.get("reasoningEffort") or "low",
-                "style": data.get("style") if isinstance(data.get("style"), dict) else {},
-                "history": data.get("history") if isinstance(data.get("history"), list) else [],
-                "task_context": data.get("task_context") if isinstance(data.get("task_context"), dict) else {},
-            })
-            self.send_json({
-                **result,
-                "target": data.get("target") if isinstance(data.get("target"), dict) else {},
-                "style": data.get("style") if isinstance(data.get("style"), dict) else {},
-                "candidates": [],
-            })
-        except ValueError as e:
-            self.send_json({"ok": False, "error": str(e)}, 400)
-        except Exception as e:
-            print(f"❌ Prompt Assistant Chat 失败：{e}")
-            self.send_json({"ok": False, "error": str(e)}, 500)
+        return _domain_routes_prompt_routes.handle_prompt_assistant_chat(self, assistant_chat=assistant_chat)
+
+    def _start_ndjson_response(self):
+        """Start the existing unbuffered NDJSON HTTP response."""
+        self.send_response(200)
+        self.send_header("Content-Type", "application/x-ndjson; charset=utf-8")
+        self.send_header("Cache-Control", "no-cache, no-transform")
+        self.send_header("X-Accel-Buffering", "no")
+        self._apply_cors_headers()
+        self.end_headers()
 
     def _write_ndjson_event(self, event):
-        payload = json.dumps(event, ensure_ascii=False, separators=(",", ":")).encode("utf-8") + b"\n"
-        self.wfile.write(payload)
-        self.wfile.flush()
+        return _domain_routes_http_responses._write_ndjson_event(self, event, json=json)
 
     def handle_prompt_assistant_chat_stream(self):
         """Stream text-node Prompt Copilot discussion deltas."""
-        try:
-            data = self.read_json_body(max_bytes=512 * 1024)
-            text = str(data.get("text") or data.get("prompt") or "").strip()
-            message = str(data.get("message") or "").strip()
-            if not text and not message:
-                self.send_json({"ok": False, "error": "请输入聊天内容或选择文本节点"}, 400)
-                return
-            options = {
-                "provider": data.get("provider"),
-                "model": data.get("model"),
-                "reasoning_effort": data.get("reasoning_effort") or data.get("reasoningEffort") or "low",
-                "style": data.get("style") if isinstance(data.get("style"), dict) else {},
-                "history": data.get("history") if isinstance(data.get("history"), list) else [],
-                "task_context": data.get("task_context") if isinstance(data.get("task_context"), dict) else {},
-            }
-            self.send_response(200)
-            self.send_header("Content-Type", "application/x-ndjson; charset=utf-8")
-            self.send_header("Cache-Control", "no-cache, no-transform")
-            self.send_header("X-Accel-Buffering", "no")
-            self._apply_cors_headers()
-            self.end_headers()
-            for event in assistant_chat_stream(text, message, options):
-                if event.get("type") == "done":
-                    event = {
-                        **event,
-                        "target": data.get("target") if isinstance(data.get("target"), dict) else {},
-                        "style": data.get("style") if isinstance(data.get("style"), dict) else {},
-                        "candidates": [],
-                    }
-                self._write_ndjson_event(event)
-        except (BrokenPipeError, ConnectionResetError):
-            return
-        except Exception as e:
-            print(f"❌ Prompt Assistant Chat 流式失败：{e}")
-            try:
-                self._write_ndjson_event({"type": "error", "ok": False, "error": str(e)})
-            except Exception:
-                pass
+        return _domain_routes_prompt_routes.handle_prompt_assistant_chat_stream(self, assistant_chat_stream=assistant_chat_stream)
 
     def handle_prompt_safe_rewrite(self):
         """Rewrite one text-node prompt through the standalone safety adapter."""
-        try:
-            data = self.read_json_body(max_bytes=512 * 1024)
-            prompt = str(data.get("prompt") or data.get("text") or "").strip()
-            if not prompt:
-                self.send_json({"ok": False, "error": "缺少要安全改写的提示词"}, 400)
-                return
-            result = safe_rewrite_prompt(prompt, {
-                "provider": data.get("provider"),
-                "model": data.get("model"),
-                "reasoning_effort": data.get("reasoning_effort") or data.get("reasoningEffort") or "low",
-                "style": data.get("style") if isinstance(data.get("style"), dict) else {},
-            })
-            zh_prompt = str(result.get("zh_prompt") or result.get("rewritten_prompt") or "").strip()
-            en_prompt = str(result.get("en_prompt") or "").strip()
-            now = int(time.time())
-            base_candidate = {
-                "kind": "safe_rewrite",
-                "badge": "安全",
-                "task_type": result.get("task_type"),
-                "intent": result.get("intent") if isinstance(result.get("intent"), dict) else {},
-                "risk_score": result.get("risk_score"),
-                "risk_level": result.get("risk_level"),
-                "risk_flags": result.get("risk_flags") if isinstance(result.get("risk_flags"), list) else [],
-                "changed_terms": result.get("changed_terms") if isinstance(result.get("changed_terms"), list) else [],
-                "warnings": result.get("warnings") if isinstance(result.get("warnings"), list) else [],
-                "adapter": result.get("adapter") if isinstance(result.get("adapter"), dict) else {},
-                "created_at": now,
-            }
-            candidates = []
-            if zh_prompt:
-                candidates.append({
-                    **base_candidate,
-                    "id": f"safe_rewrite_zh_{now}_{random.randint(1000, 9999)}",
-                    "kind": "safe_rewrite_zh",
-                    "label": "安全审核版（中文）",
-                    "text": zh_prompt,
-                    "language": "zh",
-                })
-            if en_prompt:
-                candidates.append({
-                    **base_candidate,
-                    "id": f"safe_rewrite_en_{now}_{random.randint(1000, 9999)}",
-                    "kind": "safe_rewrite_en",
-                    "label": "安全审核版（英文）",
-                    "text": en_prompt,
-                    "language": "en",
-                })
-            if not candidates:
-                raise RuntimeError("安全审核版没有返回有效提示词")
-            self.send_json({
-                **result,
-                "target": data.get("target") if isinstance(data.get("target"), dict) else {},
-                "style": data.get("style") if isinstance(data.get("style"), dict) else {},
-                "candidate": candidates[0],
-                "candidates": candidates,
-            })
-        except ValueError as e:
-            self.send_json({"ok": False, "error": str(e)}, 400)
-        except Exception as e:
-            print(f"❌ Prompt Safe Rewrite 失败：{e}")
-            self.send_json({"ok": False, "error": str(e)}, 500)
+        return _domain_routes_prompt_routes.handle_prompt_safe_rewrite(self, random=random, safe_rewrite_prompt=safe_rewrite_prompt, time=time)
 
     def handle_prompt_image_analysis(self):
         """Analyze image references into prompt candidates and structured modules."""
-        try:
-            data = self.read_json_body(max_bytes=64 * 1024 * 1024)
-            images = data.get("images") if isinstance(data.get("images"), list) else []
-            message = str(data.get("message") or data.get("direction") or "").strip()
-            if not images:
-                self.send_json({"ok": False, "error": "请先上传或选择要分析的图片"}, 400)
-                return
-            result = analyze_prompt_image(message, images, {
-                "provider": data.get("provider"),
-                "model": data.get("model"),
-                "reasoning_effort": data.get("reasoning_effort") or data.get("reasoningEffort") or "medium",
-                "style": data.get("style") if isinstance(data.get("style"), dict) else {},
-                "target": data.get("target") if isinstance(data.get("target"), dict) else {},
-                "keep_text": bool(data.get("keep_text") or data.get("keepText")),
-            })
-            self.send_json({
-                **result,
-                "target": data.get("target") if isinstance(data.get("target"), dict) else {},
-                "style": data.get("style") if isinstance(data.get("style"), dict) else {},
-            })
-        except ValueError as e:
-            self.send_json({"ok": False, "error": str(e)}, 400)
-        except Exception as e:
-            print(f"❌ Prompt 图片分析失败：{e}")
-            self.send_json({"ok": False, "error": str(e)}, 500)
+        return _domain_routes_prompt_routes.handle_prompt_image_analysis(self, analyze_prompt_image=analyze_prompt_image)
+
+    def handle_prompt_video_analysis(self):
+        """Analyze sampled video references into prompt candidates and modules."""
+        return _domain_routes_prompt_routes.handle_prompt_video_analysis(self, analyze_prompt_video=analyze_prompt_video)
 
     def handle_prompt_versions_generate(self):
         """Generate formal prompt candidates for the text-node assistant."""
-        try:
-            data = self.read_json_body(max_bytes=512 * 1024)
-            prompt = str(data.get("prompt") or data.get("text") or "").strip()
-            message = str(data.get("message") or data.get("direction") or "").strip()
-            style = data.get("style") if isinstance(data.get("style"), dict) else {}
-            if not prompt and not message:
-                self.send_json({"ok": False, "error": "请输入文本节点内容或生成方向"}, 400)
-                return
-
-            base = prompt or message
-            instruction = "\n".join(part for part in [
-                f"用户确认方向：{message}" if message else "",
-                f"文本节点内容：{prompt}" if prompt else "",
-                f"风格预设：{style.get('title') or style.get('name') or ''} {style.get('promptTemplate') or style.get('prompt_style') or ''}".strip() if style else "",
-            ] if part).strip()
-            polish_error = ""
-            polished = {}
-            try:
-                polished = polish_prompt(instruction or base, {
-                    "provider": data.get("provider"),
-                    "skill": data.get("skill"),
-                    "model": data.get("model"),
-                    "reasoning_effort": data.get("reasoning_effort") or data.get("reasoningEffort"),
-                })
-            except Exception as e:
-                polish_error = str(e)
-                print(f"⚠️ Prompt 版本生成润色降级：{polish_error}")
-
-            candidates = _prompt_version_candidates(base, message=message, style=style, polished=polished)
-            self.send_json({
-                "ok": True,
-                "session_id": str(data.get("session_id") or f"prompt_versions_{int(time.time())}_{random.randint(1000, 9999)}"),
-                "target": data.get("target") if isinstance(data.get("target"), dict) else {},
-                "style": style,
-                "candidates": candidates,
-                "warning": polish_error,
-                "model": polished.get("model"),
-                "provider": polished.get("provider"),
-            })
-        except ValueError as e:
-            self.send_json({"ok": False, "error": str(e)}, 400)
-        except Exception as e:
-            print(f"❌ Prompt 版本生成失败：{e}")
-            self.send_json({"ok": False, "error": str(e)}, 500)
+        return _domain_routes_prompt_routes.handle_prompt_versions_generate(
+            self, _prompt_version_candidates=_prompt_version_candidates, polish_prompt=polish_prompt,
+            random=random, time=time,
+        )
 
     def handle_prompt_chat(self):
         """Return prompt candidates for the desktop Prompt Chat Drawer."""
-        try:
-            data = self.read_json_body(max_bytes=512 * 1024)
-            prompt = str(data.get("prompt") or data.get("text") or "").strip()
-            message = str(data.get("message") or "").strip()
-            style = data.get("style") if isinstance(data.get("style"), dict) else {}
-            if not prompt and not message:
-                self.send_json({"ok": False, "error": "请输入提示词或改写需求"}, 400)
-                return
-
-            base = prompt or message
-            instruction = "\n".join(part for part in [
-                f"用户需求：{message}" if message else "",
-                f"原始提示词：{prompt}" if prompt else "",
-                f"风格预设：{style.get('title') or style.get('name') or ''} {style.get('promptTemplate') or style.get('prompt_style') or ''}".strip() if style else "",
-            ] if part).strip()
-            polish_error = ""
-            polished = {}
-            try:
-                polished = polish_prompt(instruction or base, {
-                    "provider": data.get("provider"),
-                    "skill": data.get("skill"),
-                    "model": data.get("model"),
-                    "reasoning_effort": data.get("reasoning_effort") or data.get("reasoningEffort"),
-                })
-            except Exception as e:
-                polish_error = str(e)
-                print(f"⚠️ Prompt Chat 润色降级：{polish_error}")
-
-            candidates = _prompt_version_candidates(base, message=message, style=style, polished=polished)
-
-            self.send_json({
-                "ok": True,
-                "session_id": str(data.get("session_id") or f"prompt_chat_{int(time.time())}_{random.randint(1000, 9999)}"),
-                "message": message,
-                "target": data.get("target") if isinstance(data.get("target"), dict) else {},
-                "style": style,
-                "candidates": candidates[:5],
-                "warning": polish_error,
-                "model": polished.get("model"),
-                "provider": polished.get("provider"),
-            })
-        except ValueError as e:
-            self.send_json({"ok": False, "error": str(e)}, 400)
-        except Exception as e:
-            print(f"❌ Prompt Chat 失败：{e}")
-            self.send_json({"ok": False, "error": str(e)}, 500)
+        return _domain_routes_prompt_routes.handle_prompt_chat(
+            self, _prompt_version_candidates=_prompt_version_candidates, polish_prompt=polish_prompt,
+            random=random, time=time,
+        )
 
     def handle_asset_health_cleanup(self):
         """清理缺文件资产、候选集坏引用、空候选集和失效溯源。"""
-        try:
-            health = _collect_asset_health()
-            removed_asset_refs = 0
-            task_updates = 0
-            hidden_updates = 0
-            for item in health.get('missing_assets_all') or health.get('missing_assets') or []:
-                asset = get_gallery_asset(item.get('asset_id') or item.get('id') or '')
-                if not asset:
-                    continue
-                removed_history = []
-                if _remove_asset_from_task(asset, removed_history=removed_history):
-                    task_updates += 1
-                try:
-                    update_asset_meta(item.get('asset_id') or item.get('id') or '', hidden=True)
-                    hidden_updates += 1
-                except Exception:
-                    pass
-                removed_asset_refs += remove_asset_from_sets(item.get('asset_id') or item.get('id') or '')
-
-            refreshed = _collect_asset_health()
-            valid_ids = set(refreshed.get('valid_asset_ids') or [])
-            set_cleanup = cleanup_asset_sets(valid_ids, delete_empty=True)
-            lineage_cleanup = _cleanup_lineage_refs(valid_ids)
-            no_image_removed = _cleanup_no_image_history()
-            after = _collect_asset_health()
-            public_before = {key: value for key, value in health.items() if key not in ('valid_asset_ids', 'all_asset_ids', 'missing_assets_all')}
-            public_after = {key: value for key, value in after.items() if key not in ('valid_asset_ids', 'all_asset_ids', 'missing_assets_all')}
-            self.send_json({
-                "ok": True,
-                "before": public_before,
-                "after": public_after,
-                "cleanup": {
-                    "missing_assets_removed": len(health.get('missing_assets_all') or health.get('missing_assets') or []),
-                    "task_updates": task_updates,
-                    "hidden_updates": hidden_updates,
-                    "set_updates_from_missing": removed_asset_refs,
-                    "sets": set_cleanup,
-                    "lineage": lineage_cleanup,
-                    "no_image_history_removed": no_image_removed,
-                },
-                "message": "图库体检清理完成",
-            })
-        except Exception as e:
-            print(f"❌ 图库体检清理失败：{e}")
-            self.send_json({"ok": False, "error": str(e)}, 500)
+        return _domain_routes_asset_maintenance_routes.handle_asset_health_cleanup(
+            self, _cleanup_lineage_refs=_cleanup_lineage_refs, _cleanup_no_image_history=_cleanup_no_image_history,
+            _collect_asset_health=_collect_asset_health, _remove_asset_from_task=_remove_asset_from_task, cleanup_asset_sets=cleanup_asset_sets,
+            get_gallery_asset=get_gallery_asset, remove_asset_from_sets=remove_asset_from_sets, update_asset_meta=update_asset_meta,
+        )
 
     def handle_asset_meta(self):
         """更新图库资产人工元数据。"""
-        try:
-            content_length = int(self.headers.get('Content-Length', 0))
-            body = self.rfile.read(content_length)
-            data = json.loads(body or b'{}')
-            asset_id = data.get('asset_id') or data.get('id') or ''
-            payload = {}
-            for key in ('favorite', 'hidden', 'tags', 'rating', 'note'):
-                if key in data:
-                    payload[key] = data.get(key)
-            meta = update_asset_meta(asset_id, **payload)
-            self.send_json({"ok": True, "asset": meta})
-        except Exception as e:
-            self.send_json({"ok": False, "error": str(e)}, 400)
+        return _handle_asset_meta(self, update_meta=update_asset_meta)
 
     def handle_asset_delete(self, asset_id):
         """从图库移除资产，并把本地原图/提示词/预览移入废纸篓。"""
-        try:
-            self.send_json(_delete_gallery_assets([asset_id]))
-        except FileNotFoundError as e:
-            self.send_json({"ok": False, "error": str(e)}, 404)
-        except ValueError as e:
-            self.send_json({"ok": False, "error": str(e)}, 400)
-        except Exception as e:
-            print(f"❌ 删除图库资产失败：{e}")
-            self.send_json({"ok": False, "error": str(e)}, 500)
+        return _handle_asset_delete(self, asset_id, delete_assets=_delete_gallery_assets)
 
     def handle_asset_delete_batch(self):
         """批量删除图库资产，避免同任务多图逐张删除时 asset_id 重新计算。"""
-        try:
-            data = self.read_json_body(max_bytes=256 * 1024)
-            raw_ids = data.get('asset_ids') or data.get('assetIds') or data.get('ids') or []
-            if isinstance(raw_ids, str):
-                raw_ids = [raw_ids]
-            result = _delete_gallery_assets(raw_ids if isinstance(raw_ids, list) else [])
-            self.send_json(result)
-        except FileNotFoundError as e:
-            self.send_json({"ok": False, "error": str(e)}, 404)
-        except ValueError as e:
-            self.send_json({"ok": False, "error": str(e)}, 400)
-        except Exception as e:
-            print(f"❌ 批量删除图库资产失败：{e}")
-            self.send_json({"ok": False, "error": str(e)}, 500)
+        return _handle_asset_delete_batch(self, delete_assets=_delete_gallery_assets)
 
     def handle_asset_undo_delete(self):
         """撤销最近的图库物理删除。"""
-        try:
-            data = self.read_json_body(max_bytes=128 * 1024)
-            raw_ids = data.get('batch_ids') or data.get('batchIds') or data.get('batch_id') or data.get('batchId') or []
-            if isinstance(raw_ids, str):
-                batch_ids = [raw_ids]
-            elif isinstance(raw_ids, list):
-                batch_ids = [str(value or '').strip() for value in raw_ids if str(value or '').strip()]
-            else:
-                batch_ids = []
-            if not batch_ids:
-                self.send_json({"ok": False, "error": "缺少删除批次 ID"}, 400)
-                return
-
-            restored_files = 0
-            existing_files = 0
-            missing_files = 0
-            skipped_files = 0
-            restored_tasks = 0
-            restored_history = 0
-            restored_assets = 0
-            restored_sets = 0
-            restored_batches = []
-            errors = []
-            for batch_id in reversed(batch_ids):
-                batch = get_delete_batch(batch_id)
-                if not batch:
-                    errors.append(f"{batch_id}: 删除记录不存在")
-                    continue
-                if batch.get('restored'):
-                    errors.append(f"{batch_id}: 已撤销")
-                    continue
-                for move in batch.get('moves') or []:
-                    status = _restore_trash_move(move if isinstance(move, dict) else {})
-                    if status == 'restored':
-                        restored_files += 1
-                    elif status == 'exists':
-                        existing_files += 1
-                    elif status == 'missing':
-                        missing_files += 1
-                    else:
-                        skipped_files += 1
-                task_snapshots = batch.get('task_snapshots') or []
-                if not isinstance(task_snapshots, list):
-                    task_snapshots = []
-                task_snapshot = batch.get('task_snapshot')
-                if isinstance(task_snapshot, dict):
-                    task_snapshots.append(task_snapshot)
-                restored_task_ids = set()
-                for snapshot in task_snapshots:
-                    if not isinstance(snapshot, dict) or not snapshot.get('task_id'):
-                        continue
-                    task_id = str(snapshot.get('task_id') or '')
-                    if task_id in restored_task_ids:
-                        continue
-                    restored_task_ids.add(task_id)
-                    restored_tasks += 1 if restore_task_snapshot(snapshot) else 0
-                restored_history += _restore_old_history_lines(batch.get('old_history_lines') or [])
-                restored_sets += restore_asset_set_snapshots(batch.get('set_snapshots') or [])
-                for asset_id in batch.get('asset_ids') or []:
-                    try:
-                        update_asset_meta(asset_id, hidden=False)
-                        restored_assets += 1
-                    except Exception:
-                        pass
-                mark_delete_batch_restored(batch_id)
-                restored_batches.append(batch_id)
-
-            status = 207 if errors and restored_batches else (400 if errors and not restored_batches else 200)
-            self.send_json({
-                "ok": bool(restored_batches),
-                "batch_ids": restored_batches,
-                "errors": errors,
-                "restored_files": restored_files,
-                "existing_files": existing_files,
-                "missing_files": missing_files,
-                "skipped_files": skipped_files,
-                "restored_tasks": restored_tasks,
-                "restored_history": restored_history,
-                "restored_assets": restored_assets,
-                "restored_sets": restored_sets,
-                "message": "已撤销删除" if restored_batches else "没有可撤销的删除",
-            }, status)
-        except Exception as e:
-            print(f"❌ 撤销图库删除失败：{e}")
-            self.send_json({"ok": False, "error": str(e)}, 500)
+        return _handle_asset_undo_delete(
+            self,
+            get_batch=get_delete_batch,
+            restore_move=_restore_trash_move,
+            restore_task=restore_task_snapshot,
+            restore_history=_restore_old_history_lines,
+            restore_sets=restore_asset_set_snapshots,
+            update_meta=update_asset_meta,
+            mark_restored=mark_delete_batch_restored,
+        )
 
     def handle_task_cancel(self, task_id):
         """取消正在运行的任务。
@@ -10663,2155 +3827,315 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
         生成线程会通过任务状态感知取消；正在进行中的单次上游调用不会被强杀，
         但后续图片、托底和 Telegram 发送会停止。
         """
-        task = get_task(task_id)
-        if not task:
-            self.send_json(_missing_task_payload(task_id), 404)
-            return
-
-        status = str(task.get('status') or '')
-        if status in ('succeeded', 'success', 'succeeded_no_telegram', 'failed', 'telegram_failed', 'canceled'):
-            self.send_json({
-                **task,
-                'ok': True,
-                'message': '任务已结束，无需取消。'
-            })
-            return
-
-        result_files = task.get('result_files') or []
-        progress_text = f'任务已取消，已保留 {len(result_files)} 张图' if result_files else '任务已取消'
-        now = int(time.time())
-        update_task_fields(
-            task_id,
-            status='canceled',
-            stage='canceled',
-            progress_text=progress_text,
-            error='',
-            transport_error_type='UserCanceled',
-            heartbeat_at=now,
-            finished_at=now,
+        return _domain_routes_task_control_routes.handle_task_cancel(
+            self, task_id, _missing_task_payload=_missing_task_payload,
+            get_task=get_task, time=time, update_task_fields=update_task_fields,
         )
-        canceled_task = get_task(task_id) or task
-        if canceled_task.get('result_files'):
-            canceled_task['output_files'] = canceled_task['result_files']
-            canceled_task['image_paths'] = [f"/gpt_outputs/{name}" for name in canceled_task['result_files']] if canceled_task.get('type') in ('gpt', 'gpt-edit') else [f"/image/{name}" for name in canceled_task['result_files']]
-            canceled_task['image_count'] = len(canceled_task['result_files'])
-        canceled_task['ok'] = True
-        canceled_task['message'] = progress_text
-        self.send_json(canceled_task)
 
     def handle_task_retry(self, task_id):
         """从失败历史记录创建一个新的重跑任务，不修改原任务。"""
-        task = get_task(task_id)
-        if not task:
-            self.send_json(_missing_task_payload(task_id), 404)
-            return
-        try:
-            retry_task = retry_failed_task(task)
-            self.send_json(retry_task, 202)
-        except GenerationQueueFullError as e:
-            payload = _generation_busy_payload()
-            payload.update({"message": str(e), "task_id": task_id})
-            self.send_json(payload, 503)
-        except TaskRetryError as e:
-            self.send_json({"ok": False, "error": str(e), "task_id": task_id}, 400)
-        except Exception as e:
-            print(f"❌ 重跑任务失败：{task_id} - {e}")
-            self.send_json({"ok": False, "error": str(e), "task_id": task_id}, 500)
+        return _domain_routes_task_control_routes.handle_task_retry(
+            self, task_id, GenerationQueueFullError=GenerationQueueFullError,
+            TaskRetryError=TaskRetryError, _generation_busy_payload=_generation_busy_payload, _missing_task_payload=_missing_task_payload,
+            get_task=get_task, retry_failed_task=retry_failed_task,
+        )
 
     def handle_task_batch(self):
         """创建顺序执行的批量生成任务。"""
-        try:
-            data = self.read_json_body()
-            provider = str(data.get('provider') or 'gpt').strip().lower()
-            if provider not in ('gpt', 'google'):
-                self.send_json({"ok": False, "error": "批量第一版只支持 GPT 和 Google 纯生成任务。"}, 400)
-                return
-            if data.get('images') or data.get('base64_images') or data.get('reference_images'):
-                self.send_json({"ok": False, "error": "批量第一版暂不支持带参考图的编辑任务。"}, 400)
-                return
-            prompts = _batch_prompt_items(data)
-            if len(prompts) < 2:
-                self.send_json({"ok": False, "error": "批量任务至少需要 2 条提示词。"}, 400)
-                return
-            if len(prompts) > 50:
-                self.send_json({"ok": False, "error": "批量任务一次最多 50 条提示词。"}, 400)
-                return
-            params = data.get('params') if isinstance(data.get('params'), dict) else {}
-            lineage = data.get('lineage') if isinstance(data.get('lineage'), dict) else None
-            batch_id, tasks = _create_batch_tasks(provider, prompts, params, lineage=lineage)
-            if not self.start_generation_task(
-                batch_id,
-                process_batch_tasks,
-                (batch_id, tasks),
-                task_ids=[task['task_id'] for task in tasks],
-            ):
-                return
-            self.send_json({
-                "ok": True,
-                "batch_id": batch_id,
-                "status": "queued",
-                "counts": {
-                    "total": len(tasks),
-                    "queued": len(tasks),
-                    "processing": 0,
-                    "succeeded": 0,
-                    "failed": 0,
-                    "canceled": 0,
-                },
-                "tasks": tasks,
-                "message": f"已提交 {len(tasks)} 个批量任务，将按线路容量调度执行。",
-            }, 202)
-        except TaskRetryError as e:
-            self.send_json({"ok": False, "error": str(e)}, 400)
-        except Exception as e:
-            print(f"❌ 创建批量任务失败：{e}")
-            self.send_json({"ok": False, "error": str(e)}, 500)
+        return _domain_routes_task_control_routes.handle_task_batch(
+            self, TaskRetryError=TaskRetryError, _batch_prompt_items=_batch_prompt_items,
+            _create_batch_tasks=_create_batch_tasks, process_batch_tasks=process_batch_tasks,
+        )
 
     def handle_batch_status(self, batch_id):
         """聚合同一个 batch_id 下的子任务状态。"""
-        summary = get_batch_summary(batch_id)
-        self.send_json(summary, 200 if summary.get('ok') else 404)
+        return _domain_routes_task_control_routes.handle_batch_status(self, batch_id, get_batch_summary=get_batch_summary)
 
     def handle_batch_control(self, batch_id, action):
         """暂停、恢复或取消批量任务。"""
-        if action not in ('pause', 'resume', 'cancel'):
-            self.send_json({"ok": False, "error": "不支持的批量操作"}, 404)
-            return
-        if not batch_id:
-            self.send_json({"ok": False, "error": "缺少 batch_id"}, 400)
-            return
-        try:
-            control = 'running' if action == 'resume' else ('canceled' if action == 'cancel' else 'paused')
-            changed = set_batch_control(batch_id, control)
-            if not changed:
-                self.send_json({"ok": False, "error": "批量任务不存在", "batch_id": batch_id}, 404)
-                return
-            canceled = cancel_batch_queued_tasks(batch_id) if action == 'cancel' else 0
-            summary = get_batch_summary(batch_id)
-            summary.update({
-                "ok": True,
-                "action": action,
-                "changed": changed,
-                "canceled": canceled,
-                "message": {
-                    "pause": "批量任务已暂停，将在当前子任务结束后停止启动新任务。",
-                    "resume": "批量任务已恢复。",
-                    "cancel": "批量任务已取消。",
-                }[action],
-            })
-            self.send_json(summary)
-        except Exception as e:
-            print(f"❌ 批量控制失败：{batch_id} {action} - {e}")
-            self.send_json({"ok": False, "error": str(e), "batch_id": batch_id}, 500)
+        return _domain_routes_task_control_routes.handle_batch_control(
+            self, batch_id, action,
+            cancel_batch_queued_tasks=cancel_batch_queued_tasks, get_batch_summary=get_batch_summary, set_batch_control=set_batch_control,
+        )
 
     def handle_comfy_workflows(self):
         """返回可用的 ComfyUI 工作流列表"""
-        try:
-            parsed = urllib.parse.urlparse(self.path)
-            query = urllib.parse.parse_qs(parsed.query)
-            include_disabled = _coerce_bool((query.get('include_disabled') or ['0'])[0], False)
-            self.send_json({"ok": True, **_collect_comfy_workflows(include_disabled=include_disabled)})
-        except Exception as e:
-            self.send_json({"error": str(e)}, 500)
+        return _domain_routes_runtime_generation_routes.handle_comfy_workflows(
+            self, _coerce_bool=_coerce_bool, _collect_comfy_workflows=_collect_comfy_workflows,
+            urllib=urllib,
+        )
 
     def handle_comfy_health(self, parsed=None):
         """测试 ComfyUI 服务连接。"""
-        try:
-            query = urllib.parse.parse_qs(parsed.query) if parsed else {}
-            overrides = {
-                'base_url': (query.get('base_url') or [''])[0],
-                'timeout_seconds': (query.get('timeout_seconds') or [''])[0],
-            }
-            self.send_json(_collect_comfy_health(overrides))
-        except Exception as e:
-            self.send_json({"ok": False, "online": False, "error": str(e)}, 502)
+        return _domain_routes_runtime_generation_routes.handle_comfy_health(self, parsed, _collect_comfy_health=_collect_comfy_health, urllib=urllib)
 
     def handle_comfy_workflow_thumbnail(self, parsed):
         """返回经过目录白名单解析的工作流缩略图。"""
-        query = urllib.parse.parse_qs(parsed.query)
-        workflow_id = Path(str((query.get('id') or [''])[0])).name
-        if not workflow_id or not (COMFY_WORKFLOW_DIR / workflow_id).exists():
-            self.send_error(404, 'Not Found')
-            return
-        preview = _comfy_workflow_preview_path(workflow_id)
-        if not preview.exists():
-            self.send_error(404, 'Not Found')
-            return
-        data = preview.read_bytes()
-        self.send_response(200)
-        self.send_header('Content-Type', 'image/webp')
-        self.send_header('Content-Length', str(len(data)))
-        self.send_header('Cache-Control', 'private, max-age=300')
-        self._apply_cors_headers()
-        self.end_headers()
-        self.wfile.write(data)
+        return _domain_routes_runtime_generation_routes.handle_comfy_workflow_thumbnail(
+            self, parsed, COMFY_WORKFLOW_DIR=COMFY_WORKFLOW_DIR,
+            Path=Path, _comfy_workflow_preview_path=_comfy_workflow_preview_path, urllib=urllib,
+        )
 
     def handle_comfy_workflow_config_save(self):
         """保存工作流展示元信息和缩略图。"""
-        try:
-            data = self.read_json_body(max_bytes=12 * 1024 * 1024)
-            item = _save_comfy_workflow_config(data)
-            self.send_json({"ok": True, "item": item, **_collect_comfy_workflows(include_disabled=True)})
-        except FileNotFoundError as e:
-            self.send_json({"ok": False, "error": str(e)}, 404)
-        except Exception as e:
-            self.send_json({"ok": False, "error": str(e)}, 400)
+        return _domain_routes_runtime_generation_routes.handle_comfy_workflow_config_save(
+            self, _collect_comfy_workflows=_collect_comfy_workflows, _save_comfy_workflow_config=_save_comfy_workflow_config,
+        )
 
     def handle_comfy_run(self):
         """将前端请求转发到远端 ComfyUI /prompt"""
-        try:
-            content_length = int(self.headers.get('Content-Length', 0))
-            body = self.rfile.read(content_length)
-            data = json.loads(body or b'{}')
-
-            workflow_name = data.get('workflow', '')
-            prompt = data.get('prompt', '')
-            ratio = str(data.get('ratio') or '').strip()
-            resolution = str(data.get('resolution') or '1k').strip().lower()
-            if resolution not in COMFY_RESOLUTION_LONG_EDGES:
-                resolution = '1k'
-            archive_enabled = True
-            telegram_enabled = _coerce_bool(data.get('telegram_enabled', data.get('telegramEnabled')), True)
-
-            workflow, normalized_name = _load_comfy_workflow(workflow_name)
-            workflow_parameters = data.get('workflow_parameters') if isinstance(data.get('workflow_parameters'), dict) else {}
-            workflow, applied_workflow_parameters = _apply_comfy_parameter_overrides(workflow, workflow_parameters)
-            catalog_item = next((item for item in _collect_comfy_workflows(include_disabled=True)['items'] if item['id'] == normalized_name), None)
-            if catalog_item and not catalog_item.get('enabled'):
-                raise ValueError('当前 ComfyUI 工作流已停用')
-            legacy_ratio = ratio or str((catalog_item or {}).get('default_ratio') or '1:1')
-            legacy_width, legacy_height = _resolve_comfy_size(legacy_ratio, resolution)
-            width = _normalize_comfy_dimension(data.get('width'), (catalog_item or {}).get('default_width', legacy_width))
-            height = _normalize_comfy_dimension(data.get('height'), (catalog_item or {}).get('default_height', legacy_height))
-            ratio = ratio or _comfy_ratio_from_size(width, height)
-            raw_images = data.get('images') if isinstance(data.get('images'), list) else []
-            if not raw_images and data.get('image'):
-                raw_images = [data.get('image')]
-            max_images = int(catalog_item.get('max_images') or 0) if catalog_item and catalog_item.get('accepts_image') else 0
-            image_payloads = [item for item in raw_images if isinstance(item, str) and item.strip()][:max_images]
-            if catalog_item and catalog_item.get('accepts_image') and not image_payloads:
-                raise ValueError('当前 ComfyUI 工作流需要至少一张参考图')
-            if catalog_item and not catalog_item.get('accepts_text'):
-                prompt = ''
-            uploaded_image_names = [_upload_comfy_image(image_data) for image_data in image_payloads]
-            uploaded_image_name = uploaded_image_names[0] if uploaded_image_names else None
-            prepared_prompt = _prepare_comfy_workflow(
-                workflow,
-                prompt,
-                ratio,
-                uploaded_image_name,
-                uploaded_image_names,
-                resolution=resolution,
-                width=width,
-                height=height,
-            )
-
-            result = _proxy_comfy_json(
-                'POST',
-                '/prompt',
-                payload={'prompt': prepared_prompt, 'client_id': COMFY_CLIENT_ID},
-            )
-            prompt_id = result.get('prompt_id')
-            if not prompt_id:
-                raise RuntimeError(f'ComfyUI 未返回 prompt_id: {result}')
-
-            create_task(
-                prompt_id,
-                prompt,
-                {
-                    'workflow': normalized_name,
-                    'ratio': ratio,
-                    'resolution': resolution,
-                    'width': width,
-                    'height': height,
-                    'comfy_prompt_id': prompt_id,
-                    'comfy_uploaded_image': uploaded_image_name,
-                    'comfy_uploaded_images': uploaded_image_names,
-                    'comfy_expected_output_count': int(catalog_item.get('output_count') or 1) if catalog_item else 1,
-                    'workflow_parameters': applied_workflow_parameters,
-                    'archive_enabled': archive_enabled,
-                    'telegram_enabled': telegram_enabled,
-                },
-                status='queued',
-                task_type='comfy',
-            )
-
-            if not self.start_generation_task(
-                prompt_id,
-                process_comfy_task,
-                (prompt_id, prompt, normalized_name, ratio),
-            ):
-                return
-
-            self.send_json({
-                'status': 'queued',
-                'prompt_id': prompt_id,
-                'task_id': prompt_id,
-                'workflow': normalized_name,
-            })
-        except FileNotFoundError as e:
-            self.send_json({"error": str(e)}, 404)
-        except ValueError as e:
-            self.send_json({"error": str(e)}, 400)
-        except Exception as e:
-            print(f"❌ Comfy run failed: {e}")
-            self.send_json({"error": str(e)}, 500)
+        return _domain_routes_runtime_generation_routes.handle_comfy_run(
+            self, COMFY_CLIENT_ID=COMFY_CLIENT_ID, COMFY_RESOLUTION_LONG_EDGES=COMFY_RESOLUTION_LONG_EDGES,
+            _apply_comfy_parameter_overrides=_apply_comfy_parameter_overrides, _coerce_bool=_coerce_bool, _collect_comfy_workflows=_collect_comfy_workflows,
+            _comfy_ratio_from_size=_comfy_ratio_from_size, _load_comfy_workflow=_load_comfy_workflow, _normalize_comfy_dimension=_normalize_comfy_dimension,
+            _prepare_comfy_workflow=_prepare_comfy_workflow, _proxy_comfy_json=_proxy_comfy_json, _resolve_comfy_size=_resolve_comfy_size,
+            _upload_comfy_image=_upload_comfy_image, create_task=create_task, json=json,
+            process_comfy_task=process_comfy_task, uuid=uuid,
+        )
 
     def handle_comfy_history(self):
         """代理查询远端 ComfyUI 历史任务"""
-        try:
-            parsed = urllib.parse.urlparse(self.path)
-            params = urllib.parse.parse_qs(parsed.query)
-            prompt_id = params.get('prompt_id', [''])[0].strip()
-            if not prompt_id:
-                self.send_json({"error": "缺少 prompt_id"}, 400)
-                return
-
-            result, entry = _fetch_comfy_history_entry(prompt_id)
-            if isinstance(entry, dict):
-                _sync_comfy_task(prompt_id, entry)
-            self.send_json(result)
-        except Exception as e:
-            print(f"❌ Comfy history failed: {e}")
-            self.send_json({"error": str(e)}, 500)
+        return _domain_routes_runtime_generation_routes.handle_comfy_history(
+            self, _fetch_comfy_history_entry=_fetch_comfy_history_entry, _sync_comfy_task=_sync_comfy_task,
+            urllib=urllib,
+        )
 
     def handle_comfy_image(self):
         """代理远端 ComfyUI 图片下载"""
-        try:
-            parsed = urllib.parse.urlparse(self.path)
-            params = urllib.parse.parse_qs(parsed.query)
-            filename = params.get('filename', [''])[0].strip()
-            subfolder = params.get('subfolder', [''])[0]
-            file_type = params.get('type', ['output'])[0]
-            if not filename:
-                self.send_json({"error": "缺少 filename"}, 400)
-                return
-
-            image_bytes, content_type = _fetch_comfy_binary(filename, subfolder, file_type)
-            self.send_response(200)
-            self.send_header('Content-Type', content_type)
-            self._apply_cors_headers()
-            self.end_headers()
-            self.wfile.write(image_bytes)
-        except Exception as e:
-            print(f"❌ Comfy image failed: {e}")
-            self.send_json({"error": str(e)}, 500)
+        return _domain_routes_runtime_generation_routes.handle_comfy_image(self, _fetch_comfy_binary=_fetch_comfy_binary, urllib=urllib)
 
     def handle_comfy_send_tg(self):
         """下载远端 ComfyUI 结果并无损发送到 Telegram"""
-        temp_path = None
-        try:
-            content_length = int(self.headers.get('Content-Length', 0))
-            body = self.rfile.read(content_length)
-            data = json.loads(body or b'{}')
-
-            filename = str(data.get('filename', '')).strip()
-            subfolder = data.get('subfolder', '')
-            file_type = data.get('type', 'output')
-            prompt = str(data.get('prompt', '')).strip()
-            workflow = str(data.get('workflow', '')).strip()
-            ratio = str(data.get('ratio', '')).strip()
-
-            if not filename:
-                self.send_json({"error": "缺少 filename"}, 400)
-                return
-
-            image_bytes, _ = _fetch_comfy_binary(filename, subfolder, file_type)
-            suffix = Path(filename).suffix or '.png'
-            with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
-                tmp.write(image_bytes)
-                temp_path = tmp.name
-
-            caption_parts = [part for part in (f'ComfyUI {workflow}'.strip(), ratio) if part]
-            caption = ' | '.join(caption_parts)
-            if prompt:
-                caption = f"{caption}\n{prompt}" if caption else prompt
-            caption = caption[:500] + '...' if len(caption) > 500 else caption
-
-            sent = send_telegram(None, temp_path, caption)
-            if not sent:
-                raise RuntimeError('Telegram 发送失败')
-
-            self.send_json({"ok": True})
-        except Exception as e:
-            print(f"❌ Comfy send_tg failed: {e}")
-            self.send_json({"error": str(e)}, 500)
-        finally:
-            if temp_path and os.path.exists(temp_path):
-                try:
-                    os.unlink(temp_path)
-                except Exception:
-                    pass
+        return _domain_routes_runtime_generation_routes.handle_comfy_send_tg(
+            self, Path=Path, _fetch_comfy_binary=_fetch_comfy_binary,
+            json=json, os=os, send_telegram=send_telegram,
+            tempfile=tempfile,
+        )
 
     def handle_history_export_tg(self):
         """把历史记录中的本机原图通过 Telegram sendDocument 发送出去。"""
-        temp_path = None
-        try:
-            content_length = int(self.headers.get('Content-Length', 0))
-            body = self.rfile.read(content_length)
-            data = json.loads(body or b'{}')
-
-            raw_output_file = str(data.get('output_file') or data.get('filename') or '').strip()
-            image_data = str(data.get('image_data') or data.get('imageData') or '').strip()
-            filename = safe_basename(raw_output_file)
-            archive_rel_path = str(data.get('archiveRelPath') or data.get('archive_rel_path') or '').strip()
-            task_id = str(data.get('task_id') or '').strip()
-            item_type = str(data.get('type') or '').strip()
-            prompt = str(data.get('prompt') or '').strip()
-
-            if image_data:
-                image_bytes, _mime_type, extension = _decode_data_uri_image(image_data)
-                filename = filename or f"source_{int(time.time())}_{random.randint(1000, 9999)}{extension}"
-                suffix = Path(filename).suffix or extension
-                with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
-                    tmp.write(image_bytes)
-                    temp_path = tmp.name
-                file_path = Path(temp_path)
-            elif not raw_output_file:
-                self.send_json({"error": "缺少 output_file"}, 400)
-                return
-            elif item_type != 'gpt-file' and not filename.lower().endswith(('.png', '.jpg', '.jpeg', '.webp')):
-                self.send_json({"error": "不支持的文件类型"}, 400)
-                return
-
-            if not image_data:
-                task = get_task(task_id) if task_id else None
-                if task_id:
-                    allowed_files = task.get('result_files') if task else []
-                    primary_file = task.get('result_file') if task else ''
-                    check_name = raw_output_file if item_type == 'gpt-file' else filename
-                    if task and check_name not in allowed_files and check_name != primary_file:
-                        self.send_json({"error": "文件不属于该任务"}, 403)
-                        return
-
-                if item_type == 'gpt-file':
-                    file_path = resolve_editable_file(raw_output_file)
-                elif archive_rel_path:
-                    file_path = _resolve_archive_image_file(archive_rel_path)
-                elif item_type in ('gpt', 'gpt-edit'):
-                    file_path = Path(DIRECTORY) / 'gpt_outputs' / filename
-                elif item_type == 'comfy':
-                    params = task.get('params') if task else {}
-                    comfy_image = params.get('comfy_image') if isinstance(params, dict) else None
-                    if not isinstance(comfy_image, dict) or not comfy_image.get('filename'):
-                        self.send_json({"error": "ComfyUI 原图信息不存在"}, 404)
-                        return
-
-                    comfy_filename = safe_basename(comfy_image.get('filename'))
-                    if comfy_filename != filename:
-                        self.send_json({"error": "文件不属于该任务"}, 403)
-                        return
-
-                    image_bytes, _ = _fetch_comfy_binary(
-                        comfy_filename,
-                        comfy_image.get('subfolder', ''),
-                        comfy_image.get('type', 'output'),
-                    )
-                    suffix = Path(comfy_filename).suffix or '.png'
-                    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
-                        tmp.write(image_bytes)
-                        temp_path = tmp.name
-                    file_path = Path(temp_path)
-                else:
-                    file_path = _resolve_download_image(filename)
-
-            if not file_path or not Path(file_path).exists():
-                self.send_json({"error": "原图文件不存在"}, 404)
-                return
-
-            caption = '📎 File' if item_type == 'gpt-file' else '📸 Original'
-            if item_type:
-                caption += f' | {item_type}'
-            if prompt:
-                trimmed_prompt = prompt[:420] + ('...' if len(prompt) > 420 else '')
-                caption += f'\n{trimmed_prompt}'
-
-            sent = send_telegram(None, str(file_path), caption[:900])
-            if not sent:
-                raise RuntimeError('Telegram 发送失败')
-
-            self.send_json({"ok": True, "message": "原图已发送到 Telegram"})
-        except Exception as e:
-            print(f"❌ history export_tg failed: {e}")
-            self.send_json({"error": str(e)}, 500)
-        finally:
-            if temp_path and os.path.exists(temp_path):
-                try:
-                    os.unlink(temp_path)
-                except Exception:
-                    pass
+        return _domain_routes_asset_maintenance_routes.handle_history_export_tg(
+            self, DIRECTORY=DIRECTORY, Path=Path,
+            _decode_data_uri_image=_decode_data_uri_image, _fetch_comfy_binary=_fetch_comfy_binary, _resolve_archive_image_file=_resolve_archive_image_file,
+            _resolve_download_image=_resolve_download_image, get_task=get_task, json=json,
+            os=os, random=random, resolve_editable_file=resolve_editable_file,
+            safe_basename=safe_basename, send_telegram=send_telegram, tempfile=tempfile,
+            time=time,
+        )
 
     def handle_delete_history_item(self):
         """删除单条历史记录，兼容新任务和旧 history.jsonl 记录"""
-        try:
-            parsed = urllib.parse.urlparse(self.path)
-            query = urllib.parse.parse_qs(parsed.query)
-            task_id = query.get('task_id', [''])[0].strip()
-            timestamp_raw = query.get('timestamp', [''])[0].strip()
-            deleted = 0
-
-            if task_id and not task_id.startswith('old_'):
-                deleted += delete_task(task_id)
-            elif timestamp_raw:
-                try:
-                    timestamp = int(timestamp_raw)
-                except ValueError:
-                    self.send_json({"error": "timestamp 非法"}, 400)
-                    return
-
-                history_path = os.path.join(DIRECTORY, 'history.jsonl')
-                if os.path.exists(history_path):
-                    with open(history_path, 'r', encoding='utf-8') as f:
-                        lines = f.readlines()
-                    kept = []
-                    removed = 0
-                    for line in lines:
-                        try:
-                            item = json.loads(line)
-                        except Exception:
-                            kept.append(line)
-                            continue
-                        if int(item.get('timestamp', -1)) == timestamp:
-                            removed += 1
-                            continue
-                        kept.append(line)
-                    if removed:
-                        with open(history_path, 'w', encoding='utf-8') as f:
-                            f.writelines(kept)
-                        deleted += removed
-                if deleted == 0:
-                    import sqlite3
-                    conn = sqlite3.connect(str(get_database_path()))
-                    cur = conn.cursor()
-                    cur.execute('DELETE FROM tasks WHERE created_at=?', (timestamp,))
-                    conn.commit()
-                    deleted += conn.total_changes
-                    conn.close()
-            else:
-                self.send_json({"error": "缺少 task_id 或 timestamp"}, 400)
-                return
-
-            self.send_json({"deleted": deleted})
-        except Exception as e:
-            print(f"❌ 删除单条历史失败：{e}")
-            self.send_json({"error": str(e)}, 500)
+        return _domain_routes_asset_maintenance_routes.handle_delete_history_item(
+            self, DIRECTORY=DIRECTORY, delete_task=delete_task,
+            get_database_path=get_database_path, json=json, os=os,
+            urllib=urllib,
+        )
     
     def handle_delete_failed(self):
         """删除所有失败任务"""
-        try:
-            import sqlite3
-            conn = sqlite3.connect(str(get_database_path()))
-            c = conn.cursor()
-            
-            # 统计失败任务数量
-            c.execute('SELECT COUNT(*) FROM tasks WHERE status="failed"')
-            count = c.fetchone()[0]
-            
-            # 删除失败任务
-            c.execute('DELETE FROM tasks WHERE status="failed"')
-            conn.commit()
-            conn.close()
-            
-            print(f"✅ 删除 {count} 条失败任务")
-            self.send_json({"deleted": count})
-            
-        except Exception as e:
-            print(f"❌ 删除失败任务出错：{e}")
-            self.send_json({"error": str(e)}, 500)
+        return _domain_routes_asset_maintenance_routes.handle_delete_failed(
+            self, get_database_path=get_database_path,
+        )
     
     def handle_history(self):
-        """处理历史查询（支持分页，兼容旧前端格式）"""
-        parsed = urllib.parse.urlparse(self.path)
-        query = urllib.parse.parse_qs(parsed.query)
-
-        limit = _history_page_int(query.get('limit', [50])[0], 50, minimum=1, maximum=500)
-        offset = _history_page_int(query.get('offset', [0])[0], 0, minimum=0, maximum=100000)
-
-        all_tasks = _collect_renderable_history_tasks()
-        page_tasks = all_tasks[offset:offset + limit]
-        formatted_tasks = [_format_history_task(task) for task in page_tasks]
-
-        self.send_json({
-            "history": formatted_tasks,
-            "total": len(all_tasks),
-            "has_more": offset + len(page_tasks) < len(all_tasks),
-        })
+        """Compatibility entrypoint; resolve history query dependencies per request."""
+        return _handle_history(
+            self, page_int=_history_page_int,
+            collect_tasks=_collect_renderable_history_tasks, format_task=_format_history_task)
     
     def handle_image(self, filename):
         """处理图片请求（archive directory, with legacy fallback）"""
-        filepath = _resolve_download_file(filename)
-        
-        if filepath and os.path.exists(filepath):
-            content_type = mimetypes.guess_type(str(filepath))[0] or 'application/octet-stream'
-            self.send_response(200)
-            self.send_header('Content-Type', content_type)
-            self._apply_cors_headers()
-            self.end_headers()
-            with open(filepath, 'rb') as f:
-                self.wfile.write(f.read())
-        else:
-            self.send_error(404, "Image not found")
+        return _domain_routes_media_routes.handle_image(self, filename, _resolve_download_file=_resolve_download_file, mimetypes=mimetypes, os=os)
 
     def handle_image_import_url(self):
         """Download a public remote image for a canvas drag/drop import."""
-        try:
-            data = self.read_json_body(max_bytes=16 * 1024)
-            imported = _download_remote_image_for_import(data.get('url'))
-            content = imported['content']
-            filename = imported['filename']
-            encoded_filename = urllib.parse.quote(filename, safe='')
-            self.send_response(200)
-            self.send_header('Content-Type', imported['content_type'])
-            self.send_header('Content-Length', str(len(content)))
-            self.send_header('Content-Disposition', f"inline; filename*=UTF-8''{encoded_filename}")
-            self.send_header('X-CanvasHub-Filename', encoded_filename)
-            self._apply_cors_headers()
-            self.end_headers()
-            self.wfile.write(content)
-        except ValueError as error:
-            self.send_json({"ok": False, "error": str(error)}, 400)
-        except Exception as error:
-            print(f"❌ 远程图片导入失败：{error}")
-            self.send_json({"ok": False, "error": "远程图片导入失败"}, 502)
+        return _domain_routes_media_routes.handle_image_import_url(self, _download_remote_image_for_import=_download_remote_image_for_import, urllib=urllib)
 
     def handle_video(self, filename):
         """Serve an archived video with byte-range support for the canvas player."""
-        raw_path = urllib.parse.unquote(str(filename or '').strip()).lstrip('/\\')
-        safe_name = safe_basename(raw_path)
-        if Path(safe_name).suffix.lower() not in _ARCHIVE_VIDEO_EXTENSIONS:
-            self.send_error(404, 'Video not found')
-            return
-        filepath = _resolve_archive_video_file(raw_path)
-        if not filepath and '/' not in raw_path.replace('\\', '/'):
-            filepath = _resolve_download_file(safe_name)
-        if not filepath or not os.path.isfile(filepath):
-            self.send_error(404, 'Video not found')
-            return
-
-        file_size = os.path.getsize(filepath)
-        start = 0
-        end = max(0, file_size - 1)
-        range_header = str(self.headers.get('Range') or '').strip()
-        partial = False
-        if range_header:
-            match = re.fullmatch(r'bytes=(\d*)-(\d*)', range_header)
-            if not match:
-                self.send_error(416, 'Invalid Range')
-                return
-            raw_start, raw_end = match.groups()
-            if raw_start:
-                start = int(raw_start)
-                end = int(raw_end) if raw_end else end
-            elif raw_end:
-                suffix_length = int(raw_end)
-                start = max(0, file_size - suffix_length)
-            if start >= file_size or start > end:
-                self.send_response(416)
-                self.send_header('Content-Range', f'bytes */{file_size}')
-                self.end_headers()
-                return
-            end = min(end, file_size - 1)
-            partial = True
-
-        content_length = max(0, end - start + 1)
-        self.send_response(206 if partial else 200)
-        self.send_header('Content-Type', mimetypes.guess_type(str(filepath))[0] or 'video/mp4')
-        self.send_header('Accept-Ranges', 'bytes')
-        self.send_header('Content-Length', str(content_length))
-        if partial:
-            self.send_header('Content-Range', f'bytes {start}-{end}/{file_size}')
-        self._apply_cors_headers()
-        self.end_headers()
-        if self.command == 'HEAD' or content_length <= 0:
-            return
-        try:
-            with open(filepath, 'rb') as stream:
-                stream.seek(start)
-                remaining = content_length
-                while remaining > 0:
-                    chunk = stream.read(min(1024 * 1024, remaining))
-                    if not chunk:
-                        break
-                    self.wfile.write(chunk)
-                    remaining -= len(chunk)
-        except (BrokenPipeError, ConnectionResetError):
-            # Native video players routinely close Range requests after reading metadata.
-            return
+        return _domain_routes_media_routes.handle_video(
+            self, filename, Path=Path,
+            _ARCHIVE_VIDEO_EXTENSIONS=_ARCHIVE_VIDEO_EXTENSIONS, _resolve_archive_video_file=_resolve_archive_video_file, _resolve_download_file=_resolve_download_file,
+            mimetypes=mimetypes, os=os, re=re,
+            safe_basename=safe_basename, urllib=urllib,
+        )
 
     def handle_archive_image(self, rel_path):
         """按 Obsidian 归档相对路径读取图片，避免同名文件冲突。"""
-        filepath = _resolve_archive_image_file(rel_path)
-
-        if filepath and filepath.exists():
-            content_type = mimetypes.guess_type(str(filepath))[0] or 'application/octet-stream'
-            self.send_response(200)
-            self.send_header('Content-Type', content_type)
-            self._apply_cors_headers()
-            self.end_headers()
-            with open(filepath, 'rb') as f:
-                self.wfile.write(f.read())
-        else:
-            self.send_error(404, "Image not found")
+        return _domain_routes_media_routes.handle_archive_image(self, rel_path, _resolve_archive_image_file=_resolve_archive_image_file, mimetypes=mimetypes)
 
     def handle_archive_resource(self, rel_path):
         """Read a prompt TXT/Markdown sidecar from the archive roots only."""
-        filepath = _resolve_archive_resource_file(rel_path, _ARCHIVE_VIDEO_TEXT_EXTENSIONS)
-        if not filepath:
-            self.send_error(404, 'Archive resource not found')
-            return
-        try:
-            file_size = filepath.stat().st_size
-            if file_size > _ARCHIVE_VIDEO_SIDECAR_MAX_BYTES:
-                self.send_error(413, 'Archive resource is too large')
-                return
-            payload = filepath.read_bytes()
-        except OSError:
-            self.send_error(404, 'Archive resource not found')
-            return
-        self.send_response(200)
-        self.send_header('Content-Type', 'text/plain; charset=utf-8')
-        self.send_header('Content-Length', str(len(payload)))
-        fallback_name = filepath.name.encode('ascii', errors='ignore').decode('ascii') or 'archive-resource.txt'
-        fallback_name = fallback_name.replace('"', '_').replace('\\', '_').replace('\r', '_').replace('\n', '_')
-        encoded_name = urllib.parse.quote(filepath.name, safe='')
-        self.send_header(
-            'Content-Disposition',
-            f'inline; filename="{fallback_name}"; filename*=UTF-8\'\'{encoded_name}',
+        return _domain_routes_media_routes.handle_archive_resource(
+            self, rel_path, _ARCHIVE_VIDEO_SIDECAR_MAX_BYTES=_ARCHIVE_VIDEO_SIDECAR_MAX_BYTES,
+            _ARCHIVE_VIDEO_TEXT_EXTENSIONS=_ARCHIVE_VIDEO_TEXT_EXTENSIONS, _resolve_archive_resource_file=_resolve_archive_resource_file, urllib=urllib,
         )
-        self.send_header('X-Content-Type-Options', 'nosniff')
-        self._apply_cors_headers()
-        self.end_headers()
-        if self.command != 'HEAD':
-            self.wfile.write(payload)
 
     def handle_editable_file(self, rel_path):
-        """读取 PPT/PSD 文件产物目录下的文件。"""
-        filepath = resolve_editable_file(rel_path)
-
-        if filepath and filepath.exists():
-            content_type = mimetypes.guess_type(str(filepath))[0] or 'application/octet-stream'
-            self.send_response(200)
-            self.send_header('Content-Type', content_type)
-            self._apply_cors_headers()
-            if filepath.suffix.lower() not in ('.png', '.jpg', '.jpeg', '.webp', '.pdf'):
-                self.send_header('Content-Disposition', f'attachment; filename="{filepath.name}"')
-            self.end_headers()
-            with open(filepath, 'rb') as f:
-                self.wfile.write(f.read())
-        else:
-            self.send_error(404, "File not found")
+        """Compatibility entrypoint; resolve the file reader per request."""
+        return _handle_editable_file(self, rel_path, resolve_file=resolve_editable_file)
 
     def handle_editable_files(self, parsed):
-        """列出 PPT/PSD 文件产物，用于图库文件管理页。"""
-        try:
-            params = urllib.parse.parse_qs(parsed.query or '')
-            limit = int((params.get('limit') or ['200'])[0] or 200)
-            query = (params.get('query') or [''])[0]
-            kind = (params.get('kind') or [''])[0]
-            include_local = _coerce_bool((params.get('include_local') or ['1'])[0], True)
-            self.send_json(list_editable_files(limit=limit, query=query, kind=kind, include_local=include_local))
-        except Exception as e:
-            print(f"❌ editable files list failed: {e}")
-            self.send_json({"ok": False, "error": str(e)}, 500)
+        """Compatibility entrypoint; resolve listing dependencies per request."""
+        return _handle_editable_files(
+            self, parsed, list_files=list_editable_files, coerce_bool=_coerce_bool)
 
     def handle_editable_file_send(self):
-        """发送一个已生成的 PPT/PSD 主文件到 Telegram。"""
-        try:
-            data = self.read_json_body()
-            rel_path = str(data.get('relative_path') or data.get('result_file') or data.get('file') or '').strip()
-            filepath = resolve_editable_file(rel_path)
-            if not filepath:
-                self.send_json({"ok": False, "error": "文件不存在"}, 404)
-                return
-            caption = str(data.get('caption') or '📎 File').strip() or '📎 File'
-            sent = send_telegram(None, str(filepath), caption[:900])
-            if not sent:
-                raise RuntimeError('Telegram 发送失败')
-            self.send_json({"ok": True, "message": "文件已发送到 Telegram"})
-        except Exception as e:
-            print(f"❌ editable file send failed: {e}")
-            self.send_json({"ok": False, "error": str(e)}, 500)
+        """Compatibility entrypoint; resolve file and Telegram dependencies per request."""
+        return _handle_editable_file_send(
+            self, resolve_file=resolve_editable_file, send_telegram=send_telegram)
 
     def handle_editable_file_delete(self):
-        """删除一个 PPT/PSD 文件产物目录。前端会先二次确认。"""
-        try:
-            data = self.read_json_body()
-            rel_path = str(data.get('directory_relative') or data.get('relative_path') or data.get('manifest') or '').strip()
-            if not rel_path:
-                self.send_json({"ok": False, "error": "缺少文件目录"}, 400)
-                return
-            self.send_json(delete_editable_item(rel_path))
-        except FileNotFoundError as e:
-            self.send_json({"ok": False, "error": str(e)}, 404)
-        except Exception as e:
-            print(f"❌ editable file delete failed: {e}")
-            self.send_json({"ok": False, "error": str(e)}, 500)
+        """Compatibility entrypoint; resolve the artifact deletion dependency per request."""
+        return _handle_editable_file_delete(self, delete_item=delete_editable_item)
 
     def handle_source_image(self, rel_path):
         """读取 Source_Image 下的远程源本地图片。"""
-        filepath = resolve_source_image(rel_path)
-
-        if filepath and filepath.exists():
-            content_type = mimetypes.guess_type(str(filepath))[0] or 'application/octet-stream'
-            self.send_response(200)
-            self.send_header('Content-Type', content_type)
-            self._apply_cors_headers()
-            self.end_headers()
-            with open(filepath, 'rb') as f:
-                self.wfile.write(f.read())
-        else:
-            self.send_error(404, "Source image not found")
+        return _domain_routes_media_routes.handle_source_image(self, rel_path, mimetypes=mimetypes, resolve_source_image=resolve_source_image)
 
     def handle_thumb(self, parsed):
         """Generate and serve an authenticated WebP thumbnail for local media."""
-        try:
-            params = urllib.parse.parse_qs(parsed.query or "")
-            size = int((params.get("w") or params.get("size") or ["420"])[0] or 420)
-        except Exception:
-            size = 420
-        media_path = parse_thumb_request(parsed.path)
-        filepath = resolve_media_path(media_path, {
-            "archive": _resolve_archive_image_file,
-            "video": _resolve_archive_video_file,
-            "source": resolve_source_image,
-            "image": _resolve_download_file,
-        })
-        if not filepath:
-            self.send_error(404, "Thumbnail source not found")
-            return
-        try:
-            if filepath.suffix.lower() in _ARCHIVE_VIDEO_EXTENSIONS:
-                thumb_path = ensure_video_webp_thumbnail(filepath, size=size)
-            else:
-                thumb_path = ensure_webp_thumbnail(filepath, size=size)
-        except Exception as exc:
-            print(f"⚠️ WebP 缩略图生成失败：{exc}")
-            self.send_error(500, "Thumbnail generation failed")
-            return
-
-        self.send_response(200)
-        self.send_header('Content-Type', 'image/webp')
-        self.send_header('Content-Length', str(thumb_path.stat().st_size))
-        self.send_header('Cache-Control', 'public, max-age=31536000, immutable')
-        self._apply_cors_headers()
-        self.end_headers()
-        with open(thumb_path, 'rb') as f:
-            shutil.copyfileobj(f, self.wfile)
+        return _domain_routes_media_routes.handle_thumb(
+            self, parsed, _ARCHIVE_VIDEO_EXTENSIONS=_ARCHIVE_VIDEO_EXTENSIONS,
+            _resolve_archive_image_file=_resolve_archive_image_file, _resolve_archive_video_file=_resolve_archive_video_file, _resolve_download_file=_resolve_download_file,
+            ensure_video_webp_thumbnail=ensure_video_webp_thumbnail, ensure_webp_thumbnail=ensure_webp_thumbnail, parse_thumb_request=parse_thumb_request,
+            resolve_media_path=resolve_media_path, resolve_source_image=resolve_source_image, shutil=shutil,
+            urllib=urllib,
+        )
     
     def handle_google_output(self, filename):
         """处理 google_outputs 目录的图片请求"""
-        filepath = os.path.join(DIRECTORY, 'google_outputs', filename)
-        
-        if os.path.exists(filepath):
-            self.send_response(200)
-            self.send_header('Content-Type', 'image/png')
-            self._apply_cors_headers()
-            self.end_headers()
-            with open(filepath, 'rb') as f:
-                self.wfile.write(f.read())
-        else:
-            self.send_error(404, "Image not found")
+        return _domain_routes_media_routes.handle_google_output(self, filename, DIRECTORY=DIRECTORY, os=os)
     
     def handle_gpt_output(self, filename):
         """处理 gpt_outputs 目录的图片请求"""
-        safe_name = safe_basename(filename)
-        preview_path = ensure_gpt_preview_image(safe_name)
-        filepath = str(preview_path) if preview_path else os.path.join(DIRECTORY, 'gpt_outputs', safe_name)
-        
-        if os.path.exists(filepath):
-            self.send_response(200)
-            self.send_header('Content-Type', 'image/png')
-            self._apply_cors_headers()
-            self.send_header('Cache-Control', 'public, max-age=31536000, immutable')
-            self.end_headers()
-            with open(filepath, 'rb') as f:
-                self.wfile.write(f.read())
-        else:
-            self.send_error(404, "Image not found")
+        return _domain_routes_media_routes.handle_gpt_output(
+            self, filename, DIRECTORY=DIRECTORY,
+            ensure_gpt_preview_image=ensure_gpt_preview_image, os=os, safe_basename=safe_basename,
+        )
     
     def log_message(self, format, *args):
         """自定义日志格式"""
-        request_line = str(args[0]) if args else ''
-        request_line = re.sub(r'([?&](?:miniappAuth|authToken|auth_token)=)[^&\s]+', r'\1***', request_line)
-        print(f"[{time.strftime('%H:%M:%S')}] {request_line}")
+        return _domain_routes_http_responses.log_message(self, format, *args, re=re, time=time)
 
 def send_status_notification(task_id, message, icon='🔄'):
     """发送状态通知到 Telegram"""
-    session = None
-    try:
-        bot_token, chat_id, proxy_url = _load_telegram_notify_config()
-        if not bot_token or not chat_id:
-            return False
-
-        url = f'https://api.telegram.org/bot{bot_token}/sendMessage'
-        text = f'{icon} {message}'.strip()[:4000]
-        session = requests.Session()
-        session.trust_env = False
-        session.proxies = {'http': proxy_url, 'https': proxy_url} if proxy_url else {}
-        response = session.post(
-            url,
-            data={'chat_id': chat_id, 'text': text},
-            timeout=20,
-        )
-        if response.status_code == 200:
-            result = response.json()
-            if result.get('ok'):
-                return True
-            print(f"⚠️ Telegram 状态通知返回错误：{result}")
-        else:
-            print(f"⚠️ Telegram 状态通知 HTTP {response.status_code}: {response.text[:200]}")
-    except Exception as e:
-        print(f"⚠️ 发送状态通知失败：{e}")
-    finally:
-        if session is not None:
-            try:
-                session.close()
-            except Exception:
-                pass
-    return False
+    return _domain_services_telegram_notifications.send_status_notification(
+        task_id, message, icon,
+        _load_telegram_notify_config=_load_telegram_notify_config, requests=requests,
+    )
 
 def _is_retryable_generation_error(error_msg):
     """判断是否属于可托底错误（网络/超时/服务暂时不可用）"""
-    text = (error_msg or "").lower()
-
-    non_retryable_markers = [
-        '内容安全', '安全过滤', '服务端拒绝', 'invalid prompt',
-        'invalid api key', 'api key is required', 'missing prompt',
-        'http 错误 401', 'http 错误 403', 'unauthorized', 'forbidden',
-    ]
-    if any(m in text for m in non_retryable_markers):
-        return False
-
-    retryable_markers = [
-        'timeout', '超时', 'connection', '连接', 'network', '网络',
-        'remote end closed', 'connection reset', 'socket',
-        'temporarily unavailable', 'service unavailable',
-        'http 错误 500', 'http 错误 502', 'http 错误 503', 'http 错误 504',
-    ]
-    return any(m in text for m in retryable_markers)
+    return _domain_services_google_generation._is_retryable_generation_error(error_msg)
 
 
 def _map_quality_to_gpt_resolution(quality):
-    q = (quality or '2k').strip().lower()
-    if q in ('hd', '4k'):
-        return '4k'
-    if q in ('1k', 'low', 'normal'):
-        return '1k'
-    return '2k'
+    return _domain_services_google_generation._map_quality_to_gpt_resolution(quality)
 
 
 def _should_fallback_to_gpt(params, primary_error_msg):
     """skill 调用时是否触发 GPT 托底"""
-    caller = str((params or {}).get('caller', 'webapp')).lower()
-    if caller != 'skill':
-        return False
-
-    fallback_cfg = (params or {}).get('fallback') if isinstance((params or {}).get('fallback'), dict) else {}
-    enabled = fallback_cfg.get('enabled', True)
-    target = str(fallback_cfg.get('target', 'gpt')).lower()
-    retryable_only = fallback_cfg.get('retryable_only', True)
-    force = fallback_cfg.get('force', False)
-
-    if not enabled or target != 'gpt':
-        return False
-
-    if force or (not retryable_only):
-        return True
-
-    return _is_retryable_generation_error(primary_error_msg)
+    return _domain_services_google_generation._should_fallback_to_gpt(params, primary_error_msg, _is_retryable_generation_error=_is_retryable_generation_error)
 
 
 def process_task(task_id, prompt, params):
     """后台线程：处理任务（skill 调用支持 GPT 托底）"""
-    def progress_cb(stage=None, progress_text=None, heartbeat=False, **extra):
-        payload = {}
-        if stage is not None:
-            payload['stage'] = stage
-        if progress_text is not None:
-            payload['progress_text'] = progress_text
-        if heartbeat:
-            payload['heartbeat_at'] = int(time.time())
-        payload.update({k: v for k, v in extra.items() if v is not None})
-        if payload:
-            update_task_fields(task_id, **payload)
-
-    run_id = ''
-    task_kind = 'google-gen'
-    task_provider = 'google'
-    task_route = 'google_gen'
-    try:
-        params = dict(params or {})
-        params['ratio'] = _effective_image_ratio(prompt, params.get('ratio'), '1:1')
-        if _is_generic_19_fidelity_prompt(prompt):
-            _merge_task_params(task_id, {
-                'ratio': params['ratio'],
-                'prompt_fidelity_locked': True,
-                'source_ratio_locked': True,
-            })
-        print(f"🎨 开始处理任务：{task_id}")
-
-        model = params.get('model', DEFAULT_GOOGLE_IMAGE_MODEL)
-        task_kind = 'gpt' if 'gpt' in str(model).lower() else 'google-gen'
-        task_provider = 'chatgpt_pool' if task_kind == 'gpt' else 'google'
-        task_route = 'gpt_pool' if task_kind == 'gpt' else 'google_gen'
-        run_id = _start_generation_audit(
-            task_id,
-            task_kind,
-            prompt,
-            params,
-            provider=task_provider,
-            route=task_route,
-            stage='preparing',
-        )
-
-        send_status_notification(task_id, '已提交图片生成任务，请等待...', '✅')
-        update_task_status(task_id, 'preparing', '正在准备生成...', stage='preparing')
-        update_task_status(task_id, 'processing', '生成中...', stage='queued')
-
-        aspect_ratio = params.get('ratio', '1:1')
-        quality = params.get('quality', 'hd')
-        max_tokens = _coerce_google_max_tokens(params.get('max_tokens'))
-        temperature = params.get('temperature')
-        style = params.get('style', 'raw')
-        caller = str(params.get('caller', 'webapp')).lower()
-        archive_enabled, telegram_enabled = _coerce_google_output_controls(params)
-        params['archive_enabled'] = archive_enabled
-        params['telegram_enabled'] = telegram_enabled
-        _merge_task_params(task_id, {
-            'archive_enabled': archive_enabled,
-            'telegram_enabled': telegram_enabled,
-        })
-
-        # 拼接风格提示词
-        final_prompt = prompt
-        if style == 'king_hu':
-            final_prompt += ", Cinematic Wuxia Aesthetic (King Hu Style), Moon-white & Pale Cyan palette, high-class grey tones. Tyndall morning light piercing through heavy mist, golden backlight halo. Ancient temple gate, mossy stone steps, bamboo forest. Cold porcelain glass skin, jet black ink-like hair with wet dew texture. Ink wash painting negative space, film grain, wide shot, 1970s martial arts masterpiece."
-        elif style == 'shadow':
-            final_prompt += ", Shadow-play Aesthetic (Ying Style), Teal and Ink scheme, low saturation, high contrast between deep blacks and wet highlights. Cold-toned porcelain skin, high slanted Duo-ma bun, ebony hairpin. Rembrandt lighting, cold side light & golden rim light. Minimalist Zen space, giant translucent rice paper screens, wet ink brushstrokes, rainy atmosphere. Cinnabar dot, Song-style layered silk gauze texture."
-        elif style == 'dunhuang':
-            final_prompt += ", Dunhuang Mural (Rock Color Aesthetic), Opulent Gold & Lapis Lazuli palette, high contrast warm shadows. Radiant Tang-style porcelain skin, double-loop Wang-xian bun, gold filigree hairpins. Rock color texture, weathered mural surface. Divine god rays in cavern, amber candlelight. Ancient grotto atmosphere, flying ribbons, golden clover huadian, epic religious solemnity."
-        elif style == 'candlelight':
-            final_prompt += ", Cinematic candlelight portrait: Sony A7R IV with 50mm f/1.2 lens, multiple white candles as natural light source, dramatic chiaroscuro lighting with strong side light contouring, deep layered shadows. Ultra-realistic digital art, photorealistic with Unreal Engine 5 CG cinematic rendering. Extremely detailed skin texture with visible pores, subtle sheen of sweat/oil on skin surface, realistic subsurface scattering (SSS) translucency. 8K ultra-high resolution, ray-traced lighting quality, hyper-detailed micro textures including knitted fabric fibers, velvet plush texture, light scattering on different materials. Classical, mysterious, elegant atmosphere with suppressed luxury, warm brown candlelight interwoven with deep purple and ash grey shadows."
-        elif style == 'real':
-            final_prompt += ", photorealistic, 8k, highly detailed, sharp focus, cinematic lighting, photography, masterpiece"
-        elif style == '3d_info':
-            final_prompt += ", 3D infographic poster, C4D claymorphism style, vertical layout, centered composition, matte plastic and soft clay texture, soft diffuse lighting, no harsh highlights, 3D infographic aesthetic, pop art influence, soft glowing 3d icons, similar to Behance 3D illustrations and Apple skeuomorphic icons"
-        elif style == 'sketchnote':
-            final_prompt = f"请根据以下输入内容，生成一张手绘涂鸦风格的读书笔记信息图，并严格遵循以下风格：1. 整体风格与媒介：采用充满活力的手绘涂鸦笔记 (Sketchnote) 风格，专业知识笔记的学霸风格，不要太卡通。黑色使用深棕、橙黄或海军蓝，轻微水彩进行填色，并搭配柔和的黑色或深棕色细线等勾勒轮廓。竖版 (3:4) 构图。2. 配色方案（关键）：整张图都应该是彩色的，采用明亮、清新、和谐的色彩组合（海军蓝#1E3A8A、浅蓝#60A5FA、金色#F59E0B、奶油色背景#FEFCE8）。背景应有淡淡纸张纹理的米色，或者直接留白，但画面主体必须是五彩斑斓的。颜色填充应模仿彩铅或水彩的质感，带有自然的笔触感，而不是均匀的数字平涂。3. 线条特征：所有轮廓线都必须是不完美、略带抖动的手绘线条，给人一种柔软、亲切的感觉。4. 字体风格：所有文字都必须是彩色的手写体，绝对不要使用任何电脑字体。标题和关键词使用加粗的、或带有简单边框的手写艺术字来突出。正文和注释使用清晰、自然的个人笔记手写体。5. 插图与图标：所有图形元素必须是充满色彩的、简单的涂鸦/简笔画（colorful doodle/stick figure）风格。使用手绘的彩色箭头、框线、项目符号和分割线来组织信息。6. 内容处理：信息精炼，通过关键词加粗、手绘框等方式突出重点。如有故事人物，用此风格的可爱彩色涂鸦形象替代。话语与输入内容保持一致。7. 绘制使用中文绘制成为完整的信息卡输出，尽可能使用 PINCH 的展示方式，将所有内容排版在一页，需要清晰可读，所有中文必须孤立文字图层处理，输出高分辨率 4k。输入内容：{prompt}"
-            aspect_ratio = "3:4"
-
-        print(f"📡 调用 API...")
-        print(f"   - caller: {caller}")
-        print(f"   - ratio: {aspect_ratio}")
-        print(f"   - quality: {quality}")
-        print(f"   - model: {model}")
-        print(f"   - max_tokens: {max_tokens}")
-        if temperature is not None:
-            print(f"   - temperature: {temperature}")
-        print(f"   - style: {style}")
-
-        if 'gpt' in str(model).lower():
-            update_task_status(task_id, 'processing', '正在调用 GPT 生成...', stage='calling_gpt')
-            send_status_notification(task_id, '生成中... 正在调用 GPT...', '🤖')
-
-            gpt_resolution = params.get('resolution') or _map_quality_to_gpt_resolution(quality)
-            _record_generation_event(task_id, 'provider_call_started', '开始调用 GPT 账号池生成图片', stage='calling_gpt', payload={'provider': 'chatgpt_pool', 'route': 'gpt_pool'})
-            result = generate_image_gpt_pool(
-                prompt,
-                aspect_ratio,
-                gpt_resolution,
-                quality,
-                image_count=1,
-                prompt_mode='smart',
-            )
-            if not result.get('success'):
-                raise RuntimeError(result.get('error', 'GPT 生成失败'))
-
-            telegram_success = False
-            if telegram_enabled:
-                update_task_status(task_id, 'processing', '正在发送到 Telegram...', stage='sending_telegram')
-                send_status_notification(task_id, '生成中... 正在发送图片...', '📤')
-                _record_generation_event(task_id, 'telegram_send_started', '开始发送图片到 Telegram', stage='sending_telegram')
-                telegram_success = send_telegram_result(
-                    result['image_path'],
-                    prompt,
-                    aspect_ratio,
-                    gpt_resolution,
-                    image_paths=result.get('image_paths'),
-                )
-            else:
-                update_task_status(task_id, 'processing', 'Telegram 已关闭，正在整理结果...', stage='saving')
-                _record_generation_event(task_id, 'telegram_send_skipped', '已按节点开关跳过 Telegram', stage='saving')
-
-            result_files = _result_image_filenames(result)
-            image_count = len(result_files) or len(result.get('image_paths') or [result.get('image_path')])
-            filename = result_files[0] if result_files else os.path.basename(result['image_path'])
-            if telegram_success:
-                ok_text = f'GPT 图片生成成功（共 {image_count} 张）' if image_count > 1 else 'GPT 图片生成成功'
-                _finalize_generation_task(
-                    task_id,
-                    'succeeded',
-                    run_id=run_id,
-                    provider='chatgpt_pool',
-                    route='gpt_pool',
-                    task_type=task_kind,
-                    result_file=filename,
-                    stage='done',
-                    progress_text=ok_text,
-                    result_files=result_files,
-                    image_count=image_count,
-                )
-                _record_generation_event(task_id, 'run_succeeded', ok_text, stage='done', payload={'provider': 'chatgpt_pool', 'route': 'gpt_pool', 'image_count': image_count})
-                send_status_notification(task_id, '✅ GPT 图片生成成功！', '🎉')
-            else:
-                progress_text = 'GPT 图片已生成，已按节点开关跳过 Telegram' if not telegram_enabled else 'GPT 图片已生成，但 Telegram 发送失败'
-                _finalize_generation_task(
-                    task_id,
-                    'succeeded_no_telegram',
-                    run_id=run_id,
-                    provider='chatgpt_pool',
-                    route='gpt_pool',
-                    task_type=task_kind,
-                    result_file=filename,
-                    stage='done',
-                    progress_text=progress_text,
-                    result_files=result_files,
-                    image_count=image_count,
-                )
-                _record_generation_event(task_id, 'run_succeeded', progress_text, stage='done', payload={'provider': 'chatgpt_pool', 'route': 'gpt_pool', 'image_count': image_count, 'telegram_enabled': telegram_enabled})
-            return
-
-        update_task_status(task_id, 'processing', '正在调用 AI 模型...', stage='calling_api')
-        send_status_notification(task_id, '生成中... 正在调用 AI 模型...', '🤖')
-        _record_generation_event(task_id, 'provider_call_started', '开始调用 Google 图像生成', stage='calling_api', payload={'provider': 'google', 'route': 'google_gen'})
-
-        image_data = None
-        response_meta = {}
-        primary_error = None
-        try:
-            image_data, response_meta = generate_image(
-                final_prompt,
-                aspect_ratio,
-                quality,
-                model,
-                max_tokens=max_tokens,
-                temperature=temperature,
-                progress_cb=progress_cb,
-            )
-        except Exception as e:
-            primary_error = str(e)
-            print(f"⚠️ 主路由失败：{primary_error}")
-
-            if _should_fallback_to_gpt(params, primary_error):
-                update_task_status(task_id, 'fallback_running', '主路由失败，切换 GPT 托底...', stage='fallback_running')
-                send_status_notification(task_id, '主路由失败，切换 GPT 托底中...', '🛟')
-                _record_generation_event(task_id, 'fallback_started', 'Google 主路由失败，切换 GPT 托底', stage='fallback_running', severity='warning', payload={'primary_error': primary_error})
-
-                gpt_resolution = params.get('fallback_resolution') or _map_quality_to_gpt_resolution(quality)
-                fallback_result = generate_image_gpt_pool(
-                    prompt,
-                    aspect_ratio,
-                    gpt_resolution,
-                    quality,
-                    image_count=1,
-                    prompt_mode='smart',
-                )
-                if not fallback_result.get('success'):
-                    fallback_error = fallback_result.get('error', 'unknown')
-                    raise RuntimeError(
-                        f"主路由失败：{primary_error} | GPT 托底失败：{fallback_error}"
-                    )
-
-                telegram_success = False
-                if telegram_enabled:
-                    update_task_status(task_id, 'processing', '托底成功，正在发送到 Telegram...', stage='sending_telegram')
-                    send_status_notification(task_id, '托底成功，正在发送图片...', '📤')
-                    _record_generation_event(task_id, 'telegram_send_started', '托底成功后开始发送到 Telegram', stage='sending_telegram')
-                    telegram_success = send_telegram_result(
-                        fallback_result['image_path'],
-                        prompt,
-                        aspect_ratio,
-                        gpt_resolution,
-                        image_paths=fallback_result.get('image_paths'),
-                    )
-                else:
-                    update_task_status(task_id, 'processing', 'Telegram 已关闭，正在整理结果...', stage='saving')
-                    _record_generation_event(task_id, 'telegram_send_skipped', '托底成功后按节点开关跳过 Telegram', stage='saving')
-
-                result_files = _result_image_filenames(fallback_result)
-                image_count = len(result_files) or len(fallback_result.get('image_paths') or [fallback_result.get('image_path')])
-                filename = result_files[0] if result_files else os.path.basename(fallback_result['image_path'])
-                if telegram_success or not telegram_enabled:
-                    ok_text = f'托底生成成功（共 {image_count} 张）' if image_count > 1 else '托底生成成功'
-                    progress_text = ok_text if telegram_enabled else '托底生成成功，已按节点开关跳过 Telegram'
-                    _finalize_generation_task(
-                        task_id,
-                        'succeeded' if telegram_enabled else 'succeeded_no_telegram',
-                        run_id=run_id,
-                        provider='chatgpt_pool',
-                        route='gpt_pool_fallback',
-                        task_type=task_kind,
-                        result_file=filename,
-                        stage='done',
-                        progress_text=progress_text,
-                        result_files=result_files,
-                        image_count=image_count,
-                        extra={'fallback_source': 'chatgpt_pool', 'primary_error': primary_error},
-                    )
-                    _record_generation_event(task_id, 'run_succeeded', progress_text, stage='done', payload={'provider': 'chatgpt_pool', 'route': 'gpt_pool_fallback', 'fallback_source': 'chatgpt_pool', 'image_count': image_count})
-                    send_status_notification(task_id, '✅ 托底生成成功！', '🎉')
-                    print(f"✅ 托底成功：{task_id} -> {filename}")
-                else:
-                    progress_text = '托底生成成功，但 Telegram 发送失败'
-                    _finalize_generation_task(
-                        task_id,
-                        'succeeded_no_telegram',
-                        run_id=run_id,
-                        provider='chatgpt_pool',
-                        route='gpt_pool_fallback',
-                        task_type=task_kind,
-                        result_file=filename,
-                        stage='done',
-                        progress_text=progress_text,
-                        result_files=result_files,
-                        image_count=image_count,
-                        extra={'fallback_source': 'chatgpt_pool', 'primary_error': primary_error},
-                    )
-                    _record_generation_event(task_id, 'run_succeeded', progress_text, stage='done', payload={'provider': 'chatgpt_pool', 'route': 'gpt_pool_fallback', 'fallback_source': 'chatgpt_pool', 'image_count': image_count, 'telegram_enabled': telegram_enabled})
-                    print(f"⚠️ 托底成功但 Telegram 发送失败：{task_id}")
-                return
-
-            raise
-
-        update_task_status(
-            task_id,
-            'processing',
-            '正在保存图片...',
-            stage='saving',
-            bytes_received=response_meta.get('bytes_received'),
-            first_byte_at=response_meta.get('first_byte_at'),
-            ttfb_ms=response_meta.get('ttfb_ms'),
-        )
-        send_status_notification(task_id, '生成中... 正在保存图片...', '💾')
-
-        from datetime import datetime
-        now = datetime.now()
-        timestamp = now.strftime("%Y%m%d_%H%M%S")
-        model_name = str(model).replace("gemini-", "").replace("-image-preview", "").replace("-image", "").replace(".", "")
-        filename_base = f"{model_name}_{timestamp}"
-
-        download_dir = daily_output_dir(now)
-        download_dir.mkdir(parents=True, exist_ok=True)
-
-        filename_with_ext = f"{filename_base}.png"
-        filepath = str(download_dir / filename_with_ext)
-        filename = save_image(image_data, filepath)
-
-        txt_path = download_dir / f"{filename_base}.txt"
-        with open(txt_path, 'w', encoding='utf-8') as f:
-            f.write(prompt)
-        try:
-            write_obsidian_prompt_sidecar(Path(filepath), prompt, txt_path=txt_path)
-        except Exception as exc:
-            print(f"⚠️ 写入 Obsidian 提示词 md 失败: {exc}")
-        print(f"💾 已保存图片：{filepath}")
-        print(f"💾 已保存提示词：{txt_path}")
-        save_thumbnail(filepath, filename)
-
-        telegram_success = False
-        if telegram_enabled:
-            update_task_status(task_id, 'processing', '正在发送到 Telegram...', stage='sending_telegram')
-            send_status_notification(task_id, '生成中... 正在发送图片...', '📤')
-            _record_generation_event(task_id, 'telegram_send_started', '开始发送图片到 Telegram', stage='sending_telegram')
-            try:
-                print(f"📤 准备发送 Telegram: {filepath}")
-                caption = prompt[:500] + "..." if len(prompt) > 500 else prompt
-                telegram_success = send_telegram(None, filepath, caption)
-                if telegram_success:
-                    print(f"✅ Telegram 发送成功")
-                else:
-                    error_msg = "Telegram 发送失败：send_telegram returned False"
-                    print(f"❌ {error_msg}")
-                    error_info = _translate_generation_failure(task_id, error_msg, provider='telegram', route='telegram', task_type=task_kind, stage='telegram_failed')
-                    _finalize_generation_task(task_id, 'telegram_failed', run_id=run_id, stage='telegram_failed', progress_text=error_info.get('display_error') or error_msg, error_info=error_info, error_type='TelegramSendFailed', provider=task_provider, route=task_route, task_type=task_kind)
-                    try:
-                        send_status_notification(task_id, '❌ 发送失败：请检查 bot token/网络/文件路径', '⚠️')
-                    except:
-                        pass
-            except Exception as e:
-                error_msg = f"Telegram 发送失败：{str(e)}"
-                print(f"❌ {error_msg}")
-                error_info = _translate_generation_failure(task_id, error_msg, provider='telegram', route='telegram', task_type=task_kind, stage='telegram_failed', exception_name=type(e).__name__)
-                _finalize_generation_task(task_id, 'telegram_failed', run_id=run_id, stage='telegram_failed', progress_text=error_info.get('display_error') or error_msg, error_info=error_info, error_type=type(e).__name__, provider=task_provider, route=task_route, task_type=task_kind)
-                try:
-                    send_status_notification(task_id, f'❌ 发送失败：{str(e)[:100]}', '⚠️')
-                except:
-                    pass
-        else:
-            update_task_status(task_id, 'processing', 'Telegram 已关闭，正在整理结果...', stage='saving')
-            _record_generation_event(task_id, 'telegram_send_skipped', '已按节点开关跳过 Telegram', stage='saving')
-
-        if telegram_success:
-            _finalize_generation_task(task_id, 'succeeded', run_id=run_id, stage='done', progress_text='图片生成成功', result_file=filename, result_files=[filename], image_count=1, provider=task_provider, route=task_route, task_type=task_kind)
-            _record_generation_event(task_id, 'run_succeeded', '图片生成成功', stage='done', payload={'provider': task_provider, 'route': task_route, 'image_count': 1})
-            send_status_notification(task_id, '✅ 图片生成成功！', '🎉')
-            print(f"✅ 任务成功：{task_id}")
-        else:
-            progress_text = '图片已保存，已按节点开关跳过 Telegram' if not telegram_enabled else '图片已保存，但 Telegram 发送失败'
-            _finalize_generation_task(
-                task_id,
-                'succeeded_no_telegram',
-                run_id=run_id,
-                provider=task_provider,
-                route=task_route,
-                task_type=task_kind,
-                result_file=filename,
-                stage='done',
-                progress_text=progress_text,
-                result_files=[filename],
-                image_count=1,
-            )
-            _record_generation_event(task_id, 'run_succeeded', progress_text, stage='done', payload={'provider': task_provider, 'route': task_route, 'image_count': 1, 'telegram_enabled': telegram_enabled})
-            print(f"⚠️ 任务完成但未发送 Telegram: {task_id}")
-
-    except Exception as e:
-        error_msg = str(e)
-        error_type = type(e).__name__
-        error_info = _translate_generation_failure(
-            task_id,
-            error_msg,
-            provider=task_provider,
-            route=task_route,
-            task_type=task_kind,
-            stage='failed',
-            exception_name=error_type,
-        )
-
-        print(f"")
-        print(f"❌ ════════════════════════════════════════")
-        print(f"❌  任务失败：{task_id}")
-        print(f"❌  错误类型：{error_type}")
-        print(f"❌  错误信息：{error_msg}")
-        print(f"❌ ════════════════════════════════════════")
-        print(f"")
-
-        _finalize_generation_task(task_id, 'failed', run_id=run_id, stage='failed', progress_text=error_info.get('display_error') or error_msg, error_info=error_info, error_type=error_type, provider=task_provider, route=task_route, task_type=task_kind)
-        send_status_notification(task_id, f"❌ 生成失败：{error_info.get('display_error') or error_msg}", '⚠️')
+    return _domain_services_google_generation.process_task(
+        task_id, prompt, params,
+        DEFAULT_GOOGLE_IMAGE_MODEL=DEFAULT_GOOGLE_IMAGE_MODEL, Path=Path, _coerce_google_max_tokens=_coerce_google_max_tokens,
+        _coerce_google_output_controls=_coerce_google_output_controls, _effective_image_ratio=_effective_image_ratio, _finalize_generation_task=_finalize_generation_task,
+        _is_generic_19_fidelity_prompt=_is_generic_19_fidelity_prompt, _map_quality_to_gpt_resolution=_map_quality_to_gpt_resolution, _merge_task_params=_merge_task_params,
+        _record_generation_event=_record_generation_event, _result_image_filenames=_result_image_filenames, _should_fallback_to_gpt=_should_fallback_to_gpt,
+        _start_generation_audit=_start_generation_audit, _translate_generation_failure=_translate_generation_failure, daily_output_dir=daily_output_dir,
+        generate_image=generate_image, google_pool_generate=_google_pool_provider.generate, generate_image_gpt_pool=generate_image_gpt_pool, os=os,
+        save_image=save_image, save_thumbnail=save_thumbnail, send_status_notification=send_status_notification,
+        send_telegram=send_telegram, send_telegram_result=send_telegram_result, time=time,
+        update_task_fields=update_task_fields, update_task_status=update_task_status, write_obsidian_prompt_sidecar=write_obsidian_prompt_sidecar,
+    )
 def process_edit_task(task_id, prompt, images, params):
     """后台线程：处理编辑任务（skill 调用支持 GPT 托底）"""
-    run_id = ''
-    task_kind = 'google-edit'
-    task_provider = 'google'
-    task_route = 'google_edit'
-    try:
-        params = dict(params or {})
-        params['ratio'] = _effective_image_ratio(prompt, params.get('ratio'), '1:1')
-        if _is_generic_19_fidelity_prompt(prompt):
-            _merge_task_params(task_id, {
-                'ratio': params['ratio'],
-                'prompt_fidelity_locked': True,
-                'source_ratio_locked': True,
-            })
-        print(f"✏️ 开始处理编辑任务：{task_id}")
-        print(f"📋 完整 params: {json.dumps(params, ensure_ascii=False)}")
-
-        run_id = _start_generation_audit(
-            task_id,
-            task_kind,
-            prompt,
-            params,
-            provider=task_provider,
-            route=task_route,
-            stage='preparing',
-        )
-
-        # 发送提交通知
-        send_status_notification(task_id, '已提交图片编辑任务，请等待...', '✅')
-
-        # 状态 1: 准备中
-        update_task_status(task_id, 'preparing', '正在准备编辑...')
-        update_task_status(task_id, 'processing', '编辑中...')
-
-        # 调用 API 编辑图片 - 从 params 提取参数
-        aspect_ratio = params.get('ratio', '1:1')
-        quality = params.get('quality', 'hd')
-        model = params.get('model', DEFAULT_GOOGLE_IMAGE_MODEL)
-        max_tokens = _coerce_google_max_tokens(params.get('max_tokens'))
-        temperature = params.get('temperature')
-        feature = params.get('feature', 'edit')
-        caller = str(params.get('caller', 'webapp')).lower()
-        archive_enabled, telegram_enabled = _coerce_google_output_controls(params)
-        params['archive_enabled'] = archive_enabled
-        params['telegram_enabled'] = telegram_enabled
-        _merge_task_params(task_id, {
-            'archive_enabled': archive_enabled,
-            'telegram_enabled': telegram_enabled,
-        })
-
-        # 前端可能传递的是 aspectRatio 而不是 ratio
-        if 'aspectRatio' in params:
-            aspect_ratio = params.get('aspectRatio', '1:1')
-
-        print(f"📡 调用 API...")
-        print(f"   - caller: {caller}")
-        print(f"   - aspect_ratio: {aspect_ratio}")
-        print(f"   - quality: {quality}")
-        print(f"   - model: {model}")
-        print(f"   - max_tokens: {max_tokens}")
-        if temperature is not None:
-            print(f"   - temperature: {temperature}")
-        print(f"   - feature: {feature}")
-        print(f"   - images: {len(images)} 张")
-
-        # 状态 2: 调用 API
-        update_task_status(task_id, 'processing', '正在调用 AI 模型...')
-        send_status_notification(task_id, '编辑中... 正在调用 AI 模型...', '🤖')
-        _record_generation_event(task_id, 'provider_call_started', '开始调用 Google 图像编辑', stage='calling_api', payload={'provider': task_provider, 'route': task_route})
-
-        # 主路由：编辑接口
-        from .api_client import edit_image
-
-        def progress_cb(stage=None, progress_text=None, heartbeat=False, **extra):
-            payload = {}
-            if stage is not None:
-                payload['stage'] = stage
-            if progress_text is not None:
-                payload['progress_text'] = progress_text
-            if heartbeat:
-                payload['heartbeat_at'] = int(time.time())
-            payload.update({k: v for k, v in extra.items() if v is not None})
-            if payload:
-                update_task_fields(task_id, **payload)
-
-        image_data = None
-        response_meta = {}
-        primary_error = None
-        try:
-            image_data, response_meta = edit_image(
-                prompt,
-                images,
-                aspect_ratio,
-                quality,
-                model,
-                max_tokens=max_tokens,
-                temperature=temperature,
-                progress_cb=progress_cb,
-            )
-        except Exception as e:
-            primary_error = str(e)
-            print(f"⚠️ 编辑主路由失败：{primary_error}")
-
-            if _should_fallback_to_gpt(params, primary_error):
-                update_task_status(task_id, 'fallback_running', '编辑主路由失败，切换 GPT 托底...')
-                send_status_notification(task_id, '编辑主路由失败，切换 GPT 托底中...', '🛟')
-                _record_generation_event(task_id, 'fallback_started', 'Google 编辑主路由失败，切换 GPT 托底', stage='fallback_running', severity='warning', payload={'primary_error': primary_error})
-
-                gpt_resolution = params.get('fallback_resolution') or _map_quality_to_gpt_resolution(quality)
-                fallback_prompt = (
-                    f"请基于用户编辑需求进行生成（原请求为图像编辑，当前走托底生成）：\n{prompt}"
-                )
-                fallback_result = generate_image_gpt_pool(
-                    fallback_prompt,
-                    aspect_ratio,
-                    gpt_resolution,
-                    quality,
-                    image_count=1,
-                    prompt_mode='smart',
-                )
-                if not fallback_result.get('success'):
-                    fallback_error = fallback_result.get('error', 'unknown')
-                    raise RuntimeError(
-                        f"编辑主路由失败：{primary_error} | GPT 托底失败：{fallback_error}"
-                    )
-
-                telegram_success = False
-                if telegram_enabled:
-                    update_task_status(task_id, 'processing', '托底成功，正在发送到 Telegram...')
-                    send_status_notification(task_id, '托底成功，正在发送图片...', '📤')
-                    _record_generation_event(task_id, 'telegram_send_started', '托底编辑成功后开始发送到 Telegram', stage='sending_telegram')
-                    telegram_success = send_telegram_result(
-                        fallback_result['image_path'],
-                        prompt,
-                        aspect_ratio,
-                        gpt_resolution,
-                        image_paths=fallback_result.get('image_paths'),
-                    )
-                else:
-                    update_task_status(task_id, 'processing', 'Telegram 已关闭，正在整理结果...', stage='saving')
-                    _record_generation_event(task_id, 'telegram_send_skipped', '托底编辑成功后按节点开关跳过 Telegram', stage='saving')
-
-                result_files = _result_image_filenames(fallback_result)
-                image_count = len(result_files) or len(fallback_result.get('image_paths') or [fallback_result.get('image_path')])
-                filename = result_files[0] if result_files else os.path.basename(fallback_result['image_path'])
-                if telegram_success or not telegram_enabled:
-                    ok_text = f'托底编辑成功（共 {image_count} 张）' if image_count > 1 else '托底编辑成功'
-                    progress_text = ok_text if telegram_enabled else '托底编辑成功，已按节点开关跳过 Telegram'
-                    _finalize_generation_task(
-                        task_id,
-                        'succeeded' if telegram_enabled else 'succeeded_no_telegram',
-                        run_id=run_id,
-                        provider='chatgpt_pool',
-                        route='gpt_pool_fallback_edit',
-                        task_type=task_kind,
-                        result_file=filename,
-                        stage='done',
-                        progress_text=progress_text,
-                        result_files=result_files,
-                        image_count=image_count,
-                        extra={'fallback_source': 'chatgpt_pool', 'primary_error': primary_error},
-                    )
-                    _record_generation_event(task_id, 'run_succeeded', progress_text, stage='done', payload={'provider': 'chatgpt_pool', 'route': 'gpt_pool_fallback_edit', 'image_count': image_count})
-                    send_status_notification(task_id, '✅ 托底编辑成功！', '🎉')
-                    print(f"✅ 编辑托底成功：{task_id} -> {filename}")
-                else:
-                    progress_text = '托底编辑成功，但 Telegram 发送失败'
-                    _finalize_generation_task(
-                        task_id,
-                        'succeeded_no_telegram',
-                        run_id=run_id,
-                        provider='chatgpt_pool',
-                        route='gpt_pool_fallback_edit',
-                        task_type=task_kind,
-                        result_file=filename,
-                        stage='done',
-                        progress_text=progress_text,
-                        result_files=result_files,
-                        image_count=image_count,
-                        extra={'fallback_source': 'chatgpt_pool', 'primary_error': primary_error},
-                    )
-                    _record_generation_event(task_id, 'run_succeeded', progress_text, stage='done', payload={'provider': 'chatgpt_pool', 'route': 'gpt_pool_fallback_edit', 'image_count': image_count, 'telegram_enabled': telegram_enabled})
-                    print(f"⚠️ 编辑托底成功但 Telegram 发送失败：{task_id}")
-                return
-
-            raise
-
-        # 状态 3: 保存图片
-        update_task_status(
-            task_id,
-            'processing',
-            '正在保存图片...',
-            stage='saving',
-            bytes_received=response_meta.get('bytes_received'),
-            first_byte_at=response_meta.get('first_byte_at'),
-            ttfb_ms=response_meta.get('ttfb_ms'),
-        )
-        send_status_notification(task_id, '编辑中... 正在保存图片...', '💾')
-
-        # 文件命名：生成模型_日期时间
-        from datetime import datetime
-        now = datetime.now()
-        timestamp = now.strftime("%Y%m%d_%H%M%S")
-        model_name = model.replace("gemini-", "").replace("-image-preview", "").replace("-image", "").replace(".", "")
-        filename_base = f"{model_name}_{timestamp}"
-
-        # 确保下载目录存在
-        download_dir = daily_output_dir(now)
-        download_dir.mkdir(parents=True, exist_ok=True)
-
-        # 保存图片（带扩展名）
-        filename_with_ext = f"{filename_base}.png"
-        filepath = str(download_dir / filename_with_ext)
-        filename = save_image(image_data, filepath)
-
-        # 保存提示词到同名 txt 文件
-        txt_path = download_dir / f"{filename_base}.txt"
-        with open(txt_path, 'w', encoding='utf-8') as f:
-            f.write(prompt)
-        try:
-            write_obsidian_prompt_sidecar(Path(filepath), prompt, txt_path=txt_path)
-        except Exception as exc:
-            print(f"⚠️ 写入 Obsidian 提示词 md 失败: {exc}")
-        print(f"💾 已保存图片：{filepath}")
-        print(f"💾 已保存提示词：{txt_path}")
-        save_thumbnail(filepath, filename)
-
-        telegram_success = False
-        if telegram_enabled:
-            # 状态 4: 发送 Telegram
-            update_task_status(task_id, 'processing', '正在发送到 Telegram...', stage='sending_telegram')
-            send_status_notification(task_id, '编辑中... 正在发送图片...', '📤')
-            _record_generation_event(task_id, 'telegram_send_started', '开始发送编辑结果到 Telegram', stage='sending_telegram')
-            try:
-                print(f"📤 准备发送 Telegram: {filepath}")
-                # Telegram caption 限制 1024 字符，为了安全截断到 500
-                caption = prompt[:500] + "..." if len(prompt) > 500 else prompt
-                telegram_success = send_telegram(None, filepath, caption)
-                if telegram_success:
-                    print(f"✅ Telegram 发送成功")
-                else:
-                    error_msg = "Telegram 发送失败：send_telegram returned False"
-                    print(f"❌ {error_msg}")
-                    error_info = _translate_generation_failure(task_id, error_msg, provider='telegram', route='telegram', task_type=task_kind, stage='telegram_failed')
-                    _finalize_generation_task(task_id, 'telegram_failed', run_id=run_id, stage='telegram_failed', progress_text=error_info.get('display_error') or error_msg, error_info=error_info, error_type='TelegramSendFailed', provider=task_provider, route=task_route, task_type=task_kind)
-                    try:
-                        send_status_notification(task_id, '❌ 发送失败：请检查 bot token/网络/文件路径', '⚠️')
-                    except:
-                        pass
-            except Exception as e:
-                error_msg = f"Telegram 发送失败：{str(e)}"
-                print(f"❌ {error_msg}")
-                error_info = _translate_generation_failure(task_id, error_msg, provider='telegram', route='telegram', task_type=task_kind, stage='telegram_failed', exception_name=type(e).__name__)
-                _finalize_generation_task(task_id, 'telegram_failed', run_id=run_id, stage='telegram_failed', progress_text=error_info.get('display_error') or error_msg, error_info=error_info, error_type=type(e).__name__, provider=task_provider, route=task_route, task_type=task_kind)
-                try:
-                    send_status_notification(task_id, f'❌ 发送失败：{str(e)[:100]}', '⚠️')
-                except:
-                    pass
-        else:
-            update_task_status(task_id, 'processing', 'Telegram 已关闭，正在整理结果...', stage='saving')
-            _record_generation_event(task_id, 'telegram_send_skipped', '已按节点开关跳过 Telegram', stage='saving')
-
-        # 状态 5: 完成
-        if telegram_success:
-            _finalize_generation_task(task_id, 'succeeded', run_id=run_id, stage='done', progress_text='图片编辑成功', result_file=filename, result_files=[filename], image_count=1, provider=task_provider, route=task_route, task_type=task_kind)
-            _record_generation_event(task_id, 'run_succeeded', '图片编辑成功', stage='done', payload={'provider': task_provider, 'route': task_route, 'image_count': 1})
-            send_status_notification(task_id, '✅ 图片编辑成功！', '🎉')
-            print(f"✅ 编辑任务成功：{task_id}")
-        else:
-            progress_text = '图片已保存，已按节点开关跳过 Telegram' if not telegram_enabled else '图片已保存，但 Telegram 发送失败'
-            _finalize_generation_task(
-                task_id,
-                'succeeded_no_telegram',
-                run_id=run_id,
-                provider=task_provider,
-                route=task_route,
-                task_type=task_kind,
-                result_file=filename,
-                stage='done',
-                progress_text=progress_text,
-                result_files=[filename],
-                image_count=1,
-            )
-            _record_generation_event(task_id, 'run_succeeded', progress_text, stage='done', payload={'provider': task_provider, 'route': task_route, 'image_count': 1, 'telegram_enabled': telegram_enabled})
-            print(f"⚠️ 任务完成但未发送 Telegram: {task_id}")
-
-    except Exception as e:
-        error_msg = str(e)
-        error_type = type(e).__name__
-        error_info = _translate_generation_failure(task_id, error_msg, provider=task_provider, route=task_route, task_type=task_kind, stage='failed', exception_name=error_type)
-        print(f"❌ 编辑任务失败：{task_id} - {error_msg}")
-        _finalize_generation_task(task_id, 'failed', run_id=run_id, stage='failed', progress_text=error_info.get('display_error') or error_msg, error_info=error_info, error_type=error_type, provider=task_provider, route=task_route, task_type=task_kind)
-        send_status_notification(task_id, f'❌ 编辑失败：{(error_info.get("display_error") or error_msg)[:100]}', '⚠️')
+    return _domain_services_google_generation.process_edit_task(
+        task_id, prompt, images,
+        params, DEFAULT_GOOGLE_IMAGE_MODEL=DEFAULT_GOOGLE_IMAGE_MODEL, Path=Path,
+        _coerce_google_max_tokens=_coerce_google_max_tokens, _coerce_google_output_controls=_coerce_google_output_controls, _effective_image_ratio=_effective_image_ratio,
+        _finalize_generation_task=_finalize_generation_task, _is_generic_19_fidelity_prompt=_is_generic_19_fidelity_prompt, _map_quality_to_gpt_resolution=_map_quality_to_gpt_resolution,
+        _merge_task_params=_merge_task_params, _record_generation_event=_record_generation_event, _result_image_filenames=_result_image_filenames,
+        _should_fallback_to_gpt=_should_fallback_to_gpt, _start_generation_audit=_start_generation_audit, _translate_generation_failure=_translate_generation_failure,
+        daily_output_dir=daily_output_dir, google_pool_edit=_google_pool_provider.edit, generate_image_gpt_pool=generate_image_gpt_pool, json=json,
+        os=os, save_image=save_image, save_thumbnail=save_thumbnail,
+        send_status_notification=send_status_notification, send_telegram=send_telegram, send_telegram_result=send_telegram_result,
+        time=time, update_task_fields=update_task_fields, update_task_status=update_task_status,
+        write_obsidian_prompt_sidecar=write_obsidian_prompt_sidecar,
+    )
 
 def _annotate_gpt_route_result(result, route_resolution, *, requested_route, requested_model, requested_reasoning_effort):
-    actual_model = str(result.get('main_model') or route_resolution.get('model') or requested_model)
-    actual_reasoning = str(result.get('reasoning_effort') or route_resolution.get('reasoning_effort') or 'none')
-    result['main_model'] = actual_model
-    result['requested_main_model'] = requested_model
-    if actual_model != requested_model:
-        result['model_fallback_from'] = requested_model
-    result['reasoning_effort'] = actual_reasoning
-    result['requested_reasoning_effort'] = requested_reasoning_effort
-    if actual_reasoning != requested_reasoning_effort:
-        result['reasoning_fallback_from'] = requested_reasoning_effort
-    result['requested_gpt_provider_route'] = requested_route
-    result['model_role'] = str(route_resolution.get('model_role') or '')
-    result['model_catalog_source'] = str(route_resolution.get('source') or '')
-    image_engine = route_resolution.get('image_engine') or {}
-    result['image_engine'] = str(image_engine.get('id') or '')
-    result['image_engine_label'] = str(image_engine.get('label') or image_engine.get('id') or '')
-    return result
+    return _domain_services_provider_routing._annotate_gpt_route_result(
+        result, route_resolution, requested_route=requested_route,
+        requested_model=requested_model, requested_reasoning_effort=requested_reasoning_effort,
+    )
 
 
 def _generate_gpt_with_pool_fallback(task_id, prompt, ratio, resolution, quality, image_count=1, moderation='auto', prompt_mode='smart', main_model=None, reasoning_effort=None, gpt_provider_route='codex'):
     """Run Codex with managed OAuth preferred, then local auth, then account-pool fallback."""
-    primary_error = None
-    pool_error = None
-    pool_result = None
-    prompt = str(prompt or '')
-    fidelity_locked = _is_generic_19_fidelity_prompt(prompt)
-    prompt_mode = _effective_prompt_mode(prompt, prompt_mode)
-    prompt_meta = {
-        'prompt_fidelity_locked': True,
-        'prompt_optimized': False,
-        'prompt_optimized_by': 'generic_19_fidelity_bundle',
-    } if fidelity_locked else {}
-    if prompt_mode == 'web_search':
-        prompt, prompt_meta = _prepare_web_search_generation_prompt(task_id, prompt)
-    requested_main_model = _coerce_gpt_main_model(main_model)
-    requested_reasoning_effort = _coerce_gpt_reasoning_effort(reasoning_effort)
-    gpt_provider_route = _coerce_gpt_provider_route(gpt_provider_route)
-    route_model = resolve_route_model(
-        gpt_provider_route,
-        requested_main_model,
-        reasoning_effort=requested_reasoning_effort,
+    return _domain_services_provider_routing._generate_gpt_with_pool_fallback(
+        task_id, prompt, ratio,
+        resolution, quality, image_count,
+        moderation, prompt_mode, main_model,
+        reasoning_effort, gpt_provider_route, ChatgptPoolGenerationError=ChatgptPoolGenerationError,
+        DEFAULT_POOL_MODEL=DEFAULT_POOL_MODEL, _annotate_gpt_route_result=_annotate_gpt_route_result, _append_task_route_trace=_append_task_route_trace,
+        _coerce_gpt_main_model=_coerce_gpt_main_model, _coerce_gpt_provider_route=_coerce_gpt_provider_route, _coerce_gpt_provider_total_timeout=_coerce_gpt_provider_total_timeout,
+        _coerce_gpt_reasoning_effort=_coerce_gpt_reasoning_effort, _effective_prompt_mode=_effective_prompt_mode, _format_gpt_pool_error=_format_gpt_pool_error,
+        _format_gpt_provider_error=_format_gpt_provider_error, _is_generic_19_fidelity_prompt=_is_generic_19_fidelity_prompt, _is_task_canceled=_is_task_canceled,
+        _make_gpt_image_progress_callback=_make_gpt_image_progress_callback, _make_gpt_pool_wait_callback=_make_gpt_pool_wait_callback, _make_gpt_provider_wait_callback=_make_gpt_provider_wait_callback,
+        _prepare_chatgpt_pool_generation_prompt=_prepare_chatgpt_pool_generation_prompt, _prepare_web_search_generation_prompt=_prepare_web_search_generation_prompt, _resolve_codex_provider_env=_resolve_codex_provider_env,
+        generate_image_gpt_codex=generate_image_gpt_codex, generate_image_gpt_pool=generate_image_gpt_pool, get_chatgpt_pool_config=get_chatgpt_pool_config,
+        get_task=get_task, resolve_route_model=resolve_route_model, send_status_notification=send_status_notification,
+        time=time, update_task_status=update_task_status,
     )
-    main_model = route_model.get('model') or requested_main_model
-    reasoning_effort = route_model.get('reasoning_effort') or requested_reasoning_effort
-    provider_timeout_seconds = _coerce_gpt_provider_total_timeout(None)
-
-    if gpt_provider_route == 'codex' and not route_model.get('available'):
-        primary_error = route_model.get('warning') or '当前 Codex 账号没有可用的图片生成模型'
-        _append_task_route_trace(task_id, 'codex', 'skipped', primary_error)
-    elif gpt_provider_route == 'codex':
-        route_started = time.monotonic()
-        provider_route = gpt_provider_route
-        provider_label = 'Codex provider'
-        provider_trace_route = provider_route
-        provider_env, codex_auth_source = _resolve_codex_provider_env()
-        _append_task_route_trace(
-            task_id,
-            provider_trace_route,
-            'started',
-            f'正在调用{provider_label}',
-            timeout_seconds=provider_timeout_seconds,
-        )
-        if route_model.get('adapted'):
-            _append_task_route_trace(
-                task_id,
-                provider_trace_route,
-                'model_adapted',
-                f"模型 {requested_main_model} 当前不可用，已改用 {main_model}",
-            )
-        if route_model.get('reasoning_adapted'):
-            _append_task_route_trace(
-                task_id,
-                provider_trace_route,
-                'reasoning_adapted',
-                f"推理强度 {requested_reasoning_effort} 不适用于 {main_model}，已改用 {reasoning_effort}",
-            )
-        try:
-            update_task_status(task_id, 'processing', f'正在调用{provider_label}...', stage='calling_gpt')
-            send_status_notification(task_id, f'生成中... 正在调用{provider_label}...', '🤖')
-            result = generate_image_gpt_codex(
-                prompt,
-                ratio,
-                resolution,
-                quality,
-                image_count=image_count,
-                moderation=moderation,
-                prompt_mode=prompt_mode,
-                main_model=main_model,
-                reasoning_effort=reasoning_effort,
-                total_timeout_seconds=provider_timeout_seconds,
-                on_image_saved=_make_gpt_image_progress_callback(task_id, image_count),
-                on_provider_wait=_make_gpt_provider_wait_callback(task_id),
-                should_cancel=lambda: _is_task_canceled(task_id),
-                provider_env=provider_env,
-            )
-            if result.get('canceled'):
-                _append_task_route_trace(
-                    task_id,
-                    provider_trace_route,
-                    'canceled',
-                    f'{provider_label} 已取消',
-                    elapsed_seconds=int(time.monotonic() - route_started),
-                )
-                return result, 'canceled', None
-            if result.get('success'):
-                if prompt_meta:
-                    result.update(prompt_meta)
-                result['prompt_mode'] = prompt_mode
-                result['gpt_provider_route'] = gpt_provider_route
-                _annotate_gpt_route_result(
-                    result,
-                    route_model,
-                    requested_route=gpt_provider_route,
-                    requested_model=requested_main_model,
-                    requested_reasoning_effort=requested_reasoning_effort,
-                )
-                result['codex_auth_source'] = codex_auth_source
-                result['route_trace'] = (get_task(task_id) or {}).get('params', {}).get('route_trace')
-                _append_task_route_trace(
-                    task_id,
-                    provider_trace_route,
-                    'succeeded',
-                    f'{provider_label} 成功返回',
-                    elapsed_seconds=int(time.monotonic() - route_started),
-                )
-                result['route_trace'] = (get_task(task_id) or {}).get('params', {}).get('route_trace')
-                return result, provider_route, None
-            primary_error = result.get('error', f'{provider_label} 失败')
-            _append_task_route_trace(
-                task_id,
-                provider_trace_route,
-                'failed',
-                primary_error,
-                elapsed_seconds=int(time.monotonic() - route_started),
-            )
-            print(f"⚠️ {provider_label} 失败：{primary_error}")
-        except Exception as e:
-            primary_error = str(e)
-            _append_task_route_trace(
-                task_id,
-                provider_trace_route,
-                'failed',
-                primary_error,
-                elapsed_seconds=int(time.monotonic() - route_started),
-            )
-            print(f"⚠️ {provider_label} 异常：{primary_error}")
-    else:
-        primary_error = '已选择账号池 API 线路，跳过本地 Codex provider'
-        _append_task_route_trace(task_id, 'codex', 'skipped', primary_error)
-
-    if _is_task_canceled(task_id):
-        return {"success": False, "canceled": True, "error": "canceled"}, 'canceled', primary_error
-
-    provider_error_text = _format_gpt_provider_error(primary_error)
-    pool_cfg = get_chatgpt_pool_config(ensure_auth_key=True)
-    if pool_cfg.get("enabled"):
-        route_started = time.monotonic()
-        _append_task_route_trace(task_id, 'chatgpt_pool', 'started', '正在调用 ChatGPT 账号池 API')
-        pool_text = '正在调用 ChatGPT 账号池 API...' if gpt_provider_route == 'chatgpt_pool' else f'{provider_error_text}，切换 ChatGPT 账号池托底...'
-        update_task_status(task_id, 'fallback_running', pool_text, stage='fallback_running')
-        if gpt_provider_route == 'chatgpt_pool':
-            send_status_notification(task_id, '生成中... 正在调用 ChatGPT 账号池 API...', '🛟')
-        else:
-            send_status_notification(task_id, f'{provider_error_text}，切换 ChatGPT 账号池托底中...', '🛟')
-        try:
-            pool_model_resolution = resolve_route_model(
-                'chatgpt_pool',
-                requested_main_model,
-                reasoning_effort=requested_reasoning_effort,
-            )
-            pool_main_model = pool_model_resolution.get('model') or DEFAULT_POOL_MODEL
-            if pool_model_resolution.get('adapted'):
-                _append_task_route_trace(
-                    task_id,
-                    'chatgpt_pool',
-                    'model_adapted',
-                    f"账号池不支持 {requested_main_model}，已改用 {pool_main_model}",
-                )
-            if prompt_mode == 'web_search':
-                pool_prompt, pool_prompt_meta = prompt, prompt_meta
-            else:
-                pool_prompt, pool_prompt_meta = _prepare_chatgpt_pool_generation_prompt(task_id, prompt, prompt_mode)
-            update_task_status(task_id, 'fallback_running', '正在调用 ChatGPT 账号池生成图片...', stage='fallback_running')
-            pool_result = generate_image_gpt_pool(
-                pool_prompt,
-                ratio,
-                resolution,
-                quality,
-                image_count=image_count,
-                prompt_mode=prompt_mode,
-                main_model=pool_main_model,
-                on_image_saved=_make_gpt_image_progress_callback(task_id, image_count),
-                on_provider_wait=_make_gpt_pool_wait_callback(task_id),
-                timeout_seconds=pool_cfg.get('timeout_seconds'),
-            )
-        except Exception as e:
-            pool_error = str(e)
-            _append_task_route_trace(
-                task_id,
-                'chatgpt_pool',
-                'failed',
-                pool_error,
-                elapsed_seconds=int(time.monotonic() - route_started),
-            )
-            print(f"⚠️ ChatGPT 账号池托底异常：{pool_error}")
-        else:
-            if pool_prompt_meta:
-                pool_result.update(pool_prompt_meta)
-            if pool_result.get('success'):
-                pool_result.setdefault('requested_resolution', resolution)
-                pool_result.setdefault('effective_resolution', pool_result.get('actual_resolution') or pool_result.get('requested_resolution') or resolution)
-                pool_result['fallback_source'] = 'chatgpt_pool'
-                pool_result['requested_image_count'] = image_count
-                pool_result['prompt_mode'] = prompt_mode
-                actual_pool_model = pool_result.get('main_model') or pool_main_model
-                pool_result['main_model'] = actual_pool_model
-                pool_result['reasoning_effort'] = pool_model_resolution.get('reasoning_effort') or 'none'
-                pool_result['gpt_provider_route'] = 'chatgpt_pool'
-                _annotate_gpt_route_result(
-                    pool_result,
-                    pool_model_resolution,
-                    requested_route=gpt_provider_route,
-                    requested_model=requested_main_model,
-                    requested_reasoning_effort=requested_reasoning_effort,
-                )
-                _append_task_route_trace(
-                    task_id,
-                    'chatgpt_pool',
-                    'succeeded',
-                    'ChatGPT 账号池 API 成功返回',
-                    elapsed_seconds=int(time.monotonic() - route_started),
-                )
-                pool_result['route_trace'] = (get_task(task_id) or {}).get('params', {}).get('route_trace')
-                return pool_result, 'chatgpt_pool', primary_error
-            pool_error = pool_result.get('error', 'ChatGPT 账号池托底失败')
-            _append_task_route_trace(
-                task_id,
-                'chatgpt_pool',
-                'failed',
-                pool_error,
-                elapsed_seconds=int(time.monotonic() - route_started),
-            )
-            print(f"⚠️ ChatGPT 账号池托底失败：{pool_error}")
-    else:
-        pool_error = 'ChatGPT account pool sidecar disabled'
-        _append_task_route_trace(task_id, 'chatgpt_pool', 'skipped', pool_error)
-
-    if _is_task_canceled(task_id):
-        return {"success": False, "canceled": True, "error": "canceled"}, 'canceled', primary_error
-
-    fallback_text = f'{provider_error_text}，切换账号池托底...'
-    update_task_status(task_id, 'fallback_running', fallback_text, stage='fallback_running')
-    if pool_error:
-        send_status_notification(task_id, f'{_format_gpt_pool_error(pool_error)}，切换账号池托底中...', '🛟')
-    else:
-        send_status_notification(task_id, f'{provider_error_text}，切换账号池托底中...', '🛟')
-
-    failure_message = f"本地 provider 失败：{primary_error} | 账号池托底失败：{pool_error}"
-    if isinstance(pool_result, dict):
-        raise ChatgptPoolGenerationError(failure_message, pool_result)
-    raise RuntimeError(failure_message)
 
 
 def _make_gpt_image_progress_callback(task_id, requested_count):
-    try:
-        total = max(1, int(requested_count or 1))
-    except (TypeError, ValueError):
-        total = 1
-
-    def on_image_saved(partial_result, saved_count, total_count):
-        if _is_task_canceled(task_id):
-            return
-        result_files = _result_image_filenames(partial_result)
-        if not result_files:
-            return
-        expected_total = max(1, int(total_count or total))
-        visible_count = len(result_files)
-        progress_text = f'GPT 图片生成中（已完成 {visible_count}/{expected_total} 张）'
-        update_task_status(
-            task_id,
-            'processing',
-            progress_text,
-            stage='generating_images',
-            result_file=result_files[0],
-            result_files=json.dumps(result_files, ensure_ascii=False),
-        )
-
-    return on_image_saved
+    return _domain_services_generation_progress._make_gpt_image_progress_callback(
+        task_id, requested_count, _is_task_canceled=_is_task_canceled,
+        _result_image_filenames=_result_image_filenames, json=json, update_task_status=update_task_status,
+    )
 
 
 def _make_gpt_provider_wait_callback(task_id):
-    def on_wait(label, elapsed_seconds, remaining_seconds):
-        update_task_fields(
-            task_id,
-            stage='calling_gpt',
-            progress_text=f'正在等待本地 GPT provider 返回（已等待 {elapsed_seconds}s）...',
-            heartbeat_at=int(time.time()),
-        )
-
-    return on_wait
+    return _domain_services_generation_progress._make_gpt_provider_wait_callback(task_id, time=time, update_task_fields=update_task_fields)
 
 
 def _make_gpt_pool_wait_callback(task_id):
-    def on_wait(label, elapsed_seconds, remaining_seconds):
-        update_task_fields(
-            task_id,
-            stage='fallback_running',
-            progress_text=f'正在等待 ChatGPT 账号池返回（已等待 {elapsed_seconds}s）...',
-            heartbeat_at=int(time.time()),
-        )
-
-    return on_wait
+    return _domain_services_generation_progress._make_gpt_pool_wait_callback(task_id, time=time, update_task_fields=update_task_fields)
 
 
 def _format_download_bytes(value):
-    try:
-        size = max(0, int(value or 0))
-    except (TypeError, ValueError):
-        size = 0
-    if size >= 1024 * 1024:
-        return f'{size / 1024 / 1024:.1f} MB'
-    if size >= 1024:
-        return f'{size / 1024:.0f} KB'
-    return f'{size} B'
+    return _domain_services_generation_progress._format_download_bytes(value)
 
 
 def _third_party_download_progress_percent(event):
-    try:
-        count = max(1, int(event.get('item_count') or 1))
-    except (TypeError, ValueError):
-        count = 1
-    try:
-        index = max(1, min(count, int(event.get('item_index') or 1)))
-    except (TypeError, ValueError):
-        index = 1
-    try:
-        bytes_received = max(0, int(event.get('bytes_received') or 0))
-    except (TypeError, ValueError):
-        bytes_received = 0
-    try:
-        total_bytes = max(0, int(event.get('total_bytes') or 0))
-    except (TypeError, ValueError):
-        total_bytes = 0
-
-    name = str(event.get('event') or '')
-    if name.startswith('response_'):
-        if name == 'response_complete':
-            response_ratio = 1.0
-        elif total_bytes > 0:
-            response_ratio = max(0.0, min(0.98, bytes_received / total_bytes))
-        elif bytes_received > 0:
-            response_ratio = max(0.0, min(0.9, bytes_received / (16 * 1024 * 1024)))
-        else:
-            return 54 if name == 'response_headers' else (55 if name == 'response_first_byte' else 52)
-        return max(52, min(69, round(55 + response_ratio * 14)))
-    if name == 'download_complete':
-        item_ratio = 1.0
-    elif total_bytes > 0:
-        item_ratio = max(0.0, min(0.98, bytes_received / total_bytes))
-    elif bytes_received > 0:
-        item_ratio = max(0.0, min(0.85, bytes_received / (12 * 1024 * 1024)))
-    else:
-        item_ratio = 0.0
-    overall_ratio = ((index - 1) + item_ratio) / count
-    return max(70, min(95, round(70 + overall_ratio * 25)))
+    return _domain_services_generation_progress._third_party_download_progress_percent(event)
 
 
 def _make_third_party_download_progress_callback(task_id):
-    recorded_events = set()
-    recorded_request_ids = set()
-
-    def on_progress(event):
-        if _is_task_canceled(task_id):
-            return
-        if not isinstance(event, dict):
-            return
-        name = str(event.get('event') or '').strip()
-        if not name:
-            return
-        try:
-            index = max(1, int(event.get('item_index') or 1))
-        except (TypeError, ValueError):
-            index = 1
-        try:
-            count = max(1, int(event.get('item_count') or 1))
-        except (TypeError, ValueError):
-            count = 1
-        try:
-            bytes_received = max(0, int(event.get('bytes_received') or 0))
-        except (TypeError, ValueError):
-            bytes_received = 0
-        try:
-            total_bytes = max(0, int(event.get('total_bytes') or 0))
-        except (TypeError, ValueError):
-            total_bytes = 0
-        progress = _third_party_download_progress_percent(event)
-        size_text = _format_download_bytes(bytes_received)
-        total_text = _format_download_bytes(total_bytes) if total_bytes else ''
-        image_suffix = f' {index}/{count}' if count > 1 else ''
-        is_response_event = name.startswith('response_')
-        stage = 'receiving_third_party_response' if is_response_event else 'downloading_third_party_image'
-        extra = {
-            'progress': progress,
-            'bytes_received': bytes_received,
-        }
-        severity = 'info'
-        event_type = ''
-
-        request_id = str(event.get('request_id') or '').strip()
-        if request_id and request_id not in recorded_request_ids:
-            recorded_request_ids.add(request_id)
-            _merge_task_params(task_id, {'third_party_request_id': request_id})
-
-        if name == 'response_start':
-            message = '正在连接并发送第三方请求，等待生成结果...'
-            event_type = 'third_party_response_started'
-        elif name == 'response_headers':
-            message = '第三方 API 已建立响应，正在等待结果数据...'
-            event_type = 'third_party_response_headers'
-        elif name == 'response_first_byte':
-            message = '第三方 API 已返回首字节，正在接收结果...'
-            extra['first_byte_at'] = int(time.time())
-            if event.get('ttfb_ms') is not None:
-                extra['ttfb_ms'] = max(0, int(event.get('ttfb_ms') or 0))
-            event_type = 'third_party_response_first_byte'
-        elif name == 'response_progress':
-            if total_text:
-                message = f'正在接收第三方 API 结果：{size_text}/{total_text}'
-            else:
-                message = f'正在接收第三方 API 结果：已接收 {size_text}'
-        elif name == 'response_complete':
-            message = '第三方 API 结果已完整接收，正在解析并保存...'
-            event_type = 'third_party_response_completed'
-        elif name == 'download_start':
-            message = f'正在下载第三方图片{image_suffix}...'
-            event_type = 'third_party_download_started'
-        elif name == 'download_first_byte':
-            message = f'第三方图片{image_suffix}已开始返回，正在下载...'
-            extra['first_byte_at'] = int(time.time())
-        elif name == 'download_progress':
-            if total_text:
-                message = f'正在下载第三方图片{image_suffix}：{size_text}/{total_text}'
-            else:
-                message = f'正在下载第三方图片{image_suffix}：已接收 {size_text}'
-        elif name == 'download_retry':
-            next_attempt = event.get('next_attempt') or event.get('attempt') or 1
-            max_attempts = event.get('max_attempts') or 1
-            message = f'第三方图片下载中断，正在重试 {next_attempt}/{max_attempts}...'
-            extra['transport_error_type'] = str(event.get('error_type') or 'download_retry')
-            severity = 'warning'
-            event_type = 'third_party_download_retry'
-        elif name == 'download_complete':
-            message = f'第三方图片{image_suffix}下载完成，正在保存...'
-            event_type = 'third_party_download_completed'
-        else:
-            return
-
-        update_task_status(task_id, 'processing', message, stage=stage, **extra)
-        if event_type:
-            event_key = (event_type, index, event.get('attempt'), event.get('next_attempt'))
-            if event_key not in recorded_events:
-                recorded_events.add(event_key)
-                payload = {
-                    key: event.get(key)
-                    for key in (
-                        'attempt',
-                        'next_attempt',
-                        'max_attempts',
-                        'item_index',
-                        'item_count',
-                        'bytes_received',
-                        'total_bytes',
-                        'error_type',
-                        'request_id',
-                        'content_type',
-                        'deadline_seconds',
-                        'headers_elapsed_ms',
-                        'ttfb_ms',
-                        'completed_before_eof',
-                    )
-                    if event.get(key) is not None
-                }
-                _record_generation_event(task_id, event_type, message, stage=stage, severity=severity, payload=payload)
-
-    return on_progress
+    return _domain_services_generation_progress._make_third_party_download_progress_callback(
+        task_id, _format_download_bytes=_format_download_bytes, _is_task_canceled=_is_task_canceled,
+        _merge_task_params=_merge_task_params, _record_generation_event=_record_generation_event, _third_party_download_progress_percent=_third_party_download_progress_percent,
+        time=time, update_task_status=update_task_status,
+    )
 
 
 def _is_task_canceled(task_id):
-    task = get_task(task_id)
-    return str(task.get('status') if task else '') == 'canceled'
+    return _domain_services_task_tracking._is_task_canceled(task_id, get_task=get_task)
 
 
 def _finish_canceled_gpt_task(task_id, result=None):
-    result = result or {}
-    result_files = _result_image_filenames(result) if result.get('image_path') or result.get('image_paths') else []
-    progress_text = f'任务已取消，已保留 {len(result_files)} 张图' if result_files else '任务已取消'
-    route = _generation_run_route(task_id, result.get('gpt_provider_route') or result.get('fallback_source') or '')
-    provider = 'chatgpt_pool'
-    if 'third_party' in route:
-        provider = 'third_party_image_api'
-    elif 'codex' in route:
-        provider = 'codex'
-    _finalize_generation_task(
-        task_id,
-        'canceled',
-        run_id=_generation_last_run_id(task_id),
-        provider=provider,
-        route=route,
-        task_type=(get_task(task_id) or {}).get('type') or 'gpt',
-        result_file=result_files[0] if result_files else None,
-        stage='canceled',
-        progress_text=progress_text,
-        result_files=result_files,
-        image_count=len(result_files),
-        error_type='UserCanceled',
+    return _domain_services_task_tracking._finish_canceled_gpt_task(
+        task_id, result, _finalize_generation_task=_finalize_generation_task,
+        _generation_last_run_id=_generation_last_run_id, _generation_run_route=_generation_run_route, _record_generation_event=_record_generation_event,
+        _result_image_filenames=_result_image_filenames, get_task=get_task, send_status_notification=send_status_notification,
     )
-    _record_generation_event(task_id, 'run_canceled', progress_text, stage='canceled', severity='warning', payload={'route': route, 'image_count': len(result_files)})
-    send_status_notification(task_id, progress_text, '⏹')
-    print(f"⏹ GPT 任务已取消：{task_id}（保留 {len(result_files)} 张）")
 
 
 def process_gpt_editable_file_task(
@@ -12825,822 +4149,87 @@ def process_gpt_editable_file_task(
     telegram_enabled=True,
 ):
     """后台线程：PPT 走账号池，PSD 可走模型原生图片编辑线路。"""
-    run_id = ''
-    task_kind = 'gpt-file'
-    task_provider = 'chatgpt_pool'
-    task_route = 'chatgpt_pool_editable'
-    try:
-        kind = _coerce_gpt_task_type(kind)
-        if kind not in ('ppt', 'psd'):
-            raise RuntimeError('不支持的可编辑文件类型')
-        images = [str(item or '').strip() for item in (base64_images or []) if str(item or '').strip()]
-        if kind == 'psd' and not images:
-            raise RuntimeError('PSD 任务需要至少一张参考图')
-
-        requested_route = _coerce_gpt_provider_route(gpt_provider_route)
-        selected_route = 'chatgpt_pool' if kind == 'ppt' else requested_route
-        task_params = (get_task(task_id) or {}).get('params') or {}
-        requested_main_model = _coerce_gpt_main_model(task_params.get('main_model'))
-        requested_reasoning_effort = _coerce_gpt_reasoning_effort(task_params.get('reasoning_effort'))
-        route_resolution = resolve_route_model(
-            selected_route,
-            requested_main_model,
-            reasoning_effort=requested_reasoning_effort,
-        )
-        main_model = route_resolution.get('model') or requested_main_model
-        reasoning_effort = route_resolution.get('reasoning_effort') or requested_reasoning_effort
-        codex_unavailable_error = ''
-        if kind == 'psd' and selected_route == 'codex' and not route_resolution.get('available'):
-            codex_unavailable_error = route_resolution.get('warning') or '当前 Codex 账号没有可用的 PSD 图片编辑模型'
-            if get_chatgpt_pool_config(ensure_auth_key=True).get('enabled'):
-                selected_route = 'chatgpt_pool'
-
-        def apply_selected_route(route):
-            nonlocal selected_route, task_provider, task_route
-            selected_route = route
-            task_provider = 'third_party_image_api' if route == 'third_party_image_api' else ('codex' if route == 'codex' else 'chatgpt_pool')
-            task_route = 'third_party_image_api_edit' if route == 'third_party_image_api' else ('codex_edit' if route == 'codex' else 'chatgpt_pool_editable')
-
-        apply_selected_route(selected_route)
-        _merge_task_params(task_id, {
-            'task_type': kind,
-            'artifact_type': kind,
-            'requested_gpt_provider_route': requested_route,
-            'gpt_provider_route': selected_route,
-            'prompt_mode': prompt_mode,
-            'main_model': main_model,
-            'reasoning_effort': reasoning_effort,
-            'archive_enabled': bool(archive_enabled),
-            'telegram_enabled': bool(telegram_enabled),
-        })
-        run_id = _start_generation_audit(
-            task_id,
-            task_kind,
-            prompt,
-            (get_task(task_id) or {}).get('params') or {},
-            provider=task_provider,
-            route=task_route,
-            stage='preparing',
-        )
-        print(f"📄 开始处理 {kind.upper()} 文件任务：{task_id}")
-        send_status_notification(task_id, f'已提交 {kind.upper()} 文件任务，请等待...', '✅')
-        update_task_status(task_id, 'preparing', f'正在准备 {kind.upper()} 文件任务...', stage='preparing')
-        if codex_unavailable_error:
-            _append_task_route_trace(task_id, 'codex_edit', 'skipped', codex_unavailable_error)
-            if selected_route != 'chatgpt_pool':
-                raise RuntimeError(codex_unavailable_error)
-
-        provider_labels = {
-            'codex': '本地 Codex 原生图片能力',
-            'third_party_image_api': '第三方原生图片 API',
-            'chatgpt_pool': 'ChatGPT 账号池 Web API',
-        }
-
-        def call_selected_provider():
-            label = provider_labels[selected_route]
-            stage = 'calling_chatgpt_pool' if selected_route == 'chatgpt_pool' else ('calling_third_party_image_api' if selected_route == 'third_party_image_api' else 'calling_gpt_edit')
-            update_task_status(task_id, 'processing', f'正在调用 {label}...', stage=stage)
-            _append_task_route_trace(task_id, task_route, 'started', f'正在生成 {kind.upper()} 文件')
-            _record_generation_event(
-                task_id,
-                'provider_call_started',
-                f'开始调用 {label} 生成 {kind.upper()} 文件',
-                stage=stage,
-                payload={'provider': task_provider, 'route': task_route, 'artifact_type': kind},
-            )
-            if selected_route == 'chatgpt_pool':
-                return generate_editable_file_gpt_pool(kind=kind, prompt=prompt, base64_images=images, task_id=task_id)
-            provider_env = None
-            codex_auth_source = ''
-            if selected_route == 'codex':
-                provider_env, codex_auth_source = _resolve_codex_provider_env()
-            native_result = generate_editable_psd_native(
-                route=selected_route,
-                prompt=prompt,
-                base64_images=images,
-                ratio=_coerce_image_ratio(task_params.get('ratio'), '1:1'),
-                resolution=_coerce_gpt_resolution(task_params.get('resolution')),
-                quality='high',
-                moderation=_coerce_gpt_moderation(task_params.get('moderation', 'auto')),
-                prompt_mode=prompt_mode,
-                main_model=main_model,
-                reasoning_effort=reasoning_effort,
-                total_timeout_seconds=_coerce_gpt_provider_total_timeout(None),
-                on_provider_wait=_make_gpt_provider_wait_callback(task_id),
-                progress_callback=_make_third_party_download_progress_callback(task_id),
-                provider_env=provider_env,
-            )
-            if codex_auth_source:
-                native_result['codex_auth_source'] = codex_auth_source
-            if native_result.get('success'):
-                _annotate_gpt_route_result(
-                    native_result,
-                    route_resolution,
-                    requested_route=requested_route,
-                    requested_model=requested_main_model,
-                    requested_reasoning_effort=requested_reasoning_effort,
-                )
-            return native_result
-
-        result = call_selected_provider()
-        if not result.get('success') and kind == 'psd' and selected_route == 'codex':
-            primary_error = result.get('error') or 'Codex PSD 生成失败'
-            _append_task_route_trace(task_id, task_route, 'failed', primary_error)
-            pool_cfg = get_chatgpt_pool_config(ensure_auth_key=True)
-            if pool_cfg.get('enabled'):
-                update_task_status(task_id, 'fallback_running', 'Codex PSD 生成失败，正在切换账号池托底...', stage='fallback_running')
-                send_status_notification(task_id, 'Codex PSD 生成失败，切换账号池托底中...', '🛟')
-                apply_selected_route('chatgpt_pool')
-                _merge_task_params(task_id, {
-                    'gpt_provider_route': selected_route,
-                    'psd_fallback_from': 'codex',
-                    'psd_primary_error': str(primary_error)[:800],
-                })
-                result = call_selected_provider()
-        if not result.get('success'):
-            error = result.get('error') or f'{provider_labels[selected_route]}可编辑文件任务失败'
-            _append_task_route_trace(task_id, task_route, 'failed', error)
-            raise RuntimeError(_format_gpt_pool_error(error) if selected_route == 'chatgpt_pool' else _format_gpt_provider_error(error))
-        if _is_task_canceled(task_id):
-            update_task(task_id, 'canceled', stage='canceled', progress_text='任务已取消')
-            return
-
-        update_task_status(task_id, 'processing', '正在保存文件产物...', stage='saving')
-        manifest = save_editable_artifacts(
-            kind=kind,
-            prompt=prompt,
-            primary=result.get('primary') or {},
-            zip_artifact=result.get('zip') if isinstance(result.get('zip'), dict) else None,
-            task_id=task_id,
-            conversation_id=str(result.get('conversation_id') or ''),
-            archive_enabled=bool(archive_enabled),
-            strict_psd_validation=(kind == 'psd'),
-        )
-        _record_generation_event(task_id, 'artifact_saved', f'{kind.upper()} 文件产物已保存', stage='saving', payload={'artifact_type': kind, 'result_count': len(manifest.get("result_files") or [])})
-        _append_task_route_trace(task_id, task_route, 'succeeded', f'{kind.upper()} 文件生成成功')
-        _merge_task_params(task_id, {
-            'file_manifest': manifest,
-            'file_manifest_url': manifest.get('manifest_url'),
-            'editable_preview_status': (manifest.get('preview') or {}).get('status'),
-            'editable_artifact_type': kind,
-            'gpt_provider_route': selected_route,
-            'codex_auth_source': result.get('codex_auth_source'),
-            'generated_transparent_path': result.get('generated_transparent_path'),
-        })
-
-        result_files = manifest.get('result_files') or []
-        primary_file = (manifest.get('primary') or {}).get('relative_path') or (result_files[0] if result_files else '')
-        telegram_success = False
-        primary_path = (manifest.get('primary') or {}).get('path')
-        if telegram_enabled and primary_path:
-            update_task_status(task_id, 'processing', '正在发送到 Telegram...', stage='sending_telegram')
-            _record_generation_event(task_id, 'telegram_send_started', f'开始发送 {kind.upper()} 文件到 Telegram', stage='sending_telegram')
-            caption = f"📎 {kind.upper()} 文件"
-            if prompt:
-                caption += "\n" + (prompt[:420] + ("..." if len(prompt) > 420 else ""))
-            telegram_success = send_telegram(None, primary_path, caption[:900])
-        else:
-            _record_generation_event(task_id, 'telegram_send_skipped', '已按节点开关跳过 Telegram', stage='saving')
-
-        status = 'succeeded' if (telegram_success or not telegram_enabled) else 'succeeded_no_telegram'
-        if telegram_success:
-            progress = f'{kind.upper()} 文件生成成功'
-        elif telegram_enabled:
-            progress = f'{kind.upper()} 文件已保存，Telegram 发送失败'
-        else:
-            progress = f'{kind.upper()} 文件生成成功，已按节点开关跳过 Telegram'
-        _finalize_generation_task(
-            task_id,
-            status,
-            run_id=run_id,
-            provider=task_provider,
-            route=task_route,
-            task_type=task_kind,
-            result_file=primary_file,
-            stage='done',
-            progress_text=progress,
-            result_files=result_files,
-            image_count=len(result_files),
-            extra={'artifact_type': kind, 'conversation_id': str(result.get('conversation_id') or '')},
-        )
-        _record_generation_event(task_id, 'run_succeeded', progress, stage='done', payload={'provider': task_provider, 'route': task_route, 'artifact_type': kind, 'result_count': len(result_files)})
-        send_status_notification(task_id, f'✅ {kind.upper()} 文件生成成功！', '🎉')
-        print(f"✅ {kind.upper()} 文件任务成功：{task_id}")
-
-    except Exception as e:
-        if _is_task_canceled(task_id):
-            _finalize_generation_task(
-                task_id,
-                'canceled',
-                run_id=run_id,
-                stage='canceled',
-                progress_text='任务已取消',
-                error_type='UserCanceled',
-                provider=task_provider,
-                route=task_route,
-                task_type=task_kind,
-                extra={'artifact_type': kind if 'kind' in locals() else ''},
-            )
-            return
-        raw_error_msg = str(e)
-        error_type = type(e).__name__
-        error_info = _translate_generation_failure(
-            task_id,
-            raw_error_msg,
-            provider=task_provider,
-            route=task_route,
-            task_type=task_kind,
-            stage='failed',
-            exception_name=error_type,
-        )
-        error_msg = error_info.get('display_error') or _format_gpt_failure_error(raw_error_msg)
-        print(f"❌ 可编辑文件任务失败：{task_id} - {raw_error_msg}")
-        _finalize_generation_task(task_id, 'failed', run_id=run_id, stage='failed', progress_text=error_msg, error_info=error_info, error_type=error_type, provider=task_provider, route=task_route, task_type=task_kind, extra={'artifact_type': kind if 'kind' in locals() else ''})
-        send_status_notification(task_id, f'❌ 文件生成失败：{error_msg[:100]}', '⚠️')
+    return _domain_services_editable_generation.process_gpt_editable_file_task(
+        task_id, kind, prompt,
+        base64_images, prompt_mode, gpt_provider_route,
+        archive_enabled, telegram_enabled, _annotate_gpt_route_result=_annotate_gpt_route_result,
+        _append_task_route_trace=_append_task_route_trace, _coerce_gpt_main_model=_coerce_gpt_main_model, _coerce_gpt_moderation=_coerce_gpt_moderation,
+        _coerce_gpt_provider_route=_coerce_gpt_provider_route, _coerce_gpt_provider_total_timeout=_coerce_gpt_provider_total_timeout, _coerce_gpt_reasoning_effort=_coerce_gpt_reasoning_effort,
+        _coerce_gpt_resolution=_coerce_gpt_resolution, _coerce_gpt_task_type=_coerce_gpt_task_type, _coerce_image_ratio=_coerce_image_ratio,
+        _finalize_generation_task=_finalize_generation_task, _format_gpt_failure_error=_format_gpt_failure_error, _format_gpt_pool_error=_format_gpt_pool_error,
+        _format_gpt_provider_error=_format_gpt_provider_error, _is_task_canceled=_is_task_canceled, _make_gpt_provider_wait_callback=_make_gpt_provider_wait_callback,
+        _make_third_party_download_progress_callback=_make_third_party_download_progress_callback, _merge_task_params=_merge_task_params, _record_generation_event=_record_generation_event,
+        _resolve_codex_provider_env=_resolve_codex_provider_env, _start_generation_audit=_start_generation_audit, _translate_generation_failure=_translate_generation_failure,
+        generate_editable_file_gpt_pool=generate_editable_file_gpt_pool, generate_editable_psd_native=generate_editable_psd_native, get_chatgpt_pool_config=get_chatgpt_pool_config,
+        get_task=get_task, resolve_route_model=resolve_route_model, save_editable_artifacts=save_editable_artifacts,
+        send_status_notification=send_status_notification, send_telegram=send_telegram, update_task=update_task,
+        update_task_status=update_task_status,
+    )
 
 def process_gpt_task(task_id, prompt, ratio, resolution, quality='auto', image_count=1, moderation='auto', prompt_mode='smart', main_model=None, reasoning_effort=None, gpt_provider_route='codex', use_third_party_api=False, archive_enabled=True, telegram_enabled=True):
     """后台线程：处理 GPT 任务（Codex 托管授权优先，再账号池托底）"""
-    run_id = ''
-    task_kind = 'gpt'
-    task_provider = 'codex'
-    task_route = 'codex'
-    try:
-        ratio = _effective_image_ratio(prompt, ratio, '1:1')
-        prompt_mode = _effective_prompt_mode(prompt, prompt_mode)
-        requested_main_model = _coerce_gpt_main_model(main_model)
-        main_model = requested_main_model
-        requested_reasoning_effort = _coerce_gpt_reasoning_effort(reasoning_effort)
-        reasoning_effort = requested_reasoning_effort
-        gpt_provider_route = _coerce_gpt_provider_route(gpt_provider_route)
-        use_third_party_api = _gpt_route_uses_third_party(gpt_provider_route) or _coerce_use_third_party_api(use_third_party_api)
-        archive_enabled = _coerce_bool(archive_enabled, True)
-        telegram_enabled = _coerce_bool(telegram_enabled, True)
-        _merge_task_params(task_id, {
-            'ratio': ratio,
-            'archive_enabled': archive_enabled,
-            'telegram_enabled': telegram_enabled,
-            **({
-                'prompt_fidelity_locked': True,
-                'source_ratio_locked': True,
-            } if _is_generic_19_fidelity_prompt(prompt) else {}),
-        })
-        task_route = 'third_party_image_api' if use_third_party_api else _coerce_gpt_provider_route(gpt_provider_route)
-        task_provider = 'third_party_image_api' if use_third_party_api else ('chatgpt_pool' if task_route == 'chatgpt_pool' else 'codex')
-        run_id = _start_generation_audit(
-            task_id,
-            task_kind,
-            prompt,
-            (get_task(task_id) or {}).get('params') or {},
-            provider=task_provider,
-            route=task_route,
-            stage='preparing',
-        )
-        print(f"🎨 开始处理 GPT 任务：{task_id}（目标 {image_count} 张）")
-
-        send_status_notification(task_id, '已提交 GPT 图片生成任务，请等待...', '✅')
-        update_task_status(task_id, 'preparing', '正在准备生成...')
-        update_task_status(task_id, 'processing', 'GPT 生成中...')
-
-        primary_error = None
-        prompt_meta = {}
-        if _coerce_prompt_mode(prompt_mode) == 'web_search' and use_third_party_api:
-            prompt, prompt_meta = _prepare_web_search_generation_prompt(task_id, prompt)
-        if use_third_party_api:
-            third_party_model = resolve_route_model(
-                'third_party_image_api',
-                requested_main_model,
-                reasoning_effort=requested_reasoning_effort,
-            )
-            main_model = third_party_model.get('model') or requested_main_model
-            reasoning_effort = third_party_model.get('reasoning_effort') or 'none'
-            route_started = time.monotonic()
-            _append_task_route_trace(task_id, 'third_party_image_api', 'started', '正在调用第三方图片 API')
-            update_task_status(task_id, 'processing', '正在调用第三方图片 API...', stage='calling_third_party_image_api')
-            send_status_notification(task_id, '生成中... 正在调用第三方图片 API...', '🧩')
-            _record_generation_event(task_id, 'provider_call_started', '开始调用第三方图片 API', stage='calling_third_party_image_api', payload={'provider': 'third_party_image_api', 'route': 'third_party_image_api'})
-            result = generate_image_third_party(
-                prompt,
-                ratio,
-                resolution,
-                quality,
-                image_count=image_count,
-                progress_callback=_make_third_party_download_progress_callback(task_id),
-            )
-            result['fallback_source'] = 'third_party_image_api'
-            result['gpt_provider_route'] = 'third_party_image_api'
-            result['prompt_mode'] = prompt_mode
-            _annotate_gpt_route_result(
-                result,
-                third_party_model,
-                requested_route=gpt_provider_route,
-                requested_model=requested_main_model,
-                requested_reasoning_effort=requested_reasoning_effort,
-            )
-            if prompt_meta:
-                result.update(prompt_meta)
-            _append_task_route_trace(
-                task_id,
-                'third_party_image_api',
-                'succeeded',
-                '第三方图片 API 成功返回',
-                elapsed_seconds=int(time.monotonic() - route_started),
-            )
-            result['route_trace'] = (get_task(task_id) or {}).get('params', {}).get('route_trace')
-            source = 'third_party_image_api'
-        else:
-            result, source, primary_error = _generate_gpt_with_pool_fallback(
-                task_id, prompt, ratio, resolution, quality, image_count=image_count, moderation=moderation, prompt_mode=prompt_mode, main_model=main_model, reasoning_effort=requested_reasoning_effort, gpt_provider_route=gpt_provider_route
-            )
-        if source == 'canceled' or _is_task_canceled(task_id):
-            _finish_canceled_gpt_task(task_id, result)
-            return
-        if _is_task_canceled(task_id):
-            _finish_canceled_gpt_task(task_id, result)
-            return
-
-        resolution_meta = _augment_result_resolution_metadata(result, resolution)
-        delivery_resolution = resolution_meta.get('effective_resolution') or result.get('effective_resolution') or resolution
-        telegram_success = False
-        if telegram_enabled:
-            update_task_status(task_id, 'processing', '正在发送到 Telegram...', stage='sending_telegram')
-            send_status_notification(task_id, '生成中... 正在发送图片...', '📤')
-            _record_generation_event(task_id, 'telegram_send_started', '开始发送 GPT 图片到 Telegram', stage='sending_telegram')
-            if _is_task_canceled(task_id):
-                _finish_canceled_gpt_task(task_id, result)
-                return
-            telegram_success = send_telegram_result(
-                result['image_path'],
-                prompt,
-                ratio,
-                delivery_resolution,
-                image_paths=result.get('image_paths'),
-            )
-        else:
-            update_task_status(task_id, 'processing', 'Telegram 已关闭，正在整理结果...', stage='saving')
-            _record_generation_event(task_id, 'telegram_send_skipped', '已按节点开关跳过 Telegram', stage='saving')
-
-        result_files = _result_image_filenames(result)
-        _merge_task_params(task_id, {
-            'prompt_mode': result.get('prompt_mode') or prompt_mode,
-            'gpt_provider_route': result.get('gpt_provider_route') or gpt_provider_route,
-            'use_third_party_api': use_third_party_api,
-            'archive_enabled': archive_enabled,
-            'telegram_enabled': telegram_enabled,
-            'third_party_api': bool(result.get('third_party_api')),
-            'requested_resolution': result.get('requested_resolution') or resolution,
-            'actual_resolution': result.get('actual_resolution'),
-            'actual_resolutions': result.get('actual_resolutions'),
-            'effective_resolution': result.get('effective_resolution'),
-            'resolution_mismatch': result.get('resolution_mismatch'),
-            'requested_size': result.get('requested_size'),
-            'actual_width': result.get('actual_width'),
-            'actual_height': result.get('actual_height'),
-            'actual_size': result.get('actual_size'),
-            'actual_megapixels': result.get('actual_megapixels'),
-            'main_model': result.get('main_model') or main_model,
-            'requested_main_model': result.get('requested_main_model') or requested_main_model,
-            'model_fallback_from': result.get('model_fallback_from'),
-            'requested_gpt_provider_route': result.get('requested_gpt_provider_route') or gpt_provider_route,
-            'reasoning_effort': result.get('reasoning_effort') or reasoning_effort,
-            'requested_reasoning_effort': result.get('requested_reasoning_effort') or requested_reasoning_effort,
-            'reasoning_fallback_from': result.get('reasoning_fallback_from'),
-            'model_role': result.get('model_role'),
-            'model_catalog_source': result.get('model_catalog_source'),
-            'image_engine': result.get('image_engine'),
-            'image_engine_label': result.get('image_engine_label'),
-            'provider_total_timeout_seconds': _coerce_gpt_provider_total_timeout(None),
-            'codex_auth_source': result.get('codex_auth_source'),
-            'route_trace': result.get('route_trace'),
-            'revised_prompt': result.get('revised_prompt'),
-            'revised_prompts': result.get('revised_prompts'),
-            'fallback_source': result.get('fallback_source'),
-            'prompt_optimized': result.get('prompt_optimized'),
-            'prompt_optimized_by': result.get('prompt_optimized_by'),
-            'prompt_skill_provider': result.get('prompt_skill_provider'),
-            'prompt_skill_model': result.get('prompt_skill_model'),
-            'prompt_skill': result.get('prompt_skill'),
-            'prompt_skill_output': result.get('prompt_skill_output'),
-            'prompt_skill_latency_seconds': result.get('prompt_skill_latency_seconds'),
-            'original_prompt': result.get('original_prompt'),
-            'optimized_prompt': result.get('optimized_prompt'),
-            'prompt_polish_error': result.get('prompt_polish_error'),
-            'web_search_answer': result.get('web_search_answer'),
-            'web_search_sources': result.get('web_search_sources'),
-            'web_search_conversation_id': result.get('web_search_conversation_id'),
-            'web_search_model': result.get('web_search_model'),
-            'actual_sizes': result.get('actual_sizes'),
-            'render_contract_warnings': result.get('render_contract_warnings'),
-            'partial_errors': result.get('partial_errors'),
-        })
-        requested_count = max(1, int(image_count or 1))
-        actual_count = len(result_files) or len(result.get('image_paths') or [result.get('image_path')])
-        filename = result_files[0] if result_files else os.path.basename(result['image_path'])
-        if telegram_success or not telegram_enabled:
-            if not telegram_enabled:
-                progress_text = 'GPT 图片生成成功，已按节点开关跳过 Telegram'
-            elif actual_count < requested_count:
-                progress_text = f'GPT 图片生成完成（{actual_count}/{requested_count} 张）'
-            elif result.get('render_contract_warnings'):
-                progress_text = 'GPT 图片生成成功（注意：实际尺寸/比例与请求不完全一致）'
-            else:
-                progress_text = f'GPT 图片生成成功（共 {actual_count} 张）' if actual_count > 1 else 'GPT 图片生成成功'
-            _finalize_generation_task(
-                task_id,
-                'succeeded',
-                run_id=run_id,
-                provider='third_party_image_api' if source == 'third_party_image_api' else ('chatgpt_pool' if source == 'chatgpt_pool' else 'codex'),
-                route=result.get('gpt_provider_route') or source or task_route,
-                task_type=task_kind,
-                result_file=filename,
-                progress_text=progress_text,
-                result_files=result_files,
-                image_count=actual_count,
-                extra={'fallback_source': result.get('fallback_source'), 'render_contract_warnings': result.get('render_contract_warnings'), 'partial_errors': result.get('partial_errors')},
-            )
-            _record_generation_event(task_id, 'run_succeeded', progress_text, stage='done', payload={'provider': 'third_party_image_api' if source == 'third_party_image_api' else ('chatgpt_pool' if source == 'chatgpt_pool' else 'codex'), 'route': result.get('gpt_provider_route') or source or task_route, 'image_count': actual_count, 'partial_errors': result.get('partial_errors')})
-            send_status_notification(task_id, '✅ GPT 图片生成成功！', '🎉')
-            print(f"✅ GPT 任务成功：{task_id} ({source})")
-        else:
-            progress_text = 'GPT 图片已生成，但 Telegram 发送失败'
-            _finalize_generation_task(
-                task_id,
-                'succeeded_no_telegram',
-                run_id=run_id,
-                provider='third_party_image_api' if source == 'third_party_image_api' else ('chatgpt_pool' if source == 'chatgpt_pool' else 'codex'),
-                route=result.get('gpt_provider_route') or source or task_route,
-                task_type=task_kind,
-                result_file=filename,
-                progress_text=progress_text,
-                result_files=result_files,
-                image_count=actual_count,
-                extra={'fallback_source': result.get('fallback_source'), 'partial_errors': result.get('partial_errors')},
-            )
-            _record_generation_event(task_id, 'run_succeeded', progress_text, stage='done', payload={'provider': 'third_party_image_api' if source == 'third_party_image_api' else ('chatgpt_pool' if source == 'chatgpt_pool' else 'codex'), 'route': result.get('gpt_provider_route') or source or task_route, 'image_count': actual_count, 'telegram_enabled': telegram_enabled, 'partial_errors': result.get('partial_errors')})
-            print(f"⚠️ GPT 任务完成但未发送 Telegram: {task_id} ({source})")
-
-    except Exception as e:
-        raw_error_msg = str(e)
-        error_type = type(e).__name__
-        pool_failure = _chatgpt_pool_failure_metadata(e)
-        if pool_failure:
-            _merge_task_params(task_id, {'provider_failure': pool_failure})
-        error_info = _translate_generation_failure(
-            task_id,
-            raw_error_msg,
-            provider=task_provider,
-            route=task_route,
-            task_type=task_kind,
-            stage='failed',
-            exception_name=error_type,
-        )
-        if pool_failure.get('error_code'):
-            error_info['error_code'] = str(pool_failure.get('error_code'))
-        if pool_failure.get('timed_out'):
-            error_info['error_category'] = 'timeout'
-            provider_error = getattr(e, 'provider_result', {}).get('error')
-            error_info['display_error'] = _format_gpt_pool_error(provider_error)
-        error_msg = error_info.get('display_error') or _format_gpt_failure_error(raw_error_msg)
-        print(f"❌ GPT 任务失败：{task_id} - {raw_error_msg}")
-        if error_msg != raw_error_msg:
-            print(f"↪️ 用户可见错误：{error_msg}")
-        _finalize_generation_task(task_id, 'failed', run_id=run_id, stage='failed', progress_text=error_msg, error_info=error_info, error_type=error_type, provider=task_provider, route=task_route, task_type=task_kind, extra={'provider_failure': pool_failure} if pool_failure else None)
-        send_status_notification(task_id, f'❌ GPT 生成失败：{error_msg[:100]}', '⚠️')
+    return _domain_services_gpt_generation.process_gpt_task(
+        task_id, prompt, ratio,
+        resolution, quality, image_count,
+        moderation, prompt_mode, main_model,
+        reasoning_effort, gpt_provider_route, use_third_party_api,
+        archive_enabled, telegram_enabled, _annotate_gpt_route_result=_annotate_gpt_route_result,
+        _append_task_route_trace=_append_task_route_trace, _augment_result_resolution_metadata=_augment_result_resolution_metadata, _chatgpt_pool_failure_metadata=_chatgpt_pool_failure_metadata,
+        _coerce_bool=_coerce_bool, _coerce_gpt_main_model=_coerce_gpt_main_model, _coerce_gpt_provider_route=_coerce_gpt_provider_route,
+        _coerce_gpt_provider_total_timeout=_coerce_gpt_provider_total_timeout, _coerce_gpt_reasoning_effort=_coerce_gpt_reasoning_effort, _coerce_prompt_mode=_coerce_prompt_mode,
+        _coerce_use_third_party_api=_coerce_use_third_party_api, _effective_image_ratio=_effective_image_ratio, _effective_prompt_mode=_effective_prompt_mode,
+        _finalize_generation_task=_finalize_generation_task, _finish_canceled_gpt_task=_finish_canceled_gpt_task, _format_gpt_failure_error=_format_gpt_failure_error,
+        _format_gpt_pool_error=_format_gpt_pool_error, _generate_gpt_with_pool_fallback=_generate_gpt_with_pool_fallback, _gpt_route_uses_third_party=_gpt_route_uses_third_party,
+        _is_generic_19_fidelity_prompt=_is_generic_19_fidelity_prompt, _is_task_canceled=_is_task_canceled, _make_third_party_download_progress_callback=_make_third_party_download_progress_callback,
+        _merge_task_params=_merge_task_params, _prepare_web_search_generation_prompt=_prepare_web_search_generation_prompt, _record_generation_event=_record_generation_event,
+        _result_image_filenames=_result_image_filenames, _start_generation_audit=_start_generation_audit, _translate_generation_failure=_translate_generation_failure,
+        generate_image_third_party=generate_image_third_party, get_task=get_task, os=os,
+        resolve_route_model=resolve_route_model, send_status_notification=send_status_notification, send_telegram_result=send_telegram_result,
+        time=time, update_task_status=update_task_status,
+    )
 
 def process_gpt_edit_task(task_id, prompt, images, ratio, resolution, quality='auto', moderation='auto', mask=None, prompt_mode='smart', main_model=None, reasoning_effort=None, use_third_party_api=False, gpt_provider_route='codex', archive_enabled=True, telegram_enabled=True):
     """后台线程：处理 GPT 图像编辑任务（本地 Codex provider）。"""
-    run_id = ''
-    task_kind = 'gpt-edit'
-    task_provider = 'codex'
-    task_route = 'codex_edit'
-    try:
-        ratio = _effective_image_ratio(prompt, ratio, '1:1')
-        prompt_mode = _effective_prompt_mode(prompt, prompt_mode)
-        requested_main_model = _coerce_gpt_main_model(main_model)
-        requested_reasoning_effort = _coerce_gpt_reasoning_effort(reasoning_effort)
-        gpt_provider_route = _coerce_gpt_provider_route(gpt_provider_route)
-        use_third_party_api = _gpt_route_uses_third_party(gpt_provider_route) or _coerce_use_third_party_api(use_third_party_api)
-        archive_enabled = _coerce_bool(archive_enabled, True)
-        telegram_enabled = _coerce_bool(telegram_enabled, True)
-        use_chatgpt_pool = (not use_third_party_api) and gpt_provider_route == 'chatgpt_pool'
-        route_for_model = 'third_party_image_api' if use_third_party_api else ('chatgpt_pool' if use_chatgpt_pool else 'codex')
-        model_resolution = resolve_route_model(
-            route_for_model,
-            requested_main_model,
-            reasoning_effort=requested_reasoning_effort,
-        )
-        codex_unavailable_error = ''
-        if route_for_model == 'codex' and not model_resolution.get('available'):
-            codex_unavailable_error = model_resolution.get('warning') or '当前 Codex 账号没有可用的图片编辑模型'
-            if get_chatgpt_pool_config(ensure_auth_key=True).get('enabled'):
-                use_chatgpt_pool = True
-                route_for_model = 'chatgpt_pool'
-                model_resolution = resolve_route_model(
-                    route_for_model,
-                    requested_main_model,
-                    reasoning_effort=requested_reasoning_effort,
-                )
-        main_model = model_resolution.get('model') or requested_main_model
-        reasoning_effort = model_resolution.get('reasoning_effort') or requested_reasoning_effort
-        source_count = len(images or [])
-        task_route = 'third_party_image_api_edit' if use_third_party_api else ('chatgpt_pool_edit' if use_chatgpt_pool else 'codex_edit')
-        task_provider = 'third_party_image_api' if use_third_party_api else ('chatgpt_pool' if use_chatgpt_pool else 'codex')
-        _merge_task_params(task_id, {
-            'ratio': ratio,
-            'archive_enabled': archive_enabled,
-            'telegram_enabled': telegram_enabled,
-            **({
-                'prompt_fidelity_locked': True,
-                'source_ratio_locked': True,
-            } if _is_generic_19_fidelity_prompt(prompt) else {}),
-        })
-        run_id = _start_generation_audit(
-            task_id,
-            task_kind,
-            prompt,
-            (get_task(task_id) or {}).get('params') or {},
-            provider=task_provider,
-            route=task_route,
-            stage='preparing',
-        )
-        print(f"✏️ 开始处理 GPT 编辑任务：{task_id}（参考图 {source_count} 张）")
-
-        send_status_notification(task_id, '已提交 GPT 图片编辑任务，请等待...', '✅')
-        update_task_status(task_id, 'preparing', '正在准备 GPT 编辑...')
-        provider_timeout_seconds = _coerce_gpt_provider_total_timeout(None)
-        if codex_unavailable_error:
-            _append_task_route_trace(task_id, 'codex_edit', 'skipped', codex_unavailable_error)
-            if not use_chatgpt_pool:
-                raise RuntimeError(codex_unavailable_error)
-        if use_third_party_api:
-            route_started = time.monotonic()
-            update_task_status(task_id, 'processing', '正在调用第三方图片编辑 API...', stage='calling_third_party_image_api')
-            send_status_notification(task_id, '编辑中... 正在调用第三方图片 API...', '🧩')
-            _append_task_route_trace(task_id, 'third_party_image_api_edit', 'started', '正在调用第三方图片编辑 API')
-            _record_generation_event(task_id, 'provider_call_started', '开始调用第三方图片编辑 API', stage='calling_third_party_image_api', payload={'provider': 'third_party_image_api', 'route': 'third_party_image_api_edit'})
-            result = edit_image_third_party(
-                prompt,
-                images,
-                ratio=ratio,
-                resolution=resolution,
-                quality=quality,
-                moderation=moderation,
-                mask=mask,
-                progress_callback=_make_third_party_download_progress_callback(task_id),
-            )
-            result['fallback_source'] = 'third_party_image_api'
-            result['gpt_provider_route'] = 'third_party_image_api'
-            _append_task_route_trace(
-                task_id,
-                'third_party_image_api_edit',
-                'succeeded',
-                '第三方图片编辑 API 成功返回',
-                elapsed_seconds=int(time.monotonic() - route_started),
-            )
-        elif use_chatgpt_pool:
-            route_started = time.monotonic()
-            update_task_status(task_id, 'processing', '正在调用 ChatGPT 账号池图片编辑 API...', stage='calling_chatgpt_pool_edit')
-            send_status_notification(task_id, '编辑中... 正在调用 ChatGPT 账号池 API...', '🛟')
-            _append_task_route_trace(task_id, 'chatgpt_pool_edit', 'started', '正在调用 ChatGPT 账号池图片编辑 API', timeout_seconds=provider_timeout_seconds)
-            _record_generation_event(task_id, 'provider_call_started', '开始调用 ChatGPT 账号池图片编辑 API', stage='calling_chatgpt_pool_edit', payload={'provider': 'chatgpt_pool', 'route': 'chatgpt_pool_edit'})
-            result = edit_image_gpt_pool(
-                prompt,
-                images,
-                ratio=ratio,
-                resolution=resolution,
-                quality=quality,
-                moderation=moderation,
-                mask=mask,
-                prompt_mode=prompt_mode,
-                main_model=main_model,
-            )
-            if not result.get('success'):
-                provider_error = result.get('error', 'ChatGPT 账号池图片编辑 API 失败')
-                _append_task_route_trace(
-                    task_id,
-                    'chatgpt_pool_edit',
-                    'failed',
-                    provider_error,
-                    elapsed_seconds=int(time.monotonic() - route_started),
-                )
-                raise RuntimeError(_format_gpt_pool_error(provider_error))
-            result['fallback_source'] = 'chatgpt_pool'
-            result['gpt_provider_route'] = 'chatgpt_pool'
-            _append_task_route_trace(
-                task_id,
-                'chatgpt_pool_edit',
-                'succeeded',
-                'ChatGPT 账号池图片编辑 API 成功返回',
-                elapsed_seconds=int(time.monotonic() - route_started),
-            )
-        else:
-            provider_env, codex_auth_source = _resolve_codex_provider_env()
-            provider_label = 'Codex 编辑 provider'
-            trace_route = 'codex_edit'
-            update_task_status(task_id, 'processing', f'正在调用{provider_label}...', stage='calling_gpt_edit')
-            send_status_notification(task_id, f'编辑中... 正在调用{provider_label}...', '🤖')
-            _append_task_route_trace(task_id, trace_route, 'started', f'正在调用{provider_label}', timeout_seconds=provider_timeout_seconds)
-            _record_generation_event(task_id, 'provider_call_started', '开始调用 Codex 编辑 provider', stage='calling_gpt_edit', payload={'provider': 'codex', 'route': 'codex_edit'})
-
-            try:
-                result = edit_image_gpt_codex(
-                    prompt,
-                    images,
-                    ratio=ratio,
-                    resolution=resolution,
-                    quality=quality,
-                    moderation=moderation,
-                    mask=mask,
-                    prompt_mode=prompt_mode,
-                    main_model=main_model,
-                    reasoning_effort=reasoning_effort,
-                    total_timeout_seconds=provider_timeout_seconds,
-                    on_provider_wait=_make_gpt_provider_wait_callback(task_id),
-                    provider_env=provider_env,
-                )
-            except Exception as provider_exc:
-                _append_task_route_trace(task_id, trace_route, 'failed', str(provider_exc))
-                raise
-            if not result.get('success'):
-                provider_error = result.get('error', f'{provider_label} 失败')
-                _append_task_route_trace(task_id, trace_route, 'failed', provider_error)
-                raise RuntimeError(_format_gpt_provider_error(provider_error))
-            result['codex_auth_source'] = codex_auth_source
-        _annotate_gpt_route_result(
-            result,
-            model_resolution,
-            requested_route=gpt_provider_route,
-            requested_model=requested_main_model,
-            requested_reasoning_effort=requested_reasoning_effort,
-        )
-        if _is_task_canceled(task_id):
-            _finish_canceled_gpt_task(task_id, result)
-            return
-        if not use_third_party_api and not use_chatgpt_pool:
-            _append_task_route_trace(task_id, trace_route, 'succeeded', f'{provider_label} 成功返回')
-
-        resolution_meta = _augment_result_resolution_metadata(result, resolution)
-        delivery_resolution = resolution_meta.get('effective_resolution') or result.get('effective_resolution') or resolution
-        telegram_success = False
-        if telegram_enabled:
-            update_task_status(task_id, 'processing', '正在发送到 Telegram...', stage='sending_telegram')
-            send_status_notification(task_id, '编辑中... 正在发送图片...', '📤')
-            _record_generation_event(task_id, 'telegram_send_started', '开始发送 GPT 编辑结果到 Telegram', stage='sending_telegram')
-            if _is_task_canceled(task_id):
-                _finish_canceled_gpt_task(task_id, result)
-                return
-
-            telegram_success = send_telegram_result(
-                result['image_path'],
-                prompt,
-                ratio,
-                delivery_resolution,
-                image_paths=result.get('image_paths'),
-            )
-        else:
-            update_task_status(task_id, 'processing', 'Telegram 已关闭，正在整理结果...', stage='saving')
-            _record_generation_event(task_id, 'telegram_send_skipped', '已按节点开关跳过 Telegram', stage='saving')
-
-        result_files = _result_image_filenames(result)
-        _merge_task_params(task_id, {
-            'prompt_mode': result.get('prompt_mode') or prompt_mode,
-            'gpt_provider_route': result.get('gpt_provider_route') or ('third_party_image_api' if use_third_party_api else gpt_provider_route),
-            'use_third_party_api': use_third_party_api,
-            'third_party_api': bool(result.get('third_party_api')),
-            'requested_resolution': result.get('requested_resolution') or resolution,
-            'actual_resolution': result.get('actual_resolution'),
-            'actual_resolutions': result.get('actual_resolutions'),
-            'effective_resolution': result.get('effective_resolution'),
-            'resolution_mismatch': result.get('resolution_mismatch'),
-            'requested_size': result.get('requested_size'),
-            'actual_width': result.get('actual_width'),
-            'actual_height': result.get('actual_height'),
-            'actual_size': result.get('actual_size'),
-            'actual_megapixels': result.get('actual_megapixels'),
-            'main_model': result.get('main_model') or main_model,
-            'requested_main_model': result.get('requested_main_model') or requested_main_model,
-            'model_fallback_from': result.get('model_fallback_from'),
-            'requested_gpt_provider_route': result.get('requested_gpt_provider_route') or gpt_provider_route,
-            'reasoning_effort': result.get('reasoning_effort') or reasoning_effort,
-            'requested_reasoning_effort': result.get('requested_reasoning_effort') or requested_reasoning_effort,
-            'reasoning_fallback_from': result.get('reasoning_fallback_from'),
-            'model_role': result.get('model_role'),
-            'model_catalog_source': result.get('model_catalog_source'),
-            'image_engine': result.get('image_engine'),
-            'image_engine_label': result.get('image_engine_label'),
-            'provider_total_timeout_seconds': provider_timeout_seconds,
-            'codex_auth_source': result.get('codex_auth_source'),
-            'revised_prompt': result.get('revised_prompt'),
-            'revised_prompts': result.get('revised_prompts'),
-            'actual_sizes': result.get('actual_sizes'),
-            'archive_enabled': archive_enabled,
-            'telegram_enabled': telegram_enabled,
-        })
-        image_count = len(result_files) or len(result.get('image_paths') or [result.get('image_path')])
-        filename = result_files[0] if result_files else os.path.basename(result['image_path'])
-        if telegram_success or not telegram_enabled:
-            if not telegram_enabled:
-                progress_text = 'GPT 图片编辑成功，已按节点开关跳过 Telegram'
-            else:
-                progress_text = f'GPT 图片编辑成功（共 {image_count} 张）' if image_count > 1 else 'GPT 图片编辑成功'
-            _finalize_generation_task(
-                task_id,
-                'succeeded',
-                run_id=run_id,
-                provider=task_provider,
-                route=task_route,
-                task_type=task_kind,
-                result_file=filename,
-                progress_text=progress_text,
-                result_files=result_files,
-                image_count=image_count,
-            )
-            _record_generation_event(task_id, 'run_succeeded', progress_text, stage='done', payload={'provider': task_provider, 'route': task_route, 'image_count': image_count, 'telegram_enabled': telegram_enabled})
-            send_status_notification(task_id, '✅ GPT 图片编辑成功！', '🎉')
-            print(f"✅ GPT 编辑任务成功：{task_id}")
-        else:
-            progress_text = 'GPT 图片编辑已完成，但 Telegram 发送失败'
-            _finalize_generation_task(
-                task_id,
-                'succeeded_no_telegram',
-                run_id=run_id,
-                provider=task_provider,
-                route=task_route,
-                task_type=task_kind,
-                result_file=filename,
-                progress_text=progress_text,
-                result_files=result_files,
-                image_count=image_count,
-            )
-            _record_generation_event(task_id, 'run_succeeded', progress_text, stage='done', payload={'provider': task_provider, 'route': task_route, 'image_count': image_count})
-            print(f"⚠️ GPT 编辑任务完成但未发送 Telegram: {task_id}")
-
-    except Exception as e:
-        raw_error_msg = str(e)
-        error_type = type(e).__name__
-        error_info = _translate_generation_failure(
-            task_id,
-            raw_error_msg,
-            provider=task_provider,
-            route=task_route,
-            task_type=task_kind,
-            stage='failed',
-            exception_name=error_type,
-        )
-        error_msg = error_info.get('display_error') or _format_gpt_failure_error(raw_error_msg)
-        print(f"❌ GPT 编辑任务失败：{task_id} - {raw_error_msg}")
-        if error_msg != raw_error_msg:
-            print(f"↪️ 用户可见错误：{error_msg}")
-        _finalize_generation_task(task_id, 'failed', run_id=run_id, stage='failed', progress_text=error_msg, error_info=error_info, error_type=error_type, provider=task_provider, route=task_route, task_type=task_kind)
-        send_status_notification(task_id, f'❌ GPT 编辑失败：{error_msg[:100]}', '⚠️')
+    return _domain_services_gpt_generation.process_gpt_edit_task(
+        task_id, prompt, images,
+        ratio, resolution, quality,
+        moderation, mask, prompt_mode,
+        main_model, reasoning_effort, use_third_party_api,
+        gpt_provider_route, archive_enabled, telegram_enabled,
+        _annotate_gpt_route_result=_annotate_gpt_route_result, _append_task_route_trace=_append_task_route_trace, _augment_result_resolution_metadata=_augment_result_resolution_metadata,
+        _coerce_bool=_coerce_bool, _coerce_gpt_main_model=_coerce_gpt_main_model, _coerce_gpt_provider_route=_coerce_gpt_provider_route,
+        _coerce_gpt_provider_total_timeout=_coerce_gpt_provider_total_timeout, _coerce_gpt_reasoning_effort=_coerce_gpt_reasoning_effort, _coerce_use_third_party_api=_coerce_use_third_party_api,
+        _effective_image_ratio=_effective_image_ratio, _effective_prompt_mode=_effective_prompt_mode, _finalize_generation_task=_finalize_generation_task,
+        _finish_canceled_gpt_task=_finish_canceled_gpt_task, _format_gpt_failure_error=_format_gpt_failure_error, _format_gpt_pool_error=_format_gpt_pool_error,
+        _format_gpt_provider_error=_format_gpt_provider_error, _gpt_route_uses_third_party=_gpt_route_uses_third_party, _is_generic_19_fidelity_prompt=_is_generic_19_fidelity_prompt,
+        _is_task_canceled=_is_task_canceled, _make_gpt_provider_wait_callback=_make_gpt_provider_wait_callback, _make_third_party_download_progress_callback=_make_third_party_download_progress_callback,
+        _merge_task_params=_merge_task_params, _record_generation_event=_record_generation_event, _resolve_codex_provider_env=_resolve_codex_provider_env,
+        _result_image_filenames=_result_image_filenames, _start_generation_audit=_start_generation_audit, _translate_generation_failure=_translate_generation_failure,
+        edit_image_gpt_codex=edit_image_gpt_codex, edit_image_gpt_pool=edit_image_gpt_pool, edit_image_third_party=edit_image_third_party,
+        get_chatgpt_pool_config=get_chatgpt_pool_config, get_task=get_task, os=os,
+        resolve_route_model=resolve_route_model, send_status_notification=send_status_notification, send_telegram_result=send_telegram_result,
+        time=time, update_task_status=update_task_status,
+    )
 
 def process_custom_task(task_id, prompt, ratio, resolution, quality='auto', moderation='auto'):
     """兼容 custom 路由，复用 GPT provider + fallback 流程。"""
-    return process_gpt_task(task_id, prompt, ratio, resolution, quality, moderation=moderation)
+    return _domain_services_gpt_generation.process_custom_task(task_id, prompt, ratio, resolution, quality, moderation, process_gpt_task=process_gpt_task)
 
 
 def run_server():
     """启动服务器"""
-    _validate_public_mode_password(server_config=SERVER_CONFIG)
-    # 初始化数据库
-    init_db()
-    print("✅ 数据库初始化完成")
-    stale_count = fail_stale_processing_tasks(max_age_seconds=0)
-    if stale_count:
-        print(f"⚠️ 已标记 {stale_count} 个重启后遗留的生成任务为失败")
-    _init_generation_semaphore()
-    init_layout_draft_store()
-    print("✅ 排版草稿库初始化完成")
-    init_asset_store()
-    print("✅ 图库资产索引初始化完成")
-    init_prompt_source_store()
-    orphan_prompt_runs = cancel_orphan_prompt_source_runs()
-    if orphan_prompt_runs:
-        print(f"⚠️ 已标记 {orphan_prompt_runs} 个重启后遗留的远程源同步任务为停止")
-    init_prompt_library_store(legacy_style_presets_file=STYLE_PRESETS_FILE)
-    print(f"✅ 提示词素材库初始化完成：{APP_DATA_DIR / 'prompt_library.db'}")
-    init_agent_store()
-    interrupted_agent_runs = get_agent_runtime().recover_after_restart()
-    print("✅ Agent 运行库初始化完成")
-    if interrupted_agent_runs:
-        print(f"⚠️ 已暂停 {interrupted_agent_runs} 个服务重启前未完成的 Agent 运行")
-    _ensure_db_file_permissions()
-    SOURCE_IMAGE_DIR.mkdir(parents=True, exist_ok=True)
-    print(f"✅ 远程源素材库初始化完成：{SOURCE_IMAGE_DIR}")
-    
-    class ThreadingHTTPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
-        allow_reuse_address = True
-        allow_reuse_port = False
-        daemon_threads = True
-
-    # 启动服务器
-    with ThreadingHTTPServer((SERVER_HOST, PORT), RequestHandler) as httpd:
-        print(f"🚀 服务器启动在 http://{SERVER_HOST}:{PORT}")
-        print(f"🔐 公网模式：{'开启' if SERVER_CONFIG.get('public_mode') else '关闭'}")
-        print(f"📝 日志输出到 stdout")
-        try:
-            httpd.serve_forever()
-        except KeyboardInterrupt:
-            print("\n👋 服务器关闭")
+    return _domain_services_server_lifecycle.run_server(
+        APP_DATA_DIR=APP_DATA_DIR, PORT=PORT, RequestHandler=RequestHandler,
+        SERVER_CONFIG=SERVER_CONFIG, SERVER_HOST=SERVER_HOST, SOURCE_IMAGE_DIR=SOURCE_IMAGE_DIR,
+        STYLE_PRESETS_FILE=STYLE_PRESETS_FILE, _ensure_db_file_permissions=_ensure_db_file_permissions, _init_generation_semaphore=_init_generation_semaphore,
+        _validate_public_mode_password=_validate_public_mode_password, cancel_orphan_prompt_source_runs=cancel_orphan_prompt_source_runs, fail_stale_processing_tasks=fail_stale_processing_tasks,
+        get_agent_runtime=get_agent_runtime, init_agent_store=init_agent_store, init_asset_store=init_asset_store,
+        init_db=init_db, init_layout_draft_store=init_layout_draft_store, init_prompt_library_store=init_prompt_library_store,
+        recover_cyimg_tasks=_CYIMG_SERVICE.recover,
+        recover_krea2_tasks=_KREA2_SERVICE.recover,
+        recover_qwen21_tasks=_QWEN21_SERVICE.recover,
+        init_prompt_source_store=init_prompt_source_store, socketserver=socketserver,
+    )
 
 if __name__ == '__main__':
     run_server()

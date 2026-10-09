@@ -157,14 +157,14 @@ get_sidecar_pid() {
         if [ -n "${pid:-}" ] && kill -0 "$pid" 2>/dev/null; then
             local cmd
             cmd=$(ps -p "$pid" -o command= 2>/dev/null || true)
-            if echo "$cmd" | grep -F "sidecars.chatgpt_pool.app:app" >/dev/null 2>&1 || echo "$cmd" | grep -F "$SIDECAR_RUN" >/dev/null 2>&1; then
+            if echo "$cmd" | grep -E "sidecars\.(account_service|chatgpt_pool\.app):app" >/dev/null 2>&1 || echo "$cmd" | grep -F "$SIDECAR_RUN" >/dev/null 2>&1; then
                 printf '%s\n' "$pid"
                 return 0
             fi
         fi
     fi
 
-    pgrep -f "sidecars.chatgpt_pool.app:app" 2>/dev/null | head -n 1
+    pgrep -f "sidecars\.(account_service|chatgpt_pool\.app):app" 2>/dev/null | head -n 1
 }
 
 restart_sidecar() {

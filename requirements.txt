@@ -1,3 +1,4 @@
 requests>=2.32.0
+websocket-client>=1.9.2,<2
 Pillow>=10.0
 PyMuPDF>=1.24

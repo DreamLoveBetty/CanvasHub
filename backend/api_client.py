@@ -19,6 +19,8 @@ from requests.adapters import HTTPAdapter
 from urllib3 import PoolManager
 
 from .app_config import get_telegram_config, get_yunwu_api_base_url, get_yunwu_api_key
+from . import provider_change2pro as change2pro
+from .gemini_image_response import GeminiImageResponse
 
 # ── 配置 ──────────────────────────────────────────────────────────────────────
 DEFAULT_API_BASE = ''
@@ -125,6 +127,8 @@ def _url_path(value: str) -> str:
 
 
 def _uses_openai_chat_endpoint(api_base: str | None = None) -> bool:
+    if change2pro.uses_documented_google_api(api_base or _api_base()):
+        return False
     path = _url_path(api_base or _api_base()).lower()
     if path.endswith("/chat/completions"):
         return True
@@ -186,6 +190,11 @@ def _normalize_openai_chat_model(model: str | None) -> str:
     return _GOOGLE_IMAGE_MODEL_CANONICAL.get(normalized, normalized) or DEFAULT_OPENAI_CHAT_IMAGE_MODEL
 
 
+def _requested_native_model(model: str | None) -> str:
+    return (str(model or '').strip().removeprefix('google/').removeprefix('models/')
+            or DEFAULT_OPENAI_CHAT_IMAGE_MODEL)
+
+
 def _model_alias_candidates(model: str | None) -> list[str]:
     canonical = _normalize_openai_chat_model(model)
     for family in GOOGLE_IMAGE_MODEL_ALIAS_FAMILIES:
@@ -197,11 +206,18 @@ def _model_alias_candidates(model: str | None) -> list[str]:
 def _model_cache_key(api_base: str, model: str | None) -> tuple[str, str, str]:
     api_key = get_yunwu_api_key()
     key_fingerprint = hashlib.sha256(api_key.encode('utf-8')).hexdigest()[:16] if api_key else ''
-    return str(api_base or '').rstrip('/'), key_fingerprint, _normalize_openai_chat_model(model)
+    model_key = (_requested_native_model(model) if change2pro.uses_documented_google_api(api_base)
+                 else _normalize_openai_chat_model(model))
+    return str(api_base or '').rstrip('/'), key_fingerprint, model_key
 
 
 def _ordered_model_candidates(api_base: str, model: str | None) -> list[str]:
     candidates = _model_alias_candidates(model)
+    if change2pro.uses_documented_google_api(api_base):
+        # Respect the exact ID from this provider's model list. Only an explicit
+        # model-unavailable response may switch to an equivalent alias.
+        requested = _requested_native_model(model)
+        candidates = [requested, *(candidate for candidate in candidates if candidate != requested)]
     cache_key = _model_cache_key(api_base, model)
     with _resolved_model_cache_lock:
         cached = _resolved_model_cache.get(cache_key)
@@ -448,13 +464,25 @@ def _perform_request(
     stream_response=True,
     connect_timeout=CONNECT_TIMEOUT,
 ):
-    _ensure_api_key()
+    api_key = _ensure_api_key()
     progress_cb = progress_cb or _default_progress_cb
     extractor = extractor or _extract_image_from_json
     started_at_ms = _now_ms()
+    started_monotonic = time.monotonic()
     progress_cb(stage='calling_api', progress_text=f'正在调用 AI 模型（{action}）...', heartbeat=True)
 
-    max_attempts = 1 + MAX_HTTP_RETRIES
+    documented_native = change2pro.is_change2pro(url) and _url_path(url).startswith('/v1beta/models/')
+    # An interrupted generation POST may already have been billed upstream.
+    # Do not replay it or silently redirect it to a different endpoint.
+    max_attempts = 1 if documented_native else 1 + MAX_HTTP_RETRIES
+    request_options = {}
+    if documented_native:
+        request_options = {
+            'headers': {'x-goog-api-key': api_key, 'Authorization': None,
+                        'Accept': 'text/event-stream' if ':streamGenerateContent' in url else 'application/json',
+                        'Accept-Encoding': 'identity'},
+            'allow_redirects': False,
+        }
     response = None
     bytes_received = 0
     first_byte_at_ms = None
@@ -465,7 +493,7 @@ def _perform_request(
             response = _session.post(url, json=payload,
                 # requests/urllib3 also applies the first timeout while writing
                 # the request body. Image-edit JSON can contain large base64 data.
-                timeout=(connect_timeout, READ_TIMEOUT), stream=bool(stream_response))
+                timeout=(connect_timeout, READ_TIMEOUT), stream=bool(stream_response), **request_options)
         except Exception as e:
             err_type = _classify_transport_error(e, bytes_received)
             print(f"❌ 请求发送失败: {e}")
@@ -485,6 +513,7 @@ def _perform_request(
             break
 
         error_text = response.text[:500]
+        response.close()
         if _is_model_unavailable_http_error(response.status_code, error_text):
             formatted_error, _ = _format_http_error(response.status_code, error_text)
             message, code, error_type = _extract_http_error_detail(error_text)
@@ -518,11 +547,15 @@ def _perform_request(
 
     print('📥 接收响应数据（流式）...')
     content = bytearray()
+    native_reader = GeminiImageResponse() if documented_native else None
+    image_data = None
     sha256 = hashlib.sha256()
     last_heartbeat_ms = _now_ms()
 
     try:
         for chunk in response.iter_content(chunk_size=CHUNK_SIZE):
+            if native_reader is not None and time.monotonic() - started_monotonic >= READ_TIMEOUT:
+                raise requests.exceptions.Timeout('Google 响应接收超过期限，未自动重新提交')
             now_ms = _now_ms()
             if chunk:
                 if first_byte_at_ms is None:
@@ -532,7 +565,8 @@ def _perform_request(
                     progress_cb(stage='downloading', progress_text='已收到首字节，正在接收图片数据...',
                         first_byte_at=int(first_byte_at_ms / 1000), ttfb_ms=ttfb_ms,
                         bytes_received=bytes_received, heartbeat=True)
-                content.extend(chunk)
+                if native_reader is None:
+                    content.extend(chunk)
                 sha256.update(chunk)
                 bytes_received += len(chunk)
                 if bytes_received % (1024 * 1024) < CHUNK_SIZE:
@@ -542,6 +576,10 @@ def _perform_request(
                         progress_text=f'正在接收数据：{bytes_received / 1024 / 1024:.1f} MB',
                         bytes_received=bytes_received, heartbeat=True)
                     last_heartbeat_ms = now_ms
+                if native_reader is not None:
+                    image_data = native_reader.feed(chunk)
+                    if image_data is not None or native_reader.done:
+                        break
             elif now_ms - last_heartbeat_ms >= 15000:
                 progress_cb(stage='waiting_first_byte', progress_text='等待上游返回数据...', heartbeat=True)
                 last_heartbeat_ms = now_ms
@@ -550,14 +588,22 @@ def _perform_request(
         progress_cb(stage='download_complete',
             progress_text=f'响应接收完成：{bytes_received / 1024 / 1024:.1f} MB',
             bytes_received=bytes_received, heartbeat=True)
-        data = json.loads(bytes(content).decode('utf-8'))
-        image_data = extractor(data)
+        if native_reader is not None:
+            image_data = native_reader.finish()
+        else:
+            data = json.loads(bytes(content).decode('utf-8'))
+            image_data = extractor(data)
         print(f"🔐 响应 SHA256：{sha256.hexdigest()[:16]}...")
         return image_data, {
             'bytes_received': bytes_received,
             'first_byte_at': int(first_byte_at_ms / 1000) if first_byte_at_ms else None,
             'ttfb_ms': (first_byte_at_ms - started_at_ms) if first_byte_at_ms else None,
             'response_sha256': sha256.hexdigest(),
+            **({'response_protocol': native_reader.mode,
+                'response_event_count': native_reader.event_count,
+                'request_endpoint': _url_path(url),
+                'response_request_id': response.headers.get('x-request-id', '')}
+               if native_reader is not None else {}),
         }
     except Exception as e:
         err_type = _classify_transport_error(e, bytes_received)
@@ -567,6 +613,8 @@ def _perform_request(
             ttfb_ms=(first_byte_at_ms - started_at_ms) if first_byte_at_ms else None,
             heartbeat=True)
         raise
+    finally:
+        response.close()
 
 
 def _perform_request_with_model_aliases(
@@ -581,6 +629,8 @@ def _perform_request_with_model_aliases(
     """Try equivalent provider model names and remember the one accepted by this key."""
     progress_cb = progress_cb or _default_progress_cb
     normalized_requested = _normalize_openai_chat_model(requested_model)
+    if change2pro.uses_documented_google_api(api_base):
+        normalized_requested = _requested_native_model(requested_model)
     candidates = _ordered_model_candidates(api_base, requested_model)
 
     for index, candidate in enumerate(candidates):
@@ -666,7 +716,10 @@ def generate_image(
     except json.JSONDecodeError:
         pass
 
-    api_model = _normalize_openai_chat_model(model)
+    api_base = _api_base()
+    documented_native = change2pro.uses_documented_google_api(api_base)
+    api_model = (_requested_native_model(model)
+                 if documented_native else _normalize_openai_chat_model(model))
     
     payload = {
         'contents': [{'parts': [{'text': actual_prompt}]}],
@@ -679,9 +732,10 @@ def generate_image(
         },
     }
 
-    api_base = _api_base()
     uses_openai_chat = _uses_openai_chat_endpoint(api_base)
-    if not uses_openai_chat and 'flash' in api_model.lower():
+    if documented_native:
+        payload = change2pro.google_payload(actual_prompt, aspect_ratio, image_size)
+    elif not uses_openai_chat and 'flash' in api_model.lower():
         payload['stream'] = True
         print(f'🚀 使用流式请求 (stream: true)')
 
@@ -716,6 +770,8 @@ def generate_image(
                 return url, chat_payload, _extract_image_from_openai_chat, False
         else:
             def request_builder(candidate):
+                if documented_native:
+                    return change2pro.google_url(api_base, candidate, stream=image_size == '4K'), payload, _extract_image_from_json, True
                 return _gemini_generate_url(api_base, candidate), payload, _extract_image_from_json, True
 
         image_data, meta = _perform_request_with_model_aliases(
@@ -725,6 +781,8 @@ def generate_image(
             progress_cb=progress_cb,
             action='generate',
         )
+        if documented_native:
+            meta.update(change2pro.output_metadata(image_data, aspect_ratio, image_size))
         print(f"✅ API 响应成功，图片大小：{len(image_data) / 1024 / 1024:.1f} MB")
         return image_data, meta
     except requests.exceptions.Timeout:
@@ -754,7 +812,12 @@ def edit_image(
     normalized_quality = (quality or 'hd').lower()
     image_size = '4K' if normalized_quality in ('4k', 'hd') else '2K'
 
-    api_model = _normalize_openai_chat_model(model)
+    api_base = _api_base()
+    documented_native = change2pro.uses_documented_google_api(api_base)
+    if documented_native and normalized_quality == '1k':
+        image_size = '1K'
+    api_model = (_requested_native_model(model)
+                 if documented_native else _normalize_openai_chat_model(model))
     parts = []
     for img in images:
         img_base64 = img.split(',')[1] if ',' in img else img
@@ -771,9 +834,10 @@ def edit_image(
             },
         },
     }
+    if documented_native:
+        payload = change2pro.google_payload(prompt, aspect_ratio, image_size, images)
 
     try:
-        api_base = _api_base()
         print('📡 发送编辑 API 请求...')
         print(f'📊 图片数量：{len(images)}')
         print(f'📊 Prompt 长度：{len(prompt)} 字符')
@@ -812,6 +876,8 @@ def edit_image(
                 return url, chat_payload, _extract_image_from_openai_chat, False
         else:
             def request_builder(candidate):
+                if documented_native:
+                    return change2pro.google_url(api_base, candidate, stream=True), payload, _extract_image_from_json, True
                 return _gemini_generate_url(api_base, candidate), payload, _extract_image_from_json, True
 
         image_data, meta = _perform_request_with_model_aliases(
@@ -822,6 +888,8 @@ def edit_image(
             action='edit',
             connect_timeout=EDIT_UPLOAD_SOCKET_TIMEOUT,
         )
+        if documented_native:
+            meta.update(change2pro.output_metadata(image_data, aspect_ratio, image_size))
         print(f"✅ 编辑成功，图片大小：{len(image_data) / 1024 / 1024:.1f} MB")
         return image_data, meta
     except Exception as e:

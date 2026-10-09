@@ -20,6 +20,7 @@ from PIL import Image
 
 from .app_config import APP_DATA_DIR, get_third_party_image_config
 from .image_resolution import build_resolution_metadata
+from .provider_change2pro import gpt_endpoint
 from .storage_paths import daily_output_dir, write_obsidian_prompt_sidecar
 
 GPT_OUTPUT_DIR = APP_DATA_DIR / "gpt_outputs"
@@ -557,7 +558,7 @@ def _endpoint(cfg: dict[str, Any], path_key: str) -> str:
     path = str(cfg.get(path_key) or "").strip()
     if not path.startswith("/"):
         path = f"/{path}"
-    return f"{base_url}{path}"
+    return gpt_endpoint(base_url, path)
 
 
 def _response_preview(text: str, limit: int = 240) -> str:

@@ -73,7 +73,7 @@ def _run_sidecar(args: argparse.Namespace) -> int:
     import uvicorn
 
     uvicorn.run(
-        "sidecars.chatgpt_pool.app:app",
+        "sidecars.account_service:app",
         host=host,
         port=args.port,
         log_level=args.log_level,

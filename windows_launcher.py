@@ -186,7 +186,7 @@ def start(open_browser: bool = True) -> int:
     sidecar_ok = _start_service(
         "sidecar",
         SIDECAR_PORT,
-        [str(_service_python()), "-u", "-X", "utf8", "-m", "uvicorn", "sidecars.chatgpt_pool.app:app", "--host", SIDECAR_HOST, "--port", str(SIDECAR_PORT)],
+        [str(_service_python()), "-u", "-X", "utf8", "-m", "uvicorn", "sidecars.account_service:app", "--host", SIDECAR_HOST, "--port", str(SIDECAR_PORT)],
         f"http://{SIDECAR_HOST}:{SIDECAR_PORT}/health",
         "sidecar.combined.log",
         wait_seconds=45,

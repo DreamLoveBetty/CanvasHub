@@ -13,6 +13,7 @@ import threading
 import time
 import uuid
 import urllib.parse
+from contextlib import closing, contextmanager
 from pathlib import Path
 from typing import Any
 
@@ -22,14 +23,16 @@ from .app_config import APP_DATA_DIR
 from .database import DB_PATH as TASKS_DB_PATH
 from .database import get_all_tasks
 from .image_resolution import infer_resolution_label, normalize_resolution_label
+from .services.generation_timing import normalize_generation_timing, task_total_seconds
 from .storage_paths import IMAGE_ARCHIVE_DIR, archive_scan_roots
 from .thumb_cache import thumb_url_for_media_url
+from .services.image_preview import preview_url
 
 
 DB_PATH = APP_DATA_DIR / "assets.db"
 HISTORY_FILE = APP_DATA_DIR / "history.jsonl"
 TAG_SPLIT_RE = re.compile(r"[,，;；\n]+")
-IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp"}
+IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".tif", ".tiff"}
 SIDECAR_PARAM_KEYS = {
     "image_file",
     "ratio",
@@ -98,6 +101,8 @@ CARD_PROJECTION_FIELDS = (
     "type", "provider", "providerLabel", "sourceKind", "assetSource",
     "hasTaskRecord", "has_task_record", "missingArchive", "missing_archive",
     "status", "createdAt", "updatedAt", "index", "total",
+    "startedAt", "started_at", "finishedAt", "finished_at",
+    "durationSeconds", "duration_seconds", "generationTiming", "generation_timing",
     "favorite", "hidden", "tags", "rating",
     "derivedCount", "relatedCount",
     "referenceAssetIds", "reference_asset_ids", "sourceTaskIds", "source_task_ids",
@@ -113,6 +118,13 @@ CARD_PARAMS_DROP_KEYS = {"revised_prompt"}
 # 瘦身版 referenceAssets 保留 id 引用 + 无 id 引用的识别字段（imageUrl/missing/deleted），
 # 保证前端 normalizeLineageAsset 的过滤条件下"源 N"角标计数与全量模式一致
 CARD_REFERENCE_KEYS = ("id", "asset_id", "taskId", "task_id", "index", "imageUrl", "image_url", "missing", "deleted")
+
+
+@contextmanager
+def _connect_db():
+    """Open one transactional asset DB connection and always close it."""
+    with closing(sqlite3.connect(DB_PATH)) as conn, conn:
+        yield conn
 
 
 def invalidate_asset_index_cache() -> None:
@@ -152,7 +164,7 @@ def _index_fingerprint() -> tuple:
 
 
 def init_asset_store() -> None:
-    with sqlite3.connect(DB_PATH) as conn:
+    with _connect_db() as conn:
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS asset_meta (
@@ -219,7 +231,7 @@ def _file_meta_rows() -> dict[str, tuple[int, int, str]]:
         if _FILE_META_ROWS is None:
             rows: dict[str, tuple[int, int, str]] = {}
             try:
-                with sqlite3.connect(DB_PATH) as conn:
+                with _connect_db() as conn:
                     for path, mtime_ns, size_bytes, payload_json in conn.execute(
                         "SELECT path, mtime_ns, size_bytes, payload_json FROM file_meta_cache"
                     ):
@@ -271,7 +283,7 @@ def _flush_file_meta_cache() -> None:
         return
     now = _now()
     try:
-        with sqlite3.connect(DB_PATH) as conn:
+        with _connect_db() as conn:
             if pending:
                 conn.executemany(
                     """
@@ -481,7 +493,7 @@ def _image_file_meta(path: Path) -> dict[str, Any]:
 
 def _load_meta() -> dict[str, dict[str, Any]]:
     init_asset_store()
-    with sqlite3.connect(DB_PATH) as conn:
+    with _connect_db() as conn:
         conn.row_factory = sqlite3.Row
         rows = conn.execute("SELECT * FROM asset_meta").fetchall()
     meta: dict[str, dict[str, Any]] = {}
@@ -507,6 +519,14 @@ def _archive_asset_id(rel_path: str) -> str:
 
 def _provider_group(item: dict[str, Any]) -> str:
     raw = str(item.get("type") or "").lower()
+    params = item.get("params") if isinstance(item.get("params"), dict) else {}
+    provider_hint = str(item.get("provider") or params.get("provider") or "").lower()
+    if raw.startswith("krea2") or "krea2" in raw or "krea2" in provider_hint:
+        return "krea2"
+    if "qwen21" in raw or "qwen-image-2.1" in raw or "qwen-image-2.1" in provider_hint or "qwen21" in provider_hint:
+        return "qwen21"
+    if raw == "topaz":
+        return "topaz"
     if raw.startswith("gpt") or "gpt" in raw:
         return "gpt"
     if raw.startswith("comfy") or "comfy" in raw:
@@ -518,11 +538,29 @@ def _provider_group(item: dict[str, Any]) -> str:
 
 def _provider_label(provider: str) -> str:
     return {
+        "krea2": "Krea2",
+        "qwen21": "Qwen 2.1",
+        "topaz": "Topaz",
         "gpt": "GPT",
         "google": "Google",
         "comfy": "Comfy",
         "layout": "排版",
     }.get(provider, provider or "资产")
+
+
+def _main_model_label(params: dict[str, Any], provider: str) -> str:
+    explicit = str(params.get("main_model") or "").strip()
+    if explicit:
+        return explicit
+    if provider == "qwen21":
+        base = str(params.get("base_model_name") or "").strip()
+        return f"Qwen 2.1 · {base}" if base else "Qwen 2.1"
+    if provider != "krea2":
+        return ""
+    base = str(params.get("base_model_name") or "").strip()
+    if not base:
+        return "Krea2"
+    return base if base.lower().startswith("krea") else f"Krea2 · {base}"
 
 
 def _result_files(item: dict[str, Any]) -> list[str]:
@@ -544,7 +582,7 @@ def _image_url(provider: str, file_name: str) -> str:
         return ""
     if provider == "gpt":
         return f"/gpt_outputs/{file_name}"
-    return f"/image/{file_name}"
+    return preview_url(f"/image/{file_name}")
 
 
 # 低于该边长的 sidecar 不做 420px 缩略图源：400px 的 gpt sidecar 通过，旧版 300px google sidecar 回退原图
@@ -614,7 +652,7 @@ def _archive_public_rel_path(root_key: str, rel_path: str) -> str:
 
 
 def _archive_image_url(root_key: str, rel_path: str) -> str:
-    return f"/archive_image/{urllib.parse.quote(_archive_public_rel_path(root_key, rel_path), safe='/')}"
+    return preview_url(f"/archive_image/{urllib.parse.quote(_archive_public_rel_path(root_key, rel_path), safe='/')}")
 
 
 def _infer_archive_provider(path: Path, template: dict[str, Any] | None = None) -> str:
@@ -630,6 +668,12 @@ def _infer_archive_provider(path: Path, template: dict[str, Any] | None = None) 
     name = path.name.lower()
     if "_layout_drafts" in rel_parts or name.startswith(("layout_", "export")):
         return "layout"
+    if name.startswith("topaz_"):
+        return "topaz"
+    if name.startswith("krea2_"):
+        return "krea2"
+    if name.startswith("qwen21_"):
+        return "qwen21"
     if name.startswith(("gpt_", "gpt-edit", "gpt_edit", "gpt-image")):
         return "gpt"
     return "google"
@@ -730,7 +774,10 @@ def _lineage_from_params(params: dict[str, Any]) -> dict[str, Any]:
                 image_url = ""
             if not asset_id and not task_id and not image_url and not source_node_id:
                 continue
-            key = asset_id or (f"{task_id}:{image_url}" if task_id or image_url else "") or source_node_id
+            # Old canvas payloads used the task ID as asset_id. A task may have
+            # several outputs, so that alias must not collapse different images.
+            file_name = str(ref.get("file") or "").strip()
+            key = (asset_id if asset_id != task_id else "") or (f"{task_id}:{image_url}:{file_name}" if task_id or image_url or file_name else "") or source_node_id
             if key in seen:
                 continue
             seen.add(key)
@@ -785,29 +832,55 @@ def _asset_lineage_snapshot(asset: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _decorate_lineage(assets: list[dict[str, Any]]) -> None:
+def _resolve_lineage_reference(ref, by_id, by_task):
+    """Resolve a legacy task alias only with task-scoped, unambiguous evidence.
+
+    Reference index is input order, NOT the output index of the source task.
+    Never guess by a global basename or select the first image of a batch.
+    """
+    ref_id = str(ref.get("asset_id") or ref.get("id") or "").strip()
+    if ref_id in by_id:
+        return by_id[ref_id]
+    task_id = str(ref.get("task_id") or ref.get("taskId") or "").strip()
+    if not task_id and ref_id in by_task:
+        task_id = ref_id
+    candidates = by_task.get(task_id, [])
+    image_url = str(ref.get("image_url") or ref.get("imageUrl") or "")
+    file_name = str(ref.get("file") or "")
+    names = {Path(urllib.parse.unquote(urllib.parse.urlparse(value).path)).name
+             for value in (file_name, image_url) if value and not value.startswith(("data:", "blob:"))}
+    names.discard("")
+    if names:
+        candidates = [item for item in candidates if item.get("file") in names]
+    elif ref_id and ref_id != task_id:
+        # A missing real asset ID may be a deleted sibling of a surviving image.
+        return None
+    return candidates[0] if len(candidates) == 1 else None
+
+
+def _decorate_lineage(assets: list[dict[str, Any]], lookup_assets=None) -> None:
+    # A filtered view must still resolve references against the complete index.
+    universe = [*(lookup_assets or []), *assets]
     by_id = {
         str(asset.get("id") or asset.get("asset_id")): asset
-        for asset in assets
+        for asset in universe
         if asset.get("id") or asset.get("asset_id")
     }
-    children: dict[str, list[dict[str, Any]]] = {}
-    for asset in assets:
-        for source_id in asset.get("referenceAssetIds") or []:
-            source_id = str(source_id or "").strip()
-            if not source_id or source_id == asset.get("id"):
-                continue
-            children.setdefault(source_id, []).append(_asset_lineage_snapshot(asset))
-
-    for asset in assets:
-        resolved_refs = []
+    by_task: dict[str, list[dict[str, Any]]] = {}
+    for asset in by_id.values():
+        task_id = str(asset.get("taskId") or asset.get("task_id") or "")
+        if task_id:
+            by_task.setdefault(task_id, []).append(asset)
+    resolved_by_id = {}
+    for asset_id, asset in by_id.items():
+        refs = []
         for ref in asset.get("referenceAssets") or []:
-            ref_id = str(ref.get("asset_id") or ref.get("id") or "").strip()
-            if ref_id and ref_id in by_id:
-                merged = {**ref, **_asset_lineage_snapshot(by_id[ref_id])}
+            source = _resolve_lineage_reference(ref, by_id, by_task)
+            if source is not None:
+                merged = {**ref, **_asset_lineage_snapshot(source), "missing": False, "deleted": False}
             else:
                 merged = dict(ref)
-                if ref_id:
+                if ref.get("asset_id") or ref.get("id") or ref.get("task_id") or ref.get("taskId"):
                     merged.update({
                         "missing": True,
                         "deleted": True,
@@ -815,7 +888,21 @@ def _decorate_lineage(assets: list[dict[str, Any]]) -> None:
                         "imageUrl": merged.get("imageUrl") or merged.get("image_url") or "",
                         "thumbUrl": merged.get("thumbUrl") or merged.get("thumb_url") or "",
                     })
-            resolved_refs.append(merged)
+            refs.append(merged)
+        resolved_by_id[asset_id] = refs
+
+    children: dict[str, list[dict[str, Any]]] = {}
+    for asset_id, asset in by_id.items():
+        source_ids = dict.fromkeys(ref.get("asset_id") or ref.get("id") for ref in resolved_by_id[asset_id])
+        for source_id in source_ids:
+            if not source_id or source_id == asset_id:
+                continue
+            children.setdefault(source_id, []).append(_asset_lineage_snapshot(asset))
+
+    for asset in assets:
+        resolved_refs = resolved_by_id[str(asset.get("id") or asset.get("asset_id"))]
+        reference_ids = list(dict.fromkeys(ref.get("asset_id") or ref.get("id") for ref in resolved_refs if ref.get("asset_id") or ref.get("id")))
+        asset["referenceAssetIds"] = reference_ids
         child_assets = sorted(
             children.get(str(asset.get("id") or asset.get("asset_id")), []),
             key=lambda item: int(item.get("createdAt") or 0),
@@ -837,6 +924,8 @@ def _decorate_lineage(assets: list[dict[str, Any]]) -> None:
             **(asset.get("lineage") or {}),
             "reference_assets": resolved_refs,
             "referenceAssets": resolved_refs,
+            "reference_asset_ids": reference_ids,
+            "referenceAssetIds": reference_ids,
             "derived_assets": child_assets[:12],
             "derivedAssets": child_assets[:12],
             "derived_count": len(child_assets),
@@ -911,6 +1000,14 @@ def _clean_asset_snapshot(asset: dict[str, Any]) -> dict[str, Any]:
         "created_at",
         "updatedAt",
         "updated_at",
+        "startedAt",
+        "started_at",
+        "finishedAt",
+        "finished_at",
+        "durationSeconds",
+        "duration_seconds",
+        "generationTiming",
+        "generation_timing",
         "params",
         "index",
         "total",
@@ -1016,6 +1113,10 @@ def _task_assets(item: dict[str, Any], meta_map: dict[str, dict[str, Any]]) -> l
     provider_label = _provider_label(provider)
     prompt = str(item.get("prompt") or "")
     params = item.get("params") if isinstance(item.get("params"), dict) else {}
+    generation_timing = normalize_generation_timing(params)
+    duration_seconds = task_total_seconds(item, params)
+    started_at = item.get("started_at") or 0
+    finished_at = item.get("finished_at") or 0
     lineage = _lineage_from_params(params)
     requested_resolution = (
         normalize_resolution_label(params.get("requested_resolution"))
@@ -1038,6 +1139,10 @@ def _task_assets(item: dict[str, Any], meta_map: dict[str, dict[str, Any]]) -> l
         image_url = paths[index] if index < len(paths) else _image_url(provider, file_name)
         if not image_url:
             continue
+        # This index represents images, not every result of a file/video task.
+        image_source = file_name or urllib.parse.urlparse(image_url).path
+        if Path(image_source).suffix.lower() not in IMAGE_EXTENSIONS:
+            continue
         asset_id = _asset_id(task_id, file_name, index, image_url)
         meta = meta_map.get(asset_id, {})
         tags = _decode_tags(meta.get("tags"))
@@ -1056,7 +1161,7 @@ def _task_assets(item: dict[str, Any], meta_map: dict[str, dict[str, Any]]) -> l
             "prompt": prompt,
             "revisedPrompt": params.get("revised_prompt") or "",
             "revised_prompt": params.get("revised_prompt") or "",
-            "mainModel": params.get("main_model") or "",
+            "mainModel": _main_model_label(params, provider),
             "reasoningEffort": params.get("reasoning_effort") or "",
             "requestedResolution": requested_resolution,
             "requested_resolution": requested_resolution,
@@ -1071,6 +1176,14 @@ def _task_assets(item: dict[str, Any], meta_map: dict[str, dict[str, Any]]) -> l
             "status": item.get("status") or "",
             "createdAt": created_at,
             "updatedAt": item.get("updated_at") or created_at,
+            "startedAt": started_at,
+            "started_at": started_at,
+            "finishedAt": finished_at,
+            "finished_at": finished_at,
+            "durationSeconds": duration_seconds or 0,
+            "duration_seconds": duration_seconds or 0,
+            "generationTiming": generation_timing,
+            "generation_timing": generation_timing,
             "params": params,
             "lineage": lineage,
             "referenceAssets": lineage.get("referenceAssets") or [],
@@ -1113,6 +1226,8 @@ def _archive_asset_from_path(
     template_params = (template or {}).get("params") if isinstance((template or {}).get("params"), dict) else {}
     image_meta = _image_file_meta(path)
     params = _merge_params(sidecar_params, template_params)
+    generation_timing = normalize_generation_timing(params)
+    duration_seconds = task_total_seconds(template or {}, params)
     requested_resolution = (
         normalize_resolution_label(params.get("requested_resolution"))
         or normalize_resolution_label(params.get("resolution"))
@@ -1165,7 +1280,7 @@ def _archive_asset_from_path(
         "prompt": prompt,
         "revisedPrompt": params.get("revised_prompt") or "",
         "revised_prompt": params.get("revised_prompt") or "",
-        "mainModel": params.get("main_model") or "",
+        "mainModel": _main_model_label(params, provider),
         "reasoningEffort": params.get("reasoning_effort") or "",
         "requestedResolution": params.get("requested_resolution") or requested_resolution,
         "requested_resolution": params.get("requested_resolution") or requested_resolution,
@@ -1185,6 +1300,14 @@ def _archive_asset_from_path(
         "status": (template or {}).get("status") or "archived",
         "createdAt": int((template or {}).get("createdAt") or created_at),
         "updatedAt": int((template or {}).get("updatedAt") or created_at),
+        "startedAt": (template or {}).get("startedAt") or (template or {}).get("started_at") or 0,
+        "started_at": (template or {}).get("startedAt") or (template or {}).get("started_at") or 0,
+        "finishedAt": (template or {}).get("finishedAt") or (template or {}).get("finished_at") or 0,
+        "finished_at": (template or {}).get("finishedAt") or (template or {}).get("finished_at") or 0,
+        "durationSeconds": duration_seconds or 0,
+        "duration_seconds": duration_seconds or 0,
+        "generationTiming": generation_timing,
+        "generation_timing": generation_timing,
         "params": params,
         "lineage": lineage,
         "referenceAssets": lineage.get("referenceAssets") or [],
@@ -1219,17 +1342,17 @@ def _history_missing_asset_from_template(template: dict[str, Any], meta_map: dic
     thumb_url = ""
     if provider == "gpt":
         candidate = project_root / "gpt_outputs" / file_name
-        if candidate.exists():
+        if candidate.is_file():
             local_url = f"/gpt_outputs/{file_name}"
         thumb_candidate = project_root / "gpt_outputs" / f"{Path(file_name).stem}_thumb.png"
-        if thumb_candidate.exists():
+        if thumb_candidate.is_file():
             thumb_url = f"/gpt_outputs/{thumb_candidate.name}"
     else:
         candidate = project_root / "google_outputs" / file_name
-        if candidate.exists():
+        if candidate.is_file():
             local_url = f"/google_outputs/{file_name}"
         thumb_candidate = project_root / "google_outputs" / f"thumb_{file_name}"
-        if thumb_candidate.exists():
+        if thumb_candidate.is_file():
             thumb_url = f"/google_outputs/{thumb_candidate.name}"
 
     asset_id = f"asset_missing_{hashlib.sha1((str(template.get('taskId') or '') + '|' + file_name).encode('utf-8', errors='ignore')).hexdigest()[:20]}"
@@ -1405,7 +1528,8 @@ def _build_index_variants() -> dict[str, dict[str, Any]]:
         "orphan_asset_count": orphan_count,
         "archive_only_count": orphan_count,
         "history_result_count": len(task_assets),
-        "history_missing_count": len(history_missing_assets),
+        # An unarchived local original is available; a thumbnail alone is not.
+        "history_missing_count": sum(1 for asset in history_missing_assets if not asset.get("imageUrl")),
         "history_missing_archive_count": len(history_missing_assets),
         "metadata_image_count": metadata_count,
     }
@@ -1413,7 +1537,7 @@ def _build_index_variants() -> dict[str, dict[str, Any]]:
     _decorate_lineage(assets)
 
     missing_variant_assets = _missing_assets()
-    _decorate_lineage(missing_variant_assets)
+    _decorate_lineage(missing_variant_assets, lookup_assets=assets)
 
     _flush_file_meta_cache()
     return {
@@ -1591,7 +1715,7 @@ def update_asset_meta(
     if note is not None:
         updates["note"] = str(note or "")[:1000]
 
-    with sqlite3.connect(DB_PATH) as conn:
+    with _connect_db() as conn:
         conn.execute(
             """
             INSERT INTO asset_meta (asset_id, favorite, hidden, tags_json, rating, note, created_at, updated_at)
@@ -1630,7 +1754,7 @@ def remove_asset_from_sets(asset_id: str) -> int:
     init_asset_store()
     now = _now()
     changed = 0
-    with sqlite3.connect(DB_PATH) as conn:
+    with _connect_db() as conn:
         conn.row_factory = sqlite3.Row
         rows = conn.execute(
             "SELECT set_id, asset_ids_json, asset_snapshots_json FROM asset_sets WHERE COALESCE(status, 'active') != 'deleted'"
@@ -1679,7 +1803,7 @@ def snapshot_sets_for_asset(asset_id: str) -> list[dict[str, Any]]:
         return []
     init_asset_store()
     snapshots: list[dict[str, Any]] = []
-    with sqlite3.connect(DB_PATH) as conn:
+    with _connect_db() as conn:
         conn.row_factory = sqlite3.Row
         rows = conn.execute(
             """
@@ -1708,7 +1832,7 @@ def restore_asset_set_snapshots(snapshots: list[dict[str, Any]]) -> int:
     init_asset_store()
     restored = 0
     now = _now()
-    with sqlite3.connect(DB_PATH) as conn:
+    with _connect_db() as conn:
         for snapshot in snapshots:
             if not isinstance(snapshot, dict):
                 continue
@@ -1752,7 +1876,7 @@ def cleanup_asset_sets(valid_asset_ids: set[str], delete_empty: bool = True) -> 
     updated_sets = 0
     deleted_empty_sets = 0
     removed_refs = 0
-    with sqlite3.connect(DB_PATH) as conn:
+    with _connect_db() as conn:
         conn.row_factory = sqlite3.Row
         rows = conn.execute(
             """
@@ -1816,7 +1940,7 @@ def record_delete_batch(payload: dict[str, Any]) -> dict[str, Any]:
     clean_payload = dict(payload or {})
     clean_payload["batch_id"] = batch_id
     clean_payload.setdefault("created_at", now)
-    with sqlite3.connect(DB_PATH) as conn:
+    with _connect_db() as conn:
         conn.execute(
             """
             INSERT OR REPLACE INTO asset_delete_journal
@@ -1838,7 +1962,7 @@ def get_delete_batch(batch_id: str) -> dict[str, Any] | None:
     if not clean_id:
         return None
     init_asset_store()
-    with sqlite3.connect(DB_PATH) as conn:
+    with _connect_db() as conn:
         conn.row_factory = sqlite3.Row
         row = conn.execute(
             "SELECT * FROM asset_delete_journal WHERE batch_id=?",
@@ -1866,7 +1990,7 @@ def mark_delete_batch_restored(batch_id: str) -> dict[str, Any]:
         raise ValueError("缺少删除批次 ID")
     init_asset_store()
     now = _now()
-    with sqlite3.connect(DB_PATH) as conn:
+    with _connect_db() as conn:
         cursor = conn.execute(
             "UPDATE asset_delete_journal SET restored=1, restored_at=? WHERE batch_id=?",
             (now, clean_id),
@@ -1926,7 +2050,7 @@ def list_asset_sets(
     tag_filter = str(tag or "").strip().lstrip("#").lower()
     search = str(query or "").strip().lower()
 
-    with sqlite3.connect(DB_PATH) as conn:
+    with _connect_db() as conn:
         conn.row_factory = sqlite3.Row
         rows = conn.execute(
             """
@@ -1998,7 +2122,7 @@ def create_asset_set(name: str, asset_ids: Any, tags: Any | None = None, assets:
     set_id = _asset_set_id()
     title = _set_title(name, snapshots)
     clean_tags = _decode_tags(tags)
-    with sqlite3.connect(DB_PATH) as conn:
+    with _connect_db() as conn:
         conn.execute(
             """
             INSERT INTO asset_sets
@@ -2025,7 +2149,7 @@ def get_asset_set(set_id: str) -> dict[str, Any]:
     if not clean_id:
         raise ValueError("缺少候选集 ID")
     init_asset_store()
-    with sqlite3.connect(DB_PATH) as conn:
+    with _connect_db() as conn:
         conn.row_factory = sqlite3.Row
         row = conn.execute(
             """
@@ -2068,7 +2192,7 @@ def update_asset_set(
         clean_status = str(status or "active").strip().lower()
         updates["status"] = clean_status if clean_status in ("active", "archived", "deleted") else "active"
 
-    with sqlite3.connect(DB_PATH) as conn:
+    with _connect_db() as conn:
         assignments = ", ".join(f"{key}=?" for key in updates)
         cursor = conn.execute(
             f"UPDATE asset_sets SET {assignments} WHERE set_id=?",

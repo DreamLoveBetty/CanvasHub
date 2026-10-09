@@ -58,7 +58,7 @@ restart_existing_sidecar() {
         old_pid=$(/usr/sbin/lsof -ti TCP:"$SIDECAR_PORT" -sTCP:LISTEN 2>/dev/null | head -n 1)
         if [ -n "${old_pid:-}" ]; then
             old_cmd=$(ps -p "$old_pid" -o command= 2>/dev/null || true)
-            if echo "$old_cmd" | grep -F "sidecars.chatgpt_pool.app:app" >/dev/null 2>&1; then
+            if echo "$old_cmd" | grep -E "sidecars\.(account_service|chatgpt_pool\.app):app" >/dev/null 2>&1; then
                 echo "🔁  Existing ChatGPT account-pool sidecar is stale; restarting PID $old_pid..."
                 kill "$old_pid" 2>/dev/null || true
             fi

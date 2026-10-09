@@ -12,6 +12,7 @@ import re
 import sqlite3
 import time
 import uuid
+from contextlib import closing, contextmanager
 from pathlib import Path
 from typing import Any
 
@@ -24,9 +25,16 @@ DB_PATH = APP_DATA_DIR / "layout_drafts.db"
 VALID_DRAFT_ID = re.compile(r"^[A-Za-z0-9_-]{8,80}$")
 
 
+@contextmanager
+def _connect_db():
+    """Open one transactional layout DB connection and always close it."""
+    with closing(sqlite3.connect(DB_PATH)) as conn, conn:
+        yield conn
+
+
 def init_layout_draft_store() -> None:
     DRAFT_ROOT.mkdir(parents=True, exist_ok=True)
-    with sqlite3.connect(DB_PATH) as conn:
+    with _connect_db() as conn:
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS layout_drafts (
@@ -147,7 +155,7 @@ def _row_to_meta(row: sqlite3.Row | dict[str, Any]) -> dict[str, Any]:
 
 def _get_row(draft_id: str) -> sqlite3.Row | None:
     clean = _validate_draft_id(draft_id)
-    with sqlite3.connect(DB_PATH) as conn:
+    with _connect_db() as conn:
         conn.row_factory = sqlite3.Row
         return conn.execute("SELECT * FROM layout_drafts WHERE draft_id=?", (clean,)).fetchone()
 
@@ -156,7 +164,7 @@ def list_drafts(limit: int = 50, offset: int = 0) -> list[dict[str, Any]]:
     init_layout_draft_store()
     safe_limit = max(1, min(int(limit or 50), 100))
     safe_offset = max(0, int(offset or 0))
-    with sqlite3.connect(DB_PATH) as conn:
+    with _connect_db() as conn:
         conn.row_factory = sqlite3.Row
         rows = conn.execute(
             """
@@ -187,7 +195,7 @@ def create_draft(title: str = "", node_id: str = "", project: Any | None = None,
     if export_data_url:
         export_file, _ = _write_data_uri(folder / "export.png", export_data_url)
 
-    with sqlite3.connect(DB_PATH) as conn:
+    with _connect_db() as conn:
         conn.execute(
             """
             INSERT INTO layout_drafts (
@@ -244,7 +252,7 @@ def update_draft(draft_id: str, title: str | None = None, node_id: str | None = 
         values["export_file"] = export_file
 
     assignments = ", ".join(f"{key}=?" for key in values)
-    with sqlite3.connect(DB_PATH) as conn:
+    with _connect_db() as conn:
         conn.execute(
             f"UPDATE layout_drafts SET {assignments} WHERE draft_id=?",
             [*values.values(), clean],

@@ -1,0 +1,6 @@
+# Extra packages needed by the pinned source-only mflux adapter. Core MLX,
+# Transformers, Torch, NumPy and Hugging Face packages are owned by the shared
+# Canvas Python 3.14 profile and must never be downgraded here.
+piexif==1.1.3
+platformdirs==4.12.0
+toml==0.10.2

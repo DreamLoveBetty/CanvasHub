@@ -11,6 +11,7 @@ access, and lets existing generation/provider code remain the source of truth.
 from __future__ import annotations
 
 import copy
+import json
 import re
 import threading
 import time
@@ -37,6 +38,7 @@ TERMINAL_TASK_STATUSES = {
 }
 CLIENT_ACTION_KINDS = {
     "analyze_images",
+    "analyze_videos",
     "compile_h3_prompt",
     "update_text_node",
     "apply_prompt_to_input",
@@ -283,6 +285,12 @@ def summarize_context(context: dict[str, Any]) -> dict[str, Any]:
             node.get("imageUrl") or node.get("image_url") or node.get("imageData") or node.get("image_data")
         )
     ]
+    canvas_video_nodes = [
+        node for node in nodes.values()
+        if isinstance(node, dict) and node.get("type") == "video" and (
+            node.get("mediaUrl") or node.get("media_url") or node.get("videoUrl") or node.get("video_url")
+        )
+    ]
     reference_items = context.get("referenced_images") if isinstance(context.get("referenced_images"), list) else []
     raw_reference_ids = (
         context.get("referenced_image_node_ids")
@@ -327,6 +335,41 @@ def summarize_context(context: dict[str, Any]) -> dict[str, Any]:
     ]
     image_nodes = referenced_image_nodes if reference_ids else canvas_image_nodes
     resolved_reference_ids = [_text(node.get("id"), 160) for node in referenced_image_nodes]
+    video_reference_items = context.get("referenced_videos") if isinstance(context.get("referenced_videos"), list) else []
+    raw_video_reference_ids = (
+        context.get("referenced_video_node_ids")
+        if isinstance(context.get("referenced_video_node_ids"), list)
+        else []
+    )
+    video_reference_meta: dict[str, dict[str, Any]] = {}
+    video_reference_ids: list[str] = []
+    for item in video_reference_items[:2]:
+        if not isinstance(item, dict):
+            continue
+        node_id = _text(item.get("source_node_id") or item.get("sourceNodeId") or item.get("node_id"), 160)
+        if not node_id:
+            continue
+        video_reference_meta[node_id] = {
+            "id": _text(item.get("id") or f"video{len(video_reference_meta) + 1}", 80),
+            "label": _text(item.get("label") or item.get("name") or node_id, 240),
+            "source_node_id": node_id,
+            "mime_type": _text(item.get("mime_type") or item.get("mimeType") or "video/mp4", 120),
+            "duration_seconds": item.get("duration_seconds") or item.get("durationSeconds") or 0,
+            "width": item.get("width") or item.get("media_width") or item.get("mediaWidth") or 0,
+            "height": item.get("height") or item.get("media_height") or item.get("mediaHeight") or 0,
+            "fps": item.get("fps") or 0,
+        }
+        video_reference_ids.append(node_id)
+    for value in raw_video_reference_ids[:2]:
+        node_id = _text(value, 160)
+        if node_id:
+            video_reference_ids.append(node_id)
+    video_reference_ids = list(dict.fromkeys(video_reference_ids))[:2]
+    referenced_video_nodes = [
+        node for node in canvas_video_nodes
+        if _text(node.get("id"), 160) in video_reference_ids
+    ]
+    resolved_video_reference_ids = [_text(node.get("id"), 160) for node in referenced_video_nodes]
     return {
         "node_count": len(nodes),
         "edge_count": len(edges),
@@ -343,6 +386,19 @@ def summarize_context(context: dict[str, Any]) -> dict[str, Any]:
                 "source_node_id": node_id,
             }
             for index, node_id in enumerate(resolved_reference_ids)
+        ],
+        "canvas_video_node_count": len(canvas_video_nodes),
+        "video_reference_count": len(referenced_video_nodes),
+        "referenced_video_count": len(referenced_video_nodes),
+        "referenced_video_node_ids": resolved_video_reference_ids,
+        "referenced_videos": [
+            video_reference_meta.get(node_id) or {
+                "id": f"video{index + 1}",
+                "label": node_id,
+                "source_node_id": node_id,
+                "mime_type": "video/mp4",
+            }
+            for index, node_id in enumerate(resolved_video_reference_ids)
         ],
         "selected_node_id": selected_id,
         "selected_text_node_id": selected_text_id,
@@ -760,6 +816,7 @@ def build_plan(goal: str, context: dict[str, Any], options: dict[str, Any] | Non
             or _IMAGE_ANALYSIS_TERMS.search(goal)
         )
     )
+    wants_video_analysis = bool(summary.get("referenced_video_count"))
     scope = _text(options.get("scope") or "selection", 32).lower()
     if scope not in {"selection", "canvas"}:
         scope = "selection"
@@ -791,6 +848,14 @@ def build_plan(goal: str, context: dict[str, Any], options: dict[str, Any] | Non
                 "分析 H3 首帧",
                 "分析已连接的首帧，提取人物、场景、构图和可连续运动的视觉锚点。",
                 tool="analyze_image",
+            ))
+        if wants_video_analysis:
+            steps.append(_step(
+                "analyze_videos",
+                "analyze_videos",
+                "分析参考视频",
+                f"对 {summary['referenced_video_count']} 个 @ 视频引用均匀抽取 12--24 帧，提取动作、镜头与节奏锚点。",
+                tool="analyze_video_frames",
             ))
         if not _bool(options.get("skip_prompt_rewrite"), False):
             steps.append(_step(
@@ -855,7 +920,16 @@ def build_plan(goal: str, context: dict[str, Any], options: dict[str, Any] | Non
             "读取画布上下文",
             (
                 f"检查 {summary['node_count']} 个节点、{summary['edge_count']} 条连接和当前输出设置"
-                + (f"，确认 {summary['referenced_image_count']} 个 @ 图片引用。" if summary["referenced_image_count"] else "。")
+                + (
+                    "，确认 "
+                    + "、".join(filter(None, [
+                        f"{summary['referenced_image_count']} 个 @ 图片引用" if summary["referenced_image_count"] else "",
+                        f"{summary['referenced_video_count']} 个 @ 视频引用" if summary["referenced_video_count"] else "",
+                    ]))
+                    + "。"
+                    if summary["referenced_image_count"] or summary["referenced_video_count"]
+                    else "。"
+                )
             ),
             tool="read_canvas",
         )
@@ -872,12 +946,20 @@ def build_plan(goal: str, context: dict[str, Any], options: dict[str, Any] | Non
             ),
             tool="analyze_image",
         ))
+    if wants_video_analysis:
+        steps.append(_step(
+            "analyze_videos",
+            "analyze_videos",
+            "分析参考视频",
+            f"对 @ 引用的 {summary['referenced_video_count']} 个视频均匀抽取 12--24 帧，提取动作、镜头、节奏与视觉风格。",
+            tool="analyze_video_frames",
+        ))
     if not _bool(options.get("skip_prompt_rewrite"), False):
         steps.append(_step(
             "rewrite_prompt",
             "rewrite_prompt",
             "整理执行提示词",
-            "结合当前文本、用户目标和参考图分析，生成可投喂的正式提示词。",
+            "结合当前文本、用户目标和参考媒体分析，生成可投喂的正式提示词。",
             tool="generate_prompt_version",
         ))
 
@@ -886,7 +968,7 @@ def build_plan(goal: str, context: dict[str, Any], options: dict[str, Any] | Non
             "apply_prompt",
             "apply_prompt_to_input",
             "写入模型提示词",
-            "更新已连接文本节点；没有可用文本节点时创建并连接一个新节点。",
+            "更新已连接文本节点；缺少模型或文本节点时自动补齐，并连接 @ 引用图片。",
             tool="create_or_update_text_node",
         ))
     elif summary["selected_text_node_id"]:
@@ -902,7 +984,7 @@ def build_plan(goal: str, context: dict[str, Any], options: dict[str, Any] | Non
             "apply_prompt",
             "apply_prompt_to_input",
             "创建提示词节点",
-            "创建文本节点并连接到主模型节点。",
+            "创建文本节点并连接到模型；缺少模型节点时自动创建。",
             tool="create_text_node",
         ))
 
@@ -1217,6 +1299,7 @@ class AgentRuntime:
             "prompt": _text(result.get("prompt") or summary.get("current_prompt") or run.get("goal")),
             "prompt_meta": copy.deepcopy(result.get("prompt_meta") if isinstance(result.get("prompt_meta"), dict) else {}),
             "text_node_id": _text(result.get("text_node_id") or summary.get("selected_text_node_id"), 160),
+            "input_node_id": _text(result.get("input_node_id"), 160),
             "task_id": _text(result.get("task_id") or run.get("task_id"), 160),
             "analysis": copy.deepcopy(result.get("analysis") if isinstance(result.get("analysis"), dict) else {}),
             "artifact_type": _text(result.get("artifact_type") or (run.get("plan") or {}).get("artifact_type") or "image", 40),
@@ -1228,6 +1311,7 @@ class AgentRuntime:
             "prompt": _text(working.get("prompt")),
             "prompt_meta": copy.deepcopy(working.get("prompt_meta") or {}),
             "text_node_id": _text(working.get("text_node_id"), 160),
+            "input_node_id": _text(working.get("input_node_id"), 160),
             "task_id": _text(working.get("task_id"), 160),
             "analysis": copy.deepcopy(working.get("analysis") or {}),
             "artifact_type": _text(working.get("artifact_type") or "image", 40),
@@ -1284,6 +1368,7 @@ class AgentRuntime:
                 "prompt": working.get("prompt") or "",
                 "prompt_meta": working.get("prompt_meta") or {},
                 "text_node_id": working.get("text_node_id") or "",
+                "input_node_id": working.get("input_node_id") or "",
                 "task_id": working.get("task_id") or "",
                 "analysis": working.get("analysis") or {},
                 "artifact_type": working.get("artifact_type") or plan.get("artifact_type") or "image",
@@ -1360,6 +1445,7 @@ class AgentRuntime:
                 "node_count": summary["node_count"],
                 "edge_count": summary["edge_count"],
                 "image_node_count": summary["image_node_count"],
+                "referenced_video_count": summary.get("referenced_video_count") or 0,
                 "selected_node_id": summary["selected_node_id"],
                 "input_node_id": summary["input_node_id"],
                 "video_node_id": summary.get("video_node_id") or "",
@@ -1393,6 +1479,13 @@ class AgentRuntime:
                 working["analysis"] = analysis
                 if selected and summary.get("task_domain") != "video":
                     working["prompt"] = _text(selected.get("text"))
+            elif kind == "analyze_videos":
+                analysis = payload.get("analysis") if isinstance(payload.get("analysis"), dict) else {}
+                candidates = payload.get("candidates") if isinstance(payload.get("candidates"), list) else []
+                selected = next((item for item in candidates if isinstance(item, dict) and _text(item.get("text"))), None)
+                working["video_analysis"] = analysis
+                if selected:
+                    working["video_prompt_candidate"] = _text(selected.get("text"))
             elif kind == "compile_h3_prompt":
                 compiled_prompt = _text(payload.get("prompt") or payload.get("compiled_prompt"))
                 if not compiled_prompt:
@@ -1401,6 +1494,8 @@ class AgentRuntime:
                 working["prompt_meta"] = copy.deepcopy(payload.get("provenance") or payload.get("meta") or {})
             elif kind in {"update_text_node", "apply_prompt_to_input"}:
                 working["text_node_id"] = _text(payload.get("node_id") or payload.get("nodeId") or working.get("text_node_id"), 160)
+                if kind == "apply_prompt_to_input":
+                    working["input_node_id"] = _text(payload.get("input_node_id") or working.get("input_node_id"), 160)
             elif kind in {"submit_generation", "submit_video_generation"}:
                 task_id = _text(payload.get("task_id") or payload.get("taskId"), 160)
                 if not task_id:
@@ -1427,7 +1522,12 @@ class AgentRuntime:
         instruction = "\n\n".join(part for part in [
             f"当前可用提示词：\n{current}" if current else "",
             f"本轮 Agent 执行目标：\n{goal}",
-            "请保留用户已经明确的主体、构图、风格、比例和文字要求，输出可直接用于本次图片任务的正式提示词。",
+            (
+                "参考视频的 12--24 帧时序分析：\n"
+                + _text(json.dumps(working.get("video_analysis"), ensure_ascii=False), 12_000)
+            ) if working.get("video_analysis") else "",
+            f"参考视频候选方向：\n{_text(working.get('video_prompt_candidate'), 8_000)}" if working.get("video_prompt_candidate") else "",
+            "请保留用户已经明确的主体、构图、风格、比例和文字要求，输出可直接用于本次任务的正式提示词。",
         ] if part)
         try:
             result = self._prompt_refiner(instruction or goal, {
@@ -1483,6 +1583,12 @@ class AgentRuntime:
                 "image_node_ids": summary.get("image_node_ids") or [],
                 "message": run.get("goal") or "分析画布参考图",
             }
+        if kind == "analyze_videos":
+            return {
+                **base,
+                "video_node_ids": summary.get("referenced_video_node_ids") or [],
+                "message": run.get("goal") or "分析画布参考视频",
+            }
         if kind == "compile_h3_prompt":
             plan = run.get("plan") if isinstance(run.get("plan"), dict) else {}
             confirmation = plan.get("confirmation") if isinstance(plan.get("confirmation"), dict) else {}
@@ -1491,7 +1597,10 @@ class AgentRuntime:
                 "video_node_id": summary.get("video_node_id") or summary.get("generation_node_id") or "",
                 "first_frame_node_id": summary.get("first_frame_node_id") or "",
                 "current_prompt": working.get("prompt") or summary.get("current_prompt") or "",
-                "analysis": copy.deepcopy(working.get("analysis") or {}),
+                "analysis": {
+                    "first_frame": copy.deepcopy(working.get("analysis") or {}),
+                    "reference_video": copy.deepcopy(working.get("video_analysis") or {}),
+                },
                 "mode": confirmation.get("mode") or "image_to_video",
                 "h3_mode": confirmation.get("h3_mode") or "I2VA",
                 "duration_seconds": confirmation.get("duration_seconds") or 15,
@@ -1507,7 +1616,12 @@ class AgentRuntime:
         if kind == "apply_prompt_to_input":
             return {
                 **base,
-                "input_node_id": summary.get("input_node_id") or "input",
+                "input_node_id": working.get("input_node_id") or summary.get("input_node_id") or "input",
+                "create_input_if_missing": summary.get("task_domain") != "video",
+                "referenced_image_node_ids": (
+                    copy.deepcopy(summary.get("referenced_image_node_ids") or [])
+                    if summary.get("task_domain") != "video" else []
+                ),
                 "text": working.get("prompt") or run.get("goal") or "",
                 "prompt_meta": copy.deepcopy(working.get("prompt_meta") or {}),
             }
@@ -1575,9 +1689,15 @@ class AgentRuntime:
                 )
             params["archiveEnabled"] = archive_enabled
             params["telegramEnabled"] = telegram_enabled
+            # The browser may have created/resolved a different live model after
+            # planning. Keep explicit result nodes only when their input matches.
+            input_node_id = _text(working.get("input_node_id"), 160)
+            result_node_id = summary.get("result_node_id") or summary.get("input_node_id") or "input"
+            if input_node_id and input_node_id != summary.get("input_node_id"):
+                result_node_id = input_node_id
             return {
                 **base,
-                "result_node_id": summary.get("result_node_id") or summary.get("input_node_id") or "input",
+                "result_node_id": result_node_id,
                 "provider": provider,
                 "prompt": working.get("prompt") or run.get("goal") or "",
                 "params": params,

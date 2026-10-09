@@ -1,14 +1,32 @@
+# Local credentials. Only the named, secret-free templates are shareable.
 .env
-.venv/
-.venv-sam3d/
-.venv-desktop/
-.venv-upscale-component/
+.env.*
+!/.env.example
+!/.env.sample
+!/.env.template
+!/docker/.env.docker.sample
+settings.json
+settings.json.*
+/auth/
+/chatgpt_pool/
+/google_pool/
+/data/
+
+# All local Python environments, including versioned and sidecar environments.
+.venv*/
+# Installed optional runtime, not components source code.
+/components/upscale/
+/components/topaz/
+
+# Starlight Mini's standalone video runtime and compiled CoreML cache.
+/components/topaz-video/
 
 # Local operator / memory context. AGENTS.md is tracked for project rules;
 # keep the maintainer-specific docs below out of the public release.
 SOUL.md
 USER.md
 MEMORY.md
+PROJECT.md
 memory/
 RELEASE_BOUNDARY.md
 design/
@@ -17,6 +35,7 @@ docs/
 *.pyc
 __pycache__/
 *.log
+*.log.*.gz
 .DS_Store
 .pytest_cache/
 .coverage
@@ -34,10 +53,6 @@ tasks.db*
 layout_drafts.db*
 assets.db*
 prompt_sources.db*
-settings.json
-data/
-!vendor/vnccs_sam3d/**/data/
-!vendor/vnccs_sam3d/**/data/**
 models/upscale/*.pth
 models/upscale/*.pt
 models/upscale/*.safetensors
@@ -46,11 +61,20 @@ workflows/*.json
 !workflows/Lumina_2_Upscale.json
 !workflows/sd15_text_to_image.json
 static/pose/mannequin/*.glb
-sidecars/chatgpt_pool/.venv/
-sidecars/chatgpt_pool/.venv-runtime/
 sidecars/chatgpt_pool/launchd/*.plist
 launchd/*.plist
-tests/
+# Regression sources and synthetic fixtures may be tracked. Keep local probes
+# and generated test output separate; do not ignore the whole test suite.
+/tests/**/*_local.*
+/tests/local/
+/tests/manual/
+/tests/output/
+/tests/artifacts/
+/tests/reports/
+/tests/test-results/
+/tests/playwright-report/
+/tests/coverage/
+/tests/tmp/
 .nested-git-backups/
 /scripts/
 !desktop/electron/scripts/
@@ -59,23 +83,31 @@ test_node.js
 apply_neumorphic.py
 inject_style.py
 neumorphic.css
-gen_*
-3-pro_*
-tasks/
-requests/
-edit_requests/
-google_outputs/
-gpt_outputs/
-output/
-font/
-artifacts/
-generated/
+# Root runtime paths only: do not hide same-named source/fixture directories.
+# Legacy timestamp-named outputs, not gen_*.py source modules.
+/gen_[0-9]*
+/3-pro_[0-9]*
+/tasks/
+/requests/
+/edit_requests/
+/google_outputs/
+/gpt_outputs/
+/gpt_requests/
+/archive/
+/source_images/
+/downloads/
+/logs/
+/output/
+/font/
+/artifacts/
+/generated/
 /cache/
-build/
-dist/
+/build/
+/dist/
 desktop/electron/dist/
 desktop/electron/app-dist/
 desktop/electron/node_modules/
+frontend/node_modules/
 desktop/electron/release/
 desktop/electron/assets/canvashub-app-icon-white.png
 frontend/thumb/
@@ -83,9 +115,11 @@ frontend/assets/image-editor-icons/*.png
 frontend/assets/image-editor-cursors/*.png
 # Local, unreferenced design-review capture.
 frontend/assets/prompt-library-guide.png
-work/
+/work/
 *.sqlite
+*.sqlite-*
 *.sqlite3
+*.sqlite3-*
 *.db
 *.db-*
 *.bak
@@ -93,3 +127,22 @@ work/
 *.swp
 .gstack/
 raglite/chroma-data/
+
+# Independent MLX music environment and large model weights.
+/components/audio-yue/
+
+# Local Krea 2 MLX source checkout, model weights, LoRAs and install receipts.
+/components/krea2/
+
+# Qwen worker-only checkout, pinned model caches and preparation receipts.
+/components/qwen21/
+
+# Installed ReShot weights/cache/receipt; source lives in backend/video_control.
+/components/reshot/
+/components/.local-inference.lock
+
+# Installed Topaz model links, compiled cache and native job scratch files.
+/components/topaz/
+
+# Local knowledge base (vector index, distilled notes, logs)
+raglite/

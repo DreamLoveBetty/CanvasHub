@@ -54,4 +54,4 @@ from backend.app_config import get_chatgpt_pool_config
 get_chatgpt_pool_config(ensure_auth_key=True)
 PY
 
-exec "$VENV_DIR/bin/python" -m uvicorn sidecars.chatgpt_pool.app:app --host "$HOST" --port "$PORT"
+exec "$VENV_DIR/bin/python" -m uvicorn sidecars.account_service:app --host "$HOST" --port "$PORT"
