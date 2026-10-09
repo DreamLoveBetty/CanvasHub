@@ -1,16 +1,17 @@
 {
   "name": "canvashub-desktop",
-  "version": "26.2.2",
+  "version": "26.3.0",
   "description": "CanvasHub desktop application",
   "main": "app-dist/main.js",
   "private": true,
   "scripts": {
     "build": "tsc -p tsconfig.json",
+    "build:frontend": "npm --prefix ../../frontend ci --no-audit --no-fund && npm --prefix ../../frontend run build && npm --prefix ../../frontend run check",
     "dev": "npm run build && electron .",
     "prepare:release": "node scripts/write-release-config.mjs",
-    "pack": "npm run build && npm run prepare:release && electron-builder --dir",
-    "dist:mac": "npm run build && npm run prepare:release && electron-builder --mac dmg zip",
-    "dist:win": "npm run build && npm run prepare:release && electron-builder --win nsis"
+    "pack": "npm run build && npm run build:frontend && npm run prepare:release && electron-builder --dir",
+    "dist:mac": "npm run build && npm run build:frontend && npm run prepare:release && electron-builder --mac dmg zip",
+    "dist:win": "npm run build && npm run build:frontend && npm run prepare:release && electron-builder --win nsis"
   },
   "dependencies": {
     "electron-updater": "^6.6.2"
@@ -37,11 +38,11 @@
     ],
     "extraResources": [
       {
-        "from": "../../frontend",
+        "from": "../../dist/web/frontend",
         "to": "app-resources/frontend"
       },
       {
-        "from": "../../static",
+        "from": "../../dist/web/static",
         "to": "app-resources/static"
       },
       {

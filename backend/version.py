@@ -1,3 +1,3 @@
 """CanvasHub application version shared by Python runtime modules."""
 
-APP_VERSION = "26.2.2"
+APP_VERSION = "26.3.0"
