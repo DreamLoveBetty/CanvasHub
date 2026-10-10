@@ -27,7 +27,7 @@ test('desktop load order, cache busting and boundaries cover every new dependenc
  const html=file('desktop.html'),order=['desktop-progress-model','desktop-progress-materials','desktop-progress-renderer','desktop-progress','desktop-preferences'];
  for(let i=1;i<order.length;i++)assert.ok(html.indexOf(`scripts/${order[i-1]}.js?`)<html.indexOf(`scripts/${order[i]}.js?`));
  const changed=[...order,'desktop-canvas','desktop-canvas-krea2','desktop-canvas-qwen21','desktop-canvas-cyimg','desktop-canvas-nodes','desktop-canvas-model-nodes','desktop-results','desktop-settings','desktop-music-view','desktop-topaz-video-view','desktop-video-control-view'];
- for(const name of changed)assert.ok(html.includes(`scripts/${name}.js?v=${['desktop-canvas-qwen21','desktop-canvas-krea2','desktop-canvas-cyimg','desktop-canvas-model-nodes'].includes(name)?'20261009-generation-action-unify1':name==='desktop-preferences'?'20261009-release-26-3-0':name==='desktop-settings'?'20261009-settings-drawer2':'20261007-node-progress4'}`),name);
+ for(const name of changed)assert.ok(html.includes(`scripts/${name}.js?v=${['desktop-canvas-qwen21','desktop-canvas-krea2','desktop-canvas-cyimg','desktop-canvas-model-nodes'].includes(name)?'20261009-generation-action-unify1':name==='desktop-preferences'?'20261010-release-26-3-1':name==='desktop-settings'?'20261009-settings-drawer2':'20261007-node-progress4'}`),name);
  assert.ok(html.includes('styles/desktop-progress.css?v=20261007-node-progress4'));
  for(const name of ['desktop-progress-model','desktop-progress-materials','desktop-progress-renderer','desktop-progress']) {
   const source=read(name);assert.doesNotMatch(source,/\b(?:fetch|localStorage|DesktopState|DesktopResults)\b/);

@@ -431,7 +431,7 @@
     {
       id: 'bundled-release',
       version: '',
-      date: '2026-10-09',
+      date: '2026-10-10',
       title: {
         zh: '本地模型节点、按钮材质与设置中心改版',
         en: 'Local model nodes, button materials and a new settings centre',
@@ -445,6 +445,7 @@
           '节点按钮可选 Ambient 材质（哑光 / 微光泽 / 磨砂玻璃），支持表面、键体颜色与强调色。',
           '设置中心改为左侧抽屉：分类常驻、宽度可拖动并记忆，顶部搜索可直达设置项。',
           '所有节点的“开始生成”按钮统一外观与运行中状态，连线吸附与接通反馈更自然。',
+          '26.3.1：修复画布节点较多时缩放卡顿（缩放不再逐帧重算所有节点样式）。',
         ],
         en: [
           'New local Krea 2 and Qwen 2.1 image nodes (MLX) with a LoRA library, BF16 export and model tools.',
@@ -454,6 +455,7 @@
           'Node buttons can use the Ambient material (Matte / Shiny / Glass) with surface, key colour and accent options.',
           'Settings now open as a left drawer with every category visible, a resizable remembered width and search.',
           'Every node\'s generate button shares one look and running state; connection snapping and feedback feel smoother.',
+          '26.3.1: fixed canvas zoom stutter with many nodes (zooming no longer restyles every node each frame).',
         ],
       },
     },

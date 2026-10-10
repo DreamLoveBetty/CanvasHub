@@ -122,7 +122,7 @@ test('desktop.html: body scope id, module before preferences, generated CSS befo
   assert.match(html, /<body id="deskApp" class="desk-app"/);
   const at = s => html.indexOf(s);
   assert.ok(at(`scripts/desktop-control-material.js?v=${VERSION}`) > 0);
-  assert.ok(at('scripts/desktop-control-material.js?') < at('scripts/desktop-preferences.js?v=20261009-release-26-3-0'));
+  assert.ok(at('scripts/desktop-control-material.js?') < at('scripts/desktop-preferences.js?v=20261010-release-26-3-1'));
   assert.ok(at('styles/desktop-progress.css?') < at('styles/desktop-ambient-controls.css?v=20261009-control-material2'));
   assert.ok(at('styles/desktop-ambient-controls.css?') < at('styles/desktop-control-material.css?v=20261009-control-material3'));
   assert.ok(at('scripts/desktop-settings.js?v=20261009-settings-drawer2') > 0);
