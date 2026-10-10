@@ -117,6 +117,6 @@ test('host binds release-click handling in capture phase, clears on a fresh pres
   assert.match(host, /addEventListener\('pointerdown', \(\) => \{\s*canvasViewport\.resetPanClickGuard\(\);\s*setNodePaletteOpen\(false\);\s*\}, true\)/);
   const html = read('desktop.html');
   for (const name of ['desktop-canvas', 'desktop-canvas-viewport']) {
-    assert.ok(html.includes(`${name}.js?v=${name === 'desktop-canvas' ? '20261007-node-progress4' : '20261006-pan-click-guard1'}`), name);
+    assert.ok(html.includes(`${name}.js?v=${name === 'desktop-canvas' ? '20261007-node-progress4' : '20261009-zoom-style-cost1'}`), name);
   }
 });

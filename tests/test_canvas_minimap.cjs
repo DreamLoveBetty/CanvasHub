@@ -266,7 +266,7 @@ test('served HTML wires the existing controller, includes the new presets and bu
       : asset === 'styles/desktop-canvas-nodes.css' ? '20261007-connection-arc1'
       : asset === 'scripts/desktop-canvas.js' ? '20261007-node-progress4'
       : asset === 'scripts/desktop-canvas-viewport.js'
-      ? '20261006-pan-click-guard1'
+      ? '20261009-zoom-style-cost1'
       : ['scripts/desktop-i18n.js', 'styles/desktop-canvas-nodes.css'].includes(asset)
         ? '20261006-node-palette-groups1' : '20261005-minimap-navigation2';
     assert.ok(html.includes(`${asset}?v=${version}`), asset);

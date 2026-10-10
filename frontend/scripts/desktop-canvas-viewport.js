@@ -58,15 +58,13 @@
         els.deskCanvasViewport.style.setProperty('--canvas-grid-y', `${gridY}px`);
       }
       if (els.deskCanvasWorld) {
-        const scaleValue = Number(canvas.scale).toFixed(4);
+        // Do not mirror the scale into an inherited custom property here: every
+        // descendant would restyle on each zoom frame (nothing reads it).
         const zoomTier = canvas.scale < CANVAS_OVERVIEW_ZOOM_THRESHOLD
           ? 'overview'
           : canvas.scale < CANVAS_COMPACT_ZOOM_THRESHOLD
             ? 'compact'
             : 'detail';
-        if (els.deskCanvasWorld.style.getPropertyValue('--desk-canvas-scale') !== scaleValue) {
-          els.deskCanvasWorld.style.setProperty('--desk-canvas-scale', scaleValue);
-        }
         if (els.deskCanvasWorld.dataset.zoomTier !== zoomTier) {
           els.deskCanvasWorld.dataset.zoomTier = zoomTier;
         }

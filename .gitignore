@@ -146,3 +146,6 @@ raglite/chroma-data/
 
 # Local knowledge base (vector index, distilled notes, logs)
 raglite/
+
+# Local architecture diagrams (kept out of the repository by request)
+diagrams/
