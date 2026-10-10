@@ -90,7 +90,9 @@
 }
 
 /* ambient.css: * */
-#deskApp[data-control-material="ambient"] .desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action) {
+#deskApp[data-control-material="ambient"] .desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key),
+#deskApp[data-control-material="ambient"] :is(.desk-node, .desk-settings) .desk-key-bank > button,
+#deskApp[data-control-material="ambient"] :is(.desk-node, .desk-settings) .desk-key-bank {
   --amb-curve-delta: calc(
     (
       (var(--amb-key-light-intensity) - var(--amb-fill-light-intensity))
@@ -156,18 +158,26 @@
 }
 
 /* ambient.css: .amb-chamfer */
-#deskApp[data-control-material="ambient"] .desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action) {
+#deskApp[data-control-material="ambient"] .desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key),
+#deskApp[data-control-material="ambient"] :is(.desk-node, .desk-settings) .desk-key-bank > button::after {
   --amb-chamfer: 1;
   --amb-thickness: 1;
 }
 
+/* ambient.css: .amb-groove */
+#deskApp[data-control-material="ambient"] :is(.desk-node, .desk-settings) .desk-key-bank {
+  --amb-thickness: 1;
+}
+
 /* ambient.css: .amb-mat-glass */
-#deskApp[data-control-material="ambient"][data-control-finish="glass"] .desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action) {
+#deskApp[data-control-material="ambient"][data-control-finish="glass"] .desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key),
+#deskApp[data-control-material="ambient"] :is(.desk-node, .desk-settings) .desk-key-bank > button::after {
   --amb-thickness: 1;
 }
 
 /* ambient.css: .ambient */
-#deskApp[data-control-material="ambient"] .desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action) {
+#deskApp[data-control-material="ambient"] .desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key),
+#deskApp[data-control-material="ambient"] :is(.desk-node, .desk-settings) .desk-key-bank > button::after {
   /* Effective edge widths, capped level-for-level: the cut cannot be wider
      than the body is thick (negative widths cap symmetrically). */
   --_amb-chamfer-w: max(-1 * var(--amb-thickness), min(var(--amb-chamfer-width), var(--amb-thickness)));
@@ -326,7 +336,7 @@
 }
 
 /* ambient.css: .amb-surface */
-#deskApp[data-control-material="ambient"] .desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action) {
+#deskApp[data-control-material="ambient"] .desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key) {
   /* One line, because every surface tone in this file is now albedo x
      exposure (see --amb-lit above). The .amb-surface-lighter, -lightest,
      -darker and -darkest variants this replaces were five hardcoded
@@ -336,8 +346,83 @@
   background-color: var(--amb-lit);
 }
 
+/* ambient.css: .amb-groove */
+#deskApp[data-control-material="ambient"] :is(.desk-node, .desk-settings) .desk-key-bank {
+  /* Grounded on a recess cut into the reference ground
+     (ambient3d/derived/notes/groove.md). A groove is negative space: the
+     recess depth reuses the thickness vocabulary (4.5 physical mm per
+     level; a recess implies material to cut into, so the class defaults
+     to depth 1 — .amb-thickness-* combine to deepen or, at 0, flatten it
+     away). Three grounded features: the floor is affine in both light
+     intensities like every surface (R^2 0.99 — under the studio fill it
+     sits within a hair of the open ground: the overhead softbox reaches
+     in, and the walls bounce light back); the lit-side walls cast a
+     crisp shadow band onto the floor (reach 0.80 px per recess mm per
+     light component, alpha affine in contrast, R^2 0.95); and the far
+     walls catch the key and bounce it onto the floor beside them as a
+     soft brightening — the physical origin of the classic inset
+     highlight. The interior composes with --amb-lume, or with an
+     --amb-shade below 1, for track styling.
+
+     The floor is the SAME material as the ground around it — same
+     --amb-albedo, same --amb-shade — under its own exposure, refit from
+     those 15 frames the way .amb-surface was: the walls bounce the key
+     back in, so a recess floor takes 3.5% more key and 0.6% more fill
+     than the open ground (within 1.3 points of lightness of the affine
+     floor formula it replaces). Riding --amb-albedo is the whole point —
+     a groove cut into a crimson panel is crimson, not grey. */
+  --_amb-groove-exposure: calc(
+    var(--amb-key-light-intensity) * 0.6623 +
+      var(--amb-fill-light-intensity) * 0.5527
+  );
+  --_amb-groove-diffuse: color(
+    from var(--amb-albedo) srgb-linear
+    calc(r * var(--amb-shade) * var(--_amb-groove-exposure))
+    calc(g * var(--amb-shade) * var(--_amb-groove-exposure))
+    calc(b * var(--amb-shade) * var(--_amb-groove-exposure))
+  );
+  background-color: color-mix(
+    in srgb,
+    var(--_amb-groove-diffuse),
+    hsl(from var(--_amb-groove-diffuse) var(--amb-light-hue) calc(100 - s) l)
+      var(--amb-light-saturation)
+  );
+  box-shadow:
+    inset calc(var(--amb-light-x) * var(--amb-thickness) * -3.6px)
+      calc(var(--amb-light-y) * var(--amb-thickness) * -3.6px)
+      calc(var(--amb-thickness) * 2.7px) 0px
+      hsl(
+        var(--amb-light-hue)
+        var(--amb-light-saturation)
+        0%
+        / calc(
+            max(0, min(var(--amb-thickness), 1)) *
+              (
+                (var(--amb-key-light-intensity) - var(--amb-fill-light-intensity))
+                  * 0.24 + 0.31
+              )
+          )
+      ),
+    inset calc(var(--amb-light-x) * var(--amb-thickness) * 2.7px)
+      calc(var(--amb-light-y) * var(--amb-thickness) * 2.7px)
+      calc(var(--amb-thickness) * 5.1px) 0px
+      hsl(
+        var(--amb-light-hue)
+        var(--amb-light-saturation)
+        100%
+        / calc(
+            max(0, min(var(--amb-thickness), 1)) *
+              max(0, min(
+                var(--amb-key-light-intensity) * 1.5 +
+                  var(--amb-fill-light-intensity) * 0.72 - 0.96,
+                1
+              ))
+          )
+      );
+}
+
 /* ambient.css: .amb-mat-shiny */
-#deskApp[data-control-material="ambient"][data-control-finish="shiny"] .desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action) {
+#deskApp[data-control-material="ambient"][data-control-finish="shiny"] .desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key) {
   --amb-mat-specular: 1;
   --amb-mat-roughness: 0;
   --amb-mat-opacity: 1;
@@ -378,7 +463,8 @@
 }
 
 /* ambient.css: .amb-mat-glass */
-#deskApp[data-control-material="ambient"][data-control-finish="glass"] .desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action) {
+#deskApp[data-control-material="ambient"][data-control-finish="glass"] .desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key),
+#deskApp[data-control-material="ambient"] :is(.desk-node, .desk-settings) .desk-key-bank > button::after {
   --amb-mat-specular: 0.05;
   --amb-mat-roughness: 0.9;
   --amb-mat-opacity: 0;
@@ -569,12 +655,13 @@
 }
 
 /* ambient.css: :where(.amb-mat-glass) */
-:where(#deskApp[data-control-material="ambient"][data-control-finish="glass"] .desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action)) {
+:where(#deskApp[data-control-material="ambient"][data-control-finish="glass"] .desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key),
+#deskApp[data-control-material="ambient"] :is(.desk-node, .desk-settings) .desk-key-bank > button::after) {
   position: relative;
 }
 
 /* ambient.css: .amb-mat-glass::after */
-#deskApp[data-control-material="ambient"][data-control-finish="glass"] .desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action)::before {
+#deskApp[data-control-material="ambient"][data-control-finish="glass"] .desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key)::before {
   content: "";
   position: absolute;
   inset: 0;
@@ -601,7 +688,7 @@
 }
 
 /* ambient.css: .amb-surface-convex */
-#deskApp[data-control-material="ambient"][data-control-finish="matte"][data-control-surface="convex"] .desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action) {
+#deskApp[data-control-material="ambient"][data-control-finish="matte"][data-control-surface="convex"] .desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key) {
   --_convex-y: max(-1, min(var(--amb-light-y), 1));
   --_convex-delta: calc(var(--_convex-y) * var(--amb-curve-delta));
   background: linear-gradient(
@@ -654,7 +741,7 @@
 }
 
 /* components.css: .amb-button-cap::after */
-#deskApp[data-control-material="ambient"] .desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action)::after {
+#deskApp[data-control-material="ambient"] .desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key)::after {
   content: "";
   position: absolute;
   inset: 0;
@@ -730,4 +817,69 @@
     hsl(var(--amb-light-hue) var(--amb-light-saturation) 100% / calc(var(--_ambx-dish-up) * 0.44)) 80%,
     hsl(var(--amb-light-hue) var(--amb-light-saturation) 100% / var(--_ambx-dish-up)) 100%
   );
+}
+
+/* components.css: .amb-select .ambx-key:disabled .amb-select-lens */
+#deskApp[data-control-material="ambient"] :is(.desk-node, .desk-settings) .desk-key-bank > button:disabled::before {
+  opacity: 0.4;
+}
+
+/* components.css: .amb-select-lens */
+#deskApp[data-control-material="ambient"] :is(.desk-node, .desk-settings) .desk-key-bank > button::before {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  height: 62%;
+  aspect-ratio: 1;          /* off the HEIGHT, so a widened key keeps a
+                               round lamp rather than an overflowing one */
+  border-radius: 50%;
+  /* Unlit, the lens is a tinted lens body, not an off pixel: it sits
+     between the floor's lit tone and the same material at 0.38 of its
+     reflectance (the mid-tone plate the rig calls DARKER_ALBEDO, taken
+     off --amb-lit in LINEAR light so it darkens the panel's own colour
+     rather than replacing it with a grey), and carries a trace of its
+     own colour so an amber lamp reads
+     faintly warm while dark — 6%, enough to tell an amber lamp from a
+     cyan one up close and not enough to tint the key. Measured against
+     the referent photo, whose unlit disc dips about 5% below the
+     surrounding cap. */
+  background-color: color-mix(
+    in oklab,
+    color-mix(
+      in oklab,
+      var(--amb-lit) 45%,
+      color-mix(in srgb-linear, var(--amb-lit) 37.8%, black)
+    ),
+    var(--_ambx-sel-color) 6%
+  );
+  transition: background-color 140ms ease;
+}
+
+/* components.css: .amb-select .ambx-key[data-on] .amb-select-lens */
+#deskApp[data-control-material="ambient"] :is(.desk-node, .desk-settings) .desk-key-bank > button:is(.is-active, [aria-pressed="true"])::before {
+  background-color: var(--_ambx-sel-color);
+}
+
+/* components.css: .amb-select .ambx-key[data-on] .amb-select-cap */
+#deskApp[data-control-material="ambient"] :is(.desk-node, .desk-settings) .desk-key-bank > button:is(.is-active, [aria-pressed="true"])::after {
+  background-color: color-mix(
+    in srgb,
+    var(--_ambx-sel-color) 35%,
+    /* the material's own wash, from its grounded pane transfer */
+    hsl(
+      var(--amb-light-hue) var(--amb-light-saturation)
+      var(--_glass-lightness) / var(--_glass-alpha)
+    )
+  );
+  /* The legend is printed ink: it does not light up, it silhouettes
+     against the lamp — so it darkens toward the lamp's own hue rather
+     than staying --amb-label, which inverts to pale in a dark scene and
+     would vanish against a bright cap. */
+  color: color-mix(in oklab, var(--_ambx-sel-color), black 68%);
+}
+
+/* components.css: .amb-select .ambx-key[data-on] */
+#deskApp[data-control-material="ambient"] :is(.desk-node, .desk-settings) .desk-key-bank > button:is(.is-active, [aria-pressed="true"]) {
+  box-shadow: 0 0 6.2px var(--_ambx-sel-color);
 }

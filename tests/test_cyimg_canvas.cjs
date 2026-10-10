@@ -66,7 +66,7 @@ test('认证 API 适配不携带 Key；桌面资源顺序和缓存版本已更�
     assert.match(html,new RegExp(name.replaceAll('.','\\.')+'\\?v='+(name==='desktop-canvas-cyimg.js'?'20261009-generation-action-unify1':'20260927-cyimg3')));
   for(const name of ['desktop-cyimg-api.js'])
     assert.match(html,new RegExp(name.replaceAll('.','\\.')+'\\?v=20260927-cyimg2'));
-  assert.match(html,/desktop-settings\.js\?v=20261009-settings-drawer2/);
+  assert.match(html,/desktop-settings\.js\?v=20261010-segment-bank1/);
   assert.match(html,/desktop-controls\.css\?v=20261009-settings-drawer2/);
   const cyimgCss=fs.readFileSync(path.join(frontend,'styles/desktop-cyimg.css'),'utf8');
   assert.match(cyimgCss,/desk-cyimg__fields\{[^}]*overflow:visible/);

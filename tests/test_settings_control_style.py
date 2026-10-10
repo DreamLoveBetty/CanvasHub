@@ -231,7 +231,7 @@ class SettingsControlStyleTests(unittest.TestCase):
         html = (ROOT / "frontend/desktop.html").read_text()
         for asset in ("desktop-geometry.css", "desktop-settings-auth.css", "desktop-controls.css"):
             versions = re.findall(rf'styles/{re.escape(asset)}\?v=([^"\s]+)', html)
-            expected = "20261009-settings-drawer2"
+            expected = "20261009-settings-drawer2" if asset == "desktop-controls.css" else "20261010-color-bloom1"
             self.assertEqual(versions, [expected])
 
 

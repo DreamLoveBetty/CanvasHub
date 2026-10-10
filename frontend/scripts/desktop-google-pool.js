@@ -11,7 +11,7 @@
     const button = (action, label, extra = '') => `<button type="button" data-google-pool-action="${action}" ${extra}${busy ? ' disabled' : ''}>${label}</button>`;
 
     function render(gptHtml) {
-      const tabs = `<div class="desk-segment desk-google-pool-tabs${provider === 'google' ? ' desk-google-pool-tabs--compact' : ''}" role="tablist" aria-label="账号池类型">
+      const tabs = `<div class="desk-segment desk-key-bank desk-google-pool-tabs${provider === 'google' ? ' desk-google-pool-tabs--compact' : ''}" role="tablist" aria-label="账号池类型">
         <button type="button" role="tab" data-google-pool-provider="gpt" aria-selected="${provider === 'gpt'}" class="${provider === 'gpt' ? 'is-active' : ''}">GPT 账号池</button>
         <button type="button" role="tab" data-google-pool-provider="google" aria-selected="${provider === 'google'}" class="${provider === 'google' ? 'is-active' : ''}">Google OAuth</button>
       </div>`;

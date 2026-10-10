@@ -133,7 +133,7 @@ test('脚本装配顺序、设置页、工作流和缓存版本完整',()=>{
   const html=fs.readFileSync(path.join(frontend,'desktop.html'),'utf8');
   const ordered=['desktop-tasks.js','desktop-qwen21-model.js','desktop-qwen21-api.js','desktop-qwen21-tools.js','desktop-canvas-qwen21.js','desktop-canvas-workflow.js','desktop-canvas-nodes.js','desktop-canvas.js','desktop-settings.js'];
   for(let i=1;i<ordered.length;i++)assert.ok(html.indexOf(ordered[i-1])<html.indexOf(ordered[i]));
-  for(const name of ordered.filter(name=>name!=='desktop-tasks.js'))assert.ok(html.includes(name+'?v='+(name==='desktop-canvas-qwen21.js'?'20261009-generation-action-unify1':name==='desktop-settings.js'?'20261009-settings-drawer2':['desktop-canvas.js','desktop-canvas-nodes.js'].includes(name)?'20261007-node-progress4':['desktop-qwen21-model.js','desktop-qwen21-tools.js'].includes(name)?'20261006-qwen-base-retirement1':name==='desktop-qwen21-api.js'?'20261002-qwen21-vae1':'20261001-qwen21-adapters-1')));
+  for(const name of ordered.filter(name=>name!=='desktop-tasks.js'))assert.ok(html.includes(name+'?v='+(name==='desktop-canvas-qwen21.js'?'20261009-generation-action-unify1':name==='desktop-settings.js'?'20261010-segment-bank1':name==='desktop-canvas-nodes.js'?'20261010-node-keys1':name==='desktop-canvas.js'?'20261007-node-progress4':['desktop-qwen21-model.js','desktop-qwen21-tools.js'].includes(name)?'20261006-qwen-base-retirement1':name==='desktop-qwen21-api.js'?'20261002-qwen21-vae1':'20261001-qwen21-adapters-1')));
   assert.match(read('desktop-canvas.js'),/qwen21Definition/);assert.match(read('desktop-canvas-nodes.js'),/qwen21Node/);
   assert.match(read('desktop-canvas-workflow.js'),/qwen21Definition/);assert.match(read('desktop-settings.js'),/qwen21Tools\?\.render/);
 });

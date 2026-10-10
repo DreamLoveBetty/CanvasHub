@@ -7,10 +7,11 @@ const { execFileSync } = require('node:child_process');
 
 const root = path.resolve(__dirname, '..');
 const read = file => fs.readFileSync(path.join(root, file), 'utf8');
-const VERSION = '20261009-control-material1';
+const VERSION = '20261010-segment-bank1';
 
 function load() {
-  const context = { window: {}, document: { body: null, activeElement: null } };
+  const context = { window: {}, document: { body: null, activeElement: null, addEventListener() {} } };
+  vm.runInNewContext(read('frontend/scripts/desktop-color-bloom.js'), context);
   vm.runInNewContext(read('frontend/scripts/desktop-control-material.js'), context);
   return context.window.DesktopControlMaterial;
 }
@@ -87,6 +88,15 @@ test('settings events: selects commit on change, HEX commits only when complete,
   const html = M.renderSettings({ material: 'current' });
   assert.match(html, /data-control-material-settings/);
   assert.match(html, /data-control-material-field="surface"[^>]*disabled/);
+  // Colour rows: the shared petal picker carries our fields; Current disables them.
+  assert.match(html, /<input type="hidden" data-color-bloom-value value="#[0-9A-F]{6}" data-control-material-field="color" disabled>/);
+  assert.match(html, /<input type="hidden" data-color-bloom-value value="#FF7F50" data-control-material-field="accent" disabled>/);
+  assert.match(html, /data-color-bloom-trigger[^>]*disabled/);
+  assert.doesNotMatch(html, /type="color"/);
+  const on = M.renderSettings({ material: 'matte', body: 'custom', bodyCustom: '#156ca2' });
+  assert.match(on, /data-color-bloom-value value="#156CA2" data-control-material-field="color">/);
+  assert.match(on, /class="desk-settings-color-field"><span data-control-material-palette-label>键体颜色<\/span><div class="desk-settings-color-field__group">\s*<select/);
+  assert.deepEqual({ ...M.patchFromEvent({ type: 'input', target: control('color', '#156CA2') }, prefs) }, { body: 'custom', bodyCustom: '#156ca2' });
 });
 
 test('generated Ambient subset is current, verbatim and never escapes the opt-in scope', () => {
@@ -122,10 +132,11 @@ test('desktop.html: body scope id, module before preferences, generated CSS befo
   assert.match(html, /<body id="deskApp" class="desk-app"/);
   const at = s => html.indexOf(s);
   assert.ok(at(`scripts/desktop-control-material.js?v=${VERSION}`) > 0);
+  assert.ok(at('scripts/desktop-color-bloom.js?v=20261010-color-bloom1') > 0 && at('scripts/desktop-color-bloom.js?') < at('scripts/desktop-control-material.js?'));
   assert.ok(at('scripts/desktop-control-material.js?') < at('scripts/desktop-preferences.js?v=20261010-release-26-3-1'));
-  assert.ok(at('styles/desktop-progress.css?') < at('styles/desktop-ambient-controls.css?v=20261009-control-material2'));
-  assert.ok(at('styles/desktop-ambient-controls.css?') < at('styles/desktop-control-material.css?v=20261009-control-material3'));
-  assert.ok(at('scripts/desktop-settings.js?v=20261009-settings-drawer2') > 0);
+  assert.ok(at('styles/desktop-progress.css?') < at('styles/desktop-ambient-controls.css?v=20261010-segment-bank3'));
+  assert.ok(at('styles/desktop-ambient-controls.css?') < at('styles/desktop-control-material.css?v=20261010-segment-bank4'));
+  assert.ok(at('scripts/desktop-settings.js?v=20261010-segment-bank1') > 0);
   const prefs = read('frontend/scripts/desktop-preferences.js');
   assert.match(prefs, /controlMaterial: state\.controlMaterial/);
   assert.match(prefs, /DesktopControlMaterial\?\.apply\(state\.controlMaterial, document\.body\)/);
@@ -137,8 +148,83 @@ test('every canvas generate action is covered, including ones without .desk-butt
   const scripts = fs.readdirSync(path.join(root, 'frontend/scripts')).filter(f => f.endsWith('.js')).map(f => read(`frontend/scripts/${f}`)).join('\n') + read('frontend/desktop.html');
   const classLists = [...scripts.matchAll(/class="([^"]*\bdesk-generation-action\b[^"]*)"/g)].map(m => m[1].split(/\s+/));
   assert.ok(classLists.some(list => !list.includes('desk-button')), 'fixture: some generate actions skip .desk-button');
-  const target = ':is(.desk-button, .desk-node-delete, .desk-generation-action)';
+  const target = ':is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key)';
   assert.ok(read('frontend/styles/desktop-ambient-controls.css').includes(`.desk-node ${target}`));
   assert.ok(read('frontend/styles/desktop-control-material.css').includes(`.desk-node ${target}`));
   assert.ok(!read('frontend/styles/desktop-control-material.css').includes('.desk-node :is(.desk-button, .desk-node-delete)'));
+});
+
+test('node push buttons opt in through the style-free .desk-key hook; segments, drop zones and the audio transport do not', () => {
+  const src = file => read(`frontend/scripts/${file}`);
+  const keyed = {
+    'desktop-canvas-nodes.js': ['data-image-edit ', 'data-image-view-mask', 'data-image-view-prompt', 'data-layout-open', 'data-layout-quick-export', 'data-pose-open', 'data-pose-connect-input'],
+    'desktop-canvas-text-editor.js': ['data-text-action="preset"', 'data-text-action="google-polish"', 'data-text-action="gpt-polish"', 'data-text-action="safe-rewrite"', 'data-text-action="clear"'],
+    'desktop-topaz-video-view.js': ['data-topaz-video-import', 'data-topaz-video-workbench'],
+    'desktop-video-control-view.js': ['data-control-import'],
+    'desktop-canvas-audio.js': ['data-audio-action="import"', 'data-audio-action="download"'],
+    'desktop-music-view.js': ['data-music-action="${action}"'],
+    'desktop-canvas-image-group-model.js': ['data-image-group-insert-reference', 'data-image-group-ungroup'],
+  };
+  const buttonWith = (code, marker) => code.split('<button').slice(1).map(tag => tag.slice(0, tag.indexOf('>'))).filter(tag => tag.includes(marker));
+  for (const [file, markers] of Object.entries(keyed)) {
+    const code = src(file);
+    for (const marker of markers) {
+      const tags = buttonWith(code, marker);
+      assert.ok(tags.length, `${file}: ${marker} rendered`);
+      tags.forEach(tag => assert.match(tag, /class="desk-key[ "$]/, `${file}: ${marker}`));
+    }
+  }
+  const unkeyed = {
+    'desktop-canvas-model-nodes.js': ['data-provider=', 'data-upload-drop'],
+    'desktop-music-view.js': ['data-music-tab='],
+    'desktop-canvas-audio.js': ['desk-audio__wheel', 'desk-audio__play', 'desk-audio__round', 'data-audio-action="mute"'],
+    'desktop-canvas-nodes.js': ['data-image-upload'],
+  };
+  for (const [file, markers] of Object.entries(unkeyed))
+    for (const marker of markers) buttonWith(src(file), marker).forEach(tag => assert.doesNotMatch(tag, /desk-key/, `${file}: ${marker}`));
+  // The hook carries no style of its own: only the opt-in Ambient layers may name it.
+  for (const css of fs.readdirSync(path.join(root, 'frontend/styles')).filter(f => f.endsWith('.css') && !['desktop-ambient-controls.css', 'desktop-control-material.css'].includes(f)))
+    assert.doesNotMatch(read(`frontend/styles/${css}`), /\.desk-key\b/, css);
+});
+
+test('segmented controls opt in through .desk-key-bank (nodes and settings) and read as an Ambient Select bank', () => {
+  const banks = {
+    'frontend/scripts/desktop-canvas-model-nodes.js': [/<div class="desk-segment desk-key-bank" role="tablist" aria-label="选择模型提供方">/],
+    'frontend/desktop.html': [/<div class="desk-segment desk-key-bank" id="deskProviderSegment"/],
+    'frontend/scripts/desktop-music-view.js': [/<nav class="desk-music__tabs desk-key-bank"/],
+    'frontend/scripts/desktop-settings.js': [/desk-settings-canvas-interaction__segment desk-key-bank/g, /<div class="desk-video-runtime-mode desk-key-bank"/],
+    'frontend/scripts/desktop-google-pool.js': [/<div class="desk-segment desk-key-bank desk-google-pool-tabs/],
+  };
+  for (const [file, patterns] of Object.entries(banks)) for (const pattern of patterns) assert.match(read(file), pattern, file);
+  assert.equal(read('frontend/scripts/desktop-settings.js').match(/desk-settings-canvas-interaction__segment desk-key-bank/g).length, 3);
+  // The hook carries no style of its own outside the opt-in Ambient layers.
+  for (const css of fs.readdirSync(path.join(root, 'frontend/styles')).filter(f => f.endsWith('.css') && !['desktop-ambient-controls.css', 'desktop-control-material.css'].includes(f)))
+    assert.doesNotMatch(read(`frontend/styles/${css}`), /\.desk-key-bank\b/, css);
+  const S = '#deskApp[data-control-material="ambient"]';
+  const BANK = ':is(.desk-node, .desk-settings) .desk-key-bank';
+  const K = `${BANK} > button`, ON = `${K}:is(.is-active, [aria-pressed="true"])`;
+  const generated = read('frontend/styles/desktop-ambient-controls.css');
+  const block = upstream => generated.slice(generated.indexOf(`/* ${upstream} */\n`)).split('{')[0];
+  // Select reading: the rail is the upstream groove; lens = ::before, diffuser cap = ::after.
+  assert.equal(generated.split(`/* ambient.css: .amb-groove */\n${S} ${BANK} {`).length - 1, 2);
+  assert.ok(generated.includes(`/* components.css: .amb-select-lens */\n${S} ${K}::before {`));
+  assert.ok(generated.includes(`/* components.css: .amb-select .ambx-key[data-on] .amb-select-lens */\n${S} ${ON}::before {`));
+  assert.ok(generated.includes(`/* components.css: .amb-select .ambx-key[data-on] .amb-select-cap */\n${S} ${ON}::after {`));
+  assert.ok(generated.includes(`/* components.css: .amb-select .ambx-key[data-on] */\n${S} ${ON} {`));
+  for (const glass of ['ambient.css: .ambient', 'ambient.css: .amb-chamfer']) assert.ok(block(glass).includes(`${S} ${K}::after`), glass);
+  // Segment keys never take the node key-cap finishes, surface or cap dish.
+  for (const nodeOnly of ['ambient.css: .amb-surface', 'ambient.css: .amb-mat-shiny', 'components.css: .amb-button-cap::after'])
+    assert.ok(!block(nodeOnly).includes('.desk-key-bank'), nodeOnly);
+  const adapter = read('frontend/styles/desktop-control-material.css');
+  assert.ok(adapter.includes(`${S} ${BANK} {\n  --amb-thickness: .27;\n  background-color: var(--amb-lume);`));
+  assert.ok(adapter.includes(`${S}[data-theme="dark"] ${BANK} {\n  background-color: color-mix(in oklab, var(--amb-lume), black 55%);`));
+  assert.ok(adapter.includes(`${S}[data-theme="dark"]:not([data-control-tinted]) ${BANK} {\n  --amb-albedo: #454d4f;`));
+  assert.ok(adapter.includes(`${S} ${K}::before,\n${S} ${K}::after {\n  content: "";\n  z-index: -1;`));
+  assert.ok(adapter.includes(`${S} ${ON} {\n  color: color-mix(in oklab, var(--_ambx-sel-color), black 68%);`));
+  // Upstream rail geometry: 2px ring and rail, bank one ring rounder than its keys.
+  assert.ok(adapter.includes(`${S} ${BANK} {\n  padding: var(--ambx-grid-half);\n  gap: var(--ambx-grid-half);\n  border-width: 0;\n  border-radius: calc(var(--ambx-radius-md) + var(--ambx-grid-half));`));
+  assert.ok(adapter.includes(`${S} ${K}:not(.is-active):not([aria-pressed="true"]):hover:not(:disabled)`));
+  // The shared node key-cap rules no longer list segment keys.
+  assert.ok(!adapter.split('/* Segmented controls')[0].replace(/\/\*[\s\S]*?\*\//g, '').includes('.desk-key-bank'));
+  assert.match(read('frontend/scripts/desktop-control-material.js'), /只改变画布节点里的按钮，以及节点和设置中心里的分段选择/);
 });

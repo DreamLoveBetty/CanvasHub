@@ -50,10 +50,10 @@
       <span class="desk-progress-float__stage" data-progress-stage></span></div></div>`;
     const input = (key, label, value, attrs = '') => `<label>${label}<input data-music-field="${key}" value="${e(value)}" ${attrs}></label>`;
     const select = (key, label, value, items) => `<label>${label}<select data-music-field="${key}">${items.map(([v, t]) => `<option value="${e(v)}" ${String(v) === String(value) ? 'selected' : ''}>${e(t)}</option>`).join('')}</select></label>`;
-    const button = (action, label, primary = false) => `<button type="button" data-music-action="${action}" ${primary ? 'class="desk-music__primary"' : ''}>${label}</button>`;
+    const button = (action, label, primary = false) => `<button type="button" class="desk-key${primary ? ' desk-music__primary' : ''}" data-music-action="${action}">${label}</button>`;
     const artifacts = `<div class="desk-music__artifacts" data-music-artifacts></div>`;
     const errorNotice = `<p class="desk-music__error" data-music-error role="alert" hidden></p>`;
-    const tabs = (items, active) => `<nav class="desk-music__tabs" aria-label="节点视图">${items.map(([key, label]) => `<button type="button" data-music-tab="${key}" aria-pressed="${key === active}">${label}</button>`).join('')}</nav>`;
+    const tabs = (items, active) => `<nav class="desk-music__tabs desk-key-bank" aria-label="节点视图">${items.map(([key, label]) => `<button type="button" data-music-tab="${key}" aria-pressed="${key === active}">${label}</button>`).join('')}</nav>`;
     function generation(n) {
       return `<div class="desk-music__generation-content">
         <div class="desk-music__grid desk-music__generation-params">${select('operation', '任务', n.operation, [['generate', '生成歌曲'], ['plan', '只生成乐谱']])}${select('cot', '生成模式', n.cot, [['full', 'full · 旋律 + 和弦'], ['melody', 'melody · 旋律'], ['off', 'off · 直接生成']])}

@@ -89,9 +89,4 @@ body.desk-app .desk-progress-material__track.is-indeterminate .desk-progress-mat
 body.desk-app .desk-progress-material[data-progress-style="smoke"] :is(.desk-progress-material__copy, .desk-progress-material__value) { color: white; mix-blend-mode: difference; text-shadow: none; }
 body.desk-app .desk-progress-material[data-progress-style="smoke"] .desk-progress-material__meta { color: inherit; }
 
-/* These controls inherit Settings' compact input/button/border tokens. */
-body.desk-app .desk-settings-progress-color { display: flex; align-items: center; gap: 6px; min-width: 0; }
-body.desk-app .desk-settings-progress-color input[type="color"] { flex: 0 0 32px; width: 32px; height: 28px; min-height: 0; padding: 3px; border: 1px solid var(--desk-control-border, #bdc9d8); border-radius: 6px; background: transparent; cursor: pointer; }
-body.desk-app .desk-settings-progress-color input[type="text"] { min-width: 0; width: 98px; flex: 1 1 auto; font-family: ui-monospace, monospace; }
-body.desk-app .desk-settings-progress-color button { flex: 0 0 auto; }
 body.desk-app[data-theme] [data-progress-settings] .desk-settings-form__hint { color: var(--desk-settings-muted-ink); }

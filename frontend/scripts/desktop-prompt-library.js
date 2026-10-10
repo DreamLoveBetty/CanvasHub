@@ -32,13 +32,6 @@
     { id: 'finance', label: '科技与金融', base: '#1D4ED8', formula: 'monochromatic', scenes: ['金融产品', '科技品牌', '企业视觉'], tags: ['科技', '金融', '可信赖'] },
     { id: 'health', label: '健康与自然', base: '#2F855A', formula: 'analogous', scenes: ['健康产品', '自然品牌', '环保视觉'], tags: ['健康', '自然', '可持续'] },
   ];
-  const BLOOM_PETALS = [
-    ...['#F7C13F', '#F2A23C', '#EE8440', '#E96544', '#E84C3F', '#E03E66', '#D23C92', '#A24FC8', '#7B5FD4', '#4E72D6', '#3DA1B8', '#5FB95B']
-      .map((color, index) => ({ key: `outer-${index}`, ring: 'outer', color })),
-    ...['#F6E6A4', '#F4D0B0', '#F1C1C4', '#E3C4DE', '#CCC9EC', '#C6E0C9']
-      .map((color, index) => ({ key: `inner-${index}`, ring: 'inner', color })),
-    { key: 'center', ring: 'center', color: '#FFFFFF' },
-  ];
   function newColorAnalysisState() {
     return {
       open: false,
@@ -92,7 +85,6 @@
     colorWriteAction: '',
     colorSaveCounter: 0,
     colorFavoriteBusyId: '',
-    colorBloomOpen: false,
     colorAnalysis: newColorAnalysisState(),
     extractorFocus: null,
     extractorSessionCounter: 0,
@@ -175,31 +167,6 @@
     const m = lightness - chroma / 2;
     let channels = hue < 60 ? [chroma, x, 0] : hue < 120 ? [x, chroma, 0] : hue < 180 ? [0, chroma, x] : hue < 240 ? [0, x, chroma] : hue < 300 ? [x, 0, chroma] : [chroma, 0, x];
     return `#${channels.map(channel => Math.round((channel + m) * 255).toString(16).padStart(2, '0')).join('')}`.toUpperCase();
-  }
-  function hueDistance(first, second) {
-    const delta = Math.abs(normalizeHue(first) - normalizeHue(second));
-    return Math.min(delta, 360 - delta);
-  }
-  function bloomSelectedPetalKey(color) {
-    const current = hexToHsl(color);
-    if (current.s < 8) return 'center';
-    return BLOOM_PETALS.filter(petal => petal.ring !== 'center').reduce((best, petal) => {
-      const candidate = hexToHsl(petal.color);
-      const score = hueDistance(current.h, candidate.h) + Math.abs(current.s - candidate.s) * .55;
-      return !best || score < best.score ? { key: petal.key, score } : best;
-    }, null)?.key || 'center';
-  }
-  function bloomLightnessPoint(lightness) {
-    const t = clamp((100 - lightness) / 100, 0, 1);
-    const radius = 118;
-    const halfChord = 62;
-    const centerY = 74;
-    const centerX = 12 - Math.sqrt(radius ** 2 - halfChord ** 2);
-    const y = 12 + halfChord * 2 * t;
-    return {
-      x: centerX + Math.sqrt(Math.max(0, radius ** 2 - (y - centerY) ** 2)),
-      y,
-    };
   }
   function colorLuminance(value) {
     const hex = safeColor(value).slice(1);
@@ -383,7 +350,6 @@
     resetColorAnalysis();
     state.colorDraft = JSON.parse(JSON.stringify(draft));
     state.colorDraftBaseline = colorDraftFingerprint(state.colorDraft);
-    state.colorBloomOpen = false;
   }
   function newExtractorState(mode = 'text', options = {}) {
     return { open: false, mode, busy: false, busyAction: '', text: options.text || '', direction: '', primaryType: options.primaryType || '', ruleId: options.ruleId || '', splitRule: options.splitRule || null, imageData: '', imageName: '', imageType: '', candidates: [], error: '', sourceTitle: options.sourceTitle || '' };
@@ -862,32 +828,7 @@
     return `<div class="desk-prompt-color-draft__contrast"><span><strong>${textRatio.toFixed(1)}:1</strong> 深色 / 浅色 <em class="${textRatio >= 4.5 ? 'is-pass' : 'is-review'}">${textRatio >= 4.5 ? 'AA 通过' : '需调整'}</em></span><span><strong>${accentRatio.toFixed(1)}:1</strong> 主色 / 浅色 <em class="${accentRatio >= 3 ? 'is-pass' : 'is-review'}">${accentRatio >= 3 ? '大字号可用' : '装饰色'}</em></span></div>`;
   }
   function colorBloomPickerHtml(value) {
-    const color = safeColor(value);
-    const hsl = hexToHsl(color);
-    const tone = hslToHex(hsl.h, hsl.s, 50);
-    const marker = bloomLightnessPoint(hsl.l);
-    const selectedKey = bloomSelectedPetalKey(color);
-    const open = !!state.colorBloomOpen;
-    const petals = BLOOM_PETALS.map((petal, index) => {
-      const ringItems = BLOOM_PETALS.filter(item => item.ring === petal.ring);
-      const ringIndex = ringItems.findIndex(item => item.key === petal.key);
-      const angle = petal.ring === 'center' ? 0 : -Math.PI / 2 + (ringIndex / ringItems.length) * Math.PI * 2;
-      const radius = petal.ring === 'outer' ? 68 : petal.ring === 'inner' ? 36 : 0;
-      const size = 45;
-      const x = Math.cos(angle) * radius;
-      const y = Math.sin(angle) * radius;
-      const layer = petal.ring === 'outer' ? 2 + ringIndex : petal.ring === 'inner' ? 20 + ringIndex : 30;
-      const selected = selectedKey === petal.key;
-      return `<button type="button" class="desk-prompt-bloom__petal is-${petal.ring}" data-prompt-action="select-color-bloom-petal" data-bloom-color="${petal.color}" data-bloom-petal-key="${petal.key}" aria-label="选择颜色 ${petal.color}" aria-pressed="${selected}" tabindex="${open ? '0' : '-1'}" style="--bloom-petal:${petal.color};--bloom-offset-x:${x.toFixed(3)}px;--bloom-offset-y:${y.toFixed(3)}px;--bloom-size:${size}px;--bloom-order:${index};--bloom-layer:${layer}"><span class="desk-prompt-bloom__petal-disc" aria-hidden="true"></span></button>`;
-    }).join('');
-    return `<div class="desk-prompt-bloom ${open ? 'is-open' : ''}" data-bloom-picker style="--desk-prompt-bloom-color:${color};--desk-prompt-bloom-tone:${tone};--bloom-marker-x:${marker.x.toFixed(2)}px;--bloom-marker-y:${marker.y.toFixed(2)}px">
-      <div class="desk-prompt-bloom__control"><button type="button" class="desk-prompt-bloom__trigger" data-prompt-action="toggle-color-bloom" aria-label="打开花朵基色取色器，当前 ${color}" aria-expanded="${open}" aria-controls="deskPromptBloomPopover"><span aria-hidden="true"></span></button><input name="color_base_hex" value="${color}" maxlength="7" spellcheck="false" aria-label="基色色值"></div>
-      <input type="hidden" name="color_base_picker" value="${color}">
-      <div class="desk-prompt-bloom__popover" id="deskPromptBloomPopover" role="dialog" aria-label="花朵基色取色器" aria-hidden="${!open}">
-        <div class="desk-prompt-bloom__stage"><div class="desk-prompt-bloom__flower"><span class="desk-prompt-bloom__field" aria-hidden="true"></span>${petals}</div><div class="desk-prompt-bloom__lightness" data-bloom-lightness role="slider" aria-label="基色明度" aria-valuemin="4" aria-valuemax="96" aria-valuenow="${Math.round(hsl.l)}" aria-valuetext="明度 ${Math.round(hsl.l)}%" tabindex="${open ? '0' : '-1'}"><svg viewBox="0 0 64 148" aria-hidden="true"><defs><linearGradient id="deskPromptBloomLightnessGradient" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF"></stop><stop offset=".38" style="stop-color:var(--desk-prompt-bloom-tone)"></stop><stop offset=".62" style="stop-color:var(--desk-prompt-bloom-tone)"></stop><stop offset="1" stop-color="#050505"></stop></linearGradient></defs><path class="desk-prompt-bloom__lightness-shadow" d="M12 12 A118 118 0 0 1 12 136"></path><path class="desk-prompt-bloom__lightness-track" d="M12 12 A118 118 0 0 1 12 136"></path></svg><span class="desk-prompt-bloom__lightness-marker" aria-hidden="true"><i></i></span></div></div>
-        <div class="desk-prompt-bloom__footer"><span class="desk-prompt-bloom__current" aria-hidden="true"></span><strong data-bloom-value>${color}</strong><small>点选花瓣 · 拖动调明暗</small></div>
-      </div>
-    </div>`;
+    return window.DesktopColorBloom.html({ value: safeColor(value), label: '基色', hexAttrs: 'name="color_base_hex" aria-label="基色色值"', valueAttrs: 'name="color_base_picker"' });
   }
   function colorAnalysisSummary(result) {
     const temperature = { auto: '冷暖均衡', warm: '偏暖', cool: '偏冷' }[result?.temperature] || '冷暖均衡';
@@ -1021,38 +962,19 @@
     return draft;
   }
   function updateColorBloomVisual(form, value) {
-    const color = safeColor(value);
-    const bloom = form?.querySelector('[data-bloom-picker]');
-    if (!bloom) return;
-    const hsl = hexToHsl(color);
-    const marker = bloomLightnessPoint(hsl.l);
-    bloom.style.setProperty('--desk-prompt-bloom-color', color);
-    bloom.style.setProperty('--desk-prompt-bloom-tone', hslToHex(hsl.h, hsl.s, 50));
-    bloom.style.setProperty('--bloom-marker-x', `${marker.x.toFixed(2)}px`);
-    bloom.style.setProperty('--bloom-marker-y', `${marker.y.toFixed(2)}px`);
-    const hex = form.querySelector('[name="color_base_hex"]');
-    const picker = form.querySelector('[name="color_base_picker"]');
-    const valueLabel = bloom.querySelector('[data-bloom-value]');
-    const trigger = bloom.querySelector('.desk-prompt-bloom__trigger');
-    const slider = bloom.querySelector('[data-bloom-lightness]');
-    if (hex) hex.value = color;
-    if (picker) picker.value = color;
-    if (valueLabel) valueLabel.textContent = color;
-    if (trigger) trigger.setAttribute('aria-label', `打开花朵基色取色器，当前 ${color}`);
-    if (slider) {
-      slider.setAttribute('aria-valuenow', String(Math.round(hsl.l)));
-      slider.setAttribute('aria-valuetext', `明度 ${Math.round(hsl.l)}%`);
-    }
-    const selectedKey = bloomSelectedPetalKey(color);
-    bloom.querySelectorAll('[data-bloom-petal-key]').forEach(button => button.setAttribute('aria-pressed', button.dataset.bloomPetalKey === selectedKey ? 'true' : 'false'));
+    window.DesktopColorBloom?.setValue(form?.querySelector('[data-color-bloom]'), safeColor(value));
   }
   function setColorDraftBaseColor(value) {
     const color = safeColor(value);
     const form = els.deskPromptLibraryEditor?.querySelector('[data-color-draft-form]');
+    // The form fields may already hold the new colour (picker / typed HEX); auto-text is
+    // judged against the last committed base colour.
+    const previousBase = state.colorDraft?.base_color;
     const draft = syncColorDraftFromForm();
     if (!form || !draft) return false;
-    const previousAutoDescription = draftDescription(draft);
-    const previousAutoPrompt = draftPrompt(draft);
+    const previous = { ...draft, base_color: previousBase || draft.base_color };
+    const previousAutoDescription = draftDescription(previous);
+    const previousAutoPrompt = draftPrompt(previous);
     const updateDescription = draft.description === previousAutoDescription;
     const updatePrompt = draft.prompt === previousAutoPrompt;
     draft.base_color = color;
@@ -1068,36 +990,6 @@
     }
     updateColorBloomVisual(form, color);
     return true;
-  }
-  function setBloomLightness(lightness) {
-    if (!state.colorDraft) return;
-    const current = hexToHsl(state.colorDraft.base_color);
-    setColorDraftBaseColor(hslToHex(current.h, current.s, clamp(lightness, 4, 96)));
-  }
-  function setBloomLightnessFromPointer(slider, clientY) {
-    const bounds = slider?.getBoundingClientRect();
-    if (!bounds?.height) return;
-    const trackStart = bounds.top + bounds.height * (12 / 148);
-    const trackEnd = bounds.top + bounds.height * (136 / 148);
-    const ratio = clamp((clientY - trackStart) / Math.max(1, trackEnd - trackStart), 0, 1);
-    setBloomLightness(100 - ratio * 100);
-  }
-  function beginBloomLightnessDrag(event, slider) {
-    if (!slider || event.button > 0) return;
-    event.preventDefault();
-    slider.focus?.({ preventScroll: true });
-    slider.classList.add('is-dragging');
-    setBloomLightnessFromPointer(slider, event.clientY);
-    const move = pointerEvent => setBloomLightnessFromPointer(slider, pointerEvent.clientY);
-    const end = () => {
-      slider.classList.remove('is-dragging');
-      window.removeEventListener('pointermove', move);
-      window.removeEventListener('pointerup', end);
-      window.removeEventListener('pointercancel', end);
-    };
-    window.addEventListener('pointermove', move);
-    window.addEventListener('pointerup', end);
-    window.addEventListener('pointercancel', end);
   }
   function resetColorAnalysis() {
     const previous = state.colorAnalysis;
@@ -1167,7 +1059,6 @@
     syncColorDraftFromForm();
     const analysis = state.colorAnalysis;
     analysis.open = !analysis.open;
-    state.colorBloomOpen = false;
     renderEditor();
     requestAnimationFrame(() => {
       const selector = analysis.open ? colorAnalysisFocusTarget(analysis) : '[data-prompt-action="toggle-color-analysis"]';
@@ -1190,7 +1081,6 @@
     draft.use_ratio = true;
     if (updateDescription) draft.description = draftDescription(draft);
     if (updatePrompt) draft.prompt = draftPrompt(draft);
-    state.colorBloomOpen = false;
     return true;
   }
   async function runColorAnalysis() {
@@ -1298,7 +1188,6 @@
     state.colorWriteAction = '';
     state.colorDraft = null;
     state.colorDraftBaseline = null;
-    state.colorBloomOpen = false;
   }
   function startNewColor(source = null, duplicate = false) {
     if (guardWriteBusy()) return false;
@@ -2114,10 +2003,6 @@
       else if (event.target.matches('[data-rule-form]')) saveRuleDraft(event);
       else if (event.target.matches('[data-color-draft-form]')) saveColorDraft(event);
     });
-    els.deskPromptLibraryEditor?.addEventListener('pointerdown', event => {
-      const slider = event.target.closest('[data-bloom-lightness]');
-      if (slider && state.colorBloomOpen) beginBloomLightnessDrag(event, slider);
-    });
     els.deskPromptLibraryEditor?.addEventListener('click', async event => {
       try {
         const createMode = event.target.closest('[data-prompt-create-mode]')?.dataset.promptCreateMode;
@@ -2147,15 +2032,6 @@
         else if (action === 'clear-color-analysis') clearColorAnalysis();
         else if (action === 'retry-color-analysis') await runColorAnalysis();
         else if (action === 'set-color-analysis-mode') setColorAnalysisMode(button.dataset.colorAnalysisMode);
-        else if (action === 'toggle-color-bloom') {
-          state.colorBloomOpen = !state.colorBloomOpen;
-          renderEditor();
-          requestAnimationFrame(() => {
-            const selector = state.colorBloomOpen ? '[data-bloom-petal-key][aria-pressed="true"]' : '[data-prompt-action="toggle-color-bloom"]';
-            els.deskPromptLibraryEditor?.querySelector(selector)?.focus?.({ preventScroll: true });
-          });
-        }
-        else if (action === 'select-color-bloom-petal') setColorDraftBaseColor(button.dataset.bloomColor);
         else if (action === 'toggle-block-favorite') { syncBlockDraftFromForm(); state.blockDraft.favorite = !state.blockDraft.favorite; renderEditor(); }
         else if (action === 'delete-block') await deleteBlock();
         else if (action === 'insert-block') insertBlock();
@@ -2230,7 +2106,8 @@
     els.deskPromptLibraryEditor?.addEventListener('input', event => {
       if (event.target.closest('[data-rule-form]')) { syncRuleDraftFromForm(); return; }
       if (!event.target.closest('[data-color-draft-form]')) return;
-      if (event.target.dataset.colorDraftIndex !== undefined || ['color_base_picker', 'color_base_hex'].includes(event.target.name)) return;
+      if (event.target.name === 'color_base_picker') { setColorDraftBaseColor(event.target.value); return; }
+      if (event.target.dataset.colorDraftIndex !== undefined || event.target.name === 'color_base_hex') return;
       syncColorDraftFromForm();
     });
     els.deskPromptLibraryEditor?.addEventListener('dragover', event => {
@@ -2261,15 +2138,6 @@
       handleColorAnalysisFile(file, 'clipboard');
     });
     els.deskPromptLibraryEditor?.addEventListener('keydown', event => {
-      const bloomSlider = event.target.closest('[data-bloom-lightness]');
-      if (bloomSlider && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) {
-        event.preventDefault();
-        const current = hexToHsl(state.colorDraft?.base_color || '#000000').l;
-        const step = event.shiftKey ? 5 : 2;
-        const next = event.key === 'Home' ? 96 : event.key === 'End' ? 4 : current + (['ArrowUp', 'ArrowRight'].includes(event.key) ? step : -step);
-        setBloomLightness(next);
-        return;
-      }
       const colorDrop = event.target.closest('[data-color-analysis-drop]');
       if (colorDrop && !colorAnalysisSourceLocked() && (event.key === 'Enter' || event.key === ' ')) {
         event.preventDefault();
@@ -2290,19 +2158,9 @@
       switchCreateMode(nextMode);
       requestAnimationFrame(() => els.deskPromptLibraryEditor?.querySelector(`[data-prompt-create-mode="${nextMode}"]`)?.focus?.({ preventScroll: true }));
     });
-    document.addEventListener('click', event => {
-      if (!state.colorBloomOpen || event.target.closest('[data-bloom-picker]')) return;
-      state.colorBloomOpen = false;
-      if (state.workspace === 'colors' && state.colorDraft) renderEditor();
-    });
     document.addEventListener('keydown', event => {
       if (event.key !== 'Escape' || !els.deskPromptLibraryPanel?.classList.contains('is-open') || window.DesktopPromptInsert?.isOpen?.()) return;
-      if (state.colorBloomOpen) {
-        state.colorBloomOpen = false;
-        renderEditor();
-        requestAnimationFrame(() => els.deskPromptLibraryEditor?.querySelector('[data-prompt-action="toggle-color-bloom"]')?.focus?.({ preventScroll: true }));
-        return;
-      }
+      if (window.DesktopColorBloom?.close(els.deskPromptLibraryEditor, { focus: true })) return;
       if (state.workspace === 'colors' && state.colorDraft && state.colorAnalysis.open) {
         syncColorDraftFromForm();
         state.colorAnalysis.open = false;

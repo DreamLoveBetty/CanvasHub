@@ -583,7 +583,7 @@
         </div>
         <div class="desk-image-group__item-actions">
           <select data-image-group-role aria-label="${label}的参考用途">${imageGroupRoleOptionsHtml(item.role)}</select>
-          <button type="button" data-image-group-insert-reference title="插入提示词引用" aria-label="将${label}插入提示词">
+          <button type="button" class="desk-key" data-image-group-insert-reference title="插入提示词引用" aria-label="将${label}插入提示词">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.1.1l2-2a5 5 0 0 0-7.1-7.1l-1.1 1.1"></path><path d="M14 11a5 5 0 0 0-7.1-.1l-2 2A5 5 0 0 0 12 20l1.1-1.1"></path></svg>
           </button>
         </div>
@@ -628,7 +628,7 @@
           <div class="desk-image-group__items" data-image-group-items>${imageGroupItemsHtml(node)}</div>
         </div>
         <div class="desk-image-group__node-actions" data-node-drag-ignore aria-label="图片组操作">
-          <button type="button" data-image-group-ungroup title="解除图片组" aria-label="解除图片组">
+          <button type="button" class="desk-key" data-image-group-ungroup title="解除图片组" aria-label="解除图片组">
             <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="8" height="8" rx="2"></rect><rect x="13" y="11" width="8" height="8" rx="2"></rect><path d="m10 15-2 2 2 2M14 9l2-2-2-2"></path></svg>
           </button>
           <button type="button" class="desk-node-delete" data-node-delete title="删除图片组" aria-label="删除图片组">

@@ -1,4 +1,5 @@
-/* Ambient control material: adaptation layer for buttons inside canvas nodes.
+/* Ambient control material: adaptation layer for buttons inside canvas nodes and for
+   segmented controls (.desk-key-bank, Select reading) in nodes and the settings centre.
    Upstream lighting/material rules come from desktop-ambient-controls.css (generated,
    verbatim bodies). This file keeps production geometry and only replaces paint, depth,
    ink and state feedback. Every rule is scoped to the opt-in body attribute set by
@@ -25,7 +26,7 @@
 }
 
 /* The production button is the key cap. */
-#deskApp[data-control-material="ambient"] .desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action) {
+#deskApp[data-control-material="ambient"] .desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key) {
   position: relative;
   isolation: isolate;
   --amb-thickness: var(--desk-control-depth);
@@ -40,11 +41,11 @@
   -webkit-backdrop-filter: none;
   transition: box-shadow 100ms ease-out, background-color 100ms ease-out, color 100ms ease-out;
 }
-#deskApp[data-control-material="ambient"] .desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action) :is(svg, span, em, strong) { color: inherit; }
+#deskApp[data-control-material="ambient"] .desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key) :is(svg, span, em, strong) { color: inherit; }
 /* Production gloss layers would sit over the cap: retire ::before, keep ::after for the
    upstream dish (generated rule owns its content/geometry). */
-#deskApp[data-control-material="ambient"] .desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action)::before { content: none; }
-#deskApp[data-control-material="ambient"] .desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action)::after {
+#deskApp[data-control-material="ambient"] .desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key)::before { content: none; }
+#deskApp[data-control-material="ambient"] .desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key)::after {
   opacity: 1;
   filter: none;
   transform: none;
@@ -54,35 +55,127 @@
 }
 
 /* Press feedback: only depth changes, like the upstream button (no repaint/jump). */
-#deskApp[data-control-material="ambient"] .desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action):hover:not(:disabled) {
+#deskApp[data-control-material="ambient"] .desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key):hover:not(:disabled) {
   --amb-thickness: calc(var(--desk-control-depth) + .08);
   color: var(--desk-control-hover-ink, var(--amb-highlight-color));
   transform: none;
 }
-#deskApp[data-control-material="ambient"] .desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action):active:not(:disabled) {
+#deskApp[data-control-material="ambient"] .desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key):active:not(:disabled) {
   --amb-thickness: calc(var(--desk-control-depth) * .35);
   transform: none;
 }
-#deskApp[data-control-material="ambient"] .desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action):disabled {
+#deskApp[data-control-material="ambient"] .desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key):disabled {
   --amb-thickness: .1;
   opacity: .62;
   cursor: not-allowed;
 }
-#deskApp[data-control-material="ambient"] .desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action):focus-visible {
+#deskApp[data-control-material="ambient"] .desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key):focus-visible {
   outline: 2px solid var(--amb-highlight-color);
   outline-offset: 2px;
 }
 
 /* Surface shape is Matte-only (upstream surface classes overwrite material
    backgrounds). Concave keeps the upstream cap dish; flat and convex drop it. */
-#deskApp[data-control-material="ambient"][data-control-finish="matte"]:is([data-control-surface="flat"], [data-control-surface="convex"]) .desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action)::after,
-#deskApp[data-control-material="ambient"][data-control-finish="glass"] .desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action)::after { content: none; }
+#deskApp[data-control-material="ambient"][data-control-finish="matte"]:is([data-control-surface="flat"], [data-control-surface="convex"]) .desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key)::after,
+#deskApp[data-control-material="ambient"][data-control-finish="glass"] .desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key)::after { content: none; }
 
 /* Glass: translucent pane, label follows the node ink. */
-#deskApp[data-control-material="ambient"][data-control-finish="glass"] .desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action) {
+#deskApp[data-control-material="ambient"][data-control-finish="glass"] .desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key) {
   color: var(--desk-control-face-ink, var(--amb-label));
 }
 
+/* Segmented controls · Select (upstream AmbientSelect, the lamp-lit bank, adapted to
+   production geometry). The container is the rail: a groove at seat depth .27 floored
+   with the panel's lume. Each button is a key pocket (floor = --amb-lit); its ::before is
+   the LED lens and its ::after the frosted diffuser cap — generated rules paint both, so
+   the markup stays one element per option and the legend is the button's own text.
+   Selected: the lens lights in the lamp colour (--amb-led-color, else the accent), the
+   cap floods with it, light spills onto the rail and the legend silhouettes against it.
+   Not carried over: the cap's glass shadow ring (it would need a third layer). */
+#deskApp[data-control-material="ambient"] :is(.desk-node, .desk-settings) .desk-key-bank {
+  --amb-thickness: .27;
+  background-color: var(--amb-lume);
+  background-image: none;
+  border-color: transparent;
+}
+/* Dark theme (our adaptation): upstream lume does not follow the theme (~#404040 under
+   the 0.9 key light), which is lighter than the dark cards and as light as the keys, so
+   the rail read as a raised grey plate. Pressed toward black it sits a step below the
+   panel and reads as a recess again. */
+#deskApp[data-control-material="ambient"][data-theme="dark"] :is(.desk-node, .desk-settings) .desk-key-bank {
+  background-color: color-mix(in oklab, var(--amb-lume), black 55%);
+}
+/* The key pockets show under every finish (the Select cap is always glass), so on the
+   dark theme they take the graphite body even when Glass leaves the node keys on
+   upstream's light albedo; a user key colour still tints them. */
+#deskApp[data-control-material="ambient"][data-theme="dark"]:not([data-control-tinted]) :is(.desk-node, .desk-settings) .desk-key-bank {
+  --amb-albedo: #454d4f;
+}
+/* Rail geometry is upstream's (.amb-select): a half-grid (2px) clearance ring and the
+   same 2px rail between keys, the bank rounded one ring wider than its keys. Production
+   insets differ per host (0-5px incl. a 1px border), which read as a thick frame. */
+#deskApp[data-control-material="ambient"] :is(.desk-node, .desk-settings) .desk-key-bank {
+  padding: var(--ambx-grid-half);
+  gap: var(--ambx-grid-half);
+  border-width: 0;
+  border-radius: calc(var(--ambx-radius-md) + var(--ambx-grid-half));
+}
+#deskApp[data-control-material="ambient"] :is(.desk-node, .desk-settings) .desk-key-bank > button {
+  --_ambx-sel-color: var(--amb-led-color, var(--amb-highlight-color));
+  border-radius: var(--ambx-radius-md);
+  position: relative;
+  isolation: isolate;
+  border-color: transparent;
+  background-color: var(--amb-lit);
+  background-image: none;
+  box-shadow: none;
+  color: var(--desk-control-face-ink, var(--amb-label));
+  text-shadow: none;
+  filter: none;
+  transform: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  transition: box-shadow 140ms ease, color 100ms ease-out;
+}
+#deskApp[data-control-material="ambient"] :is(.desk-node, .desk-settings) .desk-key-bank > button :is(svg, span, em, strong) { color: inherit; }
+/* Lens and cap sit under the legend inside the key's own stacking context; the cap
+   paints after (above) the lens so its backdrop blur diffuses it. */
+#deskApp[data-control-material="ambient"] :is(.desk-node, .desk-settings) .desk-key-bank > button::before,
+#deskApp[data-control-material="ambient"] :is(.desk-node, .desk-settings) .desk-key-bank > button::after {
+  content: "";
+  z-index: -1;
+  pointer-events: none;
+  animation: none;
+}
+#deskApp[data-control-material="ambient"] :is(.desk-node, .desk-settings) .desk-key-bank > button::after {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  /* Upstream ties the diffusion to the key size (0.18 x 44px); production keys are
+     24-32px tall. */
+  --_glass-blur: 5px;
+}
+#deskApp[data-control-material="ambient"] :is(.desk-node, .desk-settings) .desk-key-bank > button:not(.is-active):not([aria-pressed="true"]):hover:not(:disabled) {
+  color: var(--desk-control-hover-ink, var(--amb-highlight-color));
+}
+#deskApp[data-control-material="ambient"] :is(.desk-node, .desk-settings) .desk-key-bank > button:active:not(:disabled)::after {
+  --amb-thickness: .84;
+}
+#deskApp[data-control-material="ambient"] :is(.desk-node, .desk-settings) .desk-key-bank > button:is(.is-active, [aria-pressed="true"]) {
+  color: color-mix(in oklab, var(--_ambx-sel-color), black 68%);
+  cursor: default;
+}
+#deskApp[data-control-material="ambient"] :is(.desk-node, .desk-settings) .desk-key-bank > button:disabled {
+  cursor: not-allowed;
+  box-shadow: none;
+  color: color-mix(in oklab, var(--desk-control-face-ink, var(--amb-label)), transparent 55%);
+}
+#deskApp[data-control-material="ambient"] :is(.desk-node, .desk-settings) .desk-key-bank > button:focus-visible {
+  outline: 2px solid var(--amb-highlight-color);
+  outline-offset: 2px;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  #deskApp[data-control-material="ambient"] .desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action) { transition: none; }
+  #deskApp[data-control-material="ambient"] .desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key),
+  #deskApp[data-control-material="ambient"] :is(.desk-node, .desk-settings) .desk-key-bank > button { transition: none; }
 }

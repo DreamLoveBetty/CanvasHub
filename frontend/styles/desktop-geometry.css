@@ -1702,6 +1702,58 @@ body.desk-app[data-theme] .desk-settings .desk-settings-secret-field:has(> input
   width: 64px;
 }
 
+/* Colour rows (petal picker): label | swatch + HEX (+ preset select or reset) on one
+   line, like the select rows. The picker keeps its own geometry apart from the swatch
+   size, which follows the settings control height. */
+body.desk-app[data-theme] .desk-settings .desk-settings-color-field {
+  display: grid;
+  grid-template-columns: var(--desk-settings-label-width) minmax(0, 1fr);
+  align-items: center;
+  column-gap: var(--desk-space-3);
+  min-width: 0;
+  min-height: var(--desk-settings-control-height);
+  font-size: 10px;
+  font-weight: 760;
+}
+
+body.desk-app[data-theme] .desk-settings .desk-settings-color-field > span {
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+body.desk-app[data-theme] .desk-settings .desk-settings-color-field__group {
+  display: flex;
+  align-items: center;
+  gap: var(--desk-space-2);
+  min-width: 0;
+}
+
+body.desk-app[data-theme] .desk-settings .desk-settings-color-field__group > :is(select, .desk-select-shell) {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+body.desk-app[data-theme] .desk-settings .desk-settings-color-field .desk-color-bloom {
+  flex: 0 0 auto;
+  justify-self: start;
+}
+
+body.desk-app[data-theme] .desk-settings .desk-settings-color-field .desk-color-bloom__control {
+  grid-template-columns: var(--desk-settings-control-height) 96px;
+  gap: var(--desk-space-2);
+}
+
+body.desk-app[data-theme] .desk-settings .desk-settings-color-field .desk-color-bloom__trigger {
+  width: var(--desk-settings-control-height);
+  height: var(--desk-settings-control-height);
+  padding: 2px;
+}
+
+body.desk-app[data-theme] .desk-settings .desk-settings-color-field .desk-color-bloom__trigger span {
+  width: calc(var(--desk-settings-control-height) - 10px);
+  height: calc(var(--desk-settings-control-height) - 10px);
+}
+
 body.desk-app[data-theme] .desk-settings-secret-field__label {
   gap: 4px;
   flex-wrap: wrap;

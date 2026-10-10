@@ -73,7 +73,7 @@ test('all consumers receive an explicit display-only dependency in loading order
   for(const name of ['desktop-canvas-audio','desktop-music-view','desktop-canvas-topaz','desktop-video-control-view','desktop-topaz-video-view','desktop-topaz-video-workbench']){
     assert.ok(helper<html.indexOf(`scripts/${name}.js?`),name);
     assert.match(read(`frontend/scripts/${name}.js`),/stateIcon/);
-    assert.ok(html.includes(`scripts/${name}.js?v=${['desktop-music-view','desktop-video-control-view','desktop-topaz-video-view'].includes(name) ? '20261007-node-progress4' : name.startsWith('desktop-topaz-video-') ? '20261005-topaz-pipeline1' : name === 'desktop-canvas-topaz' ? '20261009-generation-action-unify1' : '20261004-state-icons1'}`),name);
+    assert.ok(html.includes(`scripts/${name}.js?v=${name.startsWith('desktop-topaz-video-workbench') ? '20261005-topaz-pipeline1' : name === 'desktop-canvas-topaz' ? '20261009-generation-action-unify1' : name === 'desktop-music-view' ? '20261010-segment-bank1' : '20261010-node-keys1'}`),name);
   }
   assert.match(host,/const stateIcon = window\.DesktopStateIcon;/);
   assert.match(host,/DesktopCanvasAudio\.create\(\{\s*stateIcon,/);

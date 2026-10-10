@@ -1792,7 +1792,8 @@ class DesktopResultStatusUiTest(unittest.TestCase):
 
         self.assertNotIn("!important", controls_css)
         important_lines = [line.strip() for line in prompt_css.splitlines() if "!important" in line]
-        self.assertEqual(len(important_lines), 2)
+        # The petal picker's reduced-motion transition override moved to desktop-color-bloom.css.
+        self.assertEqual(len(important_lines), 1)
         self.assertTrue(all("none !important" in line for line in important_lines))
         self.assertIn(".desk-prompt-library :where(", prompt_css)
         self.assertNotRegex(

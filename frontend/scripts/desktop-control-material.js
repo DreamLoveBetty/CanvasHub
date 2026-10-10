@@ -122,6 +122,9 @@
     return prefs.body === 'custom' ? prefs.bodyCustom : BODY_PRESETS[prefs.body].hex || '#eaeaea';
   }
   const paletteOptions = prefs => (prefs.material === 'glass' ? options(GLASS_PRESETS, prefs.glass) : options(BODY_PRESETS, prefs.body));
+  // Colour fields use the shared petal picker; its hidden value input carries our field.
+  const picker = options => window.DesktopColorBloom.html({ hexClass: 'desk-input', ...options });
+
   function renderSettings(value) {
     const prefs = normalize(value);
     const off = prefs.material === 'current';
@@ -131,17 +134,13 @@
     return `<div class="desk-settings-form" data-control-material-settings>
       <label><span>按钮材质</span><select class="desk-select" data-control-material-field="material" aria-label="节点按钮材质">${options(MATERIALS, prefs.material, item => `${item.label} · ${item.english}`)}</select></label>
       <label><span>按键表面</span><select class="desk-select" data-control-material-field="surface" aria-label="按键表面"${prefs.material === 'matte' ? '' : ' disabled'}>${options(SURFACES, prefs.surface)}</select></label>
-      <label><span data-control-material-palette-label>${glass ? '玻璃染色' : '键体颜色'}</span><select class="desk-select" data-control-material-field="palette" aria-label="颜色预设"${off ? ' disabled' : ''}>${paletteOptions(prefs)}</select></label>
-      <div class="desk-settings-secret-field"><span>自定义颜色</span><div class="desk-settings-progress-color">
-        <input type="color" value="${esc(swatch)}" data-control-material-field="color" aria-label="自定义${glass ? '玻璃染色' : '键体颜色'}"${off ? ' disabled' : ''}>
-        <input class="desk-input" type="text" value="${esc(swatch.toUpperCase())}" data-control-material-field="hex" aria-label="自定义颜色 HEX" spellcheck="false" maxlength="7"${off ? ' disabled' : ''}>
+      <div class="desk-settings-color-field"><span data-control-material-palette-label>${glass ? '玻璃染色' : '键体颜色'}</span><div class="desk-settings-color-field__group">
+        <select class="desk-select" data-control-material-field="palette" aria-label="颜色预设"${off ? ' disabled' : ''}>${paletteOptions(prefs)}</select>
+        ${picker({ value: swatch, label: '自定义颜色', hexAttrs: 'data-control-material-field="hex" aria-label="自定义颜色 HEX"', valueAttrs: 'data-control-material-field="color"', disabled: off })}
       </div></div>
-      <div class="desk-settings-secret-field"><span>强调色 · 悬停 / 焦点</span><div class="desk-settings-progress-color">
-        <input type="color" value="${esc(accent)}" data-control-material-field="accent" aria-label="强调色"${off ? ' disabled' : ''}>
-        <input class="desk-input" type="text" value="${esc(accent.toUpperCase())}" data-control-material-field="accent-hex" aria-label="强调色 HEX" spellcheck="false" maxlength="7"${off ? ' disabled' : ''}>
-        <button type="button" class="desk-button" data-control-material-accent-reset${off || !prefs.accent ? ' disabled' : ''}>默认</button>
-      </div></div>
-      <p class="desk-settings-form__hint">只改变画布节点里的按钮外观，即时生效并保存在本浏览器。表面效果只与哑光叠加；磨砂玻璃在节点很多时较耗性能。材质来自 Ambient CSS（MIT）。</p>
+      <div class="desk-settings-color-field"><span title="悬停与键盘焦点时的高亮色">强调色</span>${picker({ value: accent, label: '强调色', hexAttrs: 'data-control-material-field="accent-hex" aria-label="强调色 HEX"', valueAttrs: 'data-control-material-field="accent"', disabled: off,
+        after: `<button type="button" class="desk-button" data-control-material-accent-reset${off || !prefs.accent ? ' disabled' : ''}>默认</button>` })}</div>
+      <p class="desk-settings-form__hint">只改变画布节点里的按钮，以及节点和设置中心里的分段选择，即时生效并保存在本浏览器。表面效果只与哑光叠加；磨砂玻璃在节点很多时较耗性能。材质来自 Ambient CSS（MIT）。</p>
     </div>`;
   }
 
@@ -198,6 +197,7 @@
     const reset = card.querySelector('[data-control-material-accent-reset]');
     if (reset) reset.disabled = off || !prefs.accent;
     ['material', 'surface', 'palette'].forEach(name => { const el = field(name); if (el) window.DesktopSelect?.refresh?.(el); });
+    window.DesktopColorBloom?.refresh(card);
   }
 
   window.DesktopControlMaterial = Object.freeze({

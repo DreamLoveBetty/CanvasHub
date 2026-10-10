@@ -24,31 +24,51 @@ const PINNED = {
   'components.css': '60e7636ef506b0b80c2f3cd1fdd0b611212b6481ff4779422f3d6e20ba7458a2',
 };
 
-// Scope: opt-in material on <body id="deskApp">; targets: buttons inside canvas nodes
-// (generic .desk-button, node delete, and generate actions that skip .desk-button —
-// music, ReShot and Topaz Video).
+// Scope: opt-in material on <body id="deskApp">. Key caps (T): buttons inside canvas
+// nodes — generic .desk-button, node delete, generate actions that skip .desk-button
+// (music, ReShot, Topaz Video) and .desk-key, a style-free hook node templates put on
+// their own push buttons. Segmented controls take upstream's Select (lamp-lit bank): a
+// .desk-key-bank hook on the container in nodes and the settings centre. The container
+// is the rail (BANK); each direct button (K) is the key's pocket floor, its ::before the
+// LED lens and its ::after the frosted diffuser cap (always glass, as upstream casts it),
+// so the production markup stays one element per option. Drop zones and the audio
+// transport keep their look.
 const S = '#deskApp[data-control-material="ambient"]';
-const T = '.desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action)';
+const T = '.desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key)';
+const BANK = ':is(.desk-node, .desk-settings) .desk-key-bank';
+const K = `${BANK} > button`;
+const ON = `${K}:is(.is-active, [aria-pressed="true"])`;
+const CAP = `${S} ${K}::after`;
 const finish = name => `${S}[data-control-finish="${name}"]`;
+const list = (...selectors) => selectors.join(',\n');
 const MAP = {
   'ambient.css': [
     ['@property --amb-elevation', '@property --amb-elevation'],
     [':root', S],
-    ['*', `${S} ${T}`],
-    ['.amb-chamfer', `${S} ${T}`],
-    ['.amb-mat-glass', `${finish('glass')} ${T}`],
-    ['.ambient', `${S} ${T}`],
+    // Derived per-element tones; the lens and cap pseudo-elements inherit them from K.
+    ['*', list(`${S} ${T}`, `${S} ${K}`, `${S} ${BANK}`)],
+    ['.amb-chamfer', list(`${S} ${T}`, CAP)],
+    ['.amb-groove', `${S} ${BANK}`],
+    ['.amb-mat-glass', list(`${finish('glass')} ${T}`, CAP)],
+    ['.ambient', list(`${S} ${T}`, CAP)],
     ['.amb-surface', `${S} ${T}`],
+    ['.amb-groove', `${S} ${BANK}`],
     ['.amb-mat-shiny', `${finish('shiny')} ${T}`],
-    ['.amb-mat-glass', `${finish('glass')} ${T}`],
-    [':where(.amb-mat-glass)', `:where(${finish('glass')} ${T})`],
-    // The button itself is the cap, and the cap dish already owns ::after.
+    ['.amb-mat-glass', list(`${finish('glass')} ${T}`, CAP)],
+    [':where(.amb-mat-glass)', `:where(${list(`${finish('glass')} ${T}`, CAP)})`],
+    // The button itself is the cap, and the cap dish already owns ::after. The Select
+    // cap is itself a pseudo-element, so its glass shadow ring has no layer left.
     ['.amb-mat-glass::after', `${finish('glass')} ${T}::before`],
     ['.amb-surface-convex', `${finish('matte')}[data-control-surface="convex"] ${T}`],
   ],
   'components.css': [
     [':root', S],
     ['.amb-button-cap::after', `${S} ${T}::after`],
+    ['.amb-select .ambx-key:disabled .amb-select-lens', `${S} ${K}:disabled::before`],
+    ['.amb-select-lens', `${S} ${K}::before`],
+    ['.amb-select .ambx-key[data-on] .amb-select-lens', `${S} ${ON}::before`],
+    ['.amb-select .ambx-key[data-on] .amb-select-cap', `${S} ${ON}::after`],
+    ['.amb-select .ambx-key[data-on]', `${S} ${ON}`],
   ],
 };
 

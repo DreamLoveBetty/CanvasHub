@@ -363,7 +363,7 @@
         </div>
         <button type="button" class="desk-port desk-port--out" data-port="out" data-node-id="${nodeId}" title="连接到图片节点" aria-label="连接输出"></button>
         <button type="button" class="desk-port desk-port--in desk-port--image-in" data-port="in" data-node-id="${nodeId}" title="连接图片或文本节点到这里" aria-label="连接图片或文本输入"></button>
-        <div class="desk-segment" role="tablist" aria-label="选择模型提供方">
+        <div class="desk-segment desk-key-bank" role="tablist" aria-label="选择模型提供方">
           <button type="button" class="${provider === 'gpt' ? 'is-active' : ''}" data-provider="gpt">GPT</button>
           <button type="button" class="${provider === 'google' ? 'is-active' : ''}" data-provider="google">Google</button>
         </div>

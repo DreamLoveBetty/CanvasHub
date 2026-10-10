@@ -9,6 +9,7 @@
     '.desk-settings-path span',
     '.desk-settings-secret-field__label > span',
     '.desk-settings-secret-field > span',
+    '.desk-settings-color-field > span',
     '.desk-settings-form__section-title strong',
     '.desk-settings-canvas-interaction__label',
     'summary span',

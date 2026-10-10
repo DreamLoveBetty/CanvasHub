@@ -166,6 +166,7 @@ body.desk-app[data-theme] :is(
   .desk-settings-path,
   .desk-settings-form label,
   .desk-settings-secret-field,
+  .desk-settings-color-field,
   .desk-settings-form__section-title span,
   .desk-settings-details summary em,
   .desk-settings-account__meta,

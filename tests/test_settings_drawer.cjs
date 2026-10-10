@@ -99,7 +99,7 @@ test('settings host: categories are built off-screen from loaded data; drawer an
   const html = read('frontend/desktop.html');
   const at = s => html.indexOf(s);
   assert.ok(at(`scripts/desktop-settings-drawer.js?v=${VERSION}`) > 0 && at('scripts/desktop-settings-drawer.js?') < at('scripts/desktop-preferences.js?'));
-  assert.ok(at(`scripts/desktop-settings-search.js?v=${VERSION}`) > 0 && at('scripts/desktop-settings-search.js?') < at('scripts/desktop-settings.js?'));
+  assert.ok(at('scripts/desktop-settings-search.js?v=20261010-color-bloom1') > 0 && at('scripts/desktop-settings-search.js?') < at('scripts/desktop-settings.js?'));
   assert.match(html, /<section class="desk-settings desk-settings--drawer" id="deskSettingsPanel" role="dialog" aria-modal="false"/);
   assert.doesNotMatch(html, /id="deskSettingsPanel"[^>]*desk-glass|class="desk-settings desk-glass/);
 });

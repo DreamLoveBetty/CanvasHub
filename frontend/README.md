@@ -22,18 +22,38 @@
 便携验证：`tests/test_settings_drawer.cjs`、`tests/test_settings_disclosure_typography.py`；
 本地探针 `tests/local/settings_drawer_probe_local.mjs`（真实前端 + 全合成 `/api/*`）。
 
+## 花朵取色器（2026-10-10）
+
+`scripts/desktop-color-bloom.js` + `styles/desktop-color-bloom.css`：共享取色组件（色板按钮 +
+HEX 框，点开为花瓣色盘 + 弧形明度条）。由配色方案（提示词库）与设置中心（进度条填充色、按钮
+材质的自定义颜色与强调色）共用，原提示词库内的实现已移除。组件只管自身标记、开合、花瓣/明度/
+键盘交互和弹层定位（会被裁切时改为右对齐或向上展开）；值的含义与保存归宿主：已提交的颜色写入
+带宿主属性的隐藏 `<input data-color-bloom-value>`，并派发冒泡的 `input`（拖动中）/`change`（提交）
+事件，宿主沿用原有表单处理；宿主改值或禁用后调用 `DesktopColorBloom.refresh(root)`，Escape 时可先
+`close(root)`。设置中心的颜色行（`.desk-settings-color-field`）与下拉行同为“标签 | 控件”一行。
+便携验证：`tests/test_color_bloom.cjs`；本地探针 `tests/local/color_bloom_probe_local.mjs`。
+
 ## 节点按钮材质 · Ambient（2026-10-09）
 
 设置中心 → 系统 → 节点按钮材质：现有（默认）/ 哑光 / 微光泽 / 磨砂玻璃；按键表面
 （凹面·碟形 / 平面 / 凸面，仅哑光）；键体颜色或玻璃染色（上游预设 Oxide/Steel/Brass、
-Violet/Amber/Teal + 自定义 HEX）；强调色（悬停/焦点，默认上游 coral）。只作用于画布节点内
-`.desk-button` 与 `.desk-node-delete`，字段/开关/分段选择与其它面板不变。偏好存于
+Violet/Amber/Teal + 自定义 HEX）；强调色（悬停/焦点，默认上游 coral）。只作用于画布节点内的
+按键：`.desk-button`、`.desk-node-delete`、`.desk-generation-action`，以及节点模板给自有按键
+打上的 `.desk-key`（无任何自身样式的挂钩类，只有 Ambient 层引用；2026-10-10 覆盖文本节点操作栏、
+图片工具条、排版/姿态、图片组、音频导入/下载、音乐操作、Topaz Video 与 ReShot 导入）。
+分段选择（2026-10-10，上游 Select 带灯键组读法）：容器打 `.desk-key-bank` 挂钩（输入节点 GPT/Google、
+音乐节点页签，以及设置中心的连接端点/连线/碰撞、H3 运行方式、账号池页签）。容器为凹槽（座深 .27，槽底
+`--amb-lume`；深色主题再压黑 55%，凹袋改石墨），每个按钮是凹袋：`::before` 为 LED 灯罩、`::after` 为固定
+磨砂玻璃扩散键帽（不随按键材质变化），文字仍是按钮本身。选中：灯罩点亮为灯色（`--amb-led-color`，否则强调色），
+键帽被灯色晕染，光溢到槽上，文字压暗成剪影。未带入：玻璃键帽的阴影环（需第三层）。设置中心的分段在 Ambient 下加 3px 槽边。
+字段/开关、上传投放区、音频走带（转盘/圆钮/静音）、行内链接式按钮及节点外的其它面板/弹窗不变。偏好存于
 `DesktopPreferences.state.controlMaterial`（本地偏好键），不进工作流、不改后端。
 
 - `vendor/ambientcss/`：上游 Ambient CSS 固定 commit 原文件与 MIT 许可（哈希见其 README），
   页面不直接加载（含全局 `:root`/`*`/`@property`）。
 - `tooling/build-ambient-controls.mjs`：按映射表抽取所需规则，声明体逐字复制，选择器改写到
-  `#deskApp[data-control-material="ambient"] .desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action)`，
+  `#deskApp[data-control-material="ambient"] .desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key)`
+  ；分段键 `:is(.desk-node, .desk-settings) .desk-key-bank > button` 走 Select 三层（容器取上游 `.amb-groove`，键的 `::before`/`::after` 取 `.amb-select-lens` 与玻璃键帽），
   生成 `styles/desktop-ambient-controls.css`（`--check` 校验是否最新）。按钮本身即键帽：
   玻璃光环改用 `::before`，`::after` 留给上游碟形。
 - `styles/desktop-control-material.css`：保留生产几何，只替换绘制/厚度/文字色与状态；深色主题

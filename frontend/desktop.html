@@ -11,16 +11,17 @@
   <link rel="stylesheet" href="styles/desktop-layout.css?v=20260914-google-pool-compact1">
   <link rel="stylesheet" href="styles/desktop-pose.css?v=20260831-status-silk2">
   <link rel="stylesheet" href="styles/desktop-file-results.css?v=20260831-status-silk2">
-  <link rel="stylesheet" href="styles/desktop-prompt-library.css?v=20260831-status-silk2">
+  <link rel="stylesheet" href="styles/desktop-prompt-library.css?v=20261010-color-bloom1">
+  <link rel="stylesheet" href="styles/desktop-color-bloom.css?v=20261010-color-bloom1">
   <link rel="stylesheet" href="styles/desktop-shell.css?v=20261006-node-palette-frost1">
   <link rel="stylesheet" href="styles/desktop-canvas-nodes.css?v=20261007-connection-arc1">
   <link rel="stylesheet" href="styles/desktop-image-group.css?v=20261004-node-selection-frames1">
   <link rel="stylesheet" href="styles/desktop-prompt-assistant.css?v=20260929-prompt-video1">
   <link rel="stylesheet" href="styles/desktop-gallery.css?v=20260827-style-cleanup1">
-  <link rel="stylesheet" href="styles/desktop-settings-auth.css?v=20261009-settings-drawer2">
+  <link rel="stylesheet" href="styles/desktop-settings-auth.css?v=20261010-color-bloom1">
   <link rel="stylesheet" href="styles/desktop-creation-tools.css?v=20260831-status-silk2">
   <link rel="stylesheet" href="styles/desktop-controls.css?v=20261009-settings-drawer2">
-  <link rel="stylesheet" href="styles/desktop-geometry.css?v=20261009-settings-drawer2">
+  <link rel="stylesheet" href="styles/desktop-geometry.css?v=20261010-color-bloom1">
   <link rel="stylesheet" href="styles/desktop-motion.css?v=20261004-state-icons1">
   <link rel="stylesheet" href="styles/desktop-video-control.css?v=20261004-state-icons1">
   <link rel="stylesheet" href="styles/desktop-topaz-video.css?v=20261005-topaz-pipeline1">
@@ -34,9 +35,9 @@
   <link rel="stylesheet" href="styles/desktop-lora.css?v=20261003-lora-quick-add1">
   <link rel="stylesheet" href="styles/desktop-qwen21.css?v=20261003-auto-image-mode1">
   <link rel="stylesheet" href="styles/desktop-compare.css?v=20260922-compare-zoom2">
-  <link rel="stylesheet" href="styles/desktop-progress.css?v=20261007-node-progress4">
-  <link rel="stylesheet" href="styles/desktop-ambient-controls.css?v=20261009-control-material2">
-  <link rel="stylesheet" href="styles/desktop-control-material.css?v=20261009-control-material3">
+  <link rel="stylesheet" href="styles/desktop-progress.css?v=20261010-color-bloom1">
+  <link rel="stylesheet" href="styles/desktop-ambient-controls.css?v=20261010-segment-bank3">
+  <link rel="stylesheet" href="styles/desktop-control-material.css?v=20261010-segment-bank4">
 </head>
 <body id="deskApp" class="desk-app" data-theme="light" data-app-version="V26.3.1">
   <script>
@@ -432,7 +433,7 @@
         <button type="button" class="desk-port desk-port--out" data-port="out" data-node-id="input" title="连接到图片节点" aria-label="连接输出"></button>
         <button type="button" class="desk-port desk-port--in desk-port--image-in" data-port="in" data-node-id="input" title="连接图片或文本节点到这里" aria-label="连接图片或文本输入"></button>
 
-        <div class="desk-segment" id="deskProviderSegment" role="tablist" aria-label="选择模型提供方">
+        <div class="desk-segment desk-key-bank" id="deskProviderSegment" role="tablist" aria-label="选择模型提供方">
           <button type="button" class="is-active" data-provider="gpt">GPT</button>
           <button type="button" data-provider="google">Google</button>
         </div>
@@ -1823,7 +1824,8 @@
   <script src="scripts/desktop-progress-materials.js?v=20261007-node-progress4"></script>
   <script src="scripts/desktop-progress-renderer.js?v=20261007-node-progress4"></script>
   <script src="scripts/desktop-progress.js?v=20261007-node-progress4"></script>
-  <script src="scripts/desktop-control-material.js?v=20261009-control-material1"></script>
+  <script src="scripts/desktop-color-bloom.js?v=20261010-color-bloom1"></script>
+  <script src="scripts/desktop-control-material.js?v=20261010-segment-bank1"></script>
   <script src="scripts/desktop-settings-drawer.js?v=20261009-settings-drawer2"></script>
   <script src="scripts/desktop-preferences.js?v=20261010-release-26-3-1"></script>
   <script src="scripts/desktop-select.js?v=20261006-krea-model-menu1"></script>
@@ -1851,22 +1853,22 @@
   <script src="scripts/desktop-video-config.js?v=20260808-video-4x2-controls1"></script>
   <script src="scripts/desktop-audio-assets.js?v=20260915-audio-node1"></script>
   <script src="scripts/desktop-audio-meter.js?v=20260915-audio-meter1"></script>
-  <script src="scripts/desktop-canvas-audio.js?v=20261004-state-icons1"></script>
+  <script src="scripts/desktop-canvas-audio.js?v=20261010-node-keys1"></script>
   <script src="scripts/desktop-video-control-model.js?v=20260920-reshot2"></script>
   <script src="scripts/desktop-video-control-api.js?v=20260925-topaz-video1"></script>
-  <script src="scripts/desktop-video-control-view.js?v=20261007-node-progress4"></script>
+  <script src="scripts/desktop-video-control-view.js?v=20261010-node-keys1"></script>
   <script src="scripts/desktop-canvas-video-control.js?v=20260920-reshot3"></script>
   <script src="scripts/desktop-topaz-video-pipeline.js?v=20261005-topaz-pipeline1"></script>
   <script src="scripts/desktop-topaz-video-inspector.js?v=20261005-topaz-pipeline1"></script>
   <script src="scripts/desktop-topaz-video-model.js?v=20261005-topaz-pipeline1"></script>
   <script src="scripts/desktop-topaz-video-api.js?v=20261005-topaz-pipeline1"></script>
-  <script src="scripts/desktop-topaz-video-view.js?v=20261007-node-progress4"></script>
+  <script src="scripts/desktop-topaz-video-view.js?v=20261010-node-keys1"></script>
   <script src="scripts/desktop-topaz-video-workbench.js?v=20261005-topaz-pipeline1"></script>
   <script src="scripts/desktop-canvas-topaz-video.js?v=20261005-topaz-pipeline1"></script>
   <script src="scripts/desktop-music-api.js?v=20260921-task-contract1"></script>
   <script src="scripts/desktop-music-model.js?v=20260919-music-status2"></script>
   <script src="scripts/desktop-music-score.js?v=20260919-score-title2"></script>
-  <script src="scripts/desktop-music-view.js?v=20261007-node-progress4"></script>
+  <script src="scripts/desktop-music-view.js?v=20261010-segment-bank1"></script>
   <script src="scripts/desktop-music-workflow.js?v=20260917-music-chain1"></script>
   <script src="scripts/desktop-canvas-music.js?v=20260919-music-status2"></script>
   <script src="scripts/desktop-canvas-geometry.js?v=20261002-curve-direct1"></script>
@@ -1875,16 +1877,16 @@
   <script src="scripts/desktop-canvas-viewport.js?v=20261009-zoom-style-cost1"></script>
   <script src="scripts/desktop-canvas-workflow.js?v=20261001-qwen21-adapters-1"></script>
   <script src="scripts/desktop-canvas-prompt-document.js?v=20260912-canvas-business1"></script>
-  <script src="scripts/desktop-canvas-text-editor.js?v=20260913-agent-prompt-bootstrap1"></script>
-  <script src="scripts/desktop-canvas-image-group-model.js?v=20260912-canvas-business1"></script>
+  <script src="scripts/desktop-canvas-text-editor.js?v=20261010-node-keys1"></script>
+  <script src="scripts/desktop-canvas-image-group-model.js?v=20261010-node-keys1"></script>
   <script src="scripts/desktop-canvas-image-group-liquid-field.js?v=20261003-image-group-radial1"></script>
   <script src="scripts/desktop-canvas-image-group-interaction.js?v=20261005-minimap-navigation2"></script>
   <script src="scripts/desktop-canvas-image-editor-tools.js?v=20260912-canvas-business1"></script>
   <script src="scripts/desktop-canvas-image-editor.js?v=20260912-canvas-business1"></script>
   <script src="scripts/desktop-canvas-media-import.js?v=20260912-canvas-business1"></script>
   <script src="scripts/desktop-canvas-references.js?v=20260929-prompt-video1"></script>
-  <script src="scripts/desktop-canvas-nodes.js?v=20261007-node-progress4"></script>
-  <script src="scripts/desktop-canvas-model-nodes.js?v=20261009-generation-action-unify1"></script>
+  <script src="scripts/desktop-canvas-nodes.js?v=20261010-node-keys1"></script>
+  <script src="scripts/desktop-canvas-model-nodes.js?v=20261010-segment-bank1"></script>
   <script src="scripts/desktop-canvas-connections.js?v=20261007-connection-feedback-natural1"></script>
   <script src="scripts/desktop-canvas-connection-feedback.js?v=20261007-connection-arc1"></script>
   <script src="scripts/desktop-canvas-port-interaction.js?v=20261007-connection-feedback1"></script>
@@ -1899,15 +1901,15 @@
   <script src="scripts/desktop-results.js?v=20261007-node-progress4"></script>
   <script src="scripts/desktop-compare-viewport.js?v=20260922-compare-zoom2"></script>
   <script src="scripts/desktop-history.js?v=20261002-lora-library3"></script>
-  <script src="scripts/desktop-google-pool.js?v=20260914-google-pool-compact1"></script>
-  <script src="scripts/desktop-settings-search.js?v=20261009-settings-drawer2"></script>
-  <script src="scripts/desktop-settings.js?v=20261009-settings-drawer2"></script>
+  <script src="scripts/desktop-google-pool.js?v=20261010-segment-bank1"></script>
+  <script src="scripts/desktop-settings-search.js?v=20261010-color-bloom1"></script>
+  <script src="scripts/desktop-settings.js?v=20261010-segment-bank1"></script>
   <script src="scripts/desktop-prompt-media.js?v=20260929-prompt-video1"></script>
   <script src="scripts/desktop-prompt-editor.js?v=20260929-prompt-video1"></script>
   <script src="scripts/desktop-prompt-drawer.js?v=20260929-prompt-video1"></script>
   <script src="scripts/desktop-prompt-agent.js?v=20260929-prompt-video1"></script>
   <script src="scripts/desktop-color-extractor.js?v=20260719-color-image-analysis10"></script>
-  <script src="scripts/desktop-prompt-library.js?v=20260829-panel-focus1"></script>
+  <script src="scripts/desktop-prompt-library.js?v=20261010-color-bloom1"></script>
   <script src="scripts/desktop-prompt-insert.js?v=20260827-agent-references-fix1"></script>
   <script src="scripts/desktop-bootstrap.js?v=20260818-canvas-persist2"></script>
 </body>

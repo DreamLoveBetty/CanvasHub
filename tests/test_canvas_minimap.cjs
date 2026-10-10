@@ -262,7 +262,7 @@ test('served HTML wires the existing controller, includes the new presets and bu
   }
   for (const asset of ['scripts/desktop-canvas.js', 'scripts/desktop-canvas-viewport.js',
     'scripts/desktop-canvas-image-group-interaction.js', 'scripts/desktop-i18n.js', 'styles/desktop-canvas-nodes.css', 'styles/desktop-geometry.css']) {
-    const version = asset === 'styles/desktop-geometry.css' ? '20261009-settings-drawer2'
+    const version = asset === 'styles/desktop-geometry.css' ? '20261010-color-bloom1'
       : asset === 'styles/desktop-canvas-nodes.css' ? '20261007-connection-arc1'
       : asset === 'scripts/desktop-canvas.js' ? '20261007-node-progress4'
       : asset === 'scripts/desktop-canvas-viewport.js'

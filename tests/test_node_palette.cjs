@@ -154,7 +154,8 @@ test('host keeps click/drag creation and dispatches Escape; changed assets are c
   for (const asset of ['scripts/desktop-canvas.js', 'scripts/desktop-canvas-nodes.js',
     'scripts/desktop-i18n.js', 'styles/desktop-canvas-nodes.css', 'styles/desktop-tokens.css']) {
     const version = asset === 'styles/desktop-canvas-nodes.css' ? '20261007-connection-arc1'
-      : ['scripts/desktop-canvas.js','scripts/desktop-canvas-nodes.js'].includes(asset) ? '20261007-node-progress4'
+      : asset === 'scripts/desktop-canvas-nodes.js' ? '20261010-node-keys1'
+      : asset === 'scripts/desktop-canvas.js' ? '20261007-node-progress4'
       : asset === 'styles/desktop-tokens.css' ? '20261009-settings-drawer2' : '20261006-node-palette-groups1';
     assert.ok(html.includes(`${asset}?v=${version}`), asset);
   }

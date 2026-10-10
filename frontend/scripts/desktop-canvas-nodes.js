@@ -619,9 +619,9 @@
     const hasPrompt = !!String(node.editState?.editPrompt || '').trim();
     return `
       <div class="desk-image-node__tools" aria-label="图片操作">
-        <button type="button" data-image-edit title="编辑图片">编辑</button>
-        ${hasMask ? '<button type="button" data-image-view-mask title="查看蒙版">蒙版</button>' : ''}
-        ${hasPrompt ? '<button type="button" data-image-view-prompt title="查看说明">说明</button>' : ''}
+        <button type="button" class="desk-key" data-image-edit title="编辑图片">编辑</button>
+        ${hasMask ? '<button type="button" class="desk-key" data-image-view-mask title="查看蒙版">蒙版</button>' : ''}
+        ${hasPrompt ? '<button type="button" class="desk-key" data-image-view-prompt title="查看说明">说明</button>' : ''}
       </div>`;
   }
 
@@ -661,8 +661,8 @@
           ${preview ? `<img src="${preview}" alt="排版预览">` : '<span>尚未排版</span>'}
         </div>
         <div class="desk-layout-node-actions">
-          <button type="button" class="is-primary" data-layout-open>打开排版</button>
-          <button type="button" data-layout-quick-export>更新预览</button>
+          <button type="button" class="desk-key is-primary" data-layout-open>打开排版</button>
+          <button type="button" class="desk-key" data-layout-quick-export>更新预览</button>
         </div>
         <div class="desk-pill-row"><span>Fabric.js</span><span>${presetLabel}</span><span data-layout-input-count>${inputCount ? `已接入 ${inputCount} 张图` : '可接入图片'}</span></div>
         <span class="desk-resize-handle" data-node-resize-handle title="缩放节点" aria-hidden="true"></span>
@@ -714,8 +714,8 @@
           ${preview ? `<img src="${preview}" alt="姿态预览">` : `<span><strong>${escapeHtml(emptyTitle)}</strong><em>${escapeHtml(emptyHint)}</em></span>`}
         </div>
         <div class="desk-pose-node-actions">
-          <button type="button" class="is-primary" data-pose-open>打开编辑器</button>
-          <button type="button" data-pose-connect-input>接入模型</button>
+          <button type="button" class="desk-key is-primary" data-pose-open>打开编辑器</button>
+          <button type="button" class="desk-key" data-pose-connect-input>接入模型</button>
         </div>
         <div class="desk-pill-row"><span data-pose-status>${escapeHtml(statusText)}</span><span data-pose-input-count>${backgroundCount ? `背景 ${backgroundCount}` : '可接入背景'}</span></div>
         <span class="desk-resize-handle" data-node-resize-handle title="缩放节点" aria-hidden="true"></span>

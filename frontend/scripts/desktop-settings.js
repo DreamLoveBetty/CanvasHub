@@ -509,17 +509,17 @@
     return renderCard('画布交互', [
       `<div class="desk-settings-canvas-interaction">
         <span class="desk-settings-canvas-interaction__label">连接端点</span>
-        <div class="desk-settings-canvas-interaction__segment" role="group" aria-label="连接端点样式">
+        <div class="desk-settings-canvas-interaction__segment desk-key-bank" role="group" aria-label="连接端点样式">
           <button type="button" class="${swellStyle === 'liquid' ? 'is-active' : ''}" data-connection-swell-style="liquid" aria-pressed="${swellStyle === 'liquid' ? 'true' : 'false'}">液化</button>
           <button type="button" class="${swellStyle === 'droplet' ? 'is-active' : ''}" data-connection-swell-style="droplet" aria-pressed="${swellStyle === 'droplet' ? 'true' : 'false'}">水滴</button>
         </div>
         <span class="desk-settings-canvas-interaction__label">连线线条</span>
-        <div class="desk-settings-canvas-interaction__segment" role="group" aria-label="连线线条样式">
+        <div class="desk-settings-canvas-interaction__segment desk-key-bank" role="group" aria-label="连线线条样式">
           <button type="button" class="${lineStyle === 'straight' ? 'is-active' : ''}" data-connection-line-style="straight" aria-pressed="${lineStyle === 'straight' ? 'true' : 'false'}">直线</button>
           <button type="button" class="${lineStyle === 'curve' ? 'is-active' : ''}" data-connection-line-style="curve" aria-pressed="${lineStyle === 'curve' ? 'true' : 'false'}">曲线</button>
         </div>
         <span class="desk-settings-canvas-interaction__label" title="拖动节点时，自动推开碰到的其他节点；图片靠近合组优先。">节点碰撞</span>
-        <div class="desk-settings-canvas-interaction__segment" role="group" aria-label="节点碰撞开关">
+        <div class="desk-settings-canvas-interaction__segment desk-key-bank" role="group" aria-label="节点碰撞开关">
           <button type="button" class="${!collisionEnabled ? 'is-active' : ''}" data-canvas-collision="false" aria-pressed="${!collisionEnabled}">关闭</button>
           <button type="button" class="${collisionEnabled ? 'is-active' : ''}" data-canvas-collision="true" aria-pressed="${collisionEnabled}">开启</button>
         </div>
@@ -542,11 +542,9 @@
     return renderCard('节点进度条', [`<div class="desk-settings-form" data-progress-settings>
       <label><span>动效样式</span><select class="desk-select" data-progress-preference="style" aria-label="进度条动效样式">${Object.entries(model.PROGRESS_STYLES).map(([key, item]) => `<option value="${key}"${style === key ? ' selected' : ''}>${item.label} · ${item.english}</option>`).join('')}</select></label>
       <label><span>轨道高度</span><select class="desk-select" data-progress-preference="height" aria-label="进度条轨道高度"${style === 'classic' ? ' disabled' : ''}>${model.PROGRESS_HEIGHTS.map(size => `<option value="${size}"${height === size ? ' selected' : ''}>${size} px${size === 36 ? ' · 紧凑' : size === 48 ? ' · 标准' : ' · 宽松'}</option>`).join('')}</select></label>
-      <div class="desk-settings-secret-field"><span>填充颜色</span><div class="desk-settings-progress-color">
-        <input type="color" value="${color}" data-progress-preference="color" aria-label="进度条填充颜色">
-        <input class="desk-input" type="text" value="${color}" data-progress-preference="hex" aria-label="进度条颜色 HEX" spellcheck="false" maxlength="7" placeholder="#42B8FA">
-        <button type="button" class="desk-button" data-progress-color-reset title="恢复当前样式的原始配色">原色</button>
-      </div></div>
+      <div class="desk-settings-color-field"><span>填充颜色</span>${window.DesktopColorBloom.html({ value: color, label: '进度条填充颜色', hexClass: 'desk-input',
+        hexAttrs: 'data-progress-preference="hex" aria-label="进度条颜色 HEX" placeholder="#42B8FA"', valueAttrs: 'data-progress-preference="color"',
+        after: '<button type="button" class="desk-button" data-progress-color-reset title="恢复当前样式的原始配色">原色</button>' })}</div>
       <p class="desk-settings-form__hint">即时生效并保存在本浏览器。新样式将进度、阶段和用时置于轨道内；经典保留原有胶囊与下挂标签。</p>
     </div>`], true);
   }
@@ -563,6 +561,7 @@
       control.removeAttribute('aria-invalid');
       if (field === 'style' || field === 'height') window.DesktopSelect?.refresh(control);
     });
+    window.DesktopColorBloom?.refresh(card);
   }
 
   function updateProgressPreference(event) {
@@ -586,6 +585,7 @@
         if (control !== input || event.type === 'change') control.value = color;
         control.removeAttribute('aria-invalid');
       });
+      window.DesktopColorBloom?.refresh(card);
     }
     return true;
   }
@@ -906,7 +906,7 @@
     return renderCard('视频推理运行方式', [
       `<div class="desk-settings-form desk-video-runtime-settings" data-system-settings-card="video-inference">
         <input type="hidden" data-system-setting-field="video_inference.runtime_mode" value="${escapeHtml(runtimeMode)}">
-        <div class="desk-video-runtime-mode" role="tablist" aria-label="H3 Runtime 运行方式">
+        <div class="desk-video-runtime-mode desk-key-bank" role="tablist" aria-label="H3 Runtime 运行方式">
           ${[
             ['auto', '自动检测'],
             ['local', '本机 H3'],
@@ -3385,6 +3385,8 @@
         closeSettingsInfoTip();
         return;
       }
+      // An open colour picker closes before the drawer (focus may have left it).
+      if (window.DesktopColorBloom?.close(els.deskSettingsPanel, { focus: true })) return;
       if (els.deskSettingsPanel?.classList.contains('is-open')) {
         close();
       }
