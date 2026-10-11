@@ -1,5 +1,7 @@
-/* Ambient control material: adaptation layer for buttons inside canvas nodes and for
-   segmented controls (.desk-key-bank, Select reading) in nodes and the settings centre.
+/* Ambient control material: adaptation layer for buttons inside canvas nodes and the
+   settings centre's action rows, and for
+   segmented controls (.desk-key-bank, Select reading) and switches/checkboxes (Switch +
+   LED) in nodes and the settings centre.
    Upstream lighting/material rules come from desktop-ambient-controls.css (generated,
    verbatim bodies). This file keeps production geometry and only replaces paint, depth,
    ink and state feedback. Every rule is scoped to the opt-in body attribute set by
@@ -26,7 +28,7 @@
 }
 
 /* The production button is the key cap. */
-#deskApp[data-control-material="ambient"] .desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key) {
+#deskApp[data-control-material="ambient"] :is(.desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key), .desk-settings :is(.desk-settings-form__actions, .desk-settings-account__actions, .desk-lora-actions, .desk-qwen21-tools__inspection, .desk-qwen21-tools__model, .desk-qwen21-tools__progress, .desk-krea2-tools__model, .desk-krea2-tools__progress) > button, .desk-settings .desk-color-bloom__control > .desk-button) {
   position: relative;
   isolation: isolate;
   --amb-thickness: var(--desk-control-depth);
@@ -41,11 +43,11 @@
   -webkit-backdrop-filter: none;
   transition: box-shadow 100ms ease-out, background-color 100ms ease-out, color 100ms ease-out;
 }
-#deskApp[data-control-material="ambient"] .desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key) :is(svg, span, em, strong) { color: inherit; }
+#deskApp[data-control-material="ambient"] :is(.desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key), .desk-settings :is(.desk-settings-form__actions, .desk-settings-account__actions, .desk-lora-actions, .desk-qwen21-tools__inspection, .desk-qwen21-tools__model, .desk-qwen21-tools__progress, .desk-krea2-tools__model, .desk-krea2-tools__progress) > button, .desk-settings .desk-color-bloom__control > .desk-button) :is(svg, span, em, strong) { color: inherit; }
 /* Production gloss layers would sit over the cap: retire ::before, keep ::after for the
    upstream dish (generated rule owns its content/geometry). */
-#deskApp[data-control-material="ambient"] .desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key)::before { content: none; }
-#deskApp[data-control-material="ambient"] .desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key)::after {
+#deskApp[data-control-material="ambient"] :is(.desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key), .desk-settings :is(.desk-settings-form__actions, .desk-settings-account__actions, .desk-lora-actions, .desk-qwen21-tools__inspection, .desk-qwen21-tools__model, .desk-qwen21-tools__progress, .desk-krea2-tools__model, .desk-krea2-tools__progress) > button, .desk-settings .desk-color-bloom__control > .desk-button)::before { content: none; }
+#deskApp[data-control-material="ambient"] :is(.desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key), .desk-settings :is(.desk-settings-form__actions, .desk-settings-account__actions, .desk-lora-actions, .desk-qwen21-tools__inspection, .desk-qwen21-tools__model, .desk-qwen21-tools__progress, .desk-krea2-tools__model, .desk-krea2-tools__progress) > button, .desk-settings .desk-color-bloom__control > .desk-button)::after {
   opacity: 1;
   filter: none;
   transform: none;
@@ -55,33 +57,70 @@
 }
 
 /* Press feedback: only depth changes, like the upstream button (no repaint/jump). */
-#deskApp[data-control-material="ambient"] .desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key):hover:not(:disabled) {
+#deskApp[data-control-material="ambient"] :is(.desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key), .desk-settings :is(.desk-settings-form__actions, .desk-settings-account__actions, .desk-lora-actions, .desk-qwen21-tools__inspection, .desk-qwen21-tools__model, .desk-qwen21-tools__progress, .desk-krea2-tools__model, .desk-krea2-tools__progress) > button, .desk-settings .desk-color-bloom__control > .desk-button):hover:not(:disabled) {
   --amb-thickness: calc(var(--desk-control-depth) + .08);
   color: var(--desk-control-hover-ink, var(--amb-highlight-color));
   transform: none;
 }
-#deskApp[data-control-material="ambient"] .desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key):active:not(:disabled) {
+#deskApp[data-control-material="ambient"] :is(.desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key), .desk-settings :is(.desk-settings-form__actions, .desk-settings-account__actions, .desk-lora-actions, .desk-qwen21-tools__inspection, .desk-qwen21-tools__model, .desk-qwen21-tools__progress, .desk-krea2-tools__model, .desk-krea2-tools__progress) > button, .desk-settings .desk-color-bloom__control > .desk-button):active:not(:disabled) {
   --amb-thickness: calc(var(--desk-control-depth) * .35);
   transform: none;
 }
-#deskApp[data-control-material="ambient"] .desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key):disabled {
+#deskApp[data-control-material="ambient"] :is(.desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key), .desk-settings :is(.desk-settings-form__actions, .desk-settings-account__actions, .desk-lora-actions, .desk-qwen21-tools__inspection, .desk-qwen21-tools__model, .desk-qwen21-tools__progress, .desk-krea2-tools__model, .desk-krea2-tools__progress) > button, .desk-settings .desk-color-bloom__control > .desk-button):disabled {
   --amb-thickness: .1;
   opacity: .62;
   cursor: not-allowed;
 }
-#deskApp[data-control-material="ambient"] .desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key):focus-visible {
+#deskApp[data-control-material="ambient"] :is(.desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key), .desk-settings :is(.desk-settings-form__actions, .desk-settings-account__actions, .desk-lora-actions, .desk-qwen21-tools__inspection, .desk-qwen21-tools__model, .desk-qwen21-tools__progress, .desk-krea2-tools__model, .desk-krea2-tools__progress) > button, .desk-settings .desk-color-bloom__control > .desk-button):focus-visible {
   outline: 2px solid var(--amb-highlight-color);
   outline-offset: 2px;
 }
 
+/* Primary and danger actions keep their role on the key cap without leaning on the accent
+   (which may be white or grey): a primary key is cast in a navy body — upstream's Steel
+   preset, close to the production primary — with a light legend (a blue-tinted pane on
+   Glass); a danger key keeps a red legend. */
+#deskApp[data-control-material="ambient"] :is(.desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key), .desk-settings :is(.desk-settings-form__actions, .desk-settings-account__actions, .desk-lora-actions, .desk-qwen21-tools__inspection, .desk-qwen21-tools__model, .desk-qwen21-tools__progress, .desk-krea2-tools__model, .desk-krea2-tools__progress) > button, .desk-settings .desk-color-bloom__control > .desk-button).is-primary {
+  --amb-albedo: #24405c;
+  --desk-control-face-ink: #f4f7fb;
+  --desk-control-hover-ink: #ffffff;
+}
+#deskApp[data-control-material="ambient"][data-control-finish="glass"] :is(.desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key), .desk-settings :is(.desk-settings-form__actions, .desk-settings-account__actions, .desk-lora-actions, .desk-qwen21-tools__inspection, .desk-qwen21-tools__model, .desk-qwen21-tools__progress, .desk-krea2-tools__model, .desk-krea2-tools__progress) > button, .desk-settings .desk-color-bloom__control > .desk-button).is-primary {
+  --amb-light-hue: 214;
+  --amb-light-saturation: 60%;
+  --desk-control-face-ink: #10335c;
+  --desk-control-hover-ink: #0b2747;
+}
+#deskApp[data-control-material="ambient"][data-control-finish="glass"][data-theme="dark"] :is(.desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key), .desk-settings :is(.desk-settings-form__actions, .desk-settings-account__actions, .desk-lora-actions, .desk-qwen21-tools__inspection, .desk-qwen21-tools__model, .desk-qwen21-tools__progress, .desk-krea2-tools__model, .desk-krea2-tools__progress) > button, .desk-settings .desk-color-bloom__control > .desk-button).is-primary {
+  --desk-control-face-ink: #dbe8ff;
+  --desk-control-hover-ink: #ffffff;
+}
+#deskApp[data-control-material="ambient"] :is(.desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key), .desk-settings :is(.desk-settings-form__actions, .desk-settings-account__actions, .desk-lora-actions, .desk-qwen21-tools__inspection, .desk-qwen21-tools__model, .desk-qwen21-tools__progress, .desk-krea2-tools__model, .desk-krea2-tools__progress) > button, .desk-settings .desk-color-bloom__control > .desk-button).is-danger {
+  --desk-control-face-ink: #c2353b;
+  --desk-control-hover-ink: #a3242a;
+}
+#deskApp[data-control-material="ambient"][data-theme="dark"] :is(.desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key), .desk-settings :is(.desk-settings-form__actions, .desk-settings-account__actions, .desk-lora-actions, .desk-qwen21-tools__inspection, .desk-qwen21-tools__model, .desk-qwen21-tools__progress, .desk-krea2-tools__model, .desk-krea2-tools__progress) > button, .desk-settings .desk-color-bloom__control > .desk-button).is-danger {
+  --desk-control-face-ink: #ff8a8f;
+  --desk-control-hover-ink: #ffb0b3;
+}
+
 /* Surface shape is Matte-only (upstream surface classes overwrite material
    backgrounds). Concave keeps the upstream cap dish; flat and convex drop it. */
-#deskApp[data-control-material="ambient"][data-control-finish="matte"]:is([data-control-surface="flat"], [data-control-surface="convex"]) .desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key)::after,
-#deskApp[data-control-material="ambient"][data-control-finish="glass"] .desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key)::after { content: none; }
+#deskApp[data-control-material="ambient"][data-control-finish="matte"]:is([data-control-surface="flat"], [data-control-surface="convex"]) :is(.desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key), .desk-settings :is(.desk-settings-form__actions, .desk-settings-account__actions, .desk-lora-actions, .desk-qwen21-tools__inspection, .desk-qwen21-tools__model, .desk-qwen21-tools__progress, .desk-krea2-tools__model, .desk-krea2-tools__progress) > button, .desk-settings .desk-color-bloom__control > .desk-button)::after,
+#deskApp[data-control-material="ambient"][data-control-finish="glass"] :is(.desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key), .desk-settings :is(.desk-settings-form__actions, .desk-settings-account__actions, .desk-lora-actions, .desk-qwen21-tools__inspection, .desk-qwen21-tools__model, .desk-qwen21-tools__progress, .desk-krea2-tools__model, .desk-krea2-tools__progress) > button, .desk-settings .desk-color-bloom__control > .desk-button)::after { content: none; }
 
 /* Glass: translucent pane, label follows the node ink. */
-#deskApp[data-control-material="ambient"][data-control-finish="glass"] .desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key) {
+#deskApp[data-control-material="ambient"][data-control-finish="glass"] :is(.desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key), .desk-settings :is(.desk-settings-form__actions, .desk-settings-account__actions, .desk-lora-actions, .desk-qwen21-tools__inspection, .desk-qwen21-tools__model, .desk-qwen21-tools__progress, .desk-krea2-tools__model, .desk-krea2-tools__progress) > button, .desk-settings .desk-color-bloom__control > .desk-button) {
   color: var(--desk-control-face-ink, var(--amb-label));
+}
+
+/* Glass shadow offset (setting): upstream's pane shadow ring sits a fixed 5.12px per level
+   of thickness away with a 4px border, whatever the key size — natural under a 72px generate
+   key, a misplaced slab under a 24px one. Same formulas, scaled by --desk-glass-shadow. */
+#deskApp[data-control-material="ambient"][data-control-finish="glass"] :is(.desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key), .desk-settings :is(.desk-settings-form__actions, .desk-settings-account__actions, .desk-lora-actions, .desk-qwen21-tools__inspection, .desk-qwen21-tools__model, .desk-qwen21-tools__progress, .desk-krea2-tools__model, .desk-krea2-tools__progress) > button, .desk-settings .desk-color-bloom__control > .desk-button) {
+  --_glass-sh-x: calc(var(--amb-light-x) * -1 * (var(--amb-elevation) * 5.16px + var(--amb-thickness) * 5.12px) * var(--desk-glass-shadow, 1));
+  --_glass-sh-y: calc(var(--amb-light-y) * -1 * (var(--amb-elevation) * 5.16px + var(--amb-thickness) * 5.12px) * var(--desk-glass-shadow, 1));
+  --_glass-ring-w: calc(var(--amb-thickness) * 4px * var(--desk-glass-shadow, 1));
 }
 
 /* Segmented controls · Select (upstream AmbientSelect, the lamp-lit bank, adapted to
@@ -175,7 +214,86 @@
   outline-offset: 2px;
 }
 
+/* Switches · upstream Switch + LED (parts/latch.tsx: a convex pill riding in a dark
+   stadium recess) with the lamp inside the track. Two hosts, no markup change:
+   .desk-switch's <span> track, and plain checkboxes drawn as the same switch
+   (appearance: none; still checkboxes). Generated rules paint the track (groove), the
+   pill (::after: ambient + fillet + convex) and the LED (::before: amb-led / -off). The
+   LED sits in the half the pill uncovers, so it shows — lit in the accent — only when
+   on, and the switch keeps its production footprint. */
+#deskApp[data-control-material="ambient"] :is(.desk-node, .desk-settings) :is(.desk-switch > span, input[type="checkbox"]:not(.desk-switch > input)) {
+  --_sw-w: 28px;
+  --_sw-h: 16px;
+  --_sw-on: 0;
+  --amb-thickness: .33;
+  --amb-led-color: var(--amb-highlight-color);
+  position: relative;
+  flex: 0 0 auto;
+  box-sizing: border-box;
+  width: var(--_sw-w);
+  height: var(--_sw-h);
+  margin: 0;
+  padding: 0;
+  vertical-align: middle;
+  border: 0;
+  border-radius: calc(var(--_sw-h) / 2);
+  background-color: var(--amb-lume);
+  background-image: none;
+  -webkit-appearance: none;
+  appearance: none;
+  cursor: pointer;
+}
+#deskApp[data-control-material="ambient"] :is(.desk-node, .desk-settings) :is(.desk-switch > input:checked + span, input[type="checkbox"]:not(.desk-switch > input):checked) {
+  --_sw-on: 1;
+}
+/* The pill: 52% of the track, 78% of its height, 11% end clearance (upstream latch). */
+#deskApp[data-control-material="ambient"] :is(.desk-node, .desk-settings) :is(.desk-switch > span, input[type="checkbox"]:not(.desk-switch > input))::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: calc(var(--_sw-h) * .11);
+  width: calc(var(--_sw-w) * .52);
+  height: calc(var(--_sw-h) * .78);
+  border-radius: calc(var(--_sw-h) * .39);
+  --amb-thickness: .58;
+  transform: translateY(-50%) translateX(calc(var(--_sw-on) * (var(--_sw-w) * .48 - var(--_sw-h) * .22)));
+  transition: transform 160ms ease;
+}
+/* The LED: centred in the half the pill leaves when on. */
+#deskApp[data-control-material="ambient"] :is(.desk-node, .desk-settings) :is(.desk-switch > span, input[type="checkbox"]:not(.desk-switch > input))::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: calc(var(--_sw-w) * .25);
+  width: calc(var(--_sw-h) * .36);
+  height: calc(var(--_sw-h) * .36);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+/* Dark theme: the same recess and graphite body as the segmented controls. */
+#deskApp[data-control-material="ambient"][data-theme="dark"] :is(.desk-node, .desk-settings) :is(.desk-switch > span, input[type="checkbox"]:not(.desk-switch > input)) {
+  background-color: color-mix(in oklab, var(--amb-lume), black 55%);
+}
+#deskApp[data-control-material="ambient"][data-theme="dark"]:not([data-control-tinted]) :is(.desk-node, .desk-settings) :is(.desk-switch > span, input[type="checkbox"]:not(.desk-switch > input)) {
+  --amb-albedo: #454d4f;
+}
+/* A graphite pill vanishes into the near-black recess, so on the dark theme the pill
+   takes upstream's orange body (the console toggle thumb, coral by default) — fixed, not
+   the user accent, which may be white or grey. */
+#deskApp[data-control-material="ambient"][data-theme="dark"] :is(.desk-node, .desk-settings) :is(.desk-switch > span, input[type="checkbox"]:not(.desk-switch > input))::after {
+  --amb-albedo: #ff7f50;
+}
+#deskApp[data-control-material="ambient"] :is(.desk-node, .desk-settings) :is(.desk-switch > input:disabled + span, input[type="checkbox"]:not(.desk-switch > input):disabled) {
+  opacity: .5;
+  cursor: not-allowed;
+}
+#deskApp[data-control-material="ambient"] :is(.desk-node, .desk-settings) :is(.desk-switch > input:focus-visible + span, input[type="checkbox"]:not(.desk-switch > input):focus-visible) {
+  outline: 2px solid var(--amb-highlight-color);
+  outline-offset: 2px;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  #deskApp[data-control-material="ambient"] .desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key),
-  #deskApp[data-control-material="ambient"] :is(.desk-node, .desk-settings) .desk-key-bank > button { transition: none; }
+  #deskApp[data-control-material="ambient"] :is(.desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key), .desk-settings :is(.desk-settings-form__actions, .desk-settings-account__actions, .desk-lora-actions, .desk-qwen21-tools__inspection, .desk-qwen21-tools__model, .desk-qwen21-tools__progress, .desk-krea2-tools__model, .desk-krea2-tools__progress) > button, .desk-settings .desk-color-bloom__control > .desk-button),
+  #deskApp[data-control-material="ambient"] :is(.desk-node, .desk-settings) .desk-key-bank > button,
+  #deskApp[data-control-material="ambient"] :is(.desk-node, .desk-settings) :is(.desk-switch > span, input[type="checkbox"]:not(.desk-switch > input))::after { transition: none; }
 }

@@ -40,18 +40,18 @@ class Element {
   click(target){if(!target.disabled)this.listeners.get('click')?.({target:{closest:selector=>target.matches(selector)?target:null}});}
 }
 
-function fixture({ready=true,prompt='Synthetic landscape',refs=2}={}){
+function fixture({ready=true,prompt='Synthetic landscape',refs=2,models=null,nodeFields={},turboReady=true}={}){
   let nextTimer=0;const timers=new Map(),submitted=[],saved=[],reports=[];
   const sandbox={window:{addEventListener(){},DesktopSelect:{refreshAll(){}}},AbortController,
     setTimeout:(fn,ms)=>{timers.set(++nextTimer,{fn,ms});return nextTimer;},clearTimeout:id=>timers.delete(id)};
   vm.createContext(sandbox);
   for(const name of ['desktop-qwen21-model.js','desktop-canvas-qwen21.js'])vm.runInContext(read(name),sandbox);
   const model=sandbox.window.DesktopQwen21Model;
-  const node={id:'q',type:'qwen21',status:'idle',loras:identities.map((assetId,i)=>({assetId,scale:i?.7:1}))};
+  const node={id:'q',type:'qwen21',status:'idle',loras:identities.map((assetId,i)=>({assetId,scale:i?.7:1})),...nodeFields};
   const references=Array.from({length:refs},(_,i)=>({id:`image-${i}`,sourceNodeId:`image-${i}`,name:`Reference ${i+1}`,imageData:'synthetic'}));
   const canvas={nodes:{q:node,...Object.fromEntries(references.map(ref=>[ref.id,{id:ref.id,type:'image'}]))},edges:references.map(ref=>({from:ref.id,to:'q'}))};
   const element=new Element();
-  const runtime={environment_ready:true,source_ready:true,turbo_ready:true,preparation:{status:'idle'},models:[{id:model.DEFAULT_MODEL_ID,ready}]};
+  const runtime={environment_ready:true,source_ready:true,turbo_ready:turboReady,turbo_adapters:{},preparation:{status:'idle'},models:models||[{id:model.DEFAULT_MODEL_ID,ready}]};
   let job={status:'processing',result_files:[]};
   const api={status:async()=>runtime,listLoras:async()=>({loras:identities.map((asset_id,i)=>({asset_id,name:`Synthetic LoRA ${i+1}`}))}),
     submit:async request=>{submitted.push(plain(request));job={status:'processing',result_files:[]};return{task_id:'qwen21_'+'c'.repeat(32),status:'queued'};},
@@ -116,4 +116,22 @@ test('Qwen stop-generation action unlocks LoRA removal after the cancellation re
   const f=fixture();t.after(f.dispose);await flush();f.run();await flush();const button=f.buttons()[0];
   assert.equal(button.disabled,true);f.run();await flush();assert.equal(f.node.status,'canceled');
   assert.equal(button.disabled,false);f.element.click(button);assert.equal(f.node.loras.length,1);
+});
+
+test('Qwen Turbo Base selects Turbo · 8 步 and submits without a Viggle adapter',async t=>{
+  const models=[{id:'turbo-bf16',ready:true,sampling:'turbo-8'},{id:'qwen-image-2.1-heretic-mlx-8bit',ready:true}];
+  const f=fixture({models,turboReady:false,nodeFields:{baseModelId:'turbo-bf16',preset:'viggle-v03-r256',steps:30}});t.after(f.dispose);await flush();
+  assert.equal(f.node.preset,'turbo-8');assert.equal(f.node.steps,8);
+  const options=f.element.querySelector('[data-qwen21-field="preset"]').innerHTML;
+  assert.match(options,/value="turbo-8" selected>Turbo · 8 步/);assert.match(options,/value="viggle-v03-r256" disabled/);
+  f.run();await flush();
+  assert.equal(f.submitted.length,1,'no adapter preparation is required');
+  assert.equal(f.submitted[0].preset,'turbo-8');assert.equal(f.submitted[0].steps,8);assert.equal(f.submitted[0].guidance,1);
+  await f.finish('succeeded_no_telegram');
+  const change=target=>f.element.listeners.get('change')({target}),input=(key,value)=>({dataset:{qwen21Field:key},value,matches:()=>false});
+  change(input('baseModelId','qwen-image-2.1-heretic-mlx-8bit'));
+  assert.equal(f.node.preset,'viggle-v03-r256');assert.equal(f.node.steps,6);
+  assert.match(f.element.querySelector('[data-qwen21-field="preset"]').innerHTML,/value="turbo-8" disabled/);
+  const rejected=input('preset','turbo-8');change(rejected);
+  assert.equal(f.node.preset,'viggle-v03-r256');assert.equal(rejected.value,'viggle-v03-r256');
 });

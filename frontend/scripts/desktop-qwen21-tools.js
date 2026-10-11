@@ -49,7 +49,7 @@
     </div>${progressHtml()}`;}
     function modelsHtml(){const models=state.data?.models||[];if(!models.length)return'<div class="desk-settings-empty">暂无可用 Base 权重模型。</div>';
       return`<div class="desk-qwen21-tools__models">${models.map(model=>`<article class="desk-qwen21-tools__model ${model.ready?'is-ready':'is-missing'}">
-        <div><strong>${esc(model.name||model.id)}</strong><span>${esc(model.quantization||model.precision)} · ${bytes(model.file_size)}${model.requantized?' · FP8 源重新量化':model.precision==='bf16'&&String(model.source_format||'').startsWith('comfy-scaled-fp8')?' · FP8 源解码':''}${model.ready?' · 可用':' · 未准备'}</span></div>
+        <div><strong>${esc(model.name||model.id)}</strong><span>${esc(model.quantization||model.precision)} · ${bytes(model.file_size)}${model.requantized?' · FP8 源重新量化':model.precision==='bf16'&&String(model.source_format||'').startsWith('comfy-scaled-fp8')?' · FP8 源解码':''}${model.sampling==='turbo-8'?' · Turbo 蒸馏 · 固定 8 步':''}${model.ready?' · 可用':' · 未准备'}</span></div>
         ${model.builtin?'<em>内置</em>':`<button type="button" class="is-danger" data-qwen21-model-delete="${esc(model.id)}">删除</button>`}
       </article>`).join('')}</div>`;}
     function render(){

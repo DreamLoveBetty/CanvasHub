@@ -6,7 +6,7 @@ body.desk-app .desk-progress-material,
 body.desk-app .desk-node .desk-progress-material {
   display: block;
   position: absolute;
-  top: calc(100% + 4px);
+  top: calc(100% + 5px);
   right: auto;
   bottom: auto;
   left: 0;
@@ -90,3 +90,64 @@ body.desk-app .desk-progress-material[data-progress-style="smoke"] :is(.desk-pro
 body.desk-app .desk-progress-material[data-progress-style="smoke"] .desk-progress-material__meta { color: inherit; }
 
 body.desk-app[data-theme] [data-progress-settings] .desk-settings-form__hint { color: var(--desk-settings-muted-ink); }
+/* Settings preview (desktop-progress-preview.js): the sample sits in the card flow instead of
+   floating under a node, in both the classic capsule and the canvas track. */
+/* Room for the instrument housing (3px around the track) and its drop shadow below. */
+body.desk-app .desk-progress-preview { position: relative; margin-top: 4px; padding: 3px 3px 9px; pointer-events: none; }
+body.desk-app .desk-progress-preview .desk-progress-float { position: relative; inset: auto; z-index: auto; opacity: 1; transform: none; transition: none; }
+body.desk-app .desk-progress-preview .desk-progress-float .desk-progress-float__panel { padding-bottom: 30px; }
+body.desk-app .desk-progress-preview .desk-progress-material { position: relative; top: auto; left: auto; z-index: auto; }
+/* Instrument finish for the canvas materials (classic keeps its own capsule): a raised housing
+   3px around the track (root ::before, outside the box, no layout change), a deep well
+   (track ::after) and a glass lens (track ::before) whose edge highlight follows the top
+   contour into the rounded corners. The canvas drops to z -2 so both track layers sit above
+   the material and below the copy and value. */
+body.desk-app .desk-progress-material[data-progress-style] > .desk-progress-material__track { isolation: isolate; }
+body.desk-app .desk-progress-material[data-progress-style] > .desk-progress-material__track > .desk-progress-material__canvas { z-index: -2; }
+body.desk-app .desk-progress-material[data-progress-style]::before {
+  content: "";
+  display: block;
+  position: absolute;
+  inset: -3px;
+  z-index: -1;
+  border-radius: 13px;
+  pointer-events: none;
+  background: linear-gradient(180deg, #ffffff 0%, #eef2f6 100%);
+  box-shadow: inset 0 1px 0 #ffffff, inset 0 -1px 0 rgba(15, 23, 42, .08), 0 0 0 1px rgba(15, 23, 42, .10), 0 6px 14px -6px rgba(15, 23, 42, .30);
+}
+body.desk-app .desk-progress-material[data-progress-style] > .desk-progress-material__track::before,
+body.desk-app .desk-progress-material[data-progress-style] > .desk-progress-material__track::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  pointer-events: none;
+}
+/* Lens: an arched sheen over the upper half, a faint floor shade, and the glass edge
+   highlight running along the top and down into the corners. */
+body.desk-app .desk-progress-material[data-progress-style] > .desk-progress-material__track::before {
+  inset: 1px;
+  border-radius: 9px;
+  background:
+    radial-gradient(120% 90% at 50% -38%, rgba(255, 255, 255, .30) 0%, rgba(255, 255, 255, .10) 48%, rgba(255, 255, 255, 0) 70%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0) 55%, rgba(0, 0, 0, .12) 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .55);
+}
+/* Well: deep top shade, a contact edge and a lit bottom lip. */
+body.desk-app .desk-progress-material[data-progress-style] > .desk-progress-material__track::after {
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, .5), inset 0 0 0 1px rgba(0, 0, 0, .38), inset 0 -1px 0 rgba(255, 255, 255, .22);
+}
+body.desk-app[data-theme="dark"] .desk-progress-material[data-progress-style]::before {
+  background: linear-gradient(180deg, #2c3338 0%, #1f2428 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08), inset 0 -1px 0 rgba(0, 0, 0, .4), 0 0 0 1px rgba(0, 0, 0, .55), 0 6px 14px -6px rgba(0, 0, 0, .7);
+}
+body.desk-app[data-theme="dark"] .desk-progress-material[data-progress-style] > .desk-progress-material__track::before {
+  background:
+    radial-gradient(120% 90% at 50% -38%, rgba(255, 255, 255, .20) 0%, rgba(255, 255, 255, .06) 48%, rgba(255, 255, 255, 0) 70%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0) 55%, rgba(0, 0, 0, .22) 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .30);
+}
+body.desk-app[data-theme="dark"] .desk-progress-material[data-progress-style] > .desk-progress-material__track::after {
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, .75), inset 0 0 0 1px rgba(0, 0, 0, .6), inset 0 -1px 0 rgba(255, 255, 255, .12);
+}

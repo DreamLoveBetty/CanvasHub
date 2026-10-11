@@ -27,8 +27,8 @@ test('desktop load order, cache busting and boundaries cover every new dependenc
  const html=file('desktop.html'),order=['desktop-progress-model','desktop-progress-materials','desktop-progress-renderer','desktop-progress','desktop-preferences'];
  for(let i=1;i<order.length;i++)assert.ok(html.indexOf(`scripts/${order[i-1]}.js?`)<html.indexOf(`scripts/${order[i]}.js?`));
  const changed=[...order,'desktop-canvas','desktop-canvas-krea2','desktop-canvas-qwen21','desktop-canvas-cyimg','desktop-canvas-nodes','desktop-canvas-model-nodes','desktop-results','desktop-settings','desktop-music-view','desktop-topaz-video-view','desktop-video-control-view'];
- for(const name of changed)assert.ok(html.includes(`scripts/${name}.js?v=${['desktop-canvas-model-nodes','desktop-music-view','desktop-settings'].includes(name)?'20261010-segment-bank1':['desktop-canvas-qwen21','desktop-canvas-krea2','desktop-canvas-cyimg'].includes(name)?'20261009-generation-action-unify1':name==='desktop-preferences'?'20261010-release-26-3-1':['desktop-canvas-nodes','desktop-music-view','desktop-topaz-video-view','desktop-video-control-view'].includes(name)?'20261010-node-keys1':'20261007-node-progress4'}`),name);
- assert.ok(html.includes('styles/desktop-progress.css?v=20261010-color-bloom1'));
+ for(const name of changed)assert.ok(html.includes(`scripts/${name}.js?v=${name==='desktop-settings'?'20261011-progress-preview1':['desktop-canvas-model-nodes','desktop-music-view'].includes(name)?'20261010-segment-bank1':['desktop-canvas','desktop-canvas-nodes'].includes(name)?'20261010-marquee-frame1':name==='desktop-canvas-qwen21'?'20261011-qwen-turbo8':['desktop-canvas-krea2','desktop-canvas-cyimg'].includes(name)?'20261009-generation-action-unify1':name==='desktop-preferences'?'20261010-release-26-3-1':['desktop-canvas-nodes','desktop-music-view','desktop-topaz-video-view','desktop-video-control-view'].includes(name)?'20261010-node-keys1':'20261007-node-progress4'}`),name);
+ assert.ok(html.includes('styles/desktop-progress.css?v=20261011-progress-instrument2'));
  for(const name of ['desktop-progress-model','desktop-progress-materials','desktop-progress-renderer','desktop-progress']) {
   const source=read(name);assert.doesNotMatch(source,/\b(?:fetch|localStorage|DesktopState|DesktopResults)\b/);
  }
@@ -87,7 +87,7 @@ test('progress settings update only their controls and retain unsaved System fie
  });
  const card={querySelectorAll:()=>controls};
  for(const control of controls)control.closest=selector=>selector==='[data-progress-settings]'?card:control;
- const ctx=vm.createContext({window:{DesktopSelect:{refresh(){}}}});
+ const ctx=vm.createContext({window:{DesktopSelect:{refresh(){}}},progressPreview:null});
  vm.runInContext(read('desktop-progress-model'),ctx);
  const model=ctx.window.DesktopProgressModel,preferences={state:{progress:model.normalizePreferences()},setProgressPreferences(patch){this.state.progress=model.normalizePreferences({...this.state.progress,...patch});}};
  ctx.window.DesktopPreferences=preferences;

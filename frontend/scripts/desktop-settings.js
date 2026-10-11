@@ -19,6 +19,8 @@
   let activeTab = 'status';
   let settingsSearch = null;
   let settingsDrawer = null;
+  // Progress preview: a sample task drawn by its own presenter (desktop-progress-preview.js).
+  const progressPreview = window.DesktopProgressPreview?.create({ getPreferences: () => window.DesktopPreferences?.state?.progress }) || null;
   let searchIndexCache = null;
   const searchHitTimers = new WeakMap();
   const googlePoolSettings = window.DesktopGooglePool.create({
@@ -545,7 +547,7 @@
       <div class="desk-settings-color-field"><span>填充颜色</span>${window.DesktopColorBloom.html({ value: color, label: '进度条填充颜色', hexClass: 'desk-input',
         hexAttrs: 'data-progress-preference="hex" aria-label="进度条颜色 HEX" placeholder="#42B8FA"', valueAttrs: 'data-progress-preference="color"',
         after: '<button type="button" class="desk-button" data-progress-color-reset title="恢复当前样式的原始配色">原色</button>' })}</div>
-      <p class="desk-settings-form__hint">即时生效并保存在本浏览器。新样式将进度、阶段和用时置于轨道内；经典保留原有胶囊与下挂标签。</p>
+      ${window.DesktopProgressPreview?.html() || ''}
     </div>`], true);
   }
 
@@ -562,6 +564,7 @@
       if (field === 'style' || field === 'height') window.DesktopSelect?.refresh(control);
     });
     window.DesktopColorBloom?.refresh(card);
+    progressPreview?.refresh();
   }
 
   function updateProgressPreference(event) {
@@ -586,6 +589,7 @@
         control.removeAttribute('aria-invalid');
       });
       window.DesktopColorBloom?.refresh(card);
+      progressPreview?.refresh();
     }
     return true;
   }
@@ -1677,6 +1681,7 @@
     if (els.deskSettingsBody) {
       els.deskSettingsBody.innerHTML = visibleHtml.join('');
     }
+    progressPreview?.mount(els.deskSettingsBody);
     updateTabs();
   }
 
@@ -1684,6 +1689,7 @@
     if (els.deskSettingsSummary) {
       els.deskSettingsSummary.innerHTML = '<span>正在诊断</span>';
     }
+    progressPreview?.release();
     if (els.deskSettingsBody) {
       els.deskSettingsBody.innerHTML = '<div class="desk-settings-empty">正在读取当前服务状态...</div>';
     }
@@ -2757,6 +2763,7 @@
         els.deskSettingsSummary.innerHTML = '<span class="is-warn">诊断读取失败</span>';
       }
       if (els.deskSettingsBody) {
+        progressPreview?.release();
         els.deskSettingsBody.innerHTML = `<div class="desk-settings-empty">${escapeHtml(error.message || '诊断读取失败')}</div>`;
       }
       throw error;
@@ -2775,6 +2782,7 @@
     els.deskSettingsPanel?.setAttribute('aria-hidden', 'true');
     document.body.classList.remove('desk-settings-open');
     settingsSearch?.close();
+    progressPreview?.release();
     krea2Tools?.deactivate?.();
     qwen21Tools?.deactivate?.();
     loraSettings?.deactivate?.();

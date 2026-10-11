@@ -8,7 +8,7 @@
     const live=s=>sessions.get(s.id)===s&&getNodeState(s.id)===s.node&&getNodeElement(s.id)===s.el;
     const modelItems=()=>status?.models||[{id:M.DEFAULT_MODEL_ID,name:'Qwen-Image-2.1-Heretic-mlx-8bit'}];
     const meta=node=>modelItems().find(item=>item.id===node.baseModelId)||{};
-    const ready=node=>Boolean(status?.environment_ready&&status?.source_ready&&meta(node).ready&&(node.preset==='standard'||(status?.turbo_adapters?.[node.preset]??status?.turbo_ready)));
+    const ready=node=>Boolean(status?.environment_ready&&status?.source_ready&&meta(node).ready&&(!M.PRESETS[node.preset]?.adapter||(status?.turbo_adapters?.[node.preset]??status?.turbo_ready)));
     const busy=s=>Boolean(s.pending||s.starting)||M.active(s.node.status);
     const modeLabel=node=>node.mode==='edit'?'图像编辑 · 参考图编辑':'标准生成 · 文生图';
     function syncMode(node){node.mode=M.resolveMode(node,getCanvas?.());M.normalize(node);}
@@ -25,12 +25,21 @@
       const items=modelItems(),missing=items.some(item=>item.id===node.baseModelId)?'':`<option value="${esc(node.baseModelId)}" selected>模型已不存在 · ${esc(node.baseModelId)}</option>`;
       return missing+options(items.map(item=>[item.id,(item.label||item.name||item.id)+(item.ready===false?' · 未准备':'')]),node.baseModelId);
     }
+    // Options incompatible with the selected Base (Turbo vs non-Turbo) stay visible but disabled.
+    const presetOptions=node=>Object.entries(M.PRESETS).map(([id,item])=>`<option value="${esc(id)}"${id===node.preset?' selected':''}${M.presetAllowed(id,meta(node))?'':' disabled'}>${esc(item.label)}</option>`).join('');
+    function syncPreset(s,allowStarting=false){
+      if(!live(s)||s.pending||(s.starting&&!allowStarting)||(!s.starting&&M.active(s.node.status))||s.preparing)return;
+      const changed=M.applyModelPreset(s.node,meta(s.node)),select=s.el.querySelector('[data-qwen21-field="preset"]');
+      if(select)select.innerHTML=presetOptions(s.node);
+      if(changed){saveState();syncControls(s);}else window.DesktopSelect?.refreshAll?.();
+    }
     function syncBase(s,allowStarting=false){
       if(!live(s)||s.pending||(s.starting&&!allowStarting)||s.preparing||status?.preparation?.status==='running')return;
       if(M.selectAvailableBase(s.node,status)){
         const select=s.el.querySelector('[data-qwen21-field="baseModelId"]');if(select)select.innerHTML=modelOptions(s.node);
         window.DesktopSelect?.refreshAll?.();saveState();
       }
+      syncPreset(s,allowStarting);
     }
     function loraOptions(node){const available=loras.filter(item=>!node.loras.some(x=>x.assetId===item.asset_id));return`<option value="">${node.loras.length>=4?'已达到 4 个上限':available.length?'＋ 添加普通 LoRA…':'LoRA 目录暂无可用模型'}</option>`+options(available.map(item=>[item.asset_id,item.name]),'');}
     function loraRows(node){if(!node.loras.length)return'<div class="desk-qwen21__empty">未加载普通 LoRA · Viggle 加速适配器由预设自动加载</div>';return node.loras.map((item,index)=>{
@@ -40,9 +49,9 @@
       <header class="desk-node__header desk-qwen21__header" data-node-drag-handle><div><p class="desk-node__eyebrow">本地图像生成 / 参考图编辑</p><h2>Qwen 2.1 · MLX</h2></div><div class="desk-node-tools"><span class="desk-status-pill" data-qwen21-status>检查环境</span><button type="button" class="desk-node-delete" data-node-delete aria-label="删除 Qwen 节点">删</button></div></header>
       <button class="desk-port desk-port--in" data-port="in" data-node-id="${esc(node.id)}" aria-label="连接提示词或参考图"></button><button class="desk-port desk-port--out" data-port="out" data-node-id="${esc(node.id)}" aria-label="连接生成图片"></button>
       <div class="desk-qwen21__body" data-node-drag-ignore>
-        <div class="desk-param-grid desk-qwen21__grid desk-qwen21__grid--model"><label><span>工作模式 · 自动识别</span><input class="desk-select desk-qwen21__mode" type="text" data-qwen21-mode readonly value="${modeLabel(node)}" title="由画布连线自动识别：仅文本为文生图，接入图像、图片组或导出参考图为图像编辑。"></label><label><span>推理 / 加速 LoRA</span><select class="desk-select" data-qwen21-field="preset">${options(Object.entries(M.PRESETS).map(([key,item])=>[key,item.label]),node.preset)}</select></label>
+        <div class="desk-param-grid desk-qwen21__grid desk-qwen21__grid--model"><label><span>工作模式 · 自动识别</span><input class="desk-select desk-qwen21__mode" type="text" data-qwen21-mode readonly value="${modeLabel(node)}" title="由画布连线自动识别：仅文本为文生图，接入图像、图片组或导出参考图为图像编辑。"></label><label><span>推理 / 加速 LoRA</span><select class="desk-select" data-qwen21-field="preset">${presetOptions(node)}</select></label>
           <label><span>Base 权重模型</span><select class="desk-select" data-qwen21-field="baseModelId">${modelOptions(node)}</select></label><label><span>LoRA 模型</span>${loraView?`<button type="button" class="desk-button desk-lora-picker-button" data-qwen21-lora-picker aria-label="看图选择 LoRA">＋ 看图选择 LoRA <span>⌄</span></button>`:''}<select ${loraView?'hidden':''} class="desk-select" data-qwen21-lora-add>${loraOptions(node)}</select></label></div>
-        <div class="desk-param-grid desk-qwen21__grid desk-qwen21__grid--params"><label><span>画幅比例</span><select class="desk-select" data-qwen21-field="ratio">${options([...M.ASPECT_RATIOS.map(x=>[x,x]),['custom','自定义']],node.ratio)}</select></label><label><span>宽度</span><select class="desk-select" data-qwen21-field="imageWidth">${sizeOptions(node.imageWidth)}</select></label><label><span>高度</span><select class="desk-select" data-qwen21-field="imageHeight">${sizeOptions(node.imageHeight)}</select></label><label><span>步数</span><input class="desk-number" type="number" min="${M.PRESETS[node.preset].minSteps}" max="60" value="${node.steps}" data-qwen21-field="steps" title="标准步数 2–60；Viggle 推荐 6 步，可调 5–60。9 步不等同于官方混合尾段模式。"></label><label><span>张数</span><input class="desk-number" type="number" min="1" max="4" value="${node.imageCount}" data-qwen21-field="imageCount"></label><label class="desk-qwen21__seed"><span>Seed</span><input class="desk-number" type="text" inputmode="numeric" placeholder="随机" value="${esc(node.seed)}" data-qwen21-field="seed"></label><label><span>CFG</span><input class="desk-number" type="number" min="1" max="10" step="0.1" value="${node.guidance}" data-qwen21-field="guidance"></label></div>
+        <div class="desk-param-grid desk-qwen21__grid desk-qwen21__grid--params"><label><span>画幅比例</span><select class="desk-select" data-qwen21-field="ratio">${options([...M.ASPECT_RATIOS.map(x=>[x,x]),['custom','自定义']],node.ratio)}</select></label><label><span>宽度</span><select class="desk-select" data-qwen21-field="imageWidth">${sizeOptions(node.imageWidth)}</select></label><label><span>高度</span><select class="desk-select" data-qwen21-field="imageHeight">${sizeOptions(node.imageHeight)}</select></label><label><span>步数</span><input class="desk-number" type="number" min="${M.PRESETS[node.preset].minSteps}" max="60" value="${node.steps}" data-qwen21-field="steps" title="标准步数 2–60；Viggle 推荐 6 步，可调 5–60（9 步不等同于官方混合尾段模式）；Turbo 蒸馏模型固定 8 步。"></label><label><span>张数</span><input class="desk-number" type="number" min="1" max="4" value="${node.imageCount}" data-qwen21-field="imageCount"></label><label class="desk-qwen21__seed"><span>Seed</span><input class="desk-number" type="text" inputmode="numeric" placeholder="随机" value="${esc(node.seed)}" data-qwen21-field="seed"></label><label><span>CFG</span><input class="desk-number" type="number" min="1" max="10" step="0.1" value="${node.guidance}" data-qwen21-field="guidance"></label></div>
         <section class="desk-qwen21__loras"><header><strong>已加载 LoRA</strong><small data-qwen21-lora-count>${node.loras.length} / 4 · 按顺序叠加</small></header><div data-qwen21-lora-list>${loraRows(node)}</div></section>
         <section class="desk-qwen21__references" data-qwen21-references${node.mode==='edit'?'':' hidden'} aria-label="参考图顺序"></section>
         <footer class="desk-input-footer desk-qwen21__footer"><div class="desk-pill-row desk-qwen21__meta"><span data-qwen21-inputs>画布连线 · 文本 0 · 参考图 0</span><span data-qwen21-runtime>正在检查共享环境…</span></div><div class="desk-output-controls desk-output-controls--input"><label class="desk-switch"><input type="checkbox" data-qwen21-telegram ${node.telegramEnabled?'checked':''}><span></span><em>发送到 Telegram</em></label></div><div class="desk-action-row"><button type="button" class="desk-generation-action" data-qwen21-run><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m13.5 2-9 12h6l-1 8 10-13h-7z"></path></svg><span class="desk-generation-action__label">开始生成</span></button></div></footer>
@@ -68,16 +77,16 @@
         title:preparingModel?(prep.message||'正在准备模型'):(task?.progress_text||'Qwen 本地推理中'),detail:'Qwen 2.1 · MLX',
         startedAt:task?.started_at||task?.created_at||s.progressStartedAt,finishedAt:task?.finished_at},s.el);
       const referenceEl=s.el.querySelector('[data-qwen21-references]');referenceEl.hidden=node.mode!=='edit';referenceEl.innerHTML=referenceHtml(s);
-      s.el.querySelectorAll('.desk-qwen21__body :is(input,select,[data-qwen21-lora-picker])').forEach(input=>{input.disabled=isBusy||preparing||(node.preset!=='standard'&&input.dataset.qwen21Field==='guidance');});
+      s.el.querySelectorAll('.desk-qwen21__body :is(input,select,[data-qwen21-lora-picker])').forEach(input=>{input.disabled=isBusy||preparing||(node.preset!=='standard'&&input.dataset.qwen21Field==='guidance')||(input.dataset.qwen21Field==='steps'&&M.PRESETS[node.preset].minSteps===M.PRESETS[node.preset].maxSteps);});
       // LoRA rows survive polling: restore their buttons on every idle/terminal paint.
       s.el.querySelectorAll('[data-qwen21-lora-remove]').forEach(button=>{button.disabled=Boolean(isBusy||preparing);});
       // Reference rows were rebuilt above with their first/last boundary locks.
       s.el.querySelectorAll('[data-qwen21-ref-up],[data-qwen21-ref-down]').forEach(button=>{if(isBusy||preparing)button.disabled=true;});
     }
     function renderLoras(s){if(!live(s))return;s.el.querySelector('[data-qwen21-lora-list]').innerHTML=loraRows(s.node);s.el.querySelector('[data-qwen21-lora-add]').innerHTML=loraOptions(s.node);s.el.querySelector('[data-qwen21-lora-count]').textContent=`${s.node.loras.length} / 4 · 按顺序叠加`;window.DesktopSelect?.refreshAll?.();paint(s);}
-    function syncControls(s){for(const key of ['ratio','imageWidth','imageHeight','steps','guidance']){const input=s.el.querySelector(`[data-qwen21-field="${key}"]`);if(input){if(['imageWidth','imageHeight'].includes(key))input.innerHTML=sizeOptions(s.node[key]);input.value=String(s.node[key]);if(key==='steps')input.min=String(M.PRESETS[s.node.preset].minSteps);}}window.DesktopSelect?.refreshAll?.();paint(s);}
+    function syncControls(s){for(const key of ['ratio','imageWidth','imageHeight','steps','guidance']){const input=s.el.querySelector(`[data-qwen21-field="${key}"]`);if(input){if(['imageWidth','imageHeight'].includes(key))input.innerHTML=sizeOptions(s.node[key]);input.value=String(s.node[key]);if(key==='steps'){input.min=String(M.PRESETS[s.node.preset].minSteps);input.max=String(M.PRESETS[s.node.preset].maxSteps);}}}window.DesktopSelect?.refreshAll?.();paint(s);}
     async function loadResources(force=false){
-      if(loraLibrary)loraLibrary.list({engine:'qwen21',limit:200}).then(()=>sessions.forEach(renderLoras)).catch(()=>{});if(loading&&!force)return loading;loading=Promise.all([api.status(),api.listLoras()]).then(([st,ls])=>{status=st;loras=ls.loras||[];sessions.forEach(s=>{const select=s.el.querySelector('[data-qwen21-field="baseModelId"]');if(live(s)&&select)select.innerHTML=modelOptions(s.node);renderLoras(s);});scheduleStatus();return st;}).catch(error=>{sessions.forEach(s=>feedback(s,error.message,'error'));throw error;}).finally(()=>{loading=null;});return loading;}
+      if(loraLibrary)loraLibrary.list({engine:'qwen21',limit:200}).then(()=>sessions.forEach(renderLoras)).catch(()=>{});if(loading&&!force)return loading;loading=Promise.all([api.status(),api.listLoras()]).then(([st,ls])=>{status=st;loras=ls.loras||[];sessions.forEach(s=>{const select=s.el.querySelector('[data-qwen21-field="baseModelId"]');if(live(s)&&select)select.innerHTML=modelOptions(s.node);syncPreset(s);renderLoras(s);});scheduleStatus();return st;}).catch(error=>{sessions.forEach(s=>feedback(s,error.message,'error'));throw error;}).finally(()=>{loading=null;});return loading;}
     function scheduleStatus(){clearTimeout(statusTimer);if(status?.preparation?.status==='running'&&sessions.size)statusTimer=setTimeout(()=>loadResources(true).catch(()=>{}),2000);}
     function wait(ms,signal){return new Promise(resolve=>{let done=false,timer;const finish=()=>{if(done)return;done=true;clearTimeout(timer);signal?.removeEventListener('abort',finish);resolve();};timer=setTimeout(finish,ms);signal?.addEventListener('abort',finish,{once:true});});}
     async function ensureReady(s){if(ready(s.node))return true;s.preparing=true;paint(s);let requested=false;
@@ -114,7 +123,7 @@
     async function run(s){if(s.pending||s.preparing||s.starting)return;if(M.active(s.node.status)){if(s.node.jobId){s.pending=true;try{await api.cancel(s.node.jobId);}catch(error){feedback(s,error.message,'error');}finally{s.pending=false;poll(s);}}return;}
       s.progressStartedAt=Date.now();s.starting=true;paint(s);
       try{if(!status)await loadResources();if(!live(s))return;syncBase(s,true);paint(s);const prompt=(getTextNodes(s.id)||[]).map(node=>materializeText(node)).map(x=>String(x||'').trim()).filter(Boolean).join('\n\n');if(!prompt)throw new Error('请连接含有提示词的文本节点');
-        const refs=refsFor(s),limit=s.node.preset==='standard'?10:3;
+        const refs=refsFor(s),limit=M.PRESETS[s.node.preset].references;
         if(M.imageInputIds(s.node,getCanvas()).some(id=>!refs.some(({ref})=>ref.sourceNodeId===id)))throw new Error('连接的参考图节点尚无可读取内容，请先加载图片或完成导出');
         if(s.node.mode==='edit'&&(!refs.length||refs.length>limit))throw new Error(`该编辑预设需要 1–${limit} 张参考图`);
         const mode=s.node.mode,sources=refs.map(({ref})=>({source:ref.base64||ref.imageData||ref.imageUrl||ref.url,name:ref.name||'reference.png'}));
@@ -133,9 +142,9 @@
       else if(input.dataset.qwen21LoraScale!==undefined){const item=node.loras[Number(input.dataset.qwen21LoraScale)];if(item)item.scale=Math.max(0,Math.min(2,Number(input.value)||0));}
       else if(input.dataset.qwen21Field){const key=input.dataset.qwen21Field;if(key==='ratio'){const dims=M.dimensionsForRatio(input.value);if(dims){node.imageWidth=dims.width;node.imageHeight=dims.height;}}
         else if(key==='mode')return;
-        else if(key==='preset'){if((node.preset==='standard')!==(input.value==='standard'))node.steps=M.PRESETS[input.value]?.steps||40;node.preset=input.value;node.guidance=1;}
+        else if(key==='preset'){if(!M.presetAllowed(input.value,meta(node))){input.value=node.preset;return;}if(M.PRESETS[node.preset]?.steps!==M.PRESETS[input.value]?.steps)node.steps=M.PRESETS[input.value]?.steps||40;node.preset=input.value;node.guidance=1;}
         else node[key]=['imageWidth','imageHeight','steps','imageCount','guidance'].includes(key)?Number(input.value):input.value;
-        M.normalize(node);if(['ratio','imageWidth','imageHeight','preset','steps','guidance'].includes(key))syncControls(s);
+        M.normalize(node);if(key==='baseModelId')syncPreset(s);if(['ratio','imageWidth','imageHeight','preset','steps','guidance'].includes(key))syncControls(s);
       }else return;M.normalize(node);saveState();paint(s);}
     function mount(node){const el=getNodeElement(node.id);if(!el||sessions.has(node.id))return;M.normalize(node);const s={id:node.id,node,el,abort:new AbortController()};sessions.set(node.id,s);
       el.addEventListener('click',event=>{if(event.target.closest('[data-qwen21-lora-picker]')){if(canEdit(node.id))loraView?.openPicker(node.id,'qwen21');return;}const detail=event.target.closest('[data-qwen21-lora-detail]');if(detail){loraView?.openDetailForNode(detail.dataset.qwen21LoraDetail,node.id,'qwen21').catch(error=>feedback(s,error.message,'error'));return;}const remove=event.target.closest('[data-qwen21-lora-remove]');if(remove){if(busy(s)||s.preparing)return;node.loras.splice(Number(remove.dataset.qwen21LoraRemove),1);renderLoras(s);saveState();return;}

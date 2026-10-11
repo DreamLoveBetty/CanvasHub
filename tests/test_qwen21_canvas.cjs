@@ -38,6 +38,21 @@ test('加速 LoRA 选择与步数解耦，往返保存保留自定义步数',()=
   assert.match(source,/turbo_adapters\?\.\[node\.preset\]/);
 });
 
+test('Turbo · 8 步固定步数，并且只与 Turbo 蒸馏 Base 互相配对',()=>{
+  assert.equal(M.PRESETS[M.TURBO_PRESET].label,'Turbo · 8 步');
+  assert.equal(M.PRESETS[M.TURBO_PRESET].adapter,undefined,'distilled preset needs no Viggle adapter');
+  for(const steps of [undefined,4,8,30])assert.equal(M.normalize({type:'qwen21',preset:'turbo-8',steps}).steps,8);
+  assert.equal(M.normalize({type:'qwen21',preset:'turbo-8',guidance:4}).guidance,1);
+  const turbo={id:'turbo',sampling:'turbo-8'},base={id:'base'};
+  assert.equal(M.presetAllowed('turbo-8',turbo),true);assert.equal(M.presetAllowed('viggle-v03-r256',turbo),false);
+  assert.equal(M.presetAllowed('turbo-8',base),false);assert.equal(M.presetAllowed('standard',base),true);
+  assert.equal(M.presetAllowed('turbo-8',{}),true,'unknown model metadata keeps the saved preset');
+  const node=M.normalize({type:'qwen21',preset:'standard',steps:31});
+  assert.equal(M.applyModelPreset(node,turbo),true);assert.equal(node.preset,'turbo-8');assert.equal(node.steps,8);
+  assert.equal(M.applyModelPreset(node,turbo),false);
+  assert.equal(M.applyModelPreset(node,base),true);assert.equal(node.preset,M.DEFAULT_PRESET);assert.equal(node.steps,6);
+});
+
 test('画幅联动尺寸满足 Qwen 32 倍数且重载不会将舍入画幅变为自定义',()=>{
   for(const ratio of M.ASPECT_RATIOS){
     const dims=M.dimensionsForRatio(ratio);
@@ -133,7 +148,7 @@ test('脚本装配顺序、设置页、工作流和缓存版本完整',()=>{
   const html=fs.readFileSync(path.join(frontend,'desktop.html'),'utf8');
   const ordered=['desktop-tasks.js','desktop-qwen21-model.js','desktop-qwen21-api.js','desktop-qwen21-tools.js','desktop-canvas-qwen21.js','desktop-canvas-workflow.js','desktop-canvas-nodes.js','desktop-canvas.js','desktop-settings.js'];
   for(let i=1;i<ordered.length;i++)assert.ok(html.indexOf(ordered[i-1])<html.indexOf(ordered[i]));
-  for(const name of ordered.filter(name=>name!=='desktop-tasks.js'))assert.ok(html.includes(name+'?v='+(name==='desktop-canvas-qwen21.js'?'20261009-generation-action-unify1':name==='desktop-settings.js'?'20261010-segment-bank1':name==='desktop-canvas-nodes.js'?'20261010-node-keys1':name==='desktop-canvas.js'?'20261007-node-progress4':['desktop-qwen21-model.js','desktop-qwen21-tools.js'].includes(name)?'20261006-qwen-base-retirement1':name==='desktop-qwen21-api.js'?'20261002-qwen21-vae1':'20261001-qwen21-adapters-1')));
+  for(const name of ordered.filter(name=>name!=='desktop-tasks.js'))assert.ok(html.includes(name+'?v='+(['desktop-canvas-qwen21.js','desktop-qwen21-model.js','desktop-qwen21-tools.js'].includes(name)?'20261011-qwen-turbo8':name==='desktop-settings.js'?'20261011-progress-preview1':['desktop-canvas-nodes.js','desktop-canvas.js'].includes(name)?'20261010-marquee-frame1':['desktop-qwen21-model.js','desktop-qwen21-tools.js'].includes(name)?'20261006-qwen-base-retirement1':name==='desktop-qwen21-api.js'?'20261002-qwen21-vae1':'20261001-qwen21-adapters-1')));
   assert.match(read('desktop-canvas.js'),/qwen21Definition/);assert.match(read('desktop-canvas-nodes.js'),/qwen21Node/);
   assert.match(read('desktop-canvas-workflow.js'),/qwen21Definition/);assert.match(read('desktop-settings.js'),/qwen21Tools\?\.render/);
 });

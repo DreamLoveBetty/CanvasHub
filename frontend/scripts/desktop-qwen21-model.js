@@ -2,12 +2,15 @@
 (function () {
   const TYPE='qwen21', WIDTH=720, HEIGHT=500;
   const DEFAULT_MODEL_ID='qwen-image-2.1-heretic-mlx-8bit';
-  const DEFAULT_PRESET='viggle-v03-r256';
+  const DEFAULT_PRESET='viggle-v03-r256',TURBO_PRESET='turbo-8';
   const ASPECT_RATIOS=Object.freeze(['1:1','2:3','3:2','3:4','4:3','4:5','5:4','9:16','16:9','9:21','21:9']);
-  const PRESETS=Object.freeze({'standard':{label:'标准 · 默认 40 步',steps:40,minSteps:2},
-    'viggle-v021-r256':{label:'Viggle v0.2.1 · r256',steps:6,minSteps:5},
-    'viggle-v03-r256':{label:'Viggle v0.3 · r256',steps:6,minSteps:5},
-    'viggle-v021-r128':{label:'Viggle v0.2.1 · r128',steps:6,minSteps:5}});
+  // Mirrors backend profiles.PRESETS. Turbo is a distilled Base, not an adapter:
+  // its fixed 8-step schedule pairs only with Bases whose sampling is turbo-8.
+  const PRESETS=Object.freeze({'standard':{label:'标准 · 默认 40 步',steps:40,minSteps:2,maxSteps:60,references:10},
+    'viggle-v021-r256':{label:'Viggle v0.2.1 · r256',steps:6,minSteps:5,maxSteps:60,references:3,adapter:true},
+    'viggle-v03-r256':{label:'Viggle v0.3 · r256',steps:6,minSteps:5,maxSteps:60,references:3,adapter:true},
+    'viggle-v021-r128':{label:'Viggle v0.2.1 · r128',steps:6,minSteps:5,maxSteps:60,references:3,adapter:true},
+    [TURBO_PRESET]:{label:'Turbo · 8 步',steps:8,minSteps:8,maxSteps:8,references:10}});
   const clamp=(value,lo,hi,fallback)=>Number.isFinite(Number(value))?Math.max(lo,Math.min(hi,Number(value))):fallback;
   const active=status=>['submitting','queued','processing','running'].includes(String(status||''));
   function selectAvailableBase(node,status){
@@ -37,7 +40,7 @@
     node.imageWidth=Math.round(clamp(node.imageWidth,256,2048,dimensions?.width||1024)/32)*32;
     node.imageHeight=Math.round(clamp(node.imageHeight,256,2048,dimensions?.height||1024)/32)*32;
     node.ratio=ratioFromDimensions(node.imageWidth,node.imageHeight);
-    node.steps=Math.round(clamp(node.steps,PRESETS[node.preset].minSteps,60,PRESETS[node.preset].steps));
+    const preset=PRESETS[node.preset];node.steps=Math.round(clamp(node.steps,preset.minSteps,preset.maxSteps,preset.steps));
     node.guidance=node.preset==='standard'?clamp(node.guidance,1,10,1):1;
     node.imageCount=Math.round(clamp(node.imageCount,1,4,1));
     node.seed=node.seed===null||node.seed===undefined?'':String(node.seed).replace(/[^0-9]/g,'').slice(0,10);
@@ -47,6 +50,12 @@
     node.jobId=/^qwen21_[a-f0-9]{32}$/.test(String(node.jobId||''))?node.jobId:'';
     node.resultJobId=String(node.resultJobId||'');node.status=String(node.status||'idle');return node;
   }
+  // Model metadata comes from backend status; unknown models keep the saved preset.
+  const presetAllowed=(preset,model)=>!model?.id||(model.sampling===TURBO_PRESET)===(preset===TURBO_PRESET);
+  function applyModelPreset(node,model){
+    if(node.type!==TYPE||presetAllowed(node.preset,model))return false;
+    node.preset=model.sampling===TURBO_PRESET?TURBO_PRESET:DEFAULT_PRESET;node.steps=PRESETS[node.preset].steps;node.guidance=1;return true;
+  }
   const targets=Object.freeze({text:[TYPE],image:[TYPE],image_group:[TYPE],layout:[TYPE],pose:[TYPE],qwen21:['image']});
   function policy(from,to){if(!targets[from?.type]?.includes(to?.type))return null;if(from.type===TYPE)return{inputRole:'image',outputRole:'image',single:false,replaceAllInputs:true};return{inputRole:from.type==='text'?'prompt':'image',outputRole:from.type==='text'?'prompt':'image',single:false};}
   function imageInputIds(node,canvas){
@@ -54,6 +63,6 @@
   }
   const resolveMode=(node,canvas)=>imageInputIds(node,canvas).length?'edit':'text';
   const ICON='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M5 4h14v14H5zM8 14l3-4 5 5M15 7h.01M13 18l4 4"/></svg>';
-  const MENU_ITEM=Object.freeze({type:TYPE,title:'Qwen 2.1 · MLX',subtitle:'本地生成 / 多参考编辑 · Viggle Turbo',icon:ICON});
-  window.DesktopQwen21Model=Object.freeze({TYPE,WIDTH,HEIGHT,DEFAULT_MODEL_ID,DEFAULT_PRESET,ASPECT_RATIOS,PRESETS,ICON,MENU_ITEM,normalize,active,selectAvailableBase,dimensionsForRatio,ratioFromDimensions,outputPosition,targets,policy,imageInputIds,resolveMode});
+  const MENU_ITEM=Object.freeze({type:TYPE,title:'Qwen 2.1 · MLX',subtitle:'本地生成 / 多参考编辑 · Turbo / Viggle 加速',icon:ICON});
+  window.DesktopQwen21Model=Object.freeze({TYPE,WIDTH,HEIGHT,DEFAULT_MODEL_ID,DEFAULT_PRESET,TURBO_PRESET,ASPECT_RATIOS,PRESETS,ICON,MENU_ITEM,normalize,active,selectAvailableBase,presetAllowed,applyModelPreset,dimensionsForRatio,ratioFromDimensions,outputPosition,targets,policy,imageInputIds,resolveMode});
 })();

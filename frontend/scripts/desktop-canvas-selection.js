@@ -350,6 +350,46 @@
       setSelectedNodes(selected, save);
     }
 
+    // Marquee session. Nodes neither move nor resize while the box is drawn, so their bounds
+    // are measured once when it starts (no layout reads per pointer move); moves are folded
+    // into one update per frame, and the selection is re-applied only when the set of nodes
+    // inside the box changes — each apply restyles nodes, rebuilds the edge layer and
+    // notifies the panels listening for selection changes.
+    let marquee = null;
+
+    function beginMarquee() {
+      if (marquee?.frame) cancelAnimationFrame(marquee.frame);
+      marquee = {
+        bounds: Object.keys(getCanvas().nodes).map(nodeId => [nodeId, getNodeBoundsById(nodeId)]).filter(([, bounds]) => bounds),
+        rect: null,
+        frame: 0,
+        key: getSelectedNodeIds().join('\n'),
+      };
+    }
+
+    function flushMarquee() {
+      if (!marquee) return;
+      marquee.frame = 0;
+      if (!marquee.rect) return;
+      renderMarquee(marquee.rect);
+      const ids = marquee.bounds.filter(([, bounds]) => rectsIntersect(marquee.rect, bounds)).map(([nodeId]) => nodeId);
+      const key = ids.join('\n');
+      if (key === marquee.key) return;
+      marquee.key = key;
+      setSelectedNodes(ids, false);
+    }
+
+    function moveMarquee(rect) {
+      if (!marquee) beginMarquee();
+      marquee.rect = rect;
+      if (!marquee.frame) marquee.frame = requestAnimationFrame(flushMarquee);
+    }
+
+    function endMarquee() {
+      if (marquee?.frame) cancelAnimationFrame(marquee.frame);
+      marquee = null;
+    }
+
     function getMovedBounds(groupIds, positions, dx, dy) {
       return getBoundsFromRects(groupIds.map(nodeId => {
         const node = getCanvas().nodes[nodeId];
@@ -438,6 +478,9 @@
       alignSelection,
       showSmartGuides,
       selectNodesInRect,
+      beginMarquee,
+      moveMarquee,
+      endMarquee,
       getMovedBounds,
       resolveSnap
     });

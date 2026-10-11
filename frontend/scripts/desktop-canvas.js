@@ -1427,6 +1427,18 @@
     return canvasSelection.hideMarquee();
   }
 
+  function beginMarquee() {
+    return canvasSelection.beginMarquee();
+  }
+
+  function moveMarquee(rect) {
+    return canvasSelection.moveMarquee(rect);
+  }
+
+  function endMarquee() {
+    return canvasSelection.endMarquee();
+  }
+
   function hideSmartGuides() {
     return canvasSelection.hideSmartGuides();
   }
@@ -2407,6 +2419,7 @@
       hideSmartGuides();
       setSelectedNodes([], false);
       renderMarquee({ x: pointer.x, y: pointer.y, width: 0, height: 0 });
+      beginMarquee();
       return;
     }
     if (isLeftButton) selectNode('');
@@ -2601,8 +2614,7 @@
         { x: activeInteraction.startWorldX, y: activeInteraction.startWorldY },
         { x: pointer.x, y: pointer.y }
       );
-      renderMarquee(rect);
-      selectNodesInRect(rect, false);
+      moveMarquee(rect);
       return;
     }
 
@@ -2693,6 +2705,7 @@
         { x: activeInteraction.startWorldX, y: activeInteraction.startWorldY },
         { x: activeInteraction.currentWorldX, y: activeInteraction.currentWorldY }
       );
+      endMarquee();
       if (rect.width < 4 / DesktopState.state.canvas.scale && rect.height < 4 / DesktopState.state.canvas.scale) {
         setSelectedNodes([]);
       } else {

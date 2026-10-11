@@ -30,9 +30,19 @@
     teal: { label: 'Teal · 青绿', hue: 175, saturation: 50 },
     custom: { label: '自定义' },
   });
+  // Glass drop-shadow offset: upstream casts the pane's shadow ring a fixed 5px away with a
+  // 4px border whatever the key size, which reads as a misplaced slab on 24px keys. Quarter
+  // steps keep the ring border a whole pixel (Chrome floors fractional border widths).
+  const GLASS_SHADOWS = Object.freeze({
+    100: { label: '100% · 上游（默认）' },
+    75: { label: '75%' },
+    50: { label: '50%' },
+    25: { label: '25%' },
+    0: { label: '0% · 无偏移' },
+  });
   const UPSTREAM_ACCENT = '#ff7f50';
-  const DEFAULTS = Object.freeze({ material: 'current', surface: 'concave', body: 'default', bodyCustom: '#4f7861', glass: 'default', glassCustom: '#58adc9', accent: null });
-  const MANAGED_VARS = ['--amb-albedo', '--amb-light-hue', '--amb-light-saturation', '--amb-highlight-color', '--desk-control-face-ink', '--desk-control-hover-ink'];
+  const DEFAULTS = Object.freeze({ material: 'current', surface: 'concave', body: 'default', bodyCustom: '#4f7861', glass: 'default', glassCustom: '#58adc9', glassShadow: '100', accent: null });
+  const MANAGED_VARS = ['--amb-albedo', '--amb-light-hue', '--amb-light-saturation', '--amb-highlight-color', '--desk-control-face-ink', '--desk-control-hover-ink', '--desk-glass-shadow'];
 
   function normalizeHex(value) {
     const hex = String(value ?? '').trim().replace(/^#/, '');
@@ -50,6 +60,7 @@
       bodyCustom: normalizeHex(source.bodyCustom) || DEFAULTS.bodyCustom,
       glass: pick(GLASS_PRESETS, source.glass, DEFAULTS.glass),
       glassCustom: normalizeHex(source.glassCustom) || DEFAULTS.glassCustom,
+      glassShadow: pick(GLASS_SHADOWS, String(source.glassShadow ?? ''), DEFAULTS.glassShadow),
       accent: normalizeHex(source.accent) === UPSTREAM_ACCENT ? null : normalizeHex(source.accent),
     };
   }
@@ -92,6 +103,7 @@
     const accent = prefs.accent || UPSTREAM_ACCENT;
     if (prefs.accent) body.style.setProperty('--amb-highlight-color', prefs.accent);
     if (prefs.material === 'glass') {
+      if (prefs.glassShadow !== '100') body.style.setProperty('--desk-glass-shadow', round(Number(prefs.glassShadow) / 100));
       const preset = GLASS_PRESETS[prefs.glass];
       if (prefs.glass !== 'default') {
         const tint = prefs.glass === 'custom' ? hexToHueSaturation(prefs.glassCustom) : preset;
@@ -134,13 +146,14 @@
     return `<div class="desk-settings-form" data-control-material-settings>
       <label><span>按钮材质</span><select class="desk-select" data-control-material-field="material" aria-label="节点按钮材质">${options(MATERIALS, prefs.material, item => `${item.label} · ${item.english}`)}</select></label>
       <label><span>按键表面</span><select class="desk-select" data-control-material-field="surface" aria-label="按键表面"${prefs.material === 'matte' ? '' : ' disabled'}>${options(SURFACES, prefs.surface)}</select></label>
+      <label><span>玻璃阴影偏移</span><select class="desk-select" data-control-material-field="glass-shadow" aria-label="磨砂玻璃阴影偏移"${glass ? '' : ' disabled'}>${options(GLASS_SHADOWS, prefs.glassShadow)}</select></label>
       <div class="desk-settings-color-field"><span data-control-material-palette-label>${glass ? '玻璃染色' : '键体颜色'}</span><div class="desk-settings-color-field__group">
         <select class="desk-select" data-control-material-field="palette" aria-label="颜色预设"${off ? ' disabled' : ''}>${paletteOptions(prefs)}</select>
         ${picker({ value: swatch, label: '自定义颜色', hexAttrs: 'data-control-material-field="hex" aria-label="自定义颜色 HEX"', valueAttrs: 'data-control-material-field="color"', disabled: off })}
       </div></div>
       <div class="desk-settings-color-field"><span title="悬停与键盘焦点时的高亮色">强调色</span>${picker({ value: accent, label: '强调色', hexAttrs: 'data-control-material-field="accent-hex" aria-label="强调色 HEX"', valueAttrs: 'data-control-material-field="accent"', disabled: off,
         after: `<button type="button" class="desk-button" data-control-material-accent-reset${off || !prefs.accent ? ' disabled' : ''}>默认</button>` })}</div>
-      <p class="desk-settings-form__hint">只改变画布节点里的按钮，以及节点和设置中心里的分段选择，即时生效并保存在本浏览器。表面效果只与哑光叠加；磨砂玻璃在节点很多时较耗性能。材质来自 Ambient CSS（MIT）。</p>
+      <p class="desk-settings-form__hint">只改变画布节点里的按钮，以及节点和设置中心里的分段选择与开关，即时生效并保存在本浏览器。表面效果只与哑光叠加；磨砂玻璃在节点很多时较耗性能。材质来自 Ambient CSS（MIT）。</p>
     </div>`;
   }
 
@@ -153,6 +166,7 @@
     if (control.matches('[data-control-material-accent-reset]')) return event.type === 'click' ? { accent: null } : null;
     const field = control.dataset.controlMaterialField;
     if (field === 'material' || field === 'surface') return event.type === 'change' ? { [field]: control.value } : null;
+    if (field === 'glass-shadow') return event.type === 'change' ? { glassShadow: control.value } : null;
     if (field === 'palette') return event.type === 'change' ? { [prefs.material === 'glass' ? 'glass' : 'body']: control.value } : null;
     const typed = field === 'hex' || field === 'accent-hex';
     // While typing, only a complete 6-digit HEX commits; #RGB is accepted on change.
@@ -189,6 +203,7 @@
     if (palette) palette.innerHTML = paletteOptions(prefs);
     set('material', prefs.material, false);
     set('surface', prefs.surface, prefs.material !== 'matte');
+    set('glass-shadow', prefs.glassShadow, prefs.material !== 'glass');
     set('palette', glass ? prefs.glass : prefs.body, off);
     set('color', swatch, off);
     set('hex', swatch.toUpperCase(), off);
@@ -196,12 +211,12 @@
     set('accent-hex', accent.toUpperCase(), off);
     const reset = card.querySelector('[data-control-material-accent-reset]');
     if (reset) reset.disabled = off || !prefs.accent;
-    ['material', 'surface', 'palette'].forEach(name => { const el = field(name); if (el) window.DesktopSelect?.refresh?.(el); });
+    ['material', 'surface', 'glass-shadow', 'palette'].forEach(name => { const el = field(name); if (el) window.DesktopSelect?.refresh?.(el); });
     window.DesktopColorBloom?.refresh(card);
   }
 
   window.DesktopControlMaterial = Object.freeze({
-    MATERIALS, SURFACES, BODY_PRESETS, GLASS_PRESETS, UPSTREAM_ACCENT, DEFAULTS,
+    MATERIALS, SURFACES, BODY_PRESETS, GLASS_PRESETS, GLASS_SHADOWS, UPSTREAM_ACCENT, DEFAULTS,
     normalize, normalizeHex, apply, renderSettings, syncSettings, patchFromEvent,
   });
 })();

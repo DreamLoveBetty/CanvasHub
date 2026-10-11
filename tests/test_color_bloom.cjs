@@ -83,5 +83,5 @@ test('desktop.html: component CSS after the prompt library, script before every 
     assert.ok((html.match(new RegExp(`scripts/${host}\\.js\\?v=(\\d{8})`)) || [])[1] >= VERSION.slice(0, 8), host);
   }
   for (const css of ['desktop-prompt-library', 'desktop-settings-auth', 'desktop-geometry', 'desktop-progress'])
-    assert.ok(html.includes(`styles/${css}.css?v=${VERSION}`), css);
+    assert.ok((html.match(new RegExp(`styles/${css}\\.css\\?v=(\\d{8})`)) || [])[1] >= VERSION.slice(0, 8), css);
 });

@@ -7,7 +7,7 @@ const { execFileSync } = require('node:child_process');
 
 const root = path.resolve(__dirname, '..');
 const read = file => fs.readFileSync(path.join(root, file), 'utf8');
-const VERSION = '20261010-segment-bank1';
+const VERSION = '20261010-glass-shadow1';
 
 function load() {
   const context = { window: {}, document: { body: null, activeElement: null, addEventListener() {} } };
@@ -114,7 +114,14 @@ test('generated Ambient subset is current, verbatim and never escapes the opt-in
   for (const file of ['frontend/styles/desktop-ambient-controls.css', 'frontend/styles/desktop-control-material.css']) {
     for (const sel of selectors(strip(read(file)))) {
       if (sel.startsWith('@media')) continue;
-      sel.split(/,(?![^(]*\))/).forEach(part => assert.ok(scoped(part.trim()), `${file}: ${part.trim()}`));
+      // Split the selector list on top-level commas only (selectors nest :is()/:not()).
+      const parts = []; let depth = 0, from = 0;
+      for (let i = 0; i < sel.length; i++) {
+        if (sel[i] === '(') depth++; else if (sel[i] === ')') depth--;
+        else if (sel[i] === ',' && !depth) { parts.push(sel.slice(from, i)); from = i + 1; }
+      }
+      parts.push(sel.slice(from));
+      parts.forEach(part => assert.ok(scoped(part.trim()), `${file}: ${part.trim()}`));
     }
   }
   // Inner rules of the reduced-motion block are scoped too.
@@ -134,9 +141,9 @@ test('desktop.html: body scope id, module before preferences, generated CSS befo
   assert.ok(at(`scripts/desktop-control-material.js?v=${VERSION}`) > 0);
   assert.ok(at('scripts/desktop-color-bloom.js?v=20261010-color-bloom1') > 0 && at('scripts/desktop-color-bloom.js?') < at('scripts/desktop-control-material.js?'));
   assert.ok(at('scripts/desktop-control-material.js?') < at('scripts/desktop-preferences.js?v=20261010-release-26-3-1'));
-  assert.ok(at('styles/desktop-progress.css?') < at('styles/desktop-ambient-controls.css?v=20261010-segment-bank3'));
-  assert.ok(at('styles/desktop-ambient-controls.css?') < at('styles/desktop-control-material.css?v=20261010-segment-bank4'));
-  assert.ok(at('scripts/desktop-settings.js?v=20261010-segment-bank1') > 0);
+  assert.ok(at('styles/desktop-progress.css?') < at('styles/desktop-ambient-controls.css?v=20261010-settings-keys1'));
+  assert.ok(at('styles/desktop-ambient-controls.css?') < at('styles/desktop-control-material.css?v=20261010-glass-shadow1'));
+  assert.ok(at('scripts/desktop-settings.js?v=20261011-progress-preview1') > 0);
   const prefs = read('frontend/scripts/desktop-preferences.js');
   assert.match(prefs, /controlMaterial: state\.controlMaterial/);
   assert.match(prefs, /DesktopControlMaterial\?\.apply\(state\.controlMaterial, document\.body\)/);
@@ -206,7 +213,7 @@ test('segmented controls opt in through .desk-key-bank (nodes and settings) and 
   const generated = read('frontend/styles/desktop-ambient-controls.css');
   const block = upstream => generated.slice(generated.indexOf(`/* ${upstream} */\n`)).split('{')[0];
   // Select reading: the rail is the upstream groove; lens = ::before, diffuser cap = ::after.
-  assert.equal(generated.split(`/* ambient.css: .amb-groove */\n${S} ${BANK} {`).length - 1, 2);
+  assert.equal(generated.split(`/* ambient.css: .amb-groove */\n${S} ${BANK},\n`).length - 1, 2, 'both groove blocks reach the rail');
   assert.ok(generated.includes(`/* components.css: .amb-select-lens */\n${S} ${K}::before {`));
   assert.ok(generated.includes(`/* components.css: .amb-select .ambx-key[data-on] .amb-select-lens */\n${S} ${ON}::before {`));
   assert.ok(generated.includes(`/* components.css: .amb-select .ambx-key[data-on] .amb-select-cap */\n${S} ${ON}::after {`));
@@ -226,5 +233,73 @@ test('segmented controls opt in through .desk-key-bank (nodes and settings) and 
   assert.ok(adapter.includes(`${S} ${K}:not(.is-active):not([aria-pressed="true"]):hover:not(:disabled)`));
   // The shared node key-cap rules no longer list segment keys.
   assert.ok(!adapter.split('/* Segmented controls')[0].replace(/\/\*[\s\S]*?\*\//g, '').includes('.desk-key-bank'));
-  assert.match(read('frontend/scripts/desktop-control-material.js'), /只改变画布节点里的按钮，以及节点和设置中心里的分段选择/);
+  assert.match(read('frontend/scripts/desktop-control-material.js'), /只改变画布节点里的按钮，以及节点和设置中心里的分段选择与开关/);
+});
+
+test('switches and checkboxes in nodes and settings read as upstream Switch + LED, without markup changes', () => {
+  const S = '#deskApp[data-control-material="ambient"]';
+  const BOX = 'input[type="checkbox"]:not(.desk-switch > input)';
+  const TRACK = `:is(.desk-node, .desk-settings) :is(.desk-switch > span, ${BOX})`;
+  const generated = read('frontend/styles/desktop-ambient-controls.css');
+  const head = upstream => generated.slice(generated.indexOf(`/* ${upstream} */\n`)).split('{')[0];
+  // Track = upstream groove; pill = ambient + fillet + convex (parts/latch.tsx SwitchPill); LED = amb-led.
+  assert.ok(head('ambient.css: .amb-fillet').includes(`${S} ${TRACK}::after`));
+  assert.ok(head('ambient.css: .ambient').includes(`${S} ${TRACK}::after`));
+  assert.ok(head('ambient.css: .amb-surface-convex').includes(`${S} ${TRACK}::after`));
+  assert.ok(generated.includes(`/* components.css: .amb-led */\n${S} ${TRACK}::before {`));
+  assert.ok(generated.includes('/* components.css: .amb-led-off */'));
+  assert.ok(generated.includes('/* components.css: .amb-switch:hover .amb-switch-pill */'));
+  const adapter = read('frontend/styles/desktop-control-material.css');
+  for (const fragment of [
+    `${S} ${TRACK} {\n  --_sw-w: 28px;\n  --_sw-h: 16px;`,
+    '  --amb-led-color: var(--amb-highlight-color);',
+    '  -webkit-appearance: none;\n  appearance: none;',
+    `${S} :is(.desk-node, .desk-settings) :is(.desk-switch > input:checked + span, ${BOX}:checked) {\n  --_sw-on: 1;`,
+    '  transform: translateY(-50%) translateX(calc(var(--_sw-on) * (var(--_sw-w) * .48 - var(--_sw-h) * .22)));',
+    `${S}[data-theme="dark"] ${TRACK} {\n  background-color: color-mix(in oklab, var(--amb-lume), black 55%);`,
+    `${S}[data-theme="dark"] ${TRACK}::after {\n  --amb-albedo: #ff7f50;`,
+  ]) assert.ok(adapter.includes(fragment), fragment);
+  // No template carries a switch hook: hosts are the existing .desk-switch and native checkboxes.
+  const templates = fs.readdirSync(path.join(root, 'frontend/scripts')).filter(f => f.endsWith('.js')).map(f => read(`frontend/scripts/${f}`)).join('\n');
+  assert.doesNotMatch(templates, /desk-ambient-switch|desk-switch-led/);
+  assert.match(read('frontend/scripts/desktop-control-material.js'), /只改变画布节点里的按钮，以及节点和设置中心里的分段选择与开关/);
+});
+
+test('settings-centre action rows take the key caps; primary and danger keep their role without the accent', () => {
+  const S = '#deskApp[data-control-material="ambient"]';
+  const rows = ['.desk-settings-form__actions', '.desk-settings-account__actions', '.desk-lora-actions', '.desk-qwen21-tools__inspection',
+    '.desk-qwen21-tools__model', '.desk-qwen21-tools__progress', '.desk-krea2-tools__model', '.desk-krea2-tools__progress'];
+  const T = `:is(.desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key), .desk-settings :is(${rows.join(', ')}) > button, .desk-settings .desk-color-bloom__control > .desk-button)`;
+  const generated = read('frontend/styles/desktop-ambient-controls.css');
+  for (const block of ['ambient.css: .ambient', 'ambient.css: .amb-surface', 'components.css: .amb-button-cap::after'])
+    assert.ok(generated.slice(generated.indexOf(`/* ${block} */`)).split('{')[0].includes(`${S} ${T}`), block);
+  // Every settings renderer keeps its commands in one of these rows (checked against the live inventory probe).
+  const settings = ['desktop-settings.js', 'desktop-google-pool.js', 'desktop-lora-settings.js', 'desktop-qwen21-tools.js', 'desktop-krea2-tools.js'].map(f => read(`frontend/scripts/${f}`)).join('\n');
+  for (const row of ['desk-settings-form__actions', 'desk-settings-account__actions', 'desk-lora-actions']) assert.ok(settings.includes(row), row);
+  const adapter = read('frontend/styles/desktop-control-material.css');
+  assert.ok(adapter.includes(`${S} ${T}.is-primary {\n  --amb-albedo: #24405c;\n  --desk-control-face-ink: #f4f7fb;`));
+  assert.ok(adapter.includes(`${S}[data-control-finish="glass"][data-theme="dark"] ${T}.is-primary {\n  --desk-control-face-ink: #dbe8ff;`));
+  assert.ok(adapter.includes(`${S} ${T}.is-danger {\n  --desk-control-face-ink: #c2353b;`));
+  // Segments, pickers, select triggers and link-style clears are outside the action-row target.
+  assert.doesNotMatch(T, /desk-key-bank|desk-color-bloom__(petal|trigger)|desk-select|secret-clear/);
+});
+
+test('glass shadow offset: a glass-only setting scales the pane shadow ring offset and width', () => {
+  const M = load(), body = fakeBody();
+  assert.equal(M.normalize().glassShadow, '100');
+  assert.equal(M.normalize({ glassShadow: 50 }).glassShadow, '50');
+  assert.equal(M.normalize({ glassShadow: '33' }).glassShadow, '100', 'only whole-pixel quarter steps');
+  M.apply({ material: 'glass', glassShadow: '50' }, body);
+  assert.equal(body.vars.get('--desk-glass-shadow'), '0.5');
+  M.apply({ material: 'glass', glassShadow: '100' }, body);
+  assert.equal(body.vars.has('--desk-glass-shadow'), false, 'upstream default writes nothing');
+  M.apply({ material: 'matte', glassShadow: '0' }, body);
+  assert.equal(body.vars.has('--desk-glass-shadow'), false, 'other finishes ignore it');
+  const control = (field, value) => { const el = { dataset: { controlMaterialField: field }, value, setAttribute() {}, removeAttribute() {}, matches: () => false }; el.closest = () => el; return el; };
+  assert.deepEqual({ ...M.patchFromEvent({ type: 'change', target: control('glass-shadow', '25') }, M.normalize({ material: 'glass' })) }, { glassShadow: '25' });
+  assert.match(M.renderSettings({ material: 'matte' }), /data-control-material-field="glass-shadow"[^>]*disabled/);
+  assert.doesNotMatch(M.renderSettings({ material: 'glass' }), /data-control-material-field="glass-shadow"[^>]*disabled/);
+  const adapter = read('frontend/styles/desktop-control-material.css');
+  assert.match(adapter, /--_glass-sh-y: calc\(var\(--amb-light-y\) \* -1 \* \(var\(--amb-elevation\) \* 5\.16px \+ var\(--amb-thickness\) \* 5\.12px\) \* var\(--desk-glass-shadow, 1\)\);/);
+  assert.match(adapter, /--_glass-ring-w: calc\(var\(--amb-thickness\) \* 4px \* var\(--desk-glass-shadow, 1\)\);/);
 });

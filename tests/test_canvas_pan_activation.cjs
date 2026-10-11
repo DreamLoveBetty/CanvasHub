@@ -26,7 +26,7 @@ function fixture() {
     focusCanvasViewport: () => viewport.focus({ preventScroll: true }), hideContextMenu() {}, clearSelectedEdge() {},
     setZoomPresetMenuOpen: open => dismissed.push(['zoom', open]), setWorkflowDockOpen: open => dismissed.push(['workflow', open]),
     isSelectToolActive: () => false, selectNode() {}, hideSmartGuides() {}, flushCanvasPanTransform() {},
-    screenToWorld: (x, y) => ({ x, y }), setSelectedNodes() {}, renderMarquee() {},
+    screenToWorld: (x, y) => ({ x, y }), setSelectedNodes() {}, renderMarquee() {}, beginMarquee() {}, moveMarquee() {}, endMarquee() {},
     getNodeElement: () => null, clearImageGroupProximity() {}, openContextMenu() {},
     canvasCollision: {}, suppressCanvasContextMenuUntil: 0 });
   for (const name of ['startPan', 'startRightMousePanFallback', 'endInteraction']) {
@@ -117,6 +117,6 @@ test('host binds release-click handling in capture phase, clears on a fresh pres
   assert.match(host, /addEventListener\('pointerdown', \(\) => \{\s*canvasViewport\.resetPanClickGuard\(\);\s*setNodePaletteOpen\(false\);\s*\}, true\)/);
   const html = read('desktop.html');
   for (const name of ['desktop-canvas', 'desktop-canvas-viewport']) {
-    assert.ok(html.includes(`${name}.js?v=${name === 'desktop-canvas' ? '20261007-node-progress4' : '20261009-zoom-style-cost1'}`), name);
+    assert.ok(html.includes(`${name}.js?v=${name === 'desktop-canvas' ? '20261010-marquee-frame1' : '20261009-zoom-style-cost1'}`), name);
   }
 });

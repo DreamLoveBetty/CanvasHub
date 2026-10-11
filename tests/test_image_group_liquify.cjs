@@ -416,7 +416,7 @@ test('不同预览使用独立滤镜标识，按顺序加载绘制模块并更�
   const html=fs.readFileSync(path.join(root,'frontend/desktop.html'),'utf8');
   assert.ok(html.includes('desktop-canvas-image-group-interaction.js?v=20261005-minimap-navigation2'));
   assert.ok(html.includes('desktop-canvas-image-group-liquid-field.js?v=20261003-image-group-radial1'));
-  assert.ok(html.includes('desktop-canvas.js?v=20261007-node-progress4'));
+  assert.ok(html.includes('desktop-canvas.js?v=20261010-marquee-frame1'));
   assert.ok(html.indexOf('scripts/desktop-canvas-image-group-liquid-field.js')<html.indexOf('scripts/desktop-canvas-image-group-interaction.js'));
   assert.ok(html.includes('desktop-image-group.css?v=20261004-node-selection-frames1'));
 });

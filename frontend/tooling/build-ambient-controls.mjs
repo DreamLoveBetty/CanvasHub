@@ -25,20 +25,34 @@ const PINNED = {
 };
 
 // Scope: opt-in material on <body id="deskApp">. Key caps (T): buttons inside canvas
-// nodes — generic .desk-button, node delete, generate actions that skip .desk-button
+// nodes and settings-centre action rows — generic .desk-button, node delete, generate actions that skip .desk-button
 // (music, ReShot, Topaz Video) and .desk-key, a style-free hook node templates put on
 // their own push buttons. Segmented controls take upstream's Select (lamp-lit bank): a
 // .desk-key-bank hook on the container in nodes and the settings centre. The container
 // is the rail (BANK); each direct button (K) is the key's pocket floor, its ::before the
 // LED lens and its ::after the frosted diffuser cap (always glass, as upstream casts it),
-// so the production markup stays one element per option. Drop zones and the audio
-// transport keep their look.
+// so the production markup stays one element per option. Switches take upstream's
+// Switch (dark stadium recess + convex pill) with an LED: the track is a .desk-switch's
+// <span> or, for plain checkboxes, the checkbox itself (appearance: none); the pill is
+// its ::after and the LED its ::before. Drop zones and the audio transport keep their look.
 const S = '#deskApp[data-control-material="ambient"]';
-const T = '.desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key)';
+// Node push buttons, plus the settings centre's action rows (every settings card places its
+// commands in one of these rows, whatever account/runtime state is showing) and the colour
+// pickers' reset buttons.
+const T = ':is(.desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key), '
+  + '.desk-settings :is(.desk-settings-form__actions, .desk-settings-account__actions, .desk-lora-actions, '
+  + '.desk-qwen21-tools__inspection, .desk-qwen21-tools__model, .desk-qwen21-tools__progress, '
+  + '.desk-krea2-tools__model, .desk-krea2-tools__progress) > button, .desk-settings .desk-color-bloom__control > .desk-button)';
 const BANK = ':is(.desk-node, .desk-settings) .desk-key-bank';
 const K = `${BANK} > button`;
 const ON = `${K}:is(.is-active, [aria-pressed="true"])`;
 const CAP = `${S} ${K}::after`;
+const SW = ':is(.desk-node, .desk-settings)';
+const BOX = 'input[type="checkbox"]:not(.desk-switch > input)';
+const TRACK = `${SW} :is(.desk-switch > span, ${BOX})`;
+const TRACK_OFF = `${SW} :is(.desk-switch > input:not(:checked) + span, ${BOX}:not(:checked))`;
+const TRACK_HOVER = `${SW} :is(.desk-switch:hover > span, ${BOX}:hover)`;
+const PILL = `${S} ${TRACK}::after`;
 const finish = name => `${S}[data-control-finish="${name}"]`;
 const list = (...selectors) => selectors.join(',\n');
 const MAP = {
@@ -46,24 +60,29 @@ const MAP = {
     ['@property --amb-elevation', '@property --amb-elevation'],
     [':root', S],
     // Derived per-element tones; the lens and cap pseudo-elements inherit them from K.
-    ['*', list(`${S} ${T}`, `${S} ${K}`, `${S} ${BANK}`)],
+    // The switch pill also derives its own tones, so the dark theme can give it its own body.
+    ['*', list(`${S} ${T}`, `${S} ${K}`, `${S} ${BANK}`, `${S} ${TRACK}`, PILL)],
     ['.amb-chamfer', list(`${S} ${T}`, CAP)],
-    ['.amb-groove', `${S} ${BANK}`],
+    ['.amb-fillet', PILL],
+    ['.amb-groove', list(`${S} ${BANK}`, `${S} ${TRACK}`)],
     ['.amb-mat-glass', list(`${finish('glass')} ${T}`, CAP)],
-    ['.ambient', list(`${S} ${T}`, CAP)],
+    ['.ambient', list(`${S} ${T}`, CAP, PILL)],
     ['.amb-surface', `${S} ${T}`],
-    ['.amb-groove', `${S} ${BANK}`],
+    ['.amb-groove', list(`${S} ${BANK}`, `${S} ${TRACK}`)],
     ['.amb-mat-shiny', `${finish('shiny')} ${T}`],
     ['.amb-mat-glass', list(`${finish('glass')} ${T}`, CAP)],
     [':where(.amb-mat-glass)', `:where(${list(`${finish('glass')} ${T}`, CAP)})`],
     // The button itself is the cap, and the cap dish already owns ::after. The Select
     // cap is itself a pseudo-element, so its glass shadow ring has no layer left.
     ['.amb-mat-glass::after', `${finish('glass')} ${T}::before`],
-    ['.amb-surface-convex', `${finish('matte')}[data-control-surface="convex"] ${T}`],
+    ['.amb-surface-convex', list(`${finish('matte')}[data-control-surface="convex"] ${T}`, PILL)],
   ],
   'components.css': [
     [':root', S],
     ['.amb-button-cap::after', `${S} ${T}::after`],
+    ['.amb-led', `${S} ${TRACK}::before`],
+    ['.amb-led-off', `${S} ${TRACK_OFF}::before`],
+    ['.amb-switch:hover .amb-switch-pill', `${S} ${TRACK_HOVER}::after`],
     ['.amb-select .ambx-key:disabled .amb-select-lens', `${S} ${K}:disabled::before`],
     ['.amb-select-lens', `${S} ${K}::before`],
     ['.amb-select .ambx-key[data-on] .amb-select-lens', `${S} ${ON}::before`],

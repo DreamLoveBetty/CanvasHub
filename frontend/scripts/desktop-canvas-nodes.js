@@ -330,6 +330,7 @@
     palette.querySelectorAll('[data-add-node]').forEach(button => { button.draggable = true; });
   }
 
+    let linkPathFrame = 0;
     function applyNodeSelection() {
     const selectedIds = getSelectedNodeIds();
     const selected = new Set(selectedIds);
@@ -349,7 +350,8 @@
       }
     });
     updateSelectionToolbar();
-    requestAnimationFrame(updateLinkPath);
+    // Several selection changes in one frame (marquee, keyboard) rebuild the edge layer once.
+    if (!linkPathFrame) linkPathFrame = requestAnimationFrame(() => { linkPathFrame = 0; updateLinkPath(); });
   }
 
     function nextNodeId(type) {

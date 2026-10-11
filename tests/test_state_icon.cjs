@@ -77,7 +77,7 @@ test('all consumers receive an explicit display-only dependency in loading order
   }
   assert.match(host,/const stateIcon = window\.DesktopStateIcon;/);
   assert.match(host,/DesktopCanvasAudio\.create\(\{\s*stateIcon,/);
-  assert.ok(html.includes('scripts/desktop-canvas.js?v=20261007-node-progress4'));
+  assert.ok(html.includes('scripts/desktop-canvas.js?v=20261010-marquee-frame1'));
 });
 function displayFixture(keys){
   const layers=keys.map(key=>({dataset:{stateIconLayer:key},current:key==='idle'}));
