@@ -239,8 +239,8 @@
     "sha256": "359241a6bd84094904f94948e1513a7f51831d7ea694d1ee676aa68c250f8ceb"
    },
    "scripts/desktop-number-stepper.js": {
-    "v": "20261011-select-stepper2",
-    "sha256": "cd4dcfcae07982bedede4fbcd7a32d46cb05377419fb6f202b387dd074ed67bf"
+    "v": "20261011-stepper-panels1",
+    "sha256": "0f08f8d751e2307dafaa956637dc405ea4633b43259efba69df9e84fab28900e"
    },
    "scripts/desktop-pose-studio.js": {
     "v": "20260705-pose-legacy-skeleton1",
@@ -371,8 +371,8 @@
     "sha256": "639e82ec81a8152f09b1859b38fe3117f724a9a6288835040a4712acfaf4860f"
    },
    "scripts/desktop-topaz-video-workbench.js": {
-    "v": "20261005-topaz-pipeline1",
-    "sha256": "606f178f34b1e8c0f97f23ee5401d9fa2ab9795724b89d31fd38670aa7a3289e"
+    "v": "20261011-stepper-panels1",
+    "sha256": "00ecb5ec1c181d154b811cdfbea862a0760e82e3bf0640f7a5a209a25b21b9e3"
    },
    "scripts/desktop-video-config.js": {
     "v": "20260808-video-4x2-controls1",
@@ -415,8 +415,8 @@
     "sha256": "c62d88487639960c2d6cceafb5178fa40cb320e3927b3f1282bae721c3360c7a"
    },
    "styles/desktop-controls.css": {
-    "v": "20261011-select-stepper1",
-    "sha256": "071a71993f95802eccc2fb6bd51a48bb654f5d08a66cdbf0484283fd89e06656"
+    "v": "20261011-stepper-panels1",
+    "sha256": "a692ca8246ee0c6ca10aea56af355f5e7185bb43c34c31d5a2f99f93b79dc30f"
    },
    "styles/desktop-creation-tools.css": {
     "v": "20260831-status-silk2",
@@ -467,8 +467,8 @@
     "sha256": "62056d9238020897f0cde259ea35c597099637ef41721c73151640d7a46020fe"
    },
    "styles/desktop-number-stepper.css": {
-    "v": "20261011-select-stepper1",
-    "sha256": "bdda8f74e6cbf5335079bb512168fe833ae110b063099bcbbba64f534508c6ec"
+    "v": "20261011-stepper-panels1",
+    "sha256": "c0e4aaf5681306d31c9b0feebef5b4485bfe5e14f5155169e2366f96cc54098b"
    },
    "styles/desktop-performance.css": {
     "v": "20261006-canvas-grid-isolation1",

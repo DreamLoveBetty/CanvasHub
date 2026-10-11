@@ -102,7 +102,7 @@
                     <button type="button" data-tvwb-mark="end" title="在播放头设置出点（O）">]</button>
                     <button type="button" data-tvwb-mark="clear" title="清除选区">×</button>
                   </div>
-                  <strong>预览选区</strong><span>入点 <input type="number" min="0" step="0.01" data-tvwb-start-number> 秒</span><span>出点 <input type="number" min="0" step="0.01" data-tvwb-end-number> 秒</span><em data-tvwb-selection-length>5.00 秒</em>
+                  <strong>预览选区</strong><span>入点 <input type="number" min="0" step="0.01" data-stepper="off" data-tvwb-start-number> 秒</span><span>出点 <input type="number" min="0" step="0.01" data-stepper="off" data-tvwb-end-number> 秒</span><em data-tvwb-selection-length>5.00 秒</em>
                   <label class="desk-topaz-video-workbench__timeline-zoom"><span>缩放</span><input type="range" min="1" max="4" step="1" value="1" data-tvwb-timeline-zoom><output data-tvwb-timeline-zoom-label>1×</output></label>
                 </div>
                 <div class="desk-topaz-video-workbench__timeline-scroll" data-tvwb-timeline-scroll>
@@ -167,7 +167,7 @@
 
     function parameterControls(selected) {
       if (!selected?.parameters?.length) return '<p class="desk-topaz-video-workbench__no-params">此模型使用固定参数，无需额外调节。</p>';
-      return selected.parameters.map(field => `<label><span>${esc(field.label)}</span><div><input type="range" min="${esc(field.min)}" max="${esc(field.max)}" step="${esc(field.step > 0 ? field.step : 'any')}" value="${esc(current.node.modelParams[field.key])}" data-tvwb-param-range="${esc(field.key)}"><input type="number" min="${esc(field.min)}" max="${esc(field.max)}" step="${esc(field.step > 0 ? field.step : 'any')}" value="${esc(current.node.modelParams[field.key])}" data-tvwb-param-number="${esc(field.key)}"></div></label>`).join('');
+      return selected.parameters.map(field => `<label><span>${esc(field.label)}</span><div><input type="range" min="${esc(field.min)}" max="${esc(field.max)}" step="${esc(field.step > 0 ? field.step : 'any')}" value="${esc(current.node.modelParams[field.key])}" data-tvwb-param-range="${esc(field.key)}"><input type="number" data-stepper="off" min="${esc(field.min)}" max="${esc(field.max)}" step="${esc(field.step > 0 ? field.step : 'any')}" value="${esc(current.node.modelParams[field.key])}" data-tvwb-param-number="${esc(field.key)}"></div></label>`).join('');
     }
 
     function renderOutputPanel(panel) {

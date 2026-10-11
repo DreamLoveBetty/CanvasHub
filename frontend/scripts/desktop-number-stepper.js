@@ -2,18 +2,21 @@
 // and the settings centre with a − / + pair inside the field. Owns only that wrapper and
 // its buttons; the field keeps its own attributes, value and handlers.
 //
-// Host contract: nothing to call. Number fields rendered inside .desk-node / .desk-settings
-// are wrapped as soon as they are inserted (MutationObserver, before paint). A step uses
+// Host contract: nothing to call. Number fields rendered inside canvas nodes, the settings
+// centre, the layout inspector and the Topaz Video workbench panel are wrapped as soon as
+// they are inserted (MutationObserver, before paint). A step uses
 // the field's own stepUp()/stepDown(), so min / max / step are honoured, and dispatches
 // bubbling `input` and `change` like the native arrows do. Holding a button repeats until
-// release or until a host re-render detaches it. Fields too narrow for the pair opt out
-// with data-stepper="off" (their native arrows are still hidden by the stylesheet).
+// release or until a host re-render detaches it. Fields too narrow for the pair, or already
+// driven by a slider, opt out with data-stepper="off" (their native arrows are still
+// hidden by the stylesheet).
 //
 // The buttons come after the field so a wrapping <label> still labels the field, and they
 // stay out of the tab order: the keyboard keeps ArrowUp / ArrowDown on the field itself.
 (function () {
   'use strict';
-  const SELECTOR = ':is(.desk-node, .desk-settings) input[type="number"]:not([data-stepper="off"])';
+  const SCOPE = ':is(.desk-node, .desk-settings, .desk-layout-inspector, .desk-topaz-video-workbench__panel)';
+  const SELECTOR = `${SCOPE} input[type="number"]:not([data-stepper="off"])`;
   const REPEAT_DELAY = 400;
   const REPEAT_INTERVAL = 70;
 

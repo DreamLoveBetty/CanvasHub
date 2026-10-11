@@ -9,13 +9,13 @@ body.desk-app .desk-stepper {
 }
 
 /* Native spin arrows are replaced (or, for opted-out narrow fields, dropped). */
-body.desk-app :is(.desk-node, .desk-settings) input[type="number"] {
+body.desk-app :is(.desk-node, .desk-settings, .desk-layout-inspector, .desk-topaz-video-workbench) input[type="number"] {
   appearance: textfield;
   -moz-appearance: textfield;
 }
 
-body.desk-app :is(.desk-node, .desk-settings) input[type="number"]::-webkit-inner-spin-button,
-body.desk-app :is(.desk-node, .desk-settings) input[type="number"]::-webkit-outer-spin-button {
+body.desk-app :is(.desk-node, .desk-settings, .desk-layout-inspector, .desk-topaz-video-workbench) input[type="number"]::-webkit-inner-spin-button,
+body.desk-app :is(.desk-node, .desk-settings, .desk-layout-inspector, .desk-topaz-video-workbench) input[type="number"]::-webkit-outer-spin-button {
   -webkit-appearance: none;
   margin: 0;
 }

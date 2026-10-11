@@ -47,7 +47,7 @@ test('step: native step semantics, input then change, nothing at a bound or when
 
 test('module: scope, button order inside labels, hold-repeat guard and capture-phase press', () => {
   const source = read('frontend/scripts/desktop-number-stepper.js');
-  assert.equal(load().SELECTOR, ':is(.desk-node, .desk-settings) input[type="number"]:not([data-stepper="off"])');
+  assert.equal(load().SELECTOR, ':is(.desk-node, .desk-settings, .desk-layout-inspector, .desk-topaz-video-workbench__panel) input[type="number"]:not([data-stepper="off"])');
   assert.match(source, /wrapper\.append\(input, button\('down'\), button\('up'\)\)/, 'field first so a wrapping <label> still labels it');
   assert.match(source, /document\.createElement\('div'\)/, 'not a span: node CSS styles `label > span` as the caption');
   assert.match(source, /el\.tabIndex = -1/);
@@ -56,17 +56,25 @@ test('module: scope, button order inside labels, hold-repeat guard and capture-p
   // Narrow LoRA strength columns opt out.
   assert.match(read('frontend/scripts/desktop-canvas-qwen21.js'), /data-stepper="off" data-qwen21-lora-scale/);
   assert.match(read('frontend/scripts/desktop-canvas-krea2.js'), /data-stepper="off" data-krea2-lora-scale/);
+  // Workbench: 0.01 s timeline points and slider-paired parameters keep plain fields.
+  const workbench = read('frontend/scripts/desktop-topaz-video-workbench.js');
+  assert.match(workbench, /data-stepper="off" data-tvwb-start-number/);
+  assert.match(workbench, /data-stepper="off" data-tvwb-end-number/);
+  assert.match(workbench, /<input type="number" data-stepper="off" min="\$\{esc\(field\.min\)\}"/);
 });
 
 test('styles: spin arrows hidden, buttons inside the field, settings and fixed-width hosts accept the wrapper', () => {
   const css = read('frontend/styles/desktop-number-stepper.css');
-  assert.match(css, /input\[type="number"\]::-webkit-inner-spin-button/);
+  assert.match(css, /:is\(\.desk-node, \.desk-settings, \.desk-layout-inspector, \.desk-topaz-video-workbench\) input\[type="number"\]::-webkit-inner-spin-button/);
   assert.match(css, /appearance: textfield;/);
   assert.match(css, /\.desk-stepper > input\[type="number"\] \{\n  width: 100%;\n  padding-inline: 30px;\n  text-align: center;/);
   assert.match(css, /\.desk-stepper:has\(> input:is\(:disabled, \[readonly\]\)\) \.desk-stepper__button \{\n  opacity: 0\.35;\n  pointer-events: none;/);
   assert.match(read('frontend/styles/desktop-geometry.css'), /label:has\(> input:not\(\[type="file"\]\):not\(\[type="hidden"\]\), > select, > \.desk-select-shell, > \.desk-stepper\)/);
   assert.match(read('frontend/styles/desktop-video-control.css'), /\.desk-video-control__options :is\(input\[type=number\], \.desk-stepper\) \{ width:100px; \}/);
-  assert.match(read('frontend/styles/desktop-controls.css'), /body\.desk-app\[data-theme\] \.desk-number \{\n  font-size: 12px;\n\}/);
+  const controls = read('frontend/styles/desktop-controls.css');
+  assert.match(controls, /body\.desk-app\[data-theme\] \.desk-number \{\n  font-size: 12px;\n\}/);
+  // ComfyUI parameter fields get the shared control frame instead of the browser's 2px inset.
+  assert.match(controls, /body\.desk-app\[data-theme\] \.desk-comfy-parameter-field \.desk-input \{\n  color: var\(--desk-color-control-ink\);\n  background: var\(--desk-color-control-bg\);\n  border: 1px solid var\(--desk-color-control-border\);/);
 });
 
 test('select menus: quiet rows with an LED on the chosen one, not a filled command button', () => {
@@ -88,6 +96,6 @@ test('desktop.html: stepper stylesheet after the field materials, script loaded,
   assert.ok(hasCacheKey(html, 'styles/desktop-number-stepper.css') && hasCacheKey(html, 'scripts/desktop-number-stepper.js'));
   assert.ok(at('styles/desktop-number-stepper.css?') > at('styles/desktop-control-material.css?'));
   assert.ok(at('styles/desktop-number-stepper.css?') > at('styles/desktop-geometry.css?'));
-  for (const asset of ['styles/desktop-controls.css', 'styles/desktop-geometry.css', 'styles/desktop-video-control.css', 'scripts/desktop-canvas-qwen21.js', 'scripts/desktop-canvas-krea2.js'])
+  for (const asset of ['scripts/desktop-topaz-video-workbench.js', 'styles/desktop-controls.css', 'styles/desktop-geometry.css', 'styles/desktop-video-control.css', 'scripts/desktop-canvas-qwen21.js', 'scripts/desktop-canvas-krea2.js'])
     assert.ok(hasCacheKey(html, asset), asset);
 });

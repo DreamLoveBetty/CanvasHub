@@ -726,6 +726,14 @@ body.desk-app[data-theme] .desk-prompt-panel textarea {
   transition: var(--desk-motion-field-transition);
 }
 
+/* ComfyUI parameter fields set no border of their own and fell back to the browser's
+   2px inset frame; give them the shared control frame and colours. */
+body.desk-app[data-theme] .desk-comfy-parameter-field .desk-input {
+  color: var(--desk-color-control-ink);
+  background: var(--desk-color-control-bg);
+  border: 1px solid var(--desk-color-control-border);
+}
+
 /* Node number / seed fields inherit the label's 16px otherwise; read them at the size of
    the select triggers in the same parameter grid. */
 body.desk-app[data-theme] .desk-number {
