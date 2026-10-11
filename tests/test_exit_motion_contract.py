@@ -32,7 +32,7 @@ class ExitMotionContractTests(unittest.TestCase):
         for rule in ['--desk-motion-duration-exit: 1ms;', '--desk-motion-distance-exit: 0px;', '--desk-motion-scale-exit: 1;', '--desk-motion-icon-blur: 0px;']:
             self.assertTrue(rule in reduced, rule)
         html = (ROOT/'frontend/desktop.html').read_text()
-        self.assertTrue('styles/desktop-motion.css?v=20261004-state-icons1' in html)
+        self.assertRegex(html, re.escape('styles/desktop-motion.css') + r'\?v=[0-9A-Za-z._-]+')
 
 if __name__ == '__main__':
     unittest.main()

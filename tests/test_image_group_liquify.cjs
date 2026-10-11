@@ -3,6 +3,7 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
 const vm=require('node:vm');
+const { hasCacheKey } = require('./asset_keys.cjs');
 const root=path.join(__dirname,'..');
 const fieldSource=fs.readFileSync(path.join(root,'frontend/scripts/desktop-canvas-image-group-liquid-field.js'),'utf8');
 const source=fs.readFileSync(path.join(root,'frontend/scripts/desktop-canvas-image-group-interaction.js'),'utf8');
@@ -414,9 +415,6 @@ test('不同预览使用独立滤镜标识，按顺序加载绘制模块并更�
   api.renderLiveImageGroupLiquify(a,{x:1,y:0},1,100);api.renderLiveImageGroupLiquify(b,{x:0,y:1},.5,80);
   assert.notEqual(a.image.style.filter,b.image.style.filter);
   const html=fs.readFileSync(path.join(root,'frontend/desktop.html'),'utf8');
-  assert.ok(html.includes('desktop-canvas-image-group-interaction.js?v=20261005-minimap-navigation2'));
-  assert.ok(html.includes('desktop-canvas-image-group-liquid-field.js?v=20261003-image-group-radial1'));
-  assert.ok(html.includes('desktop-canvas.js?v=20261010-marquee-frame1'));
+  for(const asset of ['scripts/desktop-canvas-image-group-interaction.js','scripts/desktop-canvas-image-group-liquid-field.js','scripts/desktop-canvas.js','styles/desktop-image-group.css'])assert.ok(hasCacheKey(html,asset),asset);
   assert.ok(html.indexOf('scripts/desktop-canvas-image-group-liquid-field.js')<html.indexOf('scripts/desktop-canvas-image-group-interaction.js'));
-  assert.ok(html.includes('desktop-image-group.css?v=20261004-node-selection-frames1'));
 });

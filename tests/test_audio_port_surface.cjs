@@ -67,6 +67,4 @@ test('audio daylight consumes existing canvas palette and preserves its dark ove
  assert.ok(!/#eceded|#343a3c/.test(day));assert.match(css,/--desk-audio-face: #323839/);
  const html=fs.readFileSync(path.join(root,'frontend/desktop.html'),'utf8');
  for(const name of ['styles/desktop-audio.css','scripts/desktop-canvas-port-interaction.js'])assert.match(html,new RegExp(name.replaceAll('.', '\\.')+'\\?v=[0-9a-z._-]+'));
- assert.ok(!html.includes('styles/desktop-audio.css?v=20260915-audio-node1'));
- assert.ok(!html.includes('scripts/desktop-canvas-port-interaction.js?v=20260912-canvas-business1'));
 });

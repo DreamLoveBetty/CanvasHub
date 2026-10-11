@@ -473,10 +473,6 @@ class PromptChatFrontendTest(unittest.TestCase):
         assert_asset_has_cache_bust(self, html, "scripts/desktop-prompt-media.js")
         assert_asset_has_cache_bust(self, html, "scripts/desktop-prompt-editor.js")
         assert_asset_has_cache_bust(self, html, "scripts/desktop-prompt-drawer.js")
-        self.assertIn(
-            "scripts/desktop-prompt-editor.js?v=20260929-prompt-video1",
-            html,
-        )
         self.assertLess(html.index("scripts/desktop-prompt-media.js"), html.index("scripts/desktop-prompt-editor.js"))
         self.assertIn("DesktopPromptDrawer?.init", bootstrap_js)
         self.assertIn("DesktopPromptEditor", editor_js)

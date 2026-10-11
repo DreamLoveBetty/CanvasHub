@@ -1,5 +1,6 @@
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),vm=require('node:vm');
 const {Element,read}=require('./helpers/progress-harness.cjs');
+const { hasCacheKey } = require('./asset_keys.cjs');
 const file=name=>fs.readFileSync(path.join(__dirname,'../frontend',name),'utf8');
 
 test('preference migration defaults to Liquid while preserving existing theme/connection settings and per-style colors',()=>{
@@ -27,8 +28,8 @@ test('desktop load order, cache busting and boundaries cover every new dependenc
  const html=file('desktop.html'),order=['desktop-progress-model','desktop-progress-materials','desktop-progress-renderer','desktop-progress','desktop-preferences'];
  for(let i=1;i<order.length;i++)assert.ok(html.indexOf(`scripts/${order[i-1]}.js?`)<html.indexOf(`scripts/${order[i]}.js?`));
  const changed=[...order,'desktop-canvas','desktop-canvas-krea2','desktop-canvas-qwen21','desktop-canvas-cyimg','desktop-canvas-nodes','desktop-canvas-model-nodes','desktop-results','desktop-settings','desktop-music-view','desktop-topaz-video-view','desktop-video-control-view'];
- for(const name of changed)assert.ok(html.includes(`scripts/${name}.js?v=${name==='desktop-settings'?'20261011-progress-preview1':['desktop-canvas-model-nodes','desktop-music-view'].includes(name)?'20261010-segment-bank1':['desktop-canvas','desktop-canvas-nodes'].includes(name)?'20261010-marquee-frame1':name==='desktop-canvas-qwen21'?'20261011-qwen-turbo8':['desktop-canvas-krea2','desktop-canvas-cyimg'].includes(name)?'20261009-generation-action-unify1':name==='desktop-preferences'?'20261011-release-26-4-0':['desktop-canvas-nodes','desktop-music-view','desktop-topaz-video-view','desktop-video-control-view'].includes(name)?'20261010-node-keys1':'20261007-node-progress4'}`),name);
- assert.ok(html.includes('styles/desktop-progress.css?v=20261011-progress-instrument2'));
+ for(const name of changed)assert.ok(hasCacheKey(html,`scripts/${name}.js`),name);
+ assert.ok(hasCacheKey(html,'styles/desktop-progress.css'));
  for(const name of ['desktop-progress-model','desktop-progress-materials','desktop-progress-renderer','desktop-progress']) {
   const source=read(name);assert.doesNotMatch(source,/\b(?:fetch|localStorage|DesktopState|DesktopResults)\b/);
  }

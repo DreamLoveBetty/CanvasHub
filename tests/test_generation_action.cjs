@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
+const { hasCacheKey } = require('./asset_keys.cjs');
 const root = path.join(__dirname, '..');
 const read = file => fs.readFileSync(path.join(root, file), 'utf8');
 const ctx = vm.createContext({window:{}});
@@ -72,8 +73,7 @@ test('motion is audio-scoped with reduced-motion support; touched assets cache-b
   // Shared controls/model assembly also evolve for other domains. Their latest
   // version is asserted by that domain's tests; do not freeze it to music's date.
   for(const file of ['styles/desktop-controls.css','scripts/desktop-canvas-model-nodes.js'])assert.match(html,new RegExp(file.replaceAll('.','\\.')+'\\?v=[A-Za-z0-9._-]+'));
-  for(const file of ['styles/desktop-music.css','scripts/desktop-music-view.js'])assert.ok(html.includes(file+'?v='+(file.endsWith('.js')?'20261010-segment-bank1':'20261004-state-icons1')));
-  for(const file of ['scripts/desktop-music-model.js','scripts/desktop-canvas-music.js'])assert.ok(html.includes(file+'?v=20260919-music-status2'));
+  for(const file of ['styles/desktop-music.css','scripts/desktop-music-view.js','scripts/desktop-music-model.js','scripts/desktop-canvas-music.js'])assert.ok(hasCacheKey(html,file),file);
 });
 test('every generate action is one component: no legacy button classes, no per-domain list, all states shared',()=>{
   const sources=fs.readdirSync(path.join(root,'frontend/scripts')).filter(f=>f.endsWith('.js')).map(f=>read(`frontend/scripts/${f}`)).join('\n')+read('frontend/desktop.html');

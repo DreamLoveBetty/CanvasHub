@@ -3,6 +3,7 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
 const vm=require('node:vm');
+const { hasCacheKey } = require('./asset_keys.cjs');
 const root=path.join(__dirname,'..');
 const read=name=>fs.readFileSync(path.join(root,'frontend/scripts',name),'utf8');
 function environment(){const sandbox={window:{},URLSearchParams,URL,Blob,location:{href:'http://localhost/desktop.html',origin:'http://localhost'}};vm.createContext(sandbox);vm.runInContext(read('desktop-lora-data.js'),sandbox);vm.runInContext(read('desktop-canvas-lora.js'),sandbox);return sandbox;}
@@ -70,5 +71,5 @@ test('两个节点共用可视化选择器，不改变权重任务参数或外�
  const html=fs.readFileSync(path.join(root,'frontend/desktop.html'),'utf8');
  assert.ok(html.indexOf('desktop-lora-data.js')<html.indexOf('desktop-api.js'));
  assert.ok(html.indexOf('desktop-canvas-lora.js')<html.indexOf('scripts/desktop-canvas.js'));
- assert.ok(html.includes('data-gallery-view="loras"'));assert.ok(html.includes('20261002-lora-library3'));
+ assert.ok(html.includes('data-gallery-view="loras"'));for(const asset of ['scripts/desktop-lora-data.js','scripts/desktop-lora-settings.js','scripts/desktop-canvas-lora.js'])assert.ok(hasCacheKey(html,asset),asset);
 });

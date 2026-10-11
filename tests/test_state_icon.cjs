@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
+const { hasCacheKey } = require('./asset_keys.cjs');
 const root = path.join(__dirname,'..');
 const read = file => fs.readFileSync(path.join(root,file),'utf8');
 function load(){
@@ -73,11 +74,11 @@ test('all consumers receive an explicit display-only dependency in loading order
   for(const name of ['desktop-canvas-audio','desktop-music-view','desktop-canvas-topaz','desktop-video-control-view','desktop-topaz-video-view','desktop-topaz-video-workbench']){
     assert.ok(helper<html.indexOf(`scripts/${name}.js?`),name);
     assert.match(read(`frontend/scripts/${name}.js`),/stateIcon/);
-    assert.ok(html.includes(`scripts/${name}.js?v=${name.startsWith('desktop-topaz-video-workbench') ? '20261005-topaz-pipeline1' : name === 'desktop-canvas-topaz' ? '20261009-generation-action-unify1' : name === 'desktop-music-view' ? '20261010-segment-bank1' : '20261010-node-keys1'}`),name);
+    assert.ok(hasCacheKey(html,`scripts/${name}.js`),name);
   }
   assert.match(host,/const stateIcon = window\.DesktopStateIcon;/);
   assert.match(host,/DesktopCanvasAudio\.create\(\{\s*stateIcon,/);
-  assert.ok(html.includes('scripts/desktop-canvas.js?v=20261010-marquee-frame1'));
+  assert.ok(hasCacheKey(html,'scripts/desktop-canvas.js'));
 });
 function displayFixture(keys){
   const layers=keys.map(key=>({dataset:{stateIconLayer:key},current:key==='idle'}));

@@ -5,7 +5,8 @@
   "description": "Build-time tooling for the existing CanvasHub web clients",
   "scripts": {
     "build": "node tooling/build.mjs",
-    "check": "node tooling/build.mjs --check"
+    "check": "node tooling/build.mjs --check && node tooling/asset-versions.mjs",
+    "assets:record": "node tooling/asset-versions.mjs --update"
   },
   "engines": {
     "node": ">=18"

@@ -4,10 +4,10 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 const { execFileSync } = require('node:child_process');
+const { hasCacheKey } = require('./asset_keys.cjs');
 
 const root = path.resolve(__dirname, '..');
 const read = file => fs.readFileSync(path.join(root, file), 'utf8');
-const VERSION = '20261010-glass-shadow1';
 
 function load() {
   const context = { window: {}, document: { body: null, activeElement: null, addEventListener() {} } };
@@ -138,12 +138,12 @@ test('desktop.html: body scope id, module before preferences, generated CSS befo
   const html = read('frontend/desktop.html');
   assert.match(html, /<body id="deskApp" class="desk-app"/);
   const at = s => html.indexOf(s);
-  assert.ok(at(`scripts/desktop-control-material.js?v=${VERSION}`) > 0);
-  assert.ok(at('scripts/desktop-color-bloom.js?v=20261010-color-bloom1') > 0 && at('scripts/desktop-color-bloom.js?') < at('scripts/desktop-control-material.js?'));
-  assert.ok(at('scripts/desktop-control-material.js?') < at('scripts/desktop-preferences.js?v=20261011-release-26-4-0'));
-  assert.ok(at('styles/desktop-progress.css?') < at('styles/desktop-ambient-controls.css?v=20261010-settings-keys1'));
-  assert.ok(at('styles/desktop-ambient-controls.css?') < at('styles/desktop-control-material.css?v=20261010-glass-shadow1'));
-  assert.ok(at('scripts/desktop-settings.js?v=20261011-progress-preview1') > 0);
+  for (const asset of ['scripts/desktop-control-material.js', 'scripts/desktop-color-bloom.js', 'scripts/desktop-preferences.js', 'styles/desktop-ambient-controls.css', 'styles/desktop-control-material.css', 'scripts/desktop-settings.js'])
+    assert.ok(hasCacheKey(html, asset), asset);
+  assert.ok(at('scripts/desktop-color-bloom.js?') < at('scripts/desktop-control-material.js?'));
+  assert.ok(at('scripts/desktop-control-material.js?') < at('scripts/desktop-preferences.js?'));
+  assert.ok(at('styles/desktop-progress.css?') < at('styles/desktop-ambient-controls.css?'));
+  assert.ok(at('styles/desktop-ambient-controls.css?') < at('styles/desktop-control-material.css?'));
   const prefs = read('frontend/scripts/desktop-preferences.js');
   assert.match(prefs, /controlMaterial: state\.controlMaterial/);
   assert.match(prefs, /DesktopControlMaterial\?\.apply\(state\.controlMaterial, document\.body\)/);

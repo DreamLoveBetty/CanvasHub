@@ -3,10 +3,10 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
+const { hasCacheKey } = require('./asset_keys.cjs');
 
 const root = path.resolve(__dirname, '..');
 const read = file => fs.readFileSync(path.join(root, file), 'utf8');
-const VERSION = '20261011-progress-preview1';
 
 function load() {
   const calls = [];
@@ -52,9 +52,9 @@ test('settings card shows the preview instead of the hint; the host mounts, refr
   assert.match(css, /body\.desk-app \.desk-progress-preview \.desk-progress-material \{ position: relative; top: auto;/);
   const html = read('frontend/desktop.html');
   const at = s => html.indexOf(s);
-  assert.ok(at(`scripts/desktop-progress-preview.js?v=${VERSION}`) > at('scripts/desktop-progress.js?'));
+  assert.ok(hasCacheKey(html, 'scripts/desktop-progress-preview.js') && at('scripts/desktop-progress-preview.js?') > at('scripts/desktop-progress.js?'));
   assert.ok(at('scripts/desktop-progress-preview.js?') < at('scripts/desktop-settings.js?'));
-  assert.ok(html.includes(`scripts/desktop-settings.js?v=${VERSION}`) && html.includes('styles/desktop-progress.css?v=20261011-progress-instrument2'));
+  assert.ok(hasCacheKey(html, 'scripts/desktop-settings.js') && hasCacheKey(html, 'styles/desktop-progress.css'));
 });
 
 test('instrument finish: housing, well and contour-following glass edge on canvas materials only', () => {

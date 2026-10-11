@@ -3,10 +3,10 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
+const { hasCacheKey } = require('./asset_keys.cjs');
 
 const root = path.resolve(__dirname, '..');
 const read = file => fs.readFileSync(path.join(root, file), 'utf8');
-const VERSION = '20261009-settings-drawer2';
 
 function load(file, extra = {}) {
   const listeners = {};
@@ -98,8 +98,8 @@ test('settings host: categories are built off-screen from loaded data; drawer an
   assert.match(prefs, /DesktopSettingsDrawer\?\.normalizeWidth/);
   const html = read('frontend/desktop.html');
   const at = s => html.indexOf(s);
-  assert.ok(at(`scripts/desktop-settings-drawer.js?v=${VERSION}`) > 0 && at('scripts/desktop-settings-drawer.js?') < at('scripts/desktop-preferences.js?'));
-  assert.ok(at('scripts/desktop-settings-search.js?v=20261010-color-bloom1') > 0 && at('scripts/desktop-settings-search.js?') < at('scripts/desktop-settings.js?'));
+  assert.ok(hasCacheKey(html, 'scripts/desktop-settings-drawer.js') && at('scripts/desktop-settings-drawer.js?') < at('scripts/desktop-preferences.js?'));
+  assert.ok(hasCacheKey(html, 'scripts/desktop-settings-search.js') && at('scripts/desktop-settings-search.js?') < at('scripts/desktop-settings.js?'));
   assert.match(html, /<section class="desk-settings desk-settings--drawer" id="deskSettingsPanel" role="dialog" aria-modal="false"/);
   assert.doesNotMatch(html, /id="deskSettingsPanel"[^>]*desk-glass|class="desk-settings desk-glass/);
 });

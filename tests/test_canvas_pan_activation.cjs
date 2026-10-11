@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
+const { hasCacheKey } = require('./asset_keys.cjs');
 const read = file => fs.readFileSync(path.join(__dirname, '../frontend', file), 'utf8');
 const host = read('scripts/desktop-canvas.js');
 
@@ -117,6 +118,6 @@ test('host binds release-click handling in capture phase, clears on a fresh pres
   assert.match(host, /addEventListener\('pointerdown', \(\) => \{\s*canvasViewport\.resetPanClickGuard\(\);\s*setNodePaletteOpen\(false\);\s*\}, true\)/);
   const html = read('desktop.html');
   for (const name of ['desktop-canvas', 'desktop-canvas-viewport']) {
-    assert.ok(html.includes(`${name}.js?v=${name === 'desktop-canvas' ? '20261010-marquee-frame1' : '20261009-zoom-style-cost1'}`), name);
+    assert.ok(hasCacheKey(html, `${name}.js`), name);
   }
 });

@@ -78,15 +78,10 @@ class NodeSurfaceContractTests(unittest.TestCase):
 
     def test_changed_geometry_paint_and_tokens_are_cache_busted(self):
         html = read('desktop.html')
-        for asset in ['styles/desktop-tokens.css', 'styles/desktop-audio.css']:
-            version = '20261009-settings-drawer2' if asset == 'styles/desktop-tokens.css' else '20261004-node-surfaces1'
-            self.assertIn(asset + '?v=' + version, html)
-        self.assertIn('styles/desktop-geometry.css?v=20261010-color-bloom1', html)
-        for asset in ['styles/desktop-liquid.css', 'styles/desktop-canvas-nodes.css', 'styles/desktop-image-group.css']:
-            version = ('20261009-settings-drawer2' if asset == 'styles/desktop-liquid.css' else
-                       '20261007-connection-arc1' if asset == 'styles/desktop-canvas-nodes.css' else
-                       '20261004-node-selection-frames1')
-            self.assertIn(asset + '?v=' + version, html)
+        # Bumps on change are enforced by frontend/tooling/asset-versions.mjs.
+        for asset in ['styles/desktop-tokens.css', 'styles/desktop-audio.css', 'styles/desktop-geometry.css',
+                      'styles/desktop-liquid.css', 'styles/desktop-canvas-nodes.css', 'styles/desktop-image-group.css']:
+            self.assertRegex(html, re.escape(asset) + r'\?v=[0-9A-Za-z._-]+')
 
 if __name__ == '__main__':
     unittest.main()

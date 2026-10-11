@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
+const { hasCacheKey } = require('./asset_keys.cjs');
 const root = path.join(__dirname, '../frontend/scripts');
 const read = file => fs.readFileSync(path.join(root, file), 'utf8');
 const status = {models: [
@@ -248,8 +249,7 @@ test('workbench has direct compare, a real trim timeline, stable inspector contr
   assert.match(css,/--desk-font-size-micro/);
   assert.doesNotMatch(css,/font-size:\s*[0-9](?:\.\d+)?px/);
   assert.doesNotMatch(css,/backdrop-filter|color-mix\(|radial-gradient\(|linear-gradient\(/);
-  assert.match(html,/desktop-topaz-video-workbench\.js\?v=20261005-topaz-pipeline1/);
-  assert.match(html,/desktop-topaz-video-workbench\.css\?v=20261006-topaz-panel-polish2/);
+  for(const asset of ['scripts/desktop-topaz-video-workbench.js','styles/desktop-topaz-video-workbench.css'])assert.ok(hasCacheKey(html,asset),asset);
   // Shared select changes may bump independently of the Topaz workbench.
   assert.match(html,/desktop-select\.js\?v=\d{8}-[a-z0-9-]+/);
 });

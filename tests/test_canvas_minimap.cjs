@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
+const { hasCacheKey } = require('./asset_keys.cjs');
 const root = path.resolve(__dirname, '..');
 const read = name => fs.readFileSync(path.join(root, 'frontend', name), 'utf8');
 const host = read('scripts/desktop-canvas.js');
@@ -262,14 +263,7 @@ test('served HTML wires the existing controller, includes the new presets and bu
   }
   for (const asset of ['scripts/desktop-canvas.js', 'scripts/desktop-canvas-viewport.js',
     'scripts/desktop-canvas-image-group-interaction.js', 'scripts/desktop-i18n.js', 'styles/desktop-canvas-nodes.css', 'styles/desktop-geometry.css']) {
-    const version = asset === 'styles/desktop-geometry.css' ? '20261010-color-bloom1'
-      : asset === 'styles/desktop-canvas-nodes.css' ? '20261007-connection-arc1'
-      : asset === 'scripts/desktop-canvas.js' ? '20261010-marquee-frame1'
-      : asset === 'scripts/desktop-canvas-viewport.js'
-      ? '20261009-zoom-style-cost1'
-      : ['scripts/desktop-i18n.js', 'styles/desktop-canvas-nodes.css'].includes(asset)
-        ? '20261006-node-palette-groups1' : '20261005-minimap-navigation2';
-    assert.ok(html.includes(`${asset}?v=${version}`), asset);
+    assert.ok(hasCacheKey(html, asset), asset);
   }
   for (const handler of ['beginMiniMapNavigation', 'moveMiniMapNavigation', 'endMiniMapNavigation', 'handleMiniMapKeydown']) {
     assert.ok(host.includes(`canvasViewport.${handler}`), handler);
@@ -315,5 +309,5 @@ for (const scale of [0.1, 0.3, 0.75, 1.8]) {
 }
 
 test('desktop loads the cache-busted non-inherited grid contract', () => {
-  assert.ok(read('desktop.html').includes('styles/desktop-performance.css?v=20261006-canvas-grid-isolation1'));
+  assert.ok(hasCacheKey(read('desktop.html'), 'styles/desktop-performance.css'));
 });

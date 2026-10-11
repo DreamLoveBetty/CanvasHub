@@ -3,6 +3,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
 const vm = require('node:vm');
+const { hasCacheKey } = require('./asset_keys.cjs');
 
 const frontend = path.join(__dirname, '../frontend');
 const read = file => fs.readFileSync(path.join(frontend, file), 'utf8');
@@ -153,10 +154,7 @@ test('host keeps click/drag creation and dispatches Escape; changed assets are c
   const html = read('desktop.html');
   for (const asset of ['scripts/desktop-canvas.js', 'scripts/desktop-canvas-nodes.js',
     'scripts/desktop-i18n.js', 'styles/desktop-canvas-nodes.css', 'styles/desktop-tokens.css']) {
-    const version = asset === 'styles/desktop-canvas-nodes.css' ? '20261007-connection-arc1'
-      : ['scripts/desktop-canvas-nodes.js', 'scripts/desktop-canvas.js'].includes(asset) ? '20261010-marquee-frame1'
-      : asset === 'styles/desktop-tokens.css' ? '20261009-settings-drawer2' : '20261006-node-palette-groups1';
-    assert.ok(html.includes(`${asset}?v=${version}`), asset);
+    assert.ok(hasCacheKey(html, asset), asset);
   }
   const i18n = read('scripts/desktop-i18n.js');
   for (const group of ['image', 'video', 'audio', 'enhance', 'general']) {
@@ -173,7 +171,7 @@ test('rail glass lives on a noninteractive sibling paint layer, not the menu anc
   for (const declaration of ['pointer-events: none', 'z-index: -1', 'inset: -1px',
     'background: var(--desk-shell-rail-background)', 'border: 1px solid var(--desk-shell-rail-border)',
     'backdrop-filter: var(--desk-shell-rail-filter)']) assert.ok(paint.includes(declaration));
-  assert.ok(read('desktop.html').includes('styles/desktop-shell.css?v=20261006-node-palette-frost1'));
+  assert.ok(hasCacheKey(read('desktop.html'), 'styles/desktop-shell.css'));
 });
 
 test('both palette themes keep a translucent tint over an independent backdrop blur', () => {

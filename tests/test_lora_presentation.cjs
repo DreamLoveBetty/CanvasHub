@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
+const { hasCacheKey } = require('./asset_keys.cjs');
 const root = path.join(__dirname, '..');
 const read = file => fs.readFileSync(path.join(root, 'frontend', file), 'utf8');
 
@@ -106,6 +107,5 @@ test('LoRA 控件复用已有字号/尺寸 token，没有引入未定义的主�
   for(const [,name] of css.matchAll(/var\((--[\w-]+)/g))assert.match(definitions,new RegExp(name+'\\s*:'),name);
   assert.ok(!read('scripts/desktop-lora-view.js').includes('data-desk-select-ignore'));
   const html=read('desktop.html');
-  for(const asset of ['styles/desktop-lora.css','scripts/desktop-lora-view.js'])assert.ok(html.includes(asset+'?v=20261003-lora-quick-add1'));
-  assert.ok(html.includes('scripts/desktop-select.js?v=20261006-krea-model-menu1'));
+  for(const asset of ['styles/desktop-lora.css','scripts/desktop-lora-view.js','scripts/desktop-select.js'])assert.ok(hasCacheKey(html,asset),asset);
 });

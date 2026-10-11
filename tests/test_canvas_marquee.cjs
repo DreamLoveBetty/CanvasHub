@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
+const { hasCacheKey } = require('./asset_keys.cjs');
 
 const root = path.resolve(__dirname, '..');
 const read = file => fs.readFileSync(path.join(root, file), 'utf8');
@@ -67,5 +68,5 @@ test('host routes marquee moves through the session; selection applies rebuild t
   assert.doesNotMatch(nodes, /requestAnimationFrame\(updateLinkPath\)/);
   const html = read('frontend/desktop.html');
   for (const name of ['desktop-canvas', 'desktop-canvas-selection', 'desktop-canvas-nodes'])
-    assert.ok(html.includes(`scripts/${name}.js?v=20261010-marquee-frame1`), name);
+    assert.ok(hasCacheKey(html, `scripts/${name}.js`), name);
 });

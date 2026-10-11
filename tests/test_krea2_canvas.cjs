@@ -3,6 +3,7 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
 const vm=require('node:vm');
+const { hasCacheKey } = require('./asset_keys.cjs');
 const scripts=path.join(__dirname,'../frontend/scripts');
 const frontend=path.join(__dirname,'../frontend');
 const read=name=>fs.readFileSync(path.join(scripts,name),'utf8');
@@ -194,10 +195,7 @@ test('桌面资源顺序与 Krea 2 缓存版本已更新',()=>{
   const html=fs.readFileSync(path.join(frontend,'desktop.html'),'utf8');
   const order=['desktop-api.js','desktop-krea2-model.js','desktop-krea2-api.js','desktop-krea2-tools.js','desktop-canvas-krea2.js','desktop-canvas-workflow.js','desktop-canvas-nodes.js','desktop-canvas.js','desktop-settings.js'];
   for(let index=1;index<order.length;index++)assert.ok(html.indexOf(order[index-1])<html.indexOf(order[index]));
-  for(const name of ['desktop-krea2-model.js','desktop-krea2-api.js','desktop-krea2-tools.js','desktop-canvas-krea2.js'])
-    assert.match(html,new RegExp(name.replaceAll('.','\\.')+'\\?v='+ (['desktop-krea2-model.js','desktop-krea2-tools.js'].includes(name)?'20261006-bf16-transformer1':name==='desktop-canvas-krea2.js'?'20261009-generation-action-unify1':'20260929-krea2-layout-3')));
-  for(const name of ['desktop-canvas-workflow.js','desktop-canvas-nodes.js','desktop-canvas.js','desktop-settings.js'])
-    assert.match(html,new RegExp(name.replaceAll('.','\\.')+'\\?v='+ (name==='desktop-settings.js'?'20261011-progress-preview1':['desktop-canvas-nodes.js','desktop-canvas.js'].includes(name)?'20261010-marquee-frame1':'20261001-qwen21-adapters-1')));
-  assert.match(html,/desktop-krea2\.css\?v=20261003-auto-image-mode1/);
+  for(const name of ['desktop-krea2-model.js','desktop-krea2-api.js','desktop-krea2-tools.js','desktop-canvas-krea2.js','desktop-canvas-workflow.js','desktop-canvas-nodes.js','desktop-canvas.js','desktop-settings.js','desktop-krea2.css'])
+    assert.ok(hasCacheKey(html,name),name);
   assert.match(html,/data-settings-tab="model-tools"/);
 });

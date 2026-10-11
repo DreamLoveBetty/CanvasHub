@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
+const { hasCacheKey } = require('./asset_keys.cjs');
 const root = path.resolve(__dirname, '..');
 const read = file => fs.readFileSync(path.join(root, 'frontend', file), 'utf8');
 function fixture({ scale = 1 } = {}) {
@@ -194,9 +195,7 @@ test('feedback module is loaded before host; old splash removed; overlays are hi
   assert.ok(html.indexOf(name)<html.indexOf('scripts/desktop-canvas.js?'));
   for(const asset of [name,'scripts/desktop-canvas-connections.js','scripts/desktop-canvas-port-interaction.js',
     'scripts/desktop-canvas.js','styles/desktop-canvas-nodes.css','styles/desktop-tokens.css']) {
-    const changed=[name,'styles/desktop-canvas-nodes.css'];
-    const version=asset==='styles/desktop-tokens.css'?'20261009-settings-drawer2':asset==='scripts/desktop-canvas.js'?'20261010-marquee-frame1':changed.includes(asset)?'20261007-connection-arc1':asset==='scripts/desktop-canvas-connections.js'?'20261007-connection-feedback-natural1':'20261007-connection-feedback1';
-    assert.ok(html.includes(`${asset}?v=${version}`));
+    assert.ok(hasCacheKey(html,asset),asset);
   }
   const css=read('styles/desktop-canvas-nodes.css');assert.doesNotMatch(css,/desk-connection-splash/);
   assert.match(css,/\.desk-node > :is\(\.desk-connection-proximity, \.desk-connection-impact\) \{[^}]*pointer-events: none;/);

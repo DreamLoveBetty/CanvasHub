@@ -3,10 +3,10 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
+const { hasCacheKey } = require('./asset_keys.cjs');
 
 const root = path.resolve(__dirname, '..');
 const read = file => fs.readFileSync(path.join(root, file), 'utf8');
-const VERSION = '20261010-color-bloom1';
 
 function load() {
   const listeners = {};
@@ -73,15 +73,9 @@ test('one implementation: prompt library and settings host the shared picker, no
 test('desktop.html: component CSS after the prompt library, script before every host, cache keys', () => {
   const html = read('frontend/desktop.html');
   const at = s => html.indexOf(s);
-  assert.ok(at(`styles/desktop-color-bloom.css?v=${VERSION}`) > at('styles/desktop-prompt-library.css?'));
-  assert.ok(at(`styles/desktop-color-bloom.css?v=${VERSION}`) < at('styles/desktop-geometry.css?'), 'settings geometry overrides the swatch size');
-  const script = at(`scripts/desktop-color-bloom.js?v=${VERSION}`);
-  assert.ok(script > 0);
-  for (const host of ['desktop-control-material', 'desktop-settings', 'desktop-prompt-library']) {
-    assert.ok(script < at(`scripts/${host}.js?`), host);
-    // Hosts may have moved on since; their key must be at least as new as this change.
-    assert.ok((html.match(new RegExp(`scripts/${host}\\.js\\?v=(\\d{8})`)) || [])[1] >= VERSION.slice(0, 8), host);
-  }
-  for (const css of ['desktop-prompt-library', 'desktop-settings-auth', 'desktop-geometry', 'desktop-progress'])
-    assert.ok((html.match(new RegExp(`styles/${css}\\.css\\?v=(\\d{8})`)) || [])[1] >= VERSION.slice(0, 8), css);
+  assert.ok(hasCacheKey(html, 'styles/desktop-color-bloom.css') && hasCacheKey(html, 'scripts/desktop-color-bloom.js'));
+  assert.ok(at('styles/desktop-color-bloom.css?') > at('styles/desktop-prompt-library.css?'));
+  assert.ok(at('styles/desktop-color-bloom.css?') < at('styles/desktop-geometry.css?'), 'settings geometry overrides the swatch size');
+  const script = at('scripts/desktop-color-bloom.js?');
+  for (const host of ['desktop-control-material', 'desktop-settings', 'desktop-prompt-library']) assert.ok(script < at(`scripts/${host}.js?`), host);
 });

@@ -3,6 +3,7 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
 const vm=require('node:vm');
+const { hasCacheKey } = require('./asset_keys.cjs');
 const frontend=path.join(__dirname,'../frontend');
 const read=name=>fs.readFileSync(path.join(frontend,'scripts',name),'utf8');
 const context={window:{}};
@@ -148,7 +149,7 @@ test('脚本装配顺序、设置页、工作流和缓存版本完整',()=>{
   const html=fs.readFileSync(path.join(frontend,'desktop.html'),'utf8');
   const ordered=['desktop-tasks.js','desktop-qwen21-model.js','desktop-qwen21-api.js','desktop-qwen21-tools.js','desktop-canvas-qwen21.js','desktop-canvas-workflow.js','desktop-canvas-nodes.js','desktop-canvas.js','desktop-settings.js'];
   for(let i=1;i<ordered.length;i++)assert.ok(html.indexOf(ordered[i-1])<html.indexOf(ordered[i]));
-  for(const name of ordered.filter(name=>name!=='desktop-tasks.js'))assert.ok(html.includes(name+'?v='+(['desktop-canvas-qwen21.js','desktop-qwen21-model.js','desktop-qwen21-tools.js'].includes(name)?'20261011-qwen-turbo8':name==='desktop-settings.js'?'20261011-progress-preview1':['desktop-canvas-nodes.js','desktop-canvas.js'].includes(name)?'20261010-marquee-frame1':['desktop-qwen21-model.js','desktop-qwen21-tools.js'].includes(name)?'20261006-qwen-base-retirement1':name==='desktop-qwen21-api.js'?'20261002-qwen21-vae1':'20261001-qwen21-adapters-1')));
+  for(const name of ordered)assert.ok(hasCacheKey(html,name),name);
   assert.match(read('desktop-canvas.js'),/qwen21Definition/);assert.match(read('desktop-canvas-nodes.js'),/qwen21Node/);
   assert.match(read('desktop-canvas-workflow.js'),/qwen21Definition/);assert.match(read('desktop-settings.js'),/qwen21Tools\?\.render/);
 });
