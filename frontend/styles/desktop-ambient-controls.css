@@ -12,7 +12,8 @@
 }
 
 /* ambient.css: :root */
-#deskApp[data-control-material="ambient"] {
+#deskApp[data-control-material="ambient"],
+#deskApp[data-field-style="groove"] {
   --amb-light-x: -1;
   --amb-light-y: -1;
   --amb-key-light-intensity: 0.9;
@@ -174,7 +175,8 @@
 
 /* ambient.css: .amb-groove */
 #deskApp[data-control-material="ambient"] :is(.desk-node, .desk-settings) .desk-key-bank,
-#deskApp[data-control-material="ambient"] :is(.desk-node, .desk-settings) :is(.desk-switch > span, input[type="checkbox"]:not(.desk-switch > input)) {
+#deskApp[data-control-material="ambient"] :is(.desk-node, .desk-settings) :is(.desk-switch > span, input[type="checkbox"]:not(.desk-switch > input)),
+#deskApp[data-field-style="groove"] :is(.desk-node, .desk-settings) :is(input:is([type="text"], [type="number"], [type="password"], [type="email"], [type="url"], :not([type])), textarea.desk-settings-textarea):not(.desk-select):not(.desk-settings-search__input):not(.desk-text-node__alias input) {
   --amb-thickness: 1;
 }
 
@@ -358,7 +360,8 @@
 
 /* ambient.css: .amb-groove */
 #deskApp[data-control-material="ambient"] :is(.desk-node, .desk-settings) .desk-key-bank,
-#deskApp[data-control-material="ambient"] :is(.desk-node, .desk-settings) :is(.desk-switch > span, input[type="checkbox"]:not(.desk-switch > input)) {
+#deskApp[data-control-material="ambient"] :is(.desk-node, .desk-settings) :is(.desk-switch > span, input[type="checkbox"]:not(.desk-switch > input)),
+#deskApp[data-field-style="groove"] :is(.desk-node, .desk-settings) :is(input:is([type="text"], [type="number"], [type="password"], [type="email"], [type="url"], :not([type])), textarea.desk-settings-textarea):not(.desk-select):not(.desk-settings-search__input):not(.desk-text-node__alias input) {
   /* Grounded on a recess cut into the reference ground
      (ambient3d/derived/notes/groove.md). A groove is negative space: the
      recess depth reuses the thickness vocabulary (4.5 physical mm per

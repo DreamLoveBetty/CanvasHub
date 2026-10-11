@@ -40,8 +40,13 @@
     25: { label: '25%' },
     0: { label: '0% · 无偏移' },
   });
+  // Text-field look: its own preference, independent of the button material.
+  const FIELD_STYLES = Object.freeze({
+    current: { label: '现有（默认）' },
+    groove: { label: '凹槽 · Ambient' },
+  });
   const UPSTREAM_ACCENT = '#ff7f50';
-  const DEFAULTS = Object.freeze({ material: 'current', surface: 'concave', body: 'default', bodyCustom: '#4f7861', glass: 'default', glassCustom: '#58adc9', glassShadow: '100', accent: null });
+  const DEFAULTS = Object.freeze({ material: 'current', surface: 'concave', body: 'default', bodyCustom: '#4f7861', glass: 'default', glassCustom: '#58adc9', glassShadow: '100', field: 'current', accent: null });
   const MANAGED_VARS = ['--amb-albedo', '--amb-light-hue', '--amb-light-saturation', '--amb-highlight-color', '--desk-control-face-ink', '--desk-control-hover-ink', '--desk-glass-shadow'];
 
   function normalizeHex(value) {
@@ -61,6 +66,7 @@
       glass: pick(GLASS_PRESETS, source.glass, DEFAULTS.glass),
       glassCustom: normalizeHex(source.glassCustom) || DEFAULTS.glassCustom,
       glassShadow: pick(GLASS_SHADOWS, String(source.glassShadow ?? ''), DEFAULTS.glassShadow),
+      field: pick(FIELD_STYLES, source.field, DEFAULTS.field),
       accent: normalizeHex(source.accent) === UPSTREAM_ACCENT ? null : normalizeHex(source.accent),
     };
   }
@@ -95,7 +101,9 @@
     if (!body) return prefs;
     const on = prefs.material !== 'current';
     MANAGED_VARS.forEach(name => body.style?.removeProperty?.(name));
-    ['data-control-material', 'data-control-finish', 'data-control-surface', 'data-control-tinted'].forEach(name => body.removeAttribute?.(name));
+    ['data-control-material', 'data-control-finish', 'data-control-surface', 'data-control-tinted', 'data-field-style'].forEach(name => body.removeAttribute?.(name));
+    // Fields are projected first: they do not depend on the button material being on.
+    if (prefs.field !== 'current') body.setAttribute('data-field-style', prefs.field);
     if (!on) return prefs;
     body.setAttribute('data-control-material', 'ambient');
     body.setAttribute('data-control-finish', prefs.material);
@@ -157,6 +165,15 @@
     </div>`;
   }
 
+  // Its own Settings card: the text-field look is chosen independently of the button material.
+  function renderFieldSettings(value) {
+    const prefs = normalize(value);
+    return `<div class="desk-settings-form" data-control-field-settings>
+      <label><span>输入框样式</span><select class="desk-select" data-control-material-field="field" aria-label="输入框样式">${options(FIELD_STYLES, prefs.field)}</select></label>
+      <p class="desk-settings-form__hint">节点和设置中心里的文本、数字与密码输入框。凹槽：嵌入面板的浅槽，聚焦时亮起主题色灯环；与按钮材质分开设置。</p>
+    </div>`;
+  }
+
   // Returns the preference patch for a settings event, or null when the event is not
   // ours / not committable yet (invalid HEX keeps the last valid look).
   function patchFromEvent(event, value) {
@@ -167,6 +184,7 @@
     const field = control.dataset.controlMaterialField;
     if (field === 'material' || field === 'surface') return event.type === 'change' ? { [field]: control.value } : null;
     if (field === 'glass-shadow') return event.type === 'change' ? { glassShadow: control.value } : null;
+    if (field === 'field') return event.type === 'change' ? { field: control.value } : null;
     if (field === 'palette') return event.type === 'change' ? { [prefs.material === 'glass' ? 'glass' : 'body']: control.value } : null;
     const typed = field === 'hex' || field === 'accent-hex';
     // While typing, only a complete 6-digit HEX commits; #RGB is accepted on change.
@@ -204,6 +222,7 @@
     set('material', prefs.material, false);
     set('surface', prefs.surface, prefs.material !== 'matte');
     set('glass-shadow', prefs.glassShadow, prefs.material !== 'glass');
+    set('field', prefs.field, false);
     set('palette', glass ? prefs.glass : prefs.body, off);
     set('color', swatch, off);
     set('hex', swatch.toUpperCase(), off);
@@ -211,12 +230,12 @@
     set('accent-hex', accent.toUpperCase(), off);
     const reset = card.querySelector('[data-control-material-accent-reset]');
     if (reset) reset.disabled = off || !prefs.accent;
-    ['material', 'surface', 'glass-shadow', 'palette'].forEach(name => { const el = field(name); if (el) window.DesktopSelect?.refresh?.(el); });
+    ['material', 'surface', 'glass-shadow', 'palette', 'field'].forEach(name => { const el = field(name); if (el) window.DesktopSelect?.refresh?.(el); });
     window.DesktopColorBloom?.refresh(card);
   }
 
   window.DesktopControlMaterial = Object.freeze({
-    MATERIALS, SURFACES, BODY_PRESETS, GLASS_PRESETS, GLASS_SHADOWS, UPSTREAM_ACCENT, DEFAULTS,
-    normalize, normalizeHex, apply, renderSettings, syncSettings, patchFromEvent,
+    MATERIALS, SURFACES, BODY_PRESETS, GLASS_PRESETS, GLASS_SHADOWS, FIELD_STYLES, UPSTREAM_ACCENT, DEFAULTS,
+    normalize, normalizeHex, apply, renderSettings, renderFieldSettings, syncSettings, patchFromEvent,
   });
 })();

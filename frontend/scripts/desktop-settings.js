@@ -600,10 +600,16 @@
     return renderCard('节点按钮材质', [material.renderSettings(window.DesktopPreferences?.state?.controlMaterial)], true);
   }
 
+  function renderFieldStyleSettings() {
+    const material = window.DesktopControlMaterial;
+    if (!material?.renderFieldSettings) return '';
+    return renderCard('输入框样式', [material.renderFieldSettings(window.DesktopPreferences?.state?.controlMaterial)], true);
+  }
+
   // Assembly only: the module validates the event and owns the card's in-place refresh.
   function updateControlMaterialPreference(event) {
     const material = window.DesktopControlMaterial;
-    const card = event.target.closest?.('[data-control-material-settings]');
+    const card = event.target.closest?.('[data-control-material-settings], [data-control-field-settings]');
     if (!material || !card) return false;
     const patch = material.patchFromEvent(event, window.DesktopPreferences.state.controlMaterial);
     if (patch) {
@@ -1534,7 +1540,7 @@
       {
         tab: 'system',
         html: activeTab === 'system'
-          ? renderCanvasInteractionSettings() + renderProgressSettings() + renderControlMaterialSettings() + renderSystemRuntimeSettings(editableServer, setting('auth', auth)) + renderPinterestSettings(pinterest)
+          ? renderCanvasInteractionSettings() + renderProgressSettings() + renderControlMaterialSettings() + renderFieldStyleSettings() + renderSystemRuntimeSettings(editableServer, setting('auth', auth)) + renderPinterestSettings(pinterest)
           : ''
       },
       {

@@ -1,7 +1,7 @@
 /* Ambient control material: adaptation layer for buttons inside canvas nodes and the
    settings centre's action rows, and for
    segmented controls (.desk-key-bank, Select reading) and switches/checkboxes (Switch +
-   LED) in nodes and the settings centre.
+   LED) in nodes and the settings centre; text fields (groove) under their own opt-in.
    Upstream lighting/material rules come from desktop-ambient-controls.css (generated,
    verbatim bodies). This file keeps production geometry and only replaces paint, depth,
    ink and state feedback. Every rule is scoped to the opt-in body attribute set by
@@ -290,6 +290,36 @@
 #deskApp[data-control-material="ambient"] :is(.desk-node, .desk-settings) :is(.desk-switch > input:focus-visible + span, input[type="checkbox"]:not(.desk-switch > input):focus-visible) {
   outline: 2px solid var(--amb-highlight-color);
   outline-offset: 2px;
+}
+
+/* Text fields · a groove cut into the panel (upstream .amb-groove bodies, generated), on their
+   own opt-in (data-field-style="groove", set by desktop-control-material.js) so they do not
+   follow the button material. Fields
+   stay neutral panel material whatever the key colour or glass tint (a brass or teal text
+   box reads as a control, not a field): upstream's default albedo and light by day, the
+   graphite body at night. Focus lights a ring in the app's own theme accent (blue by day,
+   orange at night, like every other focus in the app) rather than the Ambient accent,
+   which may be white or grey. */
+#deskApp[data-field-style="groove"] :is(.desk-node, .desk-settings) :is(input:is([type="text"], [type="number"], [type="password"], [type="email"], [type="url"], :not([type])), textarea.desk-settings-textarea):not(.desk-select):not(.desk-settings-search__input):not(.desk-text-node__alias input) {
+  --amb-albedo: color(srgb-linear 0.82 0.82 0.82);
+  --amb-light-hue: 234;
+  --amb-light-saturation: 15%;
+  --amb-thickness: .45;
+  border-color: transparent;
+  background-image: none;
+}
+#deskApp[data-field-style="groove"][data-theme="dark"] :is(.desk-node, .desk-settings) :is(input:is([type="text"], [type="number"], [type="password"], [type="email"], [type="url"], :not([type])), textarea.desk-settings-textarea):not(.desk-select):not(.desk-settings-search__input):not(.desk-text-node__alias input) {
+  --amb-albedo: #454d4f;
+  --amb-light-saturation: 0%;
+}
+#deskApp[data-field-style="groove"] :is(.desk-node, .desk-settings) :is(input:is([type="text"], [type="number"], [type="password"], [type="email"], [type="url"], :not([type])), textarea.desk-settings-textarea):not(.desk-select):not(.desk-settings-search__input):not(.desk-text-node__alias input):focus {
+  outline: none;
+  --amb-thickness: .3;
+  box-shadow: 0 0 0 1.5px var(--desk-color-accent), 0 0 7px color-mix(in oklab, var(--desk-color-accent), transparent 40%);
+}
+#deskApp[data-field-style="groove"] :is(.desk-node, .desk-settings) :is(input:is([type="text"], [type="number"], [type="password"], [type="email"], [type="url"], :not([type])), textarea.desk-settings-textarea):not(.desk-select):not(.desk-settings-search__input):not(.desk-text-node__alias input):disabled {
+  --amb-thickness: .15;
+  opacity: .6;
 }
 
 @media (prefers-reduced-motion: reduce) {

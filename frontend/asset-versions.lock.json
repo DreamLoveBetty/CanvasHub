@@ -163,8 +163,8 @@
     "sha256": "e8fc1344b8b42301064f4775b986fbc416926659d2966ff772877679b6f4eb6b"
    },
    "scripts/desktop-control-material.js": {
-    "v": "20261010-glass-shadow1",
-    "sha256": "173acf7df5cbad3a67ae74a2fc330720e7e97e1a200bdcb04e466042bb01635d"
+    "v": "20261011-field-style1",
+    "sha256": "42a4b22c3ba7c77a4beb3b08e79f361267b1c35e231f41c6c8394ef2c6815811"
    },
    "scripts/desktop-cyimg-api.js": {
     "v": "20260927-cyimg2",
@@ -319,8 +319,8 @@
     "sha256": "cd644f2ea231956d69a7ece00c274708d08dab2d81ff85e13d433379ce3c5596"
    },
    "scripts/desktop-settings.js": {
-    "v": "20261011-progress-preview1",
-    "sha256": "e6631cdb919d148db735005032b247bffbbfd3abbbf12635983d478d67d6c1eb"
+    "v": "20261011-field-style1",
+    "sha256": "932d200bcd738a178485fb2a6f9f8f0a3102a90725596e3b88271937e0b7c5b3"
    },
    "scripts/desktop-state-icon.js": {
     "v": "20261004-state-icons1",
@@ -387,8 +387,8 @@
     "sha256": "e982bcd832602b3b19b68387568a51293e4d50b36bbbb16b9e6074a989642a1f"
    },
    "styles/desktop-ambient-controls.css": {
-    "v": "20261010-settings-keys1",
-    "sha256": "50d0381df57b36510486b2d35df0454cba7e97aa6d10420ca8001ef89ad9ac43"
+    "v": "20261011-field-style1",
+    "sha256": "a1a4be9c8f2ffc4614fda881354a8f8d44bdf72069b2d6af7259b06cb8be0771"
    },
    "styles/desktop-audio.css": {
     "v": "20261004-node-surfaces1",
@@ -407,8 +407,8 @@
     "sha256": "4d95bd6a6b868fd81cf1fe1ff510c8b4f3eea3907df975c0de346df67713fe0f"
    },
    "styles/desktop-control-material.css": {
-    "v": "20261010-glass-shadow1",
-    "sha256": "5e32aad97adbf2da00d919d84d3c36476762f0382d0e9dbbbd7826c79367cb6b"
+    "v": "20261011-field-style1",
+    "sha256": "c62d88487639960c2d6cceafb5178fa40cb320e3927b3f1282bae721c3360c7a"
    },
    "styles/desktop-controls.css": {
     "v": "20261009-settings-drawer2",

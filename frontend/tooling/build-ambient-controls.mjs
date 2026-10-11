@@ -34,7 +34,11 @@ const PINNED = {
 // so the production markup stays one element per option. Switches take upstream's
 // Switch (dark stadium recess + convex pill) with an LED: the track is a .desk-switch's
 // <span> or, for plain checkboxes, the checkbox itself (appearance: none); the pill is
-// its ::after and the LED its ::before. Drop zones and the audio transport keep their look.
+// its ::after and the LED its ::before. Text fields (FIELD) are grooves cut into the panel,
+// under their own opt-in (FS: data-field-style="groove"), independent of the button material,
+// so the upstream lighting tokens (:root) are provided on that scope too.
+// Drop zones, the audio transport, the settings search bar, dropdown-backed inputs
+// (.desk-select), inline renames and the code/prompt editors keep their look.
 const S = '#deskApp[data-control-material="ambient"]';
 // Node push buttons, plus the settings centre's action rows (every settings card places its
 // commands in one of these rows, whatever account/runtime state is showing) and the colour
@@ -53,22 +57,25 @@ const TRACK = `${SW} :is(.desk-switch > span, ${BOX})`;
 const TRACK_OFF = `${SW} :is(.desk-switch > input:not(:checked) + span, ${BOX}:not(:checked))`;
 const TRACK_HOVER = `${SW} :is(.desk-switch:hover > span, ${BOX}:hover)`;
 const PILL = `${S} ${TRACK}::after`;
+const FIELD = ':is(.desk-node, .desk-settings) :is(input:is([type="text"], [type="number"], [type="password"], [type="email"], [type="url"], :not([type])), textarea.desk-settings-textarea)'
+  + ':not(.desk-select):not(.desk-settings-search__input):not(.desk-text-node__alias input)';
+const FS = '#deskApp[data-field-style="groove"]';
 const finish = name => `${S}[data-control-finish="${name}"]`;
 const list = (...selectors) => selectors.join(',\n');
 const MAP = {
   'ambient.css': [
     ['@property --amb-elevation', '@property --amb-elevation'],
-    [':root', S],
+    [':root', list(S, FS)],
     // Derived per-element tones; the lens and cap pseudo-elements inherit them from K.
     // The switch pill also derives its own tones, so the dark theme can give it its own body.
     ['*', list(`${S} ${T}`, `${S} ${K}`, `${S} ${BANK}`, `${S} ${TRACK}`, PILL)],
     ['.amb-chamfer', list(`${S} ${T}`, CAP)],
     ['.amb-fillet', PILL],
-    ['.amb-groove', list(`${S} ${BANK}`, `${S} ${TRACK}`)],
+    ['.amb-groove', list(`${S} ${BANK}`, `${S} ${TRACK}`, `${FS} ${FIELD}`)],
     ['.amb-mat-glass', list(`${finish('glass')} ${T}`, CAP)],
     ['.ambient', list(`${S} ${T}`, CAP, PILL)],
     ['.amb-surface', `${S} ${T}`],
-    ['.amb-groove', list(`${S} ${BANK}`, `${S} ${TRACK}`)],
+    ['.amb-groove', list(`${S} ${BANK}`, `${S} ${TRACK}`, `${FS} ${FIELD}`)],
     ['.amb-mat-shiny', `${finish('shiny')} ${T}`],
     ['.amb-mat-glass', list(`${finish('glass')} ${T}`, CAP)],
     [':where(.amb-mat-glass)', `:where(${list(`${finish('glass')} ${T}`, CAP)})`],

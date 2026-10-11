@@ -110,7 +110,7 @@ test('generated Ambient subset is current, verbatim and never escapes the opt-in
     }
     return out;
   };
-  const scoped = sel => sel.startsWith('@property') || sel.startsWith('@media') || /^(:where\()?#deskApp\[data-control-material="ambient"\]/.test(sel);
+  const scoped = sel => sel.startsWith('@property') || sel.startsWith('@media') || /^(:where\()?#deskApp\[(data-control-material="ambient"|data-field-style="groove")\]/.test(sel);
   for (const file of ['frontend/styles/desktop-ambient-controls.css', 'frontend/styles/desktop-control-material.css']) {
     for (const sel of selectors(strip(read(file)))) {
       if (sel.startsWith('@media')) continue;
@@ -302,4 +302,40 @@ test('glass shadow offset: a glass-only setting scales the pane shadow ring offs
   const adapter = read('frontend/styles/desktop-control-material.css');
   assert.match(adapter, /--_glass-sh-y: calc\(var\(--amb-light-y\) \* -1 \* \(var\(--amb-elevation\) \* 5\.16px \+ var\(--amb-thickness\) \* 5\.12px\) \* var\(--desk-glass-shadow, 1\)\);/);
   assert.match(adapter, /--_glass-ring-w: calc\(var\(--amb-thickness\) \* 4px \* var\(--desk-glass-shadow, 1\)\);/);
+});
+
+test('text fields: their own opt-in (independent of the button material), grooves in neutral panel material, theme-accent focus', () => {
+  const FS = '#deskApp[data-field-style="groove"]';
+  const F = ':is(.desk-node, .desk-settings) :is(input:is([type="text"], [type="number"], [type="password"], [type="email"], [type="url"], :not([type])), textarea.desk-settings-textarea)'
+    + ':not(.desk-select):not(.desk-settings-search__input):not(.desk-text-node__alias input)';
+  // Preference: default current; projected even when the button material is off.
+  const M = load(), body = fakeBody();
+  assert.equal(M.normalize().field, 'current');
+  assert.equal(M.normalize({ field: 'bogus' }).field, 'current');
+  M.apply({ material: 'current', field: 'groove' }, body);
+  assert.equal(body.attrs.get('data-field-style'), 'groove');
+  assert.equal(body.attrs.has('data-control-material'), false);
+  M.apply({ material: 'matte', field: 'current' }, body);
+  assert.equal(body.attrs.has('data-field-style'), false);
+  assert.equal(body.attrs.get('data-control-material'), 'ambient');
+  const select = { dataset: { controlMaterialField: 'field' }, value: 'groove', setAttribute() {}, removeAttribute() {}, matches: () => false };
+  select.closest = () => select;
+  assert.deepEqual({ ...M.patchFromEvent({ type: 'change', target: select }, M.normalize()) }, { field: 'groove' });
+  const card = M.renderFieldSettings({ material: 'current' });
+  assert.match(card, /data-control-field-settings/);
+  assert.doesNotMatch(card, /data-control-material-field="field"[^>]*disabled/, 'never disabled by the button material');
+  // Settings: its own card, events routed through the same module.
+  const settings = read('frontend/scripts/desktop-settings.js');
+  assert.match(settings, /renderCard\('输入框样式', \[material\.renderFieldSettings\(/);
+  assert.match(settings, /closest\?\.\('\[data-control-material-settings\], \[data-control-field-settings\]'\)/);
+  // CSS: upstream lighting tokens and both groove blocks on the field scope.
+  const generated = read('frontend/styles/desktop-ambient-controls.css');
+  assert.ok(generated.includes(`/* ambient.css: :root */\n#deskApp[data-control-material="ambient"],\n${FS} {`));
+  for (const block of generated.split('/* ambient.css: .amb-groove */').slice(1)) assert.ok(block.split('{')[0].includes(`${FS} ${F}`));
+  const adapter = read('frontend/styles/desktop-control-material.css');
+  assert.ok(adapter.includes(`${FS} ${F} {\n  --amb-albedo: color(srgb-linear 0.82 0.82 0.82);\n  --amb-light-hue: 234;\n  --amb-light-saturation: 15%;`));
+  assert.ok(adapter.includes(`${FS}[data-theme="dark"] ${F} {\n  --amb-albedo: #454d4f;\n  --amb-light-saturation: 0%;`));
+  assert.ok(adapter.includes(`${FS} ${F}:focus {\n  outline: none;\n  --amb-thickness: .3;\n  box-shadow: 0 0 0 1.5px var(--desk-color-accent)`));
+  const section = adapter.slice(adapter.indexOf('/* Text fields'), adapter.indexOf('@media (prefers-reduced-motion'));
+  assert.doesNotMatch(section, /amb-highlight-color|data-control-material="ambient"/);
 });
