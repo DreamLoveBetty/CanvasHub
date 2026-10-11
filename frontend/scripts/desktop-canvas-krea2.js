@@ -38,7 +38,7 @@
       return node.loras.map((item,index)=>({item,index})).filter(({item})=>node.mode!=='edit'||item.assetId!==node.editAdapterId).map(({item,index})=>{
         const meta=loraMeta(item.assetId),name=meta.name||item.assetId;return `<div class="desk-krea2__lora" data-krea2-lora-row="${index}">
           <strong title="${esc(name)}">${loraView?`<button type="button" class="desk-lora-row-detail" data-krea2-lora-detail="${esc(item.assetId)}" title="查看效果与触发词">${esc(meta.name||item.assetId.slice(0,12))} ⓘ</button>`:esc(meta.name||item.assetId.slice(0,12))}</strong>
-          <label aria-label="${esc(name)} LoRA 强度"><input class="desk-number" type="number" min="0" max="2" step="0.05" value="${esc(item.scale)}" title="LoRA 强度" data-krea2-lora-scale="${index}"></label>
+          <label aria-label="${esc(name)} LoRA 强度"><input class="desk-number" type="number" min="0" max="2" step="0.05" value="${esc(item.scale)}" title="LoRA 强度" data-stepper="off" data-krea2-lora-scale="${index}"></label>
           <button type="button" class="desk-button desk-button--danger" data-krea2-lora-remove="${index}" aria-label="从节点移除 ${esc(name)}" title="移除">×</button></div>`;
       }).join('');
     }

@@ -1662,7 +1662,7 @@ body.desk-app[data-theme] .desk-settings .desk-settings-form {
 /* Include fields in nested runtime/supervisor sections, not just direct form
    children. Textareas and file pickers keep their full-width stacked layout. */
 body.desk-app[data-theme] .desk-settings .desk-settings-form :is(
-  label:has(> input:not([type="file"]):not([type="hidden"]), > select, > .desk-select-shell),
+  label:has(> input:not([type="file"]):not([type="hidden"]), > select, > .desk-select-shell, > .desk-stepper),
   .desk-settings-secret-field:has(> input)
 ) {
   grid-template-columns: var(--desk-settings-label-width) minmax(0, 1fr);

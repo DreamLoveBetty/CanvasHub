@@ -1,0 +1,75 @@
+/* Number stepper (desktop-number-stepper.js): − / + inside the field's own box, so the
+   field keeps its border, background, groove and focus ring. The wrapper takes the
+   field's place in label grids and flex columns; fixed-width fields size the wrapper in
+   their own module stylesheet. */
+body.desk-app .desk-stepper {
+  position: relative;
+  display: block;
+  min-width: 0;
+}
+
+/* Native spin arrows are replaced (or, for opted-out narrow fields, dropped). */
+body.desk-app :is(.desk-node, .desk-settings) input[type="number"] {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+body.desk-app :is(.desk-node, .desk-settings) input[type="number"]::-webkit-inner-spin-button,
+body.desk-app :is(.desk-node, .desk-settings) input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+body.desk-app[data-theme] .desk-stepper > input[type="number"] {
+  width: 100%;
+  padding-inline: 30px;
+  text-align: center;
+}
+
+body.desk-app[data-theme] .desk-stepper__button {
+  position: absolute;
+  top: 50%;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: min(22px, calc(100% - 8px));
+  padding: 0;
+  color: var(--desk-color-text-secondary);
+  background: transparent;
+  border: 0;
+  border-radius: 4px;
+  box-shadow: none;
+  cursor: pointer;
+  transform: translateY(-50%);
+  transition: color 120ms ease, background-color 120ms ease, transform 80ms ease;
+}
+
+body.desk-app[data-theme] .desk-stepper__button--down { left: 4px; }
+body.desk-app[data-theme] .desk-stepper__button--up { right: 4px; }
+
+body.desk-app[data-theme] .desk-stepper__button svg {
+  width: 12px;
+  height: 12px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+}
+
+body.desk-app[data-theme] .desk-stepper__button:hover {
+  color: var(--desk-color-accent);
+  background: color-mix(in oklab, var(--desk-color-accent), transparent 90%);
+}
+
+body.desk-app[data-theme] .desk-stepper__button:active {
+  transform: translateY(-50%) scale(0.92);
+}
+
+body.desk-app[data-theme] .desk-stepper:has(> input:is(:disabled, [readonly])) .desk-stepper__button {
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body.desk-app[data-theme] .desk-stepper__button { transition: none; }
+}

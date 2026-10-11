@@ -75,8 +75,8 @@
     "sha256": "fd02712bde9d955beaa733728655de4b6af456f1d58103fe4f76ab0d7aeb6ec9"
    },
    "scripts/desktop-canvas-krea2.js": {
-    "v": "20261009-generation-action-unify1",
-    "sha256": "bb5dd0453a7d803c570fad8cf4ba85c94182937bcf5b50d5cc1c00c34348a7aa"
+    "v": "20261011-select-stepper1",
+    "sha256": "d1895acf3756e850a8b8c7c9be1f885ef67505971cd9139c062f3ed79490a08f"
    },
    "scripts/desktop-canvas-lora.js": {
     "v": "20261002-lora-library3",
@@ -111,8 +111,8 @@
     "sha256": "20891a7f17d01e340e233112673c4745ca80065023565735ed99e7769626c8f2"
    },
    "scripts/desktop-canvas-qwen21.js": {
-    "v": "20261011-qwen-turbo8",
-    "sha256": "93e5a779365be19733afa58ca4d4bc74643de02bfe9e299b81c47adfb8ec778f"
+    "v": "20261011-select-stepper1",
+    "sha256": "20b2001826a485e7a9305ec48239470587005eea175423b3795ee03cd1647070"
    },
    "scripts/desktop-canvas-references.js": {
     "v": "20260929-prompt-video1",
@@ -237,6 +237,10 @@
    "scripts/desktop-music-workflow.js": {
     "v": "20260917-music-chain1",
     "sha256": "359241a6bd84094904f94948e1513a7f51831d7ea694d1ee676aa68c250f8ceb"
+   },
+   "scripts/desktop-number-stepper.js": {
+    "v": "20261011-select-stepper2",
+    "sha256": "cd4dcfcae07982bedede4fbcd7a32d46cb05377419fb6f202b387dd074ed67bf"
    },
    "scripts/desktop-pose-studio.js": {
     "v": "20260705-pose-legacy-skeleton1",
@@ -411,8 +415,8 @@
     "sha256": "c62d88487639960c2d6cceafb5178fa40cb320e3927b3f1282bae721c3360c7a"
    },
    "styles/desktop-controls.css": {
-    "v": "20261009-settings-drawer2",
-    "sha256": "8c986d7f09a92ba1bf7ed0d03e02af1bb5a76d6300abee69eb06dbeba0386eb9"
+    "v": "20261011-select-stepper1",
+    "sha256": "071a71993f95802eccc2fb6bd51a48bb654f5d08a66cdbf0484283fd89e06656"
    },
    "styles/desktop-creation-tools.css": {
     "v": "20260831-status-silk2",
@@ -431,8 +435,8 @@
     "sha256": "b02e4926d2ea85aa2b43976c0b03b4147f35d6542f625fbe612477e5e0ac8dbe"
    },
    "styles/desktop-geometry.css": {
-    "v": "20261010-color-bloom1",
-    "sha256": "9dd6a7dfdf5dc333fb87e365ffec97d5e064b0dd46ee9972c99f36cd33654c59"
+    "v": "20261011-select-stepper1",
+    "sha256": "e4db89af659ef3c371c17aaec9b20a623eb0791af8c57a33d685ebd2503708eb"
    },
    "styles/desktop-image-group.css": {
     "v": "20261004-node-selection-frames1",
@@ -461,6 +465,10 @@
    "styles/desktop-music.css": {
     "v": "20261004-state-icons1",
     "sha256": "62056d9238020897f0cde259ea35c597099637ef41721c73151640d7a46020fe"
+   },
+   "styles/desktop-number-stepper.css": {
+    "v": "20261011-select-stepper1",
+    "sha256": "bdda8f74e6cbf5335079bb512168fe833ae110b063099bcbbba64f534508c6ec"
    },
    "styles/desktop-performance.css": {
     "v": "20261006-canvas-grid-isolation1",
@@ -511,8 +519,8 @@
     "sha256": "c7f4f566b12dbe87a6714def6a9352269dd98f05c887ada45b789d798b23aa4a"
    },
    "styles/desktop-video-control.css": {
-    "v": "20261004-state-icons1",
-    "sha256": "5760322adbd1f570d9658a5b895ecaa32a8f8ac0d17060b5ce66a96b8b2628fd"
+    "v": "20261011-select-stepper1",
+    "sha256": "d8874f93452cf13778737794acb161cccbcea2414df954e5cc0e4fab4ede7783"
    },
    "styles/desktop-video.css": {
     "v": "20260816-h3-supervisor-buttons1",

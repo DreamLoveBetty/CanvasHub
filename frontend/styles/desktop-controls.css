@@ -638,21 +638,53 @@ body.desk-app[data-theme] .desk-select-menu:not([data-select-variant="image-grou
   color: var(--desk-color-text-secondary);
 }
 
+/* Option rows are a quiet list: regular-weight ink, a faint wash on hover, and the
+   chosen row marked by a lit LED (the same lamp as segmented controls and switches)
+   instead of a filled command button. Every row carries the unlit lamp so labels stay
+   aligned. */
 body.desk-app[data-theme] .desk-select-menu:not([data-select-variant="image-group-role"]) .desk-select-option {
-  color: var(--desk-color-control-ink);
+  --desk-select-led: color-mix(in oklab, var(--desk-color-text-secondary), transparent 72%);
+  --desk-select-led-glow: transparent;
+  color: color-mix(in oklab, var(--desk-color-control-ink), transparent 14%);
+  font-weight: 500;
   transition: var(--desk-motion-control-transition);
+}
+
+body.desk-app[data-theme] .desk-select-menu:not([data-select-variant="image-group-role"]) .desk-select-option::before {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin: -2px 8px 0 1px;
+  vertical-align: middle;
+  border-radius: 50%;
+  background: var(--desk-select-led);
+  box-shadow: 0 0 0 2px var(--desk-select-led-glow);
+  transition: background-color 120ms ease, box-shadow 120ms ease;
 }
 
 body.desk-app[data-theme] .desk-select-menu:not([data-select-variant="image-group-role"]) .desk-select-option:hover:not(:disabled),
 body.desk-app[data-theme] .desk-select-menu:not([data-select-variant="image-group-role"]) .desk-select-option.is-highlighted:not(:disabled) {
-  color: var(--desk-color-accent);
-  background: var(--desk-color-accent-soft);
+  color: var(--desk-color-control-ink);
+  background: color-mix(in oklab, var(--desk-color-accent), transparent 93%);
 }
 
 body.desk-app[data-theme] .desk-select-menu:not([data-select-variant="image-group-role"]) .desk-select-option.is-selected:not(:disabled) {
-  color: var(--desk-action-primary-ink);
-  background: var(--desk-action-primary-gradient);
-  font-weight: var(--desk-font-weight-bold);
+  --desk-select-led: color-mix(in oklab, var(--desk-color-accent), white 12%);
+  --desk-select-led-glow: color-mix(in oklab, var(--desk-color-accent), transparent 80%);
+  color: var(--desk-color-control-ink);
+  background: color-mix(in oklab, var(--desk-color-accent), transparent 92%);
+  font-weight: 650;
+}
+
+body.desk-app[data-theme="dark"] .desk-select-menu:not([data-select-variant="image-group-role"]) .desk-select-option.is-selected:not(:disabled) {
+  --desk-select-led: #ff7f50;
+  --desk-select-led-glow: rgba(255, 127, 80, 0.22);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+body.desk-app[data-theme="dark"] .desk-select-menu:not([data-select-variant="image-group-role"]) .desk-select-option.is-selected:not(:disabled)::before {
+  box-shadow: 0 0 0 2px var(--desk-select-led-glow), 0 0 6px rgba(255, 127, 80, 0.75);
 }
 
 body.desk-app[data-theme] .desk-select-menu:not([data-select-variant="image-group-role"]) .desk-select-option:focus-visible {
@@ -692,6 +724,12 @@ body.desk-app[data-theme] .desk-prompt-panel textarea {
   background: var(--desk-color-control-bg);
   border-color: var(--desk-color-control-border);
   transition: var(--desk-motion-field-transition);
+}
+
+/* Node number / seed fields inherit the label's 16px otherwise; read them at the size of
+   the select triggers in the same parameter grid. */
+body.desk-app[data-theme] .desk-number {
+  font-size: 12px;
 }
 
 body.desk-app[data-theme] :where(
