@@ -140,7 +140,7 @@ test('desktop.html: body scope id, module before preferences, generated CSS befo
   const at = s => html.indexOf(s);
   assert.ok(at(`scripts/desktop-control-material.js?v=${VERSION}`) > 0);
   assert.ok(at('scripts/desktop-color-bloom.js?v=20261010-color-bloom1') > 0 && at('scripts/desktop-color-bloom.js?') < at('scripts/desktop-control-material.js?'));
-  assert.ok(at('scripts/desktop-control-material.js?') < at('scripts/desktop-preferences.js?v=20261010-release-26-3-1'));
+  assert.ok(at('scripts/desktop-control-material.js?') < at('scripts/desktop-preferences.js?v=20261011-release-26-4-0'));
   assert.ok(at('styles/desktop-progress.css?') < at('styles/desktop-ambient-controls.css?v=20261010-settings-keys1'));
   assert.ok(at('styles/desktop-ambient-controls.css?') < at('styles/desktop-control-material.css?v=20261010-glass-shadow1'));
   assert.ok(at('scripts/desktop-settings.js?v=20261011-progress-preview1') > 0);
