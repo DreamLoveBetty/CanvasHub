@@ -12,7 +12,7 @@ from mflux.models.common.schedulers import register_contrib
 from mflux.models.common.schedulers.base_scheduler import BaseScheduler
 from mflux.models.qwen21.reference import QwenImage21Edit
 
-from .profiles import viggle_sigmas
+from .profiles import turbo_sigmas, viggle_sigmas
 from .lora_store import canonical_lora_key, canonical_name
 from ..local_image.comfy_fp8 import read_safetensors_header
 from ..local_image.safetensors import save_safetensors_atomic
@@ -70,8 +70,16 @@ class ViggleTurboScheduler(BaseScheduler):
         return result.astype(latents.dtype)
 
 
+class DistilledTurboScheduler(ViggleTurboScheduler):
+    """Official Turbo checkpoint: its fixed 8 sigma nodes, no resolution shift."""
+
+    def __init__(self, config):
+        self._sigmas = mx.array(turbo_sigmas(config.num_inference_steps), dtype=mx.float32)
+
+
 def load_pipeline(model_path, loras, turbo):
     register_contrib(ViggleTurboScheduler, "canvas_viggle")
+    register_contrib(DistilledTurboScheduler, "canvas_turbo")
     config = copy.copy(ModelConfig.qwen_image_21())
     if turbo:
         config.sigma_shift_terminal = None

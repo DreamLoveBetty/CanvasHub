@@ -14,7 +14,7 @@ from ..local_image.task_queue import ImageTaskQueue
 from ..local_image.uploads import ImageUploads
 from .contracts import (DEFAULT_MODEL_ID, ENGINE, REVISION, TASK_TYPE, TERMINAL,
                         catalog, normalize_job, normalize_model_id)
-from .profiles import ADAPTERS, DEFAULT_PRESET, PRESETS, canonical_preset
+from .profiles import ADAPTERS, DEFAULT_PRESET, PRESETS, TURBO_PRESET, canonical_preset
 from .lora_store import LoRAStore
 from .model_store import BaseModelStore
 from .vae_store import VaeStore
@@ -149,7 +149,7 @@ class Service:
         else:
             if model_id != DEFAULT_MODEL_ID:
                 command.append("--shared-only")
-            if preset != "standard":
+            if preset in ADAPTERS:
                 command.extend(("--turbo", "--turbo-preset", preset))
         return self.preparation.start(command, Path(__file__).resolve().parents[2],
                                       {"base_model_id": model_id, "preset": preset})
@@ -164,8 +164,14 @@ class Service:
             vae = self.vaes.resolve()
             if not status.get("environment_ready") or not status.get("source_ready"):
                 raise RuntimeError("Qwen 共享环境或固定版本源码尚未就绪")
+            # A distilled Turbo Base has its own fixed schedule; it never mixes
+            # with the base 40-step schedule or a Viggle adapter, and vice versa.
+            distilled = model.get("sampling") == TURBO_PRESET
+            if distilled != (spec["preset"] == TURBO_PRESET):
+                raise ValueError("Turbo 蒸馏 Base 只能使用「Turbo · 8 步」" if distilled
+                                 else "「Turbo · 8 步」仅适用于 Turbo 蒸馏 Base")
             adapter_ready = status.get("turbo_adapters", {}).get(spec["preset"], status.get("turbo_ready"))
-            if spec["preset"] != "standard" and not adapter_ready:
+            if spec["preset"] in ADAPTERS and not adapter_ready:
                 raise RuntimeError("Viggle 加速适配器尚未准备")
             resolved, public = [], []
             for item in spec["loras"]:
@@ -190,6 +196,8 @@ class Service:
                               vae_id=vae["id"], vae_name=vae["name"], vae_sha256=vae["sha256"],
                               vae_format=vae["format"],
                               reference_count=len(references), precision=model["precision"])
+                if model.get("text_encoder"):
+                    params.update(text_encoder=model["text_encoder"]["id"])
                 (directory / "submission.json").write_text(json.dumps(worker_spec, ensure_ascii=False, indent=2) + "\n")
                 self.queue.enqueue(task_id, worker_spec, lambda: self.create_task(
                     task_id, spec["prompt"], params, status="queued", task_type=TASK_TYPE))

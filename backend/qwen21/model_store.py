@@ -10,14 +10,19 @@ import time
 
 from ..local_image.comfy_fp8 import inspect_comfy_scaled_fp8, read_safetensors_header
 from ..local_image.safetensors import estimate_bf16_bytes, validate_bf16_safetensors
+from . import text_encoder
 from .contracts import DEFAULT_MODEL_ID, EXPORT_FORMATS, MODEL_REPO, MODEL_REVISION, normalize_model_id
-from .weight_schema import expected_shapes, match_header
+from .profiles import TURBO_PRESET
+from .weight_schema import expected_shapes, match_header, match_native_bf16
 
 MODEL_BYTES = 17_799_746_851
 TRANSFORMER_BYTES = 7_655_273_899
 BUILTIN_FILES = json.loads(Path(__file__).with_name("model_files.json").read_text())
 OUTPUT_BYTES = {"8bit": TRANSFORMER_BYTES,
                 "bf16": estimate_bf16_bytes({key: {"shape": shape} for key, shape in expected_shapes().items()})}
+
+
+NATIVE_FORMAT = "mflux-native"
 
 
 def clean_name(value):
@@ -27,6 +32,24 @@ def clean_name(value):
 def shared_model_file(name):
     """Pinned shared components plus the architecture config used by conversion."""
     return not name.startswith("transformer/") or name == "transformer/config.json"
+
+
+def validate_native_transformer(folder):
+    """Bounded header proof for a sharded MFLUX-native BF16 Transformer."""
+    transformer = Path(folder) / "transformer"
+    index = json.loads((transformer / "model.safetensors.index.json").read_text())
+    shards = sorted(set((index.get("weight_map") or {}).values()))
+    if not shards or any(Path(name).name != name or not name.endswith(".safetensors") for name in shards):
+        raise ValueError("原生 Transformer 索引无效")
+    tensors = {}
+    for name in shards:
+        header = read_safetensors_header(transformer / name)
+        if header.metadata.get("quantization_level") != "None" or set(header.tensors) & set(tensors):
+            raise ValueError("原生 Transformer 分片不是未量化 BF16")
+        tensors.update(header.tensors)
+    if set(tensors) != set(index["weight_map"]):
+        raise ValueError("原生 Transformer 索引与分片不一致")
+    return match_native_bf16(tensors)
 
 
 class BaseModelStore:
@@ -81,7 +104,8 @@ class BaseModelStore:
     @staticmethod
     def _public(item):
         keys = ("id", "name", "label", "precision", "quantization", "group_size", "ready", "verified", "builtin", "file_size",
-                "created_at", "reference_capable", "source_name", "source_format", "requantized", "verification")
+                "created_at", "reference_capable", "source_name", "source_format", "requantized", "verification",
+                "sampling", "text_encoder")
         return {key: item[key] for key in keys if key in item}
 
     def _read(self, folder, *, shared_only=False):
@@ -101,11 +125,17 @@ class BaseModelStore:
             files = value.get("verified_files") or {}
             if not isinstance(files, dict) or not files:
                 return None
+            # A verified BF16 replacement owns text_encoder/*; its record, not the
+            # 8-bit pins, proves those files (text_encoder.read raises if invalid).
+            replaced = bool(value.get("builtin")) and text_encoder.read(folder) is not None
+
+            def skipped(name):
+                return replaced and name.startswith("text_encoder/")
             for name, proof in files.items():
                 if (not isinstance(name, str) or Path(name).is_absolute() or ".." in Path(name).parts
                         or not isinstance(proof, dict)):
                     return None
-                if shared_only and not shared_model_file(name):
+                if (shared_only and not shared_model_file(name)) or skipped(name):
                     continue
                 file = folder / name
                 if file.is_symlink() or not file.is_file():
@@ -124,7 +154,8 @@ class BaseModelStore:
                 expected = BUILTIN_FILES
                 if value.get("shared_only"):
                     expected = [item for item in expected if shared_model_file(item["rfilename"])]
-                if set(files) != {item["rfilename"] for item in expected}:
+                expected = [item for item in expected if not skipped(item["rfilename"])]
+                if {name for name in files if not skipped(name)} != {item["rfilename"] for item in expected}:
                     return None
                 if any(files[item["rfilename"]].get("size") != item["size"] or
                        files[item["rfilename"]].get("sha256", "") != (item.get("lfs") or {}).get("sha256", "")
@@ -133,11 +164,20 @@ class BaseModelStore:
                 ready = True
             else:
                 proof = value.get("verification") or {}
-                if not (proof.get("strict_load") is True and proof.get("strict_reload") is True
-                        and value.get("quantized_linear_count") == EXPORT_FORMATS[value["precision"]]["quantized_linear_count"]
-                        and "transformer/0.safetensors" in files):
+                if value.get("sampling") not in (None, TURBO_PRESET):
                     return None
-                if value["precision"] == "bf16":
+                if value.get("source_format") == NATIVE_FORMAT:
+                    if not (proof.get("pinned_checksums") is True and value["precision"] == "bf16"
+                            and value.get("quantized_linear_count") == 0
+                            and "transformer/model.safetensors.index.json" in files):
+                        return None
+                    if validate_native_transformer(folder) != 297:
+                        return None
+                elif not (proof.get("strict_load") is True and proof.get("strict_reload") is True
+                          and value.get("quantized_linear_count") == EXPORT_FORMATS[value["precision"]]["quantized_linear_count"]
+                          and "transformer/0.safetensors" in files):
+                    return None
+                elif value["precision"] == "bf16":
                     if (value.get("source_tensor_count") != 297 or value.get("output_tensor_count") != 297
                             or value.get("group_size") is not None):
                         return None
@@ -150,7 +190,7 @@ class BaseModelStore:
                         return None
             name = clean_name(value.get("name"))
             label = f"{name}（BF16）" if value["precision"] == "bf16" else name
-            return {**value, "name": name, "label": label,
+            return {**value, "name": name, "label": label, "text_encoder": self._text_encoder(),
                     "ready": ready, "verified": True, "path": folder.resolve()}
         except (OSError, TypeError, ValueError, RecursionError):
             return None
@@ -165,6 +205,16 @@ class BaseModelStore:
                   if not folder.name.startswith(".") and folder.name != DEFAULT_MODEL_ID
                   for item in [self._read(folder)] if item]
         return [self._public(item) for item in ([*custom] if self.builtin_removed else [builtin, *custom])]
+
+    def _text_encoder(self):
+        # Display only: readiness already fails closed through the shared read.
+        try:
+            return text_encoder.public(self.shared)
+        except (OSError, TypeError, ValueError):
+            return {"id": "invalid", "precision": None, "label": "文本编码器校验失败"}
+
+    def shared_ready(self):
+        return self._read(self.shared, shared_only=True) is not None
 
     def resolve(self, model_id):
         model_id = normalize_model_id(model_id or self.selection()["default_model_id"])
@@ -283,6 +333,54 @@ class BaseModelStore:
         item = self._read(final)
         if not item:
             raise RuntimeError("转换结果注册验证失败")
+        return self._public(item)
+
+    def publish_native(self, stage, *, model_id, name, sampling, bundle, checksums):
+        """Register an already verified, pinned MFLUX-native BF16 Transformer.
+
+        The caller proves bytes against pinned checksums; this owns schema proof,
+        shared-component links and atomic publication, as for conversions.
+        """
+        stage = Path(stage).resolve()
+        if stage.parent != self.staging.resolve() or stage.is_symlink():
+            raise RuntimeError("导入暂存目录无效")
+        if sampling not in (None, TURBO_PRESET):
+            raise RuntimeError("未知采样方式")
+        model_id = normalize_model_id(model_id)
+        final = self.directory / model_id
+        if final.exists() or final.is_symlink():
+            previous = self._read(final)
+            if previous and previous.get("bundle") == bundle:
+                shutil.rmtree(stage)
+                return self._public(previous)
+            raise RuntimeError("目标模型目录已存在，保留原模型")
+        tensor_count = validate_native_transformer(stage)
+        files = {}
+        for file in sorted(stage.rglob("*")):
+            if file.is_symlink():
+                raise RuntimeError("导入输出不应含符号链接")
+            if file.is_file():
+                relative = file.relative_to(stage).as_posix()
+                stat = file.stat()
+                files[relative] = {"size": stat.st_size, "mtime_ns": stat.st_mtime_ns,
+                                   **({"sha256": checksums[relative]} if relative in checksums else {})}
+        for component in ("vae", "text_encoder", "processor"):
+            (stage / component).symlink_to(self.shared / component, target_is_directory=True)
+        manifest = {"schema_version": 1, "id": model_id, "name": clean_name(name),
+                    "architecture": "qwen-image-2.1", "precision": "bf16", "group_size": None,
+                    "quantization": EXPORT_FORMATS["bf16"]["label"], "reference_capable": True,
+                    "builtin": False, "created_at": int(time.time()), "source_name": bundle["repo"],
+                    "source_format": NATIVE_FORMAT, "requantized": False, "sampling": sampling,
+                    "bundle": bundle, "quantized_linear_count": 0,
+                    "source_tensor_count": tensor_count, "output_tensor_count": tensor_count,
+                    "verification": {"pinned_checksums": True, "tensor_schema": True}, "verified_files": files,
+                    "file_size": sum(proof["size"] for key, proof in files.items() if key.endswith(".safetensors")),
+                    "shared_components": {"repo": MODEL_REPO, "revision": MODEL_REVISION}}
+        (stage / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n")
+        os.replace(stage, final)
+        item = self._read(final)
+        if not item:
+            raise RuntimeError("导入模型注册验证失败")
         return self._public(item)
 
     def delete(self, model_id):

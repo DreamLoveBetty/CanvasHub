@@ -31,6 +31,9 @@
   the quantized Base. Switching model/LoRA signatures reloads the child model.
 - `service.py` owns uploads, its bounded task queue, task DB projection and
   result archiving. Task reads/cancellation still honor the existing task API.
+- `text_encoder.py` owns the shared text-encoder variant record, in-place swap and
+  rollback (no MLX). `bundle_import.py` is the operator CLI that verifies the pinned
+  Turbo bundle and calls `model_store.publish_native` / `text_encoder.activate`.
 - `backend/local_image` owns architecture-neutral checkpoint/LoRA and worker
   supervision helpers; it must not depend on Krea or Qwen.
 - `backend/runtime_resources.py` owns the cross-domain POSIX lease and an
@@ -194,3 +197,46 @@ router; existing model-tools GET includes VAE options/inbox/selection/errors.
 MLX remains worker-only. Settings → Model Tools owns the selection UI, through
 `desktop-qwen21-api.js` and `desktop-qwen21-tools.js`; no extra node height or
 changes to Krea/YuE, Telegram delivery, Base conversion or inference environment.
+
+## Official Turbo Base and shared BF16 text encoder
+
+Source: `vanch007/Qwen-Image-2.1-Turbo-Heretic-mlx-bf16` revision
+`1ac68b7ede726b22ea3ace1fa6f03062450e4649` (official Qwen-Image-2.1-Turbo DiT,
+Heretic text encoder, original VAE; native MFLUX BF16). `turbo_bundle_files.json`
+pins the 20 used files (size + SHA256/blob id). Import from a local download:
+
+```bash
+.venv/bin/python -m backend.qwen21.bundle_import --source <downloaded repo directory>
+.venv/bin/python -m backend.qwen21.bundle_import --restore-text-encoder   # rollback
+```
+
+It refuses while any Qwen task is queued/running, never modifies the source and
+uses APFS clones (`cp -c`) where possible. Restart the backend after code changes;
+data changes are picked up without a restart.
+
+- **Transformer** → Base `qwen-image-2.1-turbo-heretic-bf16`, manifest
+  `source_format: "mflux-native"`, `sampling: "turbo-8"`. Readiness checks the 297
+  raw tensor names/shapes as unpacked BF16 across all shards (no strict-reload claim:
+  bytes are proven by pinned checksums instead).
+- **Preset `turbo-8`** («Turbo · 8 步») is a distilled schedule, not an adapter. It
+  uses the checkpoint `sample_sigmas` verbatim (its scheduler has
+  `use_dynamic_shifting=false, shift=1.0`: no resolution shift, unlike Viggle), fixed
+  8 steps, CFG=1, no negative prompt, up to 10 references. A `turbo-8` Base accepts
+  only this preset and this preset requires such a Base (service + canvas enforce
+  both); no Viggle file is needed or downloaded.
+- **Text encoder**: the bundle encoder is the unquantized source of the shared 8-bit
+  Heretic encoder (dequantized cos ≈ 0.99997), so it replaces it for *all* Bases.
+  `shared/text_encoder` is swapped in place; the 8-bit copy moves to
+  `.text_encoder-8bit-backup/`; `.text-encoder.json` proves the BF16 files and
+  replaces the 8-bit pins for readiness. `generation_head.safetensors` (restored
+  `lm_head` + final norm) is excluded and removed from the index: the pinned loader's
+  strict check rejects those keys and image generation never reads them. Shared
+  preparation skips `text_encoder/*` while the record exists; a changed file fails
+  closed. Without the backup (it may be deleted to save 8.2 GB), returning to 8-bit
+  means removing the record and `text_encoder/`, then re-running shared preparation.
+  Worker cache signatures include the encoder index, so a warm pipeline
+  reloads after a swap. Task params record `text_encoder`.
+- VAE/processor in the bundle are tensor/byte-identical to the shared ones and are
+  not duplicated; the independently selected VAE still applies.
+- Measured on the development Mac (M-series, 96 GB): BF16 Transformer + BF16 encoder
+  peak ≈ 46 GB; 1024² T2I ≈ 85 s, 832×1248 ≈ 67 s, one-reference edit ≈ 166 s.

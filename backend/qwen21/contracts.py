@@ -5,7 +5,7 @@ import math
 import re
 import secrets
 
-from .profiles import ADAPTERS, DEFAULT_PRESET, LEGACY_PRESETS, PRESETS, canonical_preset
+from .profiles import ADAPTERS, DEFAULT_PRESET, LEGACY_PRESETS, PRESETS, TURBO_PRESET, canonical_preset
 
 REVISION = "adcbe85975760d545ca142069713781929898be0"
 TASK_TYPE = "qwen21-image"
@@ -82,7 +82,7 @@ def normalize_job(body):
     if preset not in PRESETS:
         raise ValueError("未知 Qwen 推理预设")
     tokens = body.get("reference_upload_tokens") or []
-    limit = 10 if preset == "standard" else 3
+    limit = PRESETS[preset]["max_references"]
     if not isinstance(tokens, list) or len(tokens) > limit or any(
             not isinstance(x, str) or not re.fullmatch(r"[0-9a-f]{32}", x) for x in tokens):
         raise ValueError(f"该预设最多支持 {limit} 张有效参考图")
@@ -95,13 +95,14 @@ def normalize_job(body):
     if width % 32 or height % 32:
         raise ValueError("宽度和高度必须为 32 的倍数")
     default_steps = LEGACY_PRESETS.get(requested_preset, (preset, PRESETS[preset]["steps"]))[1]
-    steps = integer(body.get("steps", default_steps), "步数", PRESETS[preset]["min_steps"], 60)
+    steps = integer(body.get("steps", default_steps), "步数", PRESETS[preset]["min_steps"],
+                    PRESETS[preset]["max_steps"])
     guidance = number(body.get("guidance", 1), "CFG", 1, 10)
     negative = str(body.get("negative_prompt") or "").strip()
     if len(negative) > 20_000:
         raise ValueError("负向提示词过长")
     if preset != "standard" and (guidance != 1 or negative):
-        raise ValueError("Viggle 须使用 CFG=1，且不支持负向提示词")
+        raise ValueError("Viggle / Turbo 须使用 CFG=1，且不支持负向提示词")
     raw_loras = body.get("loras") or []
     if not isinstance(raw_loras, list) or len(raw_loras) > MAX_LORAS:
         raise ValueError(f"最多添加 {MAX_LORAS} 个普通 LoRA")
@@ -132,7 +133,7 @@ def catalog(models=()):
     return {"models": list(models), "presets": [{"id": key, **value} for key, value in PRESETS.items()],
             "aspect_ratios": list(ASPECT_RATIOS),
             "limits": {"width": [256, 2048], "height": [256, 2048], "dimension_multiple": 32,
-                       "lora_count": MAX_LORAS, "references": {"standard": 10, "viggle": 3}},
+                       "lora_count": MAX_LORAS, "references": {"standard": 10, "viggle": 3, "turbo": PRESETS[TURBO_PRESET]["max_references"]}},
             "defaults": {"mode": "text", "preset": DEFAULT_PRESET, "base_model_id": DEFAULT_MODEL_ID,
                          "width": 1024, "height": 1024, "steps": 6, "guidance": 1,
                          "image_count": 1, "aspect_ratio": "1:1"}}

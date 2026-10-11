@@ -20,6 +20,7 @@ from .profiles import ADAPTERS, DEFAULT_PRESET, canonical_preset
 from .environment import environment_ready, source_path, turbo_path
 from .source_adapter import TARGETS, apply as apply_source_adapter, recognized
 from .model_store import BaseModelStore, shared_model_file
+from . import text_encoder
 
 PREFIX = "QWEN21_EVENT "
 FILES = json.loads(Path(__file__).with_name("model_files.json").read_text())
@@ -70,8 +71,11 @@ def _headers(endpoint):
 def prepare_model(data, endpoint, *, shared_only=False):
     store = BaseModelStore(Path(data) / "assets", Path(data))
     shared_only = shared_only or store.builtin_removed
-    files = [item for item in FILES if not shared_only or shared_model_file(item["rfilename"])]
     destination = Path(data) / "assets" / "base_models" / DEFAULT_MODEL_ID
+    # A verified BF16 encoder replacement is kept; an invalid record raises here.
+    replaced = text_encoder.read(destination) is not None
+    files = [item for item in FILES if (not shared_only or shared_model_file(item["rfilename"]))
+             and not (replaced and item["rfilename"].startswith("text_encoder/"))]
     destination.mkdir(parents=True, exist_ok=True)
     total = sum(item["size"] for item in files)
     remaining = total - sum(min((destination / x["rfilename"]).stat().st_size, x["size"])

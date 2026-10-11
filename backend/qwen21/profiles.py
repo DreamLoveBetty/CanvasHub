@@ -20,15 +20,45 @@ ADAPTERS = {
         "revision": "bb26a0f38e5fe6c124aaccc9187a87eed5d9ed13", "size": 679_604_800,
         "sha256": "bafb91d0047df3f9b8a5a850b0c967f051164314d8aad778dfa34d9c24ec345b"},
 }
-PRESETS = {"standard": {"label": "标准 · 默认 40 步", "steps": 40, "guidance": 1.0, "min_steps": 2}}
-PRESETS.update({key: {"label": value["label"], "steps": 6, "guidance": 1.0, "min_steps": 5}
+# Official Qwen-Image-2.1-Turbo schedule (checkpoint model_index.json sample_sigmas).
+# Its scheduler disables dynamic shifting with shift=1.0, so these nodes are used
+# as-is: never resolution-shifted like Viggle, never re-spaced like the base model.
+TURBO_PRESET = "turbo-8"
+TURBO_SIGMAS = (1.0, 0.978453, 0.95418, 0.926626, 0.89508, 0.845148, 0.704534, 0.414568)
+PRESETS = {"standard": {"label": "标准 · 默认 40 步", "steps": 40, "guidance": 1.0, "min_steps": 2,
+                        "max_steps": 60, "max_references": 10}}
+PRESETS.update({key: {"label": value["label"], "steps": 6, "guidance": 1.0, "min_steps": 5,
+                      "max_steps": 60, "max_references": 3}
                 for key, value in ADAPTERS.items()})
+# Distilled checkpoint, not an adapter: valid only with a Base whose manifest
+# declares sampling=turbo-8, and such a Base accepts no other preset.
+PRESETS[TURBO_PRESET] = {"label": "Turbo · 8 步", "steps": len(TURBO_SIGMAS), "guidance": 1.0,
+                         "min_steps": len(TURBO_SIGMAS), "max_steps": len(TURBO_SIGMAS),
+                         "max_references": 10}
 LEGACY_PRESETS = {"viggle-6": (DEFAULT_PRESET, 6), "viggle-8": (DEFAULT_PRESET, 8)}
 
 
 def canonical_preset(value):
     value = str(value or DEFAULT_PRESET)
     return LEGACY_PRESETS.get(value, (value, None))[0]
+
+
+def preset_kind(value):
+    """standard = base 40-step linear; adapter = Viggle LoRA; distilled = Turbo Base."""
+    value = canonical_preset(value)
+    if value == "standard":
+        return "standard"
+    if value in ADAPTERS:
+        return "adapter"
+    if value == TURBO_PRESET:
+        return "distilled"
+    raise ValueError("未知 Qwen 推理预设")
+
+
+def turbo_sigmas(steps):
+    if isinstance(steps, bool) or steps != len(TURBO_SIGMAS):
+        raise ValueError(f"Turbo 蒸馏模型固定为 {len(TURBO_SIGMAS)} 步")
+    return [*TURBO_SIGMAS, 0.0]
 
 
 def raw_viggle_sigmas(steps):

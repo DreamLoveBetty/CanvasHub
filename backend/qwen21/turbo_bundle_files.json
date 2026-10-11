@@ -1,0 +1,147 @@
+[
+  {
+    "rfilename": "model_index.json",
+    "blobId": "cdc1dae2997ff637225c42c388196b38a9bbaae8",
+    "size": 578
+  },
+  {
+    "rfilename": "text_encoder/0.safetensors",
+    "blobId": "9751e0db02349df98c86f2e483d55afe1ae7a55c",
+    "size": 2100352252,
+    "lfs": {
+      "sha256": "b34394f25acd824f01827b6377d8659041b7399f40cf3097f0c9b356476aef11"
+    }
+  },
+  {
+    "rfilename": "text_encoder/1.safetensors",
+    "blobId": "c1f495d848e88732505d43d3ef3f5e67a92417e9",
+    "size": 2130797983,
+    "lfs": {
+      "sha256": "7a23b69128ffa274242825b1a8af6663331116bb9b69a4696c19796ae00d8c96"
+    }
+  },
+  {
+    "rfilename": "text_encoder/2.safetensors",
+    "blobId": "2e06a5938e6f7855d6287ef95a67cc5aeb02f962",
+    "size": 2114038517,
+    "lfs": {
+      "sha256": "c69fc599a90469eaed2042ac0fcfddabc35ff75dab51f1eb7ab410e97eb841f8"
+    }
+  },
+  {
+    "rfilename": "text_encoder/3.safetensors",
+    "blobId": "2bb1e3223c1ffa0b376e96d5b02dd8f708c73492",
+    "size": 2130798040,
+    "lfs": {
+      "sha256": "eee639bfdc1488804a9cfd433317e31b6379f5067cc2f37d39499a3fc4f574c5"
+    }
+  },
+  {
+    "rfilename": "text_encoder/4.safetensors",
+    "blobId": "1cf8885b07442387c8691c8139737ab7388f73ae",
+    "size": 2114038566,
+    "lfs": {
+      "sha256": "cb57778b64e1bcb97dffa4ca3763eb7584c768eb81a38aa2396addfb0ae79fec"
+    }
+  },
+  {
+    "rfilename": "text_encoder/5.safetensors",
+    "blobId": "3c1bd330fca816a78bf925627e539a925b237307",
+    "size": 2130798044,
+    "lfs": {
+      "sha256": "6629cc8b067bdf5020a339cfae5dab5bb40005cbd3065f54ecc34746099375c3"
+    }
+  },
+  {
+    "rfilename": "text_encoder/6.safetensors",
+    "blobId": "35295e2f23d719caa508f79c77d253054b4cba25",
+    "size": 2114038564,
+    "lfs": {
+      "sha256": "5d98f35ba18ed2bb00a6ccdbfc6e69344cc4ce6e76f2c5ede7a3bd99bc995c31"
+    }
+  },
+  {
+    "rfilename": "text_encoder/7.safetensors",
+    "blobId": "9925010204b43091d45bbae6d8771b0ab75c78fb",
+    "size": 1454804955,
+    "lfs": {
+      "sha256": "3ca12e42c4d9727823e188f58c561e7957bebb19c1bf25e41e6701d8060db134"
+    }
+  },
+  {
+    "rfilename": "text_encoder/config.json",
+    "blobId": "450f4713871553e8cca1e653f5dd41014fad76df",
+    "size": 1642
+  },
+  {
+    "rfilename": "text_encoder/model.safetensors.index.json",
+    "blobId": "491bf95c76f0c6b45ea5d16f88c848b68f924ec7",
+    "size": 49191
+  },
+  {
+    "rfilename": "transformer/0.safetensors",
+    "blobId": "0289ff2881f12af18b58ad68b221bd47362bc368",
+    "size": 2116567082,
+    "lfs": {
+      "sha256": "85e5bbca329de5678b31bfa0557dc7dc5f98acee3cad85fe94039352fbb50015"
+    }
+  },
+  {
+    "rfilename": "transformer/1.safetensors",
+    "blobId": "71755514ba90814ee69eec01762aedfe9566b58b",
+    "size": 2113936125,
+    "lfs": {
+      "sha256": "d24e3d7e36e204044f4eace5f87aec887f76aeb0c74f220a8839937552afa9a0"
+    }
+  },
+  {
+    "rfilename": "transformer/2.safetensors",
+    "blobId": "3494d958ef680e8a23419d04d8278d26a285b5b8",
+    "size": 2113936901,
+    "lfs": {
+      "sha256": "1f1301b04c8cacc0f0ae425da8d9a09e6ba67f4f71bc339a533ff3fe969eff78"
+    }
+  },
+  {
+    "rfilename": "transformer/3.safetensors",
+    "blobId": "ea6c68e3b3f15f0e9566af38ebd455765313caa0",
+    "size": 2080382584,
+    "lfs": {
+      "sha256": "dfafab8e501fbd456c58247a611fb645d289ce732ba908bb8ca97f4799beaf64"
+    }
+  },
+  {
+    "rfilename": "transformer/4.safetensors",
+    "blobId": "6bcd24a5e0795f702cde8013c9c2fa7d1c4e7b76",
+    "size": 2080382551,
+    "lfs": {
+      "sha256": "e13cc6c4d813148074c7f301a7dfb2e1020151c7d9483ad84a5bdeb37c845bbf"
+    }
+  },
+  {
+    "rfilename": "transformer/5.safetensors",
+    "blobId": "f03a5efb8da793dc8f05086b352d9ecf62354909",
+    "size": 2080382573,
+    "lfs": {
+      "sha256": "85762e7844a0c4bac64a0dd272fe2893acc273fd5aab35febc396e80c4ca8b3b"
+    }
+  },
+  {
+    "rfilename": "transformer/6.safetensors",
+    "blobId": "07e97aff0c794ff305d320a89ca1bbcad8ace581",
+    "size": 1644696781,
+    "lfs": {
+      "sha256": "62fe34b9f7832059bb69529d0f1d0026ed21bd10823d67a1194b7f86fe6838bc"
+    }
+  },
+  {
+    "rfilename": "transformer/config.json",
+    "blobId": "8069f812c11f5a0b2724e2e57362846e796bebbf",
+    "size": 369
+  },
+  {
+    "rfilename": "transformer/model.safetensors.index.json",
+    "blobId": "2936c68a2db382a079de9f2339690a1a0a5f1023",
+    "size": 19327
+  }
+]

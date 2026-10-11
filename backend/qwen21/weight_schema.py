@@ -45,3 +45,18 @@ def match_header(tensors, *, allow_auxiliary=False):
                 raise ValueError("源模型包含非 Qwen 2.1 Transformer 张量：" + ", ".join(sorted(extra)[:3]))
             return prefix
     raise ValueError("文件不含完整的 Qwen-Image 2.1 Transformer，或参数名称/shape 不匹配")
+
+
+def match_native_bf16(tensors):
+    """MFLUX-saved BF16 Transformer: exact raw names/shapes, no packed tensors.
+
+    Native exports keep the raw `modulation.1.` key that the pinned loader
+    normalizes itself, so names are compared without any prefix wrapper.
+    """
+    expected = expected_shapes()
+    if set(tensors) != set(expected):
+        raise ValueError("原生 Transformer 张量名称与 Qwen-Image 2.1 不一致")
+    for key, item in tensors.items():
+        if item["dtype"] != "BF16" or tuple(item["shape"]) != expected[key]:
+            raise ValueError(f"原生 Transformer 张量 {key} 精度或 shape 不符")
+    return len(tensors)

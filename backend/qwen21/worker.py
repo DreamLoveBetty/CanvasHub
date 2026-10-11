@@ -12,6 +12,8 @@ import traceback
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from backend.qwen21.contracts import REVISION
 from backend.qwen21.environment import source_path, turbo_path
+from backend.qwen21.profiles import preset_kind
+from backend.qwen21 import text_encoder
 from backend.qwen21.runtime import PREFIX
 
 
@@ -41,13 +43,14 @@ class Worker:
         spec = request["spec"]
         model = spec["model"]
         preset = spec["preset"]
-        turbo = preset != "standard"
+        kind = preset_kind(preset)
         loras = list(spec.get("loras") or [])
-        if turbo:
+        if kind == "adapter":
             loras.insert(0, {"path": str(turbo_path(self.component, preset)), "scale": 1.0})
         files = [(str(x["path"]), Path(x["path"]).stat().st_mtime_ns, float(x["scale"])) for x in loras]
         vae = spec.get("vae")
-        signature = (str(model["path"]), bool(turbo), tuple(files), vae_signature(vae))
+        signature = (str(model["path"]), kind, tuple(files), vae_signature(vae),
+                     text_encoder.signature(model["path"]))
         emit("progress", ratio=.02, stage="载入 " + model["name"])
         if cancel.exists():
             raise Cancelled()
@@ -59,7 +62,7 @@ class Worker:
             mx.set_cache_limit(1024**3)
             adapted_loras = prepare_loras(loras, self.component / "cache" / "loras")
             with model_view(model["path"], vae, self.component / "cache" / "vae-views") as path:
-                self.pipeline = load_pipeline(path, adapted_loras, turbo)
+                self.pipeline = load_pipeline(path, adapted_loras, kind != "standard")
             self.signature = signature
         load_seconds = time.monotonic() - load_started
         emit("progress", ratio=.12, stage="模型载入完成")
@@ -101,7 +104,8 @@ class Worker:
                 negative_prompt=spec.get("negative_prompt") if spec["guidance"] > 1 else None,
                 image_paths=spec.get("references") or [], output_resolution=1024,
                 reference_resolution=spec.get("reference_resolution", 1024),
-                scheduler="canvas_viggle" if turbo else "linear", independent_edit_noise=True)
+                scheduler={"adapter": "canvas_viggle", "distilled": "canvas_turbo"}.get(kind, "linear"),
+                independent_edit_noise=True)
             elapsed = time.monotonic() - inference_started
             denoise_seconds += loop_times["seconds"]
             inference_seconds += max(0, elapsed - loop_times["seconds"])
