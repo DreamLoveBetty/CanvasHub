@@ -451,8 +451,8 @@
     "sha256": "e81be613d73a7bd9b8e59ebbdd922fc82f6355505ef610d3a8f187be17514c67"
    },
    "styles/desktop-liquid.css": {
-    "v": "20261012-select-prune2",
-    "sha256": "5993f0b00d06a2c94eecbab77bfd9fbe3d0b2d7778718f938cd813154d789b38"
+    "v": "20261012-button-prune2",
+    "sha256": "3bc1fa91c5c376955b66ce03f8c9c5137b7f8f45a1601d691079e3143c7372ec"
    },
    "styles/desktop-lora.css": {
     "v": "20261003-lora-quick-add1",
