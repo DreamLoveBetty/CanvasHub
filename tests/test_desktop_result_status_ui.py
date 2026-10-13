@@ -184,7 +184,9 @@ class DesktopResultStatusUiTest(unittest.TestCase):
 
     def test_titlebar_uses_canvasgpt_motion_logo_without_traffic_dots(self):
         html = read_text("desktop.html")
-        css = read_legacy_css()
+        # The rail icon motion moved from the legacy shell styles to the shell geometry module.
+        css = read_legacy_css() + "\n" + read_text("styles/desktop-shell-geometry.css")
+        shell_css = read_text("styles/desktop-shell.css")
         tokens_css = read_text("styles/desktop-tokens.css")
         canvas_css = read_text("styles/desktop-canvas-nodes.css")
         prefs_js = read_text("scripts/desktop-preferences.js")
@@ -203,8 +205,8 @@ class DesktopResultStatusUiTest(unittest.TestCase):
         self.assertNotIn('class="desk-titlebar-logo__spark"', html)
         self.assertNotIn('class="desk-titlebar-logo__dot"', html)
         self.assertRegex(css, r"\.desk-titlebar\s*\{[^}]*height:\s*36px;")
-        self.assertRegex(css, r"\.desk-titlebar-logo\s*\{[^}]*width:\s*141px;[^}]*height:\s*30px;[^}]*pointer-events:\s*none;")
-        self.assertRegex(css, r"\.desk-titlebar-logo__image\s*\{[^}]*width:\s*100%;[^}]*height:\s*100%;[^}]*object-fit:\s*contain;")
+        self.assertRegex(shell_css, r"\.desk-titlebar-logo\s*\{[^}]*width:\s*141px;[^}]*height:\s*30px;[^}]*pointer-events:\s*none;")
+        self.assertRegex(shell_css, r"\.desk-titlebar-logo__image\s*\{[^}]*width:\s*100%;[^}]*height:\s*100%;[^}]*object-fit:\s*contain;")
         self.assertIn("@media (prefers-reduced-motion: reduce)", css)
         self.assertIn('id="deskThemeToggle"', html)
         self.assertIn('id="deskLanguageSelect"', html)
@@ -215,9 +217,10 @@ class DesktopResultStatusUiTest(unittest.TestCase):
         self.assertIn("setTheme", prefs_js)
         self.assertIn("setLanguage", prefs_js)
         self.assertIn("desktop:language-change", prefs_js)
-        self.assertRegex(css, r"\.desk-titlebar-actions\s*\{[^}]*position:\s*relative;[^}]*z-index:\s*2;")
-        self.assertRegex(css, r"\.desk-titlebar-actions\s*\{[^}]*margin-left:\s*auto;")
-        self.assertRegex(css, r"\.desk-titlebar-actions\s*\{[^}]*gap:\s*6px;")
+        self.assertRegex(shell_css, r"\.desk-titlebar-actions\s*\{[^}]*position:\s*relative;[^}]*z-index:\s*2;")
+        self.assertRegex(shell_css, r"\.desk-titlebar-actions\s*\{[^}]*margin-left:\s*auto;")
+        self.assertRegex(shell_css, r"\.desk-titlebar-actions\s*\{[^}]*gap:\s*var\(--desk-space-3\);")
+        self.assertIn("--desk-space-3: 6px;", tokens_css)
         self.assertRegex(css, r"\.desk-theme-toggle\s*\{[^}]*--desk-theme-toggle-width:\s*64px;[^}]*--desk-theme-toggle-height:\s*22px;[^}]*width:\s*var\(--desk-theme-toggle-width\);[^}]*height:\s*var\(--desk-theme-toggle-height\);[^}]*overflow:\s*hidden;")
         self.assertIn("--desk-theme-toggle-width: 64px;", css)
         self.assertIn("--desk-theme-toggle-height: 22px;", css)
@@ -355,7 +358,7 @@ class DesktopResultStatusUiTest(unittest.TestCase):
         canvas_sources = read_loaded_canvas_sources(self, html)
         viewport_js = canvas_sources["scripts/desktop-canvas-viewport.js"]
         history_js = read_text("scripts/desktop-history.js")
-        css = read_legacy_css()
+        css = read_legacy_css() + "\n" + read_text("styles/desktop-shell-geometry.css")
 
         assert_asset_has_cache_bust(self, html, "scripts/desktop-canvas.js")
         assert_asset_has_cache_bust(self, html, "scripts/desktop-history.js")
@@ -387,7 +390,7 @@ class DesktopResultStatusUiTest(unittest.TestCase):
         html = read_text("desktop.html")
         canvas_sources = read_loaded_canvas_sources(self, html)
         viewport_js = canvas_sources["scripts/desktop-canvas-viewport.js"]
-        css = read_legacy_css()
+        css = read_legacy_css() + "\n" + read_text("styles/desktop-shell-geometry.css")
 
         self.assertIn('aria-controls="deskZoomPresetMenu"', html)
         self.assertIn('role="menuitemradio" aria-checked="false" data-zoom-preset="0.3"', html)
@@ -397,6 +400,8 @@ class DesktopResultStatusUiTest(unittest.TestCase):
         self.assertIn("animation: desk-zoom-presets-rise 170ms cubic-bezier(0.2, 0.8, 0.2, 1);", css)
         self.assertIn("@keyframes desk-zoom-presets-rise", css)
         self.assertIn(".desk-zoom-presets button.is-active,", css)
+        # Open, the menu lays out as flex; the hidden attribute still wins (geometry layer).
+        self.assertRegex(read_text("styles/desktop-geometry.css"), r"\.desk-zoom-presets\[hidden\]\s*\{\s*display:\s*none !important;")
         self.assertIn("function updateZoomPresetButtons", viewport_js)
         self.assertIn("button.setAttribute('aria-checked', isActive ? 'true' : 'false');", viewport_js)
 

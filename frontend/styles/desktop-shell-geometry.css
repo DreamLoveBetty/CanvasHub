@@ -1,0 +1,340 @@
+/*
+ * Shell geometry and motion: rail item and icon motion, canvas surface and grid
+ * background, selection marquee / bounds / group button, canvas world, minimap and
+ * zoom controls, with their keyframes. Layout, borders by width and style, transforms
+ * and animation only; colours come from desktop-shell.css and desktop-canvas-nodes.css
+ * (theme tokens), which load after this file. No theme selectors, literal colours or
+ * important flags.
+ */
+
+body.desk-app[data-theme] .desk-rail__item:hover .desk-rail__glyph,
+body.desk-app[data-theme] .desk-rail__item:focus-visible .desk-rail__glyph {
+  transform: scale(1.12);
+}
+
+body.desk-app[data-theme] .desk-rail__item.is-active .desk-rail__glyph,
+body.desk-app[data-theme] .desk-rail__item[aria-expanded="true"] .desk-rail__glyph {
+  transform: scale(1.1);
+}
+
+body.desk-app[data-theme] .desk-rail__item:active .desk-rail__glyph {
+  transform: scale(0.98);
+}
+
+body.desk-app[data-theme] .desk-rail-icon__frame,
+body.desk-app[data-theme] .desk-rail-icon__cursor,
+body.desk-app[data-theme] .desk-rail-icon__flow,
+body.desk-app[data-theme] .desk-rail-icon__image,
+body.desk-app[data-theme] .desk-rail-icon__play,
+body.desk-app[data-theme] .desk-rail-icon__monitor,
+body.desk-app[data-theme] .desk-rail-icon__cog {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+body.desk-app[data-theme] .desk-rail-icon__frame path {
+  stroke-dasharray: 6 3;
+}
+
+body.desk-app[data-theme] .desk-rail__item[data-tool="select"]:hover .desk-rail__glyph,
+body.desk-app[data-theme] .desk-rail__item[data-tool="select"]:focus-visible .desk-rail__glyph {
+  transform: scale(1.15);
+}
+
+body.desk-app[data-theme] .desk-rail__item[data-tool="select"]:hover .desk-rail-icon__frame,
+body.desk-app[data-theme] .desk-rail__item[data-tool="select"]:focus-visible .desk-rail-icon__frame {
+  animation: desk-rail-dash-move 1.2s linear infinite;
+  transform: scale(0.94);
+}
+
+body.desk-app[data-theme] .desk-rail__item[data-tool="select"]:hover .desk-rail-icon__cursor,
+body.desk-app[data-theme] .desk-rail__item[data-tool="select"]:focus-visible .desk-rail-icon__cursor {
+  animation: desk-rail-cursor-capture 1.2s cubic-bezier(0.2, 0.8, 0.2, 1) infinite;
+}
+
+body.desk-app[data-theme] .desk-rail__item[data-tool="node"]:hover .desk-rail-icon__flow,
+body.desk-app[data-theme] .desk-rail__item[data-tool="node"]:focus-visible .desk-rail-icon__flow,
+body.desk-app[data-theme] .desk-rail__item[data-tool="node"][aria-expanded="true"] .desk-rail-icon__flow {
+  animation: desk-rail-flow 2s linear infinite;
+  stroke-dasharray: 120;
+}
+
+body.desk-app[data-theme] .desk-rail__item[data-tool="gallery"]:hover .desk-rail__glyph,
+body.desk-app[data-theme] .desk-rail__item[data-tool="gallery"]:focus-visible .desk-rail__glyph {
+  transform: scale(1.15);
+}
+
+body.desk-app[data-theme] .desk-rail__item[data-tool="gallery"]:hover .desk-rail-icon,
+body.desk-app[data-theme] .desk-rail__item[data-tool="gallery"]:focus-visible .desk-rail-icon {
+  animation: desk-rail-media-pulse 1.8s ease-in-out infinite;
+}
+
+body.desk-app[data-theme] .desk-rail__item[data-tool="gallery"]:hover .desk-rail-icon__play,
+body.desk-app[data-theme] .desk-rail__item[data-tool="gallery"]:focus-visible .desk-rail-icon__play {
+  animation: desk-rail-play-flash 1.8s ease-in-out infinite;
+}
+
+body.desk-app[data-theme] .desk-rail__item[data-tool="settings"]:hover .desk-rail-icon,
+body.desk-app[data-theme] .desk-rail__item[data-tool="settings"]:focus-visible .desk-rail-icon {
+  transform: rotate(8deg) scale(1.06);
+  transition-duration: 0.3s;
+}
+
+body.desk-app[data-theme] .desk-rail__item[data-tool="settings"]:hover .desk-rail-icon__cog,
+body.desk-app[data-theme] .desk-rail__item[data-tool="settings"]:focus-visible .desk-rail-icon__cog {
+  animation: desk-rail-cog-spin 2.5s linear infinite;
+}
+
+body.desk-app[data-theme] .desk-canvas {
+  position: absolute;
+  inset: 34px 0 34px 0;
+  cursor: default;
+  touch-action: none;
+  user-select: none;
+}
+
+/* Grid and edge-shade layer placement at the plain class weight, so the dark canvas
+   (no grid, cover) in the theme layers keeps winning. */
+:where(body.desk-app[data-theme]) .desk-canvas {
+  background-position: var(--canvas-grid-x, 0px) var(--canvas-grid-y, 0px),
+    var(--canvas-grid-x, 0px) var(--canvas-grid-y, 0px),
+    0 0,
+    0 100%;
+  background-repeat: repeat, repeat, no-repeat, no-repeat;
+  background-size: var(--canvas-grid-size, 20px) var(--canvas-grid-size, 20px),
+    var(--canvas-grid-size, 20px) var(--canvas-grid-size, 20px),
+    100% 18px,
+    100% 18px;
+}
+
+body.desk-app[data-theme] .desk-canvas.is-panning {
+  cursor: grabbing;
+}
+
+body.desk-app[data-theme] .desk-canvas.is-history-dragover {
+  outline-width: 1px;
+  outline-style: dashed;
+  outline-offset: -8px;
+}
+
+body.desk-app[data-theme] .desk-selection-marquee {
+  position: absolute;
+  z-index: 16;
+  display: none;
+  pointer-events: none;
+  border-width: 1px;
+  border-style: dashed;
+  border-radius: 6px;
+}
+
+body.desk-app[data-theme] .desk-selection-bounds {
+  position: absolute;
+  z-index: 17;
+  display: none;
+  pointer-events: none;
+  border-width: 1px;
+  border-style: solid;
+  border-radius: 8px;
+}
+
+body.desk-app[data-theme] .desk-selection-bounds__meta {
+  position: absolute;
+  top: 50%;
+  left: -10px;
+  display: grid;
+  gap: 6px;
+  min-width: 68px;
+}
+
+body.desk-app[data-theme] .desk-selection-group {
+  width: 100%;
+  min-width: 68px;
+  height: 26px;
+  padding: 0 9px;
+  pointer-events: auto;
+  font-size: 11px;
+  font-weight: 820;
+  border-width: 1px;
+  border-style: solid;
+  border-radius: 6px;
+  transition: background 0.16s ease, border-color 0.16s ease, color 0.16s ease, transform 0.12s ease;
+}
+
+body.desk-app[data-theme] .desk-selection-group:active {
+  transform: translateY(1px);
+}
+
+body.desk-app[data-theme] .desk-canvas-world {
+  position: absolute;
+  width: 1440px;
+  height: 820px;
+  transform-origin: 0 0;
+}
+
+body.desk-app[data-theme] .desk-minimap {
+  position: relative;
+  overflow: hidden;
+  opacity: 0;
+  border-width: 1px;
+  border-style: solid;
+  border-radius: 13px;
+}
+
+body.desk-app[data-theme] .desk-zoom-controls.is-pinned .desk-minimap {
+  height: var(--desk-minimap-open-height);
+  opacity: 1;
+}
+
+body.desk-app[data-theme] .desk-minimap__world {
+  position: absolute;
+  inset: 0;
+}
+
+body.desk-app[data-theme] .desk-minimap__viewport {
+  position: absolute;
+}
+
+body.desk-app[data-theme] .desk-minimap__node {
+  position: absolute;
+  min-width: 4px;
+  min-height: 3px;
+  border-width: 1px;
+  border-style: solid;
+  border-radius: 3px;
+}
+
+body.desk-app[data-theme] .desk-minimap__viewport {
+  border-width: 1px;
+  border-style: solid;
+  border-radius: 5px;
+  pointer-events: none;
+}
+
+body.desk-app[data-theme] .desk-zoom-presets {
+  position: absolute;
+  bottom: 46px;
+  left: 42px;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  width: 76px;
+  padding: 5px;
+  border-width: 1px;
+  border-style: solid;
+  border-radius: 12px;
+  transform-origin: bottom center;
+  animation: desk-zoom-presets-rise 170ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  -webkit-backdrop-filter: blur(18px) saturate(1.18);
+  backdrop-filter: blur(18px) saturate(1.18);
+}
+
+body.desk-app[data-theme] .desk-titlebar {
+  -webkit-backdrop-filter: none;
+}
+
+body.desk-app[data-theme] .desk-rail {
+  -webkit-backdrop-filter: blur(22px) saturate(1.35);
+}
+
+body.desk-app[data-theme] .desk-rail__item[data-tool="node"][aria-expanded="true"]::after {
+  width: 8px;
+  height: 8px;
+}
+
+body.desk-app[data-theme] .desk-zoom-controls {
+  --desk-minimap-open-height: 92px;
+  right: 0;
+  opacity: 1;
+}
+
+body.desk-app[data-theme] .desk-zoom-controls.is-pinned {
+  gap: 8px;
+}
+
+body.desk-app[data-theme] .desk-zoom-row {
+  display: grid;
+  grid-template-columns: 28px minmax(48px, 1fr) 28px 28px 28px;
+  gap: 8px;
+  align-items: center;
+}
+
+body.desk-app[data-theme] .desk-zoom-row button.desk-zoom-label {
+  width: 100%;
+  min-width: 48px;
+}
+
+body.desk-app[data-theme] .desk-zoom-row button svg {
+  width: 13px;
+  height: 13px;
+}
+
+/* Rail icon and zoom preset keyframes (moved from desktop-liquid.css). */
+
+@keyframes desk-rail-dash-move {
+  to {
+    stroke-dashoffset: -12;
+  }
+}
+
+@keyframes desk-rail-cursor-capture {
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+
+  50% {
+    transform: translate(-0.6px, -0.6px);
+  }
+}
+
+@keyframes desk-rail-flow {
+  0% {
+    stroke-dashoffset: 120;
+  }
+
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes desk-rail-media-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.85;
+    transform: scale(1.05);
+  }
+}
+
+@keyframes desk-rail-play-flash {
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.72;
+  }
+}
+
+@keyframes desk-rail-cog-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes desk-zoom-presets-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}

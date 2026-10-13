@@ -1194,63 +1194,6 @@ body.desk-app[data-theme="dark"]::after {
 
 
 
-@keyframes desk-rail-dash-move {
-  to {
-    stroke-dashoffset: -12;
-  }
-}
-
-@keyframes desk-rail-cursor-capture {
-  0%,
-  100% {
-    transform: translate(0, 0);
-  }
-
-  50% {
-    transform: translate(-0.6px, -0.6px);
-  }
-}
-
-@keyframes desk-rail-flow {
-  0% {
-    stroke-dashoffset: 120;
-  }
-
-  100% {
-    stroke-dashoffset: 0;
-  }
-}
-
-@keyframes desk-rail-media-pulse {
-  0%,
-  100% {
-    opacity: 1;
-    transform: scale(1);
-  }
-
-  50% {
-    opacity: 0.85;
-    transform: scale(1.05);
-  }
-}
-
-@keyframes desk-rail-play-flash {
-  0%,
-  100% {
-    opacity: 1;
-  }
-
-  50% {
-    opacity: 0.72;
-  }
-}
-
-@keyframes desk-rail-cog-spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
 .desk-rail__item span:last-child {
   max-width: 44px;
   font-size: 11px;
@@ -1843,17 +1786,6 @@ body.desk-app[data-theme="dark"]::after {
 
 .desk-zoom-presets button:active {
   transform: scale(0.97);
-}
-
-@keyframes desk-zoom-presets-rise {
-  from {
-    opacity: 0;
-    transform: translateY(10px) scale(0.96);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
 }
 
 .desk-live-dot {
