@@ -450,9 +450,41 @@
     "v": "20260914-google-pool-compact1",
     "sha256": "e81be613d73a7bd9b8e59ebbdd922fc82f6355505ef610d3a8f187be17514c67"
    },
+   "styles/desktop-legacy-canvas-nodes.css": {
+    "v": "20261012-legacy-split1",
+    "sha256": "87201790dc1752358b3311438d76e4ee500d0fdda536a4c2c86a362a2dfe018d"
+   },
+   "styles/desktop-legacy-compare.css": {
+    "v": "20261012-legacy-split1",
+    "sha256": "109f41f5c23fdd604c6df062e1784e4226c1e474706995bb17a4acef93508f15"
+   },
+   "styles/desktop-legacy-gallery.css": {
+    "v": "20261012-legacy-split1",
+    "sha256": "27d13daa4c8ac91551b800fc48fab2ae4d916610feb43c06dff86d3c52bd6890"
+   },
+   "styles/desktop-legacy-image-group.css": {
+    "v": "20261012-legacy-split1",
+    "sha256": "d18a0ccb5ad46db2ea652f964970a559ea14434953b48dc14bd83631d440272a"
+   },
+   "styles/desktop-legacy-layout.css": {
+    "v": "20261012-legacy-split1",
+    "sha256": "dc14171acae26fd1d3c48b96bfdd3db2c01441c2799ed8862307035ef5857cb5"
+   },
+   "styles/desktop-legacy-prompt-assistant.css": {
+    "v": "20261012-legacy-split1",
+    "sha256": "1e594f3c1085ed1a9ca0c975890111d1adbea6ee92f498d9577f4c9277b85d1e"
+   },
+   "styles/desktop-legacy-settings-auth.css": {
+    "v": "20261012-legacy-split1",
+    "sha256": "4e2d08a1face6b14db1981f47c0cba06c2c5dcd9cefe315ee378a935be29380c"
+   },
+   "styles/desktop-legacy-shell.css": {
+    "v": "20261012-legacy-split1",
+    "sha256": "614a194c76c89981c228a70057776b4e3ec2795354f833e3f886029306ebe957"
+   },
    "styles/desktop-liquid.css": {
-    "v": "20261012-button-prune2",
-    "sha256": "3bc1fa91c5c376955b66ce03f8c9c5137b7f8f45a1601d691079e3143c7372ec"
+    "v": "20261012-legacy-split1",
+    "sha256": "d5838b3409f4dc1909fadc246d2492065293e9dcd365acff0d160c7da4691815"
    },
    "styles/desktop-lora.css": {
     "v": "20261003-lora-quick-add1",

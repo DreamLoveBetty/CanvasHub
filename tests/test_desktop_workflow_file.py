@@ -6,6 +6,7 @@ import re
 import unittest
 from html.parser import HTMLParser
 from pathlib import Path
+from tests.legacy_css import read_legacy_css
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -107,7 +108,7 @@ class DesktopWorkflowFileTest(unittest.TestCase):
         self.assertIn(".tcflow.json", source)
 
     def test_workflow_controls_are_styled(self):
-        css = self.read("styles/desktop-liquid.css")
+        css = read_legacy_css()
 
         self.assertIn(".desk-workflow-dock-toggle", css)
         self.assertIn(".desk-workflow-dock-panel", css)

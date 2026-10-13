@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 import unittest
 from pathlib import Path
+from tests.legacy_css import read_legacy_css
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -71,7 +72,7 @@ class DesktopSettingsChatgptPoolTest(unittest.TestCase):
 
     def test_settings_js_renders_managed_codex_account_pool_management(self):
         source = self.read("scripts/desktop-settings.js")
-        css = self.read("styles/desktop-liquid.css")
+        css = read_legacy_css()
         html = self.read("desktop.html")
 
         self.assertIn("renderManagedCodexAccount", source)

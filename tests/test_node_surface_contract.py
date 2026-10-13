@@ -2,6 +2,7 @@
 from pathlib import Path
 import re
 import unittest
+from tests.legacy_css import read_legacy_css
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -51,7 +52,7 @@ class NodeSurfaceContractTests(unittest.TestCase):
                     with self.subTest(asset=asset, selectors=selectors.strip()):
                         self.assertNotIn('border-color:', declarations)
                         self.assertNotIn('box-shadow:', declarations)
-        legacy = read('styles/desktop-liquid.css')
+        legacy = read_legacy_css()
         caps = re.search(r'\.desk-node\.has-settled-port-left > \.desk-node-settled-port--left,\s*\.desk-node\.has-settled-port-right > \.desk-node-settled-port--right\s*\{([^}]+)\}', legacy)
         self.assertIsNotNone(caps)
         self.assertIn('opacity: 1;', caps[1])

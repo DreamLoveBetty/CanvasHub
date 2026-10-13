@@ -1,0 +1,14 @@
+/* Legacy layout styles, split out of desktop-liquid.css by domain (2026-10-12).
+   Loaded right after desktop-liquid.css, in the order the move was cascade-checked;
+   rules keep their original relative order. Not a token module: when this domain is
+   migrated to theme tokens, rewrite these rules into the matching module and delete them here. */
+
+.desk-layout-actions .desk-select-shell {
+  flex: 0 0 auto;
+}
+
+.desk-layout-actions #deskLayoutZoomSelect + .desk-select-shell .desk-select-trigger,
+.desk-layout-actions .desk-select-shell[data-select-id="deskLayoutZoomSelect"] .desk-select-trigger {
+  min-width: 82px;
+  width: 82px;
+}

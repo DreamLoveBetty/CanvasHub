@@ -20,6 +20,7 @@ from PIL import Image
 
 from backend import asset_index
 from backend import server as server_mod
+from tests.legacy_css import read_legacy_css
 
 
 def _reset_asset_index_caches():
@@ -369,7 +370,7 @@ class FrontendSourceGuardsTest(unittest.TestCase):
         # 真机探针实测：对比打开时背后图库面板的毛玻璃面每帧重算 → 18fps；隐藏后 100+fps
         self.assertIn("desk-under-compare", self.js)
         base = Path(__file__).resolve().parent.parent / "frontend"
-        css = (base / "styles" / "desktop-liquid.css").read_text(encoding="utf-8")
+        css = read_legacy_css()
         self.assertIn(".desk-gallery.desk-under-compare", css)
         self.assertIn(".desk-gallery-preview.desk-under-compare", css)
         # closeCompare 必须恢复

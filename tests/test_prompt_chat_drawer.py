@@ -8,6 +8,7 @@ from unittest.mock import patch
 
 from backend import server
 from backend import prompt_skill_client
+from tests.legacy_css import read_legacy_css
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -662,7 +663,7 @@ class PromptChatFrontendTest(unittest.TestCase):
 
     def test_drawer_uses_compact_center_handle_and_mid_panel(self):
         html = read_text("desktop.html")
-        css = read_text("styles/desktop-liquid.css")
+        css = read_legacy_css()
         geometry_css = read_text("styles/desktop-geometry.css")
         viewport_js = read_canvas_module(self, "viewport")
 

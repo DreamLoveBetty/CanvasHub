@@ -1,6 +1,7 @@
 import re
 import unittest
 from pathlib import Path
+from tests.legacy_css import read_legacy_css
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -28,7 +29,7 @@ class GalleryPreviewBackdropTest(unittest.TestCase):
     def test_preview_modal_uses_image_backdrop_layer(self) -> None:
         html = read_text("desktop.html")
         js = read_text("scripts/desktop-history.js")
-        css = read_text("styles/desktop-liquid.css")
+        css = read_legacy_css()
 
         self.assertIn('id="deskGalleryPreviewBackdropImg"', html)
         self.assertIn('class="desk-gallery-preview__backdrop"', html)
@@ -67,7 +68,7 @@ class GalleryPreviewBackdropTest(unittest.TestCase):
 
     def test_preview_modal_has_day_mode_palette(self) -> None:
         html = read_text("desktop.html")
-        css = read_text("styles/desktop-liquid.css")
+        css = read_legacy_css()
 
         assert_asset_has_cache_bust(self, html, "styles/desktop-liquid.css")
         self.assertIn('body.desk-app:not([data-theme="dark"]) .desk-gallery-preview {', css)
@@ -85,7 +86,7 @@ class GalleryPreviewBackdropTest(unittest.TestCase):
     def test_compare_modal_matches_preview_board_shell(self) -> None:
         html = read_text("desktop.html")
         js = read_text("scripts/desktop-history.js")
-        css = read_text("styles/desktop-liquid.css")
+        css = read_legacy_css()
         contrast_icon = read_text("assets/icons/contrast.svg")
         close_icon = read_text("assets/icons/circle-x.svg")
 

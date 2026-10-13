@@ -1,4 +1,5 @@
 const {test}=require('node:test');
+const { readLegacyCss } = require('./legacy_css.cjs');
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
@@ -54,6 +55,6 @@ test('只有 Krea Base 选择器启用扩宽，加载前不制造未安装 Mixed
   assert.doesNotMatch(html,/Mixed 4\/8-bit|krea-2-turbo-alis-mlx-mixed-4-8/);
   assert.equal((html.match(/data-desk-select-width="content"/g)||[]).length,1);
   assert.doesNotMatch(read('scripts/desktop-canvas-qwen21.js'),/data-desk-select-width="content"/);
-  assert.match(read('styles/desktop-liquid.css'),/body\.desk-app \.desk-select-menu\[data-select-width="content"\] \.desk-select-option\s*\{[^}]*white-space: nowrap;[^}]*text-overflow: ellipsis;/);
+  assert.match(readLegacyCss(),/body\.desk-app \.desk-select-menu\[data-select-width="content"\] \.desk-select-option\s*\{[^}]*white-space: nowrap;[^}]*text-overflow: ellipsis;/);
   assert.match(read('scripts/desktop-select.js'),/title="\$\{escapeHtml\(item.label\)\}"/);
 });

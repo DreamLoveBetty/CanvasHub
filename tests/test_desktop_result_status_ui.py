@@ -2,6 +2,7 @@ import re
 import unittest
 from html.parser import HTMLParser
 from pathlib import Path
+from tests.legacy_css import read_legacy_css
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -92,7 +93,7 @@ class DesktopResultStatusUiTest(unittest.TestCase):
         generation_js = canvas_sources["scripts/desktop-canvas-generation.js"]
         connections_js = canvas_sources["scripts/desktop-canvas-connections.js"]
         results_js = read_text("scripts/desktop-results.js")
-        css = read_text("styles/desktop-liquid.css")
+        css = read_legacy_css()
 
         self.assertNotIn('data-add-node="output"', html)
         self.assertNotIn('id="deskOutputNode"', html)
@@ -135,7 +136,7 @@ class DesktopResultStatusUiTest(unittest.TestCase):
         canvas_sources = read_loaded_canvas_sources(self, html)
         model_nodes_js = canvas_sources["scripts/desktop-canvas-model-nodes.js"]
         results_js = read_text("scripts/desktop-results.js")
-        css = read_text("styles/desktop-liquid.css")
+        css = read_legacy_css()
 
         self.assertNotIn('class="desk-progress-wrap" aria-label="生成进度" aria-hidden="true"', html)
         self.assertIn('class="desk-progress-float" id="deskProgressFloat" aria-hidden="true"', html)
@@ -183,7 +184,7 @@ class DesktopResultStatusUiTest(unittest.TestCase):
 
     def test_titlebar_uses_canvasgpt_motion_logo_without_traffic_dots(self):
         html = read_text("desktop.html")
-        css = read_text("styles/desktop-liquid.css")
+        css = read_legacy_css()
         tokens_css = read_text("styles/desktop-tokens.css")
         canvas_css = read_text("styles/desktop-canvas-nodes.css")
         prefs_js = read_text("scripts/desktop-preferences.js")
@@ -313,7 +314,7 @@ class DesktopResultStatusUiTest(unittest.TestCase):
     def test_node_palette_uses_lucide_motion_icon_system(self):
         html = read_text("desktop.html")
         canvas_js = read_text("scripts/desktop-canvas.js")
-        css = read_text("styles/desktop-liquid.css")
+        css = read_legacy_css()
         tokens_css = read_text("styles/desktop-tokens.css")
 
         assert_asset_has_cache_bust(self, html, "scripts/desktop-canvas.js")
@@ -354,7 +355,7 @@ class DesktopResultStatusUiTest(unittest.TestCase):
         canvas_sources = read_loaded_canvas_sources(self, html)
         viewport_js = canvas_sources["scripts/desktop-canvas-viewport.js"]
         history_js = read_text("scripts/desktop-history.js")
-        css = read_text("styles/desktop-liquid.css")
+        css = read_legacy_css()
 
         assert_asset_has_cache_bust(self, html, "scripts/desktop-canvas.js")
         assert_asset_has_cache_bust(self, html, "scripts/desktop-history.js")
@@ -386,7 +387,7 @@ class DesktopResultStatusUiTest(unittest.TestCase):
         html = read_text("desktop.html")
         canvas_sources = read_loaded_canvas_sources(self, html)
         viewport_js = canvas_sources["scripts/desktop-canvas-viewport.js"]
-        css = read_text("styles/desktop-liquid.css")
+        css = read_legacy_css()
 
         self.assertIn('aria-controls="deskZoomPresetMenu"', html)
         self.assertIn('role="menuitemradio" aria-checked="false" data-zoom-preset="0.3"', html)
@@ -401,7 +402,7 @@ class DesktopResultStatusUiTest(unittest.TestCase):
 
     def test_dark_settings_center_uses_graphite_orange_palette(self):
         html = read_text("desktop.html")
-        css = read_text("styles/desktop-liquid.css")
+        css = read_legacy_css()
 
         assert_asset_has_cache_bust(self, html, "styles/desktop-liquid.css")
         self.assertIn("body.desk-app[data-theme=\"dark\"] .desk-settings", css)
@@ -440,7 +441,7 @@ class DesktopResultStatusUiTest(unittest.TestCase):
 
     def test_dark_gallery_workspace_uses_graphite_orange_palette(self):
         html = read_text("desktop.html")
-        css = read_text("styles/desktop-liquid.css")
+        css = read_legacy_css()
 
         assert_asset_has_cache_bust(self, html, "styles/desktop-liquid.css")
         self.assertRegex(
@@ -509,26 +510,26 @@ class DesktopResultStatusUiTest(unittest.TestCase):
         self.assertLess(html.index("desk-status-group--task"), html.index("desk-status-group--output"))
         self.assertLess(html.index("desk-status-group--output"), html.index("desk-status-group--feedback"))
         self.assertRegex(
-            read_text("styles/desktop-liquid.css"),
+            read_legacy_css(),
             r"\.desk-status-chip--service,\s*\n\.desk-status-group--run \.desk-status-chip--ok\s*\{[^}]*background:\s*\n\s*linear-gradient\(180deg,\s*rgba\(227,\s*250,\s*240,\s*0\.96\),\s*rgba\(212,\s*236,\s*245,\s*0\.82\)\);"
         )
         self.assertRegex(
-            read_text("styles/desktop-liquid.css"),
+            read_legacy_css(),
             r"\.desk-status-chip--service::after,\s*\n\.desk-status-group--run \.desk-status-chip--ok::after\s*\{[^}]*rgba\(34,\s*197,\s*94,\s*0\.34\)"
         )
         self.assertRegex(
-            read_text("styles/desktop-liquid.css"),
+            read_legacy_css(),
             r"\.desk-status-group--run \.desk-status-chip--ok:not\(\.desk-status-chip--service\)::before\s*\{[^}]*background:\s*#22c55e;"
         )
         self.assertRegex(
-            read_text("styles/desktop-liquid.css"),
+            read_legacy_css(),
             r"\.desk-status-group--feedback\s*\{[^}]*margin-left:\s*auto;[^}]*flex:\s*0\s+1"
         )
         self.assertRegex(
-            read_text("styles/desktop-liquid.css"),
+            read_legacy_css(),
             r"\.desk-status-feedback-trigger\s*\{[^}]*color:\s*#138a42;"
         )
-        self.assertIn("data-tone=\"error\"", read_text("styles/desktop-liquid.css"))
+        self.assertIn("data-tone=\"error\"", read_legacy_css())
         self.assertIn("function setBottomStatus", results_js)
         self.assertIn("let nextBottomMessage = '';", results_js)
         self.assertIn("nextBottomMessage = output.progressText || DesktopState.getStatusLabel(status);", results_js)
@@ -555,7 +556,7 @@ class DesktopResultStatusUiTest(unittest.TestCase):
     def test_file_gallery_has_dedicated_preview_modal(self):
         html = read_text("desktop.html")
         history_js = read_text("scripts/desktop-history.js")
-        css = read_text("styles/desktop-liquid.css")
+        css = read_legacy_css()
 
         self.assertIn('id="deskFilePreviewModal"', html)
         self.assertIn('id="deskFilePreviewStage"', html)
@@ -576,7 +577,7 @@ class DesktopResultStatusUiTest(unittest.TestCase):
         generation_js = canvas_sources["scripts/desktop-canvas-generation.js"]
         image_editor_js = canvas_sources["scripts/desktop-canvas-image-editor.js"]
         image_editor_tools_js = canvas_sources["scripts/desktop-canvas-image-editor-tools.js"]
-        css = read_text("styles/desktop-liquid.css")
+        css = read_legacy_css()
 
         self.assertIn('id="deskGalleryPreviewEditBtn"', html)
         self.assertIn("continueEditPreviewAsset", history_js)
@@ -587,30 +588,30 @@ class DesktopResultStatusUiTest(unittest.TestCase):
         self.assertIn('class="desk-history-item__meta"', history_js)
         self.assertIn('aria-label="继续编辑"', history_js)
         self.assertNotIn('title="创建继续编辑流程">编辑</button>', history_js)
-        self.assertIn('url("../assets/icons/edit-pencil.svg")', read_text("styles/desktop-liquid.css"))
+        self.assertIn('url("../assets/icons/edit-pencil.svg")', read_legacy_css())
         self.assertRegex(
-            read_text("styles/desktop-liquid.css"),
+            read_legacy_css(),
             r"\.desk-history-row__actions\s*\{[^}]*align-content:\s*center;[^}]*justify-items:\s*center;"
         )
         self.assertRegex(
-            read_text("styles/desktop-liquid.css"),
+            read_legacy_css(),
             r"\.desk-history-edit\s*\{[^}]*width:\s*28px;[^}]*height:\s*28px;[^}]*color:\s*var\(--desk-muted\);"
         )
         self.assertRegex(
-            read_text("styles/desktop-liquid.css"),
+            read_legacy_css(),
             r"\.desk-history-item\s*\{[^}]*grid-template-columns:\s*44px\s*minmax\(0,\s*1fr\);[^}]*min-width:\s*0;[^}]*overflow:\s*hidden;"
         )
         self.assertRegex(
-            read_text("styles/desktop-liquid.css"),
+            read_legacy_css(),
             r"\.desk-history-item strong\s*\{[^}]*width:\s*100%;[^}]*max-width:\s*none;[^}]*font-size:\s*11px;[^}]*text-overflow:\s*ellipsis;"
         )
         self.assertRegex(
-            read_text("styles/desktop-liquid.css"),
+            read_legacy_css(),
             r"\.desk-history-item__meta\s*\{[^}]*width:\s*100%;[^}]*text-overflow:\s*ellipsis;[^}]*white-space:\s*nowrap;"
         )
         self.assertIn("continueEditHistoryItem", history_js)
         self.assertIn("data-result-edit", read_text("scripts/desktop-results.js"))
-        self.assertIn("desk-result-edit", read_text("styles/desktop-liquid.css"))
+        self.assertIn("desk-result-edit", read_legacy_css())
         self.assertIn("continueEditFromHistoryItem", media_import_js)
         self.assertIn("openImageEditor(imageNodeId)", media_import_js)
         self.assertIn("connectNodes(imageNodeId, inputNodeId)", media_import_js)
@@ -671,7 +672,7 @@ class DesktopResultStatusUiTest(unittest.TestCase):
 
     def test_gallery_workspace_uses_prompt_drawer_glass(self):
         html = read_text("desktop.html")
-        css = read_text("styles/desktop-liquid.css")
+        css = read_legacy_css()
         history_js = read_text("scripts/desktop-history.js")
 
         assert_asset_has_cache_bust(self, html, "styles/desktop-liquid.css")
@@ -836,7 +837,7 @@ class DesktopResultStatusUiTest(unittest.TestCase):
         html = read_text("desktop.html")
         history_js = read_text("scripts/desktop-history.js")
         auth_js = read_text("scripts/auth-api.js")
-        css = read_text("styles/desktop-liquid.css")
+        css = read_legacy_css()
 
         assert_asset_has_cache_bust(self, html, "scripts/auth-api.js")
         assert_asset_has_cache_bust(self, html, "scripts/desktop-history.js")
@@ -858,7 +859,7 @@ class DesktopResultStatusUiTest(unittest.TestCase):
     def test_canvas_select_menus_are_anchored_for_zoom_scaling(self):
         html = read_text("desktop.html")
         select_js = read_text("scripts/desktop-select.js")
-        css = read_text("styles/desktop-liquid.css")
+        css = read_legacy_css()
 
         assert_asset_has_cache_bust(self, html, "scripts/desktop-select.js")
         assert_asset_has_cache_bust(self, html, "styles/desktop-liquid.css")
@@ -959,7 +960,7 @@ class DesktopResultStatusUiTest(unittest.TestCase):
 
     def test_desktop_geometry_keeps_agent_controls_and_input_layout_intact(self):
         html = read_text("desktop.html")
-        liquid_css = read_text("styles/desktop-liquid.css")
+        liquid_css = read_legacy_css()
         prompt_css = read_text("styles/desktop-prompt-assistant.css")
         controls_css = read_text("styles/desktop-controls.css")
         geometry_css = read_text("styles/desktop-geometry.css")
@@ -1768,7 +1769,7 @@ class DesktopResultStatusUiTest(unittest.TestCase):
 
     def test_desktop_phase7_uses_normal_cascade_and_named_top_level_layers(self):
         html = read_text("desktop.html")
-        liquid_css = read_text("styles/desktop-liquid.css")
+        liquid_css = read_legacy_css()
         prompt_css = read_text("styles/desktop-prompt-library.css")
         controls_css = read_text("styles/desktop-controls.css")
         geometry_css = read_text("styles/desktop-geometry.css")

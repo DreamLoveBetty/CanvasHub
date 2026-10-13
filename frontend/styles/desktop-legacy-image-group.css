@@ -1,0 +1,297 @@
+/* Legacy image-group styles, split out of desktop-liquid.css by domain (2026-10-12).
+   Loaded right after desktop-liquid.css, in the order the move was cascade-checked;
+   rules keep their original relative order. Not a token module: when this domain is
+   migrated to theme tokens, rewrite these rules into the matching module and delete them here. */
+
+.desk-image-group__liquid,
+.desk-image-group-transition__liquid-surface {
+  fill: rgba(255, 255, 255, 0.99);
+}
+
+.desk-image-group__liquid-base,
+.desk-image-group__liquid-item,
+.desk-image-group-transition__mother-shape,
+.desk-image-group-transition__incoming-shape {
+  transform-box: fill-box;
+  transform-origin: center;
+  will-change: transform, opacity;
+}
+
+.desk-image-group__item + .desk-image-group__item {
+  margin-left: 0;
+}
+
+.desk-image-group__item:hover .desk-image-group__thumb,
+.desk-image-group__item:focus-visible .desk-image-group__thumb,
+.desk-image-group__item:has(:focus-visible) .desk-image-group__thumb,
+.desk-image-group__item:has(.desk-select-shell.is-open) .desk-image-group__thumb {
+  transform: translateY(calc(-12px * var(--desk-image-group-ui-scale))) scale(1.035);
+}
+
+.desk-node--image-group.is-sorting .desk-image-group__item:hover .desk-image-group__thumb,
+.desk-node--image-group.is-sorting .desk-image-group__item:focus-visible .desk-image-group__thumb,
+.desk-node--image-group.is-sorting .desk-image-group__item:has(:focus-visible) .desk-image-group__thumb,
+.desk-node--image-group.is-sorting .desk-image-group__item:has(.desk-select-shell.is-open) .desk-image-group__thumb {
+  transform: none;
+}
+
+.desk-image-group__liquid-item {
+  transition: transform 240ms cubic-bezier(.2, .8, .2, 1);
+  will-change: transform;
+}
+
+.desk-node--image-group.is-sorting .desk-image-group__item-actions {
+  opacity: 0 !important;
+  pointer-events: none !important;
+  visibility: hidden !important;
+}
+
+.desk-image-group__item:hover .desk-image-group__item-actions,
+.desk-image-group__item:focus-visible .desk-image-group__item-actions,
+.desk-image-group__item:has(:focus-visible) .desk-image-group__item-actions,
+.desk-image-group__item:has(.desk-select-shell.is-open) .desk-image-group__item-actions {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translate(-50%, 0) scale(1);
+  visibility: visible;
+  transition-delay: 0s;
+}
+
+.desk-image-group__item-actions .desk-select-shell {
+  display: block;
+  height: calc(44px * var(--desk-image-group-ui-scale));
+}
+
+.desk-image-group__item-actions .desk-select-value {
+  grid-column: 1;
+  overflow: visible;
+  text-overflow: clip;
+}
+
+.desk-image-group__item-actions .desk-select-trigger:hover {
+  background: #fff;
+  border-color: rgba(8, 79, 189, 0.34);
+}
+
+.desk-image-group__item-actions .desk-select-trigger:focus,
+.desk-image-group__item-actions .desk-select-shell.is-open .desk-select-trigger {
+  color: var(--desk-ink);
+  background: #fff;
+  border-color: rgba(8, 79, 189, 0.58);
+  box-shadow: 0 0 0 calc(4px * var(--desk-image-group-ui-scale)) rgba(8, 79, 189, 0.1);
+}
+
+.desk-image-group__item-actions .desk-select-menu {
+  gap: calc(4px * var(--desk-image-group-ui-scale));
+  padding: calc(6px * var(--desk-image-group-ui-scale));
+  color: var(--desk-ink);
+  background: rgba(250, 252, 255, 0.98);
+  border-color: rgba(67, 86, 106, 0.18);
+  border-radius: calc(9px * var(--desk-image-group-ui-scale));
+  box-shadow: 0 calc(18px * var(--desk-image-group-ui-scale)) calc(42px * var(--desk-image-group-ui-scale)) rgba(31, 45, 62, 0.2);
+}
+
+.desk-image-group__item-actions .desk-select-option,
+.desk-image-group__item-actions .desk-select-group-label {
+  text-align: center;
+}
+
+.desk-image-group__item-actions .desk-select-option {
+  min-height: calc(34px * var(--desk-image-group-ui-scale));
+  color: var(--desk-ink);
+  font-size: calc(14px * var(--desk-image-group-ui-scale));
+  line-height: calc(34px * var(--desk-image-group-ui-scale));
+}
+
+.desk-image-group__item-actions .desk-select-option:hover,
+.desk-image-group__item-actions .desk-select-option.is-highlighted,
+.desk-image-group__item-actions .desk-select-option.is-selected {
+  color: #fff;
+  background: var(--desk-jewel-gradient);
+}
+
+.desk-node--image-group:hover .desk-image-group__node-actions,
+.desk-node--image-group.is-selected .desk-image-group__node-actions,
+.desk-image-group__node-actions:focus-within {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0) scale(1);
+}
+
+.desk-image-group__node-actions .desk-node-delete:hover,
+.desk-image-group__node-actions .desk-node-delete:focus-visible {
+  color: #b31946;
+  background: rgba(179, 25, 70, 0.09);
+}
+
+.desk-image-group-dwell__track {
+  stroke: rgba(255, 255, 255, 0.76);
+}
+
+.desk-image-group-transition {
+  overflow: hidden;
+}
+
+.desk-image-group-transition__melt {
+  z-index: 1;
+  overflow: visible;
+}
+
+.desk-image-group-transition__melt img {
+  position: fixed;
+  display: block;
+  object-fit: cover;
+  border-radius: 50%;
+  filter: blur(5px) saturate(1.08);
+  will-change: transform, opacity;
+}
+
+.desk-image-group-transition__bridge,
+.desk-image-group-transition__bridge-halo,
+.desk-image-group-transition__contact {
+  fill: #fff;
+  stroke: none;
+  vector-effect: non-scaling-stroke;
+  will-change: opacity;
+}
+
+.desk-image-group-transition__bridge,
+.desk-image-group-transition__bridge-halo,
+.desk-image-group-transition__contact {
+  opacity: 0;
+}
+
+.desk-image-group-transition[data-contact-side="right"] .desk-image-group-transition__melt img {
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, rgba(0, 0, 0, 0.7) 42%, #000 76%);
+  mask-image: linear-gradient(90deg, transparent 0%, rgba(0, 0, 0, 0.7) 42%, #000 76%);
+}
+
+.desk-image-group-transition[data-contact-side="left"] .desk-image-group-transition__melt img {
+  -webkit-mask-image: linear-gradient(270deg, transparent 0%, rgba(0, 0, 0, 0.7) 42%, #000 76%);
+  mask-image: linear-gradient(270deg, transparent 0%, rgba(0, 0, 0, 0.7) 42%, #000 76%);
+}
+
+body.desk-app[data-theme="dark"] .desk-image-group__silhouette,
+body.desk-app[data-theme="dark"] .desk-image-group-transition__liquid-svg {
+  filter:
+    drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3))
+    drop-shadow(0 15px 30px rgba(0, 0, 0, 0.38));
+}
+
+body.desk-app[data-theme="dark"] .desk-image-group__liquid,
+body.desk-app[data-theme="dark"] .desk-image-group-transition__liquid-surface {
+  fill: #252a2c;
+}
+
+body.desk-app[data-theme="dark"] .desk-image-group-transition__bridge,
+body.desk-app[data-theme="dark"] .desk-image-group-transition__bridge-halo,
+body.desk-app[data-theme="dark"] .desk-image-group-transition__contact {
+  fill: #252a2c;
+}
+
+body.desk-app[data-theme="dark"] .desk-image-group__mother::after {
+  border-color: transparent;
+}
+
+body.desk-app[data-theme="dark"] .desk-node--image-group.is-selected .desk-image-group__mother::after {
+  border-color: rgba(255, 126, 57, 0.68);
+  box-shadow: 0 0 0 3px rgba(255, 106, 34, 0.11);
+}
+
+body.desk-app[data-theme="dark"] .desk-image-group__identity strong,
+body.desk-app[data-theme="dark"] .desk-image-group-transition__identity strong {
+  color: #f2f4f4;
+}
+
+body.desk-app[data-theme="dark"] .desk-image-group__identity span,
+body.desk-app[data-theme="dark"] .desk-image-group-transition__identity span {
+  color: rgba(213, 220, 221, 0.62);
+}
+
+body.desk-app[data-theme="dark"] .desk-image-group__thumb img,
+body.desk-app[data-theme="dark"] .desk-image-group-transition__chip img {
+  border-color: #353b3d;
+}
+
+body.desk-app[data-theme="dark"] .desk-image-group__thumb img {
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.42), 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+body.desk-app[data-theme="dark"] .desk-image-group-transition__chip img {
+  box-shadow:
+    0 calc(var(--desk-image-group-chip-unit) * 20) calc(var(--desk-image-group-chip-unit) * 52) rgba(0, 0, 0, 0.42),
+    0 0 0 calc(var(--desk-image-group-chip-unit) * 4) rgba(255, 255, 255, 0.08);
+}
+
+body.desk-app[data-theme="dark"] .desk-image-group-transition__chip.is-incoming img {
+  box-shadow:
+    0 calc(var(--desk-image-group-chip-unit) * 24) calc(var(--desk-image-group-chip-unit) * 56) rgba(0, 0, 0, 0.48),
+    0 0 0 calc(var(--desk-image-group-chip-unit) * 4) rgba(255, 255, 255, 0.08);
+}
+
+body.desk-app[data-theme="dark"] .desk-image-group__node-actions,
+body.desk-app[data-theme="dark"] .desk-image-group__item-actions {
+  background: rgba(35, 40, 42, 0.96);
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.38);
+}
+
+body.desk-app[data-theme="dark"] .desk-image-group__item-actions {
+  background: rgba(37, 42, 44, 0.96);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+body.desk-app[data-theme="dark"] .desk-image-group__node-actions button,
+body.desk-app[data-theme="dark"] .desk-image-group__item-actions select,
+body.desk-app[data-theme="dark"] .desk-image-group__item-actions > button {
+  color: rgba(224, 229, 230, 0.82);
+  background: rgba(48, 55, 57, 0.9);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+body.desk-app[data-theme="dark"] .desk-image-group__node-actions button:hover,
+body.desk-app[data-theme="dark"] .desk-image-group__node-actions button:focus-visible,
+body.desk-app[data-theme="dark"] .desk-image-group__item-actions > button:hover,
+body.desk-app[data-theme="dark"] .desk-image-group__item-actions > button:focus-visible,
+body.desk-app[data-theme="dark"] .desk-image-group__item-actions select:focus-visible {
+  color: #fff;
+  background: #d9571f;
+  border-color: #ff8a4d;
+}
+
+body.desk-app[data-theme="dark"] .desk-image-group__item {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+body.desk-app[data-theme="dark"] .desk-image-group-transition__melt img {
+  filter: blur(5px) saturate(1.08) brightness(.88);
+}
+
+body.desk-app[data-theme="dark"] .desk-image-group-dwell__progress {
+  stroke: #ff8a4d;
+}
+
+body.desk-app[data-theme="dark"] .desk-image-group-dwell > span {
+  background: #2f3638;
+  border-color: rgba(255, 138, 77, 0.62);
+}
+
+/* Keep panning cheap while preserving the full gooey silhouette at rest. */
+.desk-canvas:is(.is-panning, .is-wheel-transforming) .desk-node--image-group:not(.is-selected) .desk-image-group__silhouette {
+  filter: drop-shadow(0 2px 5px rgba(17, 38, 42, 0.1)) !important;
+}
+
+body.desk-app[data-theme="dark"] .desk-canvas:is(.is-panning, .is-wheel-transforming) .desk-node--image-group:not(.is-selected) .desk-image-group__silhouette {
+  filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.24)) !important;
+}
+
+/* Keep the blue selection border as the group's outermost visible contour. */
+body.desk-app .desk-node--image-group.is-selected .desk-image-group__silhouette {
+  filter: none !important;
+}
+
+body.desk-app .desk-node--image-group.is-selected .desk-image-group__mother::after {
+  box-shadow: none;
+}

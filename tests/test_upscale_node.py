@@ -9,6 +9,7 @@ from unittest.mock import patch
 
 from backend import server
 from backend.upscale_runtime import available_upscale_models, normalize_upscale_model
+from tests.legacy_css import read_legacy_css
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -219,7 +220,7 @@ class UpscaleDesktopSourceTest(unittest.TestCase):
         model_nodes = read_canvas_module(self, "model-nodes")
         connections = read_canvas_module(self, "connections")
         api = self.read("frontend/scripts/desktop-api.js")
-        css = self.read("frontend/styles/desktop-liquid.css")
+        css = read_legacy_css()
         state_js = self.read("frontend/scripts/desktop-state.js")
         results_js = self.read("frontend/scripts/desktop-results.js")
         database_py = self.read("backend/database.py")

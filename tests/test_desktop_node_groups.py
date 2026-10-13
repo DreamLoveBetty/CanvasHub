@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 import unittest
 from pathlib import Path
+from tests.legacy_css import read_legacy_css
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -14,7 +15,7 @@ class DesktopNodeGroupsTest(unittest.TestCase):
 
     def test_group_control_and_cache_busting_are_present(self):
         html = self.read("frontend/desktop.html")
-        css = self.read("frontend/styles/desktop-liquid.css")
+        css = read_legacy_css()
 
         self.assertIn('id="deskSelectionGroupBtn"', html)
         self.assertIn(".desk-selection-group", css)
