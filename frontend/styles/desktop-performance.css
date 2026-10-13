@@ -96,3 +96,9 @@ body.desk-app .desk-canvas:is(.is-panning, .is-wheel-transforming) .desk-node:no
     will-change: auto !important;
   }
 }
+
+/* Image group while the canvas pans: a cheap contour shadow instead of the full silhouette
+   filter on unselected groups (beats the blanket filter: none above). */
+body.desk-app .desk-canvas:is(.is-panning, .is-wheel-transforming) .desk-node--image-group:not(.is-selected) .desk-image-group__silhouette {
+  filter: var(--desk-image-group-pan-shadow) !important;
+}

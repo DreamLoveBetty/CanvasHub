@@ -2029,6 +2029,9 @@ body.desk-app {
   --desk-compare-tools-background: #f1f6fc;
   --desk-compare-tools-shadow: 0 4px 16px rgba(15, 35, 60, 0.16);
   --desk-compare-tools-button-hover: rgba(84, 137, 206, 0.25);
+  /* Image group layers moved into desktop-image-group-geometry.css and the performance layer. */
+  --desk-image-group-pan-shadow: drop-shadow(0 2px 5px rgba(17, 38, 42, 0.1));
+  --desk-image-group-role-native-border: rgba(67, 86, 106, 0.16);
 }
 
 body.desk-app[data-theme="dark"] {
@@ -3922,6 +3925,9 @@ body.desk-app[data-theme="dark"] {
   --desk-compare-tools-background: #182536;
   --desk-compare-tools-shadow: 0 4px 16px rgba(15, 35, 60, 0.16);
   --desk-compare-tools-button-hover: rgba(84, 137, 206, 0.25);
+  /* Image group layers moved into desktop-image-group-geometry.css and the performance layer. */
+  --desk-image-group-pan-shadow: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.24));
+  --desk-image-group-role-native-border: rgba(67, 86, 106, 0.16);
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -438,6 +438,14 @@
     "v": "20261011-select-stepper1",
     "sha256": "e4db89af659ef3c371c17aaec9b20a623eb0791af8c57a33d685ebd2503708eb"
    },
+   "styles/desktop-image-group-geometry.css": {
+    "v": "20261014-image-group-module2",
+    "sha256": "1bb0bd5771dda2850beccc65c3f49fe67848e11f3d0a8de8cb876a017ea63453"
+   },
+   "styles/desktop-image-group-interaction.css": {
+    "v": "20261014-image-group-module2",
+    "sha256": "77847208014108a66e27e5211da0e45b0ab4771d5d48e3e992cd17295216bd90"
+   },
    "styles/desktop-image-group.css": {
     "v": "20261004-node-selection-frames1",
     "sha256": "98fcb3dd108fd8ebfd5ad3ef437dbe9e96afe37fa6507a6ba222116601119ecc"
@@ -458,10 +466,6 @@
     "v": "20261012-legacy-split1",
     "sha256": "27d13daa4c8ac91551b800fc48fab2ae4d916610feb43c06dff86d3c52bd6890"
    },
-   "styles/desktop-legacy-image-group.css": {
-    "v": "20261012-legacy-split1",
-    "sha256": "d18a0ccb5ad46db2ea652f964970a559ea14434953b48dc14bd83631d440272a"
-   },
    "styles/desktop-legacy-layout.css": {
     "v": "20261012-legacy-split1",
     "sha256": "dc14171acae26fd1d3c48b96bfdd3db2c01441c2799ed8862307035ef5857cb5"
@@ -479,16 +483,16 @@
     "sha256": "614a194c76c89981c228a70057776b4e3ec2795354f833e3f886029306ebe957"
    },
    "styles/desktop-liquid.css": {
-    "v": "20261013-compare-module1",
-    "sha256": "fc5abf614f822edb61d1e825f1cd483a5f45fdd246abd1160a1e5ee55d551cdd"
+    "v": "20261014-image-group-module2",
+    "sha256": "4f6667ba1c92eddb6af2261d42b5417459a34a9f110a7d9998904614645314ca"
    },
    "styles/desktop-lora.css": {
     "v": "20261003-lora-quick-add1",
     "sha256": "2a179d6b06778cc2ce0fbec23ded0c77d79dcb8f3311ada01921bfcb592510e3"
    },
    "styles/desktop-motion.css": {
-    "v": "20261004-state-icons1",
-    "sha256": "39234df222706b148aa53da3f869d4191a5dc3bd86c23601fbf421b6215963a9"
+    "v": "20261014-image-group-module2",
+    "sha256": "4464363dcb6ecc71d557e82ccadcfb76ed89507d08cc17330d9ec90e873e866c"
    },
    "styles/desktop-music.css": {
     "v": "20261004-state-icons1",
@@ -499,8 +503,8 @@
     "sha256": "c0e4aaf5681306d31c9b0feebef5b4485bfe5e14f5155169e2366f96cc54098b"
    },
    "styles/desktop-performance.css": {
-    "v": "20261006-canvas-grid-isolation1",
-    "sha256": "90fd2fd3ef7e1439a23aea222b34b7d1995aabac43bf55f2a5a0c0600172b7f4"
+    "v": "20261014-image-group-module2",
+    "sha256": "4ea531c9ee9f71a7ef9628a2a684eabc995fb3754344770a10d7e6be848161a2"
    },
    "styles/desktop-pose.css": {
     "v": "20260831-status-silk2",
@@ -531,8 +535,8 @@
     "sha256": "c1a80028721d1c04c0020512cf6d5fbf123b693970968cf242bbc50c5f3a3e01"
    },
    "styles/desktop-tokens.css": {
-    "v": "20261013-compare-module2",
-    "sha256": "180aca35ddd4a365f8e7ed5cfbdc1f6ec8596eedbb0e2f35a2418d7f722ea6c1"
+    "v": "20261014-image-group-module3",
+    "sha256": "b463653bdc66133b432cde131ec5f61b6159ed117849df42b98ac04846356c33"
    },
    "styles/desktop-topaz-video-workbench.css": {
     "v": "20261006-topaz-panel-polish2",

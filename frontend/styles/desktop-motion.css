@@ -325,6 +325,32 @@ body.desk-app[data-theme] .desk-node-context-menu.is-open {
   transition: var(--desk-motion-surface-enter-transition);
 }
 
+/* Image group (moved from the legacy image-group styles): drop group motion for reduced
+   motion. Selectors keep their original weight on purpose: the universal reduced-motion
+   duration override (body.desk-app *) still wins the durations, as before; these rules
+   contribute the rest (no animation names, hidden merge layer, settled dwell ring). */
+@media (prefers-reduced-motion: reduce) {
+  .desk-image-group__item,
+  .desk-image-group__liquid-item,
+  .desk-node--image-group {
+    animation: none !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .desk-image-group-transition {
+    display: none !important;
+  }
+
+  .desk-image-group-dwell__progress {
+    animation: none !important;
+  }
+
+  /* Settled ring: outranks the module's resting offset (this layer loads later). */
+  body.desk-app[data-theme] .desk-image-group-dwell__progress {
+    stroke-dashoffset: 0;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   body.desk-app[data-theme] .desk-state-icon__layer {
     /* Also beat the active layer and legacy universal duration override. */

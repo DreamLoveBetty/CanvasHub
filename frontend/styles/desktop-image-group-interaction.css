@@ -1,0 +1,18 @@
+/* Image group drag interactions (desktop-canvas-image-group-interaction.js): while items
+   are being sorted, lock the grabbing cursor and text selection across the canvas and hide
+   the per-item role actions. !important by design: these states must win over element
+   cursors and the hover / focus / open-menu rules that show the actions. */
+
+body.desk-app[data-theme].desk-image-group-sorting,
+body.desk-app[data-theme].desk-image-group-sorting .desk-canvas-viewport,
+body.desk-app[data-theme].desk-image-group-sorting .desk-image-group__thumb {
+  cursor: grabbing !important;
+  user-select: none !important;
+  -webkit-user-select: none !important;
+}
+
+body.desk-app[data-theme] .desk-node--image-group.is-sorting .desk-image-group__item-actions {
+  opacity: 0 !important;
+  pointer-events: none !important;
+  visibility: hidden !important;
+}

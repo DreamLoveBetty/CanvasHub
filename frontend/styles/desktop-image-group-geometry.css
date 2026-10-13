@@ -1,0 +1,537 @@
+/*
+ * Image group component geometry and motion: mother and silhouette layers, item and
+ * thumbnail layout, role picker and node actions, the dwell ring and the merge /
+ * transition layers, with their transitions and keyframes. Node-local metrics
+ * (--desk-image-group-ui-scale, -mother-radius, -columns, ...) are set on the node.
+ *
+ * Paint comes from desktop-image-group.css (theme tokens only), which loads after
+ * this file. Colour values here read --desk-image-group-* tokens; no theme selectors
+ * or literal colours. Overrides that must win with important flags live in their layers:
+ * desktop-image-group-interaction.css (sorting), desktop-motion.css (reduced motion),
+ * desktop-performance.css (panning).
+ */
+
+body.desk-app[data-theme] .desk-node--image-group::before {
+  display: none;
+}
+
+body.desk-app[data-theme] .desk-image-group__global-filter {
+  position: absolute;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+body.desk-app[data-theme] .desk-image-group__silhouette {
+  position: absolute;
+  z-index: 0;
+  width: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+body.desk-app[data-theme] .desk-image-group__mother {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  border-radius: var(--desk-image-group-mother-radius);
+  cursor: grab;
+  touch-action: none;
+}
+
+body.desk-app[data-theme] .desk-image-group__mother::after {
+  position: absolute;
+  inset: calc(24px * var(--desk-image-group-ui-scale) - var(--desk-image-group-selection-outset))
+    calc(0px - var(--desk-image-group-selection-outset));
+  z-index: 8;
+  border: 2px solid transparent;
+  border-radius: calc(var(--desk-image-group-mother-radius) + var(--desk-image-group-selection-outset));
+  pointer-events: none;
+  content: '';
+}
+
+body.desk-app[data-theme] .desk-image-group__identity {
+  position: absolute;
+  top: calc(24px * var(--desk-image-group-ui-scale));
+  z-index: 3;
+  display: flex;
+  width: calc(168px * var(--desk-image-group-ui-scale));
+  height: calc(288px * var(--desk-image-group-ui-scale));
+  padding-top: calc(20px * var(--desk-image-group-ui-scale));
+  padding-left: calc(24px * var(--desk-image-group-ui-scale));
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  pointer-events: none;
+}
+
+body.desk-app[data-theme] .desk-image-group__identity strong,
+body.desk-app[data-theme] .desk-image-group__identity span {
+  white-space: nowrap;
+}
+
+body.desk-app[data-theme] .desk-image-group__identity strong {
+  font-size: calc(30px * var(--desk-image-group-ui-scale));
+  font-weight: 850;
+  line-height: 1.2;
+}
+
+body.desk-app[data-theme] .desk-image-group__identity span {
+  margin-top: calc(5px * var(--desk-image-group-ui-scale));
+  font-size: calc(20px * var(--desk-image-group-ui-scale));
+  font-weight: 750;
+  line-height: 1.2;
+}
+
+body.desk-app[data-theme] .desk-image-group__node-actions svg,
+body.desk-app[data-theme] .desk-image-group__item-actions svg {
+  height: calc(26px * var(--desk-image-group-ui-scale));
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
+body.desk-app[data-theme] .desk-image-group__items {
+  position: absolute;
+  top: calc(84px * var(--desk-image-group-ui-scale));
+  left: calc(168px * var(--desk-image-group-ui-scale));
+  z-index: 4;
+  display: grid;
+  grid-template-columns: repeat(var(--desk-image-group-columns, 2), calc(128px * var(--desk-image-group-ui-scale)));
+  grid-auto-rows: calc(228px * var(--desk-image-group-ui-scale));
+  align-items: start;
+}
+
+body.desk-app[data-theme] .desk-image-group__item {
+  position: relative;
+  width: calc(168px * var(--desk-image-group-ui-scale));
+  min-width: 0;
+  border-radius: 50%;
+  caret-color: transparent;
+  transition: transform 220ms cubic-bezier(.2, .8, .2, 1);
+}
+
+body.desk-app[data-theme] .desk-image-group__item:hover,
+body.desk-app[data-theme] .desk-image-group__item:focus-visible,
+body.desk-app[data-theme] .desk-image-group__item:has(:focus-visible),
+body.desk-app[data-theme] .desk-image-group__item:has(.desk-select-shell.is-open) {
+  z-index: 12;
+}
+
+body.desk-app[data-theme] .desk-image-group__item.is-dragging {
+  z-index: 32;
+  cursor: grabbing;
+  transition: none;
+}
+
+body.desk-app[data-theme] .desk-image-group__thumb {
+  position: relative;
+  height: calc(168px * var(--desk-image-group-ui-scale));
+  border-radius: 50%;
+  touch-action: none;
+  -webkit-user-drag: none;
+  transition: transform 180ms cubic-bezier(.22, 1, .36, 1);
+}
+
+body.desk-app[data-theme] .desk-image-group__thumb img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border: calc(8px * var(--desk-image-group-ui-scale)) solid var(--desk-image-group-thumb-border);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+body.desk-app[data-theme] .desk-image-group__thumb strong {
+  position: absolute;
+  right: calc(-4px * var(--desk-image-group-ui-scale));
+  bottom: calc(-4px * var(--desk-image-group-ui-scale));
+  display: grid;
+  width: calc(56px * var(--desk-image-group-ui-scale));
+  height: calc(56px * var(--desk-image-group-ui-scale));
+  place-items: center;
+  font-size: calc(32px * var(--desk-image-group-ui-scale));
+  font-weight: 900;
+  line-height: 1;
+  text-align: center;
+  white-space: nowrap;
+  border: calc(6px * var(--desk-image-group-ui-scale)) solid var(--desk-image-group-badge-border);
+  border-radius: 50%;
+}
+
+body.desk-app[data-theme] .desk-image-group__item-actions {
+  position: absolute;
+  bottom: calc(-58px * var(--desk-image-group-ui-scale));
+  left: 50%;
+  z-index: 30;
+  display: grid;
+  width: calc(168px * var(--desk-image-group-ui-scale));
+  padding: calc(6px * var(--desk-image-group-ui-scale));
+  gap: calc(6px * var(--desk-image-group-ui-scale));
+  grid-template-columns: minmax(0, 1fr) calc(44px * var(--desk-image-group-ui-scale));
+  border: 1px solid var(--desk-image-group-item-actions-border);
+  border-radius: calc(14px * var(--desk-image-group-ui-scale));
+  /* Hidden at rest; hover, focus or an open role menu reveals the actions. */
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, -4px) scale(.97);
+  transform-origin: center;
+  visibility: hidden;
+  transition: opacity 140ms ease, transform 180ms cubic-bezier(.22, 1, .36, 1), visibility 0s linear 180ms;
+}
+
+body.desk-app[data-theme] .desk-image-group__item-actions select,
+body.desk-app[data-theme] .desk-image-group__item-actions > button {
+  min-width: 0;
+  height: calc(44px * var(--desk-image-group-ui-scale));
+  font-size: calc(16px * var(--desk-image-group-ui-scale));
+  font-weight: 800;
+  border: 1px solid var(--desk-image-group-role-native-border);
+  border-radius: calc(9px * var(--desk-image-group-ui-scale));
+}
+
+body.desk-app[data-theme] .desk-image-group__item-actions select {
+  width: 100%;
+  padding: 0 calc(8px * var(--desk-image-group-ui-scale));
+  text-overflow: ellipsis;
+}
+
+body.desk-app[data-theme] .desk-image-group__item-actions > button {
+  display: grid;
+  padding: 0;
+  place-items: center;
+}
+
+body.desk-app[data-theme] .desk-image-group__item-actions .desk-select-trigger {
+  position: relative;
+  display: grid;
+  height: calc(44px * var(--desk-image-group-ui-scale));
+  padding: 0 calc(2px * var(--desk-image-group-ui-scale));
+  font-size: calc(16px * var(--desk-image-group-ui-scale));
+  font-weight: 800;
+  text-align: center;
+  border-radius: calc(9px * var(--desk-image-group-ui-scale));
+}
+
+body.desk-app[data-theme] .desk-image-group__item-actions .desk-select-trigger::before {
+  display: none;
+}
+
+body.desk-app[data-theme] .desk-image-group__item-actions .desk-select-chev {
+  position: absolute;
+  top: 50%;
+  right: calc(2px * var(--desk-image-group-ui-scale));
+  width: calc(8px * var(--desk-image-group-ui-scale));
+  height: calc(8px * var(--desk-image-group-ui-scale));
+  transform: translateY(calc(-50% - 1px)) rotate(45deg);
+}
+
+body.desk-app[data-theme] .desk-image-group__node-actions {
+  position: absolute;
+  top: calc(-58px * var(--desk-image-group-ui-scale));
+  right: calc(16px * var(--desk-image-group-ui-scale));
+  z-index: 24;
+  display: flex;
+  padding: calc(6px * var(--desk-image-group-ui-scale));
+  gap: calc(6px * var(--desk-image-group-ui-scale));
+  border: 2px solid var(--desk-image-group-node-actions-border);
+  border-radius: 999px;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(10px) scale(.94);
+  transform-origin: right bottom;
+  transition: opacity 140ms ease, transform 180ms cubic-bezier(.22, 1, .36, 1);
+}
+
+body.desk-app[data-theme] .desk-image-group__node-actions button,
+body.desk-app[data-theme] .desk-image-group__node-actions .desk-node-delete {
+  display: grid;
+  min-width: calc(48px * var(--desk-image-group-ui-scale));
+  height: calc(48px * var(--desk-image-group-ui-scale));
+  padding: 0;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+}
+
+body.desk-app[data-theme] .desk-image-group-dwell {
+  position: fixed;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+}
+
+body.desk-app[data-theme] .desk-image-group-dwell svg {
+  display: block;
+  height: 36px;
+  overflow: visible;
+  transform: rotate(-90deg);
+}
+
+body.desk-app[data-theme] .desk-image-group-dwell circle {
+  fill: none;
+  stroke-width: 2.5;
+}
+
+body.desk-app[data-theme] .desk-image-group-dwell__progress {
+  stroke-linecap: round;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: desk-image-group-dwell-progress var(--desk-image-group-dwell-ms, 620ms) linear forwards;
+}
+
+body.desk-app[data-theme] .desk-image-group-dwell > span {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--desk-image-group-dwell-dot-border);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+}
+
+body.desk-app[data-theme] .desk-image-group-transition,
+body.desk-app[data-theme] .desk-image-group-transition__goo,
+body.desk-app[data-theme] .desk-image-group-transition__images,
+body.desk-app[data-theme] .desk-image-group-transition__liquid-svg,
+body.desk-app[data-theme] .desk-image-group-transition__melt {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+}
+
+body.desk-app[data-theme] .desk-image-group-transition__goo span,
+body.desk-app[data-theme] .desk-image-group-transition__images > img {
+  position: fixed;
+  display: block;
+  transform-origin: top left;
+}
+
+body.desk-app[data-theme] .desk-image-group-transition__goo span {
+  background: var(--desk-image-group-transition-goo-background);
+  border-radius: 50%;
+  box-shadow: var(--desk-image-group-transition-goo-shadow);
+}
+
+body.desk-app[data-theme] .desk-image-group-transition__images > img {
+  z-index: 1;
+  box-sizing: border-box;
+  object-fit: cover;
+  border: 3px solid var(--desk-image-group-transition-image-border);
+  border-radius: 50%;
+  box-shadow: var(--desk-image-group-transition-image-shadow);
+}
+
+body.desk-app[data-theme] .desk-image-group-transition__liquid-svg {
+  z-index: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  will-change: filter, transform;
+}
+
+body.desk-app[data-theme] .desk-image-group-transition__identity {
+  position: fixed;
+  z-index: 2;
+  display: flex;
+  width: calc(116px * var(--desk-image-group-transition-scale, 1));
+  height: calc(58px * var(--desk-image-group-transition-scale, 1));
+  flex-direction: column;
+  justify-content: flex-start;
+  animation: desk-image-group-liquid-label-in 360ms 80ms cubic-bezier(.22, 1, .36, 1) both;
+}
+
+body.desk-app[data-theme] .desk-image-group-transition__identity strong,
+body.desk-app[data-theme] .desk-image-group-transition__identity span {
+  white-space: nowrap;
+}
+
+body.desk-app[data-theme] .desk-image-group-transition__identity strong {
+  font-size: calc(24px * var(--desk-image-group-transition-scale, 1));
+  font-weight: 850;
+  line-height: 1.25;
+}
+
+body.desk-app[data-theme] .desk-image-group-transition__identity span {
+  margin-top: calc(4px * var(--desk-image-group-transition-scale, 1));
+  font-weight: 750;
+  line-height: 1.2;
+}
+
+body.desk-app[data-theme] .desk-image-group-transition__images {
+  z-index: 3;
+}
+
+body.desk-app[data-theme] .desk-image-group-transition__chip {
+  --desk-image-group-chip-unit: .25px;
+  position: fixed;
+  display: block;
+  overflow: visible;
+  border-radius: 50%;
+  transform-origin: top left;
+  will-change: transform, opacity;
+}
+
+body.desk-app[data-theme] .desk-image-group-transition__chip img {
+  position: absolute;
+  inset: 0;
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border: calc(var(--desk-image-group-chip-unit) * 8) solid var(--desk-image-group-transition-chip-border);
+  border-radius: 50%;
+}
+
+body.desk-app[data-theme] .desk-image-group-transition__chip strong {
+  position: absolute;
+  right: calc(var(--desk-image-group-chip-unit) * -4);
+  bottom: calc(var(--desk-image-group-chip-unit) * -4);
+  z-index: 2;
+  display: grid;
+  width: calc(var(--desk-image-group-chip-unit) * 56);
+  height: calc(var(--desk-image-group-chip-unit) * 56);
+  place-items: center;
+  font-size: calc(var(--desk-image-group-chip-unit) * 32);
+  font-weight: 900;
+  line-height: 1;
+  border: calc(var(--desk-image-group-chip-unit) * 6) solid var(--desk-image-group-badge-border);
+  border-radius: 50%;
+}
+
+body.desk-app[data-theme] .desk-image-group__liquid-base,
+body.desk-app[data-theme] .desk-image-group__liquid-item,
+body.desk-app[data-theme] .desk-image-group-transition__mother-shape,
+body.desk-app[data-theme] .desk-image-group-transition__incoming-shape {
+  transform-box: fill-box;
+  transform-origin: center;
+  will-change: transform, opacity;
+}
+
+body.desk-app[data-theme] .desk-image-group__item:hover .desk-image-group__thumb,
+body.desk-app[data-theme] .desk-image-group__item:focus-visible .desk-image-group__thumb,
+body.desk-app[data-theme] .desk-image-group__item:has(:focus-visible) .desk-image-group__thumb,
+body.desk-app[data-theme] .desk-image-group__item:has(.desk-select-shell.is-open) .desk-image-group__thumb {
+  transform: translateY(calc(-12px * var(--desk-image-group-ui-scale))) scale(1.035);
+}
+
+body.desk-app[data-theme] .desk-node--image-group.is-sorting .desk-image-group__item:hover .desk-image-group__thumb,
+body.desk-app[data-theme] .desk-node--image-group.is-sorting .desk-image-group__item:focus-visible .desk-image-group__thumb,
+body.desk-app[data-theme] .desk-node--image-group.is-sorting .desk-image-group__item:has(:focus-visible) .desk-image-group__thumb,
+body.desk-app[data-theme] .desk-node--image-group.is-sorting .desk-image-group__item:has(.desk-select-shell.is-open) .desk-image-group__thumb {
+  transform: none;
+}
+
+body.desk-app[data-theme] .desk-image-group__liquid-item {
+  transition: transform 240ms cubic-bezier(.2, .8, .2, 1);
+}
+
+body.desk-app[data-theme] .desk-image-group__item:hover .desk-image-group__item-actions,
+body.desk-app[data-theme] .desk-image-group__item:focus-visible .desk-image-group__item-actions,
+body.desk-app[data-theme] .desk-image-group__item:has(:focus-visible) .desk-image-group__item-actions,
+body.desk-app[data-theme] .desk-image-group__item:has(.desk-select-shell.is-open) .desk-image-group__item-actions {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translate(-50%, 0) scale(1);
+  visibility: visible;
+  transition-delay: 0s;
+}
+
+body.desk-app[data-theme] .desk-image-group__item-actions .desk-select-value {
+  grid-column: 1;
+  overflow: visible;
+  text-overflow: clip;
+}
+
+body.desk-app[data-theme] .desk-image-group__item-actions .desk-select-menu {
+  gap: calc(4px * var(--desk-image-group-ui-scale));
+  padding: calc(6px * var(--desk-image-group-ui-scale));
+  border-radius: calc(9px * var(--desk-image-group-ui-scale));
+}
+
+body.desk-app[data-theme] .desk-image-group__item-actions .desk-select-option,
+body.desk-app[data-theme] .desk-image-group__item-actions .desk-select-group-label {
+  text-align: center;
+}
+
+body.desk-app[data-theme] .desk-image-group__item-actions .desk-select-option {
+  min-height: calc(34px * var(--desk-image-group-ui-scale));
+  font-size: calc(14px * var(--desk-image-group-ui-scale));
+  line-height: calc(34px * var(--desk-image-group-ui-scale));
+}
+
+body.desk-app[data-theme] .desk-node--image-group:hover .desk-image-group__node-actions,
+body.desk-app[data-theme] .desk-node--image-group.is-selected .desk-image-group__node-actions,
+body.desk-app[data-theme] .desk-image-group__node-actions:focus-within {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0) scale(1);
+}
+
+body.desk-app[data-theme] .desk-image-group-transition {
+  overflow: hidden;
+}
+
+body.desk-app[data-theme] .desk-image-group-transition__melt {
+  z-index: 1;
+  overflow: visible;
+}
+
+body.desk-app[data-theme] .desk-image-group-transition__melt img {
+  position: fixed;
+  display: block;
+  object-fit: cover;
+  border-radius: 50%;
+  filter: var(--desk-image-group-transition-melt-filter);
+  will-change: transform, opacity;
+}
+
+body.desk-app[data-theme] .desk-image-group-transition__bridge,
+body.desk-app[data-theme] .desk-image-group-transition__bridge-halo,
+body.desk-app[data-theme] .desk-image-group-transition__contact {
+  vector-effect: non-scaling-stroke;
+  will-change: opacity;
+}
+
+body.desk-app[data-theme] .desk-image-group-transition__bridge,
+body.desk-app[data-theme] .desk-image-group-transition__bridge-halo,
+body.desk-app[data-theme] .desk-image-group-transition__contact {
+  opacity: 0;
+}
+
+body.desk-app[data-theme] .desk-image-group-transition[data-contact-side="right"] .desk-image-group-transition__melt img {
+  -webkit-mask-image: var(--desk-image-group-transition-mask-right);
+  mask-image: var(--desk-image-group-transition-mask-right);
+}
+
+body.desk-app[data-theme] .desk-image-group-transition[data-contact-side="left"] .desk-image-group-transition__melt img {
+  -webkit-mask-image: var(--desk-image-group-transition-mask-left);
+  mask-image: var(--desk-image-group-transition-mask-left);
+}
+
+body.desk-app[data-theme] .desk-node--image-group.is-selected .desk-image-group__silhouette {
+  filter: none;
+}
+
+/* Dwell progress and merge label keyframes (from the former legacy styles). */
+@keyframes desk-image-group-dwell-progress {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes desk-image-group-liquid-label-in {
+  from {
+    opacity: 0;
+    transform: translateY(calc(8px * var(--desk-image-group-transition-scale, 1)));
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
