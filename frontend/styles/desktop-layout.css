@@ -135,6 +135,17 @@
   width: 82px;
 }
 
+/* The zoom select renders as a custom select shell: keep it at its own width. */
+.desk-layout-actions .desk-select-shell {
+  flex: 0 0 auto;
+}
+
+.desk-layout-actions #deskLayoutZoomSelect + .desk-select-shell .desk-select-trigger,
+.desk-layout-actions .desk-select-shell[data-select-id="deskLayoutZoomSelect"] .desk-select-trigger {
+  min-width: 82px;
+  width: 82px;
+}
+
 .desk-layout-actions button,
 .desk-layout-inline-actions button {
   min-height: 30px;

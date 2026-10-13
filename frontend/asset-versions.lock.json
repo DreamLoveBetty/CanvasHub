@@ -455,8 +455,8 @@
     "sha256": "1429518781c34dd7c174a41257f3c9afe469b87a6a5ef846c4f3510aec3acbf1"
    },
    "styles/desktop-layout.css": {
-    "v": "20260914-google-pool-compact1",
-    "sha256": "e81be613d73a7bd9b8e59ebbdd922fc82f6355505ef610d3a8f187be17514c67"
+    "v": "20261014-layout-module1",
+    "sha256": "f0f42e1cb340f262bf81c64abe22bd953d0aac190213c56bc288735e448bfc12"
    },
    "styles/desktop-legacy-canvas-nodes.css": {
     "v": "20261012-legacy-split1",
@@ -465,10 +465,6 @@
    "styles/desktop-legacy-gallery.css": {
     "v": "20261012-legacy-split1",
     "sha256": "27d13daa4c8ac91551b800fc48fab2ae4d916610feb43c06dff86d3c52bd6890"
-   },
-   "styles/desktop-legacy-layout.css": {
-    "v": "20261012-legacy-split1",
-    "sha256": "dc14171acae26fd1d3c48b96bfdd3db2c01441c2799ed8862307035ef5857cb5"
    },
    "styles/desktop-legacy-prompt-assistant.css": {
     "v": "20261012-legacy-split1",
