@@ -99,41 +99,74 @@ class GalleryPreviewBackdropTest(unittest.TestCase):
         self.assertNotIn('id="deskCompareSwapBtn">交换</button>', html)
         self.assertNotIn('id="deskCompareCloseBtn" aria-label="关闭对比">关闭</button>', html)
 
-        modal_block = css_block(css, ".desk-compare")
-        panel_block = css_block(css, ".desk-compare__panel")
-        actions_button_block = css_block(css, ".desk-compare__actions button")
-        divider_block = css_block(css, ".desk-compare__divider")
-        divider_dot_block = css_block(css, ".desk-compare__divider::before")
-        label_block = css_block(css, ".desk-compare__label")
+        # Compare styles live in the token module desktop-compare.css (colours from the
+        # --desk-compare-* tokens), no longer in the legacy stylesheets.
+        compare_css = read_text("styles/desktop-compare.css")
+        tokens_css = read_text("styles/desktop-tokens.css")
+        scope = "body.desk-app[data-theme] "
+        modal_block = css_block(compare_css, scope + ".desk-compare")
+        panel_block = css_block(compare_css, scope + ".desk-compare__panel")
+        actions_button_block = css_block(compare_css, scope + ".desk-compare__actions button")
+        divider_block = css_block(compare_css, scope + ".desk-compare__divider")
+        divider_dot_block = css_block(compare_css, scope + ".desk-compare__divider::before")
+        label_block = css_block(compare_css, scope + ".desk-compare__label")
 
+        self.assertNotIn("desk-compare", css, "no compare rules left in the legacy stylesheets")
         self.assertIn("--desk-preview-radius: 12px;", modal_block)
         self.assertIn("inset: 52px 68px 48px 78px;", modal_block)
         self.assertIn("overflow: hidden;", modal_block)
         self.assertIn("border-radius: var(--desk-preview-radius);", modal_block)
         # 性能不变量：对比模态禁止 backdrop-filter——背后画布/图库存在 infinite 动画时，
         # 毛玻璃每帧全区域重算模糊，会让分隔线拖动持续掉帧（与预览外壳有意不一致）
-        self.assertNotIn("backdrop-filter: blur", modal_block)
-        self.assertIn(".desk-compare .desk-glass {", css)
+        self.assertNotIn("backdrop-filter", modal_block)
+        self.assertIn(scope + ".desk-compare .desk-glass {", compare_css)
         self.assertIn("width: 100%;", panel_block)
         self.assertIn("height: 100%;", panel_block)
         self.assertIn("border-radius: inherit;", panel_block)
-        self.assertIn("width: 34px;", actions_button_block)
+        self.assertIn("min-width: 34px;", actions_button_block)
         self.assertIn("height: 34px;", actions_button_block)
-        self.assertIn('mask-image: url("../assets/icons/contrast.svg");', css)
-        self.assertIn('mask-image: url("../assets/icons/circle-x.svg");', css)
+        self.assertIn('mask-image: url("../assets/icons/contrast.svg");', compare_css)
+        self.assertIn('mask-image: url("../assets/icons/circle-x.svg");', compare_css)
         self.assertIn("width: 1px;", divider_block)
         self.assertIn("width: 18px;", divider_dot_block)
         self.assertIn("height: 18px;", divider_dot_block)
         self.assertIn("top: 20px;", label_block)
+        # Light and dark backdrops are token values, one per theme.
+        light_tokens = tokens_css[:tokens_css.index('body.desk-app[data-theme="dark"] {')]
+        dark_tokens = tokens_css[tokens_css.index('body.desk-app[data-theme="dark"] {'):]
+        self.assertIn("--desk-compare-background: linear-gradient(120deg, rgba(245, 250, 253, 0.78)", light_tokens)
+        self.assertIn("--desk-compare-background: linear-gradient(90deg, rgba(18, 24, 27, 0.55)", dark_tokens)
         self.assertIn("function compareAssetName", js)
         self.assertIn("basenameFromAssetPath(asset?.file)", js)
         self.assertIn("els.deskCompareLeftLabel.title = leftName;", js)
         self.assertIn("els.deskCompareRightLabel.title = rightName;", js)
         assert_asset_has_cache_bust(self, html, "scripts/desktop-history.js")
-        self.assertIn('body.desk-app:not([data-theme="dark"]) .desk-compare {', css)
         self.assertIn("rgba(250, 253, 255, 0.16)", css)
         self.assertIn("lucide-contrast", contrast_icon)
         self.assertIn("lucide-circle-x", close_icon)
+
+    def test_compare_module_consumes_theme_tokens(self) -> None:
+        html = read_text("desktop.html")
+        compare_css = read_text("styles/desktop-compare.css")
+        tokens_css = read_text("styles/desktop-tokens.css")
+        code = re.sub(r"/\*.*?\*/", "", compare_css, flags=re.S)
+
+        assert_asset_has_cache_bust(self, html, "styles/desktop-compare.css")
+        self.assertNotIn("desktop-legacy-compare.css", html)
+        self.assertNotIn("desk-compare", read_legacy_css())
+        # Token module: no theme selectors, literal colours or !important.
+        self.assertNotIn('data-theme="', code)
+        self.assertNotIn(":not([data-theme", code)
+        self.assertNotRegex(code, r"#[0-9a-fA-F]{3,8}\b|rgba?\(|hsla?\(")
+        self.assertNotIn("!important", code)
+        # Every compare token the module reads is defined for both themes.
+        light = tokens_css[:tokens_css.index('body.desk-app[data-theme="dark"] {')]
+        dark = tokens_css[tokens_css.index('body.desk-app[data-theme="dark"] {'):]
+        used = set(re.findall(r"var\((--desk-compare-[\w-]+)", code)) - {"--desk-compare-info-width"}
+        self.assertGreater(len(used), 30)
+        for token in sorted(used):
+            self.assertIn(f"  {token}:", light, token)
+            self.assertIn(f"  {token}:", dark, token)
 
     def test_gallery_preview_counter_uses_full_asset_index_total(self) -> None:
         # 二期分页后：计数器的"全量"语义由服务端 data.total 保证，而非一次拉满 5000。

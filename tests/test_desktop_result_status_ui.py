@@ -724,7 +724,7 @@ class DesktopResultStatusUiTest(unittest.TestCase):
         self.assertRegex(css, r"\.desk-gallery__header h2\s*\{[^}]*font-size:\s*17px;")
         self.assertNotIn(".desk-compare__header h2", css)
         self.assertRegex(css, r"\.desk-gallery__actions button\s*\{[^}]*width:\s*24px;[^}]*height:\s*24px;")
-        self.assertRegex(css, r"\.desk-compare__actions button\s*\{[^}]*width:\s*34px;[^}]*height:\s*34px;")
+        self.assertRegex(read_text("styles/desktop-compare.css"), r"\.desk-compare__actions button\s*\{[^}]*width:\s*34px;[^}]*height:\s*34px;")
         self.assertRegex(css, r"\.desk-gallery__actions svg\s*\{[^}]*width:\s*13px;[^}]*height:\s*13px;")
         self.assertRegex(css, r"\.desk-gallery-tabs\s*\{[^}]*align-items:\s*center;[^}]*gap:\s*3px;[^}]*height:\s*30px;[^}]*min-width:\s*min\(226px,\s*100%\);[^}]*min-height:\s*30px;[^}]*padding:\s*2px;")
         self.assertRegex(css, r"\.desk-gallery-tabs button\s*\{[^}]*height:\s*24px;[^}]*min-width:\s*56px;[^}]*font-size:\s*11px;")

@@ -1,3 +1,359 @@
+/* Image compare modal: the single home of compare styles. Colours come from the
+   --desk-compare-* tokens in desktop-tokens.css (light under body.desk-app, dark under
+   [data-theme="dark"]); no theme selectors or literal colours here. Layering stays in
+   desktop-geometry.css (z-index, caption type metrics, control min-height) and motion in
+   desktop-motion.css. Performance invariant: the modal itself never uses backdrop-filter
+   (animated canvas and gallery layers behind it would force a full-area blur every frame
+   while the divider is dragged); it uses a solid tinted backdrop instead. */
+
+/* Modal shell */
+body.desk-app[data-theme] .desk-compare {
+  --desk-preview-radius: 12px;
+  --desk-compare-info-width: clamp(280px, 24vw, 360px);
+  position: fixed;
+  inset: 52px 68px 48px 78px;
+  pointer-events: none;
+  visibility: hidden;
+  opacity: 0;
+  overflow: hidden;
+  background: var(--desk-compare-background);
+  border-radius: var(--desk-preview-radius);
+  box-shadow: var(--desk-compare-shadow);
+}
+
+body.desk-app[data-theme] .desk-compare.is-open {
+  pointer-events: auto;
+  visibility: visible;
+  opacity: 1;
+}
+
+/* The panel carries the global desk-glass class; no second blur inside the modal. */
+body.desk-app[data-theme] .desk-compare .desk-glass {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+body.desk-app[data-theme] .desk-compare__panel {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  isolation: isolate;
+  background: var(--desk-compare-panel-background);
+  border: 0;
+  border-radius: inherit;
+  box-shadow: none;
+}
+
+body.desk-app[data-theme] .desk-compare__panel::before {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  content: "";
+  background: var(--desk-compare-panel-sheen);
+}
+
+/* Header actions (swap, close) */
+body.desk-app[data-theme] .desk-compare__header {
+  position: absolute;
+  top: 22px;
+  right: 22px;
+  left: 28px;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 18px;
+  pointer-events: none;
+}
+
+body.desk-app[data-theme] .desk-compare__actions {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  pointer-events: auto;
+}
+
+body.desk-app[data-theme] .desk-compare__actions button {
+  display: grid;
+  place-items: center;
+  min-width: 34px;
+  height: 34px;
+  padding: 0;
+  color: var(--desk-compare-action-ink);
+  background: var(--desk-compare-action-background);
+  border: var(--desk-compare-action-border);
+  border-radius: 999px;
+  box-shadow: var(--desk-compare-action-shadow);
+  backdrop-filter: var(--desk-compare-action-blur);
+  -webkit-backdrop-filter: var(--desk-compare-action-blur);
+}
+
+body.desk-app[data-theme] .desk-compare__actions button:hover {
+  color: var(--desk-compare-action-hover-ink);
+  background: var(--desk-compare-action-hover-background);
+  border-color: var(--desk-compare-action-hover-border);
+}
+
+body.desk-app[data-theme] .desk-compare__icon {
+  width: 17px;
+  height: 17px;
+  background: currentColor;
+  mask-position: center;
+  mask-repeat: no-repeat;
+  mask-size: contain;
+  -webkit-mask-position: center;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-size: contain;
+}
+
+body.desk-app[data-theme] .desk-compare__icon--swap {
+  mask-image: url("../assets/icons/contrast.svg");
+  -webkit-mask-image: url("../assets/icons/contrast.svg");
+}
+
+body.desk-app[data-theme] .desk-compare__icon--close {
+  width: 18px;
+  height: 18px;
+  mask-image: url("../assets/icons/circle-x.svg");
+  -webkit-mask-image: url("../assets/icons/circle-x.svg");
+}
+
+/* Body: stage + info column */
+body.desk-app[data-theme] .desk-compare__body {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--desk-compare-info-width);
+  gap: 0;
+}
+
+body.desk-app[data-theme] .desk-compare__stage {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 0;
+  overflow: hidden;
+  cursor: ew-resize;
+  touch-action: none;
+  background: var(--desk-compare-stage-checker);
+  background-color: var(--desk-compare-stage-background);
+  background-position: 0 0, 12px 12px;
+  background-size: 24px 24px;
+}
+
+body.desk-app[data-theme] .desk-compare__stage img,
+body.desk-app[data-theme] .desk-compare__overlay {
+  position: absolute;
+  inset: 0;
+}
+
+body.desk-app[data-theme] .desk-compare__stage img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+/* Reveal by paired transforms (JS keeps outer/inner offsets in sync): compositor only.
+   These are the resting values before the first open; JS then drives them inline. */
+body.desk-app[data-theme] .desk-compare__overlay {
+  overflow: hidden;
+  transform: translateX(-50%);
+  will-change: transform;
+}
+
+body.desk-app[data-theme] .desk-compare__overlay img {
+  transform: translateX(50%);
+  will-change: transform;
+}
+
+body.desk-app[data-theme] .desk-compare__divider {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+  background: var(--desk-compare-divider);
+  box-shadow: var(--desk-compare-divider-glow);
+  transform: translateX(-0.5px);
+}
+
+body.desk-app[data-theme] .desk-compare__divider::before {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 18px;
+  height: 18px;
+  content: "";
+  background: var(--desk-compare-divider-knob);
+  border: var(--desk-compare-divider-knob-border);
+  border-radius: 999px;
+  box-shadow: var(--desk-compare-divider-knob-shadow);
+  transform: translate(-50%, -50%);
+}
+
+/* No backdrop-filter on labels either: a deeper fill keeps them readable. */
+body.desk-app[data-theme] .desk-compare__label {
+  position: absolute;
+  top: 20px;
+  max-width: 42%;
+  overflow: hidden;
+  padding: 6px 10px;
+  color: var(--desk-compare-label-ink);
+  font-weight: 850;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  background: var(--desk-compare-label-background);
+  border-radius: 999px;
+}
+
+body.desk-app[data-theme] .desk-compare__label--left {
+  left: 12px;
+}
+
+body.desk-app[data-theme] .desk-compare__label--right {
+  right: 12px;
+}
+
+/* Dragging is driven by the stage's pointer events; the range only keeps keyboard access. */
+body.desk-app[data-theme] .desk-compare__stage input[type="range"] {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  cursor: ew-resize;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Info column: metadata diff and both prompts */
+body.desk-app[data-theme] .desk-compare__info {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) minmax(0, 1fr);
+  gap: 9px;
+  min-width: 0;
+  min-height: 0;
+  padding: 84px 18px 22px;
+  overflow: auto;
+  color: var(--desk-compare-info-ink);
+  background: var(--desk-compare-info-background);
+  border: 0;
+  border-left: var(--desk-compare-info-border);
+  box-shadow: var(--desk-compare-info-shadow);
+  backdrop-filter: var(--desk-compare-info-blur);
+  -webkit-backdrop-filter: var(--desk-compare-info-blur);
+}
+
+body.desk-app[data-theme] .desk-compare__section {
+  display: grid;
+  gap: 7px;
+  min-height: 0;
+}
+
+body.desk-app[data-theme] .desk-compare__section p {
+  margin: 0;
+  color: var(--desk-compare-caption-ink);
+  font-weight: 850;
+}
+
+body.desk-app[data-theme] .desk-compare__section pre {
+  min-height: 0;
+  margin: 0;
+  padding: 8px;
+  overflow: auto;
+  color: var(--desk-compare-value-ink);
+  font-family: inherit;
+  font-weight: 650;
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: var(--desk-compare-prompt-background);
+  border-radius: 9px;
+}
+
+body.desk-app[data-theme] .desk-compare__diff {
+  display: grid;
+  gap: 5px;
+  min-height: 0;
+}
+
+body.desk-app[data-theme] .desk-compare__diff-row {
+  display: grid;
+  grid-template-columns: 46px minmax(0, 1fr) minmax(0, 1fr);
+  gap: 6px;
+  align-items: center;
+  min-height: 26px;
+  padding: 5px 6px;
+  background: var(--desk-compare-row-background);
+  border: var(--desk-compare-row-border);
+  border-radius: 8px;
+}
+
+body.desk-app[data-theme] .desk-compare__diff-row.is-different {
+  background: var(--desk-compare-row-changed-background);
+  border-color: var(--desk-compare-row-changed-border);
+}
+
+body.desk-app[data-theme] .desk-compare__diff-row span {
+  overflow: hidden;
+  color: var(--desk-compare-row-label-ink);
+  font-weight: 850;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body.desk-app[data-theme] .desk-compare__diff-row strong {
+  overflow: hidden;
+  color: var(--desk-compare-row-value-ink);
+  font-weight: 750;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body.desk-app[data-theme] .desk-compare__empty {
+  display: grid;
+  min-height: 56px;
+  place-items: center;
+  color: var(--desk-compare-empty-ink);
+  font-size: 11px;
+}
+
+@media (max-width: 980px) {
+  body.desk-app[data-theme] .desk-compare {
+    inset: 38px 20px 34px;
+  }
+
+  body.desk-app[data-theme] .desk-compare__panel {
+    width: 100%;
+    height: 100%;
+  }
+
+  body.desk-app[data-theme] .desk-compare__body {
+    grid-template-columns: 1fr;
+    grid-template-rows: minmax(300px, 1fr) 220px;
+  }
+
+  /* Stacked info: the light theme keeps its hairline at the stage edge. */
+  body.desk-app[data-theme] .desk-compare__info {
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: minmax(0, 1fr);
+    padding: 12px;
+    overflow: auto;
+    border-top: var(--desk-compare-info-stacked-border-top);
+    border-left: var(--desk-compare-info-stacked-border-left);
+  }
+
+  body.desk-app[data-theme] .desk-compare__section:first-child {
+    grid-column: 1 / -1;
+  }
+
+  body.desk-app[data-theme] .desk-compare__label--right {
+    right: 92px;
+    max-width: calc(100% - 120px);
+  }
+}
+
 /* Compare-only viewport chrome; no asset/task state or shared gallery overrides. */
 body.desk-app .desk-compare__stage img { transform-origin:50% 50%; pointer-events:none; user-select:none; will-change:transform; }
 body.desk-app .desk-compare__stage.is-zoomed { cursor:grab; }
@@ -6,10 +362,9 @@ body.desk-app .desk-compare__divider { pointer-events:auto; cursor:ew-resize; }
 body.desk-app .desk-compare__divider::after { content:""; position:absolute; inset:0 -16px; }
 body.desk-app .desk-compare__stage:focus-visible { outline:2px solid var(--desk-color-accent); outline-offset:-2px; }
 body.desk-app .desk-compare__stage:has(input[type="range"]:focus-visible) .desk-compare__divider::before { outline:3px solid var(--desk-color-accent); outline-offset:3px; }
-body.desk-app .desk-compare__tools { position:absolute; z-index:3; bottom:16px; left:50%; transform:translateX(-50%); display:flex; align-items:center; gap:6px; padding:6px 8px; max-width:calc(100% - 24px); box-sizing:border-box; border:1px solid var(--desk-node-stroke); border-radius:10px; background:var(--desk-color-panel-solid, #f1f6fc); box-shadow:0 4px 16px rgba(15,35,60,.16); color:var(--desk-node-ink); cursor:default; }
-body.desk-app[data-theme="dark"] .desk-compare__tools { background:#182536; }
+body.desk-app .desk-compare__tools { position:absolute; z-index:3; bottom:16px; left:50%; transform:translateX(-50%); display:flex; align-items:center; gap:6px; padding:6px 8px; max-width:calc(100% - 24px); box-sizing:border-box; border:1px solid var(--desk-node-stroke); border-radius:10px; background:var(--desk-compare-tools-background); box-shadow:var(--desk-compare-tools-shadow); color:var(--desk-node-ink); cursor:default; }
 body.desk-app .desk-compare__tools button { flex:none; min-width:32px; height:32px; padding:0 9px; border:1px solid var(--desk-color-border-faint); border-radius:7px; color:inherit; background:var(--desk-color-accent-soft); font-family:inherit; font-size:12px; font-weight:600; line-height:1; cursor:pointer; }
-body.desk-app .desk-compare__tools button:hover:not(:disabled) { background:var(--desk-color-accent-soft-strong,rgba(84,137,206,.25)); }
+body.desk-app .desk-compare__tools button:hover:not(:disabled) { background:var(--desk-compare-tools-button-hover); }
 body.desk-app .desk-compare__tools button:focus-visible { outline:2px solid var(--desk-color-accent); outline-offset:2px; }
 body.desk-app .desk-compare__tools button:disabled { opacity:.4; cursor:default; }
 body.desk-app .desk-compare__tools output { min-width:48px; text-align:center; font-size:12px; font-variant-numeric:tabular-nums; }
