@@ -499,8 +499,8 @@
     "sha256": "689d576316c7f6c75b49ab5f0adcea889a0dc29cc89eee2cd3821abb1df78bf7"
    },
    "styles/desktop-prompt-assistant-geometry.css": {
-    "v": "20261014-prompt-assistant-module2",
-    "sha256": "f62ed8705d42d0ab0fb5fcd4dda273605a7d3d5b7495a11c81154495a8a866d8"
+    "v": "20261014-outline-kept1",
+    "sha256": "59802d77f7893eb6323e643a2ac0256814194e033b0fc34aff5a829f5ded39b8"
    },
    "styles/desktop-prompt-assistant.css": {
     "v": "20260929-prompt-video1",
@@ -515,8 +515,8 @@
     "sha256": "173ada061f8b474196f3e940512a04a0147e85d2046425ffd9c3e3cef3bad9c5"
    },
    "styles/desktop-settings-auth-geometry.css": {
-    "v": "20261014-settings-auth-module6",
-    "sha256": "fe3c8a34464de5aa65b521a6e13d5876ae7627a85abd4998d87e0b65f5f2f570"
+    "v": "20261014-outline-kept1",
+    "sha256": "2a9b0ee4b411e10166d27a5c3182358bf08ce313b070aa81a6c447af759eb624"
    },
    "styles/desktop-settings-auth.css": {
     "v": "20261010-color-bloom1",

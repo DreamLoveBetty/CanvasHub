@@ -19,6 +19,12 @@
   -webkit-backdrop-filter: blur(12px) saturate(1.28);
 }
 
+:where(body.desk-app[data-theme]) .desk-release__trigger:focus-visible,
+:where(body.desk-app[data-theme]) .desk-release__close:focus-visible {
+  outline: 2px solid rgba(8, 79, 189, 0.5);
+  outline-offset: 2px;
+}
+
 :where(body.desk-app[data-theme]) .desk-release__panel[hidden] {
   display: none;
 }
@@ -146,6 +152,11 @@
   border-width: 1px;
   border-style: solid;
   border-radius: 7px;
+}
+
+:where(body.desk-app[data-theme]) .desk-settings-canvas-interaction__segment button:focus-visible {
+  outline: 2px solid rgba(8, 79, 189, 0.28);
+  outline-offset: 1px;
 }
 
 :where(body.desk-app[data-theme]) .desk-settings-kv,
@@ -419,10 +430,15 @@
 :where(body.desk-app[data-theme]) .auth-password-input {
   border-width: 1px;
   border-style: solid;
+  outline: none;
 }
 
 :where(body.desk-app[data-theme]) .desk-settings {
   border-radius: 12px;
+}
+
+body.desk-app[data-theme="dark"] .desk-settings-canvas-interaction__segment button:focus-visible {
+  outline-color: rgba(255, 148, 92, 0.38);
 }
 
 :where(body.desk-app[data-theme]) .desk-status-tip {

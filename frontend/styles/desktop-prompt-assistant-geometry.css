@@ -223,6 +223,7 @@
 :where(body.desk-app[data-theme]) .desk-text-polish-modal__panel footer button:focus-visible,
 :where(body.desk-app[data-theme]) .desk-text-polish-modal__card:focus-visible {
   outline: 2px solid rgba(8, 79, 189, 0.5);
+  outline-offset: 2px;
 }
 
 :where(body.desk-app[data-theme]) .desk-text-polish-modal__panel footer button[data-polish-copy] {
@@ -1006,6 +1007,7 @@ body.desk-app[data-theme="dark"] .desk-prompt-drawer.is-open button.desk-agent-i
   height: auto;
   min-width: 0;
   min-height: 90px;
+  outline: none;
 }
 
 :where(body.desk-app[data-theme]) .desk-agent-goal-editor:focus {
@@ -1307,6 +1309,7 @@ body.desk-app[data-theme="dark"] .desk-prompt-drawer.is-open button.desk-agent-i
   border-width: 1px;
   border-style: solid;
   border-radius: 5px;
+  outline: none;
 }
 
 :where(body.desk-app[data-theme]) .desk-prompt-drawer.is-open .desk-agent-revision button:hover:not(:disabled):not(.desk-prompt-drawer__handle) {
@@ -1340,6 +1343,7 @@ body.desk-app[data-theme="dark"] .desk-prompt-drawer.is-open button.desk-agent-i
   padding: 0 18px 0 6px;
   font-weight: 750;
   border-radius: 4px;
+  outline: none;
 }
 
 :where(body.desk-app[data-theme]) .desk-agent-param.is-disabled {
