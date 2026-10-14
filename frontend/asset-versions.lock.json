@@ -466,10 +466,6 @@
     "v": "20261012-legacy-split1",
     "sha256": "27d13daa4c8ac91551b800fc48fab2ae4d916610feb43c06dff86d3c52bd6890"
    },
-   "styles/desktop-legacy-prompt-assistant.css": {
-    "v": "20261012-legacy-split1",
-    "sha256": "1e594f3c1085ed1a9ca0c975890111d1adbea6ee92f498d9577f4c9277b85d1e"
-   },
    "styles/desktop-liquid.css": {
     "v": "20261014-settings-auth-module1",
     "sha256": "48fa40c9758bad4fde93c6d739e925f4617cc66c46c0e95d81086bd88d3c6be6"
@@ -501,6 +497,10 @@
    "styles/desktop-progress.css": {
     "v": "20261011-progress-instrument2",
     "sha256": "689d576316c7f6c75b49ab5f0adcea889a0dc29cc89eee2cd3821abb1df78bf7"
+   },
+   "styles/desktop-prompt-assistant-geometry.css": {
+    "v": "20261014-prompt-assistant-module2",
+    "sha256": "f62ed8705d42d0ab0fb5fcd4dda273605a7d3d5b7495a11c81154495a8a866d8"
    },
    "styles/desktop-prompt-assistant.css": {
     "v": "20260929-prompt-video1",
