@@ -398,6 +398,10 @@
     "v": "20261004-node-surfaces1",
     "sha256": "3310f2f359c21f35e070204ac3229e978650b0c73b672832ba0c58f8b0816808"
    },
+   "styles/desktop-canvas-nodes-geometry.css": {
+    "v": "20261014-canvas-nodes-module5",
+    "sha256": "0cbe246aded4d58e2ea78824df41cab88040243ff1308c132dde4935a52f85ae"
+   },
    "styles/desktop-canvas-nodes.css": {
     "v": "20261007-connection-arc1",
     "sha256": "a80f4f92ae684bfe38069bf216e4efe31ad22b3aaf5161f4b5b1a450dc2a8d7f"
@@ -457,10 +461,6 @@
    "styles/desktop-layout.css": {
     "v": "20261014-layout-module1",
     "sha256": "f0f42e1cb340f262bf81c64abe22bd953d0aac190213c56bc288735e448bfc12"
-   },
-   "styles/desktop-legacy-canvas-nodes.css": {
-    "v": "20261012-legacy-split1",
-    "sha256": "87201790dc1752358b3311438d76e4ee500d0fdda536a4c2c86a362a2dfe018d"
    },
    "styles/desktop-legacy-gallery.css": {
     "v": "20261012-legacy-split1",

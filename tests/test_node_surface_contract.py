@@ -53,7 +53,8 @@ class NodeSurfaceContractTests(unittest.TestCase):
                         self.assertNotIn('border-color:', declarations)
                         self.assertNotIn('box-shadow:', declarations)
         legacy = read_legacy_css()
-        caps = re.search(r'\.desk-node\.has-settled-port-left > \.desk-node-settled-port--left,\s*\.desk-node\.has-settled-port-right > \.desk-node-settled-port--right\s*\{([^}]+)\}', legacy)
+        # Migrated legacy rules carry a :where() scope on each selector item.
+        caps = re.search(r'\.desk-node\.has-settled-port-left > \.desk-node-settled-port--left,\s*(?::where\([^)]*\)\s*)?\.desk-node\.has-settled-port-right > \.desk-node-settled-port--right\s*\{([^}]+)\}', legacy)
         self.assertIsNotNone(caps)
         self.assertIn('opacity: 1;', caps[1])
         self.assertIn('background: var(--desk-node-edge-stroke);', legacy)
