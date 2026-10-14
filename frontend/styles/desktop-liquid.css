@@ -5406,14 +5406,6 @@ body.desk-history-collapsed .desk-gallery {
   box-shadow: inset 0 2px 7px rgba(31, 45, 62, 0.12);
 }
 
-@keyframes desk-settings-spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-
-
 @media (max-width: 760px) {
   .desk-settings {
     top: auto;

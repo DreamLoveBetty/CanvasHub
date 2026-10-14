@@ -470,13 +470,9 @@
     "v": "20261012-legacy-split1",
     "sha256": "1e594f3c1085ed1a9ca0c975890111d1adbea6ee92f498d9577f4c9277b85d1e"
    },
-   "styles/desktop-legacy-settings-auth.css": {
-    "v": "20261012-legacy-split1",
-    "sha256": "4e2d08a1face6b14db1981f47c0cba06c2c5dcd9cefe315ee378a935be29380c"
-   },
    "styles/desktop-liquid.css": {
-    "v": "20261014-shell-module1",
-    "sha256": "2db12451e6ca6f860439d5294070e2550eb8933e13f00dead95b116b3aeb3d85"
+    "v": "20261014-settings-auth-module1",
+    "sha256": "48fa40c9758bad4fde93c6d739e925f4617cc66c46c0e95d81086bd88d3c6be6"
    },
    "styles/desktop-lora.css": {
     "v": "20261003-lora-quick-add1",
@@ -517,6 +513,10 @@
    "styles/desktop-qwen21.css": {
     "v": "20261003-auto-image-mode1",
     "sha256": "173ada061f8b474196f3e940512a04a0147e85d2046425ffd9c3e3cef3bad9c5"
+   },
+   "styles/desktop-settings-auth-geometry.css": {
+    "v": "20261014-settings-auth-module6",
+    "sha256": "fe3c8a34464de5aa65b521a6e13d5876ae7627a85abd4998d87e0b65f5f2f570"
    },
    "styles/desktop-settings-auth.css": {
     "v": "20261010-color-bloom1",

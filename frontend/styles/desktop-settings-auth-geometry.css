@@ -1,0 +1,565 @@
+/*
+ * Settings center and auth geometry: header, tabs, cards, form rows, secret fields, the
+ * account pool (toolbar, activity, account rows), detail sections, the settings help
+ * slide and the auth overlay, with loading spinners and their keyframes. Layout, borders
+ * by width and style, motion only; colours come from desktop-settings-auth.css,
+ * desktop-shell.css and desktop-controls.css (theme tokens). No theme selectors, theme
+ * colours or important flags.
+ *
+ * Also the release notes panel and the status tip (painted by desktop-shell.css): they stay
+ * here in their original order because the settings help slide is built on .desk-status-tip
+ * and must come after it.
+ *
+ * Loaded where the legacy settings styles were (right after desktop-liquid.css), and every
+ * rule keeps its original specificity (scope in :where()), so the cascade is the one these
+ * rules always had: theme layers and later modules keep winning where they did.
+ */
+
+:where(body.desk-app[data-theme]) .desk-release__trigger {
+  -webkit-backdrop-filter: blur(12px) saturate(1.28);
+}
+
+:where(body.desk-app[data-theme]) .desk-release__panel[hidden] {
+  display: none;
+}
+
+:where(body.desk-app[data-theme]) .desk-release__latest {
+  font-size: 8px;
+  line-height: 1;
+}
+
+:where(body.desk-app[data-theme]) .desk-release__update-copy {
+  font-size: 10px;
+  line-height: 1.55;
+}
+
+:where(body.desk-app[data-theme]) .desk-release__update-action {
+  padding: 0 10px;
+  margin-top: 10px;
+  font-size: 10px;
+  font-weight: 800;
+  border-width: 1px;
+  border-style: solid;
+  border-radius: 6px;
+}
+
+:where(body.desk-app[data-theme]) .desk-release__update-action:disabled {
+  cursor: wait;
+}
+
+:where(body.desk-app[data-theme]) .desk-release__footer {
+  font-size: 9px;
+}
+
+:where(body.desk-app[data-theme]) .desk-settings__header {
+  min-height: 30px;
+  padding: 0 1px 0 3px;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+:where(body.desk-app[data-theme]) .desk-settings__title {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  gap: 8px;
+}
+
+:where(body.desk-app[data-theme]) .desk-settings__version {
+  flex: 0 0 auto;
+  font-size: 8px;
+  font-weight: 850;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  text-transform: uppercase;
+  transform: translateY(-1px);
+}
+
+:where(body.desk-app[data-theme]) .desk-settings__actions {
+  gap: 6px;
+}
+
+:where(body.desk-app[data-theme]) .desk-settings__summary {
+  display: none;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+:where(body.desk-app[data-theme]) .desk-settings-tabs {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 28px;
+  column-gap: 3px;
+  padding: 2px;
+  border-width: 1px;
+  border-style: solid;
+  border-radius: 8px;
+}
+
+:where(body.desk-app[data-theme]) .desk-settings-card {
+  display: grid;
+  align-self: start;
+  align-content: start;
+  gap: 6px;
+  min-width: 0;
+  padding: 8px;
+  border-width: 1px;
+  border-style: solid;
+  border-radius: 8px;
+}
+
+:where(body.desk-app[data-theme]) .desk-settings-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+}
+
+:where(body.desk-app[data-theme]) .desk-settings-card__body {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+:where(body.desk-app[data-theme]) .desk-settings-canvas-interaction {
+  display: grid;
+  gap: 5px 10px;
+  align-items: center;
+  min-height: 67px;
+  padding: 4px 5px 4px 7px;
+  border-width: 1px;
+  border-style: solid;
+  border-radius: 8px;
+}
+
+:where(body.desk-app[data-theme]) .desk-settings-canvas-interaction__label {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+:where(body.desk-app[data-theme]) .desk-settings-canvas-interaction__segment {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 2px;
+  padding: 2px;
+  border-width: 1px;
+  border-style: solid;
+  border-radius: 7px;
+}
+
+:where(body.desk-app[data-theme]) .desk-settings-kv,
+:where(body.desk-app[data-theme]) .desk-settings-path {
+  display: grid;
+  grid-template-columns: minmax(104px, 0.45fr) minmax(0, 1fr);
+  gap: 6px;
+  align-items: center;
+  min-height: 20px;
+  font-size: 10px;
+}
+
+:where(body.desk-app[data-theme]) .desk-settings-path {
+  grid-template-columns: minmax(0, 1fr) auto;
+  padding: 5px 6px;
+  border-width: 1px;
+  border-style: solid;
+  border-radius: 8px;
+}
+
+:where(body.desk-app[data-theme]) .desk-settings-form label.desk-settings-form__wide {
+  grid-column: 1 / -1;
+}
+
+:where(body.desk-app[data-theme]) .desk-settings-secret-field {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  font-size: 10px;
+  font-weight: 760;
+}
+
+:where(body.desk-app[data-theme]) .desk-settings-secret-field.desk-settings-form__wide {
+  grid-column: 1 / -1;
+}
+
+:where(body.desk-app[data-theme]) .desk-settings-secret-field__label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+:where(body.desk-app[data-theme]) .desk-settings-secret-clear {
+  flex: 0 0 auto;
+  padding: 0 6px;
+  font: inherit;
+  font-size: 9px;
+  line-height: 1;
+  border-width: 1px;
+  border-style: solid;
+  border-radius: 999px;
+  transition: transform 0.12s ease,
+    background 0.16s ease,
+    border-color 0.16s ease,
+    box-shadow 0.16s ease;
+}
+
+:where(body.desk-app[data-theme]) .desk-settings-secret-clear.is-loading,
+:where(body.desk-app[data-theme]) .desk-settings-secret-clear.is-done {
+  pointer-events: none;
+}
+
+:where(body.desk-app[data-theme]) .desk-settings-form__section-title {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 2px;
+  padding-top: 4px;
+}
+
+:where(body.desk-app[data-theme]) .desk-settings-textarea {
+  min-height: 48px;
+  resize: vertical;
+  padding: 6px 7px;
+  line-height: 1.4;
+}
+
+:where(body.desk-app[data-theme]) .desk-settings-form__hint {
+  grid-column: 1 / -1;
+  margin: 2px 0 0;
+  font-size: 10px;
+  font-weight: 720;
+}
+
+:where(body.desk-app[data-theme]) .desk-settings-pinterest-status {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 6px 8px;
+  font-size: 10px;
+  border-width: 1px;
+  border-style: solid;
+  border-radius: 8px;
+}
+
+:where(body.desk-app[data-theme]) .desk-settings-form__activity {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: 6px 8px;
+  font-size: 10px;
+  font-weight: 760;
+  border-width: 1px;
+  border-style: solid;
+  border-radius: 8px;
+}
+
+:where(body.desk-app[data-theme]) .desk-settings-form__actions {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  margin-top: 2px;
+  flex-wrap: wrap;
+}
+
+:where(body.desk-app[data-theme]) .desk-settings-form__actions--compact {
+  margin-top: 0;
+}
+
+:where(body.desk-app[data-theme]) .desk-settings-form__actions button.is-loading::before,
+:where(body.desk-app[data-theme]) .desk-settings-account__actions button.is-loading::before {
+  width: 9px;
+  height: 9px;
+  margin-right: 5px;
+  content: "";
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 999px;
+  opacity: 0.72;
+}
+
+:where(body.desk-app[data-theme]) .desk-settings__actions button.is-loading svg {
+  animation: desk-settings-spin 0.72s linear infinite;
+}
+
+:where(body.desk-app[data-theme]) .desk-settings-pool-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  min-width: 0;
+}
+
+:where(body.desk-app[data-theme]) .desk-settings-pool-toolbar {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  padding: 6px;
+  border-width: 1px;
+  border-style: solid;
+  border-radius: 8px;
+}
+
+:where(body.desk-app[data-theme]) .desk-settings-pool-activity {
+  min-height: 24px;
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  font-size: 10px;
+  font-weight: 820;
+  line-height: 1.3;
+  border-width: 1px;
+  border-style: solid;
+  border-radius: 8px;
+}
+
+:where(body.desk-app[data-theme]) .desk-settings-pool-activity[hidden] {
+  display: none;
+}
+
+:where(body.desk-app[data-theme]) .desk-settings-details {
+  grid-column: 1 / -1;
+  overflow: hidden;
+  min-width: 0;
+  border-width: 1px;
+  border-style: solid;
+  border-radius: 8px;
+}
+
+:where(body.desk-app[data-theme]) .desk-settings-details + .desk-settings-details {
+  margin-top: 8px;
+}
+
+:where(body.desk-app[data-theme]) .desk-settings-details[open] summary::after {
+  transform: rotate(-90deg);
+}
+
+:where(body.desk-app[data-theme]) .desk-settings-form--compact {
+  padding: 0 8px 8px;
+}
+
+:where(body.desk-app[data-theme]) .desk-settings-form--compact .desk-settings-textarea {
+  min-height: 38px;
+}
+
+:where(body.desk-app[data-theme]) .desk-settings-account__main,
+:where(body.desk-app[data-theme]) .desk-settings-account__actions {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+
+:where(body.desk-app[data-theme]) .desk-settings-account__main {
+  grid-column: 1;
+  justify-content: flex-start;
+}
+
+:where(body.desk-app[data-theme]) .desk-settings-account__meta,
+:where(body.desk-app[data-theme]) .desk-settings-account__error {
+  grid-column: 1;
+  overflow: hidden;
+  font-size: 10px;
+  font-weight: 720;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+:where(body.desk-app[data-theme]) .desk-settings-empty {
+  display: grid;
+  place-items: center;
+  min-height: 132px;
+  font-size: 11px;
+  font-weight: 700;
+  border-width: 1px;
+  border-style: dashed;
+  border-radius: 10px;
+}
+
+:where(body.desk-app[data-theme]) .desk-settings-empty--compact {
+  min-height: 68px;
+}
+
+:where(body.desk-app[data-theme]) .auth-overlay {
+  position: fixed;
+  inset: 0;
+  /* Hidden until auth-api.js shows it (inline display: flex). */
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+
+:where(body.desk-app[data-theme]) .auth-title {
+  margin-bottom: 8px;
+  font-size: 20px;
+  font-weight: 800;
+}
+
+:where(body.desk-app[data-theme]) .auth-message {
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+:where(body.desk-app[data-theme]) .auth-input-row {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+:where(body.desk-app[data-theme]) .auth-password-input,
+:where(body.desk-app[data-theme]) .auth-submit-btn {
+  width: 100%;
+  min-height: 40px;
+  padding: 0 12px;
+  border-radius: var(--desk-radius);
+}
+
+:where(body.desk-app[data-theme]) .auth-password-input {
+  border-width: 1px;
+  border-style: solid;
+}
+
+:where(body.desk-app[data-theme]) .desk-settings {
+  border-radius: 12px;
+}
+
+:where(body.desk-app[data-theme]) .desk-status-tip {
+  position: fixed;
+  display: flex;
+  flex-direction: column;
+  padding: 8px;
+  border-width: 1px;
+  border-style: solid;
+  border-radius: 14px;
+  -webkit-backdrop-filter: blur(28px) saturate(1.24);
+}
+
+:where(body.desk-app[data-theme]) .desk-status-tip[hidden] {
+  display: none;
+}
+
+:where(body.desk-app[data-theme]) .desk-status-tip__head {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+:where(body.desk-app[data-theme]) .desk-status-tip__summary {
+  display: grid;
+  gap: 3px;
+  flex: 0 0 auto;
+  padding: 7px 8px;
+  margin-bottom: 6px;
+  overflow: hidden;
+  border-width: 1px;
+  border-style: solid;
+  border-radius: 9px;
+}
+
+:where(body.desk-app[data-theme]) .desk-status-tip__summary.is-raw-summary strong {
+  display: block;
+  max-width: 100%;
+  max-height: 1.45em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+:where(body.desk-app[data-theme]) .desk-status-tip__meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  flex: 0 0 auto;
+  gap: 5px;
+  margin: 0 0 6px;
+}
+
+:where(body.desk-app[data-theme]) .desk-status-tip__raw-head {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+:where(body.desk-app[data-theme]) .desk-status-tip__raw {
+  flex: 1 1 auto;
+  min-height: 76px;
+  max-height: 118px;
+  padding: 7px;
+  margin: 0;
+  overflow: auto;
+  font: 9px/1.45 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  white-space: pre-wrap;
+  word-break: break-word;
+  border-width: 1px;
+  border-style: solid;
+  border-radius: 9px;
+}
+
+:where(body.desk-app[data-theme]) .desk-settings-info-tip {
+  --settings-info-slide-distance: 32px;
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  gap: 0;
+  width: 250px;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+  transform-origin: 0 50%;
+  transition: background 220ms ease,
+    border-color 220ms ease,
+    opacity 180ms ease,
+    transform 240ms cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 220ms ease,
+    -webkit-backdrop-filter 220ms ease,
+    backdrop-filter 220ms ease;
+  -webkit-backdrop-filter: blur(34px) saturate(1.36) brightness(1.04);
+  backdrop-filter: blur(34px) saturate(1.36) brightness(1.04);
+}
+
+:where(body.desk-app[data-theme]) .desk-settings-info-tip[hidden] {
+  display: none;
+}
+
+:where(body.desk-app[data-theme]) .desk-settings-info-tip.is-open {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(0) scale(1);
+}
+
+:where(body.desk-app[data-theme]) .desk-settings-info-tip__content {
+  display: grid;
+  gap: 6px;
+  min-height: 0;
+  overflow: auto;
+  padding-right: 2px;
+}
+
+:where(body.desk-app[data-theme]) .desk-settings-info-tip__section {
+  min-width: 0;
+  padding: 7px 8px;
+  border-width: 1px;
+  border-style: solid;
+  border-radius: 9px;
+}
+
+:where(body.desk-app[data-theme]) .desk-settings-info-tip__section li::before {
+  position: absolute;
+  top: 0.56em;
+  left: 0;
+  width: 3px;
+  height: 3px;
+  content: "";
+  border-radius: 999px;
+}
+
+/* Loading spinner (moved from desktop-liquid.css). */
+
+@keyframes desk-settings-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
