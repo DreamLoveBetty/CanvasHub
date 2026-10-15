@@ -468,6 +468,7 @@
 
 :where(body.desk-app[data-theme]) .desk-node--upscale .desk-port--upscale-in,
 :where(body.desk-app[data-theme]) .desk-node--upscale .desk-port--upscale-out {
+  opacity: 0;
   transition: opacity 150ms ease, background 150ms ease, box-shadow 150ms ease;
 }
 
@@ -549,8 +550,7 @@
   place-items: center;
   align-content: center;
   gap: 14px;
-  border-width: 1px;
-  border-style: dashed;
+  border: 1px dashed rgba(103, 121, 144, 0.34);
   border-radius: inherit;
 }
 
@@ -566,9 +566,11 @@
   place-items: center;
   width: 72px;
   height: 48px;
-  border-width: 1px;
-  border-style: dashed;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px dashed rgba(8, 79, 189, 0.44);
   border-radius: 12px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7),
+    0 12px 24px rgba(31, 45, 62, 0.12);
   transition: transform 150ms ease, background 150ms ease, box-shadow 150ms ease, border-color 150ms ease;
 }
 
@@ -664,8 +666,7 @@
   padding: 0 2px 0 0;
   max-width: calc(100% - 16px);
   overflow: hidden;
-  border-width: 1px;
-  border-style: solid;
+  border: 1px solid rgba(92, 112, 132, 0.18);
   border-radius: 4px;
   backdrop-filter: blur(4px) saturate(1.06);
 }
@@ -804,8 +805,7 @@
   pointer-events: none;
   visibility: hidden;
   opacity: 0;
-  border-width: 1px;
-  border-style: solid;
+  border: 1px solid rgba(255, 255, 255, 0.68);
   border-radius: 10px;
   backdrop-filter: blur(16px);
   transform: translateY(-8px);
@@ -850,18 +850,30 @@
   padding: 0 8px;
   font-size: 12px;
   font-weight: 800;
-  border-width: 1px;
-  border-style: solid;
+  background: rgba(255, 255, 255, 0.46);
+  border: 1px solid rgba(255, 255, 255, 0.54);
   border-radius: 999px;
+}
+
+:where(body.desk-app[data-theme]) .desk-node-delete:hover {
+  background: rgba(224, 82, 82, 0.12);
 }
 
 :where(body.desk-app[data-theme]) .desk-port {
   height: 14px;
   padding: 0;
-  border-width: 2px;
-  border-style: solid;
+  background: rgba(255, 255, 255, 0.82);
+  border: 2px solid rgba(8, 79, 189, 0.62);
   border-radius: 999px;
+  box-shadow: 0 0 0 4px rgba(8, 79, 189, 0.08), 0 8px 18px rgba(31, 45, 62, 0.16);
   transform: translateY(-50%);
+}
+
+:where(body.desk-app[data-theme]) .desk-port:hover,
+:where(body.desk-app[data-theme]) .desk-port.is-connecting {
+  background: var(--desk-blue);
+  border-color: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 0 0 6px rgba(8, 79, 189, 0.16), 0 12px 24px rgba(31, 45, 62, 0.22);
 }
 
 :where(body.desk-app[data-theme]) .desk-node--image .desk-port--out {
@@ -917,8 +929,7 @@
 
 :where(body.desk-app[data-theme]) .desk-node--image .desk-resize-handle {
   opacity: 0;
-  border-width: 0;
-  border-style: none;
+  border: 0;
   transition: opacity 150ms ease;
 }
 
@@ -970,8 +981,7 @@
   clip: rect(0 0 0 0);
   clip-path: inset(50%);
   white-space: nowrap;
-  border-width: 0;
-  border-style: none;
+  border: 0;
 }
 
 :where(body.desk-app[data-theme]) .desk-image-editor__status[data-tone="success"] {
@@ -1252,8 +1262,7 @@ body.desk-app[data-theme="dark"] .desk-image-editor {
 
 :where(body.desk-app[data-theme]) .desk-node--text .desk-resize-handle {
   opacity: 0;
-  border-width: 0;
-  border-style: none;
+  border: 0;
   transition: opacity 150ms ease;
 }
 
@@ -1367,8 +1376,7 @@ body.desk-app[data-theme="dark"] .desk-image-editor {
   min-height: 58px;
   padding: 5px;
   text-align: left;
-  border-width: 1px;
-  border-style: solid;
+  border: 1px solid rgba(85, 101, 120, 0.12);
   border-radius: 9px;
 }
 
@@ -1397,8 +1405,7 @@ body.desk-app[data-theme="dark"] .desk-image-editor {
   display: grid;
   gap: 8px;
   padding-top: 8px;
-  border-top-width: 1px;
-  border-top-style: solid;
+  border-top: 1px solid rgba(85, 101, 120, 0.1);
 }
 
 :where(body.desk-app[data-theme]) .desk-comfy-service-status {
@@ -1410,8 +1417,7 @@ body.desk-app[data-theme="dark"] .desk-image-editor {
 }
 
 :where(body.desk-app[data-theme]) .desk-node-palette {
-  border-width: 1px;
-  border-style: solid;
+  border: 1px solid rgba(255, 255, 255, 0.62);
 }
 
 body.desk-app[data-theme="dark"] .desk-link-pulse {
@@ -1439,8 +1445,8 @@ body.desk-app .desk-node.desk-node--edge-handles:has(> .desk-port--floating:is(.
   margin: 0;
   cursor: crosshair;
   touch-action: none;
-  border-width: 0;
-  border-style: none;
+  border: 0;
+  box-shadow: none;
 }
 
 :where(body.desk-app[data-theme]) .desk-node--edge-handles > .desk-port[data-semantic-port] {
@@ -1451,9 +1457,9 @@ body.desk-app .desk-node.desk-node--edge-handles:has(> .desk-port--floating:is(.
   opacity: 0;
   pointer-events: none;
   background: transparent;
-  border-width: 0;
-  border-style: none;
+  border: 0;
   border-radius: 999px;
+  box-shadow: none;
   transform: translateY(-50%);
 }
 
@@ -1610,8 +1616,7 @@ body.desk-app[data-connection-swell-style="droplet"] .desk-node-settled-port--ri
   display: none;
   width: 112px;
   padding: 3px;
-  border-width: 1px;
-  border-style: solid;
+  border: 1px solid var(--desk-flow-border-soft);
   border-radius: 8px;
   transform-origin: var(--desk-edge-menu-anchor-x) 0;
 }
@@ -1634,6 +1639,7 @@ body.desk-app[data-connection-swell-style="droplet"] .desk-node-settled-port--ri
   width: 100%;
   height: 30px;
   padding: 0 8px;
+  color: #b4232d;
   font-size: 10px;
   font-weight: 820;
   text-align: left;
@@ -1654,8 +1660,7 @@ body.desk-app[data-connection-swell-style="droplet"] .desk-node-settled-port--ri
   max-height: min(390px, calc(100dvh - 48px));
   padding: 8px;
   gap: 5px;
-  border-width: 1px;
-  border-style: solid;
+  border: 1px solid var(--desk-flow-stroke);
   border-radius: 12px;
   transform-origin: var(--desk-context-origin-x, 12px) 0;
 }
@@ -1693,8 +1698,7 @@ body.desk-app[data-connection-swell-style="droplet"] .desk-node-settled-port--ri
   align-items: center;
   min-height: 34px;
   padding: 0 8px;
-  border-width: 1px;
-  border-style: solid;
+  border: 1px solid var(--desk-flow-border-soft);
   border-radius: 6px;
 }
 
@@ -1723,8 +1727,7 @@ body.desk-app[data-connection-swell-style="droplet"] .desk-node-settled-port--ri
 :where(body.desk-app[data-theme]) .desk-node-context-menu .desk-node-palette__icon {
   width: 24px;
   height: 24px;
-  border-width: 0;
-  border-style: none;
+  border: 0;
   border-radius: 5px;
 }
 

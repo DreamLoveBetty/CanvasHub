@@ -399,8 +399,8 @@
     "sha256": "3310f2f359c21f35e070204ac3229e978650b0c73b672832ba0c58f8b0816808"
    },
    "styles/desktop-canvas-nodes-geometry.css": {
-    "v": "20261014-canvas-nodes-module5",
-    "sha256": "0cbe246aded4d58e2ea78824df41cab88040243ff1308c132dde4935a52f85ae"
+    "v": "20261015-interaction-kept4",
+    "sha256": "2cbe361eaeab3f9c155465b8f25f10338e22ebd288244aa66f81aecd7d479669"
    },
    "styles/desktop-canvas-nodes.css": {
     "v": "20261007-connection-arc1",
@@ -499,8 +499,8 @@
     "sha256": "689d576316c7f6c75b49ab5f0adcea889a0dc29cc89eee2cd3821abb1df78bf7"
    },
    "styles/desktop-prompt-assistant-geometry.css": {
-    "v": "20261014-outline-kept1",
-    "sha256": "59802d77f7893eb6323e643a2ac0256814194e033b0fc34aff5a829f5ded39b8"
+    "v": "20261015-interaction-kept4",
+    "sha256": "1dc45245bf0446b0f8035fcc54427ab4ea3be8747bac598baca1a0ad1f7c069b"
    },
    "styles/desktop-prompt-assistant.css": {
     "v": "20260929-prompt-video1",
@@ -515,8 +515,8 @@
     "sha256": "173ada061f8b474196f3e940512a04a0147e85d2046425ffd9c3e3cef3bad9c5"
    },
    "styles/desktop-settings-auth-geometry.css": {
-    "v": "20261014-outline-kept1",
-    "sha256": "2a9b0ee4b411e10166d27a5c3182358bf08ce313b070aa81a6c447af759eb624"
+    "v": "20261015-interaction-kept4",
+    "sha256": "08da8a7c9b5a22d4b7f93037df64218bc80fd0a3401e1b8f47818e2aea28068f"
    },
    "styles/desktop-settings-auth.css": {
     "v": "20261010-color-bloom1",
