@@ -434,6 +434,10 @@
     "v": "20260831-status-silk2",
     "sha256": "3a5f593b4266a273ccaa5277193d6840cddd420c710a54ba32fcedeacf1b6e66"
    },
+   "styles/desktop-gallery-geometry.css": {
+    "v": "20261015-interaction-kept4",
+    "sha256": "ed94dcc2f194a2726b843bb1c3b9889b787bb309fc2e2b5ac479844423a80559"
+   },
    "styles/desktop-gallery.css": {
     "v": "20260827-style-cleanup1",
     "sha256": "b02e4926d2ea85aa2b43976c0b03b4147f35d6542f625fbe612477e5e0ac8dbe"
@@ -461,10 +465,6 @@
    "styles/desktop-layout.css": {
     "v": "20261014-layout-module1",
     "sha256": "f0f42e1cb340f262bf81c64abe22bd953d0aac190213c56bc288735e448bfc12"
-   },
-   "styles/desktop-legacy-gallery.css": {
-    "v": "20261012-legacy-split1",
-    "sha256": "27d13daa4c8ac91551b800fc48fab2ae4d916610feb43c06dff86d3c52bd6890"
    },
    "styles/desktop-liquid.css": {
     "v": "20261014-settings-auth-module1",

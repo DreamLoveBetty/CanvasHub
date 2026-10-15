@@ -19,7 +19,9 @@ def read_text(relative_path: str) -> str:
 
 
 def css_block(css: str, selector: str) -> str:
-    marker = f"\n{selector} {{"
+    # Migrated legacy rules carry a :where() scope in front of the selector.
+    markers = [f"\n{selector} {{", f"\n:where(body.desk-app[data-theme]) {selector} {{"]
+    marker = next(m for m in markers if m in css)
     start = css.index(marker) + len(marker)
     end = css.index("\n}", start)
     return css[start:end]
