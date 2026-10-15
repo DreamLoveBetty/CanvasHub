@@ -4938,13 +4938,6 @@ body.desk-history-collapsed .desk-gallery {
   padding: 0 7px;
 }
 
-.desk-settings-form input[type="checkbox"] {
-  width: 14px;
-}
-
-
-
-
 .desk-settings-pinterest-status > span {
   flex: 0 0 auto;
   width: 7px;
@@ -4966,13 +4959,9 @@ body.desk-history-collapsed .desk-gallery {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  height: 25px;
   padding: 0 9px;
-  color: var(--desk-muted);
-  font-weight: 850;
   background: rgba(255, 255, 255, 0.64);
   border: 1px solid rgba(255, 255, 255, 0.66);
-  border-radius: 8px;
   transition: transform 0.12s ease, background 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease, opacity 0.16s ease;
   user-select: none;
 }
@@ -5023,20 +5012,16 @@ body.desk-history-collapsed .desk-gallery {
   display: inline-flex;
   align-items: center;
   padding: 0 7px;
-  color: var(--desk-muted);
-  font-weight: 850;
   background: rgba(255, 255, 255, 0.58);
   border: 1px solid rgba(255, 255, 255, 0.62);
   border-radius: 999px;
 }
 
 .desk-settings-pool-summary span.is-ok {
-  color: rgba(22, 101, 52, 0.92);
   background: rgba(220, 252, 231, 0.64);
 }
 
 .desk-settings-pool-summary span.is-warn {
-  color: rgba(161, 98, 7, 0.96);
   background: rgba(254, 243, 199, 0.72);
 }
 
@@ -5059,7 +5044,6 @@ body.desk-history-collapsed .desk-gallery {
 .desk-settings-details summary::after {
   content: "›";
   margin-left: auto;
-  color: var(--desk-muted);
   font-size: 15px;
   font-weight: 760;
   transform: rotate(90deg);
@@ -5067,16 +5051,13 @@ body.desk-history-collapsed .desk-gallery {
 
 
 .desk-settings-details summary span {
-  color: var(--desk-ink);
   font-weight: 850;
 }
 
 .desk-settings-details summary em {
   overflow: hidden;
   min-width: 0;
-  color: var(--desk-muted);
   font-style: normal;
-  font-weight: 720;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -5092,7 +5073,6 @@ body.desk-history-collapsed .desk-gallery {
   padding: 6px 7px;
   background: rgba(255, 255, 255, 0.46);
   border: 1px solid rgba(255, 255, 255, 0.54);
-  border-radius: 8px;
 }
 
 
@@ -5101,7 +5081,6 @@ body.desk-history-collapsed .desk-gallery {
 .desk-settings-account__main strong {
   min-width: 0;
   overflow: hidden;
-  color: var(--desk-ink);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -5109,14 +5088,12 @@ body.desk-history-collapsed .desk-gallery {
 .desk-settings-account__main span {
   flex: 0 0 auto;
   padding: 2px 6px;
-  color: rgba(22, 101, 52, 0.9);
   font-weight: 850;
   background: rgba(220, 252, 231, 0.68);
   border-radius: 999px;
 }
 
 .desk-settings-account.is-warn .desk-settings-account__main span {
-  color: rgba(161, 98, 7, 0.96);
   background: rgba(254, 243, 199, 0.72);
 }
 
@@ -5134,13 +5111,9 @@ body.desk-history-collapsed .desk-gallery {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  height: 23px;
   padding: 0 7px;
-  color: var(--desk-muted);
-  font-weight: 850;
   background: rgba(255, 255, 255, 0.64);
   border: 1px solid rgba(255, 255, 255, 0.66);
-  border-radius: 8px;
   transition: transform 0.12s ease, background 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease, opacity 0.16s ease;
   user-select: none;
 }
@@ -9255,7 +9228,6 @@ body.desk-app[data-theme="dark"] .desk-file-preview-modal__actions #deskFilePrev
 .auth-card {
   width: min(380px, calc(100vw - 32px));
   padding: 24px;
-  border-radius: 18px;
 }
 
 
@@ -9395,10 +9367,7 @@ body.desk-app[data-theme="dark"] .desk-file-preview-modal__actions #deskFilePrev
 
 .desk-settings-account__actions button[data-chatgpt-pool-account-delete],
 .desk-settings-account__actions button[data-managed-codex-account-delete] {
-  color: rgba(185, 28, 28, 0.92);
   background: rgba(255, 245, 245, 0.72);
-  border-color: rgba(248, 113, 113, 0.34);
-  box-shadow: none;
 }
 
 .desk-settings-form__actions button,
@@ -9484,14 +9453,9 @@ body.desk-app[data-theme="dark"] .desk-file-preview-modal__actions #deskFilePrev
 }
 
 .desk-settings-account__actions button[data-chatgpt-pool-account-verify] {
-  color: rgba(161, 98, 7, 0.98);
   background:
     radial-gradient(circle at 28% 18%, rgba(255, 255, 255, 0.52), transparent 36%),
     linear-gradient(180deg, rgba(251, 191, 36, 0.28), rgba(245, 158, 11, 0.14));
-  border-color: rgba(245, 158, 11, 0.36);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.46),
-    0 7px 16px rgba(245, 158, 11, 0.12);
 }
 
 .desk-settings-account__actions button[data-chatgpt-pool-account-verify]:hover {
@@ -10627,10 +10591,6 @@ body.desk-app[data-theme="dark"] .desk-release__trigger {
     linear-gradient(145deg, rgba(74, 84, 87, 0.42), rgba(18, 23, 25, 0.24)),
     rgba(24, 30, 33, 0.38);
   border-color: rgba(255, 255, 255, 0.12);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.12),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.16),
-    0 8px 18px rgba(0, 0, 0, 0.2);
 }
 
 body.desk-app[data-theme="dark"] .desk-release__trigger:hover,
@@ -10643,14 +10603,9 @@ body.desk-app[data-theme="dark"] .desk-release.is-open .desk-release__trigger {
 }
 
 body.desk-app[data-theme="dark"] .desk-release__panel {
-  color: #edf2f3;
   background:
     linear-gradient(180deg, rgba(48, 56, 58, 0.98), rgba(27, 32, 34, 0.98)),
     rgba(31, 37, 39, 0.96);
-  border-color: rgba(255, 255, 255, 0.08);
-  box-shadow:
-    0 24px 58px rgba(0, 0, 0, 0.46),
-    inset 0 1px 0 rgba(255, 255, 255, 0.07);
 }
 
 body.desk-app[data-theme="dark"] .desk-release__header,
@@ -10659,27 +10614,14 @@ body.desk-app[data-theme="dark"] .desk-release__footer {
   border-color: rgba(255, 255, 255, 0.08);
 }
 
-body.desk-app[data-theme="dark"] .desk-release__header span {
-  color: #ff9b68;
-}
-
-body.desk-app[data-theme="dark"] .desk-release__item li::before {
-  background-color: #ff6a22;
-}
-
 body.desk-app[data-theme="dark"] .desk-release__item--update {
   background: rgba(255, 106, 34, 0.08);
-}
-
-body.desk-app[data-theme="dark"] .desk-release__update-copy {
-  color: rgba(214, 221, 223, 0.74);
 }
 
 body.desk-app[data-theme="dark"] .desk-release__close {
   color: rgba(237, 242, 243, 0.7);
   background: rgba(24, 30, 33, 0.66);
   border-color: rgba(255, 255, 255, 0.08);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
 body.desk-app[data-theme="dark"] .desk-release__close:hover {
@@ -10688,24 +10630,12 @@ body.desk-app[data-theme="dark"] .desk-release__close:hover {
   border-color: rgba(255, 106, 34, 0.28);
 }
 
-body.desk-app[data-theme="dark"] .desk-release__meta time,
-body.desk-app[data-theme="dark"] .desk-release__item li,
-body.desk-app[data-theme="dark"] .desk-release__footer {
-  color: rgba(190, 199, 201, 0.68);
-}
-
 body.desk-app[data-theme="dark"] .desk-release__latest {
-  color: #ffb089;
   background: rgba(255, 106, 34, 0.13);
-  border-color: rgba(255, 106, 34, 0.22);
 }
 
 body.desk-app[data-theme="dark"] .desk-release__footer {
   background: rgba(18, 23, 25, 0.42);
-}
-
-body.desk-app[data-theme="dark"] .desk-release__footer strong {
-  color: #edf2f3;
 }
 
 body.desk-app[data-theme="dark"] .desk-theme-toggle__icon {
@@ -10866,18 +10796,10 @@ body.desk-app[data-theme="dark"] .desk-status-stop__icon {
 }
 
 body.desk-app[data-theme="dark"] .desk-status-tip {
-  color: rgba(237, 242, 243, 0.9);
   background:
     radial-gradient(circle at 18% 8%, rgba(255, 126, 58, 0.24), transparent 34%),
     radial-gradient(circle at 82% 0%, rgba(142, 173, 255, 0.18), transparent 32%),
     linear-gradient(145deg, rgba(55, 61, 67, 0.9), rgba(27, 31, 38, 0.94) 50%, rgba(18, 22, 30, 0.92));
-  border-color: rgba(255, 255, 255, 0.13);
-  box-shadow:
-    0 22px 52px rgba(0, 0, 0, 0.38),
-    0 8px 20px rgba(0, 0, 0, 0.24),
-    0 0 32px rgba(255, 106, 34, 0.08),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.34);
 }
 
 body.desk-app[data-theme="dark"] .desk-status-tip::after {
@@ -10892,13 +10814,6 @@ body.desk-app[data-theme="dark"] .desk-settings-info-tip {
     radial-gradient(circle at 18% 8%, rgba(255, 126, 58, 0.16), transparent 36%),
     radial-gradient(circle at 82% 0%, rgba(142, 173, 255, 0.12), transparent 34%),
     linear-gradient(145deg, rgba(51, 58, 66, 0.54), rgba(24, 29, 36, 0.5) 52%, rgba(15, 19, 27, 0.46));
-  border-color: rgba(255, 255, 255, 0.16);
-  box-shadow:
-    0 24px 54px rgba(0, 0, 0, 0.34),
-    0 8px 22px rgba(0, 0, 0, 0.2),
-    0 0 34px rgba(255, 106, 34, 0.07),
-    inset 0 1px 0 rgba(255, 255, 255, 0.13),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.24);
   -webkit-backdrop-filter: blur(34px) saturate(1.28) brightness(0.96);
   backdrop-filter: blur(34px) saturate(1.28) brightness(0.96);
 }
@@ -10910,29 +10825,11 @@ body.desk-app[data-theme="dark"] .desk-settings-info-tip::before {
   opacity: 0.7;
 }
 
-body.desk-app[data-theme="dark"] .desk-status-tip__head strong,
-body.desk-app[data-theme="dark"] .desk-status-tip__meta dd,
-body.desk-app[data-theme="dark"] .desk-status-tip__raw {
-  color: rgba(237, 242, 243, 0.9);
-}
-
-body.desk-app[data-theme="dark"] .desk-status-tip__head span,
-body.desk-app[data-theme="dark"] .desk-status-tip__summary span,
-body.desk-app[data-theme="dark"] .desk-status-tip__raw-head span,
-body.desk-app[data-theme="dark"] .desk-status-tip__meta dt {
-  color: rgba(190, 199, 201, 0.68);
-}
-
 body.desk-app[data-theme="dark"] .desk-status-tip__head button,
 body.desk-app[data-theme="dark"] .desk-status-tip__raw-head button {
-  color: rgba(237, 242, 243, 0.78);
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.05)),
     rgba(20, 24, 31, 0.34);
-  border-color: rgba(255, 255, 255, 0.14);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.12),
-    0 5px 12px rgba(0, 0, 0, 0.16);
 }
 
 body.desk-app[data-theme="dark"] .desk-status-tip__raw-head button.is-copied {
@@ -10963,8 +10860,6 @@ body.desk-app[data-theme="dark"] .desk-settings-info-tip__section {
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.085), rgba(255, 255, 255, 0.035)),
     rgba(13, 17, 23, 0.24);
-  border-color: rgba(255, 255, 255, 0.105);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07);
 }
 
 body.desk-app[data-theme="dark"] .desk-settings-info-tip .desk-status-tip__summary,
@@ -10972,22 +10867,8 @@ body.desk-app[data-theme="dark"] .desk-settings-info-tip__section {
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.026)),
     rgba(13, 17, 23, 0.14);
-  border-color: rgba(255, 255, 255, 0.12);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
-
-body.desk-app[data-theme="dark"] .desk-status-tip__summary strong {
-  color: #96f0bd;
-}
-
-body.desk-app[data-theme="dark"] .desk-settings-info-tip__section h4 {
-  color: rgba(237, 242, 243, 0.9);
-}
-
-body.desk-app[data-theme="dark"] .desk-settings-info-tip__section li {
-  color: rgba(214, 220, 221, 0.74);
-}
 
 body.desk-app[data-theme="dark"] .desk-settings-info-tip__section li::before {
   background: rgba(255, 176, 137, 0.72);
@@ -11005,7 +10886,6 @@ body.desk-app[data-theme="dark"] .desk-status-tip__raw {
   background:
     radial-gradient(circle at 18% 0%, rgba(255, 106, 34, 0.1), transparent 42%),
     linear-gradient(180deg, rgba(10, 14, 20, 0.58), rgba(14, 18, 25, 0.42));
-  border-color: rgba(255, 255, 255, 0.1);
 }
 
 body.desk-app[data-theme="dark"] .desk-prompt-drawer,
@@ -11472,32 +11352,16 @@ body.desk-app[data-theme="dark"] .desk-settings {
   --desk-jewel-shadow: rgba(196, 54, 14, 0.34);
   --desk-jewel-shadow-strong: rgba(196, 54, 14, 0.46);
   --desk-jewel-disabled: rgba(244, 81, 30, 0.32);
-  color: var(--desk-ink);
   background:
     linear-gradient(180deg, rgba(48, 56, 58, 0.86), rgba(31, 37, 39, 0.92)),
     rgba(32, 38, 40, 0.84);
-  border-color: rgba(255, 255, 255, 0.07);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.08),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.42),
-    0 24px 56px rgba(0, 0, 0, 0.32);
   -webkit-backdrop-filter: blur(22px) saturate(1.08);
 }
 
-body.desk-app[data-theme="dark"] .desk-settings__version {
-  color: rgba(255, 176, 137, 0.72);
-}
-
 body.desk-app[data-theme="dark"] .desk-settings__actions button {
-  color: #ffb089;
   background:
     radial-gradient(circle at 28% 18%, rgba(255, 231, 216, 0.14), transparent 34%),
     linear-gradient(180deg, rgba(53, 62, 64, 0.94), rgba(31, 37, 39, 0.96));
-  background-color: transparent;
-  border-color: rgba(255, 106, 34, 0.28);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.08),
-    0 8px 18px rgba(0, 0, 0, 0.24);
 }
 
 body.desk-app[data-theme="dark"] .desk-settings__actions button:hover:not(:disabled),
@@ -11512,22 +11376,9 @@ body.desk-app[data-theme="dark"] .desk-settings__actions button.is-loading {
     0 8px 18px rgba(196, 54, 14, 0.28);
 }
 
-body.desk-app[data-theme="dark"] .desk-settings-info-trigger span {
-  border-color: currentColor;
-}
-
 body.desk-app[data-theme="dark"] .desk-settings-tabs {
   background: rgba(28, 34, 36, 0.58);
-  border-color: rgba(255, 255, 255, 0.07);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.05),
-    0 10px 24px rgba(0, 0, 0, 0.16);
 }
-
-body.desk-app[data-theme="dark"] .desk-settings-tabs button {
-  color: rgba(190, 199, 201, 0.68);
-}
-
 
 body.desk-app[data-theme="dark"] .desk-settings-tabs button.is-active,
 body.desk-app[data-theme="dark"] .desk-settings-tabs button.is-active:hover {
@@ -11573,12 +11424,7 @@ body.desk-app[data-theme="dark"] .desk-comfy-workflow-card.is-selected {
 
 
 body.desk-app[data-theme="dark"] .desk-settings__summary span {
-  color: rgba(214, 220, 221, 0.76);
   background: rgba(28, 34, 36, 0.58);
-  border-color: rgba(255, 255, 255, 0.08);
-  box-shadow:
-    0 5px 11px rgba(0, 0, 0, 0.16),
-    inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
 body.desk-app[data-theme="dark"] .desk-settings__summary span.is-ok {
@@ -11588,35 +11434,21 @@ body.desk-app[data-theme="dark"] .desk-settings__summary span.is-ok {
 }
 
 body.desk-app[data-theme="dark"] .desk-settings__summary span.is-warn {
-  color: #ffb089;
   background: rgba(255, 106, 34, 0.14);
-  border-color: rgba(255, 106, 34, 0.24);
 }
 
 body.desk-app[data-theme="dark"] .desk-settings-card {
   background:
     linear-gradient(180deg, rgba(42, 50, 52, 0.72), rgba(31, 37, 39, 0.82)),
     rgba(28, 34, 36, 0.72);
-  border-color: rgba(255, 255, 255, 0.07);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.05),
-    0 8px 18px rgba(0, 0, 0, 0.14);
 }
 
 body.desk-app[data-theme="dark"] .desk-settings-canvas-interaction {
   background: rgba(28, 34, 36, 0.58);
-  border-color: rgba(255, 255, 255, 0.07);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
 body.desk-app[data-theme="dark"] .desk-settings-canvas-interaction__segment {
   background: rgba(14, 19, 21, 0.46);
-  border-color: rgba(255, 255, 255, 0.07);
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.24);
-}
-
-body.desk-app[data-theme="dark"] .desk-settings-canvas-interaction__segment button {
-  color: rgba(190, 199, 201, 0.72);
 }
 
 body.desk-app[data-theme="dark"] .desk-settings-canvas-interaction__segment button:hover {
@@ -11636,7 +11468,6 @@ body.desk-app[data-theme="dark"] .desk-settings-canvas-interaction__segment butt
 
 body.desk-app[data-theme="dark"] .desk-settings-dot {
   background: #96f0bd;
-  box-shadow: 0 0 0 4px rgba(150, 240, 189, 0.14);
 }
 
 
@@ -11646,68 +11477,39 @@ body.desk-app[data-theme="dark"] .desk-settings-details,
 body.desk-app[data-theme="dark"] .desk-settings-account,
 body.desk-app[data-theme="dark"] .desk-settings-empty {
   background: rgba(28, 34, 36, 0.58);
-  border-color: rgba(255, 255, 255, 0.07);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.05),
-    0 10px 24px rgba(0, 0, 0, 0.16);
-}
-
-body.desk-app[data-theme="dark"] .desk-settings-path em,
-body.desk-app[data-theme="dark"] .desk-settings-account__main span,
-body.desk-app[data-theme="dark"] .desk-settings-pool-summary span,
-body.desk-app[data-theme="dark"] .desk-settings-details summary span {
-  color: rgba(214, 220, 221, 0.76);
 }
 
 body.desk-app[data-theme="dark"] .desk-settings-pool-summary span {
   background:
     linear-gradient(180deg, rgba(53, 62, 64, 0.82), rgba(31, 37, 39, 0.88)),
     rgba(28, 34, 36, 0.64);
-  border-color: rgba(255, 255, 255, 0.08);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.08),
-    0 6px 14px rgba(0, 0, 0, 0.16);
 }
 
 body.desk-app[data-theme="dark"] .desk-settings-pool-activity {
-  color: rgba(214, 220, 221, 0.78);
   background:
     linear-gradient(180deg, rgba(53, 62, 64, 0.82), rgba(31, 37, 39, 0.88)),
     rgba(28, 34, 36, 0.64);
-  border-color: rgba(255, 255, 255, 0.08);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.08),
-    0 6px 14px rgba(0, 0, 0, 0.16);
 }
 
 body.desk-app[data-theme="dark"] .desk-settings-pool-activity.is-working {
-  color: #7dd3fc;
   background: rgba(14, 165, 233, 0.14);
-  border-color: rgba(125, 211, 252, 0.24);
 }
 
 body.desk-app[data-theme="dark"] .desk-settings-pool-activity.is-success {
-  color: #96f0bd;
   background: rgba(34, 197, 94, 0.16);
-  border-color: rgba(150, 240, 189, 0.24);
 }
 
 body.desk-app[data-theme="dark"] .desk-settings-pool-activity.is-warn {
-  color: #ffb089;
   background: rgba(255, 106, 34, 0.14);
-  border-color: rgba(255, 106, 34, 0.24);
 }
 
 body.desk-app[data-theme="dark"] .desk-settings-pool-activity.is-error {
-  color: #fda4af;
   background: rgba(225, 29, 72, 0.15);
-  border-color: rgba(253, 164, 175, 0.25);
 }
 
 body.desk-app[data-theme="dark"] .desk-settings-path em,
 body.desk-app[data-theme="dark"] .desk-settings-account__main span,
 body.desk-app[data-theme="dark"] .desk-settings-pool-summary span.is-ok {
-  color: #96f0bd;
   background: rgba(34, 197, 94, 0.16);
   border-color: rgba(150, 240, 189, 0.24);
 }
@@ -11715,7 +11517,6 @@ body.desk-app[data-theme="dark"] .desk-settings-pool-summary span.is-ok {
 body.desk-app[data-theme="dark"] .desk-settings-path.is-warn em,
 body.desk-app[data-theme="dark"] .desk-settings-account.is-warn .desk-settings-account__main span,
 body.desk-app[data-theme="dark"] .desk-settings-pool-summary span.is-warn {
-  color: #ffb089;
   background: rgba(255, 106, 34, 0.14);
   border-color: rgba(255, 106, 34, 0.24);
 }
@@ -11728,11 +11529,6 @@ body.desk-app[data-theme="dark"] .desk-settings-textarea {
   box-shadow:
     inset 0 1px 2px rgba(0, 0, 0, 0.34),
     inset 0 1px 0 rgba(255, 255, 255, 0.04);
-}
-
-body.desk-app[data-theme="dark"] .desk-settings-form input::placeholder,
-body.desk-app[data-theme="dark"] .desk-settings-textarea::placeholder {
-  color: rgba(190, 199, 201, 0.42);
 }
 
 body.desk-app[data-theme="dark"] .desk-settings-form input:focus,
@@ -11766,14 +11562,8 @@ body.desk-app[data-theme="dark"] .desk-settings-secret-clear:hover {
     0 7px 16px rgba(229, 72, 77, 0.16);
 }
 
-body.desk-app[data-theme="dark"] .desk-settings-form__hint {
-  color: #ffb089;
-}
-
 body.desk-app[data-theme="dark"] .desk-settings-pinterest-status {
-  color: #ffb089;
   background: rgba(255, 106, 34, 0.12);
-  border-color: rgba(255, 106, 34, 0.22);
 }
 
 body.desk-app[data-theme="dark"] .desk-settings-pinterest-status > span {
@@ -11781,9 +11571,7 @@ body.desk-app[data-theme="dark"] .desk-settings-pinterest-status > span {
 }
 
 body.desk-app[data-theme="dark"] .desk-settings-pinterest-status.is-ok {
-  color: #96f0bd;
   background: rgba(34, 197, 94, 0.12);
-  border-color: rgba(150, 240, 189, 0.22);
 }
 
 body.desk-app[data-theme="dark"] .desk-settings-pinterest-status.is-ok > span {
@@ -11791,9 +11579,7 @@ body.desk-app[data-theme="dark"] .desk-settings-pinterest-status.is-ok > span {
 }
 
 body.desk-app[data-theme="dark"] .desk-settings-form__activity {
-  color: #ffd1b8;
   background: rgba(255, 106, 34, 0.1);
-  border-color: rgba(255, 106, 34, 0.2);
 }
 
 body.desk-app[data-theme="dark"] .desk-settings-form__actions button,
@@ -11870,7 +11656,6 @@ body.desk-app[data-theme="dark"] .desk-settings-account__actions button[data-man
   background:
     radial-gradient(circle at 28% 18%, rgba(255, 255, 255, 0.12), transparent 34%),
     linear-gradient(180deg, rgba(229, 72, 77, 0.24), rgba(229, 72, 77, 0.12));
-  border-color: rgba(229, 72, 77, 0.34);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.08),
     0 7px 16px rgba(229, 72, 77, 0.12);
@@ -11889,14 +11674,9 @@ body.desk-app[data-theme="dark"] .desk-settings-account__actions button[data-man
 }
 
 body.desk-app[data-theme="dark"] .desk-settings-account__actions button[data-chatgpt-pool-account-verify] {
-  color: #ffdf9a;
   background:
     radial-gradient(circle at 28% 18%, rgba(255, 231, 216, 0.16), transparent 34%),
     linear-gradient(180deg, rgba(255, 154, 104, 0.24), rgba(245, 158, 11, 0.12));
-  border-color: rgba(255, 176, 137, 0.32);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.08),
-    0 7px 16px rgba(245, 158, 11, 0.12);
 }
 
 body.desk-app[data-theme="dark"] .desk-settings-account__actions button[data-chatgpt-pool-account-verify]:hover {
@@ -11908,11 +11688,6 @@ body.desk-app[data-theme="dark"] .desk-settings-account__actions button[data-cha
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.12),
     0 9px 20px rgba(196, 54, 14, 0.2);
-}
-
-body.desk-app[data-theme="dark"] .desk-settings-empty {
-  color: rgba(190, 199, 201, 0.68);
-  border-color: rgba(255, 255, 255, 0.09);
 }
 
 /* Gallery workspace: graphite surfaces with orange command accents in night mode. */
@@ -12887,7 +12662,6 @@ body.desk-app:not([data-theme="dark"]) .desk-gallery-preview__toolbar button:dis
   background: rgba(247, 250, 253, 0.62);
   border-right: 1px solid rgba(224, 232, 242, 0.68);
   border-bottom: 1px solid rgba(224, 232, 242, 0.68);
-  transform: translateX(-50%) rotate(45deg);
   -webkit-backdrop-filter: blur(28px) saturate(1.24);
   backdrop-filter: blur(28px) saturate(1.24);
 }
@@ -12895,14 +12669,12 @@ body.desk-app:not([data-theme="dark"]) .desk-gallery-preview__toolbar button:dis
 
 .desk-status-tip__head strong {
   display: block;
-  color: rgba(14, 22, 38, 0.94);
 }
 
 .desk-status-tip__head span {
   display: block;
   margin-top: 2px;
   overflow: hidden;
-  color: rgba(91, 107, 122, 0.74);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -12914,11 +12686,9 @@ body.desk-app:not([data-theme="dark"]) .desk-gallery-preview__toolbar button:dis
   height: 22px;
   min-width: 38px;
   padding: 0 7px;
-  color: rgba(62, 75, 92, 0.82);
   background: rgba(255, 255, 255, 0.48);
   border: 1px solid rgba(211, 222, 235, 0.6);
   border-radius: 6px;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.78);
   transition:
     color 160ms ease,
     background 160ms ease,
@@ -12927,21 +12697,14 @@ body.desk-app:not([data-theme="dark"]) .desk-gallery-preview__toolbar button:dis
 }
 
 .desk-status-tip__head button {
-  width: 22px;
   padding: 0;
 }
 
-
-.desk-status-tip__summary span,
-.desk-status-tip__raw-head span {
-  color: rgba(91, 107, 122, 0.72);
-}
 
 .desk-status-tip__summary strong {
   display: -webkit-box;
   max-height: calc(1.45em * 4);
   overflow: hidden;
-  color: #0f7a3b;
   word-break: break-word;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 4;
@@ -13026,7 +12789,6 @@ body.desk-app:not([data-theme="dark"]) .desk-gallery-preview__toolbar button:dis
 
 .desk-settings-info-tip__section h4 {
   margin: 0 0 5px;
-  color: rgba(14, 22, 38, 0.9);
   font-size: 10px;
   font-weight: 880;
   line-height: 1.2;
@@ -13043,7 +12805,6 @@ body.desk-app:not([data-theme="dark"]) .desk-gallery-preview__toolbar button:dis
 .desk-settings-info-tip__section li {
   position: relative;
   padding-left: 9px;
-  color: rgba(62, 75, 92, 0.84);
   font-size: 9px;
   font-weight: 660;
   line-height: 1.45;
