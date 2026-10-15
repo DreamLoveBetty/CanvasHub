@@ -518,6 +518,13 @@ body.desk-app[data-theme] .desk-node--image-group.is-selected .desk-image-group_
   filter: none;
 }
 
+/* Node action buttons suppress the browser focus ring (original rule from the legacy
+   styles, original specificity). */
+:where(body.desk-app[data-theme]) .desk-image-group__node-actions button:hover,
+:where(body.desk-app[data-theme]) .desk-image-group__node-actions button:focus-visible {
+  outline: none;
+}
+
 /* Dwell progress and merge label keyframes (from the former legacy styles). */
 @keyframes desk-image-group-dwell-progress {
   to {

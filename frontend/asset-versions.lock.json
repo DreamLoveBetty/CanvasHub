@@ -443,12 +443,12 @@
     "sha256": "b02e4926d2ea85aa2b43976c0b03b4147f35d6542f625fbe612477e5e0ac8dbe"
    },
    "styles/desktop-geometry.css": {
-    "v": "20261014-shell-module1",
-    "sha256": "676fd88b9635b106a7c4c4ac396569adc64186fe8827e681ab298a68a78ebf28"
+    "v": "20261015-shell-preserve1",
+    "sha256": "e4db89af659ef3c371c17aaec9b20a623eb0791af8c57a33d685ebd2503708eb"
    },
    "styles/desktop-image-group-geometry.css": {
-    "v": "20261014-image-group-module2",
-    "sha256": "1bb0bd5771dda2850beccc65c3f49fe67848e11f3d0a8de8cb876a017ea63453"
+    "v": "20261015-image-group-outline1",
+    "sha256": "af38ab879e753db649a37dff72d627062ed3a729847a25a95ba3bf7c6df736c8"
    },
    "styles/desktop-image-group-interaction.css": {
     "v": "20261014-image-group-module2",
@@ -523,8 +523,8 @@
     "sha256": "c86d03be011123bf95261daf2835900c31a4bbf2ffa7533793bc5d875eaca261"
    },
    "styles/desktop-shell-geometry.css": {
-    "v": "20261014-shell-module3",
-    "sha256": "c85698034c4261c3a01354df1e7ebfa5a19c020c5774e617a72556ee8033b787"
+    "v": "20261015-shell-preserve1",
+    "sha256": "18ef30e9bcd7c1b4869d2d26b7c1fbfe7ac79324a39cca40a63a40e9d9db5b32"
    },
    "styles/desktop-shell.css": {
     "v": "20261006-node-palette-frost1",

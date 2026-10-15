@@ -28,11 +28,6 @@ body.desk-app .desk-zoom-controls:has(.desk-zoom-presets:not([hidden])) {
   z-index: var(--desk-layer-chrome);
 }
 
-/* The preset menu lays out as flex when open; the hidden attribute must still win. */
-body.desk-app .desk-zoom-presets[hidden] {
-  display: none !important;
-}
-
 body.desk-app :is(
   .desk-titlebar,
   .desk-bottombar,

@@ -1,101 +1,142 @@
 /*
- * Shell geometry and motion: rail item and icon motion, canvas surface and grid
- * background, selection marquee / bounds / group button, canvas world, minimap and
- * zoom controls, with their keyframes. Layout, borders by width and style, transforms
- * and animation only; colours come from desktop-shell.css and desktop-canvas-nodes.css
- * (theme tokens), which load after this file. No theme selectors, literal colours or
- * important flags.
+ * Shell geometry and behaviour: rail items and icon motion, the canvas surface and grid
+ * placement, selection marquee / bounds / group button, canvas world, minimap and zoom
+ * controls with the preset menu, the workflow dock and the titlebar, with their keyframes.
+ * Paint comes from desktop-shell.css and desktop-canvas-nodes.css (theme tokens).
+ *
+ * Loaded where the legacy shell styles were (right after desktop-liquid.css), every rule
+ * in its original order and with its original specificity (scope in :where(); theme rules
+ * keep their own selectors), so the cascade is the one these rules always had.
+ * Declarations shown dead in the covered UI states are removed. Kept as they were: the
+ * container rules reaching most of the page (.desk-shell, .desk-canvas and its states,
+ * .desk-canvas-world, .desk-rail), interaction rules and their overrides, outlines,
+ * pointer-events, [hidden] guards and rules for states not covered yet; the important
+ * flag is the original one.
  */
 
-body.desk-app[data-theme] .desk-rail__item:hover .desk-rail__glyph,
-body.desk-app[data-theme] .desk-rail__item:focus-visible .desk-rail__glyph {
+:where(body.desk-app[data-theme]) .desk-shell {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  min-width: 1180px;
+  overflow: hidden;
+}
+
+:where(body.desk-app[data-theme]) .desk-workflow-dock-panel {
+  pointer-events: none;
+}
+
+:where(body.desk-app[data-theme]) .desk-titlebar-logo {
+  pointer-events: none;
+}
+
+:where(body.desk-app[data-theme]) .desk-rail__item {
+  color: var(--desk-muted);
+  background: transparent;
+}
+
+:where(body.desk-app[data-theme]) .desk-rail__item.is-active,
+:where(body.desk-app[data-theme]) .desk-rail__item:hover {
+  color: var(--desk-blue);
+  background: rgba(255, 255, 255, 0.52);
+}
+
+:where(body.desk-app[data-theme]) .desk-rail__item:focus-visible {
+  color: var(--desk-blue);
+  background: rgba(255, 255, 255, 0.58);
+  outline: 2px solid rgba(8, 79, 189, 0.28);
+  outline-offset: 2px;
+}
+
+:where(body.desk-app[data-theme]) .desk-rail__item:hover .desk-rail__glyph,
+:where(body.desk-app[data-theme]) .desk-rail__item:focus-visible .desk-rail__glyph {
+  opacity: 1;
   transform: scale(1.12);
 }
 
-body.desk-app[data-theme] .desk-rail__item.is-active .desk-rail__glyph,
-body.desk-app[data-theme] .desk-rail__item[aria-expanded="true"] .desk-rail__glyph {
+:where(body.desk-app[data-theme]) .desk-rail__item.is-active .desk-rail__glyph,
+:where(body.desk-app[data-theme]) .desk-rail__item[aria-expanded="true"] .desk-rail__glyph {
+  opacity: 1;
   transform: scale(1.1);
 }
 
-body.desk-app[data-theme] .desk-rail__item:active .desk-rail__glyph {
+:where(body.desk-app[data-theme]) .desk-rail__item:active .desk-rail__glyph {
   transform: scale(0.98);
 }
 
-body.desk-app[data-theme] .desk-rail-icon__frame,
-body.desk-app[data-theme] .desk-rail-icon__cursor,
-body.desk-app[data-theme] .desk-rail-icon__flow,
-body.desk-app[data-theme] .desk-rail-icon__image,
-body.desk-app[data-theme] .desk-rail-icon__play,
-body.desk-app[data-theme] .desk-rail-icon__monitor,
-body.desk-app[data-theme] .desk-rail-icon__cog {
+:where(body.desk-app[data-theme]) .desk-rail-icon__frame,
+:where(body.desk-app[data-theme]) .desk-rail-icon__cursor,
+:where(body.desk-app[data-theme]) .desk-rail-icon__flow,
+:where(body.desk-app[data-theme]) .desk-rail-icon__image,
+:where(body.desk-app[data-theme]) .desk-rail-icon__play,
+:where(body.desk-app[data-theme]) .desk-rail-icon__monitor,
+:where(body.desk-app[data-theme]) .desk-rail-icon__cog {
   transform-box: fill-box;
   transform-origin: center;
 }
 
-body.desk-app[data-theme] .desk-rail-icon__frame path {
+:where(body.desk-app[data-theme]) .desk-rail-icon__frame path {
   stroke-dasharray: 6 3;
 }
 
-body.desk-app[data-theme] .desk-rail__item[data-tool="select"]:hover .desk-rail__glyph,
-body.desk-app[data-theme] .desk-rail__item[data-tool="select"]:focus-visible .desk-rail__glyph {
+:where(body.desk-app[data-theme]) .desk-rail__item[data-tool="select"]:hover .desk-rail__glyph,
+:where(body.desk-app[data-theme]) .desk-rail__item[data-tool="select"]:focus-visible .desk-rail__glyph {
   transform: scale(1.15);
 }
 
-body.desk-app[data-theme] .desk-rail__item[data-tool="select"]:hover .desk-rail-icon__frame,
-body.desk-app[data-theme] .desk-rail__item[data-tool="select"]:focus-visible .desk-rail-icon__frame {
+:where(body.desk-app[data-theme]) .desk-rail__item[data-tool="select"]:hover .desk-rail-icon__frame,
+:where(body.desk-app[data-theme]) .desk-rail__item[data-tool="select"]:focus-visible .desk-rail-icon__frame {
   animation: desk-rail-dash-move 1.2s linear infinite;
   transform: scale(0.94);
 }
 
-body.desk-app[data-theme] .desk-rail__item[data-tool="select"]:hover .desk-rail-icon__cursor,
-body.desk-app[data-theme] .desk-rail__item[data-tool="select"]:focus-visible .desk-rail-icon__cursor {
+:where(body.desk-app[data-theme]) .desk-rail__item[data-tool="select"]:hover .desk-rail-icon__cursor,
+:where(body.desk-app[data-theme]) .desk-rail__item[data-tool="select"]:focus-visible .desk-rail-icon__cursor {
   animation: desk-rail-cursor-capture 1.2s cubic-bezier(0.2, 0.8, 0.2, 1) infinite;
 }
 
-body.desk-app[data-theme] .desk-rail__item[data-tool="node"]:hover .desk-rail-icon__flow,
-body.desk-app[data-theme] .desk-rail__item[data-tool="node"]:focus-visible .desk-rail-icon__flow,
-body.desk-app[data-theme] .desk-rail__item[data-tool="node"][aria-expanded="true"] .desk-rail-icon__flow {
+:where(body.desk-app[data-theme]) .desk-rail__item[data-tool="node"]:hover .desk-rail-icon__flow,
+:where(body.desk-app[data-theme]) .desk-rail__item[data-tool="node"]:focus-visible .desk-rail-icon__flow,
+:where(body.desk-app[data-theme]) .desk-rail__item[data-tool="node"][aria-expanded="true"] .desk-rail-icon__flow {
   animation: desk-rail-flow 2s linear infinite;
   stroke-dasharray: 120;
 }
 
-body.desk-app[data-theme] .desk-rail__item[data-tool="gallery"]:hover .desk-rail__glyph,
-body.desk-app[data-theme] .desk-rail__item[data-tool="gallery"]:focus-visible .desk-rail__glyph {
+:where(body.desk-app[data-theme]) .desk-rail__item[data-tool="gallery"]:hover .desk-rail__glyph,
+:where(body.desk-app[data-theme]) .desk-rail__item[data-tool="gallery"]:focus-visible .desk-rail__glyph {
   transform: scale(1.15);
 }
 
-body.desk-app[data-theme] .desk-rail__item[data-tool="gallery"]:hover .desk-rail-icon,
-body.desk-app[data-theme] .desk-rail__item[data-tool="gallery"]:focus-visible .desk-rail-icon {
+:where(body.desk-app[data-theme]) .desk-rail__item[data-tool="gallery"]:hover .desk-rail-icon,
+:where(body.desk-app[data-theme]) .desk-rail__item[data-tool="gallery"]:focus-visible .desk-rail-icon {
   animation: desk-rail-media-pulse 1.8s ease-in-out infinite;
 }
 
-body.desk-app[data-theme] .desk-rail__item[data-tool="gallery"]:hover .desk-rail-icon__play,
-body.desk-app[data-theme] .desk-rail__item[data-tool="gallery"]:focus-visible .desk-rail-icon__play {
+:where(body.desk-app[data-theme]) .desk-rail__item[data-tool="gallery"]:hover .desk-rail-icon__play,
+:where(body.desk-app[data-theme]) .desk-rail__item[data-tool="gallery"]:focus-visible .desk-rail-icon__play {
   animation: desk-rail-play-flash 1.8s ease-in-out infinite;
 }
 
-body.desk-app[data-theme] .desk-rail__item[data-tool="settings"]:hover .desk-rail-icon,
-body.desk-app[data-theme] .desk-rail__item[data-tool="settings"]:focus-visible .desk-rail-icon {
+:where(body.desk-app[data-theme]) .desk-rail__item[data-tool="settings"]:hover .desk-rail-icon,
+:where(body.desk-app[data-theme]) .desk-rail__item[data-tool="settings"]:focus-visible .desk-rail-icon {
   transform: rotate(8deg) scale(1.06);
   transition-duration: 0.3s;
 }
 
-body.desk-app[data-theme] .desk-rail__item[data-tool="settings"]:hover .desk-rail-icon__cog,
-body.desk-app[data-theme] .desk-rail__item[data-tool="settings"]:focus-visible .desk-rail-icon__cog {
+:where(body.desk-app[data-theme]) .desk-rail__item[data-tool="settings"]:hover .desk-rail-icon__cog,
+:where(body.desk-app[data-theme]) .desk-rail__item[data-tool="settings"]:focus-visible .desk-rail-icon__cog {
   animation: desk-rail-cog-spin 2.5s linear infinite;
 }
 
-body.desk-app[data-theme] .desk-canvas {
+:where(body.desk-app[data-theme]) .desk-canvas {
   position: absolute;
   inset: 34px 0 34px 0;
-  cursor: default;
-  touch-action: none;
-  user-select: none;
-}
-
-/* Grid and edge-shade layer placement at the plain class weight, so the dark canvas
-   (no grid, cover) in the theme layers keeps winning. */
-:where(body.desk-app[data-theme]) .desk-canvas {
+  overflow: hidden;
+  border-radius: 0;
+  background-image: linear-gradient(rgba(92, 112, 132, 0.13) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(92, 112, 132, 0.13) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(31, 45, 62, 0.12), rgba(31, 45, 62, 0) 18px),
+    linear-gradient(to top, rgba(31, 45, 62, 0.12), rgba(31, 45, 62, 0) 18px);
   background-position: var(--canvas-grid-x, 0px) var(--canvas-grid-y, 0px),
     var(--canvas-grid-x, 0px) var(--canvas-grid-y, 0px),
     0 0,
@@ -105,48 +146,53 @@ body.desk-app[data-theme] .desk-canvas {
     var(--canvas-grid-size, 20px) var(--canvas-grid-size, 20px),
     100% 18px,
     100% 18px;
+  cursor: default;
+  touch-action: none;
+  user-select: none;
 }
 
-body.desk-app[data-theme] .desk-canvas.is-panning {
+:where(body.desk-app[data-theme]) .desk-canvas.is-select-tool {
+  cursor: default;
+}
+
+:where(body.desk-app[data-theme]) .desk-canvas.is-panning {
   cursor: grabbing;
 }
 
-body.desk-app[data-theme] .desk-canvas.is-history-dragover {
-  outline-width: 1px;
-  outline-style: dashed;
+:where(body.desk-app[data-theme]) .desk-canvas.is-history-dragover {
+  outline: 1px dashed rgba(8, 79, 189, 0.3);
   outline-offset: -8px;
 }
 
-body.desk-app[data-theme] .desk-selection-marquee {
+:where(body.desk-app[data-theme]) .desk-selection-marquee {
   position: absolute;
   z-index: 16;
   display: none;
   pointer-events: none;
-  border-width: 1px;
-  border-style: dashed;
+  border: 1px dashed rgba(8, 79, 189, 0.52);
   border-radius: 6px;
 }
 
-body.desk-app[data-theme] .desk-selection-bounds {
+:where(body.desk-app[data-theme]) .desk-selection-bounds {
   position: absolute;
   z-index: 17;
   display: none;
   pointer-events: none;
-  border-width: 1px;
-  border-style: solid;
+  border: 1px solid rgba(8, 79, 189, 0.5);
   border-radius: 8px;
 }
 
-body.desk-app[data-theme] .desk-selection-bounds__meta {
+:where(body.desk-app[data-theme]) .desk-selection-bounds__meta {
   position: absolute;
   top: 50%;
   left: -10px;
   display: grid;
   gap: 6px;
   min-width: 68px;
+  pointer-events: none;
 }
 
-body.desk-app[data-theme] .desk-selection-group {
+:where(body.desk-app[data-theme]) .desk-selection-group {
   width: 100%;
   min-width: 68px;
   height: 26px;
@@ -154,63 +200,102 @@ body.desk-app[data-theme] .desk-selection-group {
   pointer-events: auto;
   font-size: 11px;
   font-weight: 820;
-  border-width: 1px;
-  border-style: solid;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(8, 79, 189, 0.24);
   border-radius: 6px;
   transition: background 0.16s ease, border-color 0.16s ease, color 0.16s ease, transform 0.12s ease;
 }
 
-body.desk-app[data-theme] .desk-selection-group:active {
+:where(body.desk-app[data-theme]) .desk-selection-group:active {
   transform: translateY(1px);
 }
 
-body.desk-app[data-theme] .desk-canvas-world {
+:where(body.desk-app[data-theme]) .desk-selection-group[data-mode="ungroup"]:hover,
+:where(body.desk-app[data-theme]) .desk-selection-group[data-mode="ungroup"]:focus-visible {
+  background: #063f99;
+  border-color: #063f99;
+}
+
+:where(body.desk-app[data-theme]) .desk-selection-toolbar .desk-selection-image-group {
+  color: var(--desk-blue);
+  background: rgba(8, 79, 189, 0.1);
+  border-color: rgba(8, 79, 189, 0.24);
+}
+
+:where(body.desk-app[data-theme]) .desk-selection-toolbar .desk-selection-image-group:hover,
+:where(body.desk-app[data-theme]) .desk-selection-toolbar .desk-selection-image-group:focus-visible {
+  color: #fff;
+  background: var(--desk-blue);
+  border-color: var(--desk-blue);
+  outline: none;
+}
+
+:where(body.desk-app[data-theme]) .desk-canvas-world {
   position: absolute;
+  top: 0;
+  left: 0;
   width: 1440px;
   height: 820px;
   transform-origin: 0 0;
+  will-change: transform;
 }
 
-body.desk-app[data-theme] .desk-minimap {
+:where(body.desk-app[data-theme]) .desk-zoom-controls:hover,
+:where(body.desk-app[data-theme]) .desk-zoom-controls:focus-within {
+  opacity: 1;
+}
+
+:where(body.desk-app[data-theme]) .desk-zoom-controls.is-pinned {
+  opacity: 1;
+}
+
+:where(body.desk-app[data-theme]) .desk-minimap {
   position: relative;
   overflow: hidden;
   opacity: 0;
-  border-width: 1px;
-  border-style: solid;
+  border: 1px solid rgba(255, 255, 255, 0.54);
   border-radius: 13px;
 }
 
-body.desk-app[data-theme] .desk-zoom-controls.is-pinned .desk-minimap {
+:where(body.desk-app[data-theme]) .desk-zoom-controls.is-pinned .desk-minimap {
   height: var(--desk-minimap-open-height);
   opacity: 1;
 }
 
-body.desk-app[data-theme] .desk-minimap__world {
+:where(body.desk-app[data-theme]) .desk-minimap__world {
   position: absolute;
   inset: 0;
 }
 
-body.desk-app[data-theme] .desk-minimap__viewport {
+:where(body.desk-app[data-theme]) .desk-minimap__viewport {
   position: absolute;
 }
 
-body.desk-app[data-theme] .desk-minimap__node {
+:where(body.desk-app[data-theme]) .desk-minimap__node {
   position: absolute;
   min-width: 4px;
   min-height: 3px;
-  border-width: 1px;
-  border-style: solid;
+  border: 1px solid rgba(8, 79, 189, 0.42);
   border-radius: 3px;
 }
 
-body.desk-app[data-theme] .desk-minimap__viewport {
-  border-width: 1px;
-  border-style: solid;
+:where(body.desk-app[data-theme]) .desk-minimap__node.is-output {
+  background: rgba(54, 210, 176, 0.32);
+  border-color: rgba(20, 160, 130, 0.36);
+}
+
+:where(body.desk-app[data-theme]) .desk-minimap__node.is-text {
+  background: rgba(245, 158, 11, 0.26);
+  border-color: rgba(180, 111, 18, 0.32);
+}
+
+:where(body.desk-app[data-theme]) .desk-minimap__viewport {
+  border: 1px solid rgba(8, 79, 189, 0.7);
   border-radius: 5px;
   pointer-events: none;
 }
 
-body.desk-app[data-theme] .desk-zoom-presets {
+:where(body.desk-app[data-theme]) .desk-zoom-presets {
   position: absolute;
   bottom: 46px;
   left: 42px;
@@ -220,8 +305,7 @@ body.desk-app[data-theme] .desk-zoom-presets {
   gap: 3px;
   width: 76px;
   padding: 5px;
-  border-width: 1px;
-  border-style: solid;
+  border: 1px solid rgba(255, 255, 255, 0.76);
   border-radius: 12px;
   transform-origin: bottom center;
   animation: desk-zoom-presets-rise 170ms cubic-bezier(0.2, 0.8, 0.2, 1);
@@ -229,44 +313,75 @@ body.desk-app[data-theme] .desk-zoom-presets {
   backdrop-filter: blur(18px) saturate(1.18);
 }
 
-body.desk-app[data-theme] .desk-titlebar {
+:where(body.desk-app[data-theme]) .desk-zoom-presets[hidden] {
+  display: none !important;
+}
+
+:where(body.desk-app[data-theme]) .desk-titlebar {
   -webkit-backdrop-filter: none;
 }
 
-body.desk-app[data-theme] .desk-rail {
+:where(body.desk-app[data-theme]) .desk-rail {
+  background: rgba(255, 255, 255, 0.28);
+  border: 1px solid rgba(255, 255, 255, 0.34);
+  box-shadow: 0 18px 48px rgba(31, 45, 62, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.32);
   -webkit-backdrop-filter: blur(22px) saturate(1.35);
+  backdrop-filter: blur(22px) saturate(1.35);
 }
 
-body.desk-app[data-theme] .desk-rail__item[data-tool="node"][aria-expanded="true"]::after {
-  width: 8px;
-  height: 8px;
-}
-
-body.desk-app[data-theme] .desk-zoom-controls {
+:where(body.desk-app[data-theme]) .desk-zoom-controls {
   --desk-minimap-open-height: 92px;
   right: 0;
   opacity: 1;
 }
 
-body.desk-app[data-theme] .desk-zoom-controls.is-pinned {
+:where(body.desk-app[data-theme]) .desk-zoom-controls:hover,
+:where(body.desk-app[data-theme]) .desk-zoom-controls:focus-within {
+  opacity: 1;
+}
+
+:where(body.desk-app[data-theme]) .desk-zoom-controls.is-pinned {
   gap: 8px;
 }
 
-body.desk-app[data-theme] .desk-zoom-row {
+:where(body.desk-app[data-theme]) .desk-zoom-row {
   display: grid;
   grid-template-columns: 28px minmax(48px, 1fr) 28px 28px 28px;
   gap: 8px;
   align-items: center;
 }
 
-body.desk-app[data-theme] .desk-zoom-row button.desk-zoom-label {
+:where(body.desk-app[data-theme]) .desk-zoom-row button.desk-zoom-label {
   width: 100%;
   min-width: 48px;
 }
 
-body.desk-app[data-theme] .desk-zoom-row button svg {
+:where(body.desk-app[data-theme]) .desk-zoom-row button svg {
   width: 13px;
   height: 13px;
+}
+
+body.desk-app[data-theme="dark"] .desk-selection-group[data-mode="ungroup"]:hover,
+body.desk-app[data-theme="dark"] .desk-selection-group[data-mode="ungroup"]:focus-visible {
+  background: #b83e13;
+  border-color: #d84f1b;
+}
+
+body.desk-app[data-theme="dark"] .desk-titlebar::after {
+  display: none;
+}
+
+body.desk-app[data-theme="dark"] .desk-selection-toolbar .desk-selection-image-group {
+  color: #ff9b65;
+  background: rgba(217, 87, 31, 0.18);
+  border-color: rgba(255, 138, 77, 0.24);
+}
+
+body.desk-app[data-theme="dark"] .desk-selection-toolbar .desk-selection-image-group:hover,
+body.desk-app[data-theme="dark"] .desk-selection-toolbar .desk-selection-image-group:focus-visible {
+  color: #fff;
+  background: #d9571f;
+  border-color: #ff8a4d;
 }
 
 /* Rail icon and zoom preset keyframes (moved from desktop-liquid.css). */

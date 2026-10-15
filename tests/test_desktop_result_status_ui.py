@@ -400,8 +400,8 @@ class DesktopResultStatusUiTest(unittest.TestCase):
         self.assertIn("animation: desk-zoom-presets-rise 170ms cubic-bezier(0.2, 0.8, 0.2, 1);", css)
         self.assertIn("@keyframes desk-zoom-presets-rise", css)
         self.assertIn(".desk-zoom-presets button.is-active,", css)
-        # Open, the menu lays out as flex; the hidden attribute still wins (geometry layer).
-        self.assertRegex(read_text("styles/desktop-geometry.css"), r"\.desk-zoom-presets\[hidden\]\s*\{\s*display:\s*none !important;")
+        # Open, the menu lays out as flex; the hidden attribute still wins.
+        self.assertRegex(css, r"\.desk-zoom-presets\[hidden\]\s*\{\s*display:\s*none !important;")
         self.assertIn("function updateZoomPresetButtons", viewport_js)
         self.assertIn("button.setAttribute('aria-checked', isActive ? 'true' : 'false');", viewport_js)
 
