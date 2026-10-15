@@ -467,8 +467,8 @@
     "sha256": "f0f42e1cb340f262bf81c64abe22bd953d0aac190213c56bc288735e448bfc12"
    },
    "styles/desktop-liquid.css": {
-    "v": "20261016-liquid-canvas2",
-    "sha256": "a079cdc300e581a0929ace448bf15fabd6b3bcff4c988a597a84186d1bdc7338"
+    "v": "20261016-liquid-prompt2",
+    "sha256": "445ed0e09429ee8e4a4f948563b954d0c93a8a3d88883e56faf852f971886cf3"
    },
    "styles/desktop-lora.css": {
     "v": "20261003-lora-quick-add1",
