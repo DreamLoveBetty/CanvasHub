@@ -189,7 +189,9 @@ ID；下拉显示服务端返回的真实模型名称，而不是把量化方案
 
 - `desktop-genie-fx.js`：神灯引擎，面板快照（计算样式烘焙 + 已加载图片内联，SVG foreignObject 光栅化，失败走占位图）与逐行翘曲动画，独占覆盖层画布 `#deskHistoryGenieCanvas` 的绘制，并发布 `window.DeskGenieFX`（`ready` / `snapshotPanel` / `animate` / `clear` / `durationMs`）。不读取任何面板或业务状态；最近记录面板与提示词抽屉都是它的调用方，各自持有面板几何、开合状态和运行序号。
 
-加载顺序：`desktop-genie-fx.js` → `desktop-history.js` → `desktop-prompt-drawer.js`。宿主以 `const genieFx = window.DeskGenieFX;` 显式取得依赖，不保留第二套实现。源码契约测试经 `tests/history_js.py` 按 `desktop.html` 加载顺序读取宿主及拆出的模块；边界回归：`tests/test_desktop_genie_fx.py`。
+- `desktop-gallery-pinterest.js`：资产库 Pinterest 分页，`window.DesktopGalleryPinterest.create(deps)` 返回实例。持有图板/图片库与同步状态、图板与单图下载、分析弹窗与拆分弹窗（含其事件绑定）以及 Pinterest 统计行；宿主经显式参数注入卡片渲染/选择/预览/通用工具（`escapeHtml`、`mediaUrl`、`copyPinterestSplitText` 等），工作区实时状态只以 getter 传入（`getGalleryView` / `getGalleryQuery` / `getPreviewAsset`），模块不写宿主状态。宿主只经返回的 API 读取 Pinterest 状态（`pins()`、`visiblePins()`、`isPinDownloading()` 等）；剪贴板工具 `copyPinterestSplitText` 也供视频文件夹使用，故留在宿主。
+
+加载顺序：`desktop-genie-fx.js` → `desktop-gallery-pinterest.js` → `desktop-history.js` → `desktop-prompt-drawer.js`。宿主以 `const genieFx = window.DeskGenieFX;`、`const galleryPinterest = window.DesktopGalleryPinterest.create({...});` 显式取得依赖，不保留第二套实现。源码契约测试经 `tests/history_js.py` 按 `desktop.html` 加载顺序读取宿主及拆出的模块；边界回归：`tests/test_desktop_genie_fx.py`、`tests/test_desktop_gallery_pinterest.py`。
 
 ## 资产库对比视口（2026-09-22）
 

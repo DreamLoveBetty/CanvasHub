@@ -178,6 +178,10 @@
     "v": "20260711-file-board-list3",
     "sha256": "68e431cdbe3adaaec7a19157c91de2dc7dbd99a82ed489dca2f8bc45c6f71048"
    },
+   "scripts/desktop-gallery-pinterest.js": {
+    "v": "20261016-gallery-pinterest1",
+    "sha256": "ceccdc9a12fa8ce384f0858e834a97aada2499f38a69118bef0543f316dff09c"
+   },
    "scripts/desktop-genie-fx.js": {
     "v": "20261016-genie-fx1",
     "sha256": "727e37a85d8d2cb29f5879307ee16df024084f69e85604290e5fc7b57146acf5"
@@ -187,8 +191,8 @@
     "sha256": "760c34c00b133afbd2af965a0b04ee7e59a8655382f7425a45b0a798625a9523"
    },
    "scripts/desktop-history.js": {
-    "v": "20261016-genie-fx1",
-    "sha256": "9b434479bd4bf37b62f19c2c5efe12cb65bd0aec96684496ee12b74b3d565cb0"
+    "v": "20261016-gallery-pinterest1",
+    "sha256": "cc1f4879dff0205029559a476b2cbe24376c939ec19639a923508aa490619af7"
    },
    "scripts/desktop-i18n.js": {
     "v": "20261011-i18n-dedupe1",
