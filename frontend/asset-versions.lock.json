@@ -186,6 +186,10 @@
     "v": "20261016-gallery-sources1",
     "sha256": "0b97b89c447ab1040f6bb15b1955c950d0f28e35fe6c55cf4ef0fad4e73fa0ac"
    },
+   "scripts/desktop-gallery-videos.js": {
+    "v": "20261016-gallery-videos1",
+    "sha256": "2dcdce1e51c679e55635b2b199173989b4824b76a95729454ecd0550bb764667"
+   },
    "scripts/desktop-genie-fx.js": {
     "v": "20261016-genie-fx1",
     "sha256": "727e37a85d8d2cb29f5879307ee16df024084f69e85604290e5fc7b57146acf5"
@@ -195,8 +199,8 @@
     "sha256": "760c34c00b133afbd2af965a0b04ee7e59a8655382f7425a45b0a798625a9523"
    },
    "scripts/desktop-history.js": {
-    "v": "20261016-gallery-sources1",
-    "sha256": "11bd693481c70b35e609f2c833bbf7e7a6a0affa7c917b27e5497915ff8a11a0"
+    "v": "20261016-gallery-videos1",
+    "sha256": "d940eea9703377c13eeb6b4dbee8213f05fc14a3039f3f8361f4ef97d32895ca"
    },
    "scripts/desktop-i18n.js": {
     "v": "20261011-i18n-dedupe1",

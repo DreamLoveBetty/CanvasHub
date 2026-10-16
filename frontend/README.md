@@ -193,7 +193,9 @@ ID；下拉显示服务端返回的真实模型名称，而不是把量化方案
 
 - `desktop-gallery-prompt-sources.js`：资产库「提示词源」分页，`window.DesktopGalleryPromptSources.create(deps)`。持有远程提示词源列表与条目、来源页签与滑块、风格/主体/类型分类筛选、同步运行与轮询、可见条目缓存。宿主的视图/搜索/标签/虚拟网格数据版本号以 getter 传入；宿主的 `invalidateGalleryVirtualData()` 经 `invalidateVisibleCache()` 让模块清空自身缓存。共享虚拟网格的首屏数量常量 `PROMPT_SOURCE_INITIAL_RENDER_LIMIT` 由宿主 `resetGalleryRenderLimit()` 使用，故留在宿主。
 
-加载顺序：`desktop-genie-fx.js` → `desktop-gallery-pinterest.js` → `desktop-gallery-prompt-sources.js` → `desktop-history.js` → `desktop-prompt-drawer.js`。宿主以 `const genieFx = window.DeskGenieFX;`、`const galleryPinterest = window.DesktopGalleryPinterest.create({...});` 等显式取得依赖，不保留第二套实现。源码契约测试经 `tests/history_js.py` 按 `desktop.html` 加载顺序读取宿主及拆出的模块；边界回归：`tests/test_desktop_genie_fx.py`、`tests/test_desktop_gallery_pinterest.py`、`tests/test_desktop_gallery_prompt_sources.py`。
+- `desktop-gallery-videos.js`：资产库「视频」文件夹，`window.DesktopGalleryVideos.create(deps)`（宿主实例名 `galleryVideoFolder`）。持有视频与资源列表、生成/导入/全部来源切换（含其点击绑定）、文件夹卡片与展开详情/播放、发送到画布和视频统计行。宿主的视图/搜索以 getter 传入；宿主切换分页或关闭资产库时经 `collapseExpanded()` 收起展开的卡片，选择栏文案经 `source()` 读当前来源。历史面板自己的 `isVideoHistoryItem` 与共享剪贴板工具 `copyPinterestSplitText` 留在宿主。
+
+加载顺序：`desktop-genie-fx.js` → `desktop-gallery-pinterest.js` → `desktop-gallery-prompt-sources.js` → `desktop-gallery-videos.js` → `desktop-history.js` → `desktop-prompt-drawer.js`。宿主以 `const genieFx = window.DeskGenieFX;`、`const galleryPinterest = window.DesktopGalleryPinterest.create({...});` 等显式取得依赖，不保留第二套实现。源码契约测试经 `tests/history_js.py` 按 `desktop.html` 加载顺序读取宿主及拆出的模块；边界回归：`tests/test_desktop_genie_fx.py`、`tests/test_desktop_gallery_pinterest.py`、`tests/test_desktop_gallery_prompt_sources.py`、`tests/test_desktop_gallery_videos.py`。
 
 ## 资产库对比视口（2026-09-22）
 
