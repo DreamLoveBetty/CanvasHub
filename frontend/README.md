@@ -223,6 +223,13 @@ layer, not a React/Vue migration, a new backend, or a runtime dependency.
 
 ## Canvas module boundary
 
+The load and assembly contract for every `scripts/desktop-canvas-*.js` module is pinned
+by `tests/test_canvas_module_boundary.py` (stable suite). It derives the module set from
+the files on disk, so a new module needs no test edit, and requires each one to load once
+before `desktop-canvas.js` as a synchronous classic script with a `?v=` key, publish a
+single `window.DesktopCanvas<Name>` namespace matching its file name, be assembled only
+by the host (no other script uses it), and never call back into `window.DesktopCanvas`.
+
 `scripts/desktop-canvas-geometry.js` contains stateless rectangle, port-direction,
 and connection-path calculations. It exposes the frozen `DesktopCanvasGeometry`
 namespace and must load before `scripts/desktop-canvas.js` in the desktop HTML.
