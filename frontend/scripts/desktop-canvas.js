@@ -5611,7 +5611,7 @@
     hideSmartGuides,
     imageGroupGooeyFilterPrimitivesHtml,
     imageGroupItemSource,
-    imageGroupLiquidField: window.DesktopCanvasImageGroupLiquidField,
+    imageGroupMelt: window.DesktopCanvasImageGroupMelt,
     imageGroupMotherHeight,
     imageGroupUiSize,
     imageNodeSource,

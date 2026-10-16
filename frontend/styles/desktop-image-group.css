@@ -232,28 +232,6 @@ body.desk-app[data-theme] .desk-image-group-transition__liquid-svg {
   filter: var(--desk-image-group-transition-liquid-filter);
 }
 
-body.desk-app[data-theme] .desk-image-group-transition__melt img {
-  filter: var(--desk-image-group-transition-melt-filter);
-}
-
-body.desk-app[data-theme] :is(
-  .desk-image-group-transition__bridge,
-  .desk-image-group-transition__bridge-halo,
-  .desk-image-group-transition__contact
-) {
-  fill: var(--desk-image-group-transition-contact-fill);
-}
-
-body.desk-app[data-theme] .desk-image-group-transition[data-contact-side="right"] .desk-image-group-transition__melt img {
-  -webkit-mask-image: var(--desk-image-group-transition-mask-right);
-  mask-image: var(--desk-image-group-transition-mask-right);
-}
-
-body.desk-app[data-theme] .desk-image-group-transition[data-contact-side="left"] .desk-image-group-transition__melt img {
-  -webkit-mask-image: var(--desk-image-group-transition-mask-left);
-  mask-image: var(--desk-image-group-transition-mask-left);
-}
-
 body.desk-app[data-theme] .desk-image-group-transition__identity strong {
   color: var(--desk-image-group-transition-title-ink);
 }
@@ -275,14 +253,3 @@ body.desk-app[data-theme] .desk-image-group-transition__chip.is-incoming img {
     0 0 0 calc(var(--desk-image-group-chip-unit) * 4) var(--desk-image-group-transition-chip-incoming-ring);
 }
 
-/* The shared SVG silhouette owns the proximity preview's outer edge/shadow.
- * Its circle and the image must have identical opaque alpha for displacement;
- * otherwise a rigid shadow/ring remains around the liquid photo. */
-body.desk-app[data-theme] .desk-image-group-transition--proximity .desk-image-group-transition__chip.is-incoming img {
-  background: var(--desk-image-group-transition-chip-border);
-  box-shadow: none;
-}
-
-body.desk-app[data-theme] .desk-image-group-transition__incoming-shape {
-  fill: var(--desk-image-group-transition-chip-border);
-}

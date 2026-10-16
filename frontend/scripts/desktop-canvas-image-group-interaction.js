@@ -31,7 +31,7 @@
     hideSmartGuides,
     imageGroupGooeyFilterPrimitivesHtml,
     imageGroupItemSource,
-    imageGroupLiquidField,
+    imageGroupMelt,
     imageGroupMotherHeight,
     imageGroupUiSize,
     imageNodeSource,
@@ -646,60 +646,66 @@
     return { ...entry, chip, image, badge };
   }
 
-    function createLiveImageGroupLiquify(defs, id, image, outline) {
-    return imageGroupLiquidField.create(defs, id, image, outline);
+    function createLiveImageGroupMelt(container) {
+    return imageGroupMelt.create(container);
   }
 
-    function renderLiveImageGroupLiquify(effect, normal, strength, size, coverage = 0, elapsedMs = 0) {
-    imageGroupLiquidField.render(effect, normal, strength, size, coverage, elapsedMs);
+    // The incoming photo melts into the target thumbnail nearest to it (pairwise, as
+    // in liquid-gooey). The controller eases the proximity; the module only paints.
+    function renderLiveImageGroupMelt(preview, now) {
+    const melt = preview.melt;
+    if (!melt) return;
+    const incomingBox = {
+      x: preview.incomingCenter.x - preview.incomingSize / 2,
+      y: preview.incomingCenter.y - preview.incomingSize / 2,
+      w: preview.incomingSize,
+      h: preview.incomingSize
+    };
+    let partner = null;
+    let best = Infinity;
+    preview.targetItems.forEach(item => {
+      const box = item.box;
+      if (!box) return;
+      const distance = Math.hypot(box.x + box.w / 2 - preview.incomingCenter.x, box.y + box.h / 2 - preview.incomingCenter.y);
+      if (distance < best) {
+        best = distance;
+        partner = item;
+      }
+    });
+    const card = (box, item) => {
+      const ring = item.ringWidth * box.w / Math.max(1, item.ringSide);
+      return { ...box, r: box.w / 2, src: item.image.currentSrc || item.image.src, ring, ringColor: preview.meltRingColor };
+    };
+    const target = partner && !preview.reducedMotion
+      ? imageGroupMelt.proximity(incomingBox, partner.box)
+      : 0;
+    const dt = Number.isFinite(preview.meltClock) ? Math.max(0, Math.min(0.05, (now - preview.meltClock) / 1000)) : 0;
+    preview.meltClock = now;
+    preview.meltProx += (target - preview.meltProx) * (1 - Math.exp(-14 * dt));
+    if (Math.abs(target - preview.meltProx) < 0.004) preview.meltProx = target;
+    preview.meltSettling = preview.meltProx !== target;
+    const visible = preview.meltProx > 0.002 && Boolean(partner);
+    if (preview.meltPartner && preview.meltPartner !== partner) preview.meltPartner.image.style.opacity = '';
+    preview.meltPartner = partner;
+    preview.incoming.image.style.opacity = visible ? '0' : '';
+    if (partner) partner.image.style.opacity = visible ? '0' : '';
+    melt.setVisible(visible);
+    if (!visible) return;
+    melt.update({
+      a: card(incomingBox, preview.incoming),
+      b: card(partner.box, partner),
+      prox: preview.meltProx
+    });
   }
 
-    function liveImageGroupLiquidCoverage(center, rect, radius, cornerRadius) {
-    const contact = liveImageGroupRoundedRectContact(center, rect, cornerRadius);
-    return liveImageGroupSmoothstep(-contact.distance / Math.max(1, radius));
-  }
-
-    function liveImageGroupMotherPath(rect, radius, contact, strength, size) {
+    function liveImageGroupMotherPath(rect, radius) {
     const { left, top, width, height } = rect;
     const right = left + width, bottom = top + height;
     const r = clamp(radius, 0, Math.min(width, height) / 2);
-    const amount = clamp(Number(strength) || 0, 0, 1);
-    if (amount < 0.002) {
-      return `M ${left + r} ${top} H ${right - r} A ${r} ${r} 0 0 1 ${right} ${top + r}`
-        + ` V ${bottom - r} A ${r} ${r} 0 0 1 ${right - r} ${bottom}`
-        + ` H ${left + r} A ${r} ${r} 0 0 1 ${left} ${bottom - r}`
-        + ` V ${top + r} A ${r} ${r} 0 0 1 ${left + r} ${top} Z`;
-    }
-    // Pull only the contact neighbourhood toward the incoming droplet. The
-    // same contact normal/strength drives the photo in the opposite direction.
-    // Sampling is bounded (<= 304 points); the shared goo filter smooths the
-    // contour before drawing its edge. No clip or whole-card scale is used.
-    const side = Math.max(1, Number(size) || 1);
-    const length = Math.hypot(contact.normal.x, contact.normal.y) || 1;
-    const nx = contact.normal.x / length, ny = contact.normal.y / length;
-    const points = [];
-    const point = (x, y) => {
-      const dx = x - contact.surface.x, dy = y - contact.surface.y;
-      const tangent = (-ny * dx + nx * dy) / (side * 0.38);
-      const depth = (nx * dx + ny * dy) / (side * 0.4);
-      const pull = side * 0.22 * amount * Math.exp(-0.5 * (tangent * tangent + depth * depth));
-      points.push(`${(x + nx * pull).toFixed(3)} ${(y + ny * pull).toFixed(3)}`);
-    };
-    const line = (ax, ay, bx, by) => {
-      const count = clamp(Math.ceil(Math.hypot(bx - ax, by - ay) / Math.max(2, side * 0.06)), 1, 64);
-      for (let i = 0; i < count; i += 1) point(ax + (bx - ax) * i / count, ay + (by - ay) * i / count);
-    };
-    const corner = (cx, cy, start) => {
-      for (let i = 0; i < 12; i += 1) {
-        const angle = start + i / 12 * Math.PI / 2;
-        point(cx + r * Math.cos(angle), cy + r * Math.sin(angle));
-      }
-    };
-    line(left + r, top, right - r, top); corner(right - r, top + r, -Math.PI / 2);
-    line(right, top + r, right, bottom - r); corner(right - r, bottom - r, 0);
-    line(right - r, bottom, left + r, bottom); corner(left + r, bottom - r, Math.PI / 2);
-    line(left, bottom - r, left, top + r); corner(left + r, top + r, Math.PI);
-    return `M ${points.join(' L ')} Z`;
+    return `M ${left + r} ${top} H ${right - r} A ${r} ${r} 0 0 1 ${right} ${top + r}`
+      + ` V ${bottom - r} A ${r} ${r} 0 0 1 ${right - r} ${bottom}`
+      + ` H ${left + r} A ${r} ${r} 0 0 1 ${left} ${bottom - r}`
+      + ` V ${top + r} A ${r} ${r} 0 0 1 ${left + r} ${top} Z`;
   }
 
     function liveImageGroupSlotPosition(preview, index) {
@@ -757,9 +763,6 @@
     preview.targetStrength = !preview.releasing && gap < IMAGE_GROUP_PROXIMITY_CONTACT_PX
       ? liveImageGroupSmoothstep(1 - gap / IMAGE_GROUP_PROXIMITY_CONTACT_PX)
       : 0;
-    // Preserve the approach direction once inside; nearest-edge changes must
-    // not flip the whole-image smear as the pointer crosses the board centre.
-    if (preview.targetStrength > 0.01 && contact.distance >= 0) preview.lastContact = { ...contact };
     preview.insertionIndex = liveImageGroupSlotIndex(preview, pointerCenter);
     preview.dropActive = !preview.releasing && gap <= IMAGE_GROUP_PROXIMITY_DROP_PX;
     preview.overlay.classList.toggle('is-drop-active', preview.dropActive);
@@ -787,7 +790,9 @@
       item.chip.style.height = `${preview.thumbSize}px`;
       setImageGroupPreviewChipUnit(item.chip, preview.thumbSize);
       const startScale = item.startSide / Math.max(1, preview.thumbSize);
-      item.chip.style.transform = `scale(${startScale + (1 - startScale) * intro})`;
+      const scale = startScale + (1 - startScale) * intro;
+      item.chip.style.transform = `scale(${scale})`;
+      item.box = { x: slotPosition.left, y: slotPosition.top, w: preview.thumbSize * scale, h: preview.thumbSize * scale };
       item.badge.textContent = String(slot + 1);
     });
 
@@ -814,64 +819,14 @@
     setImageGroupPreviewChipUnit(preview.incoming.chip, incomingSize);
     preview.incoming.badge.textContent = String(preview.insertionIndex + 1);
 
-    const coverage = liveImageGroupLiquidCoverage(incomingCenter, {
-      left: preview.baseLeft, top: preview.baseTop,
-      width: preview.currentWidth, height: preview.currentHeight
-    }, incomingSize / 2, preview.motherRadius);
-    preview.liquidCoverage = preview.committing ? Math.max(preview.dropLiquidCoverage || 0, coverage) : coverage;
-    // The bridge/mother may settle during drop, but the PHOTO remains liquid
-    // for every visible drop frame. Clarity belongs to the completed node.
-    preview.liquidStrength = preview.reducedMotion ? 0
-      : preview.committing ? preview.dropLiquidStrength
-      : preview.releasing ? preview.currentStrength
-      : Math.max(preview.currentStrength, preview.liquidCoverage);
-    const strength = preview.currentStrength * (1 - preview.liquidCoverage);
-    const renderContact = preview.lastContact || contact;
-    const normal = renderContact.normal || { x: 1, y: 0 };
-    const sourceSurface = {
-      x: incomingCenter.x - normal.x * Math.max(1, incomingSize / 2),
-      y: incomingCenter.y - normal.y * Math.max(1, incomingSize / 2)
-    };
-    const targetSurface = renderContact.surface;
-    const px = -normal.y;
-    const py = normal.x;
-    const half = Math.max(1, 1.5 + strength * 7.5);
-    const sourceHalf = Math.max(1, 1 + strength * 5.5);
-    const midX = (sourceSurface.x + targetSurface.x) / 2;
-    const midY = (sourceSurface.y + targetSurface.y) / 2;
-    const neck = `M ${targetSurface.x + px * half} ${targetSurface.y + py * half}`
-      + ` C ${midX + px * half * 0.7} ${midY + py * half * 0.7}, ${midX + px * sourceHalf * 0.7} ${midY + py * sourceHalf * 0.7}, ${sourceSurface.x + px * sourceHalf} ${sourceSurface.y + py * sourceHalf}`
-      + ` L ${sourceSurface.x - px * sourceHalf} ${sourceSurface.y - py * sourceHalf}`
-      + ` C ${midX - px * sourceHalf * 0.7} ${midY - py * sourceHalf * 0.7}, ${midX - px * half * 0.7} ${midY - py * half * 0.7}, ${targetSurface.x - px * half} ${targetSurface.y - py * half} Z`;
-    preview.bridge.setAttribute('d', neck);
-    preview.bridgeHalo.setAttribute('d', neck);
-    preview.bridge.style.opacity = String(clamp(strength * 1.12, 0, 1));
-    preview.bridgeHalo.style.opacity = String(clamp(strength * 0.34, 0, 0.34));
-    preview.contactBlob.setAttribute('cx', String(targetSurface.x));
-    preview.contactBlob.setAttribute('cy', String(targetSurface.y));
-    preview.contactBlob.setAttribute('r', String(Math.max(1, 3 + strength * 10)));
-    preview.contactBlob.style.opacity = String(clamp(strength * 0.9, 0, 0.9));
-    // Procedural flow must run in thumbnail-local coordinates for both HTML
-    // and SVG. A global SVG cx/cy would sample a different noise phase and
-    // leave a mismatched ring/shadow even if the same filter ID were used.
-    preview.incomingShape.setAttribute('transform', `translate(${incomingCenter.x - incomingSize / 2} ${incomingCenter.y - incomingSize / 2})`);
-    preview.incomingShape.setAttribute('cx', String(incomingSize / 2));
-    preview.incomingShape.setAttribute('cy', String(incomingSize / 2));
-    // Match the HTML image's border-box alpha exactly, rather than keeping an
-    // oversized, undeformed circle visible behind it.
-    preview.incomingShape.setAttribute('r', String(Math.max(1, incomingSize / 2)));
-
-    const deformation = preview.reducedMotion ? 0 : strength;
-    renderLiveImageGroupLiquify(preview.liquify, normal, preview.liquidStrength, incomingSize, preview.liquidCoverage, Math.max(0, now - preview.introStartedAt));
-    preview.overlay.dataset.contactAxis = Math.abs(normal.x) > Math.abs(normal.y) ? 'x' : 'y';
-    preview.overlay.dataset.contactSide = normal.x < -0.35 ? 'left' : normal.x > 0.35 ? 'right' : normal.y < 0 ? 'top' : 'bottom';
+    renderLiveImageGroupMelt(preview, now);
     preview.identity.style.left = `${preview.baseLeft + preview.identityInset}px`;
     preview.identity.style.top = `${preview.baseTop + preview.identityTop}px`;
     preview.identity.querySelector('span').textContent = `${preview.targetItems.length + (preview.dropActive ? 1 : 0)} 张`;
     preview.base.setAttribute('d', liveImageGroupMotherPath({
       left: preview.baseLeft, top: preview.baseTop,
       width: preview.currentWidth, height: preview.currentHeight
-    }, preview.motherRadius, renderContact, deformation, incomingSize));
+    }, preview.motherRadius));
   }
 
     function startLiveImageGroupPreviewFrame(preview) {
@@ -916,7 +871,7 @@
         || (preview.targetStrength <= 0.01 && preview.currentStrength >= 0.001);
       const sizeActive = Math.abs(preview.targetWidth - preview.currentWidth) >= 0.2
         || Math.abs(preview.targetHeight - preview.currentHeight) >= 0.2;
-      if (introActive || strengthActive || sizeActive || preview.releasing || preview.liquify.animated) {
+      if (introActive || strengthActive || sizeActive || preview.releasing || preview.meltSettling) {
         preview.raf = requestAnimationFrame(tick);
       }
     };
@@ -965,20 +920,14 @@
     const baseTop = targetBodyRect
       ? targetBodyRect.top
       : clamp(rawAnchor.y - motherHeight / 2, 18, Math.max(18, window.innerHeight - motherHeight - 18));
-    const baseRect = { left: baseLeft, top: baseTop, width: baseWidth, height: motherHeight };
     const sourceCenter = {
       x: sourceRect.left + sourceRect.width / 2,
       y: sourceRect.top + sourceRect.height / 2
-    };
-    const targetCenter = {
-      x: targetRect.left + targetRect.width / 2,
-      y: targetRect.top + targetRect.height / 2
     };
     const pointerAtReady = {
       x: Number.isFinite(interaction?.lastClientX) ? interaction.lastClientX : sourceCenter.x,
       y: Number.isFinite(interaction?.lastClientY) ? interaction.lastClientY : sourceCenter.y
     };
-    const initialContact = liveImageGroupApproachContact(pointerAtReady, targetCenter, baseRect, motherRadius);
     const incomingRadius = thumbSize / 2 + imageGroupUiSize(4);
     const introStart = cappedTransitionRect(sourceRect, IMAGE_GROUP_TRANSITION_THUMB_PX);
     const transitionId = `desk-image-group-proximity-gooey-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
@@ -993,15 +942,6 @@
     const base = document.createElementNS('http://www.w3.org/2000/svg', 'path');
     base.classList.add('desk-image-group-transition__mother-shape');
     liquidSurface.appendChild(base);
-    const bridgeHalo = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-    bridgeHalo.classList.add('desk-image-group-transition__bridge-halo');
-    const bridge = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-    bridge.classList.add('desk-image-group-transition__bridge');
-    const contactBlob = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-    contactBlob.classList.add('desk-image-group-transition__contact');
-    const incomingShape = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-    incomingShape.classList.add('desk-image-group-transition__incoming-shape');
-    liquidSurface.append(bridgeHalo, bridge, contactBlob, incomingShape);
     const identity = document.createElement('div');
     identity.className = 'desk-image-group-transition__identity';
     const identityScale = clamp(canvasScale, 0.35, 1.45);
@@ -1009,6 +949,10 @@
     identity.innerHTML = `<strong>图片组</strong><span>${targetEntries.length} 张</span>`;
     const imageLayer = document.createElement('div');
     imageLayer.className = 'desk-image-group-transition__images';
+    // The melt paints under the chips, so badges and the other thumbnails stay on top.
+    const meltLayer = document.createElement('div');
+    meltLayer.className = 'desk-image-group-transition__melt-layer';
+    imageLayer.appendChild(meltLayer);
     overlay.append(liquidSvg, identity, imageLayer);
     document.body.appendChild(overlay);
     const targetItems = targetEntries.map(entry => {
@@ -1018,10 +962,13 @@
       return item;
     });
     const incoming = liveImageGroupChip(incomingEntry, imageLayer, true);
-    const liquify = createLiveImageGroupLiquify(liquidSvg.querySelector('defs'), `${transitionId}-texture`, incoming.image, incomingShape);
+    const melt = createLiveImageGroupMelt(meltLayer);
+    // Chip rings are 8 design px of a 168px thumbnail (see the chip stylesheet).
+    [...targetItems, incoming].forEach(item => { item.ringWidth = 8; item.ringSide = IMAGE_GROUP_BASE_THUMB_PX; });
     const preview = {
-      overlay, base, bridge, bridgeHalo, contactBlob, incomingShape, identity,
-      targetItems, incoming, liquify, targetNodeId, sourceNodeId,
+      overlay, base, identity, targetItems, incoming, melt, targetNodeId, sourceNodeId,
+      meltProx: 0, meltClock: null, meltSettling: false, meltPartner: null,
+      meltRingColor: getComputedStyle(overlay).getPropertyValue('--desk-image-group-transition-chip-border').trim() || '#ffffff',
       baseLeft, baseTop, baseWidth, baseHeight: motherHeight,
       currentWidth: baseWidth, targetWidth: baseWidth, finalWidth,
       currentHeight: motherHeight, targetHeight: motherHeight, finalHeight,
@@ -1033,7 +980,7 @@
       pointerY: pointerAtReady.y,
       introStartedAt: performance.now(), introDuration: 250,
       currentStrength: 0, releaseStrength: 0, releaseStartedAt: 0, targetStrength: 0,
-      insertionIndex: targetItems.length, dropActive: false, lastContact: initialContact,
+      insertionIndex: targetItems.length, dropActive: false,
       active: true, raf: 0, committing: false, commitProgress: 0, releasing: false,
       reducedMotion: prefersReducedMotion(),
       incomingCenter: pointerAtReady, incomingSize: introStart.width, dropStartSize: introStart.width,
@@ -1171,8 +1118,6 @@
     preview.dropStartCenter = { ...preview.incomingCenter };
     preview.dropStartSize = preview.incomingSize;
     preview.dropStartStrength = preview.currentStrength;
-    preview.dropLiquidStrength = Math.max(preview.currentStrength, preview.targetStrength || 0, preview.liquidStrength || 0);
-    preview.dropLiquidCoverage = preview.liquidCoverage || 0;
     preview.commitProgress = 0;
     if (preview.reducedMotion) {
       preview.commitProgress = 1;
@@ -1270,9 +1215,8 @@
       liveImageGroupRoundedRectContact,
       liveImageGroupApproachContact,
       liveImageGroupChip,
-      createLiveImageGroupLiquify,
-      renderLiveImageGroupLiquify,
-      liveImageGroupLiquidCoverage,
+      createLiveImageGroupMelt,
+      renderLiveImageGroupMelt,
       liveImageGroupMotherPath,
       liveImageGroupSlotPosition,
       liveImageGroupSlotIndex,

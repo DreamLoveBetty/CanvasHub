@@ -784,10 +784,6 @@ body.desk-app {
   --desk-image-group-transition-liquid-filter:
     drop-shadow(0 2px 4px rgba(17, 38, 42, 0.08))
     drop-shadow(0 15px 30px rgba(17, 38, 42, 0.18));
-  --desk-image-group-transition-melt-filter: blur(5px) saturate(1.08);
-  --desk-image-group-transition-contact-fill: #ffffff;
-  --desk-image-group-transition-mask-right: linear-gradient(90deg, transparent 0%, rgba(0, 0, 0, 0.7) 42%, #000000 76%);
-  --desk-image-group-transition-mask-left: linear-gradient(270deg, transparent 0%, rgba(0, 0, 0, 0.7) 42%, #000000 76%);
   --desk-image-group-transition-title-ink: var(--desk-blue-ink);
   --desk-image-group-transition-meta-ink: var(--desk-blue-placeholder);
   --desk-image-group-transition-chip-border: #ffffff;
@@ -2735,10 +2731,6 @@ body.desk-app[data-theme="dark"] {
   --desk-image-group-transition-liquid-filter:
     drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3))
     drop-shadow(0 15px 30px rgba(0, 0, 0, 0.38));
-  --desk-image-group-transition-melt-filter: blur(5px) saturate(1.08) brightness(0.88);
-  --desk-image-group-transition-contact-fill: #252a2c;
-  --desk-image-group-transition-mask-right: linear-gradient(90deg, transparent 0%, rgba(0, 0, 0, 0.7) 42%, #000000 76%);
-  --desk-image-group-transition-mask-left: linear-gradient(270deg, transparent 0%, rgba(0, 0, 0, 0.7) 42%, #000000 76%);
   --desk-image-group-transition-title-ink: #f2f4f4;
   --desk-image-group-transition-meta-ink: rgba(213, 220, 221, 0.62);
   --desk-image-group-transition-chip-border: #353b3d;

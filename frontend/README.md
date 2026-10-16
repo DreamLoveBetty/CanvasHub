@@ -390,7 +390,7 @@ suffix:
 | `prompt-document` | Prompt segments/schema, image-reference semantics, materialization/fidelity, document versions/history model, generation metadata and connected-text prompt composition. | Editable DOM, selection/caret handling and Provider requests. |
 | `text-editor` | Text-node presentation/aliases/styles, contenteditable documents, tokens/mentions/caret, editing undo/redo, token migration/freezing, prompt-target adapters and polish-result presentation/application. | The polish API request belongs to `generation`; document model rules belong to `prompt-document`. |
 | `image-group-model` | Image-group items/roles/sizes, grouping/ungrouping, edge migration, persisted item ordering, node presentation and image-role prompt constraints. | Gesture timing, FLIP/proximity effects and prompt-token DOM updates. |
-| `image-group-liquid-field` | Overlay-local SVG displacement/mask/radial-wave painting and bounded procedural-field caches, explicitly injected into interaction. | No graph state, pointer/RAF lifecycle, image-pixel readback or model mutation. |
+| `image-group-melt` | Pairwise image melt of the incoming photo and its nearest target thumbnail (goo on colour, marble pass, seam-erase masks) in one SVG sized to the pair's bounding box; a vanilla port of liquid-gooey's image melt, explicitly injected into interaction. | No graph state, pointer/RAF lifecycle, timers, partner choice or model mutation; the controller passes geometry and the eased proximity. |
 | `image-group-interaction` | Group sorting gestures, FLIP/merge/split effects, proximity dwell/preview/release/drop and item focus interactions. | Actual group mutations are submitted through model callbacks. |
 | `image-editor-tools` | Fabric object creation/modification, shapes/arrows/pins/text, selection colors, drawing tools and cursor assets. | Editor sessions, Fabric canvas ownership, history and generation submission. |
 | `image-editor` | Editor modal/session, viewport/zoom, Fabric lifecycle/events, project/history serialization, mask/annotation export and open/save/close behavior. | `submitImageEditor` belongs to `generation`; file/media preparation belongs to `media-import`. |
@@ -421,31 +421,25 @@ The rail's glass is painted on its noninteractive `::before` layer in
 backdrop blur sample the canvas. Its light/dark translucent fill stays in the
 palette tokens; do not mask a nested backdrop-root problem with an opaque fill.
 
-`desktop-canvas-image-group-liquid-field.js` loads before `image-group-interaction`
-and the host explicitly injects its `create`/`render` port. It owns only the
-temporary SVG filter and bounded paint caches; interaction owns containment,
-elapsed time, the single RAF and all release/drop/model lifecycle decisions.
-There is no reverse graph/state access or independent animation loop.
+`desktop-canvas-image-group-melt.js` loads before `image-group-interaction` and the
+host explicitly injects it. It ports the image melt of liquid-gooey (MIT, see
+`frontend/vendor/liquid-gooey/`): the two photos are repainted as pattern-filled
+cards, a goo filter averages their colours where they touch, a marble pass folds the
+palettes into streaks inside the contact area, and each crisp face dissolves back at
+the seam through a blurred erase ellipse; apart, a card is exactly a card. The module
+is pure paint: interaction picks the partner (the target thumbnail nearest the incoming
+photo), eases the proximity (exponential chase, rate 14/s, from the pair's gap) and
+owns the single RAF, release, drop and model lifecycle. The SVG covers only the pair's
+bounding box plus the reach of its filters, not the viewport. Pixel tunings scale with
+the card size (upstream targets 84px cards).
 
-The photo, its rim and its same-sized opaque SVG silhouette share one local
-displacement field. Approaching/partial entry masks noise displacement itself:
-contact-facing pixels liquify first, with little distortion at the far side
-(not an opacity fade between photo copies). Late containment continuously
-blends into a full-image field. Once inside, positive radial travelling waves
-with `sin(k*r - omega*t)` expand from the photo centre, with low-frequency noise
-breaking the circular rim. Time is wall time, not RAF count; synthetic coordinate
-SVGs contain no photo pixels/network references. Radial paint updates are capped
-at 30 Hz and reuse at most 36 tiny wave SVGs per overlay. Reduced motion skips
-displacement and the animation loop; settled contact-only previews stop their RAF.
-
-The mother contour is locally pulled before the joined silhouette receives a
-single outer edge/shadow; no rigid circular underlay or independent incoming
-shadow remains. HTML thumbnail stacking, badges and titles stay crisp. Held
-entry and every visible drop frame remain liquid until the completed group
-presents clear photos. Definitions/caches disappear with the overlay. Release,
-drop, item roles/order, dwell thresholds, model callbacks, graph edges and source
-data retain their existing contracts. Regression: `tests/test_image_group_liquify.cjs`;
-served-page pointer/frame checks use synthetic images with backend requests isolated.
+While the melt is visible, the incoming and partner chip images are hidden and the melt
+layer paints underneath the chips, so badges, titles and the other thumbnails stay
+crisp. The mother card is a still rounded rectangle; it no longer bends toward the
+incoming photo. Reduced motion shows the plain chips without melt. Release, drop,
+item roles/order, dwell thresholds, model callbacks, graph edges and source data
+retain their existing contracts. Regression: `tests/test_image_group_melt.cjs`;
+served-page checks use synthetic images with backend requests isolated.
 
 ### Audio material/result node
 

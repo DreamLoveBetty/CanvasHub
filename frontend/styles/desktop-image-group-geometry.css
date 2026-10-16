@@ -296,8 +296,8 @@ body.desk-app[data-theme] .desk-image-group-dwell > span {
 body.desk-app[data-theme] .desk-image-group-transition,
 body.desk-app[data-theme] .desk-image-group-transition__goo,
 body.desk-app[data-theme] .desk-image-group-transition__images,
-body.desk-app[data-theme] .desk-image-group-transition__liquid-svg,
-body.desk-app[data-theme] .desk-image-group-transition__melt {
+body.desk-app[data-theme] .desk-image-group-transition__melt-layer,
+body.desk-app[data-theme] .desk-image-group-transition__liquid-svg {
   position: fixed;
   inset: 0;
   pointer-events: none;
@@ -406,8 +406,7 @@ body.desk-app[data-theme] .desk-image-group-transition__chip strong {
 
 body.desk-app[data-theme] .desk-image-group__liquid-base,
 body.desk-app[data-theme] .desk-image-group__liquid-item,
-body.desk-app[data-theme] .desk-image-group-transition__mother-shape,
-body.desk-app[data-theme] .desk-image-group-transition__incoming-shape {
+body.desk-app[data-theme] .desk-image-group-transition__mother-shape {
   transform-box: fill-box;
   transform-origin: center;
   will-change: transform, opacity;
@@ -475,43 +474,6 @@ body.desk-app[data-theme] .desk-image-group__node-actions:focus-within {
 
 body.desk-app[data-theme] .desk-image-group-transition {
   overflow: hidden;
-}
-
-body.desk-app[data-theme] .desk-image-group-transition__melt {
-  z-index: 1;
-  overflow: visible;
-}
-
-body.desk-app[data-theme] .desk-image-group-transition__melt img {
-  position: fixed;
-  display: block;
-  object-fit: cover;
-  border-radius: 50%;
-  filter: var(--desk-image-group-transition-melt-filter);
-  will-change: transform, opacity;
-}
-
-body.desk-app[data-theme] .desk-image-group-transition__bridge,
-body.desk-app[data-theme] .desk-image-group-transition__bridge-halo,
-body.desk-app[data-theme] .desk-image-group-transition__contact {
-  vector-effect: non-scaling-stroke;
-  will-change: opacity;
-}
-
-body.desk-app[data-theme] .desk-image-group-transition__bridge,
-body.desk-app[data-theme] .desk-image-group-transition__bridge-halo,
-body.desk-app[data-theme] .desk-image-group-transition__contact {
-  opacity: 0;
-}
-
-body.desk-app[data-theme] .desk-image-group-transition[data-contact-side="right"] .desk-image-group-transition__melt img {
-  -webkit-mask-image: var(--desk-image-group-transition-mask-right);
-  mask-image: var(--desk-image-group-transition-mask-right);
-}
-
-body.desk-app[data-theme] .desk-image-group-transition[data-contact-side="left"] .desk-image-group-transition__melt img {
-  -webkit-mask-image: var(--desk-image-group-transition-mask-left);
-  mask-image: var(--desk-image-group-transition-mask-left);
 }
 
 body.desk-app[data-theme] .desk-node--image-group.is-selected .desk-image-group__silhouette {
