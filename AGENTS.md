@@ -15,7 +15,7 @@ Before changing code here:
 - Main HTTP entrypoint: `server.py`
 - Runtime watchdog: `watchdog.sh`
 - Desktop UI is served from `desktop.html`
-- Source of truth is `/Users/huangjiahui/Projects/tg-mini-app-img-gen/`
+- Source of truth is this repository checkout (the project root holding `server.py` and this file), not a copy or mirror of it
 
 ## Working Rules
 
