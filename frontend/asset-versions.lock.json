@@ -182,6 +182,10 @@
     "v": "20261016-gallery-pinterest1",
     "sha256": "ceccdc9a12fa8ce384f0858e834a97aada2499f38a69118bef0543f316dff09c"
    },
+   "scripts/desktop-gallery-prompt-sources.js": {
+    "v": "20261016-gallery-sources1",
+    "sha256": "0b97b89c447ab1040f6bb15b1955c950d0f28e35fe6c55cf4ef0fad4e73fa0ac"
+   },
    "scripts/desktop-genie-fx.js": {
     "v": "20261016-genie-fx1",
     "sha256": "727e37a85d8d2cb29f5879307ee16df024084f69e85604290e5fc7b57146acf5"
@@ -191,8 +195,8 @@
     "sha256": "760c34c00b133afbd2af965a0b04ee7e59a8655382f7425a45b0a798625a9523"
    },
    "scripts/desktop-history.js": {
-    "v": "20261016-gallery-pinterest1",
-    "sha256": "cc1f4879dff0205029559a476b2cbe24376c939ec19639a923508aa490619af7"
+    "v": "20261016-gallery-sources1",
+    "sha256": "11bd693481c70b35e609f2c833bbf7e7a6a0affa7c917b27e5497915ff8a11a0"
    },
    "scripts/desktop-i18n.js": {
     "v": "20261011-i18n-dedupe1",

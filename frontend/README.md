@@ -191,7 +191,9 @@ ID；下拉显示服务端返回的真实模型名称，而不是把量化方案
 
 - `desktop-gallery-pinterest.js`：资产库 Pinterest 分页，`window.DesktopGalleryPinterest.create(deps)` 返回实例。持有图板/图片库与同步状态、图板与单图下载、分析弹窗与拆分弹窗（含其事件绑定）以及 Pinterest 统计行；宿主经显式参数注入卡片渲染/选择/预览/通用工具（`escapeHtml`、`mediaUrl`、`copyPinterestSplitText` 等），工作区实时状态只以 getter 传入（`getGalleryView` / `getGalleryQuery` / `getPreviewAsset`），模块不写宿主状态。宿主只经返回的 API 读取 Pinterest 状态（`pins()`、`visiblePins()`、`isPinDownloading()` 等）；剪贴板工具 `copyPinterestSplitText` 也供视频文件夹使用，故留在宿主。
 
-加载顺序：`desktop-genie-fx.js` → `desktop-gallery-pinterest.js` → `desktop-history.js` → `desktop-prompt-drawer.js`。宿主以 `const genieFx = window.DeskGenieFX;`、`const galleryPinterest = window.DesktopGalleryPinterest.create({...});` 显式取得依赖，不保留第二套实现。源码契约测试经 `tests/history_js.py` 按 `desktop.html` 加载顺序读取宿主及拆出的模块；边界回归：`tests/test_desktop_genie_fx.py`、`tests/test_desktop_gallery_pinterest.py`。
+- `desktop-gallery-prompt-sources.js`：资产库「提示词源」分页，`window.DesktopGalleryPromptSources.create(deps)`。持有远程提示词源列表与条目、来源页签与滑块、风格/主体/类型分类筛选、同步运行与轮询、可见条目缓存。宿主的视图/搜索/标签/虚拟网格数据版本号以 getter 传入；宿主的 `invalidateGalleryVirtualData()` 经 `invalidateVisibleCache()` 让模块清空自身缓存。共享虚拟网格的首屏数量常量 `PROMPT_SOURCE_INITIAL_RENDER_LIMIT` 由宿主 `resetGalleryRenderLimit()` 使用，故留在宿主。
+
+加载顺序：`desktop-genie-fx.js` → `desktop-gallery-pinterest.js` → `desktop-gallery-prompt-sources.js` → `desktop-history.js` → `desktop-prompt-drawer.js`。宿主以 `const genieFx = window.DeskGenieFX;`、`const galleryPinterest = window.DesktopGalleryPinterest.create({...});` 等显式取得依赖，不保留第二套实现。源码契约测试经 `tests/history_js.py` 按 `desktop.html` 加载顺序读取宿主及拆出的模块；边界回归：`tests/test_desktop_genie_fx.py`、`tests/test_desktop_gallery_pinterest.py`、`tests/test_desktop_gallery_prompt_sources.py`。
 
 ## 资产库对比视口（2026-09-22）
 
