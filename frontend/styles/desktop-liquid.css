@@ -637,13 +637,6 @@ body.desk-app[data-theme="dark"] .desk-theme-toggle__icon--moon {
   outline: none;
 }
 
-.desk-select-trigger:disabled,
-.desk-select-shell.is-disabled .desk-select-trigger {
-  color: rgba(99, 113, 130, 0.52);
-  cursor: not-allowed;
-  opacity: 0.78;
-}
-
 .desk-select-trigger:focus,
 .desk-select-shell.is-open .desk-select-trigger {
   border-color: rgba(8, 79, 189, 0.56);
@@ -704,8 +697,6 @@ body.desk-app[data-theme="dark"] .desk-theme-toggle__icon--moon {
   min-width: 0;
   padding: 0 10px;
   border-radius: 8px;
-  font-size: 12px;
-  line-height: 28px;
 }
 
 .desk-select-group-label {
@@ -876,7 +867,6 @@ body.desk-app[data-theme="dark"]::after {
 }
 
 .desk-button--generate svg {
-  width: 20px;
   height: 20px;
   fill: currentColor;
   filter: drop-shadow(0 2px 4px rgba(0, 51, 120, 0.28));
@@ -3393,15 +3383,10 @@ body.desk-app[data-theme="dark"] .desk-image-editor__canvas-wrap {
   background: #fff;
   border-radius: 999px;
   box-shadow: 0 4px 10px rgba(24, 34, 45, 0.18);
-  transition: transform 160ms ease;
 }
 
 .desk-switch input:checked + span {
   background: rgba(8, 79, 189, 0.56);
-}
-
-.desk-switch input:checked + span::after {
-  transform: translateX(16px);
 }
 
 .desk-switch em {
@@ -7837,8 +7822,6 @@ body.desk-app[data-theme="dark"] .desk-file-preview-modal__actions #deskFilePrev
 
 .desk-icon {
   display: block;
-  width: 10px;
-  height: 10px;
   background: currentColor;
   -webkit-mask: var(--desk-icon-url) center / contain no-repeat;
   mask: var(--desk-icon-url) center / contain no-repeat;
