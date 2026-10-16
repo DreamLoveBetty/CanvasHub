@@ -38,7 +38,7 @@ flowchart TD
 | 排版、字体、成品读取与操作 | `layout_routes`、`editable_routes` | `layout_publish`；沿用原草稿与成品存储 |
 | 鉴权、设置、运行诊断 | `auth_routes`、`system_routes` | `auth_policy`、`system_settings` |
 | 模型与账号管理 | `provider_account_routes` | `provider_accounts` |
-| 提示词与远程素材 | `prompt_routes`、`remote_source_routes` | `prompt_presets`、`prompt_enrichment`、`prompt_video`（校验浏览器均匀抽取的 12–24 帧，按 8 帧分批理解并缓存文本摘要）；沿用原 Pinterest/同步实现 |
+| 提示词与远程素材 | `prompt_routes`、`remote_source_routes` | `prompt_presets`、`prompt_enrichment`、`prompt_video`（校验浏览器均匀抽取的 12–24 帧，按 8 帧分批理解并缓存文本摘要）；`prompt_skill_client` 的纯规则见下方；沿用原 Pinterest/同步实现 |
 | Agent、工作流文件 | `agent_routes` | 沿用原 Agent runtime/store |
 | 状态、重试、批次、并发 | `task_routes`、`task_control_routes` | `task_tracking`、`task_retry`、`task_batch`、`task_execution` |
 | GPT 图片、编辑、PPT/PSD | `gpt_generation_routes` | `gpt_generation`、`editable_generation` |
@@ -53,6 +53,17 @@ flowchart TD
 | 本地图像公共设施 | `routes/local_image_routes.py` | `local_image/` 无架构依赖的进程监督、FP8 解码、原子权重保存、LoRA 文件库、任务队列、原件归档；不反向依赖 Krea/Qwen |
 | 共享 LoRA 资料库 | `routes/lora_library_routes.py` | `lora_library/` 内容寻址资料、人工覆盖、示例图与独立 Civitai 补全；只通过注入端口访问模型目录，不依赖推理环境；见 `lora_library/README.md` |
 | HTTP 公共响应、启动 | `http_responses` | `server_lifecycle` |
+
+### 提示词客户端（`prompt_skill_client`）
+
+`backend/prompt_skill_client.py` 拥有 Provider/模型选择、GPT OAuth 与 OpenAI 兼容调用、Codex → ChatGPT 账号池 fallback、generic-19 结果缓存、环境变量调参常量（及直接读取它们的函数）和全部公开入口（对话、润色、改写、素材块拆分、图片/视频分析）。入口调用的纯规则在 `services/` 下，不做网络/文件/设置/环境变量访问，依赖方向单向：
+
+- `prompt_text_rules`：提示关键词与安全约束短语、M0–M14 公式模块推断与守卫、JSON/代码块清理、润色与风格提取结果整理。
+- `prompt_adapter_rules`（依赖 text）：任务类型分类、风险评分、替换表、结构化兜底提示与安全改写输出清理；公开 `analyze_prompt_adapter`。
+- `prompt_image_analysis_rules`（依赖 text）：图片分析 JSON 的类型标记、风格区域、主体/叠加元素、文字区域、占位槽位和中文主提示/负面提示整理。
+- `prompt_block_rules`（依赖 text、image_analysis）：素材块主类型推断、模板与模块表（导入时由提示词库模板填充）、generic-19 锚点/约束/体型/质量/合并规则及图片分析拆块；公开 `generic_19_prompt_block_split_rule`。
+
+原 `prompt_skill_client.<name>` 导入仍有效（入口用到的名称、公开名称和回归测试直接读取的私有名称均从原模块再导出）。测试替换点（`_choose_model`、`_call_prompt_provider`、`chat_chatgpt_pool`、调参常量等）都留在原模块，替换仍然生效。
 
 ## 保留的兼容边界
 
