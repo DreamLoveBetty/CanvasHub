@@ -35,7 +35,7 @@ Google 账号池默认关闭，启用状态写入自己的 DB；不与 GPT `enab
 4. 启用 Google 账号池；画布切到 Google → 线路选择 Google OAuth。
 5. 原线路“第三方 API”不变。老工作流默认第三方；新线路保存在节点、工作流、批量参数与任务重试中。
 
-OAuth 使用公开桌面应用 client 默认配置。自有 desktop client 可同时设置 `GOOGLE_POOL_CLIENT_ID` / `GOOGLE_POOL_CLIENT_SECRET`。
+OAuth client 不内置在代码里：同时设置 `GOOGLE_POOL_CLIENT_ID` / `GOOGLE_POOL_CLIENT_SECRET`，或在 Google 账号池数据目录（与 `accounts.db` 同目录，默认 `data/google_pool/`；设置 `CANVASHUB_DATA_DIR` 时为其下的 `google_pool/`）放 `oauth_client.json`：`{"client_id": "...", "client_secret": "..."}`。该文件属于本机配置，不进版本库。两者都没有时 sidecar 照常启动，授权接口返回 `oauth_not_configured`、状态 `oauth_configured: false`；文件格式错误时记录警告并视为未配置。修改后需重启 sidecar。
 `GOOGLE_POOL_REDIRECT_URI` 可覆盖回调，默认 `http://localhost:<宿主端口>/oauth-callback`。
 该版本宿主接收路径固定为 `/oauth-callback`；自定义 URI 应通过反向代理指向该路径。
 远程使用时，Google 重定向到浏览器所在电脑；也可将地址栏完整回调 URL 粘贴回设置中心，由主后端转给 sidecar 校验。不要把授权 code 写进日志；组合入口屏蔽此路径的 uvicorn access log。
