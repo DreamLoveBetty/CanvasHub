@@ -3,6 +3,7 @@ import unittest
 from html.parser import HTMLParser
 from pathlib import Path
 from tests.legacy_css import read_legacy_css
+from tests.history_js import read_history_js
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -357,7 +358,7 @@ class DesktopResultStatusUiTest(unittest.TestCase):
         html = read_text("desktop.html")
         canvas_sources = read_loaded_canvas_sources(self, html)
         viewport_js = canvas_sources["scripts/desktop-canvas-viewport.js"]
-        history_js = read_text("scripts/desktop-history.js")
+        history_js = read_history_js()
         css = read_legacy_css() + "\n" + read_text("styles/desktop-shell-geometry.css")
 
         assert_asset_has_cache_bust(self, html, "scripts/desktop-canvas.js")
@@ -560,7 +561,7 @@ class DesktopResultStatusUiTest(unittest.TestCase):
 
     def test_file_gallery_has_dedicated_preview_modal(self):
         html = read_text("desktop.html")
-        history_js = read_text("scripts/desktop-history.js")
+        history_js = read_history_js()
         css = read_legacy_css()
 
         self.assertIn('id="deskFilePreviewModal"', html)
@@ -575,7 +576,7 @@ class DesktopResultStatusUiTest(unittest.TestCase):
 
     def test_gallery_preview_can_continue_editing_image(self):
         html = read_text("desktop.html")
-        history_js = read_text("scripts/desktop-history.js")
+        history_js = read_history_js()
         canvas_sources = read_loaded_canvas_sources(self, html)
         canvas_js = canvas_sources["scripts/desktop-canvas.js"]
         media_import_js = canvas_sources["scripts/desktop-canvas-media-import.js"]
@@ -678,7 +679,7 @@ class DesktopResultStatusUiTest(unittest.TestCase):
     def test_gallery_workspace_uses_prompt_drawer_glass(self):
         html = read_text("desktop.html")
         css = read_legacy_css()
-        history_js = read_text("scripts/desktop-history.js")
+        history_js = read_history_js()
 
         assert_asset_has_cache_bust(self, html, "styles/desktop-liquid.css")
         assert_asset_has_cache_bust(self, html, "scripts/desktop-history.js")
@@ -840,7 +841,7 @@ class DesktopResultStatusUiTest(unittest.TestCase):
 
     def test_gallery_cards_use_webp_thumbs_and_virtual_scrolling(self):
         html = read_text("desktop.html")
-        history_js = read_text("scripts/desktop-history.js")
+        history_js = read_history_js()
         auth_js = read_text("scripts/auth-api.js")
         css = read_legacy_css()
 

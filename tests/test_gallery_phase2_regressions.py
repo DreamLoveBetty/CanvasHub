@@ -21,6 +21,7 @@ from PIL import Image
 from backend import asset_index
 from backend import server as server_mod
 from tests.legacy_css import read_legacy_css
+from tests.history_js import read_history_js
 
 
 def _reset_asset_index_caches():
@@ -265,7 +266,7 @@ class FrontendSourceGuardsTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         base = Path(__file__).resolve().parent.parent / "frontend"
-        cls.js = (base / "scripts" / "desktop-history.js").read_text(encoding="utf-8")
+        cls.js = read_history_js()
 
     def test_selection_prune_resolves_via_sets(self):
         self.assertIn("resolvableIds", self.js)

@@ -183,6 +183,14 @@ ID；下拉显示服务端返回的真实模型名称，而不是把量化方案
 
 `desktop-cyimg-model.js` 拥有图像/视频节点 schema 与连线规则；`desktop-cyimg-api.js` 仅通过认证 API 请求目录、上传、提交和已有任务状态；`desktop-canvas-cyimg.js` 拥有模型参数、画布连线素材收集、轮询及结果回流；`desktop-cyimg.css` 只使用 `desk-` 类和现有画布 tokens。提示词只读连接的文本节点，图片/视频/音频只读连接的素材节点；绘栾节点不提供重复输入框或本地文件控件。以上 JS 在 `desktop-canvas.js` 前按 model → API → controller 顺序加载；`desktop-canvas-nodes.js`/`workflow.js` 只负责生命周期与保存兼容。目录来自后端实时枚举的图像与视频渠道（含 Seedance、MiniMax H3）；保存服务端 Key 后节点状态刷新。API Key 不进入前端，现有 GPT/第三方图像线路不变。
 
+## 历史面板与资产库模块边界（2026-10-16）
+
+`desktop-history.js` 是最近记录面板与资产库工作区的装配宿主：持有面板/工作区共享状态（当前视图、搜索、选择、预览资产等）、事件绑定和 `window.DesktopHistory` 公开接口。有独立职责的部分拆为先于宿主加载的经典脚本：
+
+- `desktop-genie-fx.js`：神灯引擎，面板快照（计算样式烘焙 + 已加载图片内联，SVG foreignObject 光栅化，失败走占位图）与逐行翘曲动画，独占覆盖层画布 `#deskHistoryGenieCanvas` 的绘制，并发布 `window.DeskGenieFX`（`ready` / `snapshotPanel` / `animate` / `clear` / `durationMs`）。不读取任何面板或业务状态；最近记录面板与提示词抽屉都是它的调用方，各自持有面板几何、开合状态和运行序号。
+
+加载顺序：`desktop-genie-fx.js` → `desktop-history.js` → `desktop-prompt-drawer.js`。宿主以 `const genieFx = window.DeskGenieFX;` 显式取得依赖，不保留第二套实现。源码契约测试经 `tests/history_js.py` 按 `desktop.html` 加载顺序读取宿主及拆出的模块；边界回归：`tests/test_desktop_genie_fx.py`。
+
 ## 资产库对比视口（2026-09-22）
 
 - `desktop-compare-viewport.js` 独占对比视口的缩放、平移、分界线、指针捕获与帧调度；仅接收显式 DOM 引用，无 API、存储或任务状态依赖。两图共用视图变换，左侧 A 为揭示层、右侧 B 为背景层。

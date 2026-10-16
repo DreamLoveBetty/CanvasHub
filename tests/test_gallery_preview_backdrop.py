@@ -2,6 +2,7 @@ import re
 import unittest
 from pathlib import Path
 from tests.legacy_css import read_legacy_css
+from tests.history_js import read_history_js
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -30,7 +31,7 @@ def css_block(css: str, selector: str) -> str:
 class GalleryPreviewBackdropTest(unittest.TestCase):
     def test_preview_modal_uses_image_backdrop_layer(self) -> None:
         html = read_text("desktop.html")
-        js = read_text("scripts/desktop-history.js")
+        js = read_history_js()
         css = read_legacy_css()
 
         self.assertIn('id="deskGalleryPreviewBackdropImg"', html)
@@ -87,7 +88,7 @@ class GalleryPreviewBackdropTest(unittest.TestCase):
 
     def test_compare_modal_matches_preview_board_shell(self) -> None:
         html = read_text("desktop.html")
-        js = read_text("scripts/desktop-history.js")
+        js = read_history_js()
         css = read_legacy_css()
         contrast_icon = read_text("assets/icons/contrast.svg")
         close_icon = read_text("assets/icons/circle-x.svg")
@@ -173,7 +174,7 @@ class GalleryPreviewBackdropTest(unittest.TestCase):
     def test_gallery_preview_counter_uses_full_asset_index_total(self) -> None:
         # 二期分页后：计数器的"全量"语义由服务端 data.total 保证，而非一次拉满 5000。
         html = read_text("desktop.html")
-        js = read_text("scripts/desktop-history.js")
+        js = read_history_js()
 
         assert_asset_has_cache_bust(self, html, "scripts/desktop-history.js")
         self.assertIn("const GALLERY_PAGE_SIZE = 200;", js)
