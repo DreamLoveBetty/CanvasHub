@@ -19,6 +19,7 @@
     IMAGE_GROUP_PROXIMITY_RELEASE_PX,
     IMAGE_GROUP_ROW_STEP_PX,
     IMAGE_GROUP_THUMB_PX,
+    IMAGE_GROUP_THUMB_RADIUS_PX,
     IMAGE_GROUP_THUMB_STEP_PX,
     IMAGE_GROUP_TRANSITION_THUMB_PX,
     activeInteractionRef,
@@ -672,10 +673,8 @@
         partner = item;
       }
     });
-    const card = (box, item) => {
-      const ring = item.ringWidth * box.w / Math.max(1, item.ringSide);
-      return { ...box, r: box.w / 2, src: item.image.currentSrc || item.image.src, ring, ringColor: preview.meltRingColor };
-    };
+    const radius = IMAGE_GROUP_THUMB_RADIUS_PX / Math.max(1, IMAGE_GROUP_THUMB_PX);
+    const card = (box, item) => ({ ...box, r: box.w * radius, src: item.image.currentSrc || item.image.src });
     const target = partner && !preview.reducedMotion
       ? imageGroupMelt.proximity(incomingBox, partner.box)
       : 0;
@@ -963,12 +962,9 @@
     });
     const incoming = liveImageGroupChip(incomingEntry, imageLayer, true);
     const melt = createLiveImageGroupMelt(meltLayer);
-    // Chip rings are 8 design px of a 168px thumbnail (see the chip stylesheet).
-    [...targetItems, incoming].forEach(item => { item.ringWidth = 8; item.ringSide = IMAGE_GROUP_BASE_THUMB_PX; });
     const preview = {
       overlay, base, identity, targetItems, incoming, melt, targetNodeId, sourceNodeId,
       meltProx: 0, meltClock: null, meltSettling: false, meltPartner: null,
-      meltRingColor: getComputedStyle(overlay).getPropertyValue('--desk-image-group-transition-chip-border').trim() || '#ffffff',
       baseLeft, baseTop, baseWidth, baseHeight: motherHeight,
       currentWidth: baseWidth, targetWidth: baseWidth, finalWidth,
       currentHeight: motherHeight, targetHeight: motherHeight, finalHeight,

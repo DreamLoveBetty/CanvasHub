@@ -48,9 +48,7 @@
     svg.style.cssText = 'position:absolute;left:0;top:0;overflow:visible;pointer-events:none';
     const card = key => {
       const imageRect = el('rect', { fill: `url(#${id}-p${key})` });
-      const inner = el('g', {}, [imageRect]);
-      const ring = el('rect', {});
-      return { group: el('g', {}, [ring, inner]), ring, inner, imageRect };
+      return { group: el('g', {}, [imageRect]), imageRect };
     };
     const imageA = el('image', { preserveAspectRatio: 'xMidYMid slice' });
     const imageB = el('image', { preserveAspectRatio: 'xMidYMid slice' });
@@ -133,7 +131,7 @@
     const sources = ['', ''];
 
     /**
-     * a, b: { x, y, w, h, r, src, ring, ringColor } in the container's coordinates.
+     * a, b: { x, y, w, h, r, src } in the container's coordinates.
      * prox: eased 0..1 from the controller. Returns the painted box.
      */
     function update({ a, b, prox, opts = DEFAULTS }) {
@@ -176,19 +174,15 @@
       const rotate = `rotate(${Math.round(Math.atan2(ty, tx) * 180 / Math.PI)}, ${seam.x}, ${seam.y})`;
 
       const place = (cards, g, pattern, image, index) => {
-        const ring = Math.max(0, Number(g.ring) || 0);
-        const innerW = Math.max(1, g.w - ring * 2), innerH = Math.max(1, g.h - ring * 2);
-        set(pattern, { width: innerW, height: innerH });
-        set(image, { width: innerW, height: innerH });
+        set(pattern, { width: g.w, height: g.h });
+        set(image, { width: g.w, height: g.h });
         if (sources[index] !== g.src) {
           image.setAttribute('href', g.src);
           sources[index] = g.src;
         }
         cards.forEach(item => {
           set(item.group, { transform: `translate(${round(g.x, 100)}, ${round(g.y, 100)})` });
-          set(item.ring, { width: g.w, height: g.h, rx: g.r, fill: ring ? g.ringColor || 'none' : 'none' });
-          set(item.inner, { transform: `translate(${ring}, ${ring})` });
-          set(item.imageRect, { width: innerW, height: innerH, rx: Math.max(0, g.r - ring) });
+          set(item.imageRect, { width: g.w, height: g.h, rx: g.r });
         });
       };
       place(cardsA, A, patternA, imageA, 0);

@@ -19,6 +19,7 @@
     IMAGE_GROUP_ROLE_PRIORITY_NOTE,
     IMAGE_GROUP_ROW_STEP_PX,
     IMAGE_GROUP_THUMB_PX,
+    IMAGE_GROUP_THUMB_RADIUS_PX,
     IMAGE_GROUP_THUMB_STEP_PX,
     IMAGE_GROUP_TRAILING_SPACE_PX,
     MAX_IMAGE_GROUP_NODE_WIDTH,
@@ -598,7 +599,7 @@
     const shellInset = (IMAGE_GROUP_LIQUID_SHELL_PX - IMAGE_GROUP_THUMB_PX) / 2;
     return groupNode.items.map((item, index) => {
       const position = imageGroupThumbPosition(index);
-      return `<rect class="desk-image-group__liquid-item" data-image-group-goo-item="${escapeHtml(item.itemId)}" x="${position.left - shellInset}" y="${position.top - shellInset}" width="${IMAGE_GROUP_LIQUID_SHELL_PX}" height="${IMAGE_GROUP_LIQUID_SHELL_PX}" rx="${IMAGE_GROUP_LIQUID_SHELL_PX / 2}"></rect>`;
+      return `<rect class="desk-image-group__liquid-item" data-image-group-goo-item="${escapeHtml(item.itemId)}" x="${position.left - shellInset}" y="${position.top - shellInset}" width="${IMAGE_GROUP_LIQUID_SHELL_PX}" height="${IMAGE_GROUP_LIQUID_SHELL_PX}" rx="${IMAGE_GROUP_THUMB_RADIUS_PX + shellInset}"></rect>`;
     }).join('');
   }
 

@@ -720,10 +720,7 @@ body.desk-app {
   --desk-image-group-item-shadow: none;
   --desk-image-group-item-drag-filter: drop-shadow(0 14.4px 18px rgba(17, 38, 42, 0.2));
   --desk-image-group-thumb-background: rgba(var(--desk-blue-royal-rgb), 0.14);
-  --desk-image-group-thumb-border: #ffffff;
-  --desk-image-group-thumb-shadow:
-    0 12px 31.2px rgba(var(--desk-blue-midnight-rgb), 0.2),
-    0 0 0 2.4px rgba(var(--desk-blue-secondary-rgb), 0.1);
+  --desk-image-group-thumb-shadow: 0 12px 31.2px rgba(var(--desk-blue-midnight-rgb), 0.2);
   --desk-image-group-badge-ink: #ffffff;
   --desk-image-group-badge-background: rgba(18, 39, 42, 0.78);
   --desk-image-group-badge-border: rgba(255, 255, 255, 0.9);
@@ -779,18 +776,14 @@ body.desk-app {
   --desk-image-group-dwell-dot-border: rgba(var(--desk-blue-royal-rgb), 0.42);
   --desk-image-group-transition-goo-background: #ffffff;
   --desk-image-group-transition-goo-shadow: 0 10px 24px rgba(17, 38, 42, 0.18);
-  --desk-image-group-transition-image-border: #ffffff;
   --desk-image-group-transition-image-shadow: 0 12px 28px rgba(17, 38, 42, 0.26);
   --desk-image-group-transition-liquid-filter:
     drop-shadow(0 2px 4px rgba(17, 38, 42, 0.08))
     drop-shadow(0 15px 30px rgba(17, 38, 42, 0.18));
   --desk-image-group-transition-title-ink: var(--desk-blue-ink);
   --desk-image-group-transition-meta-ink: var(--desk-blue-placeholder);
-  --desk-image-group-transition-chip-border: #ffffff;
   --desk-image-group-transition-chip-shadow-color: rgba(17, 38, 42, 0.22);
-  --desk-image-group-transition-chip-ring: rgba(24, 52, 54, 0.1);
   --desk-image-group-transition-chip-incoming-shadow-color: rgba(17, 38, 42, 0.28);
-  --desk-image-group-transition-chip-incoming-ring: rgba(24, 52, 54, 0.1);
   --desk-image-group-transition-badge-shadow-color: rgba(0, 0, 0, 0.2);
   --desk-image-group-proximity-outline: transparent;
 
@@ -2667,10 +2660,7 @@ body.desk-app[data-theme="dark"] {
   --desk-image-group-item-shadow: none;
   --desk-image-group-item-drag-filter: drop-shadow(0 14.4px 18px rgba(17, 38, 42, 0.2));
   --desk-image-group-thumb-background: rgba(255, 90, 31, 0.18);
-  --desk-image-group-thumb-border: #353b3d;
-  --desk-image-group-thumb-shadow:
-    0 6px 16px rgba(0, 0, 0, 0.42),
-    0 0 0 1px rgba(255, 255, 255, 0.08);
+  --desk-image-group-thumb-shadow: 0 6px 16px rgba(0, 0, 0, 0.42);
   --desk-image-group-badge-ink: #ffffff;
   --desk-image-group-badge-background: rgba(18, 39, 42, 0.78);
   --desk-image-group-badge-border: rgba(255, 255, 255, 0.9);
@@ -2726,18 +2716,14 @@ body.desk-app[data-theme="dark"] {
   --desk-image-group-dwell-dot-border: rgba(255, 138, 77, 0.62);
   --desk-image-group-transition-goo-background: #ffffff;
   --desk-image-group-transition-goo-shadow: 0 10px 24px rgba(17, 38, 42, 0.18);
-  --desk-image-group-transition-image-border: #ffffff;
   --desk-image-group-transition-image-shadow: 0 12px 28px rgba(17, 38, 42, 0.26);
   --desk-image-group-transition-liquid-filter:
     drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3))
     drop-shadow(0 15px 30px rgba(0, 0, 0, 0.38));
   --desk-image-group-transition-title-ink: #f2f4f4;
   --desk-image-group-transition-meta-ink: rgba(213, 220, 221, 0.62);
-  --desk-image-group-transition-chip-border: #353b3d;
   --desk-image-group-transition-chip-shadow-color: rgba(0, 0, 0, 0.42);
-  --desk-image-group-transition-chip-ring: rgba(255, 255, 255, 0.08);
   --desk-image-group-transition-chip-incoming-shadow-color: rgba(0, 0, 0, 0.48);
-  --desk-image-group-transition-chip-incoming-ring: rgba(255, 255, 255, 0.08);
   --desk-image-group-transition-badge-shadow-color: rgba(0, 0, 0, 0.2);
   --desk-image-group-proximity-outline: rgba(255, 138, 77, 0.62);
 

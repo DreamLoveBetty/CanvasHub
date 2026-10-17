@@ -68,7 +68,6 @@ body.desk-app[data-theme] .desk-image-group__thumb {
 }
 
 body.desk-app[data-theme] .desk-image-group__thumb img {
-  border-color: var(--desk-image-group-thumb-border);
   box-shadow: var(--desk-image-group-thumb-shadow);
 }
 
@@ -224,7 +223,6 @@ body.desk-app[data-theme] .desk-image-group-transition__goo span {
 }
 
 body.desk-app[data-theme] .desk-image-group-transition__images > img {
-  border-color: var(--desk-image-group-transition-image-border);
   box-shadow: var(--desk-image-group-transition-image-shadow);
 }
 
@@ -241,15 +239,12 @@ body.desk-app[data-theme] .desk-image-group-transition__identity span {
 }
 
 body.desk-app[data-theme] .desk-image-group-transition__chip img {
-  border-color: var(--desk-image-group-transition-chip-border);
   box-shadow:
-    0 calc(var(--desk-image-group-chip-unit) * 20) calc(var(--desk-image-group-chip-unit) * 52) var(--desk-image-group-transition-chip-shadow-color),
-    0 0 0 calc(var(--desk-image-group-chip-unit) * 4) var(--desk-image-group-transition-chip-ring);
+    0 calc(var(--desk-image-group-chip-unit) * 20) calc(var(--desk-image-group-chip-unit) * 52) var(--desk-image-group-transition-chip-shadow-color);
 }
 
 body.desk-app[data-theme] .desk-image-group-transition__chip.is-incoming img {
   box-shadow:
-    0 calc(var(--desk-image-group-chip-unit) * 24) calc(var(--desk-image-group-chip-unit) * 56) var(--desk-image-group-transition-chip-incoming-shadow-color),
-    0 0 0 calc(var(--desk-image-group-chip-unit) * 4) var(--desk-image-group-transition-chip-incoming-ring);
+    0 calc(var(--desk-image-group-chip-unit) * 24) calc(var(--desk-image-group-chip-unit) * 56) var(--desk-image-group-transition-chip-incoming-shadow-color);
 }
 

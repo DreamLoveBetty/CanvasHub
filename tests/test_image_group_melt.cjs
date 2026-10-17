@@ -36,17 +36,17 @@ function fixture(){
   const Melt=sandbox.window.DesktopCanvasImageGroupMelt;
   const deps={
     clamp:(x,a,b)=>Math.min(b,Math.max(a,x)),imageGroupUiSize:x=>x,
-    IMAGE_GROUP_BASE_THUMB_PX:168,IMAGE_GROUP_MAX_COLUMNS:4,
+    IMAGE_GROUP_BASE_THUMB_PX:168,IMAGE_GROUP_THUMB_PX:100,IMAGE_GROUP_THUMB_RADIUS_PX:19,IMAGE_GROUP_MAX_COLUMNS:4,
     IMAGE_GROUP_PROXIMITY_CONTACT_PX:52,IMAGE_GROUP_PROXIMITY_DROP_PX:28,
     IMAGE_GROUP_PROXIMITY_DROP_MS:400,IMAGE_GROUP_PROXIMITY_RELEASE_MS:380,
     imageGroupMelt:Melt,getNodeElement:()=>new Element(),activeInteractionRef:{current:null}
   };
   const api=sandbox.window.DesktopCanvasImageGroupInteraction.create(deps);
   const layer=new Element();
-  const chip=src=>{const image=new Element('img');image.src=src;return {chip:new Element(),image,badge:new Element(),startSide:100,ringWidth:8,ringSide:168};};
+  const chip=src=>{const image=new Element('img');image.src=src;return {chip:new Element(),image,badge:new Element(),startSide:100};};
   const preview={
     active:true,raf:0,overlay:new Element(),base:new Element(),identity:new Element(),
-    melt:api.createLiveImageGroupMelt(layer),meltProx:0,meltClock:null,meltSettling:false,meltPartner:null,meltRingColor:'#ffffff',
+    melt:api.createLiveImageGroupMelt(layer),meltProx:0,meltClock:null,meltSettling:false,meltPartner:null,
     incoming:chip('incoming.webp'),targetItems:[chip('a.webp'),chip('b.webp')],introStartedAt:0,introDuration:250,introStartSide:100,
     pointerX:250,pointerY:90,baseLeft:0,baseTop:0,baseWidth:300,baseHeight:180,currentWidth:300,currentHeight:180,
     targetWidth:300,targetHeight:180,finalWidth:380,finalHeight:180,motherRadius:20,incomingRadius:54,
@@ -58,7 +58,7 @@ function fixture(){
   const svg=()=>layer.children[0];
   return {api,Melt,layer,svg,preview,frames,timers,deps,step,Element,setNow:t=>{now=t;}};
 }
-const card=(x,y,w=100,src='a.webp')=>({x,y,w,h:w,r:w/2,src,ring:0});
+const card=(x,y,w=100,src='a.webp')=>({x,y,w,h:w,r:w*32/168,src});
 
 // ---- the module -------------------------------------------------------------------------
 test('接近程度：分开为 0、接触或重叠为 1，中间平滑单调，触发距离随尺寸缩放',()=>{
@@ -110,15 +110,6 @@ test('静止时不重复写入属性，图片地址只在来源变化时更新',
   const hrefs=()=>root.all().filter(node=>node.name==='image').map(node=>node.attrs.href);
   assert.deepEqual(hrefs(),['a.webp','b.webp']);
   melt.update({...args,a:card(0,0,100,'c.webp')});assert.deepEqual(hrefs(),['c.webp','b.webp']);
-});
-
-test('边框缩略图：外圈画边框颜色，图片内缩边框宽度',()=>{
-  const {api,Element}=fixture(),layer=new Element(),melt=api.createLiveImageGroupMelt(layer),root=layer.children[0];
-  melt.update({a:{...card(0,0),ring:5,ringColor:'#ffffff'},b:card(90,0,100,'b.webp'),prox:1});
-  const rings=root.all().filter(node=>node.name==='rect'&&node.attrs.fill==='#ffffff');
-  assert.ok(rings.length>=3,'every layer paints the ring');
-  const inner=root.all().find(node=>node.name==='rect'&&/-pa\)/.test(node.attrs.fill||''));
-  assert.equal(Number(inner.attrs.width),90);assert.equal(Number(inner.attrs.rx),45);
 });
 
 test('绘制模块无图状态、计时器或独立循环，只由交互模块显式注入',()=>{

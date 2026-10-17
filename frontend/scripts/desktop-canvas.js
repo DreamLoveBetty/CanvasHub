@@ -30,7 +30,10 @@
   const IMAGE_GROUP_MOTHER_RADIUS_PX = imageGroupUiSize(32);
   const IMAGE_GROUP_IDENTITY_WIDTH_PX = imageGroupUiSize(168);
   const IMAGE_GROUP_THUMB_PX = imageGroupUiSize(IMAGE_GROUP_BASE_THUMB_PX);
-  const IMAGE_GROUP_THUMB_STEP_PX = imageGroupUiSize(128);
+  // Rounded-rectangle thumbnails without a border (32 of 168, the mother card radius).
+  const IMAGE_GROUP_THUMB_RADIUS_PX = imageGroupUiSize(32);
+  // Spaced row: a 168px thumbnail plus a 24px gap (thumbnails no longer overlap).
+  const IMAGE_GROUP_THUMB_STEP_PX = imageGroupUiSize(192);
   const IMAGE_GROUP_ROW_STEP_PX = imageGroupUiSize(228);
   const IMAGE_GROUP_TRAILING_SPACE_PX = imageGroupUiSize(48);
   const IMAGE_GROUP_LIQUID_SHELL_PX = imageGroupUiSize(216);
@@ -46,7 +49,7 @@
     + IMAGE_GROUP_THUMB_PX
     + (IMAGE_GROUP_MAX_COLUMNS - 1) * IMAGE_GROUP_THUMB_STEP_PX
     + IMAGE_GROUP_TRAILING_SPACE_PX;
-  const IMAGE_GROUP_LAYOUT_VERSION = 9;
+  const IMAGE_GROUP_LAYOUT_VERSION = 10;
   const IMAGE_GROUP_PROXIMITY_DISTANCE_PX = 88;
   const IMAGE_GROUP_PROXIMITY_RELEASE_PX = 122;
   const IMAGE_GROUP_PROXIMITY_DWELL_MS = 620;
@@ -5550,6 +5553,7 @@
     IMAGE_GROUP_ROLE_PRIORITY_NOTE,
     IMAGE_GROUP_ROW_STEP_PX,
     IMAGE_GROUP_THUMB_PX,
+    IMAGE_GROUP_THUMB_RADIUS_PX,
     IMAGE_GROUP_THUMB_STEP_PX,
     IMAGE_GROUP_TRAILING_SPACE_PX,
     MAX_IMAGE_GROUP_NODE_WIDTH,
@@ -5599,6 +5603,7 @@
     IMAGE_GROUP_PROXIMITY_RELEASE_PX,
     IMAGE_GROUP_ROW_STEP_PX,
     IMAGE_GROUP_THUMB_PX,
+    IMAGE_GROUP_THUMB_RADIUS_PX,
     IMAGE_GROUP_THUMB_STEP_PX,
     IMAGE_GROUP_TRANSITION_THUMB_PX,
     activeInteractionRef: { get current() { return activeInteraction; }, set current(value) { activeInteraction = value; } },

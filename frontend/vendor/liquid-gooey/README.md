@@ -12,5 +12,5 @@ the React `MeltPair` paint (pattern-filled cards, goo-on-colour filter, marble p
 seam-erase masks and their default tuning). Differences from upstream: no React, no
 registry or own animation loop (the image-group interaction controller owns time and
 eases the proximity), pixel tunings scale with the card size instead of assuming 84px
-cards, an optional card ring is painted for bordered thumbnails, and the SVG covers
-only the pair's bounding box plus the filters' reach instead of the whole group.
+cards, and the SVG covers only the pair's bounding box plus the filters' reach
+instead of the whole group.

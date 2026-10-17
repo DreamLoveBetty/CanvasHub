@@ -436,7 +436,10 @@ the card size (upstream targets 84px cards).
 While the melt is visible, the incoming and partner chip images are hidden and the melt
 layer paints underneath the chips, so badges, titles and the other thumbnails stay
 crisp. The mother card is a still rounded rectangle; it no longer bends toward the
-incoming photo. Reduced motion shows the plain chips without melt. Release, drop,
+incoming photo. Group thumbnails, preview chips and transition images are
+borderless rounded rectangles (radius 32/168 of the side, the mother-card radius) on a
+spaced 192 design-px pitch (168 thumbnail + 24 gap), and the melt cards use the same
+radius. Reduced motion shows the plain chips without melt. Release, drop,
 item roles/order, dwell thresholds, model callbacks, graph edges and source data
 retain their existing contracts. Regression: `tests/test_image_group_melt.cjs`;
 served-page checks use synthetic images with backend requests isolated.
