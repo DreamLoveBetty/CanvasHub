@@ -1825,6 +1825,39 @@ class ChatgptPoolSidecarTest(unittest.TestCase):
             with self.assertRaisesRegex(UpstreamError, "system_error=RPCError"):
                 backend._poll_image_results("conversation-id")
 
+    def test_model_not_found_404_retries_with_account_catalog_model(self):
+        from sidecars.chatgpt_pool import model_catalog
+        from sidecars.chatgpt_pool.image_api import _call_with_model_adaptation
+        from sidecars.chatgpt_pool.openai_backend import UpstreamError
+
+        error = UpstreamError('conversation failed: HTTP 404: {"detail":"Model not found"}')
+        self.assertTrue(model_catalog.is_model_unavailable_error(error))
+
+        class FakeBackend:
+            access_token = "model-not-found-token"
+
+            def fetch_model_catalog(self):
+                return {
+                    "models": [{"slug": "gpt-5-5"}, {"slug": "gpt-6"}],
+                    "default_model_slug": "gpt-5-5",
+                }
+
+        model_catalog._ACCOUNT_MODEL_CACHE.clear()
+        self.addCleanup(model_catalog._ACCOUNT_MODEL_CACHE.clear)
+        calls = []
+
+        def call(model):
+            calls.append(model)
+            if model == "gpt-5-5":
+                raise error
+            return {"b64_json": "ok"}
+
+        item, actual, requested, adapted = _call_with_model_adaptation(FakeBackend(), "gpt-image-2", call)
+
+        self.assertEqual(calls, ["gpt-5-5", "gpt-6"])
+        self.assertEqual(item, {"b64_json": "ok"})
+        self.assertEqual((actual, requested, adapted), ("gpt-6", "gpt-5-5", True))
+
 
 if __name__ == "__main__":
     unittest.main()

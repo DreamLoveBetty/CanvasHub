@@ -219,6 +219,7 @@ def is_model_unavailable_error(error: Exception | str) -> bool:
         "unsupported model",
         "invalid model",
         "model_not_found",
+        "model not found",
         "model_access_denied",
         "does not have access to model",
         "does not exist or you do not have access",
