@@ -79,3 +79,18 @@ test('desktop.html: component CSS after the prompt library, script before every 
   const script = at('scripts/desktop-color-bloom.js?');
   for (const host of ['desktop-control-material', 'desktop-settings', 'desktop-prompt-library']) assert.ok(script < at(`scripts/${host}.js?`), host);
 });
+
+test('lightness drag: one update per frame, hue and saturation held from the drag start', () => {
+  const source = read('frontend/scripts/desktop-color-bloom.js');
+  const drag = source.slice(source.indexOf('function beginLightnessDrag('), source.indexOf('// One delegated listener set'));
+  assert.match(drag, /const base = hexToHsl\(valueInput\(bloom\)\?\.value\);/);
+  assert.match(drag, /setLightness\(bloom, value, 'input', base\)/);
+  assert.match(drag, /const move = pointerEvent => \{ pendingY = pointerEvent\.clientY; if \(!frame\) frame = requestAnimationFrame\(flush\); \};/);
+  // Releasing applies the last position before the change event.
+  assert.match(drag, /if \(frame\) cancelAnimationFrame\(frame\);\n\s*flush\(\);/);
+  // The marker moves by transform, so a drag frame needs no layout.
+  const css = read('frontend/styles/desktop-color-bloom.css');
+  const marker = css.slice(css.indexOf('.desk-color-bloom__lightness-marker {'), css.indexOf('}', css.indexOf('.desk-color-bloom__lightness-marker {')));
+  assert.match(marker, /top: 0;\n  left: 0;/);
+  assert.match(marker, /transform: translate\(var\(--bloom-marker-x\), var\(--bloom-marker-y\)\) translate\(-50%,-50%\);\n  transition: transform 90ms linear;/);
+});

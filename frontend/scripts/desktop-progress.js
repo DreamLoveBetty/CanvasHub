@@ -273,8 +273,18 @@
     }
     function clear() { [...entries.keys()].forEach(release); }
     function refreshPreferences() {
+      const previous = preferences;
       preferences = M.normalizePreferences(getPreferences?.());
-      for (const entry of entries.values()) { entry.lastPaint = 0; syncStyle(entry); }
+      // A fill colour change (a picker drag sends one per frame) only needs a repaint: draw()
+      // reads the colour each frame. Restyling would remeasure and resize every canvas. Classic
+      // paints its colour into the bar's own background, so it still goes through syncStyle.
+      const restyle = previous.style !== preferences.style || previous.height !== preferences.height
+        || preferences.style === 'classic';
+      for (const entry of entries.values()) {
+        entry.lastPaint = 0;
+        if (restyle) syncStyle(entry);
+        else entry.dirty = true;
+      }
       schedule();
     }
     function resume() {

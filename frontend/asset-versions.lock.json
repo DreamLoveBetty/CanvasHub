@@ -155,8 +155,8 @@
     "sha256": "df53966e8008e2d554f43f43ca31b57f631d1fb43f7a0e37d97319a15d2a90fc"
    },
    "scripts/desktop-color-bloom.js": {
-    "v": "20261010-color-bloom1",
-    "sha256": "68e51fa2f8bc2e0e0da31226805826976bf9add02ab7b15710446e306cd14f39"
+    "v": "20261019-color-drag1",
+    "sha256": "3b4612a527a6a228f51a22f6c5e8bebe3e33237624a92c438536440a968e6195"
    },
    "scripts/desktop-color-extractor.js": {
     "v": "20260719-color-image-analysis10",
@@ -279,8 +279,8 @@
     "sha256": "093fe57bd573c484f12ca4218000142c7dced916092bab57b7a2dad7c2b16fdd"
    },
    "scripts/desktop-progress-model.js": {
-    "v": "20261007-node-progress4",
-    "sha256": "90d77b57b8de334762dd2ed88dd1d600474d925f6fa3413d74e8fa8b09f9ebaa"
+    "v": "20261019-color-drag1",
+    "sha256": "04f03214df16a7879863c9c3a1fc8608766bf513e9307b63ac6bc6c83a2e78e4"
    },
    "scripts/desktop-progress-preview.js": {
     "v": "20261011-progress-preview1",
@@ -291,8 +291,8 @@
     "sha256": "f107a1c7ee4bc34b68f7ddf255bbd00ab4d9680a00ba1e65d95427329929e253"
    },
    "scripts/desktop-progress.js": {
-    "v": "20261007-node-progress4",
-    "sha256": "c4851f5581f614853bc1ed86058ef8b76cfa8ee5dcac4c7f22786ce2d6efb8d3"
+    "v": "20261019-color-drag1",
+    "sha256": "c8e0136be5bde956dd3c935d0d7e4b9c5bd1dc86009fcb9f250a076603f54166"
    },
    "scripts/desktop-prompt-agent.js": {
     "v": "20260929-prompt-video1",
@@ -347,8 +347,8 @@
     "sha256": "cd644f2ea231956d69a7ece00c274708d08dab2d81ff85e13d433379ce3c5596"
    },
    "scripts/desktop-settings.js": {
-    "v": "20261011-field-style1",
-    "sha256": "932d200bcd738a178485fb2a6f9f8f0a3102a90725596e3b88271937e0b7c5b3"
+    "v": "20261019-color-drag1",
+    "sha256": "34c90e3e62dc79df7ce0c30136f4f19b54fcf583c61a1c3514325bd8b1ea4a06"
    },
    "scripts/desktop-state-icon.js": {
     "v": "20261004-state-icons1",
@@ -431,8 +431,8 @@
     "sha256": "a80f4f92ae684bfe38069bf216e4efe31ad22b3aaf5161f4b5b1a450dc2a8d7f"
    },
    "styles/desktop-color-bloom.css": {
-    "v": "20261010-color-bloom1",
-    "sha256": "2d9bb00824dd2fa0a99f21d7e72020feb3f359216ef99cc859e4acd550871aa8"
+    "v": "20261019-color-drag1",
+    "sha256": "d059475b747494e763b6aa3fc7587ce3e8f09bdb7fa8b55449849df71c73b505"
    },
    "styles/desktop-compare.css": {
     "v": "20261013-compare-module2",

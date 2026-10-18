@@ -545,7 +545,7 @@
       <label><span>动效样式</span><select class="desk-select" data-progress-preference="style" aria-label="进度条动效样式">${Object.entries(model.PROGRESS_STYLES).map(([key, item]) => `<option value="${key}"${style === key ? ' selected' : ''}>${item.label} · ${item.english}</option>`).join('')}</select></label>
       <label><span>轨道高度</span><select class="desk-select" data-progress-preference="height" aria-label="进度条轨道高度"${style === 'classic' ? ' disabled' : ''}>${model.PROGRESS_HEIGHTS.map(size => `<option value="${size}"${height === size ? ' selected' : ''}>${size} px${size === 36 ? ' · 紧凑' : size === 48 ? ' · 标准' : ' · 宽松'}</option>`).join('')}</select></label>
       <div class="desk-settings-color-field"><span>填充颜色</span>${window.DesktopColorBloom.html({ value: color, label: '进度条填充颜色', hexClass: 'desk-input',
-        hexAttrs: 'data-progress-preference="hex" aria-label="进度条颜色 HEX" placeholder="#42B8FA"', valueAttrs: 'data-progress-preference="color"',
+        hexAttrs: 'data-progress-preference="hex" aria-label="进度条颜色 HEX" placeholder="#195DB7"', valueAttrs: 'data-progress-preference="color"',
         after: '<button type="button" class="desk-button" data-progress-color-reset title="恢复当前样式的原始配色">原色</button>' })}</div>
       ${window.DesktopProgressPreview?.html() || ''}
     </div>`], true);

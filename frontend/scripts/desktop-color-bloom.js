@@ -214,9 +214,10 @@
     return closed;
   }
 
-  function setLightness(bloom, lightness, emit) {
-    const current = hexToHsl(valueInput(bloom)?.value);
-    setValue(bloom, hslToHex(current.h, current.s, clamp(lightness, LIGHTNESS_MIN, LIGHTNESS_MAX)), { emit });
+  // base: the hue/saturation to keep (a drag passes the ones it started with: re-reading
+  // them from each rounded HEX drifts the hue and greys the colour near the dark end).
+  function setLightness(bloom, lightness, emit, base = hexToHsl(valueInput(bloom)?.value)) {
+    setValue(bloom, hslToHex(base.h, base.s, clamp(lightness, LIGHTNESS_MIN, LIGHTNESS_MAX)), { emit });
   }
   function lightnessFromPointer(slider, clientY) {
     const bounds = slider.getBoundingClientRect();
@@ -230,11 +231,17 @@
     event.preventDefault();
     slider.focus?.({ preventScroll: true });
     slider.classList.add('is-dragging');
-    let moved = false;
-    const apply = clientY => { const value = lightnessFromPointer(slider, clientY); if (value !== null) { moved = true; setLightness(bloom, value, 'input'); } };
+    let moved = false, pendingY = null, frame = 0;
+    const base = hexToHsl(valueInput(bloom)?.value);
+    const apply = clientY => { const value = lightnessFromPointer(slider, clientY); if (value !== null) { moved = true; setLightness(bloom, value, 'input', base); } };
+    // A pointer can report several moves per frame and each one repaints the picker and the
+    // host's preview: apply only the latest position, once per frame.
+    const flush = () => { frame = 0; if (pendingY !== null) { const y = pendingY; pendingY = null; apply(y); } };
     apply(event.clientY);
-    const move = pointerEvent => apply(pointerEvent.clientY);
+    const move = pointerEvent => { pendingY = pointerEvent.clientY; if (!frame) frame = requestAnimationFrame(flush); };
     const end = () => {
+      if (frame) cancelAnimationFrame(frame);
+      flush();
       slider.classList.remove('is-dragging');
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', end);

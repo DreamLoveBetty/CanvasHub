@@ -72,3 +72,10 @@ test('instrument finish: housing, well and contour-following glass edge on canva
   // Classic never becomes .desk-progress-material, so its capsule is untouched.
   assert.doesNotMatch(css, /desk-progress-float__bar[^{]*\{[^}]*inset: -3px/);
 });
+
+test('a fill colour change repaints the preview without restyling or remeasuring it', () => {
+  const source = read('frontend/scripts/desktop-progress.js');
+  const refresh = source.slice(source.indexOf('function refreshPreferences()'), source.indexOf('function resume()'));
+  assert.match(refresh, /const restyle = previous\.style !== preferences\.style \|\| previous\.height !== preferences\.height\n\s*\|\| preferences\.style === 'classic';/);
+  assert.match(refresh, /if \(restyle\) syncStyle\(entry\);\n\s*else entry\.dirty = true;/);
+});

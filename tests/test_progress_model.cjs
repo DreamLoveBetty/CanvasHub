@@ -173,3 +173,17 @@ test('zero/full edges and idle front are flat, rapid retargeting stays in range'
     assert.ok(Number.isFinite(motion.value) && motion.value >= 0 && motion.value <= 1);
   }
 });
+test('a custom Liquid/Slosh fill colour lands on the body tone, not on a darker, greyer one', () => {
+  // Both styles share the blue gradient body; its median-lightness tone is the anchor.
+  for (const style of ['liquid', 'slosh']) assert.equal(M.PROGRESS_STYLES[style].color, '#195DB7');
+  const rgb = hex => hex.slice(1).match(/../g).map(channel => parseInt(channel, 16));
+  const distance = (a, b) => Math.hypot(...a.map((channel, index) => channel - b[index]));
+  const body = rgb([...P.SLOSH_STOPS].find(([, hex]) => hex === '#1a64c2')[1]);
+  for (const pick of ['#4675CF', '#D0453A', '#2FA36B']) {
+    const tint = new M.FillTint(pick, M.PROGRESS_STYLES.liquid.color);
+    // The dominant body stop renders within ~10 of the pick (the old #42B8FA anchor left it 64-79 away).
+    assert.ok(distance(tint.rgb(body), rgb(pick)) < 24, pick);
+  }
+  // The original look is untouched: no pick, no tint.
+  assert.deepEqual(plain(M.ORIGINAL_FILL_TINT.rgb(body)), body);
+});

@@ -170,10 +170,11 @@
 .desk-color-bloom__lightness path { fill: none; stroke-linecap: round; }
 .desk-color-bloom__lightness-shadow { stroke: rgba(31,45,62,.15); stroke-width: 22; }
 .desk-color-bloom__lightness-track { stroke-width: 17; } /* stroke: per-instance gradient attribute */
+/* Moved by transform, not top/left, so each drag frame skips layout. */
 .desk-color-bloom__lightness-marker {
   position: absolute;
-  top: var(--bloom-marker-y);
-  left: var(--bloom-marker-x);
+  top: 0;
+  left: 0;
   display: grid;
   place-items: center;
   width: 28px;
@@ -183,8 +184,8 @@
   border: 1px solid rgba(31,45,62,.12);
   border-radius: 50%;
   box-shadow: 0 3px 9px rgba(31,45,62,.28);
-  transform: translate(-50%,-50%);
-  transition: top 90ms linear, left 90ms linear;
+  transform: translate(var(--bloom-marker-x), var(--bloom-marker-y)) translate(-50%,-50%);
+  transition: transform 90ms linear;
 }
 .desk-color-bloom__lightness.is-dragging .desk-color-bloom__lightness-marker { width: 30px; height: 30px; transition: width 120ms ease, height 120ms ease; }
 .desk-color-bloom__lightness-marker i { display: block; width: 19px; height: 19px; background: var(--desk-color-bloom-color); border-radius: 50%; transition: background 90ms linear; }

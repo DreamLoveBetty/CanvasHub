@@ -153,7 +153,7 @@ function fillHslRgb(hue, saturation, light) {
 }
 
 class FillTint {
-  constructor(color = null, anchor = '#42B8FA') {
+  constructor(color = null, anchor = '#195DB7') {
     this.color = normalizeFillColor(color);
     this.anchor = fillRgbHsl(fillHexRgb(anchor));
     this.target = this.color ? fillRgbHsl(fillHexRgb(this.color)) : null;
@@ -195,9 +195,15 @@ function classicFillGradient(color) {
   return `linear-gradient(${tint.css('#74acdc')}, ${tint.css('#1265b5')} 48%, ${tint.css('#133b83')})`;
 }
 
+// `color` is the style's base colour: the swatch shown as its original colour and the anchor
+// FillTint maps a custom pick onto, so a pick lands on the tone that actually dominates the
+// fill. Liquid and Slosh share the blue gradient body (SLOSH_STOPS), whose median-lightness
+// tone is #195DB7 (measured over the rendered fill); their highlight #42B8FA covers only
+// ~10% of it, and anchoring on it rendered a pick darker and greyer in the body with pale,
+// lavender-looking highlights. Pattern styles anchor on their pattern colour.
 const PROGRESS_STYLES = Object.freeze({
-  liquid: { label: '液态', english: 'Liquid', track: '#1b1f27', color: '#42B8FA' },
-  slosh: { label: '晃动', english: 'Slosh', track: '#10141e', color: '#3487ED' },
+  liquid: { label: '液态', english: 'Liquid', track: '#1b1f27', color: '#195DB7' },
+  slosh: { label: '晃动', english: 'Slosh', track: '#10141e', color: '#195DB7' },
   smoke: { label: '烟雾', english: 'Smoke', track: '#140f1e', color: '#D185EF' },
   drops: { label: '微滴', english: 'Drops', track: '#11160e', color: '#9DCF29' },
   bands: { label: '条带', english: 'Bands', track: '#191d23', color: '#8FABD6' },
