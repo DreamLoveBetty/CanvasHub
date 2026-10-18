@@ -13,8 +13,13 @@ from unittest.mock import patch
 
 from PIL import Image
 
+from tests.temp_task_db import use_temp_task_db
+
 
 class ChatgptPoolIntegrationTest(unittest.TestCase):
+    def setUp(self):
+        use_temp_task_db(self)
+
     def test_config_generates_secret_and_public_config_hides_it(self):
         from backend.app_config import get_chatgpt_pool_config, get_chatgpt_pool_public_config
 

@@ -7,9 +7,13 @@ from unittest.mock import patch
 
 from backend import api_client
 from backend import server
+from tests.temp_task_db import use_temp_task_db
 
 
 class GoogleTelegramToggleTest(unittest.TestCase):
+    def setUp(self) -> None:
+        use_temp_task_db(self)
+
     def test_google_generate_skips_telegram_when_disabled(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             out_dir = Path(tmp)

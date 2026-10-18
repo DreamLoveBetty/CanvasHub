@@ -8,6 +8,7 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 
 from backend import gpt_model_catalog
+from tests.temp_task_db import use_temp_task_db
 
 
 def fake_jwt(payload: dict) -> str:
@@ -16,6 +17,9 @@ def fake_jwt(payload: dict) -> str:
 
 
 class GptModelCatalogTest(unittest.TestCase):
+    def setUp(self):
+        use_temp_task_db(self)
+
     def test_codex_client_version_reports_newest_known_version(self):
         def resolve(local: str, published: str) -> str:
             gpt_model_catalog._CLIENT_VERSION_CACHE = (0.0, "")
