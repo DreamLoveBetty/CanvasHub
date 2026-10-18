@@ -35,7 +35,14 @@ from .managed_codex_oauth import (
 
 MODEL_CATALOG_TTL_SECONDS = 300
 MODEL_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
-DEFAULT_CODEX_CLIENT_VERSION = "0.144.0"
+DEFAULT_CODEX_CLIENT_VERSION = "0.163.0"
+# Codex /models hides models whose minimal_client_version is newer than the
+# reported client_version, so discovery reports the newest version it can find.
+CODEX_LATEST_VERSION_URL = "https://registry.npmjs.org/@openai/codex/latest"
+CODEX_EXECUTABLE_CANDIDATES = (
+    "/Applications/ChatGPT.app/Contents/Resources/codex",
+    "/Applications/Codex.app/Contents/Resources/codex",
+)
 DEFAULT_POOL_MODEL = "gpt-5-5"
 CODEX_IMAGE_ENGINE_ID = "gpt-image-2"
 CODEX_FREE_IMAGE_PLANS = frozenset({"free", "free_workspace"})
@@ -115,7 +122,12 @@ def _read_auth_context(path: Path, api_base: str, source: str, plan_type: str = 
     auth_claim = claims.get("https://api.openai.com/auth")
     auth_claim = auth_claim if isinstance(auth_claim, dict) else {}
     account_id = account_id or str(auth_claim.get("chatgpt_account_id") or claims.get("account_id") or "").strip()
-    plan_type = str(plan_type or auth_claim.get("chatgpt_plan_type") or "").strip().lower()
+    access_auth_claim = _jwt_claims(access_token).get("https://api.openai.com/auth")
+    access_auth_claim = access_auth_claim if isinstance(access_auth_claim, dict) else {}
+    # Token claims first: the stored plan metadata is not rewritten on runtime token refresh.
+    plan_type = str(
+        access_auth_claim.get("chatgpt_plan_type") or auth_claim.get("chatgpt_plan_type") or plan_type or ""
+    ).strip().lower()
     if not access_token:
         raise RuntimeError("Codex auth file does not contain an access token")
     return {
@@ -160,27 +172,49 @@ def _codex_auth_context() -> dict[str, str]:
     raise RuntimeError("Codex auth account not found")
 
 
+def _version_key(value: str) -> tuple[int, ...]:
+    match = re.match(r"(\d+)\.(\d+)\.(\d+)", str(value or "").strip())
+    return tuple(int(part) for part in match.groups()) if match else (0, 0, 0)
+
+
+def _local_codex_version() -> str:
+    for executable in (shutil.which("codex"), *CODEX_EXECUTABLE_CANDIDATES):
+        if not executable or not Path(executable).is_file():
+            continue
+        try:
+            completed = subprocess.run(
+                [executable, "--version"],
+                capture_output=True,
+                text=True,
+                timeout=5,
+                check=False,
+            )
+        except Exception:
+            continue
+        match = re.search(r"(\d+\.\d+\.\d+)", completed.stdout or completed.stderr or "")
+        if match:
+            return match.group(1)
+    return ""
+
+
+def _published_codex_version() -> str:
+    try:
+        response = requests.get(CODEX_LATEST_VERSION_URL, timeout=5)
+        data = response.json() if response.status_code == 200 else {}
+        return str(data.get("version") or "").strip() if isinstance(data, dict) else ""
+    except Exception:
+        return ""
+
+
 def _codex_client_version() -> str:
     global _CLIENT_VERSION_CACHE
     now = time.monotonic()
     with _CACHE_LOCK:
         if _CLIENT_VERSION_CACHE[1] and _CLIENT_VERSION_CACHE[0] > now:
             return _CLIENT_VERSION_CACHE[1]
-    executable = shutil.which("codex") or "/Applications/ChatGPT.app/Contents/Resources/codex"
-    version = DEFAULT_CODEX_CLIENT_VERSION
-    try:
-        completed = subprocess.run(
-            [executable, "--version"],
-            capture_output=True,
-            text=True,
-            timeout=5,
-            check=False,
-        )
-        match = re.search(r"(\d+\.\d+\.\d+(?:[-+][A-Za-z0-9.-]+)?)", completed.stdout or completed.stderr or "")
-        if match:
-            version = match.group(1).split("-", 1)[0]
-    except Exception:
-        pass
+    candidates = (DEFAULT_CODEX_CLIENT_VERSION, _local_codex_version(), _published_codex_version())
+    version = max((value for value in candidates if _version_key(value) > (0, 0, 0)), key=_version_key)
+    version = ".".join(str(part) for part in _version_key(version))
     with _CACHE_LOCK:
         _CLIENT_VERSION_CACHE = (now + 3600, version)
     return version
@@ -414,17 +448,22 @@ def _discover_pool_route(force: bool = False) -> tuple[str, dict[str, Any]]:
             model_id = normalize_model_id(item.get("id"), "")
             if not model_id:
                 continue
+            available_accounts = int(item.get("available_accounts") or 0)
+            account_count = int(item.get("account_count") or 0)
+            label = str(item.get("label") or model_id)
+            if account_count:
+                label = f"{label} · {available_accounts}/{account_count} 账号"
             models.append({
                 "id": model_id,
-                "label": str(item.get("label") or model_id),
+                "label": label,
                 "description": str(item.get("description") or ""),
                 "reasoning_efforts": list(item.get("reasoning_efforts") or []),
                 "reasoning_type": str(item.get("reasoning_type") or "none"),
                 "model_role": "web_main_model",
                 "image_generation": True,
                 "verified": True,
-                "available_accounts": int(item.get("available_accounts") or 0),
-                "account_count": int(item.get("account_count") or 0),
+                "available_accounts": available_accounts,
+                "account_count": account_count,
             })
         default_model = normalize_model_id(data.get("default_model"), DEFAULT_POOL_MODEL)
         return cache_key, {

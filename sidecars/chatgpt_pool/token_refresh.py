@@ -20,6 +20,10 @@ from .utils import now_iso, seconds_until_expiry
 TOKEN_URL = "https://auth.openai.com/oauth/token"
 LIMIT_PROBE_DELAY_SECONDS = 60
 LIMIT_PROBE_TIMEOUT_SECONDS = 60
+# Accounts marked limited without a known restore time (local quota countdown
+# reaching zero, or an upstream limit response without reset_after) would
+# otherwise never be probed again.
+UNKNOWN_RESTORE_PROBE_INTERVAL_SECONDS = 30 * 60
 
 
 class AccountLimitProber:
@@ -28,10 +32,15 @@ class AccountLimitProber:
         store: AccountStore,
         backend_factory: Callable[..., Any] | None = None,
         probe_delay_seconds: int = LIMIT_PROBE_DELAY_SECONDS,
+        unknown_restore_probe_interval_seconds: int = UNKNOWN_RESTORE_PROBE_INTERVAL_SECONDS,
+        clock: Callable[[], float] = time.monotonic,
     ):
         self.store = store
         self._backend_factory = backend_factory or OpenAIBackend
         self.probe_delay_seconds = max(0, int(probe_delay_seconds or 0))
+        self.unknown_restore_probe_interval_seconds = max(0, int(unknown_restore_probe_interval_seconds or 0))
+        self._clock = clock
+        self._unknown_restore_probed_at: dict[str, float] = {}
 
     @staticmethod
     def _parse_restore_at(value: str) -> datetime | None:
@@ -46,10 +55,11 @@ class AccountLimitProber:
             parsed = parsed.replace(tzinfo=timezone.utc)
         return parsed.astimezone(timezone.utc)
 
-    def _probe_due(self, restore_at: str, now: datetime | None = None) -> bool:
+    def _probe_due(self, restore_at: str, now: datetime | None = None, access_token: str = "") -> bool:
         parsed = self._parse_restore_at(restore_at)
         if parsed is None:
-            return False
+            last_probe = self._unknown_restore_probed_at.get(access_token)
+            return last_probe is None or self._clock() - last_probe >= self.unknown_restore_probe_interval_seconds
         current = now or datetime.now(timezone.utc)
         return parsed + timedelta(seconds=self.probe_delay_seconds) <= current
 
@@ -86,9 +96,11 @@ class AccountLimitProber:
             if not token or account.get("status") != LIMITED_STATUS:
                 continue
             restore_at = str(account.get("restore_at") or "")
-            if not self._probe_due(restore_at):
+            if not self._probe_due(restore_at, access_token=token):
                 skipped += 1
                 continue
+            if self._parse_restore_at(restore_at) is None:
+                self._unknown_restore_probed_at[token] = self._clock()
             probed += 1
             try:
                 backend = self._build_backend(token)
@@ -96,6 +108,7 @@ class AccountLimitProber:
                 if isinstance(status, ImageGenerationStatus) and status.available:
                     self.store.update_account(token, self._quota_updates(status))
                     self.store.record_refresh_error(token, "")
+                    self._unknown_restore_probed_at.pop(token, None)
                     reactivated += 1
                     continue
                 still_limited += 1

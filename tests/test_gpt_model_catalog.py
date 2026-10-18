@@ -1,12 +1,65 @@
 from __future__ import annotations
 
+import base64
+import json
+import tempfile
 import unittest
+from pathlib import Path
 from unittest.mock import Mock, patch
 
 from backend import gpt_model_catalog
 
 
+def fake_jwt(payload: dict) -> str:
+    raw = base64.urlsafe_b64encode(json.dumps(payload).encode("utf-8")).decode("ascii").rstrip("=")
+    return f"header.{raw}.sig"
+
+
 class GptModelCatalogTest(unittest.TestCase):
+    def test_codex_client_version_reports_newest_known_version(self):
+        def resolve(local: str, published: str) -> str:
+            gpt_model_catalog._CLIENT_VERSION_CACHE = (0.0, "")
+            with patch.object(gpt_model_catalog, "_local_codex_version", return_value=local), \
+                 patch.object(gpt_model_catalog, "_published_codex_version", return_value=published):
+                return gpt_model_catalog._codex_client_version()
+
+        self.addCleanup(setattr, gpt_model_catalog, "_CLIENT_VERSION_CACHE", (0.0, ""))
+        self.assertEqual(resolve("0.118.0", "999.1.0"), "999.1.0")
+        # An old local CLI must not hide models that need a newer client.
+        self.assertEqual(resolve("0.118.0", ""), gpt_model_catalog.DEFAULT_CODEX_CLIENT_VERSION)
+        self.assertEqual(resolve("998.0.0-alpha.1", ""), "998.0.0")
+
+    def test_codex_auth_plan_type_follows_access_token_claims(self):
+        auth = {"https://api.openai.com/auth": {"chatgpt_plan_type": "free", "chatgpt_account_id": "acct"}}
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "auth.json"
+            path.write_text(json.dumps({"tokens": {"access_token": fake_jwt(auth), "id_token": ""}}), encoding="utf-8")
+            context = gpt_model_catalog._read_auth_context(path, "https://example.test", "managed_codex_oauth", "prolite")
+
+        self.assertEqual(context["plan_type"], "free")
+
+    def test_pool_route_labels_show_supporting_account_count(self):
+        response = Mock(status_code=200, text="{}")
+        response.json.return_value = {
+            "models": [
+                {"id": "gpt-6", "label": "GPT-6 Auto", "available_accounts": 2, "account_count": 2},
+                {"id": "gpt-6-thinking", "label": "GPT-6 Thinking", "available_accounts": 1, "account_count": 2},
+            ],
+            "default_model": "gpt-6",
+        }
+        session = Mock()
+        session.get.return_value = response
+        cfg = {"enabled": True, "base_url": "http://pool.test", "auth_key": "k"}
+        with patch.object(gpt_model_catalog, "get_chatgpt_pool_config", return_value=cfg), \
+             patch.object(gpt_model_catalog.requests, "Session", return_value=session):
+            _, route = gpt_model_catalog._discover_pool_route(force=True)
+
+        self.assertEqual(
+            [(item["id"], item["label"]) for item in route["models"]],
+            [("gpt-6", "GPT-6 Auto · 2/2 账号"), ("gpt-6-thinking", "GPT-6 Thinking · 1/2 账号")],
+        )
+        self.assertEqual(route["default_model"], "gpt-6")
+
     def test_codex_reasoning_is_limited_to_selected_model(self):
         route = {
             "available": True,

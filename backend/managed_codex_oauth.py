@@ -185,6 +185,16 @@ def _account_meta_from_id_token(id_token: str) -> dict[str, str]:
     }
 
 
+def _token_plan_type(tokens: dict[str, Any]) -> str:
+    """Plan type from the current tokens; stored account metadata goes stale when
+    the runtime refreshes tokens without rewriting it."""
+    for key in ("access_token", "id_token"):
+        auth_info = _jwt_claims(str(tokens.get(key) or "")).get("https://api.openai.com/auth")
+        if isinstance(auth_info, dict) and str(auth_info.get("chatgpt_plan_type") or "").strip():
+            return str(auth_info["chatgpt_plan_type"]).strip()
+    return ""
+
+
 def _auth_json_from_token_payload(payload: dict[str, Any], session: dict[str, Any] | None = None, previous: dict[str, Any] | None = None) -> dict[str, Any]:
     session = session or {}
     previous = previous or {}
@@ -595,6 +605,7 @@ def finish_oauth_callback(callback_url: str = "", code: str = "", state: str = "
 def _account_summary(account_id: str, path: Path, raw: dict[str, Any], selected_id: str = "", legacy: bool = False) -> dict[str, Any]:
     tokens = _extract_tokens(raw)
     account = raw.get("account") if isinstance(raw.get("account"), dict) else _account_meta_from_id_token(tokens["id_token"])
+    plan_type = _token_plan_type(tokens) or str(account.get("chatgpt_plan_type") or account.get("plan_type") or "").strip()
     exp_ts = _parse_iso_timestamp(tokens["expired"])
     now = time.time()
     disabled = bool(raw.get("disabled")) or str(raw.get("status") or "").strip() in {"禁用", "disabled", "off"}
@@ -627,8 +638,8 @@ def _account_summary(account_id: str, path: Path, raw: dict[str, Any], selected_
         "email": str(account.get("email") or "").strip(),
         "chatgpt_account_id": str(account.get("chatgpt_account_id") or tokens["account_id"] or "").strip(),
         "chatgpt_user_id": str(account.get("chatgpt_user_id") or "").strip(),
-        "chatgpt_plan_type": str(account.get("chatgpt_plan_type") or account.get("plan_type") or "").strip(),
-        "plan_type": str(account.get("chatgpt_plan_type") or account.get("plan_type") or "").strip(),
+        "chatgpt_plan_type": plan_type,
+        "plan_type": plan_type,
         "has_access_token": bool(tokens["access_token"]),
         "has_refresh_token": bool(tokens["refresh_token"]),
         "has_id_token": bool(tokens["id_token"]),

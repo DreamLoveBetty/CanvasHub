@@ -58,6 +58,37 @@ class ChatgptPoolIntegrationTest(unittest.TestCase):
                 self.assertIn("provider: chatgpt-pool-sidecar", prompt_path.read_text(encoding="utf-8"))
                 self.assertEqual(result["provider"], "chatgpt-pool-sidecar")
 
+    def test_provider_archives_the_model_each_image_actually_used(self):
+        from backend import provider_chatgpt_pool
+
+        payload = base64.b64encode(b"\x89PNG\r\n\x1a\nfake").decode("ascii")
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            with patch.object(provider_chatgpt_pool, "daily_output_dir", return_value=root / "archive"), patch.object(
+                provider_chatgpt_pool, "GPT_OUTPUT_DIR", root / "gpt_outputs"
+            ):
+                result = provider_chatgpt_pool.save_chatgpt_pool_outputs(
+                    [
+                        # Plus account: ran the requested Plus-only model.
+                        {"b64_json": payload, "model": "gpt-6-thinking", "requested_model": "gpt-6-thinking"},
+                        # Free account: adapted to the model it has.
+                        {"b64_json": payload, "model": "gpt-6", "requested_model": "gpt-6-thinking", "model_adapted": True},
+                    ],
+                    prompt="prompt",
+                    ratio="1:1",
+                    resolution="1k",
+                    quality="auto",
+                    file_prefix="pool_models",
+                )
+                sidecars = [Path(path).with_suffix(".txt").read_text(encoding="utf-8") for path in result["image_paths"]]
+
+        self.assertIn("main_model: gpt-6-thinking", sidecars[0])
+        self.assertNotIn("requested_main_model:", sidecars[0])
+        self.assertIn("main_model: gpt-6\n", sidecars[1])
+        self.assertIn("requested_main_model: gpt-6-thinking", sidecars[1])
+        self.assertEqual(result["actual_models"], ["gpt-6-thinking", "gpt-6"])
+        self.assertTrue(result["model_adapted"])
+
     def test_provider_records_actual_resolution_when_pool_returns_lower_size(self):
         from backend import provider_chatgpt_pool
 
@@ -627,7 +658,10 @@ class ChatgptPoolIntegrationTest(unittest.TestCase):
                 calls.append({"stream": stream, "payload": json or {}})
                 return FakeResponse()
 
-        with patch.object(
+        # Even error-only streams prepare an output directory; never touch the real archive.
+        with tempfile.TemporaryDirectory() as tmp, patch.object(
+            provider_chatgpt_pool, "daily_output_dir", return_value=Path(tmp)
+        ), patch.object(
             provider_chatgpt_pool,
             "get_chatgpt_pool_config",
             return_value={

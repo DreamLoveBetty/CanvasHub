@@ -302,6 +302,62 @@ class ChatgptPoolSidecarTest(unittest.TestCase):
         self.assertEqual(account["status"], LIMITED_STATUS)
         self.assertEqual(account["restore_at"], "2099-01-01T00:00:00+00:00")
 
+    def test_account_limit_prober_rechecks_limited_accounts_without_restore_time(self):
+        from sidecars.chatgpt_pool.account_store import LIMITED_STATUS, NORMAL_STATUS
+        from sidecars.chatgpt_pool.openai_backend import ImageGenerationStatus
+        from sidecars.chatgpt_pool.token_refresh import AccountLimitProber
+
+        store = self.make_store()
+        store.upsert_accounts(
+            [
+                {
+                    "access_token": "token-limited",
+                    "email": "limited@example.com",
+                    "quota": 0,
+                    "status": LIMITED_STATUS,
+                    "image_quota_unknown": False,
+                    "restore_at": "",
+                }
+            ]
+        )
+        statuses = [
+            ImageGenerationStatus(available=False, remaining=0),
+            ImageGenerationStatus(available=True, remaining=9),
+        ]
+        probed_tokens = []
+
+        class FakeBackend:
+            def __init__(self, access_token, timeout_seconds=None):
+                probed_tokens.append(access_token)
+
+            def check_image_generation_status(self):
+                return statuses.pop(0)
+
+        now = [1000.0]
+        prober = AccountLimitProber(
+            store,
+            backend_factory=FakeBackend,
+            unknown_restore_probe_interval_seconds=1800,
+            clock=lambda: now[0],
+        )
+
+        first = prober.probe_due_accounts()
+        self.assertEqual((first["probed"], first["still_limited"]), (1, 1))
+        self.assertEqual(store.public_account("token-limited")["status"], LIMITED_STATUS)
+
+        now[0] += 1799
+        throttled = prober.probe_due_accounts()
+        self.assertEqual((throttled["probed"], throttled["skipped"]), (0, 1))
+
+        now[0] += 1
+        recovered = prober.probe_due_accounts()
+        account = store.public_account("token-limited")
+
+        self.assertEqual(probed_tokens, ["token-limited", "token-limited"])
+        self.assertEqual(recovered["reactivated"], 1)
+        self.assertEqual(account["status"], NORMAL_STATUS)
+        self.assertEqual(account["quota"], 9)
+
     def test_account_pool_prunes_stale_inflight_leases(self):
         from sidecars.chatgpt_pool.account_pool import AccountPool
 
@@ -1824,6 +1880,83 @@ class ChatgptPoolSidecarTest(unittest.TestCase):
         with patch.object(backend, "_get_conversation", side_effect=fake_get_conversation):
             with self.assertRaisesRegex(UpstreamError, "system_error=RPCError"):
                 backend._poll_image_results("conversation-id")
+
+    def test_pool_models_list_every_account_model_with_support_counts(self):
+        from sidecars.chatgpt_pool import model_catalog
+
+        store = self.make_store()
+        store.upsert_accounts([{"access_token": "token-free"}, {"access_token": "token-plus"}])
+        catalogs = {
+            "token-free": {
+                "models": [{"id": "gpt-6", "label": "GPT-6 Auto"}, {"id": "gpt-6-t-mini", "label": "GPT-6 Thinking mini"}],
+                "default_model": "gpt-6",
+            },
+            "token-plus": {
+                "models": [
+                    {"id": "gpt-6-thinking", "label": "GPT-6 Thinking"},
+                    {"id": "gpt-6", "label": "GPT-6 Auto"},
+                    {"id": "gpt-6-t-mini", "label": "GPT-6 Thinking mini"},
+                ],
+                "default_model": "gpt-6-thinking",
+            },
+        }
+
+        class FakeBackend:
+            def __init__(self, access_token, timeout_seconds=None):
+                self.access_token = access_token
+
+        with patch.object(model_catalog, "OpenAIBackend", FakeBackend), patch.object(
+            model_catalog, "account_model_catalog", side_effect=lambda backend, force=False: catalogs[backend.access_token]
+        ):
+            result = model_catalog.discover_pool_models(store, force=True)
+
+        self.assertEqual(
+            [(item["id"], item["available_accounts"], item["account_count"]) for item in result["models"]],
+            [("gpt-6", 2, 2), ("gpt-6-t-mini", 2, 2), ("gpt-6-thinking", 1, 2)],
+        )
+        # The default must run on every account, even if one account advertises a Plus-only default.
+        self.assertEqual(result["default_model"], "gpt-6")
+        self.assertEqual(result["shared_model_count"], 2)
+
+    def test_pool_model_labels_follow_picker_lanes(self):
+        from sidecars.chatgpt_pool import model_catalog
+
+        class FakeBackend:
+            access_token = "label-token"
+
+            def fetch_model_catalog(self):
+                return {
+                    "models": [
+                        {"slug": "gpt-6", "title": "GPT-6", "reasoning_type": "auto"},
+                        {"slug": "gpt-6-instant", "title": "GPT-6", "reasoning_type": "none"},
+                        {"slug": "gpt-6-t-mini", "title": "GPT-6", "reasoning_type": "reasoning"},
+                        {"slug": "gpt-6-mini", "title": "GPT-6", "reasoning_type": "none"},
+                    ],
+                    "categories": [
+                        {"human_category_name": "Instant", "default_model": "gpt-6", "supported_models": ["gpt-6", "gpt-6-instant"]},
+                        {"human_category_name": "Thinking mini", "default_model": "gpt-6-t-mini", "supported_models": ["gpt-6-t-mini"]},
+                        {"human_category_name": "Mini", "default_model": "gpt-6-mini", "supported_models": ["gpt-6-mini"]},
+                    ],
+                }
+
+        model_catalog._ACCOUNT_MODEL_CACHE.clear()
+        self.addCleanup(model_catalog._ACCOUNT_MODEL_CACHE.clear)
+        catalog = model_catalog.account_model_catalog(FakeBackend(), force=True)
+        labels = {item["id"]: item["label"] for item in catalog["models"]}
+
+        self.assertEqual(
+            labels,
+            {
+                "gpt-6": "GPT-6 Auto",
+                "gpt-6-instant": "GPT-6 Instant",
+                "gpt-6-t-mini": "GPT-6 Thinking mini",
+                "gpt-6-mini": "GPT-6 Mini",
+            },
+        )
+
+        same_title = [{"id": "a", "label": "X"}, {"id": "b", "label": "X"}]
+        model_catalog._disambiguate_labels(same_title, {})
+        self.assertEqual([item["label"] for item in same_title], ["X (a)", "X (b)"])
 
     def test_model_not_found_404_retries_with_account_catalog_model(self):
         from sidecars.chatgpt_pool import model_catalog

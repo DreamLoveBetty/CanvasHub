@@ -229,10 +229,17 @@ def _write_prompt_sidecar(
     revised_prompt: str = "",
     requested_size: str = "",
     actual_size: tuple[int, int] | None = None,
+    main_model: str = "",
+    requested_model: str = "",
 ) -> Path:
+    model_lines = [f"main_model: {main_model}"] if main_model else []
+    if requested_model and requested_model != main_model:
+        # The picked account lacked the requested model, so the sidecar adapted it.
+        model_lines.append(f"requested_main_model: {requested_model}")
     lines = [
         f"image_file: {image_path.name}",
         f"provider: {PROVIDER_NAME}",
+        *model_lines,
         f"ratio: {ratio}",
         f"resolution: {resolution}",
         f"requested_size: {requested_size}" if requested_size else "requested_size: unknown",
@@ -319,6 +326,8 @@ def _append_chatgpt_pool_output(
         revised_prompt,
         requested_size=requested_size,
         actual_size=actual_size,
+        main_model=actual_model,
+        requested_model=requested_model,
     )
     assets = _ensure_preview_assets(out_path, sidecar)
     actual_size_payload = {"width": actual_size[0], "height": actual_size[1]} if actual_size else None

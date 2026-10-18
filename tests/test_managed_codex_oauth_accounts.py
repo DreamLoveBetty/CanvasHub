@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import base64
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -142,6 +144,26 @@ class ManagedCodexOAuthAccountsTest(unittest.TestCase):
                 managed.delete_managed_auth(first_id)
                 after_delete = managed.get_auth_status()
                 self.assertEqual(after_delete["accounts"]["stats"]["total"], 1)
+
+    def test_summary_plan_type_follows_current_token_after_runtime_refresh(self):
+        claims = {"https://api.openai.com/auth": {"chatgpt_plan_type": "free"}}
+        access_token = "header." + base64.urlsafe_b64encode(json.dumps(claims).encode()).decode().rstrip("=") + ".sig"
+        raw = {
+            "tokens": {
+                "access_token": access_token,
+                "refresh_token": "rt",
+                "id_token": "",
+                "account_id": "acct",
+                "expired": "2099-01-01T00:00:00Z",
+            },
+            # Written at import time; the Codex runtime refresh only rewrites tokens.
+            "account": {"email": "one@example.com", "chatgpt_plan_type": "prolite"},
+        }
+
+        summary = managed._account_summary("acct", Path("acct.json"), raw)
+
+        self.assertEqual(summary["chatgpt_plan_type"], "free")
+        self.assertEqual(summary["plan_type"], "free")
 
     def test_invalidated_refresh_token_requires_relogin_and_is_not_usable(self):
         with tempfile.TemporaryDirectory() as tmp:

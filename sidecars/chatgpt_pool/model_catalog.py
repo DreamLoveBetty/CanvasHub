@@ -89,6 +89,37 @@ def _picker_model_ids(data: Any) -> tuple[list[str], bool]:
     return ordered, declared
 
 
+def _picker_lane_names(data: Any) -> dict[str, str]:
+    """Map model slugs to the Web picker's lane name (Instant / Thinking ...)."""
+    names: dict[str, str] = {}
+    for category in (data.get("categories") or []) if isinstance(data, dict) else []:
+        if not isinstance(category, dict):
+            continue
+        name = str(category.get("human_category_name") or "").strip()
+        if not name:
+            continue
+        for model_id in [*(category.get("supported_models") or []), category.get("default_model")]:
+            model_id = _catalog_model_slug(model_id)
+            if model_id:
+                names.setdefault(model_id, name)
+    return names
+
+
+def _disambiguate_labels(models: list[dict[str, Any]], lane_names: dict[str, str]) -> None:
+    # Several Web models share one title (e.g. "GPT-6" for Instant and Thinking mini).
+    for model in models:
+        # The auto-reasoning model sits in the Instant lane but picks its own thinking time.
+        lane = "Auto" if model.get("reasoning_type") == "auto" else lane_names.get(model["id"], "")
+        if lane and lane.lower() not in model["label"].lower():
+            model["label"] = f"{model['label']} {lane}"
+    counts: dict[str, int] = {}
+    for model in models:
+        counts[model["label"]] = counts.get(model["label"], 0) + 1
+    for model in models:
+        if counts[model["label"]] > 1:
+            model["label"] = f"{model['label']} ({model['id']})"
+
+
 def _normalized_model(item: Any) -> dict[str, Any] | None:
     if not isinstance(item, dict):
         return None
@@ -145,6 +176,7 @@ def account_model_catalog(backend: Any, force: bool = False) -> dict[str, Any]:
             continue
         seen.add(model["id"])
         models.append(model)
+    _disambiguate_labels(models, _picker_lane_names(data))
 
     advertised_default = str(data.get("default_model_slug") or "").strip() if isinstance(data, dict) else ""
     model_ids = {item["id"] for item in models}
@@ -269,7 +301,9 @@ def discover_pool_models(store: AccountStore, force: bool = False) -> dict[str, 
 
     counts: dict[str, int] = {}
     model_by_id: dict[str, dict[str, Any]] = {}
+    account_defaults: list[str] = []
     for catalog in catalogs:
+        account_defaults.append(str(catalog.get("default_model") or ""))
         account_ids = set()
         for model in catalog.get("models") or []:
             model_id = str(model.get("id") or "")
@@ -279,21 +313,20 @@ def discover_pool_models(store: AccountStore, force: bool = False) -> dict[str, 
             counts[model_id] = counts.get(model_id, 0) + 1
             model_by_id.setdefault(model_id, dict(model))
 
+    # List every model any account offers. A request for a model the picked account
+    # lacks is adapted per account (resolve_account_image_model) and the image
+    # metadata reports the model that actually ran.
     successful = len(catalogs)
-    intersection = {model_id for model_id, count in counts.items() if successful and count == successful}
-    selected_ids = intersection or set(model_by_id)
     models = []
     for model_id, model in model_by_id.items():
-        if model_id not in selected_ids:
-            continue
         model["available_accounts"] = counts.get(model_id, 0)
         model["account_count"] = successful
         models.append(model)
-    models.sort(key=lambda item: (0 if item["id"] == DEFAULT_WEB_IMAGE_MODEL else 1, item["label"].lower()))
-    model_ids = {item["id"] for item in models}
+    models.sort(key=lambda item: (-int(item["available_accounts"]), item["label"].lower()))
+    shared_ids = [item["id"] for item in models if item["available_accounts"] == successful]
     default_model = next(
-        (candidate for candidate in (DEFAULT_WEB_IMAGE_MODEL, "gpt-5-5") if candidate in model_ids),
-        models[0]["id"] if models else DEFAULT_WEB_IMAGE_MODEL,
+        (candidate for candidate in (*account_defaults, DEFAULT_WEB_IMAGE_MODEL) if candidate in shared_ids),
+        shared_ids[0] if shared_ids else (models[0]["id"] if models else DEFAULT_WEB_IMAGE_MODEL),
     )
     return {
         "ok": True,
@@ -303,6 +336,6 @@ def discover_pool_models(store: AccountStore, force: bool = False) -> dict[str, 
         "account_count": len(accounts),
         "probed_accounts": successful,
         "failed_accounts": failed,
-        "intersection": bool(intersection),
+        "shared_model_count": len(shared_ids),
         "cache_ttl_seconds": MODEL_CACHE_TTL_SECONDS,
     }
