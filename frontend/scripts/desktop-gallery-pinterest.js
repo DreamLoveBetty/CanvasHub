@@ -328,9 +328,9 @@
     `;
     }
 
-    function rerenderPinterestPreservingScroll() {
+    function rerenderPinterestPreservingScroll(options = {}) {
       const previous = els.deskGalleryGrid?.querySelector('[data-pinterest-scroll]')?.scrollTop || 0;
-      renderPinterestLibrary();
+      renderPinterestLibrary(options);
       const next = els.deskGalleryGrid?.querySelector('[data-pinterest-scroll]');
       if (next) next.scrollTop = previous;
     }
@@ -1224,7 +1224,9 @@
       }
     }
 
-    function renderPinterestLibrary() {
+    // options.chromeOnly: only the header and the board row changed (a sync-status answer),
+    // so an already rendered pin grid is kept instead of rebuilding every card.
+    function renderPinterestLibrary(options = {}) {
       const grid = els.deskGalleryGrid;
       if (!grid) return;
       renderGalleryStats();
@@ -1302,7 +1304,7 @@
         </button>
       `)
       ].join('');
-      grid.innerHTML = `
+      const headHtml = `
       <div class="desk-pinterest-head">
         <div class="desk-pinterest-head__identity">
           ${pinterestProfile.url ? `
@@ -1331,7 +1333,18 @@
           ` : ''}
         </div>
       </div>
-      <div class="desk-pinterest-boards" aria-label="Pinterest 图板">${boardButtons}</div>
+`;
+      const boardsHtml = `<div class="desk-pinterest-boards" aria-label="Pinterest 图板">${boardButtons}</div>`;
+      const currentHead = grid.querySelector(':scope > .desk-pinterest-head');
+      const currentBoards = grid.querySelector(':scope > .desk-pinterest-boards');
+      if (options.chromeOnly && pins.length && currentHead && currentBoards && grid.querySelector(':scope > [data-pinterest-scroll] .desk-gallery-card')) {
+        currentHead.outerHTML = headHtml;
+        currentBoards.outerHTML = boardsHtml;
+        bindPinterestChromeEvents(grid);
+        return;
+      }
+      grid.innerHTML = `${headHtml}
+      ${boardsHtml}
       <div class="desk-pinterest-scroll" data-pinterest-scroll>
         <div class="desk-pinterest-grid">
           ${pins.length
@@ -1344,6 +1357,11 @@
         </div>
       </div>
     `;
+      bindPinterestChromeEvents(grid);
+      bindGalleryCardEvents();
+    }
+
+    function bindPinterestChromeEvents(grid) {
       grid.querySelectorAll('[data-pinterest-board]').forEach(button => {
         button.addEventListener('click', () => {
           const boardId = button.dataset.pinterestBoard || '';
@@ -1359,14 +1377,13 @@
       });
       grid.querySelector('[data-pinterest-sync-tip-close]')?.addEventListener('click', () => {
         pinterestSyncTipBoardId = '';
-        rerenderPinterestPreservingScroll();
+        rerenderPinterestPreservingScroll({ chromeOnly: true });
       });
       grid.querySelector('[data-pinterest-download-board]')?.addEventListener('click', event => {
         const boardId = event.currentTarget.dataset.pinterestDownloadBoard || '';
         pinterestSyncTipBoardId = '';
         downloadPinterestBoardToLocal(boardId).catch(error => DesktopResults.showError(error));
       });
-      bindGalleryCardEvents();
     }
 
     function mergePinterestBoardStatus(localBoards = pinterestBoards, statusBoards = pinterestSyncStatus.boards) {
@@ -1476,7 +1493,8 @@
           if (requestId !== pinterestSyncRequestId) return pinterestSyncStatus;
           applyPinterestSyncStatus(data);
           if (getGalleryView() === 'pinterest') {
-            rerenderPinterestPreservingScroll();
+            // Sync status changes counts, red dots and the sync tip, never the pins.
+            rerenderPinterestPreservingScroll({ chromeOnly: true });
             renderGallerySelection();
           }
           return pinterestSyncStatus;
@@ -1646,11 +1664,13 @@
       ].filter(Boolean).map(item => `<span>${escapeHtml(item)}</span>`).join('');
     }
 
-    function refreshPinterestLibrary() {
+    // options.rendered: the caller has just rendered the current state (a tab switch), so
+    // only data that may be stale is fetched; a second full render would rebuild every card.
+    function refreshPinterestLibrary(options = {}) {
       if (!pinterestLibraryMeta.ok && !pinterestLoading) {
         loadPinterestLibrary().catch(error => DesktopResults.showError(error));
       } else {
-        renderPinterestLibrary();
+        if (!options.rendered) renderPinterestLibrary();
         checkPinterestSyncStatus().catch(() => {});
       }
     }

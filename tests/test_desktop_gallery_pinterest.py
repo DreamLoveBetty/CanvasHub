@@ -55,5 +55,28 @@ class DesktopGalleryPinterestBoundaryTest(unittest.TestCase):
         self.assertNotIn("function copyPinterestSplitText(", self.module)
 
 
+    def test_tab_switch_and_sync_status_do_not_rebuild_the_pin_grid_twice(self):
+        # A tab click renders the view once (renderGallery); the follow-up refresh only fetches.
+        self.assertIn("refreshGalleryAssets({ rendered: true });", self.history)
+        self.assertIn("galleryPinterest.refresh({ rendered: Boolean(options.rendered) });", self.history)
+        refresh = self.module[self.module.index("function refreshPinterestLibrary("):]
+        refresh = refresh[:refresh.index("\n    }\n")]
+        self.assertIn("if (!options.rendered) renderPinterestLibrary();", refresh)
+        # A sync-status answer changes counts, red dots and the tip, never the pins: it swaps the
+        # header and board row and keeps the rendered cards.
+        sync = self.module[self.module.index("async function checkPinterestSyncStatus("):]
+        sync = sync[:sync.index("\n    function ")]
+        self.assertIn("rerenderPinterestPreservingScroll({ chromeOnly: true });", sync)
+        render = self.module[self.module.index("function renderPinterestLibrary(options = {})"):]
+        self.assertRegex(render, r"if \(options\.chromeOnly && pins\.length && currentHead && currentBoards[^)]*\.desk-gallery-card'\)\) \{\s*currentHead\.outerHTML = headHtml;\s*currentBoards\.outerHTML = boardsHtml;\s*bindPinterestChromeEvents\(grid\);\s*return;")
+        self.assertEqual(len(re.findall(r"function bindPinterestChromeEvents\(", self.module)), 1)
+
+    def test_offscreen_pin_cards_skip_rendering(self):
+        geometry = _read("styles/desktop-gallery-geometry.css")
+        rule = geometry[geometry.index(":where(body.desk-app[data-theme]) .desk-pinterest-grid > .desk-gallery-card {"):]
+        rule = rule[:rule.index("}")]
+        self.assertIn("content-visibility: auto;", rule)
+        self.assertIn("contain-intrinsic-size: auto var(--desk-gallery-card-size) auto calc(var(--desk-gallery-card-size) * 1.5);", rule)
+
 if __name__ == "__main__":
     unittest.main()

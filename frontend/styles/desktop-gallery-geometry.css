@@ -653,6 +653,15 @@ body.desk-app[data-lang="en"] .desk-gallery-tabs button[data-gallery-view="sets"
   grid-column: 1 / -1;
 }
 
+/* The Pinterest grid is not virtualised: a whole library (hundreds of pins) lands in one
+   render, and style + layout of every card was ~150ms on tab switch. Off-screen cards skip
+   rendering; the placeholder is a card-size column at the card's ~1.5 aspect, and `auto`
+   keeps each card's real size once it has been laid out, so the scrollbar does not jump. */
+:where(body.desk-app[data-theme]) .desk-pinterest-grid > .desk-gallery-card {
+  content-visibility: auto;
+  contain-intrinsic-size: auto var(--desk-gallery-card-size) auto calc(var(--desk-gallery-card-size) * 1.5);
+}
+
 :where(body.desk-app[data-theme]) .desk-pinterest-state {
   display: grid;
   flex: 1 1 auto;

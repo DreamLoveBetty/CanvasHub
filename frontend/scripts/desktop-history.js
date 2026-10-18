@@ -3979,7 +3979,8 @@
     DesktopResults.showTransientMessage(`已保存候选集：${assetSet.name || name}`);
   }
 
-  function refreshGalleryAssets() {
+  // options.rendered: renderGallery() has just drawn the current view (tab switch).
+  function refreshGalleryAssets(options = {}) {
     if (galleryView === 'loras') return loraGallery?.refresh();
     resetGalleryRenderLimit();
     if (galleryView === 'images') {
@@ -3993,7 +3994,7 @@
     } else if (galleryView === 'sources') {
       galleryPromptSources.refresh().catch(error => DesktopResults.showError(error));
     } else if (galleryView === 'pinterest') {
-      galleryPinterest.refresh();
+      galleryPinterest.refresh({ rendered: Boolean(options.rendered) });
     } else {
       renderGallery();
     }
@@ -4691,7 +4692,7 @@
         resetGalleryRenderLimit();
         renderGallery();
         renderGallerySelection();
-        refreshGalleryAssets();
+        refreshGalleryAssets({ rendered: true });
       });
       button.addEventListener('keydown', event => {
         if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
