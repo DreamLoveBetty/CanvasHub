@@ -878,6 +878,7 @@ body.desk-app[data-theme] .desk-prompt-mode-switch[data-mode] button:not(:disabl
 
 body.desk-app[data-theme] .desk-settings-tabs button:hover:not(.is-active):not(.desk-settings-tabs__toggle):not(:disabled),
 body.desk-app[data-theme] .desk-gallery-tabs button:not([data-gallery-view="pinterest"]):hover:not(.is-active):not(:disabled),
+body.desk-app[data-theme] .desk-prompt-library__tabs button:hover:not([aria-selected="true"]):not(:disabled),
 body.desk-app[data-theme] .desk-gallery-video-source button:hover:not(.is-active):not(:disabled),
 body.desk-app[data-theme] .desk-segment button:hover:not(.is-active):not(:disabled),
 body.desk-app[data-theme] .desk-settings-canvas-interaction__segment button:hover:not(.is-active):not(:disabled),
@@ -894,6 +895,7 @@ body.desk-app[data-theme] .desk-video-runtime-mode button:hover:not(.is-active):
 
 body.desk-app[data-theme] .desk-settings-tabs button.is-active:not(:disabled),
 body.desk-app[data-theme] .desk-gallery-tabs button.is-active:not([data-gallery-view="pinterest"]):not(:disabled),
+body.desk-app[data-theme] .desk-prompt-library__tabs button[aria-selected="true"]:not(:disabled),
 body.desk-app[data-theme] .desk-gallery-video-source button.is-active:not(:disabled),
 body.desk-app[data-theme] .desk-segment button.is-active:not(:disabled),
 body.desk-app[data-theme] .desk-settings-canvas-interaction__segment button.is-active:not(:disabled),
@@ -918,6 +920,7 @@ body.desk-app[data-theme] .desk-video-runtime-mode button.is-active:not(:disable
 
 body.desk-app[data-theme] .desk-settings-tabs button.is-active:hover:not(:disabled),
 body.desk-app[data-theme] .desk-gallery-tabs button.is-active:not([data-gallery-view="pinterest"]):hover:not(:disabled),
+body.desk-app[data-theme] .desk-prompt-library__tabs button[aria-selected="true"]:hover:not(:disabled),
 body.desk-app[data-theme] .desk-gallery-video-source button.is-active:hover:not(:disabled),
 body.desk-app[data-theme] .desk-segment button.is-active:hover:not(:disabled),
 body.desk-app[data-theme] .desk-settings-canvas-interaction__segment button.is-active:hover:not(:disabled),
@@ -1024,12 +1027,6 @@ body.desk-app[data-theme] .desk-pinterest-split-modal__footer button.is-primary:
   background: var(--desk-brand-pinterest-gradient-active);
   border-color: var(--desk-brand-pinterest-border);
   box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
-}
-
-/* Small supporting text must not lose the otherwise valid active-tab contrast. */
-body.desk-app[data-theme] .desk-prompt-library__tabs button[aria-selected="true"] .desk-prompt-library__tab-copy small {
-  color: inherit;
-  opacity: 1;
 }
 
 @media (prefers-reduced-motion: reduce) {

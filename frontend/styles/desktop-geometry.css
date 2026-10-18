@@ -1219,9 +1219,11 @@ body.desk-app[data-theme] .desk-agent-artifact p {
   -webkit-line-clamp: 1;
 }
 
-/* Prompt Library is a full workspace: it no longer relies on micro typography. */
+/* Prompt Library is a full workspace: it no longer relies on micro typography. Its rows
+   follow the asset library's (title, tab row, workspace, then the syntax hints); controls
+   take the asset library's compact sizes (24px icon keys and tabs, 28px fields and rows). */
 body.desk-app[data-theme] .desk-prompt-library {
-  grid-template-rows: 52px 72px minmax(0, 1fr) 34px;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
   font-size: var(--desk-font-size-body);
 }
 
@@ -1243,31 +1245,15 @@ body.desk-app[data-theme] .desk-prompt-library :where(
   letter-spacing: 0;
 }
 
-body.desk-app[data-theme] .desk-prompt-library :where(button, input, select, textarea) {
-  font-size: var(--desk-font-size-label);
-}
-
-body.desk-app[data-theme] .desk-prompt-library__identity h2 {
-  font-size: var(--desk-font-size-section-title);
-}
-
-body.desk-app[data-theme] .desk-prompt-library__mark,
-body.desk-app[data-theme] .desk-prompt-library__tab-copy strong {
-  font-size: var(--desk-font-size-body);
-}
-
-body.desk-app[data-theme] .desk-prompt-library__statusbar {
-  min-height: 34px;
-}
 
 body.desk-app[data-theme] .desk-prompt-library__syntax {
   font-size: var(--desk-font-size-caption);
 }
 
 body.desk-app[data-theme] .desk-prompt-library__header-actions button {
-  width: var(--desk-control-height-md);
-  height: var(--desk-control-height-md);
-  border-radius: var(--desk-radius-surface);
+  width: var(--desk-control-height-xs);
+  height: var(--desk-control-height-xs);
+  border-radius: 7px;
 }
 
 body.desk-app[data-theme] .desk-prompt-library__header-actions .desk-prompt-library__new {
@@ -1280,12 +1266,12 @@ body.desk-app[data-theme] .desk-prompt-library__workspace {
 }
 
 body.desk-app[data-theme] .desk-prompt-library__nav button {
-  min-height: var(--desk-control-height-md);
+  min-height: var(--desk-control-height-sm);
   border-radius: var(--desk-radius-surface);
 }
 
 body.desk-app[data-theme] .desk-prompt-library__collection {
-  grid-template-rows: 48px 34px minmax(0, 1fr);
+  grid-template-rows: 40px 28px minmax(0, 1fr);
 }
 
 body.desk-app[data-theme] :is(
@@ -1295,8 +1281,8 @@ body.desk-app[data-theme] :is(
   .desk-prompt-field select,
   .desk-prompt-field .desk-select-trigger
 ) {
-  min-height: var(--desk-control-height-md);
-  height: var(--desk-control-height-md);
+  min-height: var(--desk-control-height-sm);
+  height: var(--desk-control-height-sm);
 }
 
 body.desk-app[data-theme] .desk-prompt-library-row {
@@ -1319,14 +1305,19 @@ body.desk-app[data-theme] .desk-prompt-editor-pane__head h3 {
 }
 
 body.desk-app[data-theme] :is(
-  .desk-prompt-create__modes button,
   .desk-prompt-editor-pane__head-actions button,
+  .desk-prompt-rule-builder > header button
+) {
+  min-height: var(--desk-control-height-xs);
+}
+
+body.desk-app[data-theme] :is(
+  .desk-prompt-create__modes button,
   .desk-prompt-editor-actions button,
   .desk-prompt-template__create,
-  .desk-prompt-rule-builder > header button,
   .desk-prompt-extractor__footer button
 ) {
-  min-height: var(--desk-control-height-md);
+  min-height: var(--desk-control-height-sm);
 }
 
 body.desk-app[data-theme] .desk-prompt-field textarea {

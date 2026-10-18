@@ -443,8 +443,8 @@
     "sha256": "15b159c8d422c6da0fcea418e95c21e0b6a085cfe09021ed00a2dc8693fd5b7d"
    },
    "styles/desktop-controls.css": {
-    "v": "20261017-image-group-picker1",
-    "sha256": "fe3f2c406c5b0422272833ed5f4f7183d681d39ec445b05c42ea0db1a34b1bb8"
+    "v": "20261019-prompt-shell1",
+    "sha256": "d26ab3c4f9a6b154993c098e09f91d1621427ef33077d47d5fb73d68628ac7f9"
    },
    "styles/desktop-creation-tools.css": {
     "v": "20260831-status-silk2",
@@ -467,8 +467,8 @@
     "sha256": "b02e4926d2ea85aa2b43976c0b03b4147f35d6542f625fbe612477e5e0ac8dbe"
    },
    "styles/desktop-geometry.css": {
-    "v": "20261015-shell-preserve1",
-    "sha256": "e4db89af659ef3c371c17aaec9b20a623eb0791af8c57a33d685ebd2503708eb"
+    "v": "20261019-prompt-shell1",
+    "sha256": "138f39d11dbd405e57f2b9a1e4a2e8826a52012774423ff175d8781954194932"
    },
    "styles/desktop-image-group-geometry.css": {
     "v": "20261017-image-group-glass1",
@@ -539,8 +539,8 @@
     "sha256": "9a209fd98c92cff085b352747c9ad645bec6c65768611a9e96831000615a3f4c"
    },
    "styles/desktop-prompt-library.css": {
-    "v": "20261010-color-bloom1",
-    "sha256": "5e70516c8e2a2e9b36bf20465bab222155b6d6374fd80dc2fb1826f539f7d45f"
+    "v": "20261019-prompt-cards1",
+    "sha256": "c1306dab225eab9b72677536bcac31ba82fb2ae8abec28134a20d3b5d4e3ff93"
    },
    "styles/desktop-qwen21.css": {
     "v": "20261003-auto-image-mode1",
