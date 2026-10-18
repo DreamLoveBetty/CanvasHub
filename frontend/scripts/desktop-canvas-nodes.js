@@ -4,7 +4,7 @@
 (function () {
   // Sidebar presentation only: the shared catalog and connection picker stay flat.
   const NODE_PALETTE_GROUPS = [
-    { id: 'image', title: '图像节点', types: ['image', 'input', 'krea2', 'qwen21', 'cyimg_image', 'pose'] },
+    { id: 'image', title: '图像节点', types: ['image', 'input', 'krea2', 'krea2_control', 'qwen21', 'cyimg_image', 'pose'] },
     { id: 'video', title: '视频节点', types: ['video', 'video_inference', 'cyimg_video', 'video_control'] },
     { id: 'audio', title: '音频节点', types: ['audio', 'music_generate', 'music_transcribe', 'music_abc', 'music_score', 'music_compare'] },
     { id: 'enhance', title: '增强放大节点', types: ['upscale', 'topaz', 'topaz_video'] },
@@ -48,7 +48,9 @@
     cyimgNode,
     cyimgDefinition,
     krea2Node,
+    krea2ControlNode,
     krea2Definition,
+    krea2ControlDefinition,
     qwen21Node,
     qwen21Definition,
     videoControlNode,
@@ -126,6 +128,7 @@
     if (nodeState.type === topazDefinition?.TYPE) topazDefinition.normalize(nodeState);
     if (cyimgDefinition?.TYPES.includes(nodeState.type)) cyimgDefinition.normalize(nodeState);
     if (nodeState.type === krea2Definition?.TYPE) krea2Definition.normalize(nodeState);
+    if (nodeState.type === krea2ControlDefinition?.TYPE) krea2ControlDefinition.normalize(nodeState);
     if (nodeState.type === qwen21Definition?.TYPE) qwen21Definition.normalize(nodeState);
     if (nodeState.type === videoControlDefinition?.TYPE) videoControlDefinition.normalize(nodeState);
     if (nodeState.type === topazVideoDefinition?.TYPE) topazVideoDefinition.normalize(nodeState);
@@ -355,7 +358,7 @@
   }
 
     function nextNodeId(type) {
-    const prefix = type === topazDefinition?.TYPE ? type : type === krea2Definition?.TYPE ? type : type === qwen21Definition?.TYPE ? type : cyimgDefinition?.TYPES.includes(type) ? type : type === videoControlDefinition?.TYPE ? type : type === topazVideoDefinition?.TYPE ? type : musicNodeDefinition?.TYPES.includes(type) ? type : type === 'audio' ? 'audio' : type === 'file_output'
+    const prefix = type === topazDefinition?.TYPE ? type : type === krea2Definition?.TYPE ? type : type === krea2ControlDefinition?.TYPE ? type : type === qwen21Definition?.TYPE ? type : cyimgDefinition?.TYPES.includes(type) ? type : type === videoControlDefinition?.TYPE ? type : type === topazVideoDefinition?.TYPE ? type : musicNodeDefinition?.TYPES.includes(type) ? type : type === 'audio' ? 'audio' : type === 'file_output'
       ? 'file_output'
       : (type === 'image_group'
         ? 'image_group'
@@ -412,6 +415,7 @@
     if (type === topazDefinition?.TYPE) topazDefinition.normalize(node);
     if (cyimgDefinition?.TYPES.includes(type)) cyimgDefinition.normalize(node);
     if (type === krea2Definition?.TYPE) krea2Definition.normalize(node);
+    if (type === krea2ControlDefinition?.TYPE) krea2ControlDefinition.normalize(node);
     if (type === qwen21Definition?.TYPE) qwen21Definition.normalize(node);
     if (type === videoControlDefinition?.TYPE) videoControlDefinition.normalize(node);
     if (type === topazVideoDefinition?.TYPE) topazVideoDefinition.normalize(node);
@@ -728,6 +732,7 @@
     function nodeHtmlForState(nodeId, node) {
     if (node.type === topazDefinition?.TYPE) return topazNode.nodeHtml(node);
     if (node.type === krea2Definition?.TYPE) return krea2Node.nodeHtml(node);
+    if (node.type === krea2ControlDefinition?.TYPE) return krea2ControlNode.nodeHtml(node);
     if (node.type === qwen21Definition?.TYPE) return qwen21Node.nodeHtml(node);
     if (cyimgDefinition?.TYPES.includes(node.type)) return cyimgNode.nodeHtml(node);
     if (node.type === videoControlDefinition?.TYPE) return videoControlNode.nodeHtml(node);
@@ -772,6 +777,7 @@
     topazNode?.reconcile();
     cyimgNode?.reconcile();
     krea2Node?.reconcile();
+    krea2ControlNode?.reconcile();
     qwen21Node?.reconcile();
   }
 
@@ -782,6 +788,7 @@
     topazVideoNode?.disposeAll(true);
     cyimgNode?.disposeAll();
     krea2Node?.disposeAll();
+    krea2ControlNode?.disposeAll();
     qwen21Node?.disposeAll();
     audioNode.disposeAll();
     DesktopState.state.canvas.nodes = {
@@ -861,6 +868,7 @@
     if (type === topazVideoDefinition?.TYPE) return type;
     if (type === topazDefinition?.TYPE) return type;
     if (type === krea2Definition?.TYPE) return type;
+    if (type === krea2ControlDefinition?.TYPE) return type;
     if (type === qwen21Definition?.TYPE) return type;
     if (cyimgDefinition?.TYPES.includes(type)) return type;
     if (musicNodeDefinition?.TYPES.includes(type)) return type;
@@ -881,6 +889,7 @@
     if (node.type === topazVideoDefinition?.TYPE) topazVideoNode.dispose(nodeId, true);
     if (cyimgDefinition?.TYPES.includes(node.type)) cyimgNode.dispose(nodeId);
     if (node.type === krea2Definition?.TYPE) krea2Node.dispose(nodeId);
+    if (node.type === krea2ControlDefinition?.TYPE) krea2ControlNode.dispose(nodeId);
     if (node.type === qwen21Definition?.TYPE) qwen21Node.dispose(nodeId);
     if (node.type === 'audio') audioNode.dispose(nodeId);
     if (musicNodeDefinition?.TYPES.includes(node.type)) musicNode.dispose(nodeId);

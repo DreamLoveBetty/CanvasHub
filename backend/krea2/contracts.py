@@ -5,6 +5,9 @@ import math
 import re
 import secrets
 
+from .control_profile import (normalize_control, normalize_reference_size,
+                              REFERENCE_SIZES, PROFILE as CONTROL_PROFILE)
+
 from .edit_profile import (DEFAULT_EDIT_ADAPTER_SCALE, DEFAULT_GROUNDING_PX,
                            DEFAULT_REFERENCE_STRENGTH, EDIT_MODE, FIT_MODES,
                            MODES, STANDARD_MODE)
@@ -131,8 +134,26 @@ def normalize_job(body):
     else:
         seed = _integer(seed_value, "Seed", 0, 2**63 - 1)
     mode = str(body.get("mode") or STANDARD_MODE).strip().lower()
-    if mode not in MODES:
+    if mode not in (*MODES, "control"):
         raise ValueError("未知 Krea 2 工作模式")
+    control = None
+    control_reference_size = normalize_reference_size(body.get("control_reference_size", 1024))
+    if mode != "control" and control_reference_size != 1024:
+        raise ValueError("控制图编码尺寸只能用于 control 模式")
+    control_reference_kv_cache = body.get("control_reference_kv_cache", False)
+    if not isinstance(control_reference_kv_cache, bool):
+        raise ValueError("参考 KV 缓存开关必须是布尔值")
+    if mode != "control" and control_reference_kv_cache:
+        raise ValueError("参考 KV 缓存只能用于 control 模式")
+    control_adapter_asset_id = str(body.get("control_adapter_asset_id") or "").strip()
+    control_adapter_scale = _number(body.get("control_adapter_scale", 1), "控制适配器强度", 0, 2)
+    if mode == "control":
+        if any(body.get(key) for key in ("init_image_upload_token", "edit_image_upload_token", "edit_adapter_asset_id")):
+            raise ValueError("原图与区域控制联合编辑尚未验证，不能混用")
+        control = normalize_control(body.get("control"))
+        control_adapter_asset_id = normalize_asset_id(control_adapter_asset_id)
+    elif body.get("control") is not None or control_adapter_asset_id:
+        raise ValueError("区域控制参数只能用于 control 模式")
     strength = _number(body.get("strength", 0.6), "重绘强度", 0.01, 1.0)
     init_image_upload_token = str(body.get("init_image_upload_token") or "").strip()
     edit_image_upload_token = str(body.get("edit_image_upload_token") or "").strip()
@@ -159,11 +180,13 @@ def normalize_job(body):
     elif edit_image_upload_token or edit_adapter_asset_id:
         raise ValueError("编辑源图和编辑 LoRA 只能用于指令编辑模式")
     raw_loras = body.get("loras") or []
-    regular_limit = MAX_LORAS - 1 if mode == EDIT_MODE else MAX_LORAS
+    regular_limit = MAX_LORAS - 1 if mode in (EDIT_MODE, "control") else MAX_LORAS
     if not isinstance(raw_loras, list) or len(raw_loras) > regular_limit:
         if mode == EDIT_MODE:
             raise ValueError(
                 f"指令编辑最多加载 {regular_limit} 个普通 LoRA，另加 1 个编辑 LoRA")
+        if mode == "control":
+            raise ValueError("区域控制最多加载 3 个普通 LoRA，另加 1 个控制适配器")
         raise ValueError(f"一次最多加载 {MAX_LORAS} 个 LoRA")
     loras = []
     seen = set()
@@ -177,9 +200,16 @@ def normalize_job(body):
         loras.append({"asset_id": asset_id, "scale": _number(raw.get("scale", 1), "LoRA 强度", 0, 2)})
     if edit_adapter_asset_id and edit_adapter_asset_id in seen:
         raise ValueError("编辑 LoRA 不能在普通 LoRA 栈中重复加载")
+    if control_adapter_asset_id and control_adapter_asset_id in seen:
+        raise ValueError("控制适配器不能在普通 LoRA 栈中重复加载")
     return {
         "prompt": prompt,
         "mode": mode,
+        "control": control,
+        "control_reference_size": control_reference_size,
+        "control_reference_kv_cache": control_reference_kv_cache,
+        "control_adapter_asset_id": control_adapter_asset_id,
+        "control_adapter_scale": control_adapter_scale,
         "base_model_id": base_model_id,
         "precision": precision,
         "aspect_ratio": aspect_ratio,
@@ -204,6 +234,11 @@ def normalize_job(body):
 
 def catalog(models=None):
     return {
+        "control": {"profile": CONTROL_PROFILE, "adapter_format": "lokr-direct-v1",
+                    "experimental": True, "joint_edit": False,
+                    "reference_sizes": list(REFERENCE_SIZES), "default_reference_size": 1024,
+                    "reference_kv_cache": {"available": True, "default": False,
+                                           "approximate": True, "cache_scope": "per_image"}},
         "builds": [
             {"id": key, "label": value["label"], "download_bytes": value["size"]}
             for key, value in BUILDS.items()

@@ -1316,3 +1316,37 @@ The new choice affects future submissions only; queued jobs keep their snapshot.
 The model-tools response owns the available VAE list and errors; neither canvas
 nor the main settings controller maintains a second registry. Existing script
 load order is unchanged; both changed scripts use `20261002-qwen21-vae1`.
+
+## Krea 2 区域控制（2026-10-17）
+
+- `scripts/desktop-krea2-control.js` 独立持有控制节点的几何、预设和 SVG 编辑会话；
+  `request()` 只输出标准化椭圆数据，不输出辅助底图。画布工作流持久化几何和选中标记，
+  推理任务提交时由后端生成控制图。输入图像只作定位底图，输出为 `area_control` 类型连线。
+- `desktop-krea2-model.js` 负责 Krea 模式和连接策略；`desktop-canvas-krea2.js` 负责请求适配、
+  专用控制适配器选择、普通 LoRA 数量和不支持的联合编辑校验。连接控制节点才显露控制面板；
+  不连控制节点时保留原文生图／Identity Edit 行为。
+- 主画布、节点及工作流模块只装配上述接口和生命周期。没有新增桌面专用生成接口，
+  没有绕过认证的请求，也没有在前端构造服务端文件路径。
+- 几何样式由 `styles/desktop-krea2-control-geometry.css` 持有，配色和字体由
+  `styles/desktop-krea2-control.css` 持有并复用桌面 tokens。加载顺序：控制定义、Krea 模型／
+  API／控制器、工作流与节点宿主、画布装配；全部缓存键记录于资源锁。
+- LoRA 资料库仅展示成员投影中的 `adapter_format`，不建立第二套模型状态；控制 LoKr 在
+  添加到 Krea 节点时进入专用槽，不进入普通 LoRA 栈。
+
+
+### Krea2 区域控制缓存（2026-10-17）
+
+现有控制参数行新增「参考 KV 加速」开关，明确标注「近似 · 可改变画面」，默认关闭。
+`controlReferenceKvCache` 由 Krea 节点状态持有并随工作流保存，控制器仅在 control 模式发送
+`control_reference_kv_cache: true`；标准／Identity Edit 请求保持 false。开关在任务进行中禁用。
+布局仍在 `desktop-krea2.css`，没有改动画布宿主或新增 API。实际服务页已验证开／关请求、
+恢复后的开关状态、同排控件无溢出和明暗主题。
+
+### Krea2 控制图编码尺寸（2026-10-18）
+
+现有控制参数行增加「控制图编码」：1024 原始（默认）、768 均衡、512 预览。
+`desktop-krea2-model.js` 持有 `controlReferenceSize`（整数枚举，旧工作流默认 1024）；
+`desktop-canvas-krea2.js` 持有展示、变更及任务提交前快照，在 API 边界转换为
+`control_reference_size`。只有 control 模式使用所选值，标准／Identity Edit 发送 1024，
+避免切换连线后遗留选项误入其他模式。它只调整内部参考编码，不改变输出宽高、画幅或语义识图。
+布局仍由 `desktop-krea2.css` 所有，沿用现有 `desk-select` 与 `desk-switch`，未新增宿主逻辑或加载依赖。

@@ -24,6 +24,8 @@ from .conversion_service import ConversionService
 from .lora_store import LoRAStore
 from .model_store import BaseModelStore
 from .runtime import Krea2Cancelled
+from .control_profile import render_control
+from .lokr import FORMAT as LOKR_FORMAT
 
 
 class _CancelPort:
@@ -186,6 +188,8 @@ class Service:
                     raise RuntimeError("该 LoRA 正被排队或运行中的 Krea 2 任务使用")
             if ((task.get("params") or {}).get("edit_adapter") or {}).get("asset_id") == asset_id:
                 raise RuntimeError("该编辑 LoRA 正被排队或运行中的 Krea 2 任务使用")
+            if ((task.get("params") or {}).get("control_adapter") or {}).get("asset_id") == asset_id:
+                raise RuntimeError("该控制适配器正被排队或运行中的 Krea 2 任务使用")
         return {"ok": True, "lora": self.loras.delete(asset_id)}
 
     def prepare(self, body):
@@ -304,6 +308,8 @@ class Service:
             public_loras = []
             for item in spec["loras"]:
                 path, meta = self.loras.resolve(item["asset_id"])
+                if meta.get("adapter_format") == LOKR_FORMAT:
+                    raise ValueError("LoKr 控制适配器须通过区域控制输入使用，不能加入普通 LoRA 栈")
                 resolved_loras.append({"path": str(path), "scale": item["scale"]})
                 public_loras.append({"asset_id": item["asset_id"], "name": meta.get("name", "LoRA"),
                                      "scale": item["scale"]})
@@ -311,6 +317,8 @@ class Service:
             public_edit_adapter = None
             if spec["mode"] == "edit":
                 path, meta = self.loras.resolve(spec["edit_adapter_asset_id"])
+                if meta.get("adapter_format") == LOKR_FORMAT:
+                    raise ValueError("LoKr 控制适配器不能用作 Identity Edit 适配器")
                 resolved_edit_adapter = {
                     "path": str(path), "scale": spec["edit_adapter_scale"]}
                 public_edit_adapter = {
@@ -318,6 +326,16 @@ class Service:
                     "name": meta.get("name", "Krea 2 Edit LoRA"),
                     "scale": spec["edit_adapter_scale"],
                 }
+            resolved_control_adapter = None
+            public_control_adapter = None
+            if spec["mode"] == "control":
+                path, meta = self.loras.resolve(spec["control_adapter_asset_id"])
+                if meta.get("adapter_format") != LOKR_FORMAT:
+                    raise ValueError("区域控制需要直接 LoKr 格式的控制适配器")
+                resolved_control_adapter = {"path": str(path), "scale": spec["control_adapter_scale"]}
+                public_control_adapter = {"asset_id": spec["control_adapter_asset_id"],
+                                          "name": meta.get("name", "控制 LoKr"),
+                                          "scale": spec["control_adapter_scale"], "adapter_format": LOKR_FORMAT}
             with self._lock:
                 if self._closed or self._queue.full():
                     raise RuntimeError("Krea 2 队列繁忙，请稍后重试")
@@ -328,7 +346,14 @@ class Service:
                     init_image = self._uploaded_image(spec.pop("init_image_upload_token"), directory)
                     edit_image = self._uploaded_image(
                         spec.pop("edit_image_upload_token"), directory, "edit_input")
+                    control_image = None
+                    if spec["mode"] == "control":
+                        image, rendered = render_control(spec["control"], spec["width"], spec["height"])
+                        control_image = str(directory / "control.png")
+                        image.save(control_image, format="PNG")
+                        spec["control_render"] = rendered
                     worker_spec = {**spec, "init_image": init_image, "loras": resolved_loras,
+                                   "control_image": control_image, "control_adapter": resolved_control_adapter,
                                    "edit_image": edit_image,
                                    "edit_adapter": resolved_edit_adapter,
                                    "model": {"id": model["id"], "name": model["name"],
@@ -339,12 +364,14 @@ class Service:
                     if not model_display_name.lower().startswith("krea"):
                         model_display_name = f"Krea2 · {model_display_name}"
                     stored_params.update({"provider": "krea2-alis-mlx", "loras": public_loras,
+                                          "control_adapter": public_control_adapter,
                                           "edit_adapter": public_edit_adapter,
                                           "main_model": model_display_name,
                                           "has_init_image": bool(init_image),
                                           "has_edit_image": bool(edit_image)})
                     (directory / "submission.json").write_text(
                         json.dumps({**worker_spec, "loras": public_loras,
+                                    "control_adapter": public_control_adapter,
                                     "edit_adapter": public_edit_adapter},
                                    ensure_ascii=False, indent=2) + "\n",
                         encoding="utf-8")
@@ -430,6 +457,16 @@ class Service:
             "safety_enabled": result.get("safety_enabled") is True,
             "safety_threshold": result.get("safety_threshold"), "flagged_count": result.get("flagged", 0),
         }
+        if (task.get("params") or {}).get("mode") == "control":
+            control_source = self.root / "jobs" / task_id / "control.png"
+            control_relative = Path(".krea2-controls") / f"{task_id}.png"
+            control_destination = folder / control_relative
+            control_destination.parent.mkdir(exist_ok=True)
+            temporary_control = control_destination.with_suffix(".png.part")
+            shutil.copyfile(control_source, temporary_control)
+            os.replace(temporary_control, control_destination)
+            metadata["control_artifact"] = control_relative.as_posix()
+            metadata["control_acceleration"] = result.get("control_acceleration") or []
         for index, source in enumerate(result["paths"], 1):
             destination = folder / f"{task_id}_{index}.png"
             temporary = destination.with_suffix(".png.part")

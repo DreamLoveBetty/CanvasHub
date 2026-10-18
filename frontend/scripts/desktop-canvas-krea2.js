@@ -1,6 +1,6 @@
 // Krea 2 native Canvas controller. Server owns models, LoRAs, jobs and archives.
 (function () {
-  function create({model:M,api,loraLibrary,loraView,getCanvas,getNodeState,getNodeElement,getImageReferences,getTextNodes,
+  function create({model:M,controlModel:C,controlChanged,api,loraLibrary,loraView,getCanvas,getNodeState,getNodeElement,getImageReferences,getTextNodes,
     materializeText,addNode,connectNodes,setImageFromResult,saveState,reportStatus,progressView}={}){
     const sessions=new Map();let catalog=null,status=null,loras=[],loading=null,loraLoading=null,statusTimer=0;
     const controllerAbort=new AbortController();
@@ -10,17 +10,24 @@
     const loraMeta=id=>loraLibrary?.peek(id)||loras.find(item=>item.asset_id===id)||{};
     const modelItems=()=>status?.models||catalog?.models||[];
     const modelMeta=id=>modelItems().find(item=>item.id===id)||{};
-    const regularLoraLimit=node=>node.mode==='edit'?3:4;
+    const regularLoraLimit=node=>['edit','control'].includes(node.mode)?3:4;
+    const isControlAdapter=item=>item?.adapter_format==='lokr-direct-v1';
+    function controlAdapterOptions(node){
+      const items=loras.filter(isControlAdapter),missing=node.controlAdapterId&&!items.some(i=>i.asset_id===node.controlAdapterId);
+      return `${missing?`<option value="${esc(node.controlAdapterId)}" selected>控制适配器已不存在</option>`:''}<option value="">选择区域控制 LoKr…</option>`+items.map(item=>`<option value="${esc(item.asset_id)}"${node.controlAdapterId===item.asset_id?' selected':''}>${esc(item.name)}</option>`).join('');
+    }
     const looksLikeEditAdapter=item=>/(?:krea\s*2.*edit|identity.*edit|edit.*identity)/i.test(String(item?.name||item?.filename||''));
     function chooseEditAdapter(node){
       if(node.mode!=='edit'||node.editAdapterId)return false;
       const preferred=loras.find(looksLikeEditAdapter);if(!preferred)return false;
       node.editAdapterId=preferred.asset_id;return true;
     }
-    const modeLabel=node=>node.mode==='edit'?'图像编辑 · Identity Edit':'标准生成 · 文生图';
+    const modeLabel=node=>node.mode==='control'?'区域控制生成 · 实验性':node.mode==='edit'?'图像编辑 · Identity Edit':'标准生成 · 文生图';
     function syncMode(node){
       const mode=M.resolveMode(node,getCanvas?.()),changed=node.mode!==mode;
-      node.mode=mode;M.normalize(node);return chooseEditAdapter(node)||changed;
+      node.mode=mode;M.normalize(node);
+      if(mode==='control'&&!node.controlAdapterId){const recommended=loras.find(item=>isControlAdapter(item)&&/^breasts_control_lrzjason_20261015$/i.test(item.name));if(recommended){node.controlAdapterId=recommended.asset_id;return true;}}
+      return chooseEditAdapter(node)||changed;
     }
     const readyFor=node=>Boolean(status?.environment_ready&&status?.source_ready&&status?.base_ready&&(!node.safetyEnabled||status?.safety_ready)&&modelMeta(node.baseModelId).ready);
     const preparationCovers=(preparation,node)=>Boolean(preparation?.base_model_id===node.baseModelId&&(!node.safetyEnabled||preparation?.safety_enabled===true));
@@ -46,13 +53,13 @@
       const limit=regularLoraLimit(node);
       if(M.regularLoras(node).length>=limit)return `<option value="">已达到 ${limit} 个普通 LoRA 上限</option>`;
       const selected=new Set(node.loras.map(item=>item.assetId));
-      const available=loras.filter(item=>!selected.has(item.asset_id)&&(node.mode!=='edit'||item.asset_id!==node.editAdapterId));
+      const available=loras.filter(item=>!isControlAdapter(item)&&!selected.has(item.asset_id)&&(node.mode!=='edit'||item.asset_id!==node.editAdapterId));
       return `<option value="">${available.length?'＋ 添加普通 LoRA…':'LoRA 目录暂无可用模型'}</option>`+
         available.map(item=>`<option value="${esc(item.asset_id)}">${esc(item.name)} · ${bytes(item.file_size)}</option>`).join('');
     }
     function editAdapterOptions(node){
       const current=loraMeta(node.editAdapterId);
-      const available=[...loras].sort((a,b)=>Number(looksLikeEditAdapter(b))-Number(looksLikeEditAdapter(a)));
+      const available=loras.filter(item=>!isControlAdapter(item)).sort((a,b)=>Number(looksLikeEditAdapter(b))-Number(looksLikeEditAdapter(a)));
       const missing=node.editAdapterId&&!current.asset_id
         ?`<option value="${esc(node.editAdapterId)}" selected>编辑 LoRA 已不存在 · ${esc(node.editAdapterId.slice(0,12))}…</option>`:'';
       return missing+`<option value="">${available.length?'选择 Krea 2 编辑 LoRA…':'请先把编辑 LoRA 放入本地 LoRA 目录'}</option>`+
@@ -74,11 +81,11 @@
           <div><p class="desk-node__eyebrow">本地图像生成</p><h2>Krea 2 · MLX</h2></div>
           <div class="desk-node-tools"><span class="desk-status-pill" data-krea2-status>检查环境</span><button type="button" class="desk-node-delete" data-node-delete aria-label="删除 Krea 2 节点">删</button></div>
         </header>
-        <button class="desk-port desk-port--in" data-port="in" data-node-id="${esc(node.id)}" aria-label="连接提示词或参考图"></button>
+        <button class="desk-port desk-port--in" data-port="in" data-node-id="${esc(node.id)}" aria-label="连接提示词、参考图或区域控制"></button>
         <button class="desk-port desk-port--out" data-port="out" data-node-id="${esc(node.id)}" aria-label="连接生成图片"></button>
         <div class="desk-krea2__body" data-node-drag-ignore>
           <div class="desk-param-grid desk-krea2__grid desk-krea2__grid--model">
-            <label><span>工作模式 · 自动识别</span><input class="desk-select desk-krea2__mode" type="text" data-krea2-mode readonly value="${modeLabel(node)}" title="由画布连线自动识别：仅文本为标准文生图，接入图像为 Identity Edit 图像编辑。"></label>
+            <label><span>工作模式 · 自动识别</span><input class="desk-select desk-krea2__mode" type="text" data-krea2-mode readonly value="${modeLabel(node)}" title="由画布连线自动识别：仅文本为标准文生图，接入图像为 Identity Edit 图像编辑，接入区域控制节点为实验性控制生成。"></label>
             <label><span>Base 权重模型</span><select class="desk-select" data-desk-select-width="content" data-krea2-field="baseModelId">${modelOptions(node)}</select></label>
           </div>
           <div class="desk-param-grid desk-krea2__grid desk-krea2__grid--params">
@@ -96,7 +103,13 @@
             <label><span>参考图保真</span><input class="desk-number" type="number" min="0.01" max="20" step="0.25" value="${node.referenceStrength}" data-krea2-field="referenceStrength"></label>
             <label><span>参考图适配</span><select class="desk-select" data-krea2-field="fitMode"><option value="fit"${node.fitMode==='fit'?' selected':''}>Fit · v1.2 推荐</option><option value="crop"${node.fitMode==='crop'?' selected':''}>Crop · 旧版</option></select></label>
           </div>
-          <section class="desk-krea2__loras" aria-label="普通 LoRA"><header><div class="desk-krea2__lora-heading"><div><strong>普通 LoRA</strong><span class="desk-krea2__lora-count" data-krea2-lora-count>${M.regularLoras(node).length} / ${regularLoraLimit(node)}</span></div><small data-krea2-lora-limit>可选 · 按顺序叠加${node.mode==='edit'?' · 不含编辑适配器':''}</small></div><div class="desk-krea2__lora-add">${loraView?`<button type="button" class="desk-button desk-lora-picker-button" data-krea2-lora-picker aria-label="看图选择 LoRA">＋ 看图选择 LoRA <span>⌄</span></button>`:''}<select ${loraView?'hidden':''} class="desk-select" data-krea2-lora-add aria-label="添加普通 LoRA">${loraOptions(node)}</select></div></header>
+          <div class="desk-param-grid desk-krea2__grid desk-krea2__grid--control" data-krea2-control-panel${node.mode==='control'?'':' hidden'}>
+            <label><span>区域控制适配器 · LoKr</span><select class="desk-select" data-desk-select-width="content" data-krea2-control-adapter>${controlAdapterOptions(node)}</select></label>
+            <label><span>控制强度</span><input class="desk-number" type="number" min="0" max="2" step="0.05" data-krea2-field="controlAdapterScale" value="${node.controlAdapterScale}"></label>
+            <label title="只调整内部控制图编码，不改变输出尺寸。768/512 为实验加速，可能影响控制精度。"><span>控制图编码</span><select class="desk-select" data-krea2-field="controlReferenceSize">${[[1024,'原始'],[768,'均衡'],[512,'预览']].map(([size,label])=>`<option value="${size}"${node.controlReferenceSize===size?' selected':''}>${size} · ${label}</option>`).join('')}</select></label>
+            <label class="desk-switch desk-krea2__cache" title="冻结参考特征，可能改变画面；关闭后完整计算参考分支。缓存每张图重建，不跨任务复用。"><input type="checkbox" data-krea2-reference-kv ${node.controlReferenceKvCache?'checked':''}><span></span><em>参考 KV 加速<small>近似 · 可改变画面</small></em></label>
+          </div>
+          <section class="desk-krea2__loras" aria-label="普通 LoRA"><header><div class="desk-krea2__lora-heading"><div><strong>普通 LoRA</strong><span class="desk-krea2__lora-count" data-krea2-lora-count>${M.regularLoras(node).length} / ${regularLoraLimit(node)}</span></div><small data-krea2-lora-limit>可选 · 按顺序叠加${node.mode==='edit'?' · 不含编辑适配器':node.mode==='control'?' · 不含控制适配器':''}</small></div><div class="desk-krea2__lora-add">${loraView?`<button type="button" class="desk-button desk-lora-picker-button" data-krea2-lora-picker aria-label="看图选择 LoRA">＋ 看图选择 LoRA <span>⌄</span></button>`:''}<select ${loraView?'hidden':''} class="desk-select" data-krea2-lora-add aria-label="添加普通 LoRA">${loraOptions(node)}</select></div></header>
             <div data-krea2-lora-list>${loraRows(node)}</div></section>
           <footer class="desk-input-footer desk-krea2__footer">
             <div class="desk-pill-row desk-krea2__meta"><span data-krea2-inputs>画布连线 · 文本 0 · 编辑源图 0</span><span data-krea2-runtime>正在检查共享环境与模型…</span></div>
@@ -118,7 +131,7 @@
       const run=s.el.querySelector('[data-krea2-run]');run.disabled=Boolean(s.pending||s.starting)||(!busy&&preparing);run.querySelector('span').textContent=s.starting&&!s.pending?'准备中':busy?'停止生成':preparing?'准备中':node.status==='failed'?'重试生成':'开始生成';
       const images=getImageReferences?.(s.id)||[],texts=getTextNodes?.(s.id)||[];
       const sourceLabel='编辑源图';
-      s.el.querySelector('[data-krea2-inputs]').textContent=`画布连线 · 文本 ${texts.length} · ${sourceLabel} ${images.length}${images.length>1?'（仅允许 1 张）':''}`;
+      s.el.querySelector('[data-krea2-inputs]').textContent=node.mode==='control'?`区域控制 · 文本 ${texts.length}${images.length?' · 原图联合编辑未开放':''}`:`画布连线 · 文本 ${texts.length} · ${sourceLabel} ${images.length}${images.length>1?'（仅允许 1 张）':''}`;
       const prep=status?.preparation||{};let runtime='';
       if(preparing)runtime=`${prep.message||'正在准备模型'}${prep.total&&prep.downloaded?` · ${bytes(prep.downloaded)} / ${bytes(prep.total)}`:''}`;
       else if(ready)runtime=`共享环境已就绪 · ${modelMeta(node.baseModelId).name||node.baseModelId} · 安全检查${node.safetyEnabled?'开启':'关闭'}${status?.warm?' · 模型已热载入':''}`;
@@ -147,10 +160,12 @@
       s.el.querySelectorAll('[data-krea2-edit-control]').forEach(el=>{el.hidden=!editing;});
       const panel=s.el.querySelector('[data-krea2-edit-panel]');if(panel)panel.hidden=!editing;
       const adapter=s.el.querySelector('[data-krea2-edit-adapter]');if(adapter)adapter.innerHTML=editAdapterOptions(s.node);
+      const controlPanel=s.el.querySelector('[data-krea2-control-panel]');if(controlPanel)controlPanel.hidden=s.node.mode!=='control';
+      const controlAdapter=s.el.querySelector('[data-krea2-control-adapter]');if(controlAdapter)controlAdapter.innerHTML=controlAdapterOptions(s.node);
       const mode=s.el.querySelector('[data-krea2-mode]');if(mode)mode.value=modeLabel(s.node);
       const section=s.el.querySelector('.desk-krea2__loras');if(section)section.classList.toggle('is-editing',editing);
       const total=M.regularLoras(s.node).length,max=regularLoraLimit(s.node);
-      const limit=s.el.querySelector('[data-krea2-lora-limit]');if(limit)limit.textContent=total>max?`编辑模式最多 ${max} 个普通 LoRA，请移除 ${total-max} 个`:`可选 · 按顺序叠加${editing?' · 不含编辑适配器':''}`;
+      const limit=s.el.querySelector('[data-krea2-lora-limit]');if(limit)limit.textContent=total>max?`当前模式最多 ${max} 个普通 LoRA，请移除 ${total-max} 个`:`可选 · 按顺序叠加${editing?' · 不含编辑适配器':s.node.mode==='control'?' · 不含控制适配器':''}`;
       const count=s.el.querySelector('[data-krea2-lora-count]');if(count)count.textContent=`${total} / ${max}`;
       window.DesktopSelect?.refreshAll?.();
     }
@@ -219,14 +234,22 @@
       try{if(!status)await loadResources();if(!live(s))return;paint(s);
         const prompt=(getTextNodes(s.id)||[]).map(node=>materializeText(node)).map(value=>String(value||'').trim()).filter(Boolean).join('\n\n');if(!prompt)throw new Error('请连接含有提示词的文本节点');
         const refs=getImageReferences(s.id)||[];if(refs.length>1)throw new Error('Krea 2 一次仅支持 1 张输入图');
+        let control=null;
+        if(s.node.mode==='control'){
+          if(M.imageInputIds(s.node,getCanvas()).length)throw new Error('原图与区域控制联合编辑尚未开放；辅助底图请连接到区域控制节点');
+          const ids=M.controlInputIds(s.node,getCanvas());if(ids.length!==1||!C)throw new Error('请连接一个区域控制节点');
+          if(!s.node.controlAdapterId)throw new Error('请选择区域控制 LoKr 适配器');
+          if(s.node.loras.some(item=>item.assetId===s.node.controlAdapterId))throw new Error('控制适配器不能在普通 LoRA 栈中重复加载');
+          control=C.request(getNodeState(ids[0]));
+        }
         if(M.imageInputIds(s.node,getCanvas()).some(id=>!refs.some(ref=>ref.sourceNodeId===id)))throw new Error('连接的编辑源图尚无可读取内容，请先加载图片');
         if(s.node.mode==='edit'&&refs.length!==1)throw new Error('Krea 2 指令编辑必须连接 1 张编辑源图');
         if(s.node.mode==='edit'&&!s.node.editAdapterId)throw new Error('请选择 Krea 2 Identity Edit LoRA');
-        if(M.regularLoras(s.node).length>regularLoraLimit(s.node))throw new Error('编辑模式最多 3 个普通 LoRA，请移除多余 LoRA 后再生成');
+        if(M.regularLoras(s.node).length>regularLoraLimit(s.node))throw new Error('编辑或控制模式最多 3 个普通 LoRA，请移除多余 LoRA 后再生成');
         // Snapshot mode, all parameters and source before preparation/upload can
         // yield. Graph changes update the next run, never this request's contract.
         const mode=s.node.mode,source=refs[0]?(refs[0].base64||refs[0].imageData||refs[0].imageUrl||refs[0].url):'',name=refs[0]?.name||'reference.png';
-        const request={prompt,mode,base_model_id:s.node.baseModelId,aspect_ratio:s.node.ratio,width:s.node.imageWidth,height:s.node.imageHeight,steps:s.node.steps,
+        const request={prompt,mode,control,control_reference_size:mode==='control'?s.node.controlReferenceSize:1024,control_reference_kv_cache:mode==='control'&&s.node.controlReferenceKvCache,control_adapter_asset_id:mode==='control'?s.node.controlAdapterId:'',control_adapter_scale:s.node.controlAdapterScale,base_model_id:s.node.baseModelId,aspect_ratio:s.node.ratio,width:s.node.imageWidth,height:s.node.imageHeight,steps:s.node.steps,
           seed:s.node.seed||'random',image_count:s.node.imageCount,strength:s.node.strength,
           edit_adapter_asset_id:mode==='edit'?s.node.editAdapterId:'',edit_adapter_scale:s.node.editAdapterScale,
           reference_strength:s.node.referenceStrength,grounding_px:s.node.groundingPx,fit_mode:s.node.fitMode,
@@ -243,21 +266,23 @@
       if(s.pending||s.preparing||s.starting||M.active(s.node.status))return;
       const node=s.node;if(input.matches('[data-krea2-safety]'))node.safetyEnabled=input.checked;
       else if(input.matches('[data-krea2-telegram]'))node.telegramEnabled=input.checked;
+      else if(input.matches('[data-krea2-reference-kv]'))node.controlReferenceKvCache=input.checked;
       else if(input.matches('[data-krea2-edit-adapter]')){node.editAdapterId=input.value;renderLoras(s);}
+      else if(input.matches('[data-krea2-control-adapter]')){node.controlAdapterId=input.value;renderLoras(s);}
       else if(input.matches('[data-krea2-edit-adapter-scale]'))node.editAdapterScale=Math.max(.01,Math.min(2,Number(input.value)||1));
       else if(input.matches('[data-krea2-lora-add]')){if(input.value&&M.regularLoras(node).length<regularLoraLimit(node)&&node.loras.length<4&&(node.mode!=='edit'||input.value!==node.editAdapterId)&&!node.loras.some(item=>item.assetId===input.value))node.loras.push({assetId:input.value,scale:1});renderLoras(s);}
       else if(input.dataset.krea2LoraScale!==undefined){const index=Number(input.dataset.krea2LoraScale);if(node.loras[index])node.loras[index].scale=Math.max(0,Math.min(2,Number(input.value)||0));}
       else if(input.dataset.krea2Field){const key=input.dataset.krea2Field;
         if(key==='mode')return;
         if(key==='ratio'){node.ratio=input.value;const dimensions=M.dimensionsForRatio(node.ratio);if(dimensions){node.imageWidth=dimensions.width;node.imageHeight=dimensions.height;}}
-        else node[key]=['imageWidth','imageHeight','steps','imageCount','groundingPx'].includes(key)?Number(input.value):['strength','referenceStrength'].includes(key)?Number(input.value):input.value;
+        else node[key]=['imageWidth','imageHeight','steps','imageCount','groundingPx','controlReferenceSize'].includes(key)?Number(input.value):['strength','referenceStrength'].includes(key)?Number(input.value):input.value;
         M.normalize(node);if(key==='imageWidth'||key==='imageHeight')node.ratio=M.ratioFromDimensions(node.imageWidth,node.imageHeight);if(key==='baseModelId'){const selected=modelMeta(node.baseModelId);if(selected.precision)node.precision=selected.precision;}if(['ratio','imageWidth','imageHeight'].includes(key))syncSizeControls(s);if(key==='baseModelId')paint(s);}
-      else return;saveState();paint(s);
+      else return;saveState();paint(s);controlChanged?.();
     }
     function mount(node){
       const el=getNodeElement(node.id);if(!el||sessions.has(node.id))return;M.normalize(node);const s={id:node.id,node,el,abort:new AbortController()};sessions.set(node.id,s);
       el.addEventListener('click',event=>{if(event.target.closest('[data-krea2-lora-picker]')){if(canEdit(node.id))loraView?.openPicker(node.id,'krea2');return;}const detail=event.target.closest('[data-krea2-lora-detail]');if(detail){loraView?.openDetailForNode(detail.dataset.krea2LoraDetail,node.id,'krea2').catch(error=>feedback(s,error.message,'error'));return;}const remove=event.target.closest('[data-krea2-lora-remove]');if(remove){if(!canEdit(node.id))return;node.loras.splice(Number(remove.dataset.krea2LoraRemove),1);renderLoras(s);saveState();return;}if(event.target.closest('[data-krea2-run]'))run(s);},{signal:s.abort.signal});
-      el.addEventListener('pointerdown',event=>{if(event.target.closest('.desk-krea2__lora-add .desk-select-trigger, .desk-krea2__edit-adapter .desk-select-trigger'))refreshLoras(s).catch(()=>{});},{signal:s.abort.signal});
+      el.addEventListener('pointerdown',event=>{if(event.target.closest('.desk-krea2__lora-add .desk-select-trigger, .desk-krea2__edit-adapter .desk-select-trigger, .desk-krea2__grid--control .desk-select-trigger'))refreshLoras(s).catch(()=>{});},{signal:s.abort.signal});
       el.addEventListener('change',event=>change(s,event.target),{signal:s.abort.signal});
       if(node.status==='submitting'&&!node.jobId)node.status='failed';renderMode(s);renderLoras(s);if(node.jobId)poll(s);if(!status)loadResources().catch(()=>{});
     }
@@ -267,6 +292,10 @@
       await refreshLoras(s);
       if(!live(s)||!canEdit(id))throw new Error('节点状态已变化，请重新选择');
       if(!loras.some(item=>item.asset_id===identity))throw new Error('LoRA 文件已不存在或不适用于此节点');
+      if(isControlAdapter(loras.find(item=>item.asset_id===identity))){
+        if(s.node.mode!=='control')throw new Error('这是区域控制 LoKr，请先连接 Krea 2 区域控制节点');
+        s.node.controlAdapterId=identity;renderLoras(s);saveState();return;
+      }
       if(s.node.mode==='edit'&&s.node.editAdapterId===identity)throw new Error('该 LoRA 已作为编辑适配器加载');
       if(s.node.loras.some(item=>item.assetId===identity))throw new Error('该 LoRA 已加载');
       if(M.regularLoras(s.node).length>=regularLoraLimit(s.node)||s.node.loras.length>=4)throw new Error('已达到普通 LoRA 数量上限');

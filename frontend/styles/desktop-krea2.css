@@ -41,6 +41,34 @@
   text-overflow: ellipsis;
 }
 
+.desk-app .desk-krea2__grid--control {
+  grid-template-columns: minmax(0, 2.5fr) minmax(64px, .65fr) minmax(110px, 1fr) auto;
+}
+
+.desk-app .desk-krea2__grid .desk-krea2__cache {
+  display: flex;
+  align-self: end;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+}
+
+.desk-app .desk-krea2__cache em {
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.desk-app .desk-krea2__cache small {
+  display: block;
+  color: var(--desk-muted);
+  font-size: 9px;
+  font-weight: 500;
+}
+
+.desk-app .desk-krea2__grid--control[hidden] {
+  display: none;
+}
+
 .desk-app .desk-krea2__grid--params {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }

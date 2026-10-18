@@ -304,7 +304,7 @@ def _mrope(hidden, position_ids):
 
 
 def _grounded_context(encoder, prompt, image, text_encoder_path, grounding_px,
-                      phase_callback):
+                      phase_callback, *, image_label=""):
     phase_callback(0.08, "载入 Qwen3-VL 视觉塔")
     vision = _load_vision_model(text_encoder_path)
     try:
@@ -323,7 +323,7 @@ def _grounded_context(encoder, prompt, image, text_encoder_path, grounding_px,
     prompt_ids = prompt_ids[:max(0, 512 - len(suffix_ids))]
     vision_start = tokenizer.encode("<|vision_start|>", add_special_tokens=False)
     vision_end = tokenizer.encode("<|vision_end|>", add_special_tokens=False)
-    tokens = list(prefix_ids) + list(vision_start)
+    tokens = list(prefix_ids) + list(tokenizer.encode(image_label, add_special_tokens=False)) + list(vision_start)
     span = _ImageSpan(len(tokens), features)
     tokens.extend([_IMAGE_TOKEN_ID] * span.length)
     tokens.extend(vision_end)
@@ -363,6 +363,17 @@ def _grounded_context(encoder, prompt, image, text_encoder_path, grounding_px,
     gc.collect()
     mx.clear_cache()
     return stacked.astype(mx.bfloat16), valid
+
+
+def encode_grounded_image(encoder, prompt, image, text_encoder_path, *,
+                          grounding_px=768, image_label="", phase_callback=None):
+    """Explicit shared vision/text port for worker-only image-conditioned paths.
+
+    Defaults preserve Identity Edit. Control owns its own image preprocessing
+    and can supply the EditUtils ``Picture 1: `` prefix without changing edit.
+    """
+    return _grounded_context(encoder, prompt, image, text_encoder_path, grounding_px,
+                             phase_callback or (lambda *_: None), image_label=image_label)
 
 
 def _encode_reference(vae, image, width, height, fit_mode):
@@ -541,4 +552,4 @@ def generate_edit(pipe, prompt, *, source_image, text_encoder_path, width=1024,
     return to_pil(decoded)
 
 
-__all__ = ["generate_edit"]
+__all__ = ["generate_edit", "encode_grounded_image"]

@@ -41,6 +41,7 @@
     topazDefinition,
     cyimgDefinition,
     krea2Definition,
+    krea2ControlDefinition,
     qwen21Definition,
     videoControlDefinition,
     topazVideoDefinition,
@@ -231,6 +232,7 @@
     if (clean.type === topazDefinition?.TYPE) topazDefinition.normalize(clean);
     if (cyimgDefinition?.TYPES.includes(clean.type)) cyimgDefinition.normalize(clean);
     if (clean.type === krea2Definition?.TYPE) krea2Definition.normalize(clean);
+    if (clean.type === krea2ControlDefinition?.TYPE) krea2ControlDefinition.normalize(clean);
     if (clean.type === qwen21Definition?.TYPE) qwen21Definition.normalize(clean);
     if (clean.type === videoControlDefinition?.TYPE) videoControlDefinition.normalize(clean);
     if (clean.type === topazVideoDefinition?.TYPE) topazVideoDefinition.normalize(clean);

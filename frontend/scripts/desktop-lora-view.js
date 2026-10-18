@@ -4,6 +4,7 @@
   const engines = {krea2:'Krea 2', qwen21:'Qwen 2.1'};
   const button = (action, text, extra = '') => `<button type="button" class="desk-button${['add','add-card','confirm-add','save','confirm-insert','confirm-reset'].includes(action) ? ' desk-button--primary' : action === 'delete-weight' ? ' desk-button--danger' : ''}" data-lora-action="${action}" ${extra}>${text}</button>`;
   const wordsLabel = item => item.trigger_status === 'none' ? '已确认不需要触发词' : item.trigger_words?.length ? item.trigger_words.join(' · ') : '触发词未填写';
+  const formatLabel = item => item.members?.some(m=>m.adapter_format==='lokr-direct-v1') ? ' · 区域控制 LoKr' : '';
   function create({library, assets, listTargets = () => [], addToNode, triggerTargets, insertTriggers, notify: onNotify = () => {}}) {
     let root = null, request = 0, page = 0, items = [], total = 0, engine = '', filter = 'all', query = '';
     let disposeView = null, picker = null, addDialog = null, detailDialog = null, detailItem = null, detailRequest = 0;
@@ -36,7 +37,7 @@
       return items.map(item => `<article class="desk-lora-card">
         <button type="button" class="desk-lora-card__open" data-lora-id="${item.asset_id}" aria-label="查看 ${esc(item.name)}">
           <div class="desk-lora-card__image">${item.cover ? `<img src="${media(item.cover.thumb_url)}" alt="${esc(item.name)} 示例" loading="lazy" decoding="async">` : '<span>LoRA<small>添加效果示例</small></span>'}</div>
-          <div class="desk-lora-card__text"><strong title="${esc(item.name)}">${esc(item.name)}</strong><small>${esc(item.version || '本地模型')} · ${esc(item.engines.map(e => engines[e] || e).join(' / ') || '文件缺失')}</small><p>${esc(wordsLabel(item))}</p></div>
+          <div class="desk-lora-card__text"><strong title="${esc(item.name)}">${esc(item.name)}</strong><small>${esc(item.version || '本地模型')} · ${esc(item.engines.map(e => engines[e] || e).join(' / ') || '文件缺失')}${formatLabel(item)}</small><p>${esc(wordsLabel(item))}</p></div>
         </button><footer><span>${item.favorite ? '★ 已收藏' : item.sync?.status === 'ready' ? '资料已同步' : '本地资料'}</span>${button('add-card', pendingAdds.has(item.asset_id) ? '添加中…' : '添加', `data-id="${item.asset_id}" title="添加到节点" aria-label="添加 ${esc(item.name)} 到节点" ${!item.available || pendingAdds.has(item.asset_id) ? 'disabled' : ''}`)}</footer>
       </article>`).join('');
     }
@@ -221,7 +222,7 @@
           <div class="desk-lora-actions">${button('bind','绑定版本')}${button('unbind','取消关联')}${button('sync','同步资料')}${item.source_url?`<a class="desk-button" href="${esc(item.source_url)}" target="_blank" rel="noopener noreferrer">原页面</a>`:''}</div>
         </div></details>
         <details class="desk-lora-disclosure"><summary>文件信息与权重操作</summary><div class="desk-lora-disclosure__body">
-          <dl class="desk-lora-file-info">${item.members.map(m=>`<dt>${engines[m.engine]||esc(m.engine)} · ${m.present?'本地可用':'文件缺失'}</dt><dd>${esc(m.filename||m.name)} · ${(Number(m.file_size)/1024**2).toFixed(1)} MB</dd>`).join('')}<dt>SHA256</dt><dd>${item.asset_id}</dd></dl>
+          <dl class="desk-lora-file-info">${item.members.map(m=>`<dt>${engines[m.engine]||esc(m.engine)} · ${m.present?'本地可用':'文件缺失'}</dt><dd>${esc(m.filename||m.name)} · ${(Number(m.file_size)/1024**2).toFixed(1)} MB${m.adapter_format==='lokr-direct-v1'?' · 区域控制 LoKr':''}</dd>`).join('')}<dt>SHA256</dt><dd>${item.asset_id}</dd></dl>
           <div class="desk-lora-danger"><p>仅删除所选框架的权重，资料保留；运行或排队中的模型不可删除。</p><div class="desk-lora-actions"><select class="desk-select" data-lora-delete-engine aria-label="删除权重的框架">${item.engines.map(e=>`<option value="${e}">${engines[e]}</option>`).join('')}</select>${button('delete-weight','删除权重文件',!item.available?'disabled':'')}</div></div>
         </div></details>
       </section><section class="desk-lora-detail__info" aria-label="LoRA 资料">

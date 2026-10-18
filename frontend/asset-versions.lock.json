@@ -79,8 +79,8 @@
     "sha256": "6e583036345a7999042bbedb4acc7abf4aa3f642b6bad17b3e9e8537ae34ec6c"
    },
    "scripts/desktop-canvas-krea2.js": {
-    "v": "20261011-select-stepper1",
-    "sha256": "d1895acf3756e850a8b8c7c9be1f885ef67505971cd9139c062f3ed79490a08f"
+    "v": "20261018-control-resolution1",
+    "sha256": "cf4d802c8461f32d7f80b63b51c591864d5455398e32f9ab984590b57d51fb96"
    },
    "scripts/desktop-canvas-lora.js": {
     "v": "20261002-lora-library3",
@@ -99,8 +99,8 @@
     "sha256": "b93826e20d41af49a57ea9a60668e489908347b5b7fce3995ca57d40230a1f3e"
    },
    "scripts/desktop-canvas-nodes.js": {
-    "v": "20261010-marquee-frame1",
-    "sha256": "edcb3afc824d79674a1645fbf2669d512b6762cb7f9d5dc03ebff5ea3a5eaf2d"
+    "v": "20261017-area-control1",
+    "sha256": "5743424585319b1561df45edce0ca7540d09b7f06a73b3f21496800693ce4f1a"
    },
    "scripts/desktop-canvas-port-geometry.js": {
     "v": "20260911-canvas-port-geometry1",
@@ -147,12 +147,12 @@
     "sha256": "cef023eb2ee2c61842935bfe9564d290730eef24e82711329a185f81863e2604"
    },
    "scripts/desktop-canvas-workflow.js": {
-    "v": "20261001-qwen21-adapters-1",
-    "sha256": "9f532ef8db1e9e62c60b2264d353987e7c5ae8dc5ea2cb66ea24fd8071769dd7"
+    "v": "20261017-area-control1",
+    "sha256": "b22e2058f2ce5b8b4a53dd127b241722b2c1b5c8ba03b9ee8d918f847e7914db"
    },
    "scripts/desktop-canvas.js": {
-    "v": "20261017-image-group-tap1",
-    "sha256": "1241bfb8a78e8dc847329e87976b5fbcb7c619b92d7e60e25ef77a79a0f4560a"
+    "v": "20261017-area-control1",
+    "sha256": "df53966e8008e2d554f43f43ca31b57f631d1fb43f7a0e37d97319a15d2a90fc"
    },
    "scripts/desktop-color-bloom.js": {
     "v": "20261010-color-bloom1",
@@ -214,9 +214,13 @@
     "v": "20260929-krea2-layout-3",
     "sha256": "19c6aa2c7cd8fa9fa568547225e1c8d72b7405558e69a0c61f9b3b44468ed78b"
    },
+   "scripts/desktop-krea2-control.js": {
+    "v": "20261017-area-control1",
+    "sha256": "49d2f13e34fd487d49207d505cbd8d19a4f3d742eed3a4ff23db23a23d34cb95"
+   },
    "scripts/desktop-krea2-model.js": {
-    "v": "20261006-bf16-transformer1",
-    "sha256": "dcaaac91f98df4ea38d1daeab81157431f44365803b8faee976587a303c7f719"
+    "v": "20261018-control-resolution1",
+    "sha256": "8adc01ffa49577ce90e5dc4c9917d17fa5efd6d67fcce0a89798467207b9905b"
    },
    "scripts/desktop-krea2-tools.js": {
     "v": "20261006-bf16-transformer1",
@@ -235,8 +239,8 @@
     "sha256": "134583f0b2d1a68c8b1f0a2036773fe93df695c10d509c579865233c2e2f0548"
    },
    "scripts/desktop-lora-view.js": {
-    "v": "20261003-lora-quick-add1",
-    "sha256": "8c17aa3320f555de63816b89fdd6154aabf33ae1a2885a7c1cc993c82777f6f4"
+    "v": "20261017-area-control1",
+    "sha256": "e5f04f62e991214422fccf6213868dc67c66a7d645d28449d3649259ecfa43a9"
    },
    "scripts/desktop-music-api.js": {
     "v": "20260921-task-contract1",
@@ -478,9 +482,17 @@
     "v": "20261017-image-group-glass1",
     "sha256": "785b0812de7da43276aa205bd87a55e8c18117c7afbda21714e59a46baafd8a5"
    },
+   "styles/desktop-krea2-control-geometry.css": {
+    "v": "20261017-area-control1",
+    "sha256": "88bae9696681912416a02a88d25327ef5adada90519a38ec982c1375d447bd25"
+   },
+   "styles/desktop-krea2-control.css": {
+    "v": "20261017-area-control1",
+    "sha256": "e179d26412b252a4d8cce5547bf168fbc40dce5f6a7975080b9a19f201c5d353"
+   },
    "styles/desktop-krea2.css": {
-    "v": "20261003-auto-image-mode1",
-    "sha256": "1429518781c34dd7c174a41257f3c9afe469b87a6a5ef846c4f3510aec3acbf1"
+    "v": "20261018-control-resolution1",
+    "sha256": "c7a8804ed8b2d88253c4d0ba5ed7f511aff3527b4e74cb2d134b615c67145938"
    },
    "styles/desktop-layout.css": {
     "v": "20261014-layout-module1",

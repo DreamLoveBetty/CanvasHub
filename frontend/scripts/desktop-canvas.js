@@ -315,6 +315,7 @@
   const NODE_MENU_ITEMS = [
     window.DesktopTopazModel.menu,
     window.DesktopKrea2Model.MENU_ITEM,
+    window.DesktopKrea2Control.MENU_ITEM,
     window.DesktopQwen21Model.MENU_ITEM,
     ...window.DesktopCyimgModel.MENU_ITEMS,
     {
@@ -3589,7 +3590,7 @@
     canvasVideoControl.disposeAll(true);
     canvasTopazVideo.disposeAll(true);
     canvasCyimg.disposeAll();
-    canvasKrea2.disposeAll(); canvasQwen21.disposeAll();
+    canvasKrea2.disposeAll(); canvasKrea2Control.disposeAll(); canvasQwen21.disposeAll();
     revokeCurrentWorkflowObjectUrls();
     promptDocumentHistories.clear();
     promptDocumentVersions.clear();
@@ -4905,7 +4906,7 @@
           els.deskFileInput?.click();
           return;
         }
-        const type = [window.DesktopTopazModel.TYPE, window.DesktopKrea2Model.TYPE, window.DesktopQwen21Model.TYPE, ...window.DesktopCyimgModel.TYPES, window.DesktopVideoControlModel.TYPE, window.DesktopTopazVideoModel.TYPE, ...window.DesktopMusicModel.TYPES, 'file_output', 'video_inference', 'video', 'audio', 'layout', 'text', 'pose', 'upscale'].includes(addNodePayload.type) ? addNodePayload.type : 'input';
+        const type = [window.DesktopTopazModel.TYPE, window.DesktopKrea2Model.TYPE, window.DesktopKrea2Control.TYPE, window.DesktopQwen21Model.TYPE, ...window.DesktopCyimgModel.TYPES, window.DesktopVideoControlModel.TYPE, window.DesktopTopazVideoModel.TYPE, ...window.DesktopMusicModel.TYPES, 'file_output', 'video_inference', 'video', 'audio', 'layout', 'text', 'pose', 'upscale'].includes(addNodePayload.type) ? addNodePayload.type : 'input';
         const pointer = screenToWorld(event.clientX, event.clientY);
         selectNode(addNode(type, pointer));
         setNodePaletteOpen(false);
@@ -5045,9 +5046,9 @@
       }
     });
     window.addEventListener('pointermove', moveInteraction);
-    window.addEventListener('pagehide', event => { if (!event.persisted) canvasProgress.destroy(); canvasAudio.disposeAll(); canvasMusic.disposeAll(); canvasVideoControl.disposeAll(); canvasTopazVideo.disposeAll(); canvasCyimg.disposeAll(); canvasKrea2.disposeAll(); canvasQwen21.disposeAll(); });
+    window.addEventListener('pagehide', event => { if (!event.persisted) canvasProgress.destroy(); canvasAudio.disposeAll(); canvasMusic.disposeAll(); canvasVideoControl.disposeAll(); canvasTopazVideo.disposeAll(); canvasCyimg.disposeAll(); canvasKrea2.disposeAll(); canvasKrea2Control.disposeAll(); canvasQwen21.disposeAll(); });
     window.addEventListener('desktop:progress-preferences-change', canvasProgress.refreshPreferences);
-    window.addEventListener('pageshow', () => { canvasAudio.reconcile(); canvasMusic.reconcile(); canvasVideoControl.reconcile(); canvasTopazVideo.reconcile(); canvasCyimg.reconcile(); canvasKrea2.reconcile(); canvasQwen21.reconcile(); });
+    window.addEventListener('pageshow', () => { canvasAudio.reconcile(); canvasMusic.reconcile(); canvasVideoControl.reconcile(); canvasTopazVideo.reconcile(); canvasCyimg.reconcile(); canvasKrea2.reconcile(); canvasKrea2Control.reconcile(); canvasQwen21.reconcile(); });
     window.addEventListener('pointerup', endInteraction);
     window.addEventListener('pointercancel', endInteraction);
     window.addEventListener('blur', () => {
@@ -5256,9 +5257,9 @@
     window.addEventListener('desktop:connection-swell-style-change', refreshFloatingSwellStyle);
     window.addEventListener('desktop:connection-line-style-change', updateLinkPath);
     window.addEventListener('desktop:canvas-collision-change', () => canvasCollision.settle());
-    window.addEventListener('desktop:canvas-text-nodes-change', () => { canvasMusic.graphChanged(); canvasVideoControl.graphChanged(); canvasTopazVideo.graphChanged(); canvasCyimg.graphChanged(); canvasKrea2.graphChanged(); canvasQwen21.graphChanged(); });
+    window.addEventListener('desktop:canvas-text-nodes-change', () => { canvasMusic.graphChanged(); canvasVideoControl.graphChanged(); canvasTopazVideo.graphChanged(); canvasCyimg.graphChanged(); canvasKrea2.graphChanged(); canvasKrea2Control.graphChanged(); canvasQwen21.graphChanged(); });
     window.addEventListener('desktop:canvas-selection-change', event => { taskRegistry.showStatus(event.detail?.selectedNodeId); });
-    window.addEventListener('desktop:canvas-node-removed', () => { canvasMusic.graphChanged(); canvasVideoControl.graphChanged(); canvasTopazVideo.graphChanged(); canvasCyimg.graphChanged(); canvasKrea2.graphChanged(); canvasQwen21.graphChanged(); });
+    window.addEventListener('desktop:canvas-node-removed', () => { canvasMusic.graphChanged(); canvasVideoControl.graphChanged(); canvasTopazVideo.graphChanged(); canvasCyimg.graphChanged(); canvasKrea2.graphChanged(); canvasKrea2Control.graphChanged(); canvasQwen21.graphChanged(); });
     window.addEventListener('desktop:video-runtime-status-updated', () => {
       Object.values(DesktopState.state.canvas.nodes || {})
         .filter(node => node.type === 'video_inference')
@@ -5351,9 +5352,15 @@
     triggerTargets: canvasLoRA.listTextTargets, insertTriggers: canvasLoRA.insertTriggers,
     notify: message => DesktopResults.showTransientMessage(message)
   });
+  const canvasKrea2Control = window.DesktopKrea2Control.create({
+    getCanvas:()=>DesktopState.state.canvas, getNodeState, getNodeElement,
+    getImageReferences:getConnectedImageReferences,
+    saveState:()=>DesktopState.saveSettings({criticalCanvas:true}),
+  });
   const canvasKrea2 = window.DesktopCanvasKrea2.create({
     progressView: canvasProgress,
     model:window.DesktopKrea2Model, api:window.DesktopKrea2API,
+    controlModel:window.DesktopKrea2Control, controlChanged:()=>canvasKrea2Control.graphChanged(),
     loraLibrary: DesktopApi.lora, loraView,
     getCanvas:()=>DesktopState.state.canvas, getNodeState,getNodeElement,
     getImageReferences:getConnectedImageReferences, getTextNodes:getConnectedTextNodes,
@@ -5444,6 +5451,7 @@
     topazDefinition: window.DesktopTopazModel,
     cyimgDefinition: window.DesktopCyimgModel,
     krea2Definition: window.DesktopKrea2Model,
+    krea2ControlDefinition: window.DesktopKrea2Control,
     qwen21Definition: window.DesktopQwen21Model,
     videoControlDefinition: window.DesktopVideoControlModel,
     topazVideoDefinition: window.DesktopTopazVideoModel,
@@ -5772,6 +5780,7 @@
     topazNode: canvasTopaz,
     cyimgNode: canvasCyimg,
     krea2Node: canvasKrea2,
+    krea2ControlNode: canvasKrea2Control,
     qwen21Node: canvasQwen21,
     videoControlNode: canvasVideoControl,
     topazVideoNode: canvasTopazVideo,
@@ -5780,6 +5789,7 @@
     topazDefinition: window.DesktopTopazModel,
     cyimgDefinition: window.DesktopCyimgModel,
     krea2Definition: window.DesktopKrea2Model,
+    krea2ControlDefinition: window.DesktopKrea2Control,
     qwen21Definition: window.DesktopQwen21Model,
     videoControlDefinition: window.DesktopVideoControlModel,
     topazVideoDefinition: window.DesktopTopazVideoModel,
@@ -5889,7 +5899,7 @@
   });
 
   const canvasConnections = window.DesktopCanvasConnections.create({
-    domainConnections: window.DesktopCanvasConnections.combineDomains(canvasMusic.connections, canvasVideoControl.connections, canvasTopazVideo.connections, canvasTopaz.connections, canvasCyimg.connections, canvasKrea2.connections, canvasQwen21.connections),
+    domainConnections: window.DesktopCanvasConnections.combineDomains(canvasMusic.connections, canvasVideoControl.connections, canvasTopazVideo.connections, canvasTopaz.connections, canvasCyimg.connections, canvasKrea2.connections, canvasKrea2Control.connections, canvasQwen21.connections),
     LINK_VIEWBOX,
     NODE_MENU_ITEMS,
     ORDINARY_MENU_CLOSE_FALLBACK_MS,

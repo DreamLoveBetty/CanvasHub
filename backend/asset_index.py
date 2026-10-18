@@ -636,9 +636,14 @@ def _archive_image_files() -> list[tuple[Path, str, str]]:
             if not path.is_file() or path.suffix.lower() not in IMAGE_EXTENSIONS:
                 continue
             try:
-                rel_path = path.relative_to(root).as_posix()
+                relative = path.relative_to(root)
             except Exception:
                 continue
+            # Exact generation inputs are recoverable sidecar artifacts, not
+            # output assets. pathlib.rglob includes dot-directories as well.
+            if ".krea2-controls" in relative.parts[:-1]:
+                continue
+            rel_path = relative.as_posix()
             files.append((path, root_key, rel_path))
     files.sort(key=lambda item: (int(item[0].stat().st_mtime), item[0].as_posix()), reverse=True)
     return files

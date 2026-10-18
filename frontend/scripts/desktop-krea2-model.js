@@ -6,7 +6,7 @@
     'mixed-4-8':'krea-2-turbo-alis-mlx-mixed-4-8'
   });
   const DEFAULT_MODEL_ID=BUILTIN_MODEL_IDS['8bit'];
-  const MODES=Object.freeze(['standard','edit']);
+  const MODES=Object.freeze(['standard','edit','control']);
   const FIT_MODES=Object.freeze(['fit','crop']);
   const ASPECT_RATIOS=Object.freeze(['1:1','2:3','3:2','3:4','4:3','4:5','5:4','9:16','16:9','9:21','21:9']);
   const RATIO_DIMENSIONS=Object.freeze({
@@ -50,6 +50,10 @@
     node.strength=clamp(node.strength,0.01,1,0.6);
     node.editAdapterId=/^[a-f0-9]{64}$/.test(String(node.editAdapterId||''))?String(node.editAdapterId):'';
     node.editAdapterScale=clamp(node.editAdapterScale,0.01,2,1);
+    node.controlAdapterId=/^[a-f0-9]{64}$/.test(String(node.controlAdapterId||''))?String(node.controlAdapterId):'';
+    node.controlAdapterScale=clamp(node.controlAdapterScale,0,2,1);
+    node.controlReferenceKvCache=node.controlReferenceKvCache===true;
+    node.controlReferenceSize=[1024,768,512].includes(node.controlReferenceSize)?node.controlReferenceSize:1024;
     node.referenceStrength=clamp(node.referenceStrength,0.01,20,4);
     node.groundingPx=Math.round(clamp(node.groundingPx,0,2048,768)/32)*32;
     if(node.groundingPx>0&&node.groundingPx<256)node.groundingPx=256;
@@ -67,19 +71,23 @@
     node.status=String(node.status||'idle');
     return node;
   }
-  const targets=Object.freeze({text:[TYPE],image:[TYPE],krea2:['image']});
+  const targets=Object.freeze({text:[TYPE],image:[TYPE],krea2_control:[TYPE],krea2:['image']});
   function policy(from,to){
     if(!targets[from?.type]?.includes(to?.type))return null;
     if(from.type==='krea2')return{inputRole:'image',outputRole:'image',single:false,replaceAllInputs:true};
+    if(from.type==='krea2_control')return{inputRole:'area_control',outputRole:'area_control',single:true};
     return{inputRole:from.type==='text'?'prompt':'image',outputRole:from.type==='text'?'prompt':'image',single:from.type==='image'};
   }
   function imageInputIds(node,canvas){
     return [...new Set((canvas?.edges||[]).filter(edge=>edge.to===node.id&&policy(canvas?.nodes?.[edge.from],node)?.inputRole==='image').map(edge=>edge.from))];
   }
-  const resolveMode=(node,canvas)=>imageInputIds(node,canvas).length?'edit':'standard';
+  function controlInputIds(node,canvas){
+    return [...new Set((canvas?.edges||[]).filter(edge=>edge.to===node.id&&canvas?.nodes?.[edge.from]?.type==='krea2_control').map(edge=>edge.from))];
+  }
+  const resolveMode=(node,canvas)=>controlInputIds(node,canvas).length?'control':imageInputIds(node,canvas).length?'edit':'standard';
   const regularLoras=node=>(node.loras||[]).filter(item=>node.mode!=='edit'||item.assetId!==node.editAdapterId);
   const ICON='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 2.8 14.2 8l5.2.7-4 3.5 1.2 5.1-4.6-2.7-4.6 2.7 1.2-5.1-4-3.5L9.8 8 12 2.8Z"/><path d="M18 3v4M16 5h4"/></svg>';
   const MENU_ITEM=Object.freeze({type:TYPE,title:'Krea 2 · MLX',subtitle:'Apple Silicon 本地生成 · 多 LoRA',icon:ICON});
   window.DesktopKrea2Model=Object.freeze({TYPE,ICON,MENU_ITEM,ASPECT_RATIOS,RATIO_DIMENSIONS,
-    BUILTIN_MODEL_IDS,DEFAULT_MODEL_ID,MODES,FIT_MODES,active,normalize,ratioFromDimensions,dimensionsForRatio,targets,policy,imageInputIds,resolveMode,regularLoras});
+    BUILTIN_MODEL_IDS,DEFAULT_MODEL_ID,MODES,FIT_MODES,active,normalize,ratioFromDimensions,dimensionsForRatio,targets,policy,imageInputIds,controlInputIds,resolveMode,regularLoras});
 })();

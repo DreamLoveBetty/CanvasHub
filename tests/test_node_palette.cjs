@@ -21,7 +21,7 @@ function fixture(items) {
   vm.createContext(context);
   // Use actual domain menu declarations and the host's injected catalog, not a
   // second list of labels that can silently drift when new node types are added.
-  for (const name of ['topaz-model', 'krea2-model', 'qwen21-model', 'cyimg-model',
+  for (const name of ['topaz-model', 'krea2-control', 'krea2-model', 'qwen21-model', 'cyimg-model',
     'canvas-audio', 'video-control-model', 'topaz-video-pipeline', 'topaz-video-model', 'music-model', 'canvas-nodes']) {
     vm.runInContext(read(`scripts/desktop-${name}.js`), context);
   }
@@ -55,12 +55,12 @@ function fixture(items) {
   return { api, palette, catalog, document, tool, timerRef, timers };
 }
 
-test('all 23 registered nodes appear once in five semantic groups', () => {
+test('all registered nodes appear once in five semantic groups', () => {
   const h = fixture();
   const before = JSON.stringify(h.catalog);
   h.api.renderNodePaletteItems();
   const expected = {
-    image: ['image', 'input', 'krea2', 'qwen21', 'cyimg_image', 'pose'],
+    image: ['image', 'input', 'krea2', 'krea2_control', 'qwen21', 'cyimg_image', 'pose'],
     video: ['video', 'video_inference', 'cyimg_video', 'video_control'],
     audio: ['audio', 'music_generate', 'music_transcribe', 'music_abc', 'music_score', 'music_compare'],
     enhance: ['upscale', 'topaz', 'topaz_video'],
@@ -68,7 +68,7 @@ test('all 23 registered nodes appear once in five semantic groups', () => {
   };
   assert.deepEqual(Object.fromEntries(h.palette.groups.map(g => [g.dataset.nodeMenuGroup, g.types])), expected);
   const types = h.palette.buttons.map(b => b.type);
-  assert.equal(types.length, 23);
+  assert.equal(types.length, 24);
   assert.equal(new Set(types).size, types.length);
   assert.deepEqual(types.sort(), Array.from(h.catalog, item => item.type).sort());
   assert.equal(JSON.stringify(h.catalog), before, 'catalog/model objects must not be mutated');

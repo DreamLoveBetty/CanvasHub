@@ -206,3 +206,177 @@ route construction now live under `backend/local_image`; Krea modules forward to
 helpers without maintaining another implementation. Qwen uses a separate source checkout
 and model library, not Krea's prepared assets. The server explicitly injects idle-worker
 unload ports into a coordinator used only while holding the shared accelerator lease.
+
+## Experimental area control (2026-10-17)
+
+The **Krea 2 区域控制** canvas node generates an EditUtils-compatible black RGB
+control image with one or two `#FADBAE` ellipses at submission time. The six presets
+are nominal summed area ratios, not stored example images: flat `.0149`, small
+`.0294`, medium `.0322`, large `.0718`, huge `.1395`, gigantic `.1650`. Moving,
+resizing and rotating markers persists normalized geometry. Overlapping/clipped
+ellipses are rasterized as a union; actual pixel coverage is recorded separately.
+An optional image connected to this node is only a local alignment underlay.
+It is never uploaded as an edit source or included in the exported control image.
+
+Connect **区域控制 → Krea 2**, and a text node to Krea 2. The typed edge switches
+the existing Krea node to `control` mode, exposes a dedicated LoKr selector and
+reserves one adapter slot (up to three ordinary LoRAs remain). The locally supplied
+`breasts_control_lrzjason_20261015.safetensors` is recognized and recommended.
+The original filename and content-hash ID remain unchanged; no model conversion
+or additional environment is needed. Other direct LoKr files can be recognized
+structurally, but that alone does not prove they were trained for this control
+protocol. Standard generation and Identity Edit reject LoKr in the ordinary stack.
+
+The existing authenticated `POST /api/krea2/generate` accepts:
+
+```json
+{
+  "prompt": "clothed adult fashion portrait",
+  "mode": "control",
+  "control_adapter_asset_id": "<local content hash>",
+  "control_adapter_scale": 1,
+  "control_reference_kv_cache": false,
+  "control_reference_size": 1024,
+  "control": {
+    "profile": "editutils-area-v1",
+    "circles": [{"cx": 0.5, "cy": 0.48, "rx": 0.1, "ry": 0.08, "angle": 0}]
+  },
+  "width": 832,
+  "height": 1248,
+  "steps": 8
+}
+```
+
+- `control_profile.py` owns validation, deterministic CPU rasterization and
+  control-image preprocessing (reference longest edge, padding, fixed VL size).
+- `lokr.py` owns bounded CPU inspection and explicit LyCORIS-to-Krea aliases.
+  V1 accepts full 2D `lokr_w1`/`lokr_w2` pairs only, rejects decomposed/Tucker/
+  DoRA/conv/mixed formats, and checks layer shapes again against the loaded Base.
+- `lokr_mlx.py` owns reversible worker-local wrappers. It computes the direct
+  Kronecker branch in factorized form rather than expanding ~25.6 GB of deltas.
+  Direct full factors use the external strength without alpha/rank normalization.
+  Wrappers are cleared in `finally`, including error/cancel paths; the ordinary
+  LoRA and warmed Base lifecycle remain upstream-owned.
+- `control_mlx.py` owns independent `[text, target, reference]` conditioning,
+  zero-timestep reference spans and centre-aligned reference positions. It reuses
+  `edit_mlx.encode_grounded_image` as an explicit shared vision port, without
+  changing Identity Edit's sequence, sampler or default image label. Invariant
+  text fusion/projection, initial reference projection, RoPE and zero-time
+  modulation are evaluated once per image, after all adapters are applied.
+- `control_attention_mlx.py` owns optional per-image `ReferenceKV` capture/reuse
+  and native GQA attention/block math, also used without the KV cache. It never
+  monkeypatches the model or changes the pinned vendor files. K/V stay at their
+  original 12 heads rather than being expanded to 48 query heads. First-step
+  post-QK-normalization/post-RoPE K/V are stored with compact buffers.
+  Later steps omit reference queries/MLPs and
+  concatenate the cached K/V. This freezes deeper reference features and is
+  approximate, not equivalent to the full reference path. Caches are rebuilt
+  for each image/seed and cleared in `finally`, including cancellation/errors.
+- `service.py` resolves IDs, renders a per-job control image, queues through the
+  existing shared accelerator lock, and archives the exact control PNG in
+  `YYYY-MM-DD/.krea2-controls/<task-id>.png`. Existing output sidecars record its
+  relative path, geometry, coverage, adapter identity/strength and timing.
+
+This is **experimental area-conditioned generation**, not a local inpainting
+mask. Existing photos + area control + Identity Edit are not validated together;
+both client and server reject that combination rather than silently dropping a
+photo. The optional guide image must connect to the control node, not to Krea 2.
+The `control_reference_size` integer selects the internal VAE reference longest
+edge: **1024 (unchanged default), 768, 512**. The latter two are experimental
+conditioning trade-offs, not equivalent results. Output width/height and the
+VL area-384 preprocessing are unchanged. The server rejects unsupported sizes,
+non-integers and non-default sizes outside control mode. Per-image diagnostics
+include `reference_size`, padded `reference_dimensions`, `reference_tokens` and
+`target_tokens`; requested size is also saved in archive `parameters`.
+Exact constant preparation is always enabled. The optional **参考 KV 加速** node
+switch sends the strict boolean `control_reference_kv_cache` (default `false`,
+control mode only); disabling it recomputes the complete reference block states.
+Enabling it uses frozen-reference approximation without changing steps, geometry,
+strength or output size. Archive `control_acceleration` records the actual cache
+mode, capture/reuse counts and bytes for each image. No cache is reused across
+images, tasks, models, prompts or adapter changes. No universal speed claim. User output dimensions remain authoritative,
+so this is not claimed to be bit-identical to the author's Raw+Turbo Comfy graph.
+
+Portable coverage: `tests/test_krea2_control.py` and
+`tests/test_krea2_control_canvas.cjs`. Machine-only MLX algebra and fixed-seed
+small/large clothed-portrait probes live under `tests/local/`; outputs stay under
+ignored `tests/output/`. The smoke tests validate execution, not broad quality or
+joint-edit compatibility.
+
+The asset index explicitly excludes `.krea2-controls` from output discovery;
+`rglob` alone does not hide dot-directories. Control batches allocate separate
+conditioning/denoise/save progress windows so subsequent images do not reset the
+visible progress bar. Synthetic tests cover both archive filtering and two-image
+progress, as well as reversible bindings after success, exceptions and cancellation.
+
+### Cache acceptance evidence (M2 Max, 96 GiB)
+
+Machine-only probe: `tests/local/probe_krea2_control_cache_local.py`, actual user
+8-bit community Base + direct control LoKr, 720×1280, ten steps, seed 7241 and a
+clothed studio-portrait prompt. Test-only outputs/report under
+`tests/output/krea2-cache-20261017/`:
+
+| Path | Total seconds | Denoise seconds | Difference from original |
+| --- | ---: | ---: | --- |
+| Original recomputation | 344.52 | 338.41 | reference |
+| Prepared constants, full reference | 421.79 | 410.98 | identical pixel hash, MAE 0 |
+| Prepared constants + frozen-reference KV | 254.45 | 246.76 | pixel MAE 2.42/255; folds/detail change |
+
+These are sequential samples, not a controlled thermal benchmark: original
+step times drifted from ~30 to ~43 seconds. Exact preparation eliminates repeated
+operations and preserves pixels but this run does **not** prove an end-to-end
+speedup for that stage. KV-on was ~1.66× faster than the prepared/full-reference
+run, with first step ~37 seconds and subsequent steps ~21–27 seconds. It captured
+28 layers once and reused them nine times, with 396,361,728 cache bytes. Total
+MLX peak allocation remained approximately 38.1 GB in this sample. It is not a
+promise for all prompts/models/machine states, nor evidence of broad quality parity.
+
+Representative real LoKr Q/K/gate/down-layer microprobes measured factorized
+branches at ~19–28% of their corresponding Base projection time (not a percentage
+of whole generation). A flattened-matmul alternative had no consistent advantage;
+it stays test-only. No dense ~25.6 GB delta expansion or weight mutation was added.
+
+### Native GQA / reference-size acceptance (2026-10-18)
+
+On MLX 0.32.2 / the same M2 Max, alternating SDPA microprobes at 6,160 key
+tokens, 48 query heads and 12 K/V heads measured native GQA about 3–4% faster
+than explicitly repeated K/V, with zero output error. Tiny F32/BF16 transformer
+tests preserve the original full-reference predictions; the actual ten-step
+KV-on native/repeated comparison also produced identical pixel hashes.
+However, sequential whole-image times were **212.03 s repeated vs 243.07 s
+native**. This does not establish an end-to-end GQA speedup; machine-state
+variation was not controlled. The change removes needless K/V expansion, not a
+promise of a whole-image speed factor. Standard generation / Identity Edit do
+not use this control-only attention implementation.
+
+The same loaded 8-bit community Base, direct control LoKr, 720×1280 output,
+ten steps, seed 7241 and **KV enabled** produced these single-sample results:
+
+| Reference longest edge | Padded reference | Tokens | Generation seconds | Denoise seconds |
+| --- | --- | ---: | ---: | ---: |
+| 1024 | 576×1024 | 2304 | 243.07 | 233.05 |
+| 768 | 432×768 | 1296 | 213.97 | 207.26 |
+| 512 | 288×512 | 576 | 207.34 | 201.36 |
+
+Generation timing excludes Base loading; these are sequential samples, not a
+statistical benchmark. Relative to the native 1024 sample, 768/512 reduced time
+by about 12%/15%. They are **not quality-equivalent**: visual inspection found
+changed garment texture/folds at 768 and more visible pose/clothing/composition
+changes at 512. Keep 1024 and KV-off as defaults; 768 is an optional trade-off,
+512 a preview experiment. No claims about tiny-marker accuracy from this test.
+Reports/images are local in `tests/output/krea2-next-round/`; use
+`1024-clean/report.json`, not the initial `1024/` run whose recording mock
+retained tensors and invalidated its timing/memory comparison.
+
+### Joint-edit research closed (2026-10-18)
+
+The user reports that the adapter author confirmed area control cannot be used
+with Identity Edit, and explicitly ended this research. This is a closed work
+item, not a pending integration task. Experimental joint/protected-repaint code
+and artifacts have been removed; no production runtime imported them.
+
+Keep independent area-control generation and Identity Edit unchanged, including
+client/API/worker rejection of mixing them and `catalog.control.joint_edit=false`.
+Do not remove those guards or restart the experiments based on older plans.
+See [closure and handoff](JOINT_EDIT_RESEARCH_CLOSED.md) for the scoped decision,
+retained findings, exact cleanup inventory and maintenance boundaries.

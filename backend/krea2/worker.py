@@ -96,6 +96,7 @@ class Engine:
         self.model_name = ""
         self.model_signature = ""
         self.safety_classifier = None
+        self.control_binding = None
 
     @property
     def cache(self):
@@ -112,6 +113,9 @@ class Engine:
         return self.cache / folder / filename, self.cache / "krea__Krea-2-Turbo"
 
     def unload(self):
+        if self.control_binding is not None:
+            self.control_binding.clear()
+            self.control_binding = None
         if self.pipeline is not None:
             try:
                 self.pipeline.set_loras([])
@@ -178,6 +182,16 @@ class Engine:
         return self.safety_classifier
 
     def run(self, request):
+        try:
+            return self._run(request)
+        finally:
+            # Control never leaks into a later standard/Identity Edit job,
+            # including cancellation and exceptions during conditioning.
+            if self.control_binding is not None:
+                self.control_binding.clear()
+                self.control_binding = None
+
+    def _run(self, request):
         total_started = time.perf_counter()
         job_id = str(request.get("job_id") or "")
         job_dir = Path(str(request.get("job_dir") or "")).resolve()
@@ -188,6 +202,19 @@ class Engine:
         spec = request.get("spec")
         if not isinstance(spec, dict):
             raise ValueError("Krea 2 worker 参数无效")
+        mode = str(spec.get("mode") or "standard")
+        control_adapter = spec.get("control_adapter")
+        control_image = spec.get("control_image")
+        if mode == "control":
+            if any(spec.get(key) for key in ("init_image", "edit_image", "edit_adapter")):
+                raise ValueError("原图与区域控制联合编辑尚未验证，不能混用")
+            if not control_adapter or not control_image:
+                raise ValueError("区域控制缺少控制图或专用适配器")
+            control_path = Path(str(control_image)).resolve()
+            if not control_path.is_file() or not control_path.is_relative_to(job_dir):
+                raise ValueError("区域控制图不存在或不属于任务目录")
+        elif control_adapter or control_image:
+            raise ValueError("区域控制参数只能用于 control 模式")
         load_started = time.perf_counter()
         pipe = self.load(spec.get("model") or str(spec.get("precision") or "8bit"), cancelled)
         model_load_seconds = time.perf_counter() - load_started
@@ -207,6 +234,12 @@ class Engine:
             raise Cancelled("任务已取消")
         emit("progress", ratio=0.14, stage="应用 LoRA" if loras else "准备生成")
         pipe.set_loras(loras)
+        if mode == "control":
+            from backend.krea2.lokr_mlx import LoKrBinding
+            self.control_binding = LoKrBinding()
+            emit("progress", ratio=0.15, stage="载入区域控制 LoKr")
+            self.control_binding.apply(pipe.transformer, control_adapter["path"],
+                                       control_adapter.get("scale", 1))
         safety_enabled = spec.get("safety_enabled") is True
         classifier = self.safety() if safety_enabled else None
         if safety_enabled:
@@ -235,6 +268,7 @@ class Engine:
         elif edit_image or edit_adapter:
             raise ValueError("编辑源图和编辑 LoRA 只能用于指令编辑模式")
         paths, flagged = [], 0
+        control_acceleration = []
         denoise_seconds = 0.0
         save_seconds = 0.0
         for index in range(count):
@@ -253,11 +287,36 @@ class Engine:
                 effective_total = max(1, int(total))
                 completed_images = image_index + min(effective_total, max(0, int(step))) / effective_total
                 ratio = 0.16 + (completed_images / max(1, count)) * 0.72
+                if mode == "control":
+                    # Each image owns a conditioning/denoise/save window;
+                    # later images must not reset progress to the load phase.
+                    fraction = min(effective_total, max(0, int(step))) / effective_total
+                    ratio = .16 + (image_index + .05 + .9 * fraction) / count * .78
                 emit("progress", ratio=ratio,
                      stage=f"生成第 {image_index + 1}/{count} 张 · {step}/{total} 步")
 
             generate_started = time.perf_counter()
-            if mode == "edit":
+            if mode == "control":
+                from backend.krea2.control_mlx import generate_control
+
+                def on_control_phase(ratio, stage):
+                    if cancelled():
+                        raise Cancelled("任务已取消")
+                    progress = .16 + (index + .05 * min(1, max(0, ratio))) / count * .78
+                    emit("progress", ratio=progress, stage=stage)
+
+                diagnostics = {}
+                images = generate_control(
+                    pipe, spec["prompt"], control_image=str(control_path),
+                    text_encoder_path=self.cache / "krea__Krea-2-Turbo" / "text_encoder" / "model.safetensors",
+                    width=int(spec["width"]), height=int(spec["height"]), steps=steps,
+                    seed=int(spec["seed"]) + index, step_callback=on_step,
+                    phase_callback=on_control_phase,
+                    reference_kv_cache=spec.get("control_reference_kv_cache") is True,
+                    reference_size=spec.get("control_reference_size", 1024),
+                    diagnostics=diagnostics)
+                control_acceleration.append(diagnostics)
+            elif mode == "edit":
                 # Worker-local module: the HTTP process never imports MLX and
                 # normal generation keeps using the pinned upstream pipeline.
                 from edit_mlx import generate_edit
@@ -293,8 +352,10 @@ class Engine:
             image = images[0]
             score = None
             was_flagged = False
+            save_progress = (.16 + (index + .99) / count * .78 if mode == "control"
+                             else .89 + (index / max(1, count)) * .05)
             if safety_enabled:
-                emit("progress", ratio=0.89 + (index / max(1, count)) * 0.05,
+                emit("progress", ratio=save_progress,
                      stage=f"安全检查第 {index + 1}/{count} 张")
                 score = float(nsfw_score(classifier, image))
                 was_flagged = score >= 0.85
@@ -302,7 +363,7 @@ class Engine:
                     image = _redact(image)
                     flagged += 1
             else:
-                emit("progress", ratio=0.89 + (index / max(1, count)) * 0.05,
+                emit("progress", ratio=save_progress,
                      stage=f"保存第 {index + 1}/{count} 张")
             path = output / f"result_{index + 1}.png"
             save_started = time.perf_counter()
@@ -317,13 +378,16 @@ class Engine:
             denoise_seconds,
             save_seconds,
         )
-        return {"paths": paths, "flagged": flagged, "precision": self.precision,
+        result = {"paths": paths, "flagged": flagged, "precision": self.precision,
                 "base_model_id": self.model_id or str(spec.get("base_model_id") or ""),
                 "base_model_name": self.model_name or str(spec.get("base_model_name") or ""),
                 "seed": int(spec["seed"]), "mode": mode,
                 "safety_enabled": safety_enabled,
                 "safety_threshold": 0.85 if safety_enabled else None,
                 "generation_timing": timing}
+        if mode == "control":
+            result["control_acceleration"] = control_acceleration
+        return result
 
 
 def main():
