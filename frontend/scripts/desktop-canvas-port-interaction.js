@@ -33,6 +33,7 @@
     floatingSwellSpringStep,
     getAnchor,
     getNodeState,
+    imageGroupContentBounds,
     normalizePortSide,
     portOutwardVector,
     prefersReducedMotion,
@@ -63,17 +64,17 @@
       : borderTop + length(style.borderBottomWidth) + length(style.paddingTop) + length(style.paddingBottom);
     const nodeWidth = cssWidth ? cssWidth + horizontalInset : nodeElement.offsetWidth || Number(getNodeState(nodeElement.dataset.nodeId)?.width || 0);
     const nodeHeight = cssHeight ? cssHeight + verticalInset : nodeElement.offsetHeight || Number(getNodeState(nodeElement.dataset.nodeId)?.height || 0);
-    const liquidBase = nodeElement.matches('.desk-node--image-group')
-      ? nodeElement.querySelector('[data-image-group-liquid-base]')
-      : null;
-    if (!liquidBase) {
+    // An image group has no panel: the swell grows from its thumbnails' footprint.
+    const groupNode = nodeElement.matches('.desk-node--image-group') ? getNodeState(nodeElement.dataset.nodeId) : null;
+    const body = groupNode ? imageGroupContentBounds(groupNode) : null;
+    if (!body) {
       return { nodeWidth, nodeHeight, borderLeft, borderTop, x: 0, y: 0, width: nodeWidth, height: nodeHeight, radius };
     }
-    const baseX = clamp(Number(liquidBase.getAttribute('x')) || 0, 0, nodeWidth);
-    const baseY = clamp(Number(liquidBase.getAttribute('y')) || 0, 0, nodeHeight);
-    const baseWidth = clamp(Number(liquidBase.getAttribute('width')) || nodeWidth, 0, nodeWidth - baseX);
-    const baseHeight = clamp(Number(liquidBase.getAttribute('height')) || nodeHeight, 0, nodeHeight - baseY);
-    const baseRadius = Math.max(0, Number(liquidBase.getAttribute('rx')) || radius);
+    const baseX = clamp(body.x, 0, nodeWidth);
+    const baseY = clamp(body.y, 0, nodeHeight);
+    const baseWidth = clamp(body.width, 0, nodeWidth - baseX);
+    const baseHeight = clamp(body.height, 0, nodeHeight - baseY);
+    const baseRadius = Math.max(0, body.radius);
     const outset = IMAGE_GROUP_LIQUID_VISIBLE_OUTSET_PX;
     return {
       nodeWidth,

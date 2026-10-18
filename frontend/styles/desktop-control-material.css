@@ -27,13 +27,15 @@
   --desk-control-face-ink: #e7ecf1;
 }
 
-/* The production button is the key cap. */
+/* The production button is the key cap. Upstream's cap has no border: a production border,
+   even transparent, keeps the chamfer lines (inset shadows) and the dish (::after) one
+   pixel inside the edge, and that bare strip read as a light rim inside the well. */
 #deskApp[data-control-material="ambient"] :is(.desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key), .desk-settings :is(.desk-settings-form__actions, .desk-settings-account__actions, .desk-lora-actions, .desk-qwen21-tools__inspection, .desk-qwen21-tools__model, .desk-qwen21-tools__progress, .desk-krea2-tools__model, .desk-krea2-tools__progress) > button, .desk-settings .desk-color-bloom__control > .desk-button) {
   position: relative;
   isolation: isolate;
   --amb-thickness: var(--desk-control-depth);
   --amb-chamfer-width: .65;
-  border-color: transparent;
+  border-width: 0;
   background-image: none;
   color: var(--desk-control-face-ink, var(--amb-label));
   text-shadow: none;
@@ -71,7 +73,24 @@
   opacity: .62;
   cursor: not-allowed;
 }
-#deskApp[data-control-material="ambient"] :is(.desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key), .desk-settings :is(.desk-settings-form__actions, .desk-settings-account__actions, .desk-lora-actions, .desk-qwen21-tools__inspection, .desk-qwen21-tools__model, .desk-qwen21-tools__progress, .desk-krea2-tools__model, .desk-krea2-tools__progress) > button, .desk-settings .desk-color-bloom__control > .desk-button):focus-visible {
+/* Well (upstream .amb-button): a matte or shiny cap is seated in a half-grid (2px)
+   clearance ring floored with the panel's lume, the dark outline the reference draws
+   round every key. Production layout owns the button box, so the ring is an outline:
+   no layout shift, and it rounds concentric with each button's own radius. Not carried
+   over: the well's groove shading (seat depth .27, under 1px on a 2px ring). Glass keeps
+   its own shadow ring (::before). The dark theme presses the lume toward black like the
+   Select rail; focus relights the ring in the accent. */
+#deskApp[data-control-material="ambient"]:not([data-control-finish="glass"]) :is(.desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key), .desk-settings :is(.desk-settings-form__actions, .desk-settings-account__actions, .desk-lora-actions, .desk-qwen21-tools__inspection, .desk-qwen21-tools__model, .desk-qwen21-tools__progress, .desk-krea2-tools__model, .desk-krea2-tools__progress) > button, .desk-settings .desk-color-bloom__control > .desk-button) {
+  outline: var(--ambx-grid-half) solid var(--amb-lume);
+  outline-offset: 0;
+}
+#deskApp[data-control-material="ambient"][data-theme="dark"]:not([data-control-finish="glass"]) :is(.desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key), .desk-settings :is(.desk-settings-form__actions, .desk-settings-account__actions, .desk-lora-actions, .desk-qwen21-tools__inspection, .desk-qwen21-tools__model, .desk-qwen21-tools__progress, .desk-krea2-tools__model, .desk-krea2-tools__progress) > button, .desk-settings .desk-color-bloom__control > .desk-button) {
+  outline-color: color-mix(in oklab, var(--amb-lume), black 55%);
+}
+#deskApp[data-control-material="ambient"]:not([data-control-finish="glass"]) :is(.desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key), .desk-settings :is(.desk-settings-form__actions, .desk-settings-account__actions, .desk-lora-actions, .desk-qwen21-tools__inspection, .desk-qwen21-tools__model, .desk-qwen21-tools__progress, .desk-krea2-tools__model, .desk-krea2-tools__progress) > button, .desk-settings .desk-color-bloom__control > .desk-button):focus-visible {
+  outline-color: var(--amb-highlight-color);
+}
+#deskApp[data-control-material="ambient"][data-control-finish="glass"] :is(.desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key), .desk-settings :is(.desk-settings-form__actions, .desk-settings-account__actions, .desk-lora-actions, .desk-qwen21-tools__inspection, .desk-qwen21-tools__model, .desk-qwen21-tools__progress, .desk-krea2-tools__model, .desk-krea2-tools__progress) > button, .desk-settings .desk-color-bloom__control > .desk-button):focus-visible {
   outline: 2px solid var(--amb-highlight-color);
   outline-offset: 2px;
 }
@@ -128,6 +147,8 @@
    with the panel's lume. Each button is a key pocket (floor = --amb-lit); its ::before is
    the LED lens and its ::after the frosted diffuser cap — generated rules paint both, so
    the markup stays one element per option and the legend is the button's own text.
+   Keys are borderless like upstream's: the cap covers the padding box only, so a
+   production border left a ring of bare floor, a light rim round every key.
    Selected: the lens lights in the lamp colour (--amb-led-color, else the accent), the
    cap floods with it, light spills onto the rail and the legend silhouettes against it.
    Not carried over: the cap's glass shadow ring (it would need a third layer). */
@@ -135,7 +156,6 @@
   --amb-thickness: .27;
   background-color: var(--amb-lume);
   background-image: none;
-  border-color: transparent;
 }
 /* Dark theme (our adaptation): upstream lume does not follow the theme (~#404040 under
    the 0.9 key light), which is lighter than the dark cards and as light as the keys, so
@@ -164,7 +184,7 @@
   border-radius: var(--ambx-radius-md);
   position: relative;
   isolation: isolate;
-  border-color: transparent;
+  border-width: 0;
   background-color: var(--amb-lit);
   background-image: none;
   box-shadow: none;
@@ -186,6 +206,16 @@
   pointer-events: none;
   animation: none;
 }
+/* Lens placement (our adaptation): upstream's lens is a disc 62% of the key height,
+   centred, which on its square 44px key leaves an even rim for the diffuser to fade
+   across. Production keys are wide and flat, where the same disc is a small blot behind
+   the legend and the glow falls off unevenly. The lens follows the key's own shape: inset
+   on every side by that rim (19% of a 24-32px key) and rounded concentric with the key,
+   so the lamp fills the key and fades evenly toward all four edges, whatever its width. */
+#deskApp[data-control-material="ambient"] :is(.desk-node, .desk-settings) .desk-key-bank > button::before {
+  inset: calc(var(--ambx-grid) * 1.25);
+  border-radius: calc(var(--ambx-radius-md) - var(--ambx-grid) * 1.25);
+}
 #deskApp[data-control-material="ambient"] :is(.desk-node, .desk-settings) .desk-key-bank > button::after {
   position: absolute;
   inset: 0;
@@ -203,6 +233,14 @@
 #deskApp[data-control-material="ambient"] :is(.desk-node, .desk-settings) .desk-key-bank > button:is(.is-active, [aria-pressed="true"]) {
   color: color-mix(in oklab, var(--_ambx-sel-color), black 68%);
   cursor: default;
+}
+/* Lit lens (our adaptation of upstream's plain lamp colour): a lamp is a light, but the
+   accent may be grey, and a grey disc is darker than the white pocket floor, so through
+   the diffuser it read as a dark blot in the middle of the key instead of a glow. Low-chroma
+   lamps are lifted toward the floor's tone (fully at chroma 0, fading out by chroma .21);
+   saturated lamps such as the coral default keep their own colour. */
+#deskApp[data-control-material="ambient"] :is(.desk-node, .desk-settings) .desk-key-bank > button:is(.is-active, [aria-pressed="true"])::before {
+  background-color: oklch(from var(--_ambx-sel-color) max(l, calc(.84 - c * 4)) c h);
 }
 #deskApp[data-control-material="ambient"] :is(.desk-node, .desk-settings) .desk-key-bank > button:disabled {
   cursor: not-allowed;
@@ -294,7 +332,8 @@
 
 /* Text fields · a groove cut into the panel (upstream .amb-groove bodies, generated), on their
    own opt-in (data-field-style="groove", set by desktop-control-material.js) so they do not
-   follow the button material. Fields
+   follow the button material. Borderless, like every groove: inset shadows stop at the
+   padding box, so a production border left a bare strip outside the recess. Fields
    stay neutral panel material whatever the key colour or glass tint (a brass or teal text
    box reads as a control, not a field): upstream's default albedo and light by day, the
    graphite body at night. Focus lights a ring in the app's own theme accent (blue by day,
@@ -305,7 +344,7 @@
   --amb-light-hue: 234;
   --amb-light-saturation: 15%;
   --amb-thickness: .45;
-  border-color: transparent;
+  border-width: 0;
   background-image: none;
 }
 #deskApp[data-field-style="groove"][data-theme="dark"] :is(.desk-node, .desk-settings) :is(input:is([type="text"], [type="number"], [type="password"], [type="email"], [type="url"], :not([type])), textarea.desk-settings-textarea):not(.desk-select):not(.desk-settings-search__input):not(.desk-text-node__alias input) {

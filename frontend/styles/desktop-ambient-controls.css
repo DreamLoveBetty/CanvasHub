@@ -868,16 +868,9 @@
   opacity: 0.4;
 }
 
-/* components.css: .amb-select-lens */
+/* components.css: .amb-select-lens (omitted: left, top, transform, height, aspect-ratio, border-radius) */
 #deskApp[data-control-material="ambient"] :is(.desk-node, .desk-settings) .desk-key-bank > button::before {
   position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  height: 62%;
-  aspect-ratio: 1;          /* off the HEIGHT, so a widened key keeps a
-                               round lamp rather than an overflowing one */
-  border-radius: 50%;
   /* Unlit, the lens is a tinted lens body, not an off pixel: it sits
      between the floor's lit tone and the same material at 0.38 of its
      reflectance (the mid-tone plate the rig calls DARKER_ALBEDO, taken
@@ -898,11 +891,6 @@
     var(--_ambx-sel-color) 6%
   );
   transition: background-color 140ms ease;
-}
-
-/* components.css: .amb-select .ambx-key[data-on] .amb-select-lens */
-#deskApp[data-control-material="ambient"] :is(.desk-node, .desk-settings) .desk-key-bank > button:is(.is-active, [aria-pressed="true"])::before {
-  background-color: var(--_ambx-sel-color);
 }
 
 /* components.css: .amb-select .ambx-key[data-on] .amb-select-cap */

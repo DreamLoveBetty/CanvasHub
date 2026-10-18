@@ -702,63 +702,41 @@ body.desk-app {
   --desk-node-text-alias-border: rgba(var(--desk-blue-secondary-rgb), 0.18);
   --desk-node-text-alias-shadow: 0 10px 22px rgba(var(--desk-blue-midnight-rgb), 0.08);
 
-  /* Image-group material and controls. Geometry and the liquid/sort timing
+  /* Image-group material and controls. Geometry and the picker/sort timing
      remain component-owned; only theme-dependent paint is centralized here. */
   --desk-image-group-surface-background: transparent;
   --desk-image-group-surface-border: var(--desk-blue-ink);
   --desk-image-group-surface-shadow: none;
-  --desk-image-group-silhouette-filter:
-    drop-shadow(0 2.4px 4.8px rgba(17, 38, 42, 0.08))
-    drop-shadow(0 16.8px 33.6px rgba(31, 57, 61, 0.16));
-  --desk-image-group-liquid-fill: rgba(255, 255, 255, 0.99);
   --desk-image-group-selection-border: var(--desk-canvas-selection-stroke);
   --desk-image-group-selection-shadow: none;
-  --desk-image-group-title-ink: var(--desk-blue-ink);
-  --desk-image-group-meta-ink: var(--desk-blue-secondary);
   --desk-image-group-item-background: transparent;
   --desk-image-group-item-border: var(--desk-blue-ink);
   --desk-image-group-item-shadow: none;
   --desk-image-group-item-drag-filter: drop-shadow(0 14.4px 18px rgba(17, 38, 42, 0.2));
   --desk-image-group-thumb-background: rgba(var(--desk-blue-royal-rgb), 0.14);
   --desk-image-group-thumb-shadow: 0 12px 31.2px rgba(var(--desk-blue-midnight-rgb), 0.2);
+  --desk-image-group-thumb-sheen: rgba(255, 255, 255, 0.42);
+  --desk-image-group-hover-border: color-mix(in srgb, var(--desk-image-group-selection-border) 50%, transparent);
   --desk-image-group-badge-ink: #ffffff;
   --desk-image-group-badge-background: rgba(18, 39, 42, 0.78);
   --desk-image-group-badge-border: rgba(255, 255, 255, 0.9);
   --desk-image-group-badge-shadow: 0 4.8px 14.4px rgba(0, 0, 0, 0.2);
 
-  --desk-image-group-item-actions-background: rgba(244, 248, 253, 0.92);
-  --desk-image-group-item-actions-border: rgba(var(--desk-blue-secondary-rgb), 0.14);
-  --desk-image-group-item-actions-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
-  --desk-image-group-control-ink: var(--desk-blue-ink);
-  --desk-image-group-control-background: rgba(255, 255, 255, 0.92);
-  --desk-image-group-control-border: rgba(var(--desk-blue-secondary-rgb), 0.16);
-  --desk-image-group-control-accent-ink: var(--desk-blue-royal);
-  --desk-image-group-control-hover-ink: #ffffff;
-  --desk-image-group-control-hover-background: var(--desk-blue-royal);
-  --desk-image-group-control-hover-border: var(--desk-blue-royal);
-  --desk-image-group-role-trigger-ink: var(--desk-blue-ink);
-  --desk-image-group-role-trigger-background: rgba(255, 255, 255, 0.92);
-  --desk-image-group-role-trigger-border: rgba(var(--desk-blue-secondary-rgb), 0.16);
-  --desk-image-group-role-trigger-shadow: none;
-  --desk-image-group-role-chevron: var(--desk-blue-royal);
-  --desk-image-group-role-trigger-hover-ink: var(--desk-blue-ink);
-  --desk-image-group-role-trigger-hover-background: #ffffff;
-  --desk-image-group-role-trigger-hover-border: rgba(var(--desk-blue-royal-rgb), 0.34);
-  --desk-image-group-role-trigger-focus-ink: var(--desk-blue-ink);
-  --desk-image-group-role-trigger-focus-background: #ffffff;
-  --desk-image-group-role-trigger-focus-border: rgba(var(--desk-blue-royal-rgb), 0.58);
-  --desk-image-group-role-trigger-focus-shadow: 0 0 0 2.4px rgba(var(--desk-blue-royal-rgb), 0.1);
-  --desk-image-group-role-menu-ink: var(--desk-blue-ink);
-  --desk-image-group-role-menu-background: rgba(250, 252, 255, 0.98);
-  --desk-image-group-role-menu-border: rgba(var(--desk-blue-secondary-rgb), 0.18);
-  --desk-image-group-role-menu-shadow: 0 10.8px 25.2px rgba(var(--desk-blue-midnight-rgb), 0.2);
-  --desk-image-group-role-option-ink: var(--desk-blue-ink);
-  --desk-image-group-role-option-active-ink: var(--desk-action-primary-ink);
-  --desk-image-group-role-option-active-background: var(--desk-action-primary-gradient);
+  /* Role chip, prompt-reference button and the morph role picker on the thumbnails. */
+  --desk-image-group-thumb-control-ink: var(--desk-blue-ink);
+  --desk-image-group-thumb-control-background: rgba(255, 255, 255, 0.92);
+  --desk-image-group-thumb-control-shadow: 0 4px 12px rgba(var(--desk-blue-midnight-rgb), 0.18);
+  --desk-image-group-thumb-control-hover-ink: var(--desk-blue-royal);
+  --desk-image-group-picker-fill: #ffffff;
+  --desk-image-group-picker-goo-opacity: 0.34;
+  --desk-image-group-picker-glass: rgba(255, 255, 255, 0.24);
+  --desk-image-group-picker-glass-edge: inset 0 0 0 1px rgba(255, 255, 255, 0.62), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  --desk-image-group-picker-glass-shadow: 0 6px 16px rgba(var(--desk-blue-midnight-rgb), 0.22);
+  --desk-image-group-picker-backdrop: blur(10px) saturate(1.6);
+  --desk-image-group-picker-ink: var(--desk-blue-ink);
+  --desk-image-group-picker-current-ink: var(--desk-blue-royal);
+  --desk-image-group-picker-focus: var(--desk-blue-royal);
 
-  --desk-image-group-node-actions-background: rgba(255, 255, 255, 0.9);
-  --desk-image-group-node-actions-border: rgba(var(--desk-blue-secondary-rgb), 0.14);
-  --desk-image-group-node-actions-shadow: 0 9.6px 24px rgba(var(--desk-blue-midnight-rgb), 0.14);
   --desk-image-group-node-action-ink: var(--desk-blue-secondary);
   --desk-image-group-node-action-background: transparent;
   --desk-image-group-node-action-border: var(--desk-blue-secondary);
@@ -777,11 +755,6 @@ body.desk-app {
   --desk-image-group-transition-goo-background: #ffffff;
   --desk-image-group-transition-goo-shadow: 0 10px 24px rgba(17, 38, 42, 0.18);
   --desk-image-group-transition-image-shadow: 0 12px 28px rgba(17, 38, 42, 0.26);
-  --desk-image-group-transition-liquid-filter:
-    drop-shadow(0 2px 4px rgba(17, 38, 42, 0.08))
-    drop-shadow(0 15px 30px rgba(17, 38, 42, 0.18));
-  --desk-image-group-transition-title-ink: var(--desk-blue-ink);
-  --desk-image-group-transition-meta-ink: var(--desk-blue-placeholder);
   --desk-image-group-transition-chip-shadow-color: rgba(17, 38, 42, 0.22);
   --desk-image-group-transition-chip-incoming-shadow-color: rgba(17, 38, 42, 0.28);
   --desk-image-group-transition-badge-shadow-color: rgba(0, 0, 0, 0.2);
@@ -2019,8 +1992,6 @@ body.desk-app {
   --desk-compare-tools-shadow: 0 4px 16px rgba(15, 35, 60, 0.16);
   --desk-compare-tools-button-hover: rgba(84, 137, 206, 0.25);
   /* Image group layers moved into desktop-image-group-geometry.css and the performance layer. */
-  --desk-image-group-pan-shadow: drop-shadow(0 2px 5px rgba(17, 38, 42, 0.1));
-  --desk-image-group-role-native-border: rgba(67, 86, 106, 0.16);
 }
 
 body.desk-app[data-theme="dark"] {
@@ -2647,58 +2618,35 @@ body.desk-app[data-theme="dark"] {
   --desk-image-group-surface-background: transparent;
   --desk-image-group-surface-border: #edf2f3;
   --desk-image-group-surface-shadow: none;
-  --desk-image-group-silhouette-filter:
-    drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3))
-    drop-shadow(0 15px 30px rgba(0, 0, 0, 0.38));
-  --desk-image-group-liquid-fill: #252a2c;
   --desk-image-group-selection-border: var(--desk-canvas-selection-stroke);
   --desk-image-group-selection-shadow: 0 0 0 3px rgba(255, 106, 34, 0.11);
-  --desk-image-group-title-ink: #f2f4f4;
-  --desk-image-group-meta-ink: rgba(213, 220, 221, 0.62);
   --desk-image-group-item-background: transparent;
   --desk-image-group-item-border: transparent;
   --desk-image-group-item-shadow: none;
   --desk-image-group-item-drag-filter: drop-shadow(0 14.4px 18px rgba(17, 38, 42, 0.2));
   --desk-image-group-thumb-background: rgba(255, 90, 31, 0.18);
   --desk-image-group-thumb-shadow: 0 6px 16px rgba(0, 0, 0, 0.42);
+  --desk-image-group-thumb-sheen: rgba(255, 255, 255, 0.22);
+  --desk-image-group-hover-border: color-mix(in srgb, var(--desk-image-group-selection-border) 50%, transparent);
   --desk-image-group-badge-ink: #ffffff;
   --desk-image-group-badge-background: rgba(18, 39, 42, 0.78);
   --desk-image-group-badge-border: rgba(255, 255, 255, 0.9);
   --desk-image-group-badge-shadow: 0 4.8px 14.4px rgba(0, 0, 0, 0.2);
 
-  --desk-image-group-item-actions-background: rgba(37, 42, 44, 0.96);
-  --desk-image-group-item-actions-border: rgba(255, 255, 255, 0.08);
-  --desk-image-group-item-actions-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
-  --desk-image-group-control-ink: rgba(224, 229, 230, 0.82);
-  --desk-image-group-control-background: rgba(48, 55, 57, 0.9);
-  --desk-image-group-control-border: rgba(255, 255, 255, 0.08);
-  --desk-image-group-control-accent-ink: rgba(224, 229, 230, 0.82);
-  --desk-image-group-control-hover-ink: #ffffff;
-  --desk-image-group-control-hover-background: #d9571f;
-  --desk-image-group-control-hover-border: #ff8a4d;
-  --desk-image-group-role-trigger-ink: rgba(237, 242, 243, 0.92);
-  --desk-image-group-role-trigger-background: rgba(48, 55, 57, 0.94);
-  --desk-image-group-role-trigger-border: rgba(255, 255, 255, 0.09);
-  --desk-image-group-role-trigger-shadow: none;
-  --desk-image-group-role-chevron: #ff8a4d;
-  --desk-image-group-role-trigger-hover-ink: #ffffff;
-  --desk-image-group-role-trigger-hover-background: rgba(55, 63, 65, 0.98);
-  --desk-image-group-role-trigger-hover-border: rgba(255, 138, 77, 0.32);
-  --desk-image-group-role-trigger-focus-ink: #ffffff;
-  --desk-image-group-role-trigger-focus-background: rgba(48, 55, 57, 0.98);
-  --desk-image-group-role-trigger-focus-border: rgba(255, 106, 34, 0.54);
-  --desk-image-group-role-trigger-focus-shadow: 0 0 0 4px rgba(255, 90, 31, 0.12);
-  --desk-image-group-role-menu-ink: rgba(237, 242, 243, 0.92);
-  --desk-image-group-role-menu-background: rgba(27, 32, 34, 0.98);
-  --desk-image-group-role-menu-border: rgba(255, 255, 255, 0.09);
-  --desk-image-group-role-menu-shadow: 0 18px 42px rgba(0, 0, 0, 0.4);
-  --desk-image-group-role-option-ink: rgba(237, 242, 243, 0.9);
-  --desk-image-group-role-option-active-ink: var(--desk-action-primary-ink);
-  --desk-image-group-role-option-active-background: var(--desk-action-primary-gradient);
+  --desk-image-group-thumb-control-ink: #edf2f3;
+  --desk-image-group-thumb-control-background: rgba(35, 40, 42, 0.92);
+  --desk-image-group-thumb-control-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  --desk-image-group-thumb-control-hover-ink: #ff8a4d;
+  --desk-image-group-picker-fill: #262c2e;
+  --desk-image-group-picker-goo-opacity: 0.4;
+  --desk-image-group-picker-glass: rgba(30, 35, 37, 0.32);
+  --desk-image-group-picker-glass-edge: inset 0 0 0 1px rgba(255, 255, 255, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  --desk-image-group-picker-glass-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+  --desk-image-group-picker-backdrop: blur(10px) saturate(1.4);
+  --desk-image-group-picker-ink: #edf2f3;
+  --desk-image-group-picker-current-ink: #ff8a4d;
+  --desk-image-group-picker-focus: #ff8a4d;
 
-  --desk-image-group-node-actions-background: rgba(35, 40, 42, 0.96);
-  --desk-image-group-node-actions-border: rgba(255, 255, 255, 0.08);
-  --desk-image-group-node-actions-shadow: 0 10px 26px rgba(0, 0, 0, 0.38);
   --desk-image-group-node-action-ink: rgba(224, 229, 230, 0.82);
   --desk-image-group-node-action-background: rgba(48, 55, 57, 0.9);
   --desk-image-group-node-action-border: rgba(255, 255, 255, 0.08);
@@ -2717,11 +2665,6 @@ body.desk-app[data-theme="dark"] {
   --desk-image-group-transition-goo-background: #ffffff;
   --desk-image-group-transition-goo-shadow: 0 10px 24px rgba(17, 38, 42, 0.18);
   --desk-image-group-transition-image-shadow: 0 12px 28px rgba(17, 38, 42, 0.26);
-  --desk-image-group-transition-liquid-filter:
-    drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3))
-    drop-shadow(0 15px 30px rgba(0, 0, 0, 0.38));
-  --desk-image-group-transition-title-ink: #f2f4f4;
-  --desk-image-group-transition-meta-ink: rgba(213, 220, 221, 0.62);
   --desk-image-group-transition-chip-shadow-color: rgba(0, 0, 0, 0.42);
   --desk-image-group-transition-chip-incoming-shadow-color: rgba(0, 0, 0, 0.48);
   --desk-image-group-transition-badge-shadow-color: rgba(0, 0, 0, 0.2);
@@ -3904,8 +3847,6 @@ body.desk-app[data-theme="dark"] {
   --desk-compare-tools-shadow: 0 4px 16px rgba(15, 35, 60, 0.16);
   --desk-compare-tools-button-hover: rgba(84, 137, 206, 0.25);
   /* Image group layers moved into desktop-image-group-geometry.css and the performance layer. */
-  --desk-image-group-pan-shadow: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.24));
-  --desk-image-group-role-native-border: rgba(67, 86, 106, 0.16);
 }
 
 @media (prefers-reduced-motion: reduce) {

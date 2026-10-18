@@ -16,7 +16,7 @@ referenced files.
 | Tabler Icons | `frontend/assets/image-editor-icons/*.svg`, `frontend/assets/image-editor-cursors/*.svg` | MIT License. See `frontend/assets/image-editor-icons/TABLER_LICENSE.md` and `frontend/assets/image-editor-cursors/TABLER_LICENSE.md`. |
 | Lucide icons | `frontend/assets/icons/*.svg` | ISC License, with Feather MIT notice for derived icons. See `frontend/assets/icons/LUCIDE_LICENSE.md`; newer bundled SVG files may also include `@license lucide-static v1.23.0 - ISC` comments. |
 | Ambient CSS (commit f829df7) | `frontend/vendor/ambientcss/ambient.css`, `frontend/vendor/ambientcss/components.css`; generated subset `frontend/styles/desktop-ambient-controls.css` | MIT License. See `frontend/vendor/ambientcss/LICENSE` and `frontend/vendor/ambientcss/README.md` (upstream paths and SHA-256). |
-| liquid-gooey image melt (commit b7c588f) | ported to `frontend/scripts/desktop-canvas-image-group-melt.js` (no upstream file bundled) | MIT License. See `frontend/vendor/liquid-gooey/LICENSE` and `frontend/vendor/liquid-gooey/README.md` (upstream path, SHA-256 and differences). |
+| liquid-gooey image melt and morph (commit b7c588f) | ported to `frontend/scripts/desktop-canvas-image-group-melt.js` and `frontend/scripts/desktop-canvas-image-group-role-picker.js` (no upstream file bundled) | MIT License. See `frontend/vendor/liquid-gooey/LICENSE` and `frontend/vendor/liquid-gooey/README.md` (upstream paths, SHA-256 and differences). |
 
 ## Pose / 3D Assets
 

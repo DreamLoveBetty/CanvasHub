@@ -392,6 +392,7 @@ suffix:
 | `image-group-model` | Image-group items/roles/sizes, grouping/ungrouping, edge migration, persisted item ordering, node presentation and image-role prompt constraints. | Gesture timing, FLIP/proximity effects and prompt-token DOM updates. |
 | `image-group-melt` | Pairwise image melt of the incoming photo and its nearest target thumbnail (goo on colour, marble pass, seam-erase masks) in one SVG sized to the pair's bounding box; a vanilla port of liquid-gooey's image melt, explicitly injected into interaction. | No graph state, pointer/RAF lifecycle, timers, partner choice or model mutation; the controller passes geometry and the eased proximity. |
 | `image-group-interaction` | Group sorting gestures, FLIP/merge/split effects, proximity dwell/preview/release/drop and item focus interactions. | Actual group mutations are submitted through model callbacks. |
+| `image-group-role-picker` | The per-thumbnail morph role picker, opened by a tap on the thumbnail (or Enter/Space on the image): options spring out of the thumbnail centre onto a ring over a goo-filtered blob layer (a vanilla port of liquid-gooey's morph merge), with keyboard, Escape and outside-press closing. | No event binding, persistence or prompt-token updates: the sort gesture reports taps, the host forwards clicks/keys/pointers and commits the role through `onSelect`. The role tag on the thumbnail is display-only model markup. |
 | `image-editor-tools` | Fabric object creation/modification, shapes/arrows/pins/text, selection colors, drawing tools and cursor assets. | Editor sessions, Fabric canvas ownership, history and generation submission. |
 | `image-editor` | Editor modal/session, viewport/zoom, Fabric lifecycle/events, project/history serialization, mask/annotation export and open/save/close behavior. | `submitImageEditor` belongs to `generation`; file/media preparation belongs to `media-import`. |
 | `media-import` | MIME/header/filename checks, image reading, external URL/HTML input, drag/drop/paste, image-node creation/replacement/result feedback and historical/video-asset import. | New upload/generation APIs, reference ordering policy or changes to media authentication. |
@@ -435,14 +436,31 @@ the card size (upstream targets 84px cards).
 
 While the melt is visible, the incoming and partner chip images are hidden and the melt
 layer paints underneath the chips, so badges, titles and the other thumbnails stay
-crisp. The mother card is a still rounded rectangle; it no longer bends toward the
-incoming photo. Group thumbnails, preview chips and transition images are
-borderless rounded rectangles (radius 32/168 of the side, the mother-card radius) on a
-spaced 192 design-px pitch (168 thumbnail + 24 gap), and the melt cards use the same
-radius. Reduced motion shows the plain chips without melt. Release, drop,
+crisp. The group has no panel: thumbnails (240 design-px, radius 32) sit on a 264
+pitch with one 24 spacing to the card edge and between neighbours, the merge preview
+draws no mother shape, and the melt cards use the thumbnail radius. Reduced motion
+shows the plain chips without melt. Release, drop,
 item roles/order, dwell thresholds, model callbacks, graph edges and source data
 retain their existing contracts. Regression: `tests/test_image_group_melt.cjs`;
 served-page checks use synthetic images with backend requests isolated.
+
+`desktop-canvas-image-group-role-picker.js` loads after `image-group-interaction` and
+before the host, which creates it before the interaction controller. A press on a
+thumbnail without a drag (the sort gesture's 4px threshold) is reported through
+`onImageGroupItemTap` and opens six role options that spring
+from the thumbnail centre onto a ring of round icon buttons inside the thumbnail
+(radius 82 design-px, 52px buttons, clockwise from the top; full role names as labels; 550ms
+`cubic-bezier(.34, 1.56, .64, 1)`, 28ms stagger) while a goo-filtered layer of matching
+blobs bridges them in flight; closing pulls them back in. The host binds the click,
+capture-phase pointerdown (outside press closes) and keydown (Escape, arrows) and
+commits the role in `setImageGroupItemRole`. The goo filter exists only while a picker
+is open. Regression: `tests/test_image_group_role_picker.cjs`.
+
+Hovering a group shows a lighter selection frame around its thumbnails; hovering a
+thumbnail sweeps a gloss band across it instead of lifting it (a lift would cross the
+frame). While a thumbnail is dragged to reorder, it melts into the nearest other
+thumbnail with the same pairwise melt as a drag-in, painted in a layer inside the group
+under the items (both photos hide meanwhile; reduced motion skips it).
 
 ### Audio material/result node
 
@@ -551,9 +569,9 @@ connection is not selection: `has-settled-port-left/right` only exposes local
 port caps, and must not change the shell or image-group mother frame. Completed
 jobs likewise keep their status feedback inside the node. Visible image/video
 surfaces own media depth; selected media does not double-stack root and preview
-shadows. The image-group root remains borderless: its mother keeps the existing
-2px, outset liquid selection frame and local radius, with the same semantic state
-color. Liquid geometry, grouping/sorting timers and the SVG goo field stay local.
+shadows. The image-group root remains borderless and has no panel: its mother keeps
+the 2px outset selection frame and local radius, with the same semantic state color,
+and the group moves by the grip in its node actions. Grouping/sorting timers stay local.
 Panning/wheel transforms temporarily suppress ordinary/media shadows through
 `desktop-performance.css`; no permanent compositor promotion is added.
 

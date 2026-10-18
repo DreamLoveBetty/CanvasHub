@@ -45,12 +45,12 @@ function fixture(){
   const layer=new Element();
   const chip=src=>{const image=new Element('img');image.src=src;return {chip:new Element(),image,badge:new Element(),startSide:100};};
   const preview={
-    active:true,raf:0,overlay:new Element(),base:new Element(),identity:new Element(),
+    active:true,raf:0,overlay:new Element(),
     melt:api.createLiveImageGroupMelt(layer),meltProx:0,meltClock:null,meltSettling:false,meltPartner:null,
     incoming:chip('incoming.webp'),targetItems:[chip('a.webp'),chip('b.webp')],introStartedAt:0,introDuration:250,introStartSide:100,
     pointerX:250,pointerY:90,baseLeft:0,baseTop:0,baseWidth:300,baseHeight:180,currentWidth:300,currentHeight:180,
     targetWidth:300,targetHeight:180,finalWidth:380,finalHeight:180,motherRadius:20,incomingRadius:54,
-    thumbSize:100,thumbStart:120,step:80,rowStep:140,rowInset:40,identityInset:12,identityTop:12,
+    thumbSize:100,thumbStart:120,step:80,rowStep:140,rowInset:40,
     currentStrength:1,targetStrength:1,releaseStrength:1,releaseStartedAt:0,reducedMotion:false,releasing:false,
     incomingCenter:{x:250,y:90},incomingSize:100,dropActive:true
   };
@@ -161,12 +161,11 @@ test('熔化尚在收敛时保持唯一 RAF，收敛且无其他动画后停止'
   assert.equal(preview.meltSettling,false);assert.equal(frames.size,0);
 });
 
-test('母卡保持静止圆角矩形；不再有连接桥、接触点或拖入轮廓',()=>{
+test('拖入预览不再画母卡底板；也没有连接桥、接触点或拖入轮廓',()=>{
   const {api,preview}=fixture();api.renderLiveImageGroupPreview(preview,300);
-  assert.ok(!preview.base.attrs.d.includes(' L '));assert.match(preview.base.attrs.d,/^M .* Z$/);
   assert.ok(!/__bridge|__contact|__incoming-shape|liquify|Liquify/.test(source));
-  const path=api.liveImageGroupMotherPath({left:0,top:0,width:300,height:180},20);
-  assert.equal(path,'M 20 0 H 280 A 20 20 0 0 1 300 20 V 160 A 20 20 0 0 1 280 180 H 20 A 20 20 0 0 1 0 160 V 20 A 20 20 0 0 1 20 0 Z');
+  assert.ok(!/mother-shape|liveImageGroupMotherPath|liquid-svg|liquid-surface/.test(source));
+  assert.equal(api.liveImageGroupMotherPath,undefined);
 });
 
 // ---- lifecycle contracts unchanged by the melt -------------------------------------------
@@ -219,4 +218,30 @@ test('按顺序加载熔化模块并带缓存版本',()=>{
   for(const asset of ['scripts/desktop-canvas-image-group-interaction.js','scripts/desktop-canvas-image-group-melt.js','scripts/desktop-canvas.js','styles/desktop-image-group.css'])assert.ok(hasCacheKey(html,asset),asset);
   assert.ok(html.indexOf('scripts/desktop-canvas-image-group-melt.js')<html.indexOf('scripts/desktop-canvas-image-group-interaction.js'));
   assert.ok(!html.includes('desktop-canvas-image-group-liquid-field.js'));
+});
+
+test('组内拖动排序时，拖动的缩略图与最近的缩略图熔化；结束时图层与原图恢复',()=>{
+  // Painted inside the group's mother, under the items, with the same pairwise melt module.
+  assert.match(source,/function renderImageGroupSortMelt\(sortState, now\)/);
+  assert.match(source,/layer\.className = 'desk-image-group__sort-melt';\n\s*sortState\.mother\.appendChild\(layer\);\n\s*sortState\.meltLayer = layer;\n\s*sortState\.melt = imageGroupMelt\.create\(layer\);/);
+  assert.match(source,/const target = partner \? imageGroupMelt\.proximity\(draggedBox, partner\.box\) : 0;/);
+  assert.match(source,/sortState\.meltProx \+= \(target - sortState\.meltProx\) \* \(1 - Math\.exp\(-14 \* dt\)\);/);
+  assert.match(source,/if \(sortState\.reducedMotion \|\| !sortState\.mother\) return;/);
+  // Every sort ending (commit or return) clears the melt and restores both photos.
+  assert.match(source,/function clearImageGroupItemSortState\(sortState, delay = 0\) \{\n\s*clearImageGroupSortMelt\(sortState\);/);
+  assert.match(source,/sortState\.itemEntries\.forEach\(entry => entry\.element\.classList\.remove\('is-melting'\)\);/);
+  assert.match(source,/dragged\.element\.classList\.toggle\('is-melting', visible\);/);
+  // A melting thumbnail paints nothing of its own: no photo, no tint, no drag shadow,
+  // so no hard-edged rectangle sits on top of the melt.
+  const paint=fs.readFileSync(path.join(root,'frontend/styles/desktop-image-group.css'),'utf8');
+  const after=paint.slice(paint.indexOf('.desk-image-group__item.is-dragging {'));
+  assert.match(after,/\.desk-image-group__item\.is-melting \{\n  filter: none;\n\}/,'beats the drag shadow (declared after it)');
+  assert.match(paint,/\.desk-image-group__item\.is-melting \.desk-image-group__thumb \{\n  background: transparent;\n\}/);
+  assert.match(paint,/\.desk-image-group__item\.is-melting \.desk-image-group__thumb img \{\n  opacity: 0;\n\}/);
+  const sortMelt=source.slice(source.indexOf('function renderImageGroupSortMelt'),source.indexOf('function clearImageGroupSortMelt'));
+  assert.doesNotMatch(sortMelt,/image\.style\.opacity/,'hiding only the photo left the tint on top');
+  const css=fs.readFileSync(path.join(root,'frontend/styles/desktop-image-group-geometry.css'),'utf8');
+  const layer=css.slice(css.indexOf('.desk-image-group__sort-melt {'));
+  assert.match(layer,/z-index: 3;/,'under the items (z-index 4)');
+  assert.match(css,/\.desk-image-group__items \{[\s\S]*?z-index: 4;/);
 });

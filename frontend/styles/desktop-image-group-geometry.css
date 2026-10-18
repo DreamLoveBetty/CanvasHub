@@ -1,8 +1,8 @@
 /*
- * Image group component geometry and motion: mother and silhouette layers, item and
- * thumbnail layout, role picker and node actions, the dwell ring and the merge /
- * transition layers, with their transitions and keyframes. Node-local metrics
- * (--desk-image-group-ui-scale, -mother-radius, -columns, ...) are set on the node.
+ * Image group component geometry and motion: the (paintless) mother layer, item and
+ * thumbnail layout, the role chip and its morph picker, node actions with the drag grip,
+ * the dwell ring and the merge / transition layers, with their transitions and keyframes. Node-local metrics
+ * (--desk-image-group-ui-scale, -selection-outset, -columns, ...) are set on the node.
  *
  * Paint comes from desktop-image-group.css (theme tokens only), which loads after
  * this file. Colour values here read --desk-image-group-* tokens; no theme selectors
@@ -22,69 +22,31 @@ body.desk-app[data-theme] .desk-image-group__global-filter {
   pointer-events: none;
 }
 
-body.desk-app[data-theme] .desk-image-group__silhouette {
-  position: absolute;
-  z-index: 0;
-  width: 100%;
-  overflow: visible;
-  pointer-events: none;
-}
-
+/* No panel: the mother only holds the items and the selection frame. The group moves by
+   the grip in its node actions. */
 body.desk-app[data-theme] .desk-image-group__mother {
   position: absolute;
   inset: 0;
   z-index: 2;
-  border-radius: var(--desk-image-group-mother-radius);
-  cursor: grab;
-  touch-action: none;
 }
 
+/* The selection frame hugs the thumbnails' footprint (24 card margin + 24 spacing from the
+   node's top and bottom edges, 24 from its sides), rounded with them. Its 3px outset puts
+   the 2px line under the connection swell's 2px outset, so the travelling bulge rides the
+   frame line. */
 body.desk-app[data-theme] .desk-image-group__mother::after {
   position: absolute;
-  inset: calc(24px * var(--desk-image-group-ui-scale) - var(--desk-image-group-selection-outset))
-    calc(0px - var(--desk-image-group-selection-outset));
+  inset: calc(48px * var(--desk-image-group-ui-scale) - var(--desk-image-group-selection-outset))
+    calc(24px * var(--desk-image-group-ui-scale) - var(--desk-image-group-selection-outset));
   z-index: 8;
   border: 2px solid transparent;
-  border-radius: calc(var(--desk-image-group-mother-radius) + var(--desk-image-group-selection-outset));
+  border-radius: calc(32px * var(--desk-image-group-ui-scale) + var(--desk-image-group-selection-outset));
   pointer-events: none;
   content: '';
 }
 
-body.desk-app[data-theme] .desk-image-group__identity {
-  position: absolute;
-  top: calc(24px * var(--desk-image-group-ui-scale));
-  z-index: 3;
-  display: flex;
-  width: calc(168px * var(--desk-image-group-ui-scale));
-  height: calc(288px * var(--desk-image-group-ui-scale));
-  padding-top: calc(20px * var(--desk-image-group-ui-scale));
-  padding-left: calc(24px * var(--desk-image-group-ui-scale));
-  flex-direction: column;
-  align-items: flex-start;
-  justify-content: flex-start;
-  pointer-events: none;
-}
-
-body.desk-app[data-theme] .desk-image-group__identity strong,
-body.desk-app[data-theme] .desk-image-group__identity span {
-  white-space: nowrap;
-}
-
-body.desk-app[data-theme] .desk-image-group__identity strong {
-  font-size: calc(30px * var(--desk-image-group-ui-scale));
-  font-weight: 850;
-  line-height: 1.2;
-}
-
-body.desk-app[data-theme] .desk-image-group__identity span {
-  margin-top: calc(5px * var(--desk-image-group-ui-scale));
-  font-size: calc(20px * var(--desk-image-group-ui-scale));
-  font-weight: 750;
-  line-height: 1.2;
-}
-
 body.desk-app[data-theme] .desk-image-group__node-actions svg,
-body.desk-app[data-theme] .desk-image-group__item-actions svg {
+body.desk-app[data-theme] .desk-image-group__insert svg {
   height: calc(26px * var(--desk-image-group-ui-scale));
   fill: none;
   stroke: currentColor;
@@ -95,18 +57,20 @@ body.desk-app[data-theme] .desk-image-group__item-actions svg {
 
 body.desk-app[data-theme] .desk-image-group__items {
   position: absolute;
-  top: calc(84px * var(--desk-image-group-ui-scale));
-  left: calc(168px * var(--desk-image-group-ui-scale));
+  /* Mirrors the model: the mother card starts 24 down, thumbnails sit one 24px spacing
+     inside it and from each other (240px thumbnails on a 264px step). */
+  top: calc(48px * var(--desk-image-group-ui-scale));
+  left: calc(24px * var(--desk-image-group-ui-scale));
   z-index: 4;
   display: grid;
-  grid-template-columns: repeat(var(--desk-image-group-columns, 2), calc(192px * var(--desk-image-group-ui-scale)));
-  grid-auto-rows: calc(228px * var(--desk-image-group-ui-scale));
+  grid-template-columns: repeat(var(--desk-image-group-columns, 2), calc(264px * var(--desk-image-group-ui-scale)));
+  grid-auto-rows: calc(264px * var(--desk-image-group-ui-scale));
   align-items: start;
 }
 
 body.desk-app[data-theme] .desk-image-group__item {
   position: relative;
-  width: calc(168px * var(--desk-image-group-ui-scale));
+  width: calc(240px * var(--desk-image-group-ui-scale));
   min-width: 0;
   border-radius: calc(32px * var(--desk-image-group-ui-scale));
   caret-color: transparent;
@@ -115,9 +79,13 @@ body.desk-app[data-theme] .desk-image-group__item {
 
 body.desk-app[data-theme] .desk-image-group__item:hover,
 body.desk-app[data-theme] .desk-image-group__item:focus-visible,
-body.desk-app[data-theme] .desk-image-group__item:has(:focus-visible),
-body.desk-app[data-theme] .desk-image-group__item:has(.desk-select-shell.is-open) {
+body.desk-app[data-theme] .desk-image-group__item:has(:focus-visible) {
   z-index: 12;
+}
+
+/* An open picker spreads over the neighbouring thumbnails. */
+body.desk-app[data-theme] .desk-image-group__item.is-picking {
+  z-index: 40;
 }
 
 body.desk-app[data-theme] .desk-image-group__item.is-dragging {
@@ -128,11 +96,43 @@ body.desk-app[data-theme] .desk-image-group__item.is-dragging {
 
 body.desk-app[data-theme] .desk-image-group__thumb {
   position: relative;
-  height: calc(168px * var(--desk-image-group-ui-scale));
+  height: calc(240px * var(--desk-image-group-ui-scale));
   border-radius: calc(32px * var(--desk-image-group-ui-scale));
   touch-action: none;
   -webkit-user-drag: none;
-  transition: transform 180ms cubic-bezier(.22, 1, .36, 1);
+}
+
+/* Hover gloss: a soft highlight band sweeps once across the thumbnail, which keeps its size
+   and place (a lift would cross the selection frame). The band is a background wider than
+   the thumbnail, moved from off its left edge to off its right edge. */
+body.desk-app[data-theme] .desk-image-group__thumb::after {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: inherit;
+  background: linear-gradient(115deg, transparent 38%, var(--desk-image-group-thumb-sheen) 50%, transparent 62%) no-repeat;
+  background-size: 260% 100%;
+  background-position: 100% 0;
+  opacity: 0;
+  pointer-events: none;
+  content: '';
+}
+
+body.desk-app[data-theme] .desk-image-group__item:is(:hover, :focus-visible, :has(:focus-visible)) .desk-image-group__thumb::after {
+  animation: desk-image-group-thumb-sheen 820ms cubic-bezier(.22, .61, .36, 1) both;
+}
+
+body.desk-app[data-theme] .desk-node--image-group.is-sorting .desk-image-group__thumb::after {
+  animation: none;
+}
+
+/* While a thumbnail is dragged, its melt with the nearest neighbour paints here, under the
+   items (whose two photos hide meanwhile) so badges and the other thumbnails stay on top. */
+body.desk-app[data-theme] .desk-image-group__sort-melt {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
 }
 
 body.desk-app[data-theme] .desk-image-group__thumb img {
@@ -159,85 +159,153 @@ body.desk-app[data-theme] .desk-image-group__thumb strong {
   white-space: nowrap;
   border: calc(6px * var(--desk-image-group-ui-scale)) solid var(--desk-image-group-badge-border);
   border-radius: 50%;
+  z-index: 2;
 }
 
-body.desk-app[data-theme] .desk-image-group__item-actions {
+/* Role tag (top left, display only: tapping the thumbnail picks the role) and the
+   prompt-reference button (top right): hidden at rest, revealed by hover or focus. An open
+   picker hides them again: its ring would otherwise frame them. */
+body.desk-app[data-theme] :is(.desk-image-group__role, .desk-image-group__insert) {
   position: absolute;
-  bottom: calc(-58px * var(--desk-image-group-ui-scale));
-  left: 50%;
-  z-index: 30;
+  top: calc(12px * var(--desk-image-group-ui-scale));
+  z-index: 6;
   display: grid;
-  width: calc(168px * var(--desk-image-group-ui-scale));
-  padding: calc(6px * var(--desk-image-group-ui-scale));
-  gap: calc(6px * var(--desk-image-group-ui-scale));
-  grid-template-columns: minmax(0, 1fr) calc(44px * var(--desk-image-group-ui-scale));
-  border: 1px solid var(--desk-image-group-item-actions-border);
-  border-radius: calc(14px * var(--desk-image-group-ui-scale));
-  /* Hidden at rest; hover, focus or an open role menu reveals the actions. */
-  opacity: 0;
-  pointer-events: none;
-  transform: translate(-50%, -4px) scale(.97);
-  transform-origin: center;
-  visibility: hidden;
-  transition: opacity 140ms ease, transform 180ms cubic-bezier(.22, 1, .36, 1), visibility 0s linear 180ms;
-}
-
-body.desk-app[data-theme] .desk-image-group__item-actions select,
-body.desk-app[data-theme] .desk-image-group__item-actions > button {
-  min-width: 0;
   height: calc(44px * var(--desk-image-group-ui-scale));
-  font-size: calc(16px * var(--desk-image-group-ui-scale));
-  font-weight: 800;
-  border: 1px solid var(--desk-image-group-role-native-border);
-  border-radius: calc(9px * var(--desk-image-group-ui-scale));
-}
-
-body.desk-app[data-theme] .desk-image-group__item-actions select {
-  width: 100%;
-  padding: 0 calc(8px * var(--desk-image-group-ui-scale));
-  text-overflow: ellipsis;
-}
-
-body.desk-app[data-theme] .desk-image-group__item-actions > button {
-  display: grid;
   padding: 0;
   place-items: center;
-}
-
-body.desk-app[data-theme] .desk-image-group__item-actions .desk-select-trigger {
-  position: relative;
-  display: grid;
-  height: calc(44px * var(--desk-image-group-ui-scale));
-  padding: 0 calc(2px * var(--desk-image-group-ui-scale));
-  font-size: calc(16px * var(--desk-image-group-ui-scale));
+  font-size: calc(18px * var(--desk-image-group-ui-scale));
   font-weight: 800;
-  text-align: center;
-  border-radius: calc(9px * var(--desk-image-group-ui-scale));
+  line-height: 1;
+  white-space: nowrap;
+  border: 0;
+  border-radius: 999px;
+  opacity: 0;
+  pointer-events: none;
+  transform: scale(.92);
+  transition: opacity 140ms ease, transform 180ms cubic-bezier(.22, 1, .36, 1);
 }
 
-body.desk-app[data-theme] .desk-image-group__item-actions .desk-select-trigger::before {
-  display: none;
+body.desk-app[data-theme] .desk-image-group__role {
+  left: calc(12px * var(--desk-image-group-ui-scale));
+  padding: 0 calc(16px * var(--desk-image-group-ui-scale));
 }
 
-body.desk-app[data-theme] .desk-image-group__item-actions .desk-select-chev {
+body.desk-app[data-theme] .desk-image-group__insert {
+  right: calc(12px * var(--desk-image-group-ui-scale));
+  width: calc(44px * var(--desk-image-group-ui-scale));
+}
+
+body.desk-app[data-theme] .desk-image-group__item:is(:hover, :focus-visible, :has(:focus-visible)):not(.is-picking) :is(.desk-image-group__role, .desk-image-group__insert) {
+  opacity: 1;
+  transform: none;
+}
+
+body.desk-app[data-theme] .desk-image-group__item:is(:hover, :focus-visible, :has(:focus-visible)):not(.is-picking) .desk-image-group__insert {
+  pointer-events: auto;
+}
+
+/* Role picker (liquid-gooey morph): round icon buttons spring out of the thumbnail centre
+   onto a ring that stays inside the thumbnail (radius 82 + 26 < 120); a goo-filtered layer
+   of matching blobs (same --x/--y/--i) bridges them while they travel. At rest neighbours
+   sit about 30 apart, too far for the goo to bridge. Closing pulls them straight back in. The blobs never fade on their own: the goo
+   threshold would erase a translucent blob, hiding the merge right where it happens. The
+   layer fades as a whole instead, which applies after the filter. */
+body.desk-app[data-theme] .desk-image-group-picker {
+  position: absolute;
+  top: calc(120px * var(--desk-image-group-ui-scale));
+  left: 50%;
+  z-index: 8;
+  width: 0;
+  height: 0;
+}
+
+body.desk-app[data-theme] :is(.desk-image-group-picker__goo, .desk-image-group-picker__buttons) {
+  position: absolute;
+  top: calc(-150px * var(--desk-image-group-ui-scale));
+  left: calc(-150px * var(--desk-image-group-ui-scale));
+  width: calc(300px * var(--desk-image-group-ui-scale));
+  height: calc(300px * var(--desk-image-group-ui-scale));
+  pointer-events: none;
+}
+
+body.desk-app[data-theme] .desk-image-group-picker__goo {
+  opacity: 0;
+  transition: opacity 180ms ease 120ms;
+}
+
+body.desk-app[data-theme] .desk-image-group-picker.is-open .desk-image-group-picker__goo {
+  opacity: var(--desk-image-group-picker-goo-opacity);
+  transition: opacity 120ms ease;
+}
+
+body.desk-app[data-theme] :is(.desk-image-group-picker__goo > span, .desk-image-group-picker__buttons > button) {
   position: absolute;
   top: 50%;
-  right: calc(2px * var(--desk-image-group-ui-scale));
-  width: calc(8px * var(--desk-image-group-ui-scale));
-  height: calc(8px * var(--desk-image-group-ui-scale));
-  transform: translateY(calc(-50% - 1px)) rotate(45deg);
+  left: 50%;
+  width: calc(52px * var(--desk-image-group-ui-scale));
+  height: calc(52px * var(--desk-image-group-ui-scale));
+  margin: calc(-26px * var(--desk-image-group-ui-scale)) 0 0 calc(-26px * var(--desk-image-group-ui-scale));
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  transform: translate(0, 0) scale(.35);
+  transition: transform 260ms cubic-bezier(.4, 0, 1, 1);
 }
 
+body.desk-app[data-theme] :is(.desk-image-group-picker__goo > span.is-center, .desk-image-group-picker__close) {
+  width: calc(44px * var(--desk-image-group-ui-scale));
+  height: calc(44px * var(--desk-image-group-ui-scale));
+  margin: calc(-22px * var(--desk-image-group-ui-scale)) 0 0 calc(-22px * var(--desk-image-group-ui-scale));
+}
+
+body.desk-app[data-theme] .desk-image-group-picker__buttons > button {
+  display: grid;
+  place-items: center;
+  opacity: 0;
+  transition: transform 260ms cubic-bezier(.4, 0, 1, 1), opacity 160ms ease;
+  pointer-events: auto;
+}
+
+body.desk-app[data-theme] .desk-image-group-picker__buttons > button svg {
+  height: calc(26px * var(--desk-image-group-ui-scale));
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
+body.desk-app[data-theme] .desk-image-group-picker__close svg {
+  height: calc(20px * var(--desk-image-group-ui-scale));
+  stroke-width: 2.2;
+}
+
+body.desk-app[data-theme] .desk-image-group-picker.is-open :is(.desk-image-group-picker__goo > span, .desk-image-group-picker__buttons > button) {
+  transform: translate(calc(var(--x) * calc(1px * var(--desk-image-group-ui-scale))), calc(var(--y) * calc(1px * var(--desk-image-group-ui-scale)))) scale(1);
+  transition: transform 550ms cubic-bezier(.34, 1.56, .64, 1) calc(var(--i) * 28ms);
+}
+
+body.desk-app[data-theme] .desk-image-group-picker.is-open .desk-image-group-picker__buttons > button {
+  opacity: 1;
+  transition:
+    transform 550ms cubic-bezier(.34, 1.56, .64, 1) calc(var(--i) * 28ms),
+    opacity 160ms ease calc(var(--i) * 28ms + 60ms);
+}
+
+body.desk-app[data-theme] .desk-image-group-picker__buttons > button:focus-visible {
+  outline: 2px solid var(--desk-image-group-picker-focus);
+  outline-offset: 2px;
+}
+
+/* Bare buttons (no tray) just above the selection frame, right-aligned with the
+   thumbnails: 48px buttons ending 8px above the frame line. */
 body.desk-app[data-theme] .desk-image-group__node-actions {
   position: absolute;
-  top: calc(-58px * var(--desk-image-group-ui-scale));
-  right: calc(16px * var(--desk-image-group-ui-scale));
+  top: calc(-8px * var(--desk-image-group-ui-scale) - var(--desk-image-group-selection-outset));
+  right: calc(24px * var(--desk-image-group-ui-scale));
   z-index: 24;
   display: flex;
-  padding: calc(6px * var(--desk-image-group-ui-scale));
   gap: calc(6px * var(--desk-image-group-ui-scale));
-  border: 2px solid var(--desk-image-group-node-actions-border);
-  border-radius: 999px;
   opacity: 0;
   pointer-events: none;
   transform: translateY(10px) scale(.94);
@@ -246,7 +314,8 @@ body.desk-app[data-theme] .desk-image-group__node-actions {
 }
 
 body.desk-app[data-theme] .desk-image-group__node-actions button,
-body.desk-app[data-theme] .desk-image-group__node-actions .desk-node-delete {
+body.desk-app[data-theme] .desk-image-group__node-actions .desk-node-delete,
+body.desk-app[data-theme] .desk-image-group__node-actions .desk-image-group__grip {
   display: grid;
   min-width: calc(48px * var(--desk-image-group-ui-scale));
   height: calc(48px * var(--desk-image-group-ui-scale));
@@ -254,6 +323,15 @@ body.desk-app[data-theme] .desk-image-group__node-actions .desk-node-delete {
   place-items: center;
   border: 0;
   border-radius: 50%;
+}
+
+body.desk-app[data-theme] .desk-image-group__node-actions .desk-image-group__grip {
+  cursor: grab;
+  touch-action: none;
+}
+
+body.desk-app[data-theme] .desk-node--image-group.is-dragging .desk-image-group__grip {
+  cursor: grabbing;
 }
 
 body.desk-app[data-theme] .desk-image-group-dwell {
@@ -295,8 +373,7 @@ body.desk-app[data-theme] .desk-image-group-dwell > span {
 body.desk-app[data-theme] .desk-image-group-transition,
 body.desk-app[data-theme] .desk-image-group-transition__goo,
 body.desk-app[data-theme] .desk-image-group-transition__images,
-body.desk-app[data-theme] .desk-image-group-transition__melt-layer,
-body.desk-app[data-theme] .desk-image-group-transition__liquid-svg {
+body.desk-app[data-theme] .desk-image-group-transition__melt-layer {
   position: fixed;
   inset: 0;
   pointer-events: none;
@@ -311,7 +388,7 @@ body.desk-app[data-theme] .desk-image-group-transition__images > img {
 
 body.desk-app[data-theme] .desk-image-group-transition__goo span {
   background: var(--desk-image-group-transition-goo-background);
-  border-radius: 19.0476%;
+  border-radius: 13.3333%;
   box-shadow: var(--desk-image-group-transition-goo-shadow);
 }
 
@@ -319,45 +396,8 @@ body.desk-app[data-theme] .desk-image-group-transition__images > img {
   z-index: 1;
   box-sizing: border-box;
   object-fit: cover;
-  border-radius: 19.0476%;
+  border-radius: 13.3333%;
   box-shadow: var(--desk-image-group-transition-image-shadow);
-}
-
-body.desk-app[data-theme] .desk-image-group-transition__liquid-svg {
-  z-index: 0;
-  display: block;
-  width: 100%;
-  height: 100%;
-  overflow: visible;
-  will-change: filter, transform;
-}
-
-body.desk-app[data-theme] .desk-image-group-transition__identity {
-  position: fixed;
-  z-index: 2;
-  display: flex;
-  width: calc(116px * var(--desk-image-group-transition-scale, 1));
-  height: calc(58px * var(--desk-image-group-transition-scale, 1));
-  flex-direction: column;
-  justify-content: flex-start;
-  animation: desk-image-group-liquid-label-in 360ms 80ms cubic-bezier(.22, 1, .36, 1) both;
-}
-
-body.desk-app[data-theme] .desk-image-group-transition__identity strong,
-body.desk-app[data-theme] .desk-image-group-transition__identity span {
-  white-space: nowrap;
-}
-
-body.desk-app[data-theme] .desk-image-group-transition__identity strong {
-  font-size: calc(24px * var(--desk-image-group-transition-scale, 1));
-  font-weight: 850;
-  line-height: 1.25;
-}
-
-body.desk-app[data-theme] .desk-image-group-transition__identity span {
-  margin-top: calc(4px * var(--desk-image-group-transition-scale, 1));
-  font-weight: 750;
-  line-height: 1.2;
 }
 
 body.desk-app[data-theme] .desk-image-group-transition__images {
@@ -401,66 +441,6 @@ body.desk-app[data-theme] .desk-image-group-transition__chip strong {
   border-radius: 50%;
 }
 
-body.desk-app[data-theme] .desk-image-group__liquid-base,
-body.desk-app[data-theme] .desk-image-group__liquid-item,
-body.desk-app[data-theme] .desk-image-group-transition__mother-shape {
-  transform-box: fill-box;
-  transform-origin: center;
-  will-change: transform, opacity;
-}
-
-body.desk-app[data-theme] .desk-image-group__item:hover .desk-image-group__thumb,
-body.desk-app[data-theme] .desk-image-group__item:focus-visible .desk-image-group__thumb,
-body.desk-app[data-theme] .desk-image-group__item:has(:focus-visible) .desk-image-group__thumb,
-body.desk-app[data-theme] .desk-image-group__item:has(.desk-select-shell.is-open) .desk-image-group__thumb {
-  transform: translateY(calc(-12px * var(--desk-image-group-ui-scale))) scale(1.035);
-}
-
-body.desk-app[data-theme] .desk-node--image-group.is-sorting .desk-image-group__item:hover .desk-image-group__thumb,
-body.desk-app[data-theme] .desk-node--image-group.is-sorting .desk-image-group__item:focus-visible .desk-image-group__thumb,
-body.desk-app[data-theme] .desk-node--image-group.is-sorting .desk-image-group__item:has(:focus-visible) .desk-image-group__thumb,
-body.desk-app[data-theme] .desk-node--image-group.is-sorting .desk-image-group__item:has(.desk-select-shell.is-open) .desk-image-group__thumb {
-  transform: none;
-}
-
-body.desk-app[data-theme] .desk-image-group__liquid-item {
-  transition: transform 240ms cubic-bezier(.2, .8, .2, 1);
-}
-
-body.desk-app[data-theme] .desk-image-group__item:hover .desk-image-group__item-actions,
-body.desk-app[data-theme] .desk-image-group__item:focus-visible .desk-image-group__item-actions,
-body.desk-app[data-theme] .desk-image-group__item:has(:focus-visible) .desk-image-group__item-actions,
-body.desk-app[data-theme] .desk-image-group__item:has(.desk-select-shell.is-open) .desk-image-group__item-actions {
-  opacity: 1;
-  pointer-events: auto;
-  transform: translate(-50%, 0) scale(1);
-  visibility: visible;
-  transition-delay: 0s;
-}
-
-body.desk-app[data-theme] .desk-image-group__item-actions .desk-select-value {
-  grid-column: 1;
-  overflow: visible;
-  text-overflow: clip;
-}
-
-body.desk-app[data-theme] .desk-image-group__item-actions .desk-select-menu {
-  gap: calc(4px * var(--desk-image-group-ui-scale));
-  padding: calc(6px * var(--desk-image-group-ui-scale));
-  border-radius: calc(9px * var(--desk-image-group-ui-scale));
-}
-
-body.desk-app[data-theme] .desk-image-group__item-actions .desk-select-option,
-body.desk-app[data-theme] .desk-image-group__item-actions .desk-select-group-label {
-  text-align: center;
-}
-
-body.desk-app[data-theme] .desk-image-group__item-actions .desk-select-option {
-  min-height: calc(34px * var(--desk-image-group-ui-scale));
-  font-size: calc(14px * var(--desk-image-group-ui-scale));
-  line-height: calc(34px * var(--desk-image-group-ui-scale));
-}
-
 body.desk-app[data-theme] .desk-node--image-group:hover .desk-image-group__node-actions,
 body.desk-app[data-theme] .desk-node--image-group.is-selected .desk-image-group__node-actions,
 body.desk-app[data-theme] .desk-image-group__node-actions:focus-within {
@@ -473,10 +453,6 @@ body.desk-app[data-theme] .desk-image-group-transition {
   overflow: hidden;
 }
 
-body.desk-app[data-theme] .desk-node--image-group.is-selected .desk-image-group__silhouette {
-  filter: none;
-}
-
 /* Node action buttons suppress the browser focus ring (original rule from the legacy
    styles, original specificity). */
 :where(body.desk-app[data-theme]) .desk-image-group__node-actions button:hover,
@@ -484,20 +460,20 @@ body.desk-app[data-theme] .desk-node--image-group.is-selected .desk-image-group_
   outline: none;
 }
 
-/* Dwell progress and merge label keyframes (from the former legacy styles). */
-@keyframes desk-image-group-dwell-progress {
-  to {
-    stroke-dashoffset: 0;
-  }
-}
-
-@keyframes desk-image-group-liquid-label-in {
+@keyframes desk-image-group-thumb-sheen {
   from {
-    opacity: 0;
-    transform: translateY(calc(8px * var(--desk-image-group-transition-scale, 1)));
+    opacity: 1;
+    background-position: 100% 0;
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    background-position: 0 0;
+  }
+}
+
+/* Dwell progress keyframes (from the former legacy styles). */
+@keyframes desk-image-group-dwell-progress {
+  to {
+    stroke-dashoffset: 0;
   }
 }

@@ -63,16 +63,20 @@
     "sha256": "bc619c8f9088ecd2bc6b53e42a6bc839132005326002ba2cf7f00a6a4da54060"
    },
    "scripts/desktop-canvas-image-group-interaction.js": {
-    "v": "20261017-image-group-rounded1",
-    "sha256": "c0c41af893567fe15988bf7b49b9af06a0d4122b0863b70ccdd3899899379c52"
+    "v": "20261017-image-group-melt-sort1",
+    "sha256": "d8b0a540fc7ee7643f3135cca75d037c9fe67c18cc893676ee50aab9be325b55"
    },
    "scripts/desktop-canvas-image-group-melt.js": {
     "v": "20261017-image-group-rounded1",
     "sha256": "831225fa67972e185ea4ee88f5864919413d47ac96d2fe0a8e73dcd48f359541"
    },
    "scripts/desktop-canvas-image-group-model.js": {
-    "v": "20261017-image-group-rounded1",
-    "sha256": "9fd00d6f0e892dd038605b9d23f527448781c968d0bd15386af64d00a42ba5d1"
+    "v": "20261017-image-group-tap1",
+    "sha256": "626d5669a89c5c71ea968399b2c7273290046e89f9eaec985529cd36144a3142"
+   },
+   "scripts/desktop-canvas-image-group-role-picker.js": {
+    "v": "20261017-image-group-icons1",
+    "sha256": "6e583036345a7999042bbedb4acc7abf4aa3f642b6bad17b3e9e8537ae34ec6c"
    },
    "scripts/desktop-canvas-krea2.js": {
     "v": "20261011-select-stepper1",
@@ -103,8 +107,8 @@
     "sha256": "2bd0a1c434fae79cf3297fc9be0f7b1a5ad36873284eb64789b01db6b70f2a32"
    },
    "scripts/desktop-canvas-port-interaction.js": {
-    "v": "20261007-connection-feedback1",
-    "sha256": "9572b120fee69c68d664282f1bf9fe3b75ea27cf4578ae04657b8896dec4e1bf"
+    "v": "20261017-image-group-picker1",
+    "sha256": "b6c048fd37a44082821136365c5fd6d96af366f9f4d54f94fbb518717f5c6bdd"
    },
    "scripts/desktop-canvas-prompt-document.js": {
     "v": "20260912-canvas-business1",
@@ -147,8 +151,8 @@
     "sha256": "9f532ef8db1e9e62c60b2264d353987e7c5ae8dc5ea2cb66ea24fd8071769dd7"
    },
    "scripts/desktop-canvas.js": {
-    "v": "20261017-image-group-rounded1",
-    "sha256": "7e3a69362e82b7055d1bafb8f35f1941fa9de56cb6b54e8b1bef43883edc4652"
+    "v": "20261017-image-group-tap1",
+    "sha256": "1241bfb8a78e8dc847329e87976b5fbcb7c619b92d7e60e25ef77a79a0f4560a"
    },
    "scripts/desktop-color-bloom.js": {
     "v": "20261010-color-bloom1",
@@ -327,8 +331,8 @@
     "sha256": "62bccc10e68b304ae9345dc3c5411b609c348171fef39156c7373c99883a4f86"
    },
    "scripts/desktop-select.js": {
-    "v": "20261006-krea-model-menu1",
-    "sha256": "b163f4a0f3b2684f39c541f5f926fa72b8972edb9a5f49b3c12e908024eefc80"
+    "v": "20261017-image-group-picker1",
+    "sha256": "d77bb8f447efbdf5dd0c5b9db2948b5e9150b5b2083e73cff1407f92dae056ad"
    },
    "scripts/desktop-settings-drawer.js": {
     "v": "20261009-settings-drawer2",
@@ -407,8 +411,8 @@
     "sha256": "e982bcd832602b3b19b68387568a51293e4d50b36bbbb16b9e6074a989642a1f"
    },
    "styles/desktop-ambient-controls.css": {
-    "v": "20261011-field-style1",
-    "sha256": "a1a4be9c8f2ffc4614fda881354a8f8d44bdf72069b2d6af7259b06cb8be0771"
+    "v": "20261017-key-lens1",
+    "sha256": "80fa6a629fb613cef6a092a1e65d67bf59d7cbfd06f72cb6e2a25b47da301fc1"
    },
    "styles/desktop-audio.css": {
     "v": "20261004-node-surfaces1",
@@ -431,12 +435,12 @@
     "sha256": "799b96f2df3975f8fb7f4d9553cf997ef672d94bedefb4b33d36bc18a5465852"
    },
    "styles/desktop-control-material.css": {
-    "v": "20261011-field-style1",
-    "sha256": "c62d88487639960c2d6cceafb5178fa40cb320e3927b3f1282bae721c3360c7a"
+    "v": "20261017-key-lens1",
+    "sha256": "4ee3c7e5600081d779a288a8405d8fa6261ed8227ff0caa095d5281a07a3ee8c"
    },
    "styles/desktop-controls.css": {
-    "v": "20261011-stepper-panels1",
-    "sha256": "a692ca8246ee0c6ca10aea56af355f5e7185bb43c34c31d5a2f99f93b79dc30f"
+    "v": "20261017-image-group-picker1",
+    "sha256": "fe3f2c406c5b0422272833ed5f4f7183d681d39ec445b05c42ea0db1a34b1bb8"
    },
    "styles/desktop-creation-tools.css": {
     "v": "20260831-status-silk2",
@@ -463,16 +467,16 @@
     "sha256": "e4db89af659ef3c371c17aaec9b20a623eb0791af8c57a33d685ebd2503708eb"
    },
    "styles/desktop-image-group-geometry.css": {
-    "v": "20261017-image-group-rounded1",
-    "sha256": "de4c78437920b37ca274d4979f49f08d56bbc8945b5a0b85c4b4db3a62b6bea5"
+    "v": "20261017-image-group-glass1",
+    "sha256": "be8b33f5ea325f1637a1b302c41548ae69f50138e3850de75a8c623c02d8396a"
    },
    "styles/desktop-image-group-interaction.css": {
-    "v": "20261014-image-group-module2",
-    "sha256": "77847208014108a66e27e5211da0e45b0ab4771d5d48e3e992cd17295216bd90"
+    "v": "20261017-image-group-picker1",
+    "sha256": "a78825c9e458d22d5b2c5614317639a520d87b1f5a3692d23e773084d7a52cb9"
    },
    "styles/desktop-image-group.css": {
-    "v": "20261017-image-group-rounded1",
-    "sha256": "de6cc3b424c659bffb4196002d901fe3f42b338575b042ac83be74b939da566c"
+    "v": "20261017-image-group-glass1",
+    "sha256": "785b0812de7da43276aa205bd87a55e8c18117c7afbda21714e59a46baafd8a5"
    },
    "styles/desktop-krea2.css": {
     "v": "20261003-auto-image-mode1",
@@ -491,8 +495,8 @@
     "sha256": "2a179d6b06778cc2ce0fbec23ded0c77d79dcb8f3311ada01921bfcb592510e3"
    },
    "styles/desktop-motion.css": {
-    "v": "20261014-image-group-module2",
-    "sha256": "4464363dcb6ecc71d557e82ccadcfb76ed89507d08cc17330d9ec90e873e866c"
+    "v": "20261017-image-group-tap1",
+    "sha256": "94effff8339d1c8d82ec02917eb5d7a1c617644fcc9a6641173da18580a8403b"
    },
    "styles/desktop-music.css": {
     "v": "20261004-state-icons1",
@@ -503,8 +507,8 @@
     "sha256": "c0e4aaf5681306d31c9b0feebef5b4485bfe5e14f5155169e2366f96cc54098b"
    },
    "styles/desktop-performance.css": {
-    "v": "20261014-image-group-module2",
-    "sha256": "4ea531c9ee9f71a7ef9628a2a684eabc995fb3754344770a10d7e6be848161a2"
+    "v": "20261017-image-group-picker1",
+    "sha256": "bbcc2a99d7992633c48ed3fa20d46041e7eeda8507e3d4ca7a1f045b58b3718d"
    },
    "styles/desktop-pose.css": {
     "v": "20260831-status-silk2",
@@ -547,8 +551,8 @@
     "sha256": "c1a80028721d1c04c0020512cf6d5fbf123b693970968cf242bbc50c5f3a3e01"
    },
    "styles/desktop-tokens.css": {
-    "v": "20261017-image-group-rounded1",
-    "sha256": "d85dc41564a758db6a3f5cfc5bf103e6e38caf72ebe193b179c234887207ac4f"
+    "v": "20261017-image-group-glass1",
+    "sha256": "558b4724001b2c69e549b512e180513b2753d44f3c7cb4a2e491ab2f96a529f3"
    },
    "styles/desktop-topaz-video-workbench.css": {
     "v": "20261006-topaz-panel-polish2",

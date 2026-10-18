@@ -5,15 +5,12 @@
   function create({
     DEFAULT_IMAGE_NODE_HEIGHT,
     DEFAULT_IMAGE_NODE_WIDTH,
-    IMAGE_GROUP_FILTER_OUTSET_PX,
-    IMAGE_GROUP_IDENTITY_WIDTH_PX,
     IMAGE_GROUP_LAYOUT_VERSION,
-    IMAGE_GROUP_LIQUID_SHELL_PX,
     IMAGE_GROUP_MAX_COLUMNS,
     IMAGE_GROUP_MAX_ITEMS,
     IMAGE_GROUP_MOTHER_HEIGHT_PX,
-    IMAGE_GROUP_MOTHER_RADIUS_PX,
     IMAGE_GROUP_MOTHER_TOP_PX,
+    IMAGE_GROUP_PADDING_PX,
     IMAGE_GROUP_ROLES,
     IMAGE_GROUP_ROLE_INSTRUCTIONS,
     IMAGE_GROUP_ROLE_PRIORITY_NOTE,
@@ -21,7 +18,6 @@
     IMAGE_GROUP_THUMB_PX,
     IMAGE_GROUP_THUMB_RADIUS_PX,
     IMAGE_GROUP_THUMB_STEP_PX,
-    IMAGE_GROUP_TRAILING_SPACE_PX,
     MAX_IMAGE_GROUP_NODE_WIDTH,
     MIN_IMAGE_GROUP_NODE_WIDTH,
     animateImageGroupItemFlip,
@@ -98,10 +94,9 @@
 
     function naturalImageGroupNodeWidth(itemCount = 0) {
     const columns = imageGroupColumnCount(itemCount);
-    return IMAGE_GROUP_IDENTITY_WIDTH_PX
+    return IMAGE_GROUP_PADDING_PX * 2
       + IMAGE_GROUP_THUMB_PX
-      + Math.max(0, columns - 1) * IMAGE_GROUP_THUMB_STEP_PX
-      + IMAGE_GROUP_TRAILING_SPACE_PX;
+      + Math.max(0, columns - 1) * IMAGE_GROUP_THUMB_STEP_PX;
   }
 
     function compactImageGroupNodeWidth(itemCount = 0) {
@@ -126,7 +121,7 @@
     const column = normalizedIndex % IMAGE_GROUP_MAX_COLUMNS;
     const row = Math.floor(normalizedIndex / IMAGE_GROUP_MAX_COLUMNS);
     return {
-      left: IMAGE_GROUP_IDENTITY_WIDTH_PX + column * IMAGE_GROUP_THUMB_STEP_PX,
+      left: IMAGE_GROUP_PADDING_PX + column * IMAGE_GROUP_THUMB_STEP_PX,
       top: IMAGE_GROUP_MOTHER_TOP_PX
         + (IMAGE_GROUP_MOTHER_HEIGHT_PX - IMAGE_GROUP_THUMB_PX) / 2
         + row * IMAGE_GROUP_ROW_STEP_PX,
@@ -566,28 +561,22 @@
     };
   }
 
-    function imageGroupRoleOptionsHtml(selected) {
-    const normalized = normalizeImageGroupRole(selected);
-    return IMAGE_GROUP_ROLES.map(item => (
-      `<option value="${item.value}"${item.value === normalized ? ' selected' : ''}>${item.label}</option>`
-    )).join('');
-  }
-
     function imageGroupItemHtml(groupNode, item, index) {
     const source = escapeHtml(imageGroupItemSource(item));
     const label = `图片${index + 1}`;
+    const role = normalizeImageGroupRole(item.role);
+    const roleItem = IMAGE_GROUP_ROLES.find(entry => entry.value === role);
+    // Tapping the thumbnail (or Enter/Space on the item) opens the role picker; the tag only shows it.
     return `
-      <article class="desk-image-group__item" tabindex="0" data-node-drag-ignore data-image-group-item="${escapeHtml(item.itemId)}" aria-label="${label}：${escapeHtml(item.imageName || '')}">
-        <div class="desk-image-group__thumb" data-image-group-sort-handle title="拖拽调整图片顺序">
+      <article class="desk-image-group__item" tabindex="0" data-node-drag-ignore data-image-group-item="${escapeHtml(item.itemId)}" data-image-group-label="${label}" data-role="${escapeHtml(role)}" aria-haspopup="menu" aria-label="${label}：${escapeHtml(item.imageName || '')}" aria-description="参考用途：${escapeHtml(roleItem?.label || '参考')}">
+        <div class="desk-image-group__thumb" data-image-group-sort-handle title="点击选择参考用途，拖拽调整顺序">
           <img src="${source}" alt="${escapeHtml(item.imageName || label)}" draggable="false">
           <strong aria-label="${label}">${index + 1}</strong>
         </div>
-        <div class="desk-image-group__item-actions">
-          <select data-image-group-role aria-label="${label}的参考用途">${imageGroupRoleOptionsHtml(item.role)}</select>
-          <button type="button" class="desk-key" data-image-group-insert-reference title="插入提示词引用" aria-label="将${label}插入提示词">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.1.1l2-2a5 5 0 0 0-7.1-7.1l-1.1 1.1"></path><path d="M14 11a5 5 0 0 0-7.1-.1l-2 2A5 5 0 0 0 12 20l1.1-1.1"></path></svg>
-          </button>
-        </div>
+        <span class="desk-image-group__role" data-image-group-role-label aria-hidden="true">${escapeHtml(roleItem?.short || '参考')}</span>
+        <button type="button" class="desk-image-group__insert" data-image-group-insert-reference title="插入提示词引用" aria-label="将${label}插入提示词">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.1.1l2-2a5 5 0 0 0-7.1-7.1l-1.1 1.1"></path><path d="M14 11a5 5 0 0 0-7.1-.1l-2 2A5 5 0 0 0 12 20l1.1-1.1"></path></svg>
+        </button>
       </article>`;
   }
 
@@ -595,40 +584,31 @@
     return groupNode.items.map((item, index) => imageGroupItemHtml(groupNode, item, index)).join('');
   }
 
-    function imageGroupGooeyBlobsHtml(groupNode) {
-    const shellInset = (IMAGE_GROUP_LIQUID_SHELL_PX - IMAGE_GROUP_THUMB_PX) / 2;
-    return groupNode.items.map((item, index) => {
-      const position = imageGroupThumbPosition(index);
-      return `<rect class="desk-image-group__liquid-item" data-image-group-goo-item="${escapeHtml(item.itemId)}" x="${position.left - shellInset}" y="${position.top - shellInset}" width="${IMAGE_GROUP_LIQUID_SHELL_PX}" height="${IMAGE_GROUP_LIQUID_SHELL_PX}" rx="${IMAGE_GROUP_THUMB_RADIUS_PX + shellInset}"></rect>`;
-    }).join('');
+    // The thumbnails' footprint in node coordinates: what the group visibly is, now that it
+    // has no panel (connection swells attach here).
+    function imageGroupContentBounds(node) {
+    const count = Array.isArray(node?.items) ? node.items.length : 0;
+    return {
+      x: IMAGE_GROUP_PADDING_PX,
+      y: IMAGE_GROUP_MOTHER_TOP_PX + IMAGE_GROUP_PADDING_PX,
+      width: Math.max(0, compactImageGroupNodeWidth(count) - IMAGE_GROUP_PADDING_PX * 2),
+      height: Math.max(0, imageGroupMotherHeight(count) - IMAGE_GROUP_PADDING_PX * 2),
+      radius: IMAGE_GROUP_THUMB_RADIUS_PX
+    };
   }
 
     function imageGroupNodeHtml(node) {
     normalizeImageGroupNodeState(node);
-    const filterId = `desk-image-group-gooey-${node.id}`;
-    const filterWidth = node.width + IMAGE_GROUP_FILTER_OUTSET_PX * 2;
-    const filterHeight = node.height + IMAGE_GROUP_FILTER_OUTSET_PX * 2;
-    const motherHeight = imageGroupMotherHeight(node.items.length);
     const columns = imageGroupColumnCount(node.items.length);
     return `
-      <section class="desk-node desk-node--image-group" data-node-id="${node.id}" aria-label="图片组，${node.items.length} 张图片" style="--desk-image-group-mother-radius:${IMAGE_GROUP_MOTHER_RADIUS_PX}px;--desk-image-group-columns:${columns}">
-        <svg class="desk-image-group__silhouette" data-image-group-silhouette aria-hidden="true" viewBox="0 0 ${node.width} ${node.height}" preserveAspectRatio="none">
-          <defs>
-            <filter id="${escapeHtml(filterId)}" data-image-group-filter filterUnits="userSpaceOnUse" x="-${IMAGE_GROUP_FILTER_OUTSET_PX}" y="-${IMAGE_GROUP_FILTER_OUTSET_PX}" width="${filterWidth}" height="${filterHeight}" color-interpolation-filters="sRGB">${imageGroupGooeyFilterPrimitivesHtml()}</filter>
-          </defs>
-          <g class="desk-image-group__liquid" filter="url(#${escapeHtml(filterId)})" data-image-group-goo>
-            <rect class="desk-image-group__liquid-base" data-image-group-liquid-base x="0" y="${IMAGE_GROUP_MOTHER_TOP_PX}" width="${node.width}" height="${motherHeight}" rx="${IMAGE_GROUP_MOTHER_RADIUS_PX}"></rect>
-            ${imageGroupGooeyBlobsHtml(node)}
-          </g>
-        </svg>
-        <div class="desk-image-group__mother desk-image-group__body" data-node-drag-handle>
-          <div class="desk-image-group__identity" aria-hidden="true">
-            <strong>图片组</strong>
-            <span data-image-group-count>${node.items.length} 张</span>
-          </div>
+      <section class="desk-node desk-node--image-group" data-node-id="${node.id}" aria-label="图片组，${node.items.length} 张图片" style="--desk-image-group-columns:${columns}">
+        <div class="desk-image-group__mother desk-image-group__body">
           <div class="desk-image-group__items" data-image-group-items>${imageGroupItemsHtml(node)}</div>
         </div>
-        <div class="desk-image-group__node-actions" data-node-drag-ignore aria-label="图片组操作">
+        <div class="desk-image-group__node-actions" aria-label="图片组操作">
+          <span class="desk-key desk-image-group__grip" data-node-drag-handle title="拖动图片组" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M12 3v18M3 12h18M12 3l-3 3M12 3l3 3M12 21l-3-3M12 21l3-3M3 12l3-3M3 12l3 3M21 12l-3-3M21 12l-3 3"></path></svg>
+          </span>
           <button type="button" class="desk-key" data-image-group-ungroup title="解除图片组" aria-label="解除图片组">
             <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="8" height="8" rx="2"></rect><rect x="13" y="11" width="8" height="8" rx="2"></rect><path d="m10 15-2 2 2 2M14 9l2-2-2-2"></path></svg>
           </button>
@@ -646,22 +626,7 @@
     if (!groupNode || groupNode.type !== 'image_group' || !element) return;
     normalizeImageGroupNodeState(groupNode);
     const items = element.querySelector('[data-image-group-items]');
-    const goo = element.querySelector('[data-image-group-goo]');
-    const count = element.querySelector('[data-image-group-count]');
-    const silhouette = element.querySelector('[data-image-group-silhouette]');
-    const filter = element.querySelector('[data-image-group-filter]');
-    const motherHeight = imageGroupMotherHeight(groupNode.items.length);
     if (items) items.innerHTML = imageGroupItemsHtml(groupNode);
-    if (goo) {
-      goo.innerHTML = `<rect class="desk-image-group__liquid-base" data-image-group-liquid-base x="0" y="${IMAGE_GROUP_MOTHER_TOP_PX}" width="${groupNode.width}" height="${motherHeight}" rx="${IMAGE_GROUP_MOTHER_RADIUS_PX}"></rect>${imageGroupGooeyBlobsHtml(groupNode)}`;
-    }
-    if (count) count.textContent = `${groupNode.items.length} 张`;
-    silhouette?.setAttribute('viewBox', `0 0 ${groupNode.width} ${groupNode.height}`);
-    filter?.setAttribute('width', String(groupNode.width + IMAGE_GROUP_FILTER_OUTSET_PX * 2));
-    filter?.setAttribute('height', String(groupNode.height + IMAGE_GROUP_FILTER_OUTSET_PX * 2));
-    element.querySelector('[data-image-group-liquid-base]')?.setAttribute('width', String(groupNode.width));
-    element.querySelector('[data-image-group-liquid-base]')?.setAttribute('height', String(motherHeight));
-    element.style.setProperty('--desk-image-group-mother-radius', `${IMAGE_GROUP_MOTHER_RADIUS_PX}px`);
     element.style.setProperty('--desk-image-group-columns', String(imageGroupColumnCount(groupNode.items.length)));
     element.setAttribute('aria-label', `图片组，${groupNode.items.length} 张图片`);
     ensureNodeEdgeHandles(element);
@@ -724,10 +689,9 @@
       normalizeImageGroupNodeState,
       createImageGroupItemFromNode,
       normalizeImageSourceFromGroupItem,
-      imageGroupRoleOptionsHtml,
       imageGroupItemHtml,
       imageGroupItemsHtml,
-      imageGroupGooeyBlobsHtml,
+      imageGroupContentBounds,
       imageGroupNodeHtml,
       refreshImageGroupNode,
       imageGroupRoleEntriesForTarget,

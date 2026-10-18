@@ -961,7 +961,8 @@ class DesktopResultStatusUiTest(unittest.TestCase):
 
         self.assertRegex(performance_css, r"\.desk-canvas-world,[^}]*\.desk-node[^}]*will-change:\s*auto;")
         self.assertRegex(performance_css, r"\.is-wheel-transforming\) \.desk-canvas-world\s*\{[^}]*will-change:\s*transform;")
-        self.assertRegex(performance_css, r"\.is-wheel-transforming\) \.desk-image-group__liquid,[^}]*filter:\s*none\s*!important;")
+        # Image groups have no liquid panel left to unfilter while panning.
+        self.assertNotIn("desk-image-group__liquid", performance_css)
         self.assertRegex(performance_css, r"\.is-wheel-transforming\)[^}]*\.desk-image-group__thumb > img[^}]*box-shadow:\s*none\s*!important;")
 
     def test_desktop_geometry_keeps_agent_controls_and_input_layout_intact(self):
@@ -2054,10 +2055,10 @@ class DesktopResultStatusUiTest(unittest.TestCase):
         self.assertNotRegex(image_group_css, r"(?m)^\.desk-")
 
         self.assertIn("body.desk-app[data-theme] .desk-node--image-group", image_group_css)
-        self.assertIn("body.desk-app[data-theme] .desk-image-group__silhouette", image_group_css)
         self.assertIn("body.desk-app[data-theme] .desk-image-group__thumb img", image_group_css)
-        self.assertIn("body.desk-app[data-theme] .desk-image-group__item-actions", image_group_css)
-        self.assertIn('.desk-select-menu[data-select-variant="image-group-role"]', image_group_css)
+        self.assertIn("body.desk-app[data-theme] :is(.desk-image-group__role, .desk-image-group__insert)", image_group_css)
+        self.assertIn("body.desk-app[data-theme] .desk-image-group-picker__goo", image_group_css)
+        self.assertNotIn("desk-image-group__silhouette", image_group_css)
         self.assertIn("body.desk-app[data-theme] .desk-image-group__node-actions", image_group_css)
         self.assertIn("body.desk-app[data-theme] .desk-image-group-dwell", image_group_css)
         self.assertIn("body.desk-app[data-theme] .desk-image-group-transition__goo span", image_group_css)

@@ -10,14 +10,15 @@ function fixture({borderLeft=2, borderTop=2, imageGroup=false, swell='liquid'}={
   vm.createContext(context);
   for(const file of ['desktop-canvas-port-geometry.js','desktop-canvas-port-interaction.js'])vm.runInContext(fs.readFileSync(path.join(root,'frontend/scripts',file),'utf8'),context);
   const shape=()=>({attributes:{},style:{setProperty(k,v){this[k]=v;}},dataset:{},setAttribute(k,v){this.attributes[k]=v;},getAttribute(k){return this.attributes[k];},classList:{toggle(){},contains(){return false;}}});
-  const base=shape();Object.assign(base.attributes,{x:'8',y:'12',width:'600',height:'300',rx:'16'});
-  const node=shape();Object.assign(node,{offsetWidth:800,offsetHeight:360,computedStyle:{borderTopLeftRadius:'26px',borderLeftWidth:`${borderLeft}px`,borderTopWidth:`${borderTop}px`},matches:()=>imageGroup,querySelector:()=>base});
+  const node=shape();Object.assign(node,{offsetWidth:800,offsetHeight:360,computedStyle:{borderTopLeftRadius:'26px',borderLeftWidth:`${borderLeft}px`,borderTopWidth:`${borderTop}px`},matches:()=>imageGroup});
   node.dataset.nodeId='fixture';
   const state={nodeElement:node,svg:shape(),paintRect:shape(),innerRect:shape(),maskPath:shape(),floatingPort:shape(),amplitude:{value:1,target:1,velocity:0},position:{value:NaN,target:NaN,velocity:0}};
   const api=context.window.DesktopCanvasPortInteraction.create({...context.window.DesktopCanvasPortGeometry,
     FLOATING_SWELL_BORDER_PADDING_PX:36,FLOATING_SWELL_VISIBLE_THRESHOLD_PX:0.25,
     FLOATING_SWELL_PEAK_PX:7,FLOATING_DROPLET_PEAK_PX:9,IMAGE_GROUP_LIQUID_VISIBLE_OUTSET_PX:2,FLOATING_SWELL_LINK_OVERLAP_SCREEN_PX:1.25,
-    getNodeState:()=>({id:'fixture',x:20,y:30,width:800,height:360}),clamp:(n,min,max)=>Math.max(min,Math.min(max,n)),
+    getNodeState:()=>({id:'fixture',x:20,y:30,width:800,height:360}),
+    // An image group's body is its thumbnails' footprint (it has no panel).
+    imageGroupContentBounds:()=>({x:8,y:12,width:600,height:300,radius:16}),clamp:(n,min,max)=>Math.max(min,Math.min(max,n)),
     activeInteractionRef:{current:null},contextMenuConnectionSourceIdRef:{current:''},contextMenuElRef:{current:null},
     portOutwardVector:side=>({left:{x:-1,y:0},right:{x:1,y:0},top:{x:0,y:-1},bottom:{x:0,y:1}}[side])});
   return {api,state,node};

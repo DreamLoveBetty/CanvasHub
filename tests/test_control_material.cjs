@@ -170,7 +170,7 @@ test('node push buttons opt in through the style-free .desk-key hook; segments, 
     'desktop-video-control-view.js': ['data-control-import'],
     'desktop-canvas-audio.js': ['data-audio-action="import"', 'data-audio-action="download"'],
     'desktop-music-view.js': ['data-music-action="${action}"'],
-    'desktop-canvas-image-group-model.js': ['data-image-group-insert-reference', 'data-image-group-ungroup'],
+    'desktop-canvas-image-group-model.js': ['data-image-group-ungroup'],
   };
   const buttonWith = (code, marker) => code.split('<button').slice(1).map(tag => tag.slice(0, tag.indexOf('>'))).filter(tag => tag.includes(marker));
   for (const [file, markers] of Object.entries(keyed)) {
@@ -186,6 +186,9 @@ test('node push buttons opt in through the style-free .desk-key hook; segments, 
     'desktop-music-view.js': ['data-music-tab='],
     'desktop-canvas-audio.js': ['desk-audio__wheel', 'desk-audio__play', 'desk-audio__round', 'data-audio-action="mute"'],
     'desktop-canvas-nodes.js': ['data-image-upload'],
+    // Overlay chips on a thumbnail, not push buttons.
+    'desktop-canvas-image-group-model.js': ['data-image-group-insert-reference'],
+    'desktop-canvas-image-group-role-picker.js': ['data-image-group-role-option'],
   };
   for (const [file, markers] of Object.entries(unkeyed))
     for (const marker of markers) buttonWith(src(file), marker).forEach(tag => assert.doesNotMatch(tag, /desk-key/, `${file}: ${marker}`));
@@ -214,8 +217,24 @@ test('segmented controls opt in through .desk-key-bank (nodes and settings) and 
   const block = upstream => generated.slice(generated.indexOf(`/* ${upstream} */\n`)).split('{')[0];
   // Select reading: the rail is the upstream groove; lens = ::before, diffuser cap = ::after.
   assert.equal(generated.split(`/* ambient.css: .amb-groove */\n${S} ${BANK},\n`).length - 1, 2, 'both groove blocks reach the rail');
-  assert.ok(generated.includes(`/* components.css: .amb-select-lens */\n${S} ${K}::before {`));
-  assert.ok(generated.includes(`/* components.css: .amb-select .ambx-key[data-on] .amb-select-lens */\n${S} ${ON}::before {`));
+  // The lens keeps upstream's paint but not its placement (a disc 62% of a square key's
+  // height): on wide production keys it follows the key, inset by an even rim on every side.
+  const lens = generated.slice(generated.indexOf('/* components.css: .amb-select-lens (omitted: left, top, transform, height, aspect-ratio, border-radius) */\n'));
+  assert.ok(lens.startsWith(`/* components.css: .amb-select-lens (omitted: left, top, transform, height, aspect-ratio, border-radius) */\n${S} ${K}::before {`));
+  const lensBody = lens.slice(lens.indexOf('{'), lens.indexOf('\n}') + 2);
+  assert.doesNotMatch(lensBody.replace(/\/\*[\s\S]*?\*\//g, ''), /\b(left|top|transform|height|aspect-ratio|border-radius):/);
+  assert.match(lensBody, /position: absolute;[\s\S]*background-color: color-mix\([\s\S]*var\(--_ambx-sel-color\) 6%[\s\S]*transition: background-color 140ms ease;/);
+  const placement = read('frontend/styles/desktop-control-material.css');
+  assert.ok(placement.includes(`${S} ${K}::before {\n  inset: calc(var(--ambx-grid) * 1.25);\n  border-radius: calc(var(--ambx-radius-md) - var(--ambx-grid) * 1.25);\n}`));
+  // The lit lens colour is ours: low-chroma (grey) lamps are lifted toward the floor so the
+  // lamp never reads as a dark blot under the diffuser; saturated lamps keep upstream's colour.
+  assert.ok(!generated.includes('.amb-select .ambx-key[data-on] .amb-select-lens'));
+  const adapterCss = read('frontend/styles/desktop-control-material.css');
+  assert.ok(adapterCss.includes(`${S} ${ON}::before {\n  background-color: oklch(from var(--_ambx-sel-color) max(l, calc(.84 - c * 4)) c h);\n}`));
+  // Keys, like upstream's, are borderless: the cap covers the padding box only.
+  const keyRule = adapterCss.slice(adapterCss.indexOf(`${S} ${K} {`)).split('}')[0];
+  assert.match(keyRule, /border-width: 0;/);
+  assert.doesNotMatch(keyRule, /border-color/);
   assert.ok(generated.includes(`/* components.css: .amb-select .ambx-key[data-on] .amb-select-cap */\n${S} ${ON}::after {`));
   assert.ok(generated.includes(`/* components.css: .amb-select .ambx-key[data-on] */\n${S} ${ON} {`));
   for (const glass of ['ambient.css: .ambient', 'ambient.css: .amb-chamfer']) assert.ok(block(glass).includes(`${S} ${K}::after`), glass);
@@ -284,6 +303,31 @@ test('settings-centre action rows take the key caps; primary and danger keep the
   assert.doesNotMatch(T, /desk-key-bank|desk-color-bloom__(petal|trigger)|desk-select|secret-clear/);
 });
 
+test('matte and shiny caps sit in a lume well (upstream .amb-button clearance ring); glass keeps its own ring', () => {
+  const S = '#deskApp[data-control-material="ambient"]';
+  const NOT_GLASS = ':not([data-control-finish="glass"])';
+  const adapter = read('frontend/styles/desktop-control-material.css');
+  const rule = selector => {
+    const start = adapter.indexOf(`${selector} {`);
+    assert.ok(start >= 0, selector);
+    return adapter.slice(start, adapter.indexOf('}', start));
+  };
+  const T = adapter.slice(adapter.indexOf(`${S}${NOT_GLASS} `) + `${S}${NOT_GLASS} `.length).split(' {')[0];
+  assert.match(T, /^:is\(\.desk-node :is\(\.desk-button/);
+  // Outline, not layout: the ring stays outside the production box and rounds with each button's radius.
+  assert.match(rule(`${S}${NOT_GLASS} ${T}`), /outline: var\(--ambx-grid-half\) solid var\(--amb-lume\);\s*outline-offset: 0;/);
+  assert.match(rule(`${S}[data-theme="dark"]${NOT_GLASS} ${T}`), /outline-color: color-mix\(in oklab, var\(--amb-lume\), black 55%\);/);
+  assert.match(rule(`${S}${NOT_GLASS} ${T}:focus-visible`), /^[^}]*outline-color: var\(--amb-highlight-color\);\s*$/);
+  assert.match(rule(`${S}[data-control-finish="glass"] ${T}:focus-visible`), /outline: 2px solid var\(--amb-highlight-color\);\s*outline-offset: 2px;/);
+  // The cap is borderless like upstream's: a transparent production border left a bare
+  // strip outside the chamfer lines and the dish, a light rim inside the well.
+  const cap = rule(`${S} ${T}`);
+  assert.match(cap, /border-width: 0;/);
+  assert.doesNotMatch(cap, /border-color/);
+  // The well never moves the cap: no padding or size change rides on it.
+  assert.doesNotMatch(rule(`${S}${NOT_GLASS} ${T}`), /padding|width|height|margin/);
+});
+
 test('glass shadow offset: a glass-only setting scales the pane shadow ring offset and width', () => {
   const M = load(), body = fakeBody();
   assert.equal(M.normalize().glassShadow, '100');
@@ -308,6 +352,11 @@ test('text fields: their own opt-in (independent of the button material), groove
   const FS = '#deskApp[data-field-style="groove"]';
   const F = ':is(.desk-node, .desk-settings) :is(input:is([type="text"], [type="number"], [type="password"], [type="email"], [type="url"], :not([type])), textarea.desk-settings-textarea)'
     + ':not(.desk-select):not(.desk-settings-search__input):not(.desk-text-node__alias input)';
+  // Borderless like upstream's grooves: inset shadows stop at the padding box.
+  const fieldCss = read('frontend/styles/desktop-control-material.css');
+  const fieldRule = fieldCss.slice(fieldCss.indexOf(`${FS} ${F} {`)).split('}')[0];
+  assert.match(fieldRule, /border-width: 0;/);
+  assert.doesNotMatch(fieldRule, /border-color/);
   // Preference: default current; projected even when the button material is off.
   const M = load(), body = fakeBody();
   assert.equal(M.normalize().field, 'current');

@@ -1,7 +1,7 @@
 /* Image group drag interactions (desktop-canvas-image-group-interaction.js): while items
    are being sorted, lock the grabbing cursor and text selection across the canvas and hide
-   the per-item role actions. !important by design: these states must win over element
-   cursors and the hover / focus / open-menu rules that show the actions. */
+   the per-item role chip and reference button. !important by design: these states must win over element
+   cursors and the hover / focus / open-picker rules that show them. */
 
 body.desk-app[data-theme].desk-image-group-sorting,
 body.desk-app[data-theme].desk-image-group-sorting .desk-canvas-viewport,
@@ -11,7 +11,7 @@ body.desk-app[data-theme].desk-image-group-sorting .desk-image-group__thumb {
   -webkit-user-select: none !important;
 }
 
-body.desk-app[data-theme] .desk-node--image-group.is-sorting .desk-image-group__item-actions {
+body.desk-app[data-theme] .desk-node--image-group.is-sorting :is(.desk-image-group__role, .desk-image-group__insert) {
   opacity: 0 !important;
   pointer-events: none !important;
   visibility: hidden !important;

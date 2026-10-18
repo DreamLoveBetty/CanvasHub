@@ -19,19 +19,13 @@ body.desk-app[data-theme] .desk-node--image-group:is(.is-selected, .is-dragging,
   box-shadow: var(--desk-image-group-surface-shadow);
 }
 
-body.desk-app[data-theme] .desk-image-group__silhouette {
-  filter: var(--desk-image-group-silhouette-filter);
-}
-
-body.desk-app[data-theme] :is(
-  .desk-image-group__liquid,
-  .desk-image-group-transition__liquid-surface
-) {
-  fill: var(--desk-image-group-liquid-fill);
-}
-
 body.desk-app[data-theme] .desk-image-group__mother::after {
   border-color: transparent;
+}
+
+/* Hovering the group shows a lighter frame; selection and connecting states below win. */
+body.desk-app[data-theme] .desk-node--image-group:hover .desk-image-group__mother::after {
+  border-color: var(--desk-image-group-hover-border);
 }
 
 body.desk-app[data-theme] .desk-node--image-group:is(
@@ -43,14 +37,6 @@ body.desk-app[data-theme] .desk-node--image-group:has(
 ) .desk-image-group__mother::after {
   border-color: var(--desk-image-group-selection-border);
   box-shadow: var(--desk-image-group-selection-shadow);
-}
-
-body.desk-app[data-theme] .desk-image-group__identity strong {
-  color: var(--desk-image-group-title-ink);
-}
-
-body.desk-app[data-theme] .desk-image-group__identity span {
-  color: var(--desk-image-group-meta-ink);
 }
 
 body.desk-app[data-theme] .desk-image-group__item {
@@ -71,6 +57,24 @@ body.desk-app[data-theme] .desk-image-group__thumb img {
   box-shadow: var(--desk-image-group-thumb-shadow);
 }
 
+/* A thumbnail being melted while sorting paints nothing of its own (photo, tint, drag
+   shadow): the melt layer under the items shows it, with the drag depth; the badge stays. */
+body.desk-app[data-theme] .desk-image-group__item.is-melting {
+  filter: none;
+}
+
+body.desk-app[data-theme] .desk-image-group__item.is-melting .desk-image-group__thumb {
+  background: transparent;
+}
+
+body.desk-app[data-theme] .desk-image-group__item.is-melting .desk-image-group__thumb img {
+  opacity: 0;
+}
+
+body.desk-app[data-theme] .desk-image-group__sort-melt {
+  filter: var(--desk-image-group-item-drag-filter);
+}
+
 body.desk-app[data-theme] .desk-image-group__thumb strong {
   color: var(--desk-image-group-badge-ink);
   background: var(--desk-image-group-badge-background);
@@ -88,100 +92,54 @@ body.desk-app[data-theme] .desk-image-group-transition__chip strong {
     var(--desk-image-group-transition-badge-shadow-color);
 }
 
-body.desk-app[data-theme] .desk-image-group__item-actions {
-  background: var(--desk-image-group-item-actions-background);
-  border-color: var(--desk-image-group-item-actions-border);
-  box-shadow: var(--desk-image-group-item-actions-shadow);
+body.desk-app[data-theme] :is(.desk-image-group__role, .desk-image-group__insert) {
+  color: var(--desk-image-group-thumb-control-ink);
+  background: var(--desk-image-group-thumb-control-background);
+  box-shadow: var(--desk-image-group-thumb-control-shadow);
 }
 
-body.desk-app[data-theme] :is(
-  .desk-image-group__item-actions select,
-  .desk-image-group__item-actions > button
-) {
-  color: var(--desk-image-group-control-ink);
-  background: var(--desk-image-group-control-background);
-  border-color: var(--desk-image-group-control-border);
+body.desk-app[data-theme] .desk-image-group__insert:is(:hover, :focus-visible) {
+  color: var(--desk-image-group-thumb-control-hover-ink);
 }
 
-body.desk-app[data-theme] .desk-image-group__item-actions > button {
-  color: var(--desk-image-group-control-accent-ink);
+/* Frosted glass. The goo blobs stay opaque (a translucent blob falls below the goo
+   threshold); the layer shows through at --desk-image-group-picker-goo-opacity (applied
+   after the filter) as a milky liquid in flight and a haze under each button at rest. The
+   glass itself is on the buttons: a goo-filtered ancestor would cut a backdrop-filter off
+   from the photo it should frost. */
+body.desk-app[data-theme] .desk-image-group-picker__goo {
+  filter: url(#desk-image-group-picker-goo);
 }
 
-body.desk-app[data-theme] :is(
-  .desk-image-group__item-actions > button:hover,
-  .desk-image-group__item-actions > button:focus-visible,
-  .desk-image-group__item-actions select:focus-visible
-) {
-  color: var(--desk-image-group-control-hover-ink);
-  background: var(--desk-image-group-control-hover-background);
-  border-color: var(--desk-image-group-control-hover-border);
+body.desk-app[data-theme] .desk-image-group-picker__goo > span {
+  background: var(--desk-image-group-picker-fill);
 }
 
-body.desk-app[data-theme] .desk-image-group__item-actions .desk-select-trigger {
-  color: var(--desk-image-group-role-trigger-ink);
-  background: var(--desk-image-group-role-trigger-background);
-  border-color: var(--desk-image-group-role-trigger-border);
-  box-shadow: var(--desk-image-group-role-trigger-shadow);
+body.desk-app[data-theme] .desk-image-group-picker__buttons > button {
+  color: var(--desk-image-group-picker-ink);
+  background: var(--desk-image-group-picker-glass);
+  box-shadow: var(--desk-image-group-picker-glass-edge), var(--desk-image-group-picker-glass-shadow);
+  backdrop-filter: var(--desk-image-group-picker-backdrop);
+  -webkit-backdrop-filter: var(--desk-image-group-picker-backdrop);
 }
 
-body.desk-app[data-theme] .desk-image-group__item-actions .desk-select-chev {
-  color: var(--desk-image-group-role-chevron);
+body.desk-app[data-theme] .desk-image-group-picker__buttons > button:hover,
+body.desk-app[data-theme] .desk-image-group-picker__option.is-current {
+  color: var(--desk-image-group-picker-current-ink);
 }
 
-body.desk-app[data-theme] .desk-image-group__item-actions .desk-select-trigger:hover {
-  color: var(--desk-image-group-role-trigger-hover-ink);
-  background: var(--desk-image-group-role-trigger-hover-background);
-  border-color: var(--desk-image-group-role-trigger-hover-border);
+/* The current role wears a ring in the accent (icons carry no weight to bolden). */
+body.desk-app[data-theme] .desk-image-group-picker__option.is-current {
+  box-shadow: inset 0 0 0 2px var(--desk-image-group-picker-current-ink), var(--desk-image-group-picker-glass-shadow);
 }
 
-body.desk-app[data-theme] :is(
-  .desk-image-group__item-actions .desk-select-trigger:focus,
-  .desk-image-group__item-actions .desk-select-shell.is-open .desk-select-trigger
-) {
-  color: var(--desk-image-group-role-trigger-focus-ink);
-  background: var(--desk-image-group-role-trigger-focus-background);
-  border-color: var(--desk-image-group-role-trigger-focus-border);
-  box-shadow: var(--desk-image-group-role-trigger-focus-shadow);
-}
-
-body.desk-app[data-theme] :is(
-  .desk-image-group__item-actions .desk-select-menu,
-  .desk-select-menu[data-select-variant="image-group-role"]
-) {
-  color: var(--desk-image-group-role-menu-ink);
-  background: var(--desk-image-group-role-menu-background);
-  border-color: var(--desk-image-group-role-menu-border);
-  box-shadow: var(--desk-image-group-role-menu-shadow);
-}
-
-body.desk-app[data-theme] :is(
-  .desk-image-group__item-actions .desk-select-option,
-  .desk-select-menu[data-select-variant="image-group-role"] .desk-select-option
-) {
-  color: var(--desk-image-group-role-option-ink);
-}
-
-body.desk-app[data-theme] :is(
-  .desk-image-group__item-actions .desk-select-option,
-  .desk-select-menu[data-select-variant="image-group-role"] .desk-select-option
-):is(:hover, .is-highlighted, .is-selected):not(:disabled) {
-  color: var(--desk-image-group-role-option-active-ink);
-  background: var(--desk-image-group-role-option-active-background);
-}
-
-body.desk-app[data-theme] .desk-image-group__node-actions {
-  background: var(--desk-image-group-node-actions-background);
-  border-color: var(--desk-image-group-node-actions-border);
-  box-shadow: var(--desk-image-group-node-actions-shadow);
-}
-
-body.desk-app[data-theme] .desk-image-group__node-actions :is(button, .desk-node-delete) {
+body.desk-app[data-theme] .desk-image-group__node-actions :is(button, .desk-node-delete, .desk-image-group__grip) {
   color: var(--desk-image-group-node-action-ink);
   background: var(--desk-image-group-node-action-background);
   border-color: var(--desk-image-group-node-action-border);
 }
 
-body.desk-app[data-theme] .desk-image-group__node-actions button:is(:hover, :focus-visible) {
+body.desk-app[data-theme] .desk-image-group__node-actions :is(button, .desk-image-group__grip):is(:hover, :focus-visible) {
   color: var(--desk-image-group-node-action-hover-ink);
   background: var(--desk-image-group-node-action-hover-background);
   border-color: var(--desk-image-group-node-action-hover-border);
@@ -224,18 +182,6 @@ body.desk-app[data-theme] .desk-image-group-transition__goo span {
 
 body.desk-app[data-theme] .desk-image-group-transition__images > img {
   box-shadow: var(--desk-image-group-transition-image-shadow);
-}
-
-body.desk-app[data-theme] .desk-image-group-transition__liquid-svg {
-  filter: var(--desk-image-group-transition-liquid-filter);
-}
-
-body.desk-app[data-theme] .desk-image-group-transition__identity strong {
-  color: var(--desk-image-group-transition-title-ink);
-}
-
-body.desk-app[data-theme] .desk-image-group-transition__identity span {
-  color: var(--desk-image-group-transition-meta-ink);
 }
 
 body.desk-app[data-theme] .desk-image-group-transition__chip img {

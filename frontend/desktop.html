@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="canvashub-version" content="V26.5.0">
   <title>图像画布</title>
-  <link rel="stylesheet" href="styles/desktop-tokens.css?v=20261017-image-group-rounded1">
+  <link rel="stylesheet" href="styles/desktop-tokens.css?v=20261017-image-group-glass1">
   <link rel="stylesheet" href="styles/desktop-liquid.css?v=20261016-liquid-shared2">
   <link rel="stylesheet" href="styles/desktop-shell-geometry.css?v=20261015-shell-preserve1">
   <link rel="stylesheet" href="styles/desktop-settings-auth-geometry.css?v=20261015-interaction-kept4">
@@ -20,22 +20,22 @@
   <link rel="stylesheet" href="styles/desktop-color-bloom.css?v=20261010-color-bloom1">
   <link rel="stylesheet" href="styles/desktop-shell.css?v=20261006-node-palette-frost1">
   <link rel="stylesheet" href="styles/desktop-canvas-nodes.css?v=20261007-connection-arc1">
-  <link rel="stylesheet" href="styles/desktop-image-group-geometry.css?v=20261017-image-group-rounded1">
-  <link rel="stylesheet" href="styles/desktop-image-group.css?v=20261017-image-group-rounded1">
-  <link rel="stylesheet" href="styles/desktop-image-group-interaction.css?v=20261014-image-group-module2">
+  <link rel="stylesheet" href="styles/desktop-image-group-geometry.css?v=20261017-image-group-glass1">
+  <link rel="stylesheet" href="styles/desktop-image-group.css?v=20261017-image-group-glass1">
+  <link rel="stylesheet" href="styles/desktop-image-group-interaction.css?v=20261017-image-group-picker1">
   <link rel="stylesheet" href="styles/desktop-prompt-assistant.css?v=20260929-prompt-video1">
   <link rel="stylesheet" href="styles/desktop-gallery.css?v=20260827-style-cleanup1">
   <link rel="stylesheet" href="styles/desktop-settings-auth.css?v=20261010-color-bloom1">
   <link rel="stylesheet" href="styles/desktop-creation-tools.css?v=20260831-status-silk2">
-  <link rel="stylesheet" href="styles/desktop-controls.css?v=20261011-stepper-panels1">
+  <link rel="stylesheet" href="styles/desktop-controls.css?v=20261017-image-group-picker1">
   <link rel="stylesheet" href="styles/desktop-geometry.css?v=20261015-shell-preserve1">
-  <link rel="stylesheet" href="styles/desktop-motion.css?v=20261014-image-group-module2">
+  <link rel="stylesheet" href="styles/desktop-motion.css?v=20261017-image-group-tap1">
   <link rel="stylesheet" href="styles/desktop-video-control.css?v=20261011-select-stepper1">
   <link rel="stylesheet" href="styles/desktop-topaz-video.css?v=20261005-topaz-pipeline1">
   <link rel="stylesheet" href="styles/desktop-topaz-video-workbench.css?v=20261006-topaz-panel-polish2">
   <link rel="stylesheet" href="styles/desktop-music.css?v=20261004-state-icons1">
   <link rel="stylesheet" href="styles/desktop-audio.css?v=20261004-node-surfaces1">
-  <link rel="stylesheet" href="styles/desktop-performance.css?v=20261014-image-group-module2">
+  <link rel="stylesheet" href="styles/desktop-performance.css?v=20261017-image-group-picker1">
   <link rel="stylesheet" href="styles/desktop-topaz.css?v=20261009-generation-action-unify1">
   <link rel="stylesheet" href="styles/desktop-cyimg.css?v=20261009-generation-action-unify1">
   <link rel="stylesheet" href="styles/desktop-krea2.css?v=20261003-auto-image-mode1">
@@ -43,8 +43,8 @@
   <link rel="stylesheet" href="styles/desktop-qwen21.css?v=20261003-auto-image-mode1">
   <link rel="stylesheet" href="styles/desktop-compare.css?v=20261013-compare-module2">
   <link rel="stylesheet" href="styles/desktop-progress.css?v=20261011-progress-instrument2">
-  <link rel="stylesheet" href="styles/desktop-ambient-controls.css?v=20261011-field-style1">
-  <link rel="stylesheet" href="styles/desktop-control-material.css?v=20261011-field-style1">
+  <link rel="stylesheet" href="styles/desktop-ambient-controls.css?v=20261017-key-lens1">
+  <link rel="stylesheet" href="styles/desktop-control-material.css?v=20261017-key-lens1">
   <link rel="stylesheet" href="styles/desktop-number-stepper.css?v=20261011-stepper-panels1">
 </head>
 <body id="deskApp" class="desk-app" data-theme="light" data-app-version="V26.5.0">
@@ -1837,7 +1837,7 @@
   <script src="scripts/desktop-control-material.js?v=20261011-field-style1"></script>
   <script src="scripts/desktop-settings-drawer.js?v=20261009-settings-drawer2"></script>
   <script src="scripts/desktop-preferences.js?v=20261011-release-26-5-0"></script>
-  <script src="scripts/desktop-select.js?v=20261006-krea-model-menu1"></script>
+  <script src="scripts/desktop-select.js?v=20261017-image-group-picker1"></script>
   <script src="scripts/desktop-number-stepper.js?v=20261011-stepper-panels1"></script>
   <script src="scripts/desktop-tasks.js?v=20260921-task-contract1"></script>
   <script src="scripts/desktop-task-output-adapter.js?v=20260921-task-contract1"></script>
@@ -1888,9 +1888,10 @@
   <script src="scripts/desktop-canvas-workflow.js?v=20261001-qwen21-adapters-1"></script>
   <script src="scripts/desktop-canvas-prompt-document.js?v=20260912-canvas-business1"></script>
   <script src="scripts/desktop-canvas-text-editor.js?v=20261010-node-keys1"></script>
-  <script src="scripts/desktop-canvas-image-group-model.js?v=20261017-image-group-rounded1"></script>
+  <script src="scripts/desktop-canvas-image-group-model.js?v=20261017-image-group-tap1"></script>
   <script src="scripts/desktop-canvas-image-group-melt.js?v=20261017-image-group-rounded1"></script>
-  <script src="scripts/desktop-canvas-image-group-interaction.js?v=20261017-image-group-rounded1"></script>
+  <script src="scripts/desktop-canvas-image-group-interaction.js?v=20261017-image-group-melt-sort1"></script>
+  <script src="scripts/desktop-canvas-image-group-role-picker.js?v=20261017-image-group-icons1"></script>
   <script src="scripts/desktop-canvas-image-editor-tools.js?v=20260912-canvas-business1"></script>
   <script src="scripts/desktop-canvas-image-editor.js?v=20260912-canvas-business1"></script>
   <script src="scripts/desktop-canvas-media-import.js?v=20260912-canvas-business1"></script>
@@ -1899,12 +1900,12 @@
   <script src="scripts/desktop-canvas-model-nodes.js?v=20261010-segment-bank1"></script>
   <script src="scripts/desktop-canvas-connections.js?v=20261007-connection-feedback-natural1"></script>
   <script src="scripts/desktop-canvas-connection-feedback.js?v=20261007-connection-arc1"></script>
-  <script src="scripts/desktop-canvas-port-interaction.js?v=20261007-connection-feedback1"></script>
+  <script src="scripts/desktop-canvas-port-interaction.js?v=20261017-image-group-picker1"></script>
   <script src="scripts/desktop-canvas-generation-config.js?v=20260920-reshot2"></script>
   <script src="scripts/desktop-canvas-generation.js?v=20260922-topaz-node5"></script>
   <script src="scripts/desktop-canvas-collision.js?v=20260913-canvas-collision1"></script>
   <script src="scripts/desktop-canvas-lora.js?v=20261002-lora-library3"></script>
-  <script src="scripts/desktop-canvas.js?v=20261017-image-group-rounded1"></script>
+  <script src="scripts/desktop-canvas.js?v=20261017-image-group-tap1"></script>
   <script type="module" src="scripts/desktop-pose-studio.js?v=20260705-pose-legacy-skeleton1"></script>
   <script src="scripts/desktop-layout-editor.js?v=20260908-layout-fonts2"></script>
   <script src="scripts/desktop-file-results.js?v=20260711-file-board-list3"></script>

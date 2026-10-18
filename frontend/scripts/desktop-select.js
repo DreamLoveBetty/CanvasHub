@@ -68,7 +68,6 @@
     if (select.closest('.desk-topaz-video-workbench')) return 'topaz-video-workbench';
     if (select.closest('.desk-lora-library, .desk-lora-dialog')) return 'gallery';
     if (select.classList.contains('desk-gallery-filter')) return 'gallery';
-    if (select.closest('.desk-image-group__item-actions')) return 'image-group-role';
     if (select.closest('.desk-prompt-node-picker')) return 'prompt';
     if (select.closest('.desk-layout-actions')) return 'layout-actions';
     if (select.closest('.desk-layout-inspector')) return 'layout-inspector';
@@ -226,20 +225,12 @@
     const rect = state.trigger.getBoundingClientRect();
     const margin = 8;
     const scale = inheritedScale(state.trigger);
-    const imageGroupThumb = state.variant === 'image-group-role'
-      ? state.select.closest('.desk-image-group__item')?.querySelector('.desk-image-group__thumb')
-      : null;
-    const imageGroupMenuWidth = imageGroupThumb
-      ? Number.parseFloat(getComputedStyle(imageGroupThumb).width) || imageGroupThumb.offsetWidth
-      : 0;
-    const minWidth = state.variant === 'prompt' ? 160 : (imageGroupMenuWidth || 132);
+    const minWidth = state.variant === 'prompt' ? 160 : 132;
     const shellWidth = state.shell.offsetWidth || state.trigger.offsetWidth || minWidth;
     const contentWidth = contentMenuWidth(state);
     const viewportMaxWidth = Math.max(contentWidth ? 1 : minWidth, Math.floor((window.innerWidth - margin * 2) / scale));
-    const menuWidth = imageGroupMenuWidth
-      ? Math.min(imageGroupMenuWidth, viewportMaxWidth)
-      : contentWidth ? Math.min(Math.max(shellWidth, minWidth, contentWidth), viewportMaxWidth)
-        : Math.min(Math.max(shellWidth, minWidth), Math.min(320, viewportMaxWidth));
+    const menuWidth = contentWidth ? Math.min(Math.max(shellWidth, minWidth, contentWidth), viewportMaxWidth)
+      : Math.min(Math.max(shellWidth, minWidth), Math.min(320, viewportMaxWidth));
     const menuScreenWidth = menuWidth * scale;
     const availableBelow = window.innerHeight - rect.bottom - margin;
     const availableAbove = rect.top - margin;
@@ -248,22 +239,14 @@
     const measuredHeight = Math.min(state.menu.scrollHeight, maxHeight);
     const measuredScreenHeight = measuredHeight * scale;
     const opensUp = availableBelow < Math.min(measuredScreenHeight, 180 * scale) && availableAbove > availableBelow;
-    const alignRight = !imageGroupThumb
-      && rect.left + menuScreenWidth > window.innerWidth - margin
+    const alignRight = rect.left + menuScreenWidth > window.innerWidth - margin
       && rect.right - menuScreenWidth >= margin;
 
-    state.menu.style.width = `${imageGroupMenuWidth ? menuWidth : Math.round(menuWidth)}px`;
-    state.menu.style.minWidth = `${imageGroupMenuWidth ? menuWidth : Math.round(contentWidth ? Math.min(minWidth, menuWidth) : minWidth)}px`;
+    state.menu.style.width = `${Math.round(menuWidth)}px`;
+    state.menu.style.minWidth = `${Math.round(contentWidth ? Math.min(minWidth, menuWidth) : minWidth)}px`;
     state.menu.style.maxWidth = `${Math.round(viewportMaxWidth)}px`;
     state.menu.style.maxHeight = `${Math.round(maxHeight)}px`;
-    if (imageGroupThumb) {
-      const shellRect = state.shell.getBoundingClientRect();
-      const thumbRect = imageGroupThumb.getBoundingClientRect();
-      const centeredLeft = thumbRect.left + (thumbRect.width - menuScreenWidth) / 2;
-      const clampedLeft = Math.max(margin, Math.min(centeredLeft, window.innerWidth - margin - menuScreenWidth));
-      state.menu.style.left = `${(clampedLeft - shellRect.left) / scale}px`;
-      state.menu.style.right = 'auto';
-    } else if (contentWidth) {
+    if (contentWidth) {
       const left = Math.max(margin, Math.min(rect.left, window.innerWidth - margin - menuScreenWidth));
       state.menu.style.left = `${(left - state.shell.getBoundingClientRect().left) / scale}px`;
       state.menu.style.right = 'auto';

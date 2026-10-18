@@ -24,32 +24,30 @@
   const imageGroupUiSize = value => value * IMAGE_GROUP_UI_SCALE;
   const IMAGE_GROUP_MAX_ITEMS = 12;
   const IMAGE_GROUP_MAX_COLUMNS = 4;
-  const IMAGE_GROUP_BASE_THUMB_PX = 168;
+  // Thumbnails fill the mother card: one 24px spacing between the card edge and the
+  // thumbnails and between neighbours, so a 288px card holds a 240px row with no title
+  // column or empty band. The card radius is the thumbnail radius plus that spacing, so
+  // card and thumbnail corners stay concentric.
+  const IMAGE_GROUP_BASE_THUMB_PX = 240;
+  const IMAGE_GROUP_PADDING_PX = imageGroupUiSize(24);
   const IMAGE_GROUP_MOTHER_HEIGHT_PX = imageGroupUiSize(288);
   const IMAGE_GROUP_MOTHER_TOP_PX = imageGroupUiSize(24);
-  const IMAGE_GROUP_MOTHER_RADIUS_PX = imageGroupUiSize(32);
-  const IMAGE_GROUP_IDENTITY_WIDTH_PX = imageGroupUiSize(168);
+  const IMAGE_GROUP_MOTHER_RADIUS_PX = imageGroupUiSize(56);
   const IMAGE_GROUP_THUMB_PX = imageGroupUiSize(IMAGE_GROUP_BASE_THUMB_PX);
-  // Rounded-rectangle thumbnails without a border (32 of 168, the mother card radius).
+  // Rounded-rectangle thumbnails without a border.
   const IMAGE_GROUP_THUMB_RADIUS_PX = imageGroupUiSize(32);
-  // Spaced row: a 168px thumbnail plus a 24px gap (thumbnails no longer overlap).
-  const IMAGE_GROUP_THUMB_STEP_PX = imageGroupUiSize(192);
-  const IMAGE_GROUP_ROW_STEP_PX = imageGroupUiSize(228);
-  const IMAGE_GROUP_TRAILING_SPACE_PX = imageGroupUiSize(48);
-  const IMAGE_GROUP_LIQUID_SHELL_PX = imageGroupUiSize(216);
-  const IMAGE_GROUP_FILTER_OUTSET_PX = imageGroupUiSize(144);
+  const IMAGE_GROUP_THUMB_STEP_PX = IMAGE_GROUP_THUMB_PX + IMAGE_GROUP_PADDING_PX;
+  const IMAGE_GROUP_ROW_STEP_PX = IMAGE_GROUP_THUMB_PX + IMAGE_GROUP_PADDING_PX;
   const IMAGE_GROUP_LIQUID_VISIBLE_OUTSET_PX = 2;
-  const DEFAULT_IMAGE_GROUP_NODE_WIDTH = IMAGE_GROUP_IDENTITY_WIDTH_PX
+  const DEFAULT_IMAGE_GROUP_NODE_WIDTH = IMAGE_GROUP_PADDING_PX * 2
     + IMAGE_GROUP_THUMB_PX
-    + IMAGE_GROUP_THUMB_STEP_PX
-    + IMAGE_GROUP_TRAILING_SPACE_PX;
+    + IMAGE_GROUP_THUMB_STEP_PX;
   const DEFAULT_IMAGE_GROUP_NODE_HEIGHT = IMAGE_GROUP_MOTHER_HEIGHT_PX + IMAGE_GROUP_MOTHER_TOP_PX * 2;
   const MIN_IMAGE_GROUP_NODE_WIDTH = DEFAULT_IMAGE_GROUP_NODE_WIDTH;
-  const MAX_IMAGE_GROUP_NODE_WIDTH = IMAGE_GROUP_IDENTITY_WIDTH_PX
+  const MAX_IMAGE_GROUP_NODE_WIDTH = IMAGE_GROUP_PADDING_PX * 2
     + IMAGE_GROUP_THUMB_PX
-    + (IMAGE_GROUP_MAX_COLUMNS - 1) * IMAGE_GROUP_THUMB_STEP_PX
-    + IMAGE_GROUP_TRAILING_SPACE_PX;
-  const IMAGE_GROUP_LAYOUT_VERSION = 10;
+    + (IMAGE_GROUP_MAX_COLUMNS - 1) * IMAGE_GROUP_THUMB_STEP_PX;
+  const IMAGE_GROUP_LAYOUT_VERSION = 11;
   const IMAGE_GROUP_PROXIMITY_DISTANCE_PX = 88;
   const IMAGE_GROUP_PROXIMITY_RELEASE_PX = 122;
   const IMAGE_GROUP_PROXIMITY_DWELL_MS = 620;
@@ -204,12 +202,12 @@
   const PROMPT_DOCUMENT_HISTORY_LIMIT = 50;
   const PROMPT_TOKEN_SELECTOR = '[data-prompt-block-token], [data-image-reference-token]';
   const IMAGE_GROUP_ROLES = Object.freeze([
-    { value: 'reference', label: '参考' },
-    { value: 'subject', label: '主体参考' },
-    { value: 'clothing', label: '服饰参考' },
-    { value: 'style', label: '风格参考' },
-    { value: 'composition', label: '构图参考' },
-    { value: 'background', label: '背景参考' }
+    { value: 'reference', label: '参考', short: '参考' },
+    { value: 'subject', label: '主体参考', short: '主体' },
+    { value: 'clothing', label: '服饰参考', short: '服饰' },
+    { value: 'style', label: '风格参考', short: '风格' },
+    { value: 'composition', label: '构图参考', short: '构图' },
+    { value: 'background', label: '背景参考', short: '背景' }
   ]);
   const IMAGE_GROUP_ROLE_INSTRUCTIONS = Object.freeze({
     reference: '作为通用视觉参考，仅参考用户明确指定的内容。',
@@ -505,6 +503,15 @@
 
   function createImageReferenceInstanceId() {
     return canvasPromptDocument.createImageReferenceInstanceId();
+  }
+
+  function setImageGroupItemRole(itemElement, role) {
+    const groupElement = itemElement?.closest('.desk-node--image-group[data-node-id]');
+    const item = getImageGroupItem(groupElement?.dataset.nodeId, itemElement?.dataset.imageGroupItem);
+    if (!groupElement || !item) return;
+    item.role = normalizeImageGroupRole(role);
+    refreshImageReferenceTokens(groupElement.dataset.nodeId);
+    DesktopState.saveSettings({ criticalCanvas: true });
   }
 
   function normalizeImageGroupRole(value, fallback = 'reference') {
@@ -1627,8 +1634,8 @@
    *
    * One-shot image transitions used by ungrouping remain separate. The live
    * proximity path has its own lifecycle: after the 620ms dwell the pointer is
-   * still a normal node drag, while this overlay becomes the crisp content
-   * layer and the SVG becomes the liquid silhouette layer.
+   * still a normal node drag, while this overlay carries the thumbnails and
+   * the melt between the incoming image and its nearest neighbour.
    */
   function liveImageGroupSmoothstep(value) {
     return canvasImageGroupInteraction.liveImageGroupSmoothstep(value);
@@ -2034,20 +2041,12 @@
     return canvasImageGroupModel.normalizeImageSourceFromGroupItem(item, groupNode, index);
   }
 
-  function imageGroupRoleOptionsHtml(selected) {
-    return canvasImageGroupModel.imageGroupRoleOptionsHtml(selected);
-  }
-
   function imageGroupItemHtml(groupNode, item, index) {
     return canvasImageGroupModel.imageGroupItemHtml(groupNode, item, index);
   }
 
   function imageGroupItemsHtml(groupNode) {
     return canvasImageGroupModel.imageGroupItemsHtml(groupNode);
-  }
-
-  function imageGroupGooeyBlobsHtml(groupNode) {
-    return canvasImageGroupModel.imageGroupGooeyBlobsHtml(groupNode);
   }
 
   function imageGroupNodeHtml(node) {
@@ -4224,6 +4223,12 @@
         ungroupImageGroup(groupElement.dataset.nodeId);
         return;
       }
+      if (event.target.closest('[data-image-group-role-picker]')) {
+        event.preventDefault();
+        event.stopPropagation();
+        canvasImageGroupRolePicker.handleClick(event);
+        return;
+      }
       const imageReferenceButton = event.target.closest('[data-image-group-insert-reference]');
       if (imageReferenceButton) {
         const groupElement = imageReferenceButton.closest('.desk-node--image-group[data-node-id]');
@@ -4693,17 +4698,6 @@
     });
 
     els.deskCanvasWorld?.addEventListener('change', event => {
-      const imageGroupRole = event.target.closest('[data-image-group-role]');
-      if (imageGroupRole) {
-        const groupElement = imageGroupRole.closest('.desk-node--image-group[data-node-id]');
-        const itemElement = imageGroupRole.closest('[data-image-group-item]');
-        const item = getImageGroupItem(groupElement?.dataset.nodeId, itemElement?.dataset.imageGroupItem);
-        if (!groupElement || !item) return;
-        item.role = normalizeImageGroupRole(imageGroupRole.value);
-        refreshImageReferenceTokens(groupElement.dataset.nodeId);
-        DesktopState.saveSettings({ criticalCanvas: true });
-        return;
-      }
       const videoField = event.target.closest('.desk-node--video-inference[data-node-id] [data-video-field]');
       if (videoField) {
         const nodeElement = videoField.closest('.desk-node--video-inference[data-node-id]');
@@ -5072,6 +5066,12 @@
       renderMiniMap();
       positionEdgeMenu();
     });
+    // The role picker closes on any press outside it and owns Escape/arrows while open, ahead
+    // of the canvas key handlers.
+    document.addEventListener('pointerdown', event => canvasImageGroupRolePicker.handlePointerDown(event), true);
+    document.addEventListener('keydown', event => {
+      if (canvasImageGroupRolePicker.handleKeydown(event)) event.stopImmediatePropagation();
+    }, true);
     document.addEventListener('keydown', handleCanvasDeleteKeydown, true);
 
     els.deskZoomOutBtn?.addEventListener('click', () => {
@@ -5536,18 +5536,24 @@
     setTextNodePromptMeta,
   });
 
+  const canvasImageGroupRolePicker = window.DesktopCanvasImageGroupRolePicker.create({
+    IMAGE_GROUP_ROLES,
+    escapeHtml,
+    imageGroupGooeyFilterPrimitivesHtml,
+    normalizeImageGroupRole,
+    onSelect: setImageGroupItemRole,
+    prefersReducedMotion,
+  });
+
   const canvasImageGroupModel = window.DesktopCanvasImageGroupModel.create({
     DEFAULT_IMAGE_NODE_HEIGHT,
     DEFAULT_IMAGE_NODE_WIDTH,
-    IMAGE_GROUP_FILTER_OUTSET_PX,
-    IMAGE_GROUP_IDENTITY_WIDTH_PX,
     IMAGE_GROUP_LAYOUT_VERSION,
-    IMAGE_GROUP_LIQUID_SHELL_PX,
     IMAGE_GROUP_MAX_COLUMNS,
     IMAGE_GROUP_MAX_ITEMS,
     IMAGE_GROUP_MOTHER_HEIGHT_PX,
-    IMAGE_GROUP_MOTHER_RADIUS_PX,
     IMAGE_GROUP_MOTHER_TOP_PX,
+    IMAGE_GROUP_PADDING_PX,
     IMAGE_GROUP_ROLES,
     IMAGE_GROUP_ROLE_INSTRUCTIONS,
     IMAGE_GROUP_ROLE_PRIORITY_NOTE,
@@ -5555,7 +5561,6 @@
     IMAGE_GROUP_THUMB_PX,
     IMAGE_GROUP_THUMB_RADIUS_PX,
     IMAGE_GROUP_THUMB_STEP_PX,
-    IMAGE_GROUP_TRAILING_SPACE_PX,
     MAX_IMAGE_GROUP_NODE_WIDTH,
     MIN_IMAGE_GROUP_NODE_WIDTH,
     animateImageGroupItemFlip,
@@ -5588,12 +5593,12 @@
 
   const canvasImageGroupInteraction = window.DesktopCanvasImageGroupInteraction.create({
     IMAGE_GROUP_BASE_THUMB_PX,
-    IMAGE_GROUP_IDENTITY_WIDTH_PX,
     IMAGE_GROUP_MAX_COLUMNS,
     IMAGE_GROUP_MAX_ITEMS,
     IMAGE_GROUP_MOTHER_HEIGHT_PX,
     IMAGE_GROUP_MOTHER_RADIUS_PX,
     IMAGE_GROUP_MOTHER_TOP_PX,
+    IMAGE_GROUP_PADDING_PX,
     IMAGE_GROUP_PROXIMITY_CONTACT_PX,
     IMAGE_GROUP_PROXIMITY_DISTANCE_PX,
     IMAGE_GROUP_PROXIMITY_DROP_MS,
@@ -5622,6 +5627,7 @@
     imageNodeSource,
     naturalImageGroupNodeWidth,
     normalizeImageGroupNodeState,
+    onImageGroupItemTap: item => canvasImageGroupRolePicker.tap(item),
     prefersReducedMotion,
     reorderImageGroupItemToIndex,
     screenToWorld,
@@ -5976,6 +5982,7 @@
     floatingSwellSpringStep,
     getAnchor,
     getNodeState,
+    imageGroupContentBounds: node => canvasImageGroupModel.imageGroupContentBounds(node),
     normalizePortSide,
     portOutwardVector,
     prefersReducedMotion,

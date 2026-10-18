@@ -4,12 +4,12 @@
 (function () {
   function create({
     IMAGE_GROUP_BASE_THUMB_PX,
-    IMAGE_GROUP_IDENTITY_WIDTH_PX,
     IMAGE_GROUP_MAX_COLUMNS,
     IMAGE_GROUP_MAX_ITEMS,
     IMAGE_GROUP_MOTHER_HEIGHT_PX,
     IMAGE_GROUP_MOTHER_RADIUS_PX,
     IMAGE_GROUP_MOTHER_TOP_PX,
+    IMAGE_GROUP_PADDING_PX,
     IMAGE_GROUP_PROXIMITY_CONTACT_PX,
     IMAGE_GROUP_PROXIMITY_DISTANCE_PX,
     IMAGE_GROUP_PROXIMITY_DROP_MS,
@@ -38,6 +38,7 @@
     imageNodeSource,
     naturalImageGroupNodeWidth,
     normalizeImageGroupNodeState,
+    onImageGroupItemTap,
     prefersReducedMotion,
     reorderImageGroupItemToIndex,
     screenToWorld,
@@ -73,11 +74,7 @@
         const rect = target.getBoundingClientRect();
         return { left: rect.left, top: rect.top, width: rect.width, height: rect.height };
       };
-      const blob = element.querySelector(`[data-image-group-goo-item="${CSS.escape(item.dataset.imageGroupItem)}"]`);
-      return [item.dataset.imageGroupItem, {
-        item: snapshot(item),
-        blob: snapshot(blob)
-      }];
+      return [item.dataset.imageGroupItem, { item: snapshot(item) }];
     }));
   }
 
@@ -103,38 +100,13 @@
         { transform: `translate(${dx}px, ${dy}px) scale(${scaleX}, ${scaleY})`, zIndex: 3 },
         { transform: 'translate(0, 0)', zIndex: 3 }
       ], { duration: 360, easing: 'cubic-bezier(.2,.8,.2,1)' });
-      const blob = element.querySelector(`[data-image-group-goo-item="${CSS.escape(item.dataset.imageGroupItem)}"]`);
-      const previousBlob = previousEntry?.blob;
-      if (blob?.animate && previousBlob) {
-        const blobRect = blob.getBoundingClientRect();
-        const blobDx = (
-          previousBlob.left + previousBlob.width / 2 - blobRect.left - blobRect.width / 2
-        ) / canvasScale;
-        const blobDy = (
-          previousBlob.top + previousBlob.height / 2 - blobRect.top - blobRect.height / 2
-        ) / canvasScale;
-        const blobScaleX = previousBlob.width / Math.max(1, blobRect.width);
-        const blobScaleY = previousBlob.height / Math.max(1, blobRect.height);
-        if (blobDx || blobDy || blobScaleX !== 1 || blobScaleY !== 1) {
-          blob.animate([
-            { transform: `translate(${blobDx}px, ${blobDy}px) scale(${Math.max(blobScaleX, blobScaleY)})` },
-            { transform: 'translate(0, 0) scale(1)' }
-          ], { duration: 420, easing: 'cubic-bezier(.2,.8,.2,1)' });
-        }
-      }
     });
   }
 
-    function imageGroupSortTransform(sortState, entry, screenDx, screenDy = 0, scale = 1, blobTransform = null) {
+    function imageGroupSortTransform(sortState, entry, screenDx, screenDy = 0, scale = 1) {
     const dx = screenDx / sortState.canvasScale;
     const dy = screenDy / sortState.canvasScale;
     entry.element.style.transform = `translate3d(${dx}px, ${dy}px, 0) scale(${scale})`;
-    if (entry.blob) {
-      const blobDx = (blobTransform?.screenDx ?? screenDx) / sortState.canvasScale;
-      const blobDy = (blobTransform?.screenDy ?? screenDy) / sortState.canvasScale;
-      const blobScale = blobTransform?.scale ?? scale;
-      entry.blob.style.transform = `translate(${blobDx}px, ${blobDy}px) scale(${blobScale})`;
-    }
   }
 
     function beginImageGroupItemSort(event) {
@@ -143,8 +115,8 @@
     const itemElement = handle?.closest('[data-image-group-item]');
     const groupElement = itemElement?.closest('.desk-node--image-group[data-node-id]');
     if (!handle || !itemElement || !groupElement || groupElement.classList.contains('is-sorting')) return;
+    // Even a one-image group takes the gesture: a press without a drag is a tap (role picker).
     const itemElements = Array.from(groupElement.querySelectorAll('[data-image-group-item]'));
-    if (itemElements.length < 2) return;
     const itemId = itemElement.dataset.imageGroupItem;
     const fromIndex = itemElements.findIndex(item => item.dataset.imageGroupItem === itemId);
     if (fromIndex < 0) return;
@@ -163,9 +135,12 @@
         element,
         index,
         rect: { left: rect.left, top: rect.top, width: rect.width, height: rect.height },
-        blob: groupElement.querySelector(`[data-image-group-goo-item="${CSS.escape(element.dataset.imageGroupItem)}"]`)
+        thumb: element.querySelector('.desk-image-group__thumb'),
+        image: element.querySelector('.desk-image-group__thumb img')
       };
     });
+    const mother = groupElement.querySelector('.desk-image-group__mother');
+    const motherRect = mother?.getBoundingClientRect();
     draggedImageGroupItemRef.current = {
       groupId: groupElement.dataset.nodeId,
       itemId,
@@ -180,7 +155,12 @@
       clientX: event.clientX,
       clientY: event.clientY,
       canvasScale: Math.max(0.01, Number(DesktopState.state.canvas.scale) || 1),
-      moved: false
+      moved: false,
+      mother,
+      origin: motherRect ? { left: motherRect.left, top: motherRect.top } : { left: 0, top: 0 },
+      reducedMotion: prefersReducedMotion(),
+      lastMoveAt: 0,
+      melt: null, meltLayer: null, meltProx: 0, meltClock: null, meltPartner: null, meltSettling: false
     };
     itemElement.classList.add('is-dragging');
     itemElement.setAttribute('aria-grabbed', 'true');
@@ -217,12 +197,7 @@
     previewOrder.splice(sortState.targetIndex, 0, sortState.itemId);
     sortState.itemEntries.forEach(entry => {
       if (entry.itemId === sortState.itemId) {
-        const targetSlot = sortState.itemEntries[sortState.targetIndex]?.rect;
-        imageGroupSortTransform(sortState, entry, dx, dy, 1.06, {
-          screenDx: (targetSlot?.left ?? entry.rect.left) - entry.rect.left,
-          screenDy: (targetSlot?.top ?? entry.rect.top) - entry.rect.top,
-          scale: 1
-        });
+        imageGroupSortTransform(sortState, entry, dx, dy, 1.06);
         return;
       }
       const previewIndex = previewOrder.indexOf(entry.itemId);
@@ -234,6 +209,80 @@
         (targetSlot?.top ?? entry.rect.top) - entry.rect.top
       );
     });
+    const now = performance.now();
+    renderImageGroupSortMelt(sortState, now);
+    // Keep painting while the melt eases or the neighbours are still sliding into place.
+    if ((sortState.meltSettling || now - sortState.lastMoveAt < 280) && !imageGroupSortFrameId) {
+      imageGroupSortFrameId = requestAnimationFrame(() => {
+        imageGroupSortFrameId = 0;
+        if (draggedImageGroupItemRef.current === sortState) renderImageGroupItemSortFrame(sortState);
+      });
+    }
+  }
+
+    // The dragged thumbnail melts into the nearest other thumbnail of its group (the same
+    // pairwise melt as a drag-in), painted in the group's own coordinates under the items so
+    // the badges stay crisp. While the melt shows them, the two thumbnails paint nothing of
+    // their own (is-melting): their photo, tint and drag shadow would otherwise sit on top of
+    // the melt as hard-edged rectangles.
+    function renderImageGroupSortMelt(sortState, now) {
+    if (sortState.reducedMotion || !sortState.mother) return;
+    const dragged = sortState.itemEntries[sortState.fromIndex];
+    if (!dragged?.thumb || !dragged.image) return;
+    if (!sortState.melt) {
+      const layer = document.createElement('div');
+      layer.className = 'desk-image-group__sort-melt';
+      sortState.mother.appendChild(layer);
+      sortState.meltLayer = layer;
+      sortState.melt = imageGroupMelt.create(layer);
+    }
+    const scale = sortState.canvasScale;
+    const local = rect => ({
+      x: (rect.left - sortState.origin.left) / scale,
+      y: (rect.top - sortState.origin.top) / scale,
+      w: rect.width / scale,
+      h: rect.height / scale
+    });
+    const draggedBox = local(dragged.thumb.getBoundingClientRect());
+    const center = box => ({ x: box.x + box.w / 2, y: box.y + box.h / 2 });
+    let partner = null;
+    let best = Infinity;
+    sortState.itemEntries.forEach(entry => {
+      if (entry === dragged || !entry.thumb || !entry.image) return;
+      const box = local(entry.thumb.getBoundingClientRect());
+      const a = center(draggedBox);
+      const b = center(box);
+      const distance = Math.hypot(a.x - b.x, a.y - b.y);
+      if (distance < best) {
+        best = distance;
+        partner = { entry, box };
+      }
+    });
+    const target = partner ? imageGroupMelt.proximity(draggedBox, partner.box) : 0;
+    const dt = Number.isFinite(sortState.meltClock) ? Math.max(0, Math.min(0.05, (now - sortState.meltClock) / 1000)) : 0;
+    sortState.meltClock = now;
+    sortState.meltProx += (target - sortState.meltProx) * (1 - Math.exp(-14 * dt));
+    if (Math.abs(target - sortState.meltProx) < 0.004) sortState.meltProx = target;
+    sortState.meltSettling = sortState.meltProx !== target;
+    const visible = sortState.meltProx > 0.002 && Boolean(partner);
+    if (sortState.meltPartner && sortState.meltPartner !== partner?.entry) sortState.meltPartner.element.classList.remove('is-melting');
+    sortState.meltPartner = partner?.entry || null;
+    dragged.element.classList.toggle('is-melting', visible);
+    if (partner) partner.entry.element.classList.toggle('is-melting', visible);
+    sortState.melt.setVisible(visible);
+    if (!visible) return;
+    const radius = IMAGE_GROUP_THUMB_RADIUS_PX / Math.max(1, IMAGE_GROUP_THUMB_PX);
+    const card = (box, entry) => ({ ...box, r: box.w * radius, src: entry.image.currentSrc || entry.image.src });
+    sortState.melt.update({ a: card(draggedBox, dragged), b: card(partner.box, partner.entry), prox: sortState.meltProx });
+  }
+
+    function clearImageGroupSortMelt(sortState) {
+    sortState.melt?.destroy();
+    sortState.meltLayer?.remove();
+    sortState.melt = null;
+    sortState.meltLayer = null;
+    sortState.meltPartner = null;
+    sortState.itemEntries.forEach(entry => entry.element.classList.remove('is-melting'));
   }
 
     function moveImageGroupItemSort(event) {
@@ -242,6 +291,7 @@
     event.preventDefault();
     sortState.clientX = event.clientX;
     sortState.clientY = event.clientY;
+    sortState.lastMoveAt = performance.now();
     if (imageGroupSortFrameId) return;
     imageGroupSortFrameId = requestAnimationFrame(() => {
       imageGroupSortFrameId = 0;
@@ -250,6 +300,7 @@
   }
 
     function clearImageGroupItemSortState(sortState, delay = 0) {
+    clearImageGroupSortMelt(sortState);
     document.body.classList.remove('desk-image-group-sorting');
     sortState.groupElement?.removeAttribute('data-sort-target-index');
     const groupElement = sortState.groupElement;
@@ -271,7 +322,6 @@
       entry.element.classList.remove('is-dragging');
       entry.element.removeAttribute('aria-grabbed');
       entry.element.style.removeProperty('transform');
-      entry.blob?.style.removeProperty('transform');
     });
   }
 
@@ -280,18 +330,11 @@
     const duration = reducedMotion ? 0 : 240;
     sortState.itemEntries.forEach(entry => {
       const itemTransform = entry.element.style.transform;
-      const blobTransform = entry.blob?.style.transform;
       if (duration && itemTransform && itemTransform !== 'none') {
         entry.element.animate([
           { transform: itemTransform },
           { transform: 'translate3d(0, 0, 0) scale(1)' }
         ], { duration, easing: 'cubic-bezier(.2,.8,.2,1)' });
-      }
-      if (duration && entry.blob && blobTransform && blobTransform !== 'none') {
-        entry.blob.animate([
-          { transform: blobTransform },
-          { transform: 'translate(0, 0) scale(1)' }
-        ], { duration: duration + 60, easing: 'cubic-bezier(.2,.8,.2,1)' });
       }
     });
     clearImageGroupItemSortState(sortState, duration ? duration + 70 : 0);
@@ -314,6 +357,8 @@
     const shouldCommit = !cancelled && sortState.moved && sortState.targetIndex !== sortState.fromIndex;
     if (!shouldCommit) {
       returnImageGroupItemSort(sortState);
+      // A press without a drag is a tap on the thumbnail: the host opens its role picker.
+      if (!cancelled && !sortState.moved) onImageGroupItemTap?.(sortState.itemEntries[sortState.fromIndex]?.element);
       return;
     }
     const before = captureImageGroupItemRects(sortState.groupId);
@@ -697,16 +742,6 @@
     });
   }
 
-    function liveImageGroupMotherPath(rect, radius) {
-    const { left, top, width, height } = rect;
-    const right = left + width, bottom = top + height;
-    const r = clamp(radius, 0, Math.min(width, height) / 2);
-    return `M ${left + r} ${top} H ${right - r} A ${r} ${r} 0 0 1 ${right} ${top + r}`
-      + ` V ${bottom - r} A ${r} ${r} 0 0 1 ${right - r} ${bottom}`
-      + ` H ${left + r} A ${r} ${r} 0 0 1 ${left} ${bottom - r}`
-      + ` V ${top + r} A ${r} ${r} 0 0 1 ${left + r} ${top} Z`;
-  }
-
     function liveImageGroupSlotPosition(preview, index) {
     const normalizedIndex = Math.max(0, Math.round(Number(index) || 0));
     const column = normalizedIndex % IMAGE_GROUP_MAX_COLUMNS;
@@ -819,13 +854,6 @@
     preview.incoming.badge.textContent = String(preview.insertionIndex + 1);
 
     renderLiveImageGroupMelt(preview, now);
-    preview.identity.style.left = `${preview.baseLeft + preview.identityInset}px`;
-    preview.identity.style.top = `${preview.baseTop + preview.identityTop}px`;
-    preview.identity.querySelector('span').textContent = `${preview.targetItems.length + (preview.dropActive ? 1 : 0)} 张`;
-    preview.base.setAttribute('d', liveImageGroupMotherPath({
-      left: preview.baseLeft, top: preview.baseTop,
-      width: preview.currentWidth, height: preview.currentHeight
-    }, preview.motherRadius));
   }
 
     function startLiveImageGroupPreviewFrame(preview) {
@@ -885,8 +913,17 @@
     const targetRect = targetElement?.getBoundingClientRect?.();
     if (!sourceRect || !targetRect) return null;
     const targetNode = DesktopState.state.canvas.nodes[targetNodeId];
+    // An existing group's body (its card area, panel or not) in screen space.
     const targetBodyRect = targetNode?.type === 'image_group'
-      ? targetElement.querySelector('[data-image-group-liquid-base]')?.getBoundingClientRect?.()
+      ? (() => {
+        const scale = Math.max(0.01, Number(DesktopState.state.canvas.scale) || 1);
+        return {
+          left: targetRect.left,
+          top: targetRect.top + IMAGE_GROUP_MOTHER_TOP_PX * scale,
+          width: targetRect.width,
+          height: imageGroupMotherHeight(targetNode.items?.length || 0) * scale
+        };
+      })()
       : null;
     const incomingEntry = entries.find(entry => entry.incoming);
     const targetEntries = entries.filter(entry => !entry.incoming);
@@ -901,7 +938,7 @@
       : IMAGE_GROUP_ROW_STEP_PX * canvasScale;
     const thumbStart = targetBodyRect
       ? Math.max(8, targetEntries[0].rect.left - targetBodyRect.left)
-      : IMAGE_GROUP_IDENTITY_WIDTH_PX * canvasScale;
+      : IMAGE_GROUP_PADDING_PX * canvasScale;
     const rowInset = targetBodyRect
       ? Math.max(0, targetEntries[0].rect.top - targetBodyRect.top)
       : (IMAGE_GROUP_MOTHER_HEIGHT_PX - IMAGE_GROUP_THUMB_PX) / 2 * canvasScale;
@@ -929,30 +966,15 @@
     };
     const incomingRadius = thumbSize / 2 + imageGroupUiSize(4);
     const introStart = cappedTransitionRect(sourceRect, IMAGE_GROUP_TRANSITION_THUMB_PX);
-    const transitionId = `desk-image-group-proximity-gooey-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
     const overlay = document.createElement('div');
     overlay.className = 'desk-image-group-transition desk-image-group-transition--proximity';
-    const liquidSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    liquidSvg.classList.add('desk-image-group-transition__liquid-svg');
-    liquidSvg.setAttribute('viewBox', `0 0 ${window.innerWidth} ${window.innerHeight}`);
-    liquidSvg.setAttribute('preserveAspectRatio', 'none');
-    liquidSvg.innerHTML = `<defs><filter id="${transitionId}" filterUnits="userSpaceOnUse" x="-80" y="-80" width="${window.innerWidth + 160}" height="${window.innerHeight + 160}" color-interpolation-filters="sRGB">${imageGroupGooeyFilterPrimitivesHtml()}</filter></defs><g class="desk-image-group-transition__liquid-surface" filter="url(#${transitionId})"></g>`;
-    const liquidSurface = liquidSvg.querySelector('.desk-image-group-transition__liquid-surface');
-    const base = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-    base.classList.add('desk-image-group-transition__mother-shape');
-    liquidSurface.appendChild(base);
-    const identity = document.createElement('div');
-    identity.className = 'desk-image-group-transition__identity';
-    const identityScale = clamp(canvasScale, 0.35, 1.45);
-    identity.style.setProperty('--desk-image-group-transition-scale', String(identityScale));
-    identity.innerHTML = `<strong>图片组</strong><span>${targetEntries.length} 张</span>`;
     const imageLayer = document.createElement('div');
     imageLayer.className = 'desk-image-group-transition__images';
     // The melt paints under the chips, so badges and the other thumbnails stay on top.
     const meltLayer = document.createElement('div');
     meltLayer.className = 'desk-image-group-transition__melt-layer';
     imageLayer.appendChild(meltLayer);
-    overlay.append(liquidSvg, identity, imageLayer);
+    overlay.append(imageLayer);
     document.body.appendChild(overlay);
     const targetItems = targetEntries.map(entry => {
       const item = liveImageGroupChip(entry, imageLayer);
@@ -963,14 +985,12 @@
     const incoming = liveImageGroupChip(incomingEntry, imageLayer, true);
     const melt = createLiveImageGroupMelt(meltLayer);
     const preview = {
-      overlay, base, identity, targetItems, incoming, melt, targetNodeId, sourceNodeId,
+      overlay, targetItems, incoming, melt, targetNodeId, sourceNodeId,
       meltProx: 0, meltClock: null, meltSettling: false, meltPartner: null,
       baseLeft, baseTop, baseWidth, baseHeight: motherHeight,
       currentWidth: baseWidth, targetWidth: baseWidth, finalWidth,
       currentHeight: motherHeight, targetHeight: motherHeight, finalHeight,
       motherHeight, motherRadius, thumbSize, thumbStart, step, rowInset, rowStep,
-      identityInset: imageGroupUiSize(24) * canvasScale,
-      identityTop: imageGroupUiSize(20) * canvasScale,
       incomingRadius, introStartSide: introStart.width,
       pointerX: pointerAtReady.x,
       pointerY: pointerAtReady.y,
@@ -1213,7 +1233,6 @@
       liveImageGroupChip,
       createLiveImageGroupMelt,
       renderLiveImageGroupMelt,
-      liveImageGroupMotherPath,
       liveImageGroupSlotPosition,
       liveImageGroupSlotIndex,
       liveImageGroupSlotCenter,

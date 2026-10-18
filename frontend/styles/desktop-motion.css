@@ -331,7 +331,6 @@ body.desk-app[data-theme] .desk-node-context-menu.is-open {
    contribute the rest (no animation names, hidden merge layer, settled dwell ring). */
 @media (prefers-reduced-motion: reduce) {
   .desk-image-group__item,
-  .desk-image-group__liquid-item,
   .desk-node--image-group {
     animation: none !important;
     transition-duration: 0.01ms !important;
@@ -339,6 +338,10 @@ body.desk-app[data-theme] .desk-node-context-menu.is-open {
 
   .desk-image-group-transition {
     display: none !important;
+  }
+
+  .desk-image-group__thumb::after {
+    animation: none !important;
   }
 
   .desk-image-group-dwell__progress {
