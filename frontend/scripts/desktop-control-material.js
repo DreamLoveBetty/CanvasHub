@@ -161,7 +161,7 @@
       </div></div>
       <div class="desk-settings-color-field"><span title="悬停与键盘焦点时的高亮色">强调色</span>${picker({ value: accent, label: '强调色', hexAttrs: 'data-control-material-field="accent-hex" aria-label="强调色 HEX"', valueAttrs: 'data-control-material-field="accent"', disabled: off,
         after: `<button type="button" class="desk-button" data-control-material-accent-reset${off || !prefs.accent ? ' disabled' : ''}>默认</button>` })}</div>
-      <p class="desk-settings-form__hint">只改变画布节点里的按钮，以及节点和设置中心里的分段选择与开关，即时生效并保存在本浏览器。表面效果只与哑光叠加；磨砂玻璃在节点很多时较耗性能。材质来自 Ambient CSS（MIT）。</p>
+      <p class="desk-settings-form__hint">改变画布节点、设置中心、资产库与提示词库里的按钮和分段选择，以及节点和设置中心里的开关，即时生效并保存在本浏览器。表面效果只与哑光叠加；磨砂玻璃在节点很多时较耗性能。材质来自 Ambient CSS（MIT）。</p>
     </div>`;
   }
 

@@ -167,8 +167,8 @@
     "sha256": "e8fc1344b8b42301064f4775b986fbc416926659d2966ff772877679b6f4eb6b"
    },
    "scripts/desktop-control-material.js": {
-    "v": "20261011-field-style1",
-    "sha256": "42a4b22c3ba7c77a4beb3b08e79f361267b1c35e231f41c6c8394ef2c6815811"
+    "v": "20261018-panel-keys1",
+    "sha256": "0356db981db71ccc55d9169f6fb4f2b5f51a9ccf37770e9cf453e27748fd8dae"
    },
    "scripts/desktop-cyimg-api.js": {
     "v": "20260927-cyimg2",
@@ -415,8 +415,8 @@
     "sha256": "e982bcd832602b3b19b68387568a51293e4d50b36bbbb16b9e6074a989642a1f"
    },
    "styles/desktop-ambient-controls.css": {
-    "v": "20261017-key-lens1",
-    "sha256": "80fa6a629fb613cef6a092a1e65d67bf59d7cbfd06f72cb6e2a25b47da301fc1"
+    "v": "20261018-segment-norail1",
+    "sha256": "1f3c3bb5974c903021101831029fcbb44b98fa6feba0d0cff6aecb9dd1821e4a"
    },
    "styles/desktop-audio.css": {
     "v": "20261004-node-surfaces1",
@@ -439,8 +439,8 @@
     "sha256": "799b96f2df3975f8fb7f4d9553cf997ef672d94bedefb4b33d36bc18a5465852"
    },
    "styles/desktop-control-material.css": {
-    "v": "20261017-key-lens1",
-    "sha256": "4ee3c7e5600081d779a288a8405d8fa6261ed8227ff0caa095d5281a07a3ee8c"
+    "v": "20261019-pinterest-body2",
+    "sha256": "15b159c8d422c6da0fcea418e95c21e0b6a085cfe09021ed00a2dc8693fd5b7d"
    },
    "styles/desktop-controls.css": {
     "v": "20261017-image-group-picker1",
@@ -563,8 +563,8 @@
     "sha256": "c1a80028721d1c04c0020512cf6d5fbf123b693970968cf242bbc50c5f3a3e01"
    },
    "styles/desktop-tokens.css": {
-    "v": "20261017-image-group-glass1",
-    "sha256": "558b4724001b2c69e549b512e180513b2753d44f3c7cb4a2e491ab2f96a529f3"
+    "v": "20261019-pinterest-red1",
+    "sha256": "4e2f75f211d9d078e0eb909a35af757e13ed576d7b3984f4bce0116030552952"
    },
    "styles/desktop-topaz-video-workbench.css": {
     "v": "20261006-topaz-panel-polish2",

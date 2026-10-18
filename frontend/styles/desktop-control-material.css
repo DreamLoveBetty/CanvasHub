@@ -1,7 +1,7 @@
-/* Ambient control material: adaptation layer for buttons inside canvas nodes and the
-   settings centre's action rows, and for
-   segmented controls (.desk-key-bank, Select reading) and switches/checkboxes (Switch +
-   LED) in nodes and the settings centre; text fields (groove) under their own opt-in.
+/* Ambient control material: adaptation layer for buttons inside canvas nodes, the
+   settings centre's header and action rows and the asset/prompt libraries' commands, for
+   segmented controls (.desk-key-bank, Select reading) in nodes, settings and the libraries'
+   tab rows, and for switches/checkboxes (Switch + LED) in nodes and the settings centre; text fields (groove) under their own opt-in.
    Upstream lighting/material rules come from desktop-ambient-controls.css (generated,
    verbatim bodies). This file keeps production geometry and only replaces paint, depth,
    ink and state feedback. Every rule is scoped to the opt-in body attribute set by
@@ -30,7 +30,7 @@
 /* The production button is the key cap. Upstream's cap has no border: a production border,
    even transparent, keeps the chamfer lines (inset shadows) and the dish (::after) one
    pixel inside the edge, and that bare strip read as a light rim inside the well. */
-#deskApp[data-control-material="ambient"] :is(.desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key), .desk-settings :is(.desk-settings-form__actions, .desk-settings-account__actions, .desk-lora-actions, .desk-qwen21-tools__inspection, .desk-qwen21-tools__model, .desk-qwen21-tools__progress, .desk-krea2-tools__model, .desk-krea2-tools__progress) > button, .desk-settings .desk-color-bloom__control > .desk-button) {
+#deskApp[data-control-material="ambient"] :is(.desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key), .desk-settings :is(.desk-settings__actions, .desk-settings-form__actions, .desk-settings-account__actions, .desk-lora-actions, .desk-qwen21-tools__inspection, .desk-qwen21-tools__model, .desk-qwen21-tools__progress, .desk-krea2-tools__model, .desk-krea2-tools__progress) > button, .desk-settings .desk-color-bloom__control > .desk-button, :is(.desk-gallery, .desk-prompt-library) .desk-button, :is(.desk-gallery__actions, .desk-gallery-video__actions, .desk-gallery-file__actions, .desk-pinterest-state, .desk-prompt-source-actions, .desk-prompt-library__header-actions, .desk-prompt-editor-pane__head-actions, .desk-prompt-editor-actions, .desk-prompt-extractor__footer) > button, .desk-prompt-template__create, .desk-prompt-library__load-more, :is(.desk-node, .desk-settings, .desk-gallery, .desk-prompt-library) .desk-key-bank > button) {
   position: relative;
   isolation: isolate;
   --amb-thickness: var(--desk-control-depth);
@@ -45,11 +45,11 @@
   -webkit-backdrop-filter: none;
   transition: box-shadow 100ms ease-out, background-color 100ms ease-out, color 100ms ease-out;
 }
-#deskApp[data-control-material="ambient"] :is(.desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key), .desk-settings :is(.desk-settings-form__actions, .desk-settings-account__actions, .desk-lora-actions, .desk-qwen21-tools__inspection, .desk-qwen21-tools__model, .desk-qwen21-tools__progress, .desk-krea2-tools__model, .desk-krea2-tools__progress) > button, .desk-settings .desk-color-bloom__control > .desk-button) :is(svg, span, em, strong) { color: inherit; }
+#deskApp[data-control-material="ambient"] :is(.desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key), .desk-settings :is(.desk-settings__actions, .desk-settings-form__actions, .desk-settings-account__actions, .desk-lora-actions, .desk-qwen21-tools__inspection, .desk-qwen21-tools__model, .desk-qwen21-tools__progress, .desk-krea2-tools__model, .desk-krea2-tools__progress) > button, .desk-settings .desk-color-bloom__control > .desk-button, :is(.desk-gallery, .desk-prompt-library) .desk-button, :is(.desk-gallery__actions, .desk-gallery-video__actions, .desk-gallery-file__actions, .desk-pinterest-state, .desk-prompt-source-actions, .desk-prompt-library__header-actions, .desk-prompt-editor-pane__head-actions, .desk-prompt-editor-actions, .desk-prompt-extractor__footer) > button, .desk-prompt-template__create, .desk-prompt-library__load-more, :is(.desk-node, .desk-settings, .desk-gallery, .desk-prompt-library) .desk-key-bank > button) :is(svg, span, em, strong) { color: inherit; }
 /* Production gloss layers would sit over the cap: retire ::before, keep ::after for the
    upstream dish (generated rule owns its content/geometry). */
-#deskApp[data-control-material="ambient"] :is(.desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key), .desk-settings :is(.desk-settings-form__actions, .desk-settings-account__actions, .desk-lora-actions, .desk-qwen21-tools__inspection, .desk-qwen21-tools__model, .desk-qwen21-tools__progress, .desk-krea2-tools__model, .desk-krea2-tools__progress) > button, .desk-settings .desk-color-bloom__control > .desk-button)::before { content: none; }
-#deskApp[data-control-material="ambient"] :is(.desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key), .desk-settings :is(.desk-settings-form__actions, .desk-settings-account__actions, .desk-lora-actions, .desk-qwen21-tools__inspection, .desk-qwen21-tools__model, .desk-qwen21-tools__progress, .desk-krea2-tools__model, .desk-krea2-tools__progress) > button, .desk-settings .desk-color-bloom__control > .desk-button)::after {
+#deskApp[data-control-material="ambient"] :is(.desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key), .desk-settings :is(.desk-settings__actions, .desk-settings-form__actions, .desk-settings-account__actions, .desk-lora-actions, .desk-qwen21-tools__inspection, .desk-qwen21-tools__model, .desk-qwen21-tools__progress, .desk-krea2-tools__model, .desk-krea2-tools__progress) > button, .desk-settings .desk-color-bloom__control > .desk-button, :is(.desk-gallery, .desk-prompt-library) .desk-button, :is(.desk-gallery__actions, .desk-gallery-video__actions, .desk-gallery-file__actions, .desk-pinterest-state, .desk-prompt-source-actions, .desk-prompt-library__header-actions, .desk-prompt-editor-pane__head-actions, .desk-prompt-editor-actions, .desk-prompt-extractor__footer) > button, .desk-prompt-template__create, .desk-prompt-library__load-more, :is(.desk-node, .desk-settings, .desk-gallery, .desk-prompt-library) .desk-key-bank > button)::before { content: none; }
+#deskApp[data-control-material="ambient"] :is(.desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key), .desk-settings :is(.desk-settings__actions, .desk-settings-form__actions, .desk-settings-account__actions, .desk-lora-actions, .desk-qwen21-tools__inspection, .desk-qwen21-tools__model, .desk-qwen21-tools__progress, .desk-krea2-tools__model, .desk-krea2-tools__progress) > button, .desk-settings .desk-color-bloom__control > .desk-button, :is(.desk-gallery, .desk-prompt-library) .desk-button, :is(.desk-gallery__actions, .desk-gallery-video__actions, .desk-gallery-file__actions, .desk-pinterest-state, .desk-prompt-source-actions, .desk-prompt-library__header-actions, .desk-prompt-editor-pane__head-actions, .desk-prompt-editor-actions, .desk-prompt-extractor__footer) > button, .desk-prompt-template__create, .desk-prompt-library__load-more, :is(.desk-node, .desk-settings, .desk-gallery, .desk-prompt-library) .desk-key-bank > button)::after {
   opacity: 1;
   filter: none;
   transform: none;
@@ -59,16 +59,16 @@
 }
 
 /* Press feedback: only depth changes, like the upstream button (no repaint/jump). */
-#deskApp[data-control-material="ambient"] :is(.desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key), .desk-settings :is(.desk-settings-form__actions, .desk-settings-account__actions, .desk-lora-actions, .desk-qwen21-tools__inspection, .desk-qwen21-tools__model, .desk-qwen21-tools__progress, .desk-krea2-tools__model, .desk-krea2-tools__progress) > button, .desk-settings .desk-color-bloom__control > .desk-button):hover:not(:disabled) {
+#deskApp[data-control-material="ambient"] :is(.desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key), .desk-settings :is(.desk-settings__actions, .desk-settings-form__actions, .desk-settings-account__actions, .desk-lora-actions, .desk-qwen21-tools__inspection, .desk-qwen21-tools__model, .desk-qwen21-tools__progress, .desk-krea2-tools__model, .desk-krea2-tools__progress) > button, .desk-settings .desk-color-bloom__control > .desk-button, :is(.desk-gallery, .desk-prompt-library) .desk-button, :is(.desk-gallery__actions, .desk-gallery-video__actions, .desk-gallery-file__actions, .desk-pinterest-state, .desk-prompt-source-actions, .desk-prompt-library__header-actions, .desk-prompt-editor-pane__head-actions, .desk-prompt-editor-actions, .desk-prompt-extractor__footer) > button, .desk-prompt-template__create, .desk-prompt-library__load-more, :is(.desk-node, .desk-settings, .desk-gallery, .desk-prompt-library) .desk-key-bank > button):hover:not(:disabled) {
   --amb-thickness: calc(var(--desk-control-depth) + .08);
   color: var(--desk-control-hover-ink, var(--amb-highlight-color));
   transform: none;
 }
-#deskApp[data-control-material="ambient"] :is(.desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key), .desk-settings :is(.desk-settings-form__actions, .desk-settings-account__actions, .desk-lora-actions, .desk-qwen21-tools__inspection, .desk-qwen21-tools__model, .desk-qwen21-tools__progress, .desk-krea2-tools__model, .desk-krea2-tools__progress) > button, .desk-settings .desk-color-bloom__control > .desk-button):active:not(:disabled) {
+#deskApp[data-control-material="ambient"] :is(.desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key), .desk-settings :is(.desk-settings__actions, .desk-settings-form__actions, .desk-settings-account__actions, .desk-lora-actions, .desk-qwen21-tools__inspection, .desk-qwen21-tools__model, .desk-qwen21-tools__progress, .desk-krea2-tools__model, .desk-krea2-tools__progress) > button, .desk-settings .desk-color-bloom__control > .desk-button, :is(.desk-gallery, .desk-prompt-library) .desk-button, :is(.desk-gallery__actions, .desk-gallery-video__actions, .desk-gallery-file__actions, .desk-pinterest-state, .desk-prompt-source-actions, .desk-prompt-library__header-actions, .desk-prompt-editor-pane__head-actions, .desk-prompt-editor-actions, .desk-prompt-extractor__footer) > button, .desk-prompt-template__create, .desk-prompt-library__load-more, :is(.desk-node, .desk-settings, .desk-gallery, .desk-prompt-library) .desk-key-bank > button):active:not(:disabled) {
   --amb-thickness: calc(var(--desk-control-depth) * .35);
   transform: none;
 }
-#deskApp[data-control-material="ambient"] :is(.desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key), .desk-settings :is(.desk-settings-form__actions, .desk-settings-account__actions, .desk-lora-actions, .desk-qwen21-tools__inspection, .desk-qwen21-tools__model, .desk-qwen21-tools__progress, .desk-krea2-tools__model, .desk-krea2-tools__progress) > button, .desk-settings .desk-color-bloom__control > .desk-button):disabled {
+#deskApp[data-control-material="ambient"] :is(.desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key), .desk-settings :is(.desk-settings__actions, .desk-settings-form__actions, .desk-settings-account__actions, .desk-lora-actions, .desk-qwen21-tools__inspection, .desk-qwen21-tools__model, .desk-qwen21-tools__progress, .desk-krea2-tools__model, .desk-krea2-tools__progress) > button, .desk-settings .desk-color-bloom__control > .desk-button, :is(.desk-gallery, .desk-prompt-library) .desk-button, :is(.desk-gallery__actions, .desk-gallery-video__actions, .desk-gallery-file__actions, .desk-pinterest-state, .desk-prompt-source-actions, .desk-prompt-library__header-actions, .desk-prompt-editor-pane__head-actions, .desk-prompt-editor-actions, .desk-prompt-extractor__footer) > button, .desk-prompt-template__create, .desk-prompt-library__load-more, :is(.desk-node, .desk-settings, .desk-gallery, .desk-prompt-library) .desk-key-bank > button):disabled {
   --amb-thickness: .1;
   opacity: .62;
   cursor: not-allowed;
@@ -80,176 +80,110 @@
    over: the well's groove shading (seat depth .27, under 1px on a 2px ring). Glass keeps
    its own shadow ring (::before). The dark theme presses the lume toward black like the
    Select rail; focus relights the ring in the accent. */
-#deskApp[data-control-material="ambient"]:not([data-control-finish="glass"]) :is(.desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key), .desk-settings :is(.desk-settings-form__actions, .desk-settings-account__actions, .desk-lora-actions, .desk-qwen21-tools__inspection, .desk-qwen21-tools__model, .desk-qwen21-tools__progress, .desk-krea2-tools__model, .desk-krea2-tools__progress) > button, .desk-settings .desk-color-bloom__control > .desk-button) {
+#deskApp[data-control-material="ambient"]:not([data-control-finish="glass"]) :is(.desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key), .desk-settings :is(.desk-settings__actions, .desk-settings-form__actions, .desk-settings-account__actions, .desk-lora-actions, .desk-qwen21-tools__inspection, .desk-qwen21-tools__model, .desk-qwen21-tools__progress, .desk-krea2-tools__model, .desk-krea2-tools__progress) > button, .desk-settings .desk-color-bloom__control > .desk-button, :is(.desk-gallery, .desk-prompt-library) .desk-button, :is(.desk-gallery__actions, .desk-gallery-video__actions, .desk-gallery-file__actions, .desk-pinterest-state, .desk-prompt-source-actions, .desk-prompt-library__header-actions, .desk-prompt-editor-pane__head-actions, .desk-prompt-editor-actions, .desk-prompt-extractor__footer) > button, .desk-prompt-template__create, .desk-prompt-library__load-more, :is(.desk-node, .desk-settings, .desk-gallery, .desk-prompt-library) .desk-key-bank > button) {
   outline: var(--ambx-grid-half) solid var(--amb-lume);
   outline-offset: 0;
 }
-#deskApp[data-control-material="ambient"][data-theme="dark"]:not([data-control-finish="glass"]) :is(.desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key), .desk-settings :is(.desk-settings-form__actions, .desk-settings-account__actions, .desk-lora-actions, .desk-qwen21-tools__inspection, .desk-qwen21-tools__model, .desk-qwen21-tools__progress, .desk-krea2-tools__model, .desk-krea2-tools__progress) > button, .desk-settings .desk-color-bloom__control > .desk-button) {
+#deskApp[data-control-material="ambient"][data-theme="dark"]:not([data-control-finish="glass"]) :is(.desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key), .desk-settings :is(.desk-settings__actions, .desk-settings-form__actions, .desk-settings-account__actions, .desk-lora-actions, .desk-qwen21-tools__inspection, .desk-qwen21-tools__model, .desk-qwen21-tools__progress, .desk-krea2-tools__model, .desk-krea2-tools__progress) > button, .desk-settings .desk-color-bloom__control > .desk-button, :is(.desk-gallery, .desk-prompt-library) .desk-button, :is(.desk-gallery__actions, .desk-gallery-video__actions, .desk-gallery-file__actions, .desk-pinterest-state, .desk-prompt-source-actions, .desk-prompt-library__header-actions, .desk-prompt-editor-pane__head-actions, .desk-prompt-editor-actions, .desk-prompt-extractor__footer) > button, .desk-prompt-template__create, .desk-prompt-library__load-more, :is(.desk-node, .desk-settings, .desk-gallery, .desk-prompt-library) .desk-key-bank > button) {
   outline-color: color-mix(in oklab, var(--amb-lume), black 55%);
 }
-#deskApp[data-control-material="ambient"]:not([data-control-finish="glass"]) :is(.desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key), .desk-settings :is(.desk-settings-form__actions, .desk-settings-account__actions, .desk-lora-actions, .desk-qwen21-tools__inspection, .desk-qwen21-tools__model, .desk-qwen21-tools__progress, .desk-krea2-tools__model, .desk-krea2-tools__progress) > button, .desk-settings .desk-color-bloom__control > .desk-button):focus-visible {
+#deskApp[data-control-material="ambient"]:not([data-control-finish="glass"]) :is(.desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key), .desk-settings :is(.desk-settings__actions, .desk-settings-form__actions, .desk-settings-account__actions, .desk-lora-actions, .desk-qwen21-tools__inspection, .desk-qwen21-tools__model, .desk-qwen21-tools__progress, .desk-krea2-tools__model, .desk-krea2-tools__progress) > button, .desk-settings .desk-color-bloom__control > .desk-button, :is(.desk-gallery, .desk-prompt-library) .desk-button, :is(.desk-gallery__actions, .desk-gallery-video__actions, .desk-gallery-file__actions, .desk-pinterest-state, .desk-prompt-source-actions, .desk-prompt-library__header-actions, .desk-prompt-editor-pane__head-actions, .desk-prompt-editor-actions, .desk-prompt-extractor__footer) > button, .desk-prompt-template__create, .desk-prompt-library__load-more, :is(.desk-node, .desk-settings, .desk-gallery, .desk-prompt-library) .desk-key-bank > button):focus-visible {
   outline-color: var(--amb-highlight-color);
 }
-#deskApp[data-control-material="ambient"][data-control-finish="glass"] :is(.desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key), .desk-settings :is(.desk-settings-form__actions, .desk-settings-account__actions, .desk-lora-actions, .desk-qwen21-tools__inspection, .desk-qwen21-tools__model, .desk-qwen21-tools__progress, .desk-krea2-tools__model, .desk-krea2-tools__progress) > button, .desk-settings .desk-color-bloom__control > .desk-button):focus-visible {
+#deskApp[data-control-material="ambient"][data-control-finish="glass"] :is(.desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key), .desk-settings :is(.desk-settings__actions, .desk-settings-form__actions, .desk-settings-account__actions, .desk-lora-actions, .desk-qwen21-tools__inspection, .desk-qwen21-tools__model, .desk-qwen21-tools__progress, .desk-krea2-tools__model, .desk-krea2-tools__progress) > button, .desk-settings .desk-color-bloom__control > .desk-button, :is(.desk-gallery, .desk-prompt-library) .desk-button, :is(.desk-gallery__actions, .desk-gallery-video__actions, .desk-gallery-file__actions, .desk-pinterest-state, .desk-prompt-source-actions, .desk-prompt-library__header-actions, .desk-prompt-editor-pane__head-actions, .desk-prompt-editor-actions, .desk-prompt-extractor__footer) > button, .desk-prompt-template__create, .desk-prompt-library__load-more, :is(.desk-node, .desk-settings, .desk-gallery, .desk-prompt-library) .desk-key-bank > button):focus-visible {
   outline: 2px solid var(--amb-highlight-color);
   outline-offset: 2px;
 }
 
-/* Primary and danger actions keep their role on the key cap without leaning on the accent
-   (which may be white or grey): a primary key is cast in a navy body — upstream's Steel
-   preset, close to the production primary — with a light legend (a blue-tinted pane on
-   Glass); a danger key keeps a red legend. */
-#deskApp[data-control-material="ambient"] :is(.desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key), .desk-settings :is(.desk-settings-form__actions, .desk-settings-account__actions, .desk-lora-actions, .desk-qwen21-tools__inspection, .desk-qwen21-tools__model, .desk-qwen21-tools__progress, .desk-krea2-tools__model, .desk-krea2-tools__progress) > button, .desk-settings .desk-color-bloom__control > .desk-button).is-primary {
-  --amb-albedo: #24405c;
-  --desk-control-face-ink: #f4f7fb;
-  --desk-control-hover-ink: #ffffff;
+/* Primary and danger actions share every other key's body (one material across nodes,
+   settings and the libraries) and carry their role in the legend: navy, the production
+   primary hue, for primary; red for danger. A user-chosen key colour (data-control-tinted)
+   sets one legend for every key, so the primary legend stands down there. */
+#deskApp[data-control-material="ambient"]:not([data-control-tinted]) :is(.desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key), .desk-settings :is(.desk-settings__actions, .desk-settings-form__actions, .desk-settings-account__actions, .desk-lora-actions, .desk-qwen21-tools__inspection, .desk-qwen21-tools__model, .desk-qwen21-tools__progress, .desk-krea2-tools__model, .desk-krea2-tools__progress) > button, .desk-settings .desk-color-bloom__control > .desk-button, :is(.desk-gallery, .desk-prompt-library) .desk-button, :is(.desk-gallery__actions, .desk-gallery-video__actions, .desk-gallery-file__actions, .desk-pinterest-state, .desk-prompt-source-actions, .desk-prompt-library__header-actions, .desk-prompt-editor-pane__head-actions, .desk-prompt-editor-actions, .desk-prompt-extractor__footer) > button, .desk-prompt-template__create, .desk-prompt-library__load-more, :is(.desk-node, .desk-settings, .desk-gallery, .desk-prompt-library) .desk-key-bank > button):is(.is-primary, .desk-button--primary, .desk-prompt-library__new) {
+  --desk-control-face-ink: #1f4f8a;
+  --desk-control-hover-ink: #163c6b;
 }
-#deskApp[data-control-material="ambient"][data-control-finish="glass"] :is(.desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key), .desk-settings :is(.desk-settings-form__actions, .desk-settings-account__actions, .desk-lora-actions, .desk-qwen21-tools__inspection, .desk-qwen21-tools__model, .desk-qwen21-tools__progress, .desk-krea2-tools__model, .desk-krea2-tools__progress) > button, .desk-settings .desk-color-bloom__control > .desk-button).is-primary {
-  --amb-light-hue: 214;
-  --amb-light-saturation: 60%;
-  --desk-control-face-ink: #10335c;
-  --desk-control-hover-ink: #0b2747;
+#deskApp[data-control-material="ambient"][data-theme="dark"]:not([data-control-tinted]) :is(.desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key), .desk-settings :is(.desk-settings__actions, .desk-settings-form__actions, .desk-settings-account__actions, .desk-lora-actions, .desk-qwen21-tools__inspection, .desk-qwen21-tools__model, .desk-qwen21-tools__progress, .desk-krea2-tools__model, .desk-krea2-tools__progress) > button, .desk-settings .desk-color-bloom__control > .desk-button, :is(.desk-gallery, .desk-prompt-library) .desk-button, :is(.desk-gallery__actions, .desk-gallery-video__actions, .desk-gallery-file__actions, .desk-pinterest-state, .desk-prompt-source-actions, .desk-prompt-library__header-actions, .desk-prompt-editor-pane__head-actions, .desk-prompt-editor-actions, .desk-prompt-extractor__footer) > button, .desk-prompt-template__create, .desk-prompt-library__load-more, :is(.desk-node, .desk-settings, .desk-gallery, .desk-prompt-library) .desk-key-bank > button):is(.is-primary, .desk-button--primary, .desk-prompt-library__new) {
+  --desk-control-face-ink: #9cc3ff;
+  --desk-control-hover-ink: #c4dcff;
 }
-#deskApp[data-control-material="ambient"][data-control-finish="glass"][data-theme="dark"] :is(.desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key), .desk-settings :is(.desk-settings-form__actions, .desk-settings-account__actions, .desk-lora-actions, .desk-qwen21-tools__inspection, .desk-qwen21-tools__model, .desk-qwen21-tools__progress, .desk-krea2-tools__model, .desk-krea2-tools__progress) > button, .desk-settings .desk-color-bloom__control > .desk-button).is-primary {
-  --desk-control-face-ink: #dbe8ff;
-  --desk-control-hover-ink: #ffffff;
-}
-#deskApp[data-control-material="ambient"] :is(.desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key), .desk-settings :is(.desk-settings-form__actions, .desk-settings-account__actions, .desk-lora-actions, .desk-qwen21-tools__inspection, .desk-qwen21-tools__model, .desk-qwen21-tools__progress, .desk-krea2-tools__model, .desk-krea2-tools__progress) > button, .desk-settings .desk-color-bloom__control > .desk-button).is-danger {
+#deskApp[data-control-material="ambient"] :is(.desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key), .desk-settings :is(.desk-settings__actions, .desk-settings-form__actions, .desk-settings-account__actions, .desk-lora-actions, .desk-qwen21-tools__inspection, .desk-qwen21-tools__model, .desk-qwen21-tools__progress, .desk-krea2-tools__model, .desk-krea2-tools__progress) > button, .desk-settings .desk-color-bloom__control > .desk-button, :is(.desk-gallery, .desk-prompt-library) .desk-button, :is(.desk-gallery__actions, .desk-gallery-video__actions, .desk-gallery-file__actions, .desk-pinterest-state, .desk-prompt-source-actions, .desk-prompt-library__header-actions, .desk-prompt-editor-pane__head-actions, .desk-prompt-editor-actions, .desk-prompt-extractor__footer) > button, .desk-prompt-template__create, .desk-prompt-library__load-more, :is(.desk-node, .desk-settings, .desk-gallery, .desk-prompt-library) .desk-key-bank > button):is(.is-danger, .desk-button--danger) {
   --desk-control-face-ink: #c2353b;
   --desk-control-hover-ink: #a3242a;
 }
-#deskApp[data-control-material="ambient"][data-theme="dark"] :is(.desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key), .desk-settings :is(.desk-settings-form__actions, .desk-settings-account__actions, .desk-lora-actions, .desk-qwen21-tools__inspection, .desk-qwen21-tools__model, .desk-qwen21-tools__progress, .desk-krea2-tools__model, .desk-krea2-tools__progress) > button, .desk-settings .desk-color-bloom__control > .desk-button).is-danger {
+#deskApp[data-control-material="ambient"][data-theme="dark"] :is(.desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key), .desk-settings :is(.desk-settings__actions, .desk-settings-form__actions, .desk-settings-account__actions, .desk-lora-actions, .desk-qwen21-tools__inspection, .desk-qwen21-tools__model, .desk-qwen21-tools__progress, .desk-krea2-tools__model, .desk-krea2-tools__progress) > button, .desk-settings .desk-color-bloom__control > .desk-button, :is(.desk-gallery, .desk-prompt-library) .desk-button, :is(.desk-gallery__actions, .desk-gallery-video__actions, .desk-gallery-file__actions, .desk-pinterest-state, .desk-prompt-source-actions, .desk-prompt-library__header-actions, .desk-prompt-editor-pane__head-actions, .desk-prompt-editor-actions, .desk-prompt-extractor__footer) > button, .desk-prompt-template__create, .desk-prompt-library__load-more, :is(.desk-node, .desk-settings, .desk-gallery, .desk-prompt-library) .desk-key-bank > button):is(.is-danger, .desk-button--danger) {
   --desk-control-face-ink: #ff8a8f;
   --desk-control-hover-ink: #ffb0b3;
 }
 
 /* Surface shape is Matte-only (upstream surface classes overwrite material
    backgrounds). Concave keeps the upstream cap dish; flat and convex drop it. */
-#deskApp[data-control-material="ambient"][data-control-finish="matte"]:is([data-control-surface="flat"], [data-control-surface="convex"]) :is(.desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key), .desk-settings :is(.desk-settings-form__actions, .desk-settings-account__actions, .desk-lora-actions, .desk-qwen21-tools__inspection, .desk-qwen21-tools__model, .desk-qwen21-tools__progress, .desk-krea2-tools__model, .desk-krea2-tools__progress) > button, .desk-settings .desk-color-bloom__control > .desk-button)::after,
-#deskApp[data-control-material="ambient"][data-control-finish="glass"] :is(.desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key), .desk-settings :is(.desk-settings-form__actions, .desk-settings-account__actions, .desk-lora-actions, .desk-qwen21-tools__inspection, .desk-qwen21-tools__model, .desk-qwen21-tools__progress, .desk-krea2-tools__model, .desk-krea2-tools__progress) > button, .desk-settings .desk-color-bloom__control > .desk-button)::after { content: none; }
+#deskApp[data-control-material="ambient"][data-control-finish="matte"]:is([data-control-surface="flat"], [data-control-surface="convex"]) :is(.desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key), .desk-settings :is(.desk-settings__actions, .desk-settings-form__actions, .desk-settings-account__actions, .desk-lora-actions, .desk-qwen21-tools__inspection, .desk-qwen21-tools__model, .desk-qwen21-tools__progress, .desk-krea2-tools__model, .desk-krea2-tools__progress) > button, .desk-settings .desk-color-bloom__control > .desk-button, :is(.desk-gallery, .desk-prompt-library) .desk-button, :is(.desk-gallery__actions, .desk-gallery-video__actions, .desk-gallery-file__actions, .desk-pinterest-state, .desk-prompt-source-actions, .desk-prompt-library__header-actions, .desk-prompt-editor-pane__head-actions, .desk-prompt-editor-actions, .desk-prompt-extractor__footer) > button, .desk-prompt-template__create, .desk-prompt-library__load-more, :is(.desk-node, .desk-settings, .desk-gallery, .desk-prompt-library) .desk-key-bank > button)::after,
+#deskApp[data-control-material="ambient"][data-control-finish="glass"] :is(.desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key), .desk-settings :is(.desk-settings__actions, .desk-settings-form__actions, .desk-settings-account__actions, .desk-lora-actions, .desk-qwen21-tools__inspection, .desk-qwen21-tools__model, .desk-qwen21-tools__progress, .desk-krea2-tools__model, .desk-krea2-tools__progress) > button, .desk-settings .desk-color-bloom__control > .desk-button, :is(.desk-gallery, .desk-prompt-library) .desk-button, :is(.desk-gallery__actions, .desk-gallery-video__actions, .desk-gallery-file__actions, .desk-pinterest-state, .desk-prompt-source-actions, .desk-prompt-library__header-actions, .desk-prompt-editor-pane__head-actions, .desk-prompt-editor-actions, .desk-prompt-extractor__footer) > button, .desk-prompt-template__create, .desk-prompt-library__load-more, :is(.desk-node, .desk-settings, .desk-gallery, .desk-prompt-library) .desk-key-bank > button)::after { content: none; }
 
 /* Glass: translucent pane, label follows the node ink. */
-#deskApp[data-control-material="ambient"][data-control-finish="glass"] :is(.desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key), .desk-settings :is(.desk-settings-form__actions, .desk-settings-account__actions, .desk-lora-actions, .desk-qwen21-tools__inspection, .desk-qwen21-tools__model, .desk-qwen21-tools__progress, .desk-krea2-tools__model, .desk-krea2-tools__progress) > button, .desk-settings .desk-color-bloom__control > .desk-button) {
+#deskApp[data-control-material="ambient"][data-control-finish="glass"] :is(.desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key), .desk-settings :is(.desk-settings__actions, .desk-settings-form__actions, .desk-settings-account__actions, .desk-lora-actions, .desk-qwen21-tools__inspection, .desk-qwen21-tools__model, .desk-qwen21-tools__progress, .desk-krea2-tools__model, .desk-krea2-tools__progress) > button, .desk-settings .desk-color-bloom__control > .desk-button, :is(.desk-gallery, .desk-prompt-library) .desk-button, :is(.desk-gallery__actions, .desk-gallery-video__actions, .desk-gallery-file__actions, .desk-pinterest-state, .desk-prompt-source-actions, .desk-prompt-library__header-actions, .desk-prompt-editor-pane__head-actions, .desk-prompt-editor-actions, .desk-prompt-extractor__footer) > button, .desk-prompt-template__create, .desk-prompt-library__load-more, :is(.desk-node, .desk-settings, .desk-gallery, .desk-prompt-library) .desk-key-bank > button) {
   color: var(--desk-control-face-ink, var(--amb-label));
 }
 
 /* Glass shadow offset (setting): upstream's pane shadow ring sits a fixed 5.12px per level
    of thickness away with a 4px border, whatever the key size — natural under a 72px generate
    key, a misplaced slab under a 24px one. Same formulas, scaled by --desk-glass-shadow. */
-#deskApp[data-control-material="ambient"][data-control-finish="glass"] :is(.desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key), .desk-settings :is(.desk-settings-form__actions, .desk-settings-account__actions, .desk-lora-actions, .desk-qwen21-tools__inspection, .desk-qwen21-tools__model, .desk-qwen21-tools__progress, .desk-krea2-tools__model, .desk-krea2-tools__progress) > button, .desk-settings .desk-color-bloom__control > .desk-button) {
+#deskApp[data-control-material="ambient"][data-control-finish="glass"] :is(.desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key), .desk-settings :is(.desk-settings__actions, .desk-settings-form__actions, .desk-settings-account__actions, .desk-lora-actions, .desk-qwen21-tools__inspection, .desk-qwen21-tools__model, .desk-qwen21-tools__progress, .desk-krea2-tools__model, .desk-krea2-tools__progress) > button, .desk-settings .desk-color-bloom__control > .desk-button, :is(.desk-gallery, .desk-prompt-library) .desk-button, :is(.desk-gallery__actions, .desk-gallery-video__actions, .desk-gallery-file__actions, .desk-pinterest-state, .desk-prompt-source-actions, .desk-prompt-library__header-actions, .desk-prompt-editor-pane__head-actions, .desk-prompt-editor-actions, .desk-prompt-extractor__footer) > button, .desk-prompt-template__create, .desk-prompt-library__load-more, :is(.desk-node, .desk-settings, .desk-gallery, .desk-prompt-library) .desk-key-bank > button) {
   --_glass-sh-x: calc(var(--amb-light-x) * -1 * (var(--amb-elevation) * 5.16px + var(--amb-thickness) * 5.12px) * var(--desk-glass-shadow, 1));
   --_glass-sh-y: calc(var(--amb-light-y) * -1 * (var(--amb-elevation) * 5.16px + var(--amb-thickness) * 5.12px) * var(--desk-glass-shadow, 1));
   --_glass-ring-w: calc(var(--amb-thickness) * 4px * var(--desk-glass-shadow, 1));
 }
 
-/* Segmented controls · Select (upstream AmbientSelect, the lamp-lit bank, adapted to
-   production geometry). The container is the rail: a groove at seat depth .27 floored
-   with the panel's lume. Each button is a key pocket (floor = --amb-lit); its ::before is
-   the LED lens and its ::after the frosted diffuser cap — generated rules paint both, so
-   the markup stays one element per option and the legend is the button's own text.
-   Keys are borderless like upstream's: the cap covers the padding box only, so a
-   production border left a ring of bare floor, a light rim round every key.
-   Selected: the lens lights in the lamp colour (--amb-led-color, else the accent), the
-   cap floods with it, light spills onto the rail and the legend silhouettes against it.
-   Not carried over: the cap's glass shadow ring (it would need a third layer). */
-#deskApp[data-control-material="ambient"] :is(.desk-node, .desk-settings) .desk-key-bank {
-  --amb-thickness: .27;
-  background-color: var(--amb-lume);
-  background-image: none;
-}
-/* Dark theme (our adaptation): upstream lume does not follow the theme (~#404040 under
-   the 0.9 key light), which is lighter than the dark cards and as light as the keys, so
-   the rail read as a raised grey plate. Pressed toward black it sits a step below the
-   panel and reads as a recess again. */
-#deskApp[data-control-material="ambient"][data-theme="dark"] :is(.desk-node, .desk-settings) .desk-key-bank {
-  background-color: color-mix(in oklab, var(--amb-lume), black 55%);
-}
-/* The key pockets show under every finish (the Select cap is always glass), so on the
-   dark theme they take the graphite body even when Glass leaves the node keys on
-   upstream's light albedo; a user key colour still tints them. */
-#deskApp[data-control-material="ambient"][data-theme="dark"]:not([data-control-tinted]) :is(.desk-node, .desk-settings) .desk-key-bank {
-  --amb-albedo: #454d4f;
-}
-/* Rail geometry is upstream's (.amb-select): a half-grid (2px) clearance ring and the
-   same 2px rail between keys, the bank rounded one ring wider than its keys. Production
-   insets differ per host (0-5px incl. a 1px border), which read as a thick frame. */
-#deskApp[data-control-material="ambient"] :is(.desk-node, .desk-settings) .desk-key-bank {
+/* Segmented controls. Each option is a key cap like every other key (it is in the
+   key-cap target), seated on the panel in its own well, so segments follow the chosen
+   finish and surface. No rail: a groove round the bank read as a stray frame, worst on
+   Glass, whose translucent keys left only its shading. The container only spaces the
+   keys: the half-grid padding keeps the wells' outline rings inside any clipping host,
+   and a one-and-a-half-grid gap leaves a strip of panel between neighbouring rings.
+   Production hosts paint the segment as one plate (background, border, shadow, joined
+   keys); under Ambient the plate goes and each key is fully rounded. */
+#deskApp[data-control-material="ambient"] :is(.desk-node, .desk-settings, .desk-gallery, .desk-prompt-library) .desk-key-bank {
   padding: var(--ambx-grid-half);
-  gap: var(--ambx-grid-half);
+  gap: calc(var(--ambx-grid) * 1.5);
   border-width: 0;
-  border-radius: calc(var(--ambx-radius-md) + var(--ambx-grid-half));
-}
-#deskApp[data-control-material="ambient"] :is(.desk-node, .desk-settings) .desk-key-bank > button {
-  --_ambx-sel-color: var(--amb-led-color, var(--amb-highlight-color));
-  border-radius: var(--ambx-radius-md);
-  position: relative;
-  isolation: isolate;
-  border-width: 0;
-  background-color: var(--amb-lit);
+  background-color: transparent;
   background-image: none;
   box-shadow: none;
-  color: var(--desk-control-face-ink, var(--amb-label));
-  text-shadow: none;
-  filter: none;
-  transform: none;
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-  transition: box-shadow 140ms ease, color 100ms ease-out;
 }
-#deskApp[data-control-material="ambient"] :is(.desk-node, .desk-settings) .desk-key-bank > button :is(svg, span, em, strong) { color: inherit; }
-/* Lens and cap sit under the legend inside the key's own stacking context; the cap
-   paints after (above) the lens so its backdrop blur diffuses it. */
-#deskApp[data-control-material="ambient"] :is(.desk-node, .desk-settings) .desk-key-bank > button::before,
-#deskApp[data-control-material="ambient"] :is(.desk-node, .desk-settings) .desk-key-bank > button::after {
-  content: "";
-  z-index: -1;
-  pointer-events: none;
-  animation: none;
+#deskApp[data-control-material="ambient"] :is(.desk-node, .desk-settings, .desk-gallery, .desk-prompt-library) .desk-key-bank > button {
+  border-radius: var(--ambx-radius-md);
 }
-/* Lens placement (our adaptation): upstream's lens is a disc 62% of the key height,
-   centred, which on its square 44px key leaves an even rim for the diffuser to fade
-   across. Production keys are wide and flat, where the same disc is a small blot behind
-   the legend and the glow falls off unevenly. The lens follows the key's own shape: inset
-   on every side by that rim (19% of a 24-32px key) and rounded concentric with the key,
-   so the lamp fills the key and fades evenly toward all four edges, whatever its width. */
-#deskApp[data-control-material="ambient"] :is(.desk-node, .desk-settings) .desk-key-bank > button::before {
-  inset: calc(var(--ambx-grid) * 1.25);
-  border-radius: calc(var(--ambx-radius-md) - var(--ambx-grid) * 1.25);
-}
-#deskApp[data-control-material="ambient"] :is(.desk-node, .desk-settings) .desk-key-bank > button::after {
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  /* Upstream ties the diffusion to the key size (0.18 x 44px); production keys are
-     24-32px tall. */
-  --_glass-blur: 5px;
-}
-#deskApp[data-control-material="ambient"] :is(.desk-node, .desk-settings) .desk-key-bank > button:not(.is-active):not([aria-pressed="true"]):hover:not(:disabled) {
-  color: var(--desk-control-hover-ink, var(--amb-highlight-color));
-}
-#deskApp[data-control-material="ambient"] :is(.desk-node, .desk-settings) .desk-key-bank > button:active:not(:disabled)::after {
-  --amb-thickness: .84;
-}
-#deskApp[data-control-material="ambient"] :is(.desk-node, .desk-settings) .desk-key-bank > button:is(.is-active, [aria-pressed="true"]) {
-  color: color-mix(in oklab, var(--_ambx-sel-color), black 68%);
+/* Selected key (our adaptation: upstream's Select lights a lens under a glass diffuser,
+   which cast segments in glass whatever the finish). The key stays pressed in, the lamp
+   (--amb-led-color, else the accent) shows through the gap round it — the well ring lit —
+   and the legend takes a deeper tone of it (a key on its own coloured body may set
+   --desk-control-selected-ink instead). Hover and press leave it where it is. */
+#deskApp[data-control-material="ambient"] :is(.desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key), .desk-settings :is(.desk-settings__actions, .desk-settings-form__actions, .desk-settings-account__actions, .desk-lora-actions, .desk-qwen21-tools__inspection, .desk-qwen21-tools__model, .desk-qwen21-tools__progress, .desk-krea2-tools__model, .desk-krea2-tools__progress) > button, .desk-settings .desk-color-bloom__control > .desk-button, :is(.desk-gallery, .desk-prompt-library) .desk-button, :is(.desk-gallery__actions, .desk-gallery-video__actions, .desk-gallery-file__actions, .desk-pinterest-state, .desk-prompt-source-actions, .desk-prompt-library__header-actions, .desk-prompt-editor-pane__head-actions, .desk-prompt-editor-actions, .desk-prompt-extractor__footer) > button, .desk-prompt-template__create, .desk-prompt-library__load-more, :is(.desk-node, .desk-settings, .desk-gallery, .desk-prompt-library) .desk-key-bank > button):is(:is(.desk-node, .desk-settings, .desk-gallery, .desk-prompt-library) .desk-key-bank > button):is(.is-active, [aria-pressed="true"], [aria-selected="true"]) {
+  --amb-thickness: calc(var(--desk-control-depth) * .35);
+  outline: var(--ambx-grid-half) solid var(--amb-led-color, var(--amb-highlight-color));
+  outline-offset: 0;
+  color: var(--desk-control-selected-ink, color-mix(in oklab, var(--amb-led-color, var(--amb-highlight-color)), black 35%));
   cursor: default;
 }
-/* Lit lens (our adaptation of upstream's plain lamp colour): a lamp is a light, but the
-   accent may be grey, and a grey disc is darker than the white pocket floor, so through
-   the diffuser it read as a dark blot in the middle of the key instead of a glow. Low-chroma
-   lamps are lifted toward the floor's tone (fully at chroma 0, fading out by chroma .21);
-   saturated lamps such as the coral default keep their own colour. */
-#deskApp[data-control-material="ambient"] :is(.desk-node, .desk-settings) .desk-key-bank > button:is(.is-active, [aria-pressed="true"])::before {
-  background-color: oklch(from var(--_ambx-sel-color) max(l, calc(.84 - c * 4)) c h);
+#deskApp[data-control-material="ambient"][data-theme="dark"] :is(.desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key), .desk-settings :is(.desk-settings__actions, .desk-settings-form__actions, .desk-settings-account__actions, .desk-lora-actions, .desk-qwen21-tools__inspection, .desk-qwen21-tools__model, .desk-qwen21-tools__progress, .desk-krea2-tools__model, .desk-krea2-tools__progress) > button, .desk-settings .desk-color-bloom__control > .desk-button, :is(.desk-gallery, .desk-prompt-library) .desk-button, :is(.desk-gallery__actions, .desk-gallery-video__actions, .desk-gallery-file__actions, .desk-pinterest-state, .desk-prompt-source-actions, .desk-prompt-library__header-actions, .desk-prompt-editor-pane__head-actions, .desk-prompt-editor-actions, .desk-prompt-extractor__footer) > button, .desk-prompt-template__create, .desk-prompt-library__load-more, :is(.desk-node, .desk-settings, .desk-gallery, .desk-prompt-library) .desk-key-bank > button):is(:is(.desk-node, .desk-settings, .desk-gallery, .desk-prompt-library) .desk-key-bank > button):is(.is-active, [aria-pressed="true"], [aria-selected="true"]) {
+  color: var(--desk-control-selected-ink, color-mix(in oklab, var(--amb-led-color, var(--amb-highlight-color)), white 20%));
 }
-#deskApp[data-control-material="ambient"] :is(.desk-node, .desk-settings) .desk-key-bank > button:disabled {
-  cursor: not-allowed;
-  box-shadow: none;
-  color: color-mix(in oklab, var(--desk-control-face-ink, var(--amb-label)), transparent 55%);
+
+/* Pinterest keeps its brand red whatever the accent or key colour: the key body is cast in
+   Pinterest red (the finish still shapes it), with a white legend in every state, and the
+   selected key's gap lights in the same red. Glass is a milky pane whose colour comes from
+   the light, too faint to read as red on a light panel, so its pane is Pinterest red at
+   72% instead (backdrop blur, edge washes and shadow ring stay upstream's). */
+#deskApp[data-control-material="ambient"] .desk-gallery-tabs > button[data-gallery-view="pinterest"] {
+  --amb-albedo: var(--desk-brand-pinterest);
+  --amb-led-color: var(--desk-brand-pinterest);
+  --desk-control-face-ink: #ffffff;
+  --desk-control-hover-ink: #ffffff;
+  --desk-control-selected-ink: #ffffff;
 }
-#deskApp[data-control-material="ambient"] :is(.desk-node, .desk-settings) .desk-key-bank > button:focus-visible {
-  outline: 2px solid var(--amb-highlight-color);
-  outline-offset: 2px;
+#deskApp[data-control-material="ambient"][data-control-finish="glass"] :is(.desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key), .desk-settings :is(.desk-settings__actions, .desk-settings-form__actions, .desk-settings-account__actions, .desk-lora-actions, .desk-qwen21-tools__inspection, .desk-qwen21-tools__model, .desk-qwen21-tools__progress, .desk-krea2-tools__model, .desk-krea2-tools__progress) > button, .desk-settings .desk-color-bloom__control > .desk-button, :is(.desk-gallery, .desk-prompt-library) .desk-button, :is(.desk-gallery__actions, .desk-gallery-video__actions, .desk-gallery-file__actions, .desk-pinterest-state, .desk-prompt-source-actions, .desk-prompt-library__header-actions, .desk-prompt-editor-pane__head-actions, .desk-prompt-editor-actions, .desk-prompt-extractor__footer) > button, .desk-prompt-template__create, .desk-prompt-library__load-more, :is(.desk-node, .desk-settings, .desk-gallery, .desk-prompt-library) .desk-key-bank > button)[data-gallery-view="pinterest"] {
+  background-color: color-mix(in srgb, var(--desk-brand-pinterest) 72%, transparent);
 }
 
 /* Switches · upstream Switch + LED (parts/latch.tsx: a convex pill riding in a dark
@@ -362,7 +296,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  #deskApp[data-control-material="ambient"] :is(.desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key), .desk-settings :is(.desk-settings-form__actions, .desk-settings-account__actions, .desk-lora-actions, .desk-qwen21-tools__inspection, .desk-qwen21-tools__model, .desk-qwen21-tools__progress, .desk-krea2-tools__model, .desk-krea2-tools__progress) > button, .desk-settings .desk-color-bloom__control > .desk-button),
-  #deskApp[data-control-material="ambient"] :is(.desk-node, .desk-settings) .desk-key-bank > button,
+  #deskApp[data-control-material="ambient"] :is(.desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key), .desk-settings :is(.desk-settings__actions, .desk-settings-form__actions, .desk-settings-account__actions, .desk-lora-actions, .desk-qwen21-tools__inspection, .desk-qwen21-tools__model, .desk-qwen21-tools__progress, .desk-krea2-tools__model, .desk-krea2-tools__progress) > button, .desk-settings .desk-color-bloom__control > .desk-button, :is(.desk-gallery, .desk-prompt-library) .desk-button, :is(.desk-gallery__actions, .desk-gallery-video__actions, .desk-gallery-file__actions, .desk-pinterest-state, .desk-prompt-source-actions, .desk-prompt-library__header-actions, .desk-prompt-editor-pane__head-actions, .desk-prompt-editor-actions, .desk-prompt-extractor__footer) > button, .desk-prompt-template__create, .desk-prompt-library__load-more, :is(.desk-node, .desk-settings, .desk-gallery, .desk-prompt-library) .desk-key-bank > button),
+  #deskApp[data-control-material="ambient"] :is(.desk-node, .desk-settings, .desk-gallery, .desk-prompt-library) .desk-key-bank > button,
   #deskApp[data-control-material="ambient"] :is(.desk-node, .desk-settings) :is(.desk-switch > span, input[type="checkbox"]:not(.desk-switch > input))::after { transition: none; }
 }

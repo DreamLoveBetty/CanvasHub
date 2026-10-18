@@ -197,10 +197,14 @@ test('node push buttons opt in through the style-free .desk-key hook; segments, 
     assert.doesNotMatch(read(`frontend/styles/${css}`), /\.desk-key\b/, css);
 });
 
-test('segmented controls opt in through .desk-key-bank (nodes and settings) and read as an Ambient Select bank', () => {
+test('segmented controls opt in through .desk-key-bank (nodes, settings, library tabs) and their keys are standalone key caps of the chosen finish', () => {
   const banks = {
     'frontend/scripts/desktop-canvas-model-nodes.js': [/<div class="desk-segment desk-key-bank" role="tablist" aria-label="选择模型提供方">/],
-    'frontend/desktop.html': [/<div class="desk-segment desk-key-bank" id="deskProviderSegment"/],
+    'frontend/desktop.html': [/<div class="desk-segment desk-key-bank" id="deskProviderSegment"/,
+      /<div class="desk-gallery-tabs desk-key-bank" role="group" aria-label="产出资产">/,
+      /<div class="desk-gallery-tabs desk-gallery-tabs--models desk-key-bank" role="group"/,
+      /<div class="desk-gallery-video-source desk-key-bank" id="deskGalleryVideoSource"/,
+      /<nav class="desk-prompt-library__tabs desk-key-bank" id="deskPromptLibraryTabs" role="tablist"/],
     'frontend/scripts/desktop-music-view.js': [/<nav class="desk-music__tabs desk-key-bank"/],
     'frontend/scripts/desktop-settings.js': [/desk-settings-canvas-interaction__segment desk-key-bank/g, /<div class="desk-video-runtime-mode desk-key-bank"/],
     'frontend/scripts/desktop-google-pool.js': [/<div class="desk-segment desk-key-bank desk-google-pool-tabs/],
@@ -211,48 +215,44 @@ test('segmented controls opt in through .desk-key-bank (nodes and settings) and 
   for (const css of fs.readdirSync(path.join(root, 'frontend/styles')).filter(f => f.endsWith('.css') && !['desktop-ambient-controls.css', 'desktop-control-material.css'].includes(f)))
     assert.doesNotMatch(read(`frontend/styles/${css}`), /\.desk-key-bank\b/, css);
   const S = '#deskApp[data-control-material="ambient"]';
-  const BANK = ':is(.desk-node, .desk-settings) .desk-key-bank';
-  const K = `${BANK} > button`, ON = `${K}:is(.is-active, [aria-pressed="true"])`;
+  const BANK = ':is(.desk-node, .desk-settings, .desk-gallery, .desk-prompt-library) .desk-key-bank';
+  const K = `${BANK} > button`;
   const generated = read('frontend/styles/desktop-ambient-controls.css');
-  const block = upstream => generated.slice(generated.indexOf(`/* ${upstream} */\n`)).split('{')[0];
-  // Select reading: the rail is the upstream groove; lens = ::before, diffuser cap = ::after.
-  assert.equal(generated.split(`/* ambient.css: .amb-groove */\n${S} ${BANK},\n`).length - 1, 2, 'both groove blocks reach the rail');
-  // The lens keeps upstream's paint but not its placement (a disc 62% of a square key's
-  // height): on wide production keys it follows the key, inset by an even rim on every side.
-  const lens = generated.slice(generated.indexOf('/* components.css: .amb-select-lens (omitted: left, top, transform, height, aspect-ratio, border-radius) */\n'));
-  assert.ok(lens.startsWith(`/* components.css: .amb-select-lens (omitted: left, top, transform, height, aspect-ratio, border-radius) */\n${S} ${K}::before {`));
-  const lensBody = lens.slice(lens.indexOf('{'), lens.indexOf('\n}') + 2);
-  assert.doesNotMatch(lensBody.replace(/\/\*[\s\S]*?\*\//g, ''), /\b(left|top|transform|height|aspect-ratio|border-radius):/);
-  assert.match(lensBody, /position: absolute;[\s\S]*background-color: color-mix\([\s\S]*var\(--_ambx-sel-color\) 6%[\s\S]*transition: background-color 140ms ease;/);
-  const placement = read('frontend/styles/desktop-control-material.css');
-  assert.ok(placement.includes(`${S} ${K}::before {\n  inset: calc(var(--ambx-grid) * 1.25);\n  border-radius: calc(var(--ambx-radius-md) - var(--ambx-grid) * 1.25);\n}`));
-  // The lit lens colour is ours: low-chroma (grey) lamps are lifted toward the floor so the
-  // lamp never reads as a dark blot under the diffuser; saturated lamps keep upstream's colour.
-  assert.ok(!generated.includes('.amb-select .ambx-key[data-on] .amb-select-lens'));
-  const adapterCss = read('frontend/styles/desktop-control-material.css');
-  assert.ok(adapterCss.includes(`${S} ${ON}::before {\n  background-color: oklch(from var(--_ambx-sel-color) max(l, calc(.84 - c * 4)) c h);\n}`));
-  // Keys, like upstream's, are borderless: the cap covers the padding box only.
-  const keyRule = adapterCss.slice(adapterCss.indexOf(`${S} ${K} {`)).split('}')[0];
-  assert.match(keyRule, /border-width: 0;/);
-  assert.doesNotMatch(keyRule, /border-color/);
-  assert.ok(generated.includes(`/* components.css: .amb-select .ambx-key[data-on] .amb-select-cap */\n${S} ${ON}::after {`));
-  assert.ok(generated.includes(`/* components.css: .amb-select .ambx-key[data-on] */\n${S} ${ON} {`));
-  for (const glass of ['ambient.css: .ambient', 'ambient.css: .amb-chamfer']) assert.ok(block(glass).includes(`${S} ${K}::after`), glass);
-  // Segment keys never take the node key-cap finishes, surface or cap dish.
-  for (const nodeOnly of ['ambient.css: .amb-surface', 'ambient.css: .amb-mat-shiny', 'components.css: .amb-button-cap::after'])
-    assert.ok(!block(nodeOnly).includes('.desk-key-bank'), nodeOnly);
   const adapter = read('frontend/styles/desktop-control-material.css');
-  assert.ok(adapter.includes(`${S} ${BANK} {\n  --amb-thickness: .27;\n  background-color: var(--amb-lume);`));
-  assert.ok(adapter.includes(`${S}[data-theme="dark"] ${BANK} {\n  background-color: color-mix(in oklab, var(--amb-lume), black 55%);`));
-  assert.ok(adapter.includes(`${S}[data-theme="dark"]:not([data-control-tinted]) ${BANK} {\n  --amb-albedo: #454d4f;`));
-  assert.ok(adapter.includes(`${S} ${K}::before,\n${S} ${K}::after {\n  content: "";\n  z-index: -1;`));
-  assert.ok(adapter.includes(`${S} ${ON} {\n  color: color-mix(in oklab, var(--_ambx-sel-color), black 68%);`));
-  // Upstream rail geometry: 2px ring and rail, bank one ring rounder than its keys.
-  assert.ok(adapter.includes(`${S} ${BANK} {\n  padding: var(--ambx-grid-half);\n  gap: var(--ambx-grid-half);\n  border-width: 0;\n  border-radius: calc(var(--ambx-radius-md) + var(--ambx-grid-half));`));
-  assert.ok(adapter.includes(`${S} ${K}:not(.is-active):not([aria-pressed="true"]):hover:not(:disabled)`));
-  // The shared node key-cap rules no longer list segment keys.
-  assert.ok(!adapter.split('/* Segmented controls')[0].replace(/\/\*[\s\S]*?\*\//g, '').includes('.desk-key-bank'));
-  assert.match(read('frontend/scripts/desktop-control-material.js'), /只改变画布节点里的按钮，以及节点和设置中心里的分段选择与开关/);
+  const block = upstream => generated.slice(generated.indexOf(`/* ${upstream} */\n`)).split('{')[0];
+  // The keys are in the key-cap target, so every finish, surface and the cap dish reach
+  // them like any push button.
+  for (const upstream of ['ambient.css: .ambient', 'ambient.css: .amb-surface', 'ambient.css: .amb-mat-shiny', 'ambient.css: .amb-mat-glass', 'components.css: .amb-button-cap::after'])
+    assert.ok(block(upstream).includes(`${K})`), upstream);
+  // No rail: no groove, no upstream Select layers (lens + always-glass diffuser cap).
+  assert.doesNotMatch(generated, /amb-select|desk-key-bank(?! > button)/);
+  assert.doesNotMatch(adapter, /_ambx-sel-color|desk-key-bank > button::(before|after)/);
+  // The container only spaces the keys and drops the production segment plate.
+  assert.ok(adapter.includes(`${S} ${BANK} {\n  padding: var(--ambx-grid-half);\n  gap: calc(var(--ambx-grid) * 1.5);\n  border-width: 0;\n  background-color: transparent;\n  background-image: none;\n  box-shadow: none;\n}`));
+  assert.equal(adapter.split(`${S} ${BANK} {`).length - 1, 1, 'one container rule');
+  assert.doesNotMatch(adapter, /\]\[data-(theme|control-finish)="[a-z]+"\] :is\(\.desk-node, \.desk-settings, \.desk-gallery, \.desk-prompt-library\) \.desk-key-bank \{/);
+  assert.ok(adapter.includes(`${S} ${K} {\n  border-radius: var(--ambx-radius-md);\n}`));
+  // Selected key: pressed in, the lamp lights the gap (well ring) and tints the legend; tabs
+  // (aria-selected) light like active options and pressed segments.
+  const selected = adapter.slice(adapter.indexOf('/* Selected key'));
+  const rule = selected.slice(selected.indexOf('*/') + 3, selected.indexOf('\n}') + 2);
+  assert.ok(rule.split(' {')[0].endsWith(`:is(${K}):is(.is-active, [aria-pressed="true"], [aria-selected="true"])`));
+  assert.match(rule, /--amb-thickness: calc\(var\(--desk-control-depth\) \* \.35\);[\s\S]*outline: var\(--ambx-grid-half\) solid var\(--amb-led-color, var\(--amb-highlight-color\)\);/);
+  assert.match(read('frontend/scripts/desktop-control-material.js'), /改变画布节点、设置中心、资产库与提示词库里的按钮和分段选择，以及节点和设置中心里的开关/);
+});
+
+test('the Pinterest tab is cast in Pinterest red under every finish, whatever the accent or key colour', () => {
+  const S = '#deskApp[data-control-material="ambient"]';
+  assert.match(read('frontend/styles/desktop-tokens.css'), /body\.desk-app \{[\s\S]*?--desk-brand-pinterest: #e60023;/);
+  const adapter = read('frontend/styles/desktop-control-material.css');
+  // Key body, lamp and a white legend in every state (rest, hover, selected).
+  assert.ok(adapter.includes(`${S} .desk-gallery-tabs > button[data-gallery-view="pinterest"] {\n  --amb-albedo: var(--desk-brand-pinterest);\n  --amb-led-color: var(--desk-brand-pinterest);\n  --desk-control-face-ink: #ffffff;\n  --desk-control-hover-ink: #ffffff;\n  --desk-control-selected-ink: #ffffff;\n}`));
+  // Glass: the milky pane becomes translucent Pinterest red (the light tint is too faint).
+  assert.match(adapter, /\[data-control-finish="glass"\] :is\([^{]*\)\[data-gallery-view="pinterest"\] \{\n  background-color: color-mix\(in srgb, var\(--desk-brand-pinterest\) 72%, transparent\);\n\}/);
+  // The selected key reads its lamp from --amb-led-color and lets a coloured key set its legend.
+  assert.match(adapter, /outline: var\(--ambx-grid-half\) solid var\(--amb-led-color, var\(--amb-highlight-color\)\);/);
+  assert.equal(adapter.match(/color: var\(--desk-control-selected-ink, color-mix\(/g).length, 2);
+  assert.match(read('frontend/desktop.html'), /data-gallery-view="pinterest">Pinterest</);
 });
 
 test('switches and checkboxes in nodes and settings read as upstream Switch + LED, without markup changes', () => {
@@ -281,26 +281,38 @@ test('switches and checkboxes in nodes and settings read as upstream Switch + LE
   // No template carries a switch hook: hosts are the existing .desk-switch and native checkboxes.
   const templates = fs.readdirSync(path.join(root, 'frontend/scripts')).filter(f => f.endsWith('.js')).map(f => read(`frontend/scripts/${f}`)).join('\n');
   assert.doesNotMatch(templates, /desk-ambient-switch|desk-switch-led/);
-  assert.match(read('frontend/scripts/desktop-control-material.js'), /只改变画布节点里的按钮，以及节点和设置中心里的分段选择与开关/);
+  assert.match(read('frontend/scripts/desktop-control-material.js'), /改变画布节点、设置中心、资产库与提示词库里的按钮和分段选择，以及节点和设置中心里的开关/);
 });
 
-test('settings-centre action rows take the key caps; primary and danger keep their role without the accent', () => {
+test('settings, asset-library and prompt-library commands take the key caps; primary and danger keep their role in the legend', () => {
   const S = '#deskApp[data-control-material="ambient"]';
-  const rows = ['.desk-settings-form__actions', '.desk-settings-account__actions', '.desk-lora-actions', '.desk-qwen21-tools__inspection',
+  const rows = ['.desk-settings__actions', '.desk-settings-form__actions', '.desk-settings-account__actions', '.desk-lora-actions', '.desk-qwen21-tools__inspection',
     '.desk-qwen21-tools__model', '.desk-qwen21-tools__progress', '.desk-krea2-tools__model', '.desk-krea2-tools__progress'];
-  const T = `:is(.desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key), .desk-settings :is(${rows.join(', ')}) > button, .desk-settings .desk-color-bloom__control > .desk-button)`;
+  const libraryRows = ['.desk-gallery__actions', '.desk-gallery-video__actions', '.desk-gallery-file__actions', '.desk-pinterest-state', '.desk-prompt-source-actions',
+    '.desk-prompt-library__header-actions', '.desk-prompt-editor-pane__head-actions', '.desk-prompt-editor-actions', '.desk-prompt-extractor__footer'];
+  const T = `:is(.desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key), .desk-settings :is(${rows.join(', ')}) > button, .desk-settings .desk-color-bloom__control > .desk-button, `
+    + `:is(.desk-gallery, .desk-prompt-library) .desk-button, :is(${libraryRows.join(', ')}) > button, .desk-prompt-template__create, .desk-prompt-library__load-more, `
+    + ':is(.desk-node, .desk-settings, .desk-gallery, .desk-prompt-library) .desk-key-bank > button)';
   const generated = read('frontend/styles/desktop-ambient-controls.css');
   for (const block of ['ambient.css: .ambient', 'ambient.css: .amb-surface', 'components.css: .amb-button-cap::after'])
     assert.ok(generated.slice(generated.indexOf(`/* ${block} */`)).split('{')[0].includes(`${S} ${T}`), block);
   // Every settings renderer keeps its commands in one of these rows (checked against the live inventory probe).
   const settings = ['desktop-settings.js', 'desktop-google-pool.js', 'desktop-lora-settings.js', 'desktop-qwen21-tools.js', 'desktop-krea2-tools.js'].map(f => read(`frontend/scripts/${f}`)).join('\n');
   for (const row of ['desk-settings-form__actions', 'desk-settings-account__actions', 'desk-lora-actions']) assert.ok(settings.includes(row), row);
+  // The library rows exist in the page or their renderers.
+  const libraries = [read('frontend/desktop.html'), ...['desktop-gallery-videos.js', 'desktop-gallery-prompt-sources.js', 'desktop-gallery-pinterest.js', 'desktop-prompt-library.js', 'desktop-history.js']
+    .map(f => read(`frontend/scripts/${f}`))].join('\n');
+  for (const row of [...libraryRows, '.desk-prompt-template__create', '.desk-prompt-library__load-more']) assert.ok(libraries.includes(row.slice(1)), row);
   const adapter = read('frontend/styles/desktop-control-material.css');
-  assert.ok(adapter.includes(`${S} ${T}.is-primary {\n  --amb-albedo: #24405c;\n  --desk-control-face-ink: #f4f7fb;`));
-  assert.ok(adapter.includes(`${S}[data-control-finish="glass"][data-theme="dark"] ${T}.is-primary {\n  --desk-control-face-ink: #dbe8ff;`));
-  assert.ok(adapter.includes(`${S} ${T}.is-danger {\n  --desk-control-face-ink: #c2353b;`));
-  // Segments, pickers, select triggers and link-style clears are outside the action-row target.
-  assert.doesNotMatch(T, /desk-key-bank|desk-color-bloom__(petal|trigger)|desk-select|secret-clear/);
+  // One key body for every key: primary and danger change only the legend.
+  const PRIMARY = ':is(.is-primary, .desk-button--primary, .desk-prompt-library__new)', DANGER = ':is(.is-danger, .desk-button--danger)';
+  assert.ok(adapter.includes(`${S}:not([data-control-tinted]) ${T}${PRIMARY} {\n  --desk-control-face-ink: #1f4f8a;\n  --desk-control-hover-ink: #163c6b;\n}`));
+  assert.ok(adapter.includes(`${S}[data-theme="dark"]:not([data-control-tinted]) ${T}${PRIMARY} {\n  --desk-control-face-ink: #9cc3ff;`));
+  assert.ok(adapter.includes(`${S} ${T}${DANGER} {\n  --desk-control-face-ink: #c2353b;`));
+  const roleRules = adapter.slice(adapter.indexOf('/* Primary and danger actions'), adapter.indexOf('/* Surface shape is Matte-only'));
+  assert.doesNotMatch(roleRules, /--amb-albedo|--amb-light-hue|--amb-light-saturation/);
+  // Pickers, select triggers, link-style clears and favourites are outside the key-cap target.
+  assert.doesNotMatch(T, /desk-color-bloom__(petal|trigger)|desk-select|secret-clear|favorite/);
 });
 
 test('matte and shiny caps sit in a lume well (upstream .amb-button clearance ring); glass keeps its own ring', () => {

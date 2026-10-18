@@ -204,6 +204,8 @@ body.desk-app {
   --desk-action-primary-silk-position-active: var(--desk-status-material-position-active);
 
   /* Brand actions keep their identity without inheriting low-contrast reds. */
+  /* Pinterest's own brand red (pinterest.com), fixed across themes, materials and accents. */
+  --desk-brand-pinterest: #e60023;
   --desk-brand-pinterest-top: #b30b2a;
   --desk-brand-pinterest-bottom: #880019;
   --desk-brand-pinterest-hover-top: #c21031;
