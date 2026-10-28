@@ -10,6 +10,15 @@ const context={window:{}};
 vm.runInNewContext(read('desktop-qwen21-model.js'),context);
 const M=context.window.DesktopQwen21Model;
 
+test('Qwen slider LoRA strengths survive workflow normalization and reload',()=>{
+  for(const [scale,want] of [[-20,-20],[-3.25,-3.25],[0,0],[20,20],[-21,-20],[21,20],[Infinity,1]]){
+    const node=M.normalize({type:'qwen21',loras:[{assetId:'a'.repeat(64),scale}]});
+    assert.equal(node.loras[0].scale,want);
+    const restored=M.normalize(JSON.parse(JSON.stringify(node)));
+    assert.equal(restored.loras[0].scale,want);
+  }
+});
+
 test('独立 Qwen 2.1 节点持久化 Base、预设、多 LoRA 和参考图顺序',()=>{
   const node=M.normalize({id:'qwen21-test',type:'qwen21',preset:'viggle-8',steps:30,guidance:5,mode:'edit',
     baseModelId:'community-v1',referenceOrder:['image-b','image-a','image-b'],

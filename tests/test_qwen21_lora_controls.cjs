@@ -22,6 +22,7 @@ class Element {
     if(!['[data-qwen21-lora-list]','[data-qwen21-references]'].includes(this.key))return;
     this.controls=[...value.matchAll(/<(button|input)\b([^>]*)>/g)].map(([,tag,attrs])=>{
       const el=new Element();el.tag=tag;el.disabled=/\bdisabled\b/.test(attrs);
+      for(const [,name,value] of attrs.matchAll(/\b(min|max|step|value)="([^"]*)"/g))el[name]=value;
       for(const [,name,value] of attrs.matchAll(/data-([\w-]+)="([^"]*)"/g))el.dataset[name.replace(/-([a-z])/g,(_,c)=>c.toUpperCase())]=value;
       return el;
     });
@@ -39,6 +40,27 @@ class Element {
   addEventListener(type,listener){this.listeners.set(type,listener);}
   click(target){if(!target.disabled)this.listeners.get('click')?.({target:{closest:selector=>target.matches(selector)?target:null}});}
 }
+
+for(const scale of [-20,-3.25,0,20]){
+  test(`Qwen LoRA input saves and submits the visible signed strength ${scale}`,async t=>{
+    const f=fixture();t.after(f.dispose);await flush();
+    const input=f.element.querySelectorAll('[data-qwen21-lora-scale]')[0];
+    assert.equal(input.min,'-20');assert.equal(input.max,'20');
+    input.value=String(scale);f.element.listeners.get('change')({target:input});
+    assert.equal(f.node.loras[0].scale,scale);assert.equal(input.value,String(scale));
+    assert.equal(f.saved.at(-1).loras[0].scale,scale);
+    f.run();await flush();assert.equal(f.submitted[0].loras[0].scale,scale);
+  });
+}
+
+test('Qwen LoRA input shows the actual bounded value instead of a stale requested value',async t=>{
+  const f=fixture();t.after(f.dispose);await flush();
+  const input=f.element.querySelectorAll('[data-qwen21-lora-scale]')[0];
+  for(const [requested,want] of [['99',20],['-99',-20],['invalid',1]]){
+    input.value=requested;f.element.listeners.get('change')({target:input});
+    assert.equal(f.node.loras[0].scale,want);assert.equal(input.value,String(want));
+  }
+});
 
 function fixture({ready=true,prompt='Synthetic landscape',refs=2,models=null,nodeFields={},turboReady=true}={}){
   let nextTimer=0;const timers=new Map(),submitted=[],saved=[],reports=[];

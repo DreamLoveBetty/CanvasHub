@@ -55,6 +55,13 @@ test('未填写触发词时直接展开编辑，保持手动添加入口',async(
   assert.match(f.dialogs[0].querySelector('.desk-lora-dialog__body').innerHTML,/<details class="desk-lora-disclosure desk-lora-trigger-editor" open>/);
 });
 
+test('LoRA detail accepts signed slider recommendation without restricting it to ordinary style strength',async()=>{
+  const f=viewFixture({recommended_scale:-20});await f.view.openDetail('id');
+  const html=f.dialogs[0].querySelector('.desk-lora-dialog__body').innerHTML;
+  const input=html.match(/<input\b[^>]*data-lora-edit="recommended_scale"[^>]*>/)[0];
+  assert.match(input,/min="-20"/);assert.match(input,/max="20"/);assert.match(input,/value="-20"/);
+});
+
 test('单行字段同排，状态放标题行，多行编辑不与短控件拼列',async()=>{
   const f=viewFixture();await f.view.openDetail('id');
   const html=f.dialogs[0].querySelector('.desk-lora-dialog__body').innerHTML;

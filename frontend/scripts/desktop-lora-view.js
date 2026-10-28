@@ -182,7 +182,7 @@
         }
       }catch(error){if(active())tell(error);}
     }
-    const input=(key,label,value,type='text',hint='')=>`<label${hint?` title="${esc(hint)}"`:''}><span>${label}</span><input class="desk-input" data-lora-edit="${key}" type="${type}" value="${esc(value??'')}" ${type==='number'?'min="0" max="2" step="0.05"':''}></label>`;
+    const input=(key,label,value,type='text',hint='')=>`<label${hint?` title="${esc(hint)}"`:''}><span>${label}</span><input class="desk-input" data-lora-edit="${key}" type="${type}" value="${esc(value??'')}" ${type==='number'?'min="-20" max="20" step="0.05"':''}></label>`;
     async function openDetailForNode(id,nodeId,modelEngine) {if(detailDialog&&!closeDetail())return;fixedNode=nodeId;fixedEngine=modelEngine;return openDetail(id);}
     async function openDetail(id) {
       closeAddDialog();

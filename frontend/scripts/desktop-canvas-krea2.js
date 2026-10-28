@@ -45,7 +45,7 @@
       return node.loras.map((item,index)=>({item,index})).filter(({item})=>node.mode!=='edit'||item.assetId!==node.editAdapterId).map(({item,index})=>{
         const meta=loraMeta(item.assetId),name=meta.name||item.assetId;return `<div class="desk-krea2__lora" data-krea2-lora-row="${index}">
           <strong title="${esc(name)}">${loraView?`<button type="button" class="desk-lora-row-detail" data-krea2-lora-detail="${esc(item.assetId)}" title="查看效果与触发词">${esc(meta.name||item.assetId.slice(0,12))} ⓘ</button>`:esc(meta.name||item.assetId.slice(0,12))}</strong>
-          <label aria-label="${esc(name)} LoRA 强度"><input class="desk-number" type="number" min="0" max="2" step="0.05" value="${esc(item.scale)}" title="LoRA 强度" data-stepper="off" data-krea2-lora-scale="${index}"></label>
+          <label aria-label="${esc(name)} LoRA 强度"><input class="desk-number" type="number" min="${M.LORA_SCALE_MIN}" max="${M.LORA_SCALE_MAX}" step="0.05" value="${esc(item.scale)}" title="LoRA 强度" data-stepper="off" data-krea2-lora-scale="${index}"></label>
           <button type="button" class="desk-button desk-button--danger" data-krea2-lora-remove="${index}" aria-label="从节点移除 ${esc(name)}" title="移除">×</button></div>`;
       }).join('');
     }
@@ -271,7 +271,7 @@
       else if(input.matches('[data-krea2-control-adapter]')){node.controlAdapterId=input.value;renderLoras(s);}
       else if(input.matches('[data-krea2-edit-adapter-scale]'))node.editAdapterScale=Math.max(.01,Math.min(2,Number(input.value)||1));
       else if(input.matches('[data-krea2-lora-add]')){if(input.value&&M.regularLoras(node).length<regularLoraLimit(node)&&node.loras.length<4&&(node.mode!=='edit'||input.value!==node.editAdapterId)&&!node.loras.some(item=>item.assetId===input.value))node.loras.push({assetId:input.value,scale:1});renderLoras(s);}
-      else if(input.dataset.krea2LoraScale!==undefined){const index=Number(input.dataset.krea2LoraScale);if(node.loras[index])node.loras[index].scale=Math.max(0,Math.min(2,Number(input.value)||0));}
+      else if(input.dataset.krea2LoraScale!==undefined){const item=node.loras[Number(input.dataset.krea2LoraScale)];if(item){item.scale=M.normalizeLoraScale(input.value);input.value=String(item.scale);}}
       else if(input.dataset.krea2Field){const key=input.dataset.krea2Field;
         if(key==='mode')return;
         if(key==='ratio'){node.ratio=input.value;const dimensions=M.dimensionsForRatio(node.ratio);if(dimensions){node.imageWidth=dimensions.width;node.imageHeight=dimensions.height;}}

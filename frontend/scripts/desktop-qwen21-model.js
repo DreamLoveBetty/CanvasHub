@@ -3,6 +3,7 @@
   const TYPE='qwen21', WIDTH=720, HEIGHT=500;
   const DEFAULT_MODEL_ID='qwen-image-2.1-heretic-mlx-8bit';
   const DEFAULT_PRESET='viggle-v03-r256',TURBO_PRESET='turbo-8';
+  const LORA_SCALE_MIN=-20,LORA_SCALE_MAX=20;
   const ASPECT_RATIOS=Object.freeze(['1:1','2:3','3:2','3:4','4:3','4:5','5:4','9:16','16:9','9:21','21:9']);
   // Mirrors backend profiles.PRESETS. Turbo is a distilled Base, not an adapter:
   // its fixed 8-step schedule pairs only with Bases whose sampling is turbo-8.
@@ -12,6 +13,7 @@
     'viggle-v021-r128':{label:'Viggle v0.2.1 · r128',steps:6,minSteps:5,maxSteps:60,references:3,adapter:true},
     [TURBO_PRESET]:{label:'Turbo · 8 步',steps:8,minSteps:8,maxSteps:8,references:10}});
   const clamp=(value,lo,hi,fallback)=>Number.isFinite(Number(value))?Math.max(lo,Math.min(hi,Number(value))):fallback;
+  const normalizeLoraScale=value=>clamp(value,LORA_SCALE_MIN,LORA_SCALE_MAX,1);
   const active=status=>['submitting','queued','processing','running'].includes(String(status||''));
   function selectAvailableBase(node,status){
     if(node.type!==TYPE||active(node.status)||(status?.models||[]).some(item=>item.id===node.baseModelId))return false;
@@ -45,7 +47,7 @@
     node.imageCount=Math.round(clamp(node.imageCount,1,4,1));
     node.seed=node.seed===null||node.seed===undefined?'':String(node.seed).replace(/[^0-9]/g,'').slice(0,10);
     node.telegramEnabled=node.telegramEnabled===true;
-    const seen=new Set();node.loras=(Array.isArray(node.loras)?node.loras:[]).filter(item=>/^[a-f0-9]{64}$/.test(String(item?.assetId||''))&&!seen.has(item.assetId)&&seen.add(item.assetId)).slice(0,4).map(item=>({assetId:item.assetId,scale:clamp(item.scale,0,2,1)}));
+    const seen=new Set();node.loras=(Array.isArray(node.loras)?node.loras:[]).filter(item=>/^[a-f0-9]{64}$/.test(String(item?.assetId||''))&&!seen.has(item.assetId)&&seen.add(item.assetId)).slice(0,4).map(item=>({assetId:item.assetId,scale:normalizeLoraScale(item.scale)}));
     node.referenceOrder=[...new Set((Array.isArray(node.referenceOrder)?node.referenceOrder:[]).filter(id=>typeof id==='string'&&id.length<300))];
     node.jobId=/^qwen21_[a-f0-9]{32}$/.test(String(node.jobId||''))?node.jobId:'';
     node.resultJobId=String(node.resultJobId||'');node.status=String(node.status||'idle');return node;
@@ -64,5 +66,5 @@
   const resolveMode=(node,canvas)=>imageInputIds(node,canvas).length?'edit':'text';
   const ICON='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M5 4h14v14H5zM8 14l3-4 5 5M15 7h.01M13 18l4 4"/></svg>';
   const MENU_ITEM=Object.freeze({type:TYPE,title:'Qwen 2.1 · MLX',subtitle:'本地生成 / 多参考编辑 · Turbo / Viggle 加速',icon:ICON});
-  window.DesktopQwen21Model=Object.freeze({TYPE,WIDTH,HEIGHT,DEFAULT_MODEL_ID,DEFAULT_PRESET,TURBO_PRESET,ASPECT_RATIOS,PRESETS,ICON,MENU_ITEM,normalize,active,selectAvailableBase,presetAllowed,applyModelPreset,dimensionsForRatio,ratioFromDimensions,outputPosition,targets,policy,imageInputIds,resolveMode});
+  window.DesktopQwen21Model=Object.freeze({TYPE,WIDTH,HEIGHT,DEFAULT_MODEL_ID,DEFAULT_PRESET,TURBO_PRESET,LORA_SCALE_MIN,LORA_SCALE_MAX,ASPECT_RATIOS,PRESETS,ICON,MENU_ITEM,normalizeLoraScale,normalize,active,selectAvailableBase,presetAllowed,applyModelPreset,dimensionsForRatio,ratioFromDimensions,outputPosition,targets,policy,imageInputIds,resolveMode});
 })();

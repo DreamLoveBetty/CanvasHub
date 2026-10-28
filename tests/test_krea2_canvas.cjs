@@ -11,6 +11,15 @@ const context={window:{}};
 vm.runInNewContext(read('desktop-krea2-model.js'),context);
 const model=context.window.DesktopKrea2Model;
 
+test('Krea ordinary slider strength survives workflow reload without widening dedicated adapters',()=>{
+  for(const [scale,want] of [[-20,-20],[-3.25,-3.25],[0,0],[20,20],[-21,-20],[21,20]]){
+    const node=model.normalize({type:'krea2',editAdapterScale:20,controlAdapterScale:20,
+      loras:[{assetId:'a'.repeat(64),scale}]});
+    assert.equal(node.loras[0].scale,want);assert.equal(node.editAdapterScale,2);assert.equal(node.controlAdapterScale,2);
+    assert.equal(model.normalize(JSON.parse(JSON.stringify(node))).loras[0].scale,want);
+  }
+});
+
 test('Krea 2 是独立 typed Canvas 节点并持久化多 LoRA 参数',()=>{
   const node=model.normalize({id:'krea2-test',type:'krea2',width:10,height:10,imageWidth:769,imageHeight:1024,
     loras:Array.from({length:6},(_,index)=>({assetId:String(index+1).repeat(64).slice(0,64),scale:1+index/10}))});

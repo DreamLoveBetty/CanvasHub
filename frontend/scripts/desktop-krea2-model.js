@@ -6,6 +6,7 @@
     'mixed-4-8':'krea-2-turbo-alis-mlx-mixed-4-8'
   });
   const DEFAULT_MODEL_ID=BUILTIN_MODEL_IDS['8bit'];
+  const LORA_SCALE_MIN=-20,LORA_SCALE_MAX=20;
   const MODES=Object.freeze(['standard','edit','control']);
   const FIT_MODES=Object.freeze(['fit','crop']);
   const ASPECT_RATIOS=Object.freeze(['1:1','2:3','3:2','3:4','4:3','4:5','5:4','9:16','16:9','9:21','21:9']);
@@ -17,6 +18,7 @@
   });
   const active=status=>['submitting','queued','processing','running'].includes(String(status||''));
   const clamp=(value,min,max,fallback)=>{const number=Number(value);return Number.isFinite(number)?Math.max(min,Math.min(max,number)):fallback;};
+  const normalizeLoraScale=value=>clamp(value,LORA_SCALE_MIN,LORA_SCALE_MAX,1);
   function ratioFromDimensions(width,height){
     const actual=Number(width)/Number(height);if(!Number.isFinite(actual)||actual<=0)return'custom';
     return ASPECT_RATIOS.find(ratio=>{const [w,h]=ratio.split(':').map(Number);return Math.abs(actual-w/h)<0.002;})||'custom';
@@ -64,7 +66,7 @@
     // temporarily used as the edit adapter. Enforce the active limit at submit.
     node.loras=Array.isArray(node.loras)?node.loras.slice(0,4).map(item=>({
       assetId:/^[a-f0-9]{64}$/.test(String(item?.assetId||''))?String(item.assetId):'',
-      scale:clamp(item?.scale,0,2,1)
+      scale:normalizeLoraScale(item?.scale)
     })).filter(item=>item.assetId):[];
     node.jobId=/^krea2_[a-f0-9]{32}$/.test(String(node.jobId||''))?node.jobId:'';
     node.resultJobId=String(node.resultJobId||'');
@@ -89,5 +91,5 @@
   const ICON='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 2.8 14.2 8l5.2.7-4 3.5 1.2 5.1-4.6-2.7-4.6 2.7 1.2-5.1-4-3.5L9.8 8 12 2.8Z"/><path d="M18 3v4M16 5h4"/></svg>';
   const MENU_ITEM=Object.freeze({type:TYPE,title:'Krea 2 · MLX',subtitle:'Apple Silicon 本地生成 · 多 LoRA',icon:ICON});
   window.DesktopKrea2Model=Object.freeze({TYPE,ICON,MENU_ITEM,ASPECT_RATIOS,RATIO_DIMENSIONS,
-    BUILTIN_MODEL_IDS,DEFAULT_MODEL_ID,MODES,FIT_MODES,active,normalize,ratioFromDimensions,dimensionsForRatio,targets,policy,imageInputIds,controlInputIds,resolveMode,regularLoras});
+    BUILTIN_MODEL_IDS,DEFAULT_MODEL_ID,LORA_SCALE_MIN,LORA_SCALE_MAX,MODES,FIT_MODES,active,normalizeLoraScale,normalize,ratioFromDimensions,dimensionsForRatio,targets,policy,imageInputIds,controlInputIds,resolveMode,regularLoras});
 })();

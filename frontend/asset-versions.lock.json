@@ -79,8 +79,8 @@
     "sha256": "6e583036345a7999042bbedb4acc7abf4aa3f642b6bad17b3e9e8537ae34ec6c"
    },
    "scripts/desktop-canvas-krea2.js": {
-    "v": "20261018-control-resolution1",
-    "sha256": "cf4d802c8461f32d7f80b63b51c591864d5455398e32f9ab984590b57d51fb96"
+    "v": "20261026-lora-signed20",
+    "sha256": "d9bdd0eedd45e96c48ecc26c8ba9eb34e32d389365b3b4b797826dff6746a6b9"
    },
    "scripts/desktop-canvas-lora.js": {
     "v": "20261002-lora-library3",
@@ -115,8 +115,8 @@
     "sha256": "20891a7f17d01e340e233112673c4745ca80065023565735ed99e7769626c8f2"
    },
    "scripts/desktop-canvas-qwen21.js": {
-    "v": "20261011-select-stepper1",
-    "sha256": "20b2001826a485e7a9305ec48239470587005eea175423b3795ee03cd1647070"
+    "v": "20261026-lora-signed20",
+    "sha256": "fdcf33a926dced630c495475070d3adb567ce4b2017fea1359590e3ca4bccc2b"
    },
    "scripts/desktop-canvas-references.js": {
     "v": "20260929-prompt-video1",
@@ -219,8 +219,8 @@
     "sha256": "49d2f13e34fd487d49207d505cbd8d19a4f3d742eed3a4ff23db23a23d34cb95"
    },
    "scripts/desktop-krea2-model.js": {
-    "v": "20261018-control-resolution1",
-    "sha256": "8adc01ffa49577ce90e5dc4c9917d17fa5efd6d67fcce0a89798467207b9905b"
+    "v": "20261026-lora-signed20",
+    "sha256": "94396fa8662cac06cc8afbf350bf6e9d061029fa99b76d679402da1dbf1081d6"
    },
    "scripts/desktop-krea2-tools.js": {
     "v": "20261006-bf16-transformer1",
@@ -239,8 +239,8 @@
     "sha256": "134583f0b2d1a68c8b1f0a2036773fe93df695c10d509c579865233c2e2f0548"
    },
    "scripts/desktop-lora-view.js": {
-    "v": "20261017-area-control1",
-    "sha256": "e5f04f62e991214422fccf6213868dc67c66a7d645d28449d3649259ecfa43a9"
+    "v": "20261026-lora-signed20",
+    "sha256": "22e77bb0bcaac6543204913191e794c651f11201669233774daa4f87c4743613"
    },
    "scripts/desktop-music-api.js": {
     "v": "20260921-task-contract1",
@@ -323,8 +323,8 @@
     "sha256": "34d201ee62c8a81e04b8c462733fb4034e17416198effe37f4a3e9b410c61544"
    },
    "scripts/desktop-qwen21-model.js": {
-    "v": "20261011-qwen-turbo8",
-    "sha256": "6ad93043abcf1d497431420677ae4a4494e89c217756af5ac97670fd46023539"
+    "v": "20261026-lora-signed20",
+    "sha256": "40788d9aca0a89a3f7c102dedcfe0e5ba8060299846f3ddf788fa36d32f3cc75"
    },
    "scripts/desktop-qwen21-tools.js": {
     "v": "20261011-qwen-turbo8",

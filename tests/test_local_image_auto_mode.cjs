@@ -66,6 +66,18 @@ function fixture(engine,options={}){
     dispose(){controller.disposeAll();}};
 }
 
+for(const [requested,want] of [[20,20],[-20,-20],[-3.25,-3.25],[99,20],[-99,-20],['invalid',1]]){
+  test(`Krea ordinary LoRA shows, saves and submits signed strength ${requested} in edit mode`,async t=>{
+    const f=fixture('krea2',{node:{editAdapterScale:.95,loras:[{assetId:'a'.repeat(64),scale:1}]}});
+    t.after(()=>f.dispose());await f.loaded();f.connect();
+    const input={dataset:{krea2LoraScale:'0'},value:String(requested),matches:()=>false};
+    f.element.listeners.get('change')({target:input});
+    assert.equal(f.node.loras[0].scale,want);assert.equal(input.value,String(want));
+    await f.run();assert.equal(f.submitted[0].loras[0].scale,want);
+    assert.equal(f.submitted[0].edit_adapter_scale,.95);
+  });
+}
+
 for(const engine of ['krea2','qwen21']){
   const textMode=engine==='krea2'?'standard':'text';
   test(`${engine}: 模式由真实输入边识别，忽略旧模式、输出边和无效边`,async t=>{
