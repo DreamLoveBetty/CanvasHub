@@ -1,0 +1,121 @@
+/* Pose editor layout: the workbench shell (fixed dialog, 40px header, stage + inspector) with a
+   scene outline on the left. Paint lives in desktop-pose-editor.css. */
+body.desk-app.desk-pose-editor-open {overflow:hidden;}
+body.desk-app .desk-pose-editor[hidden] {display:none!important;}
+body.desk-app .desk-pose-editor {position:fixed;inset:0;z-index:2600;display:grid;place-items:center;padding:18px;box-sizing:border-box;}
+body.desk-app .desk-pose-editor__scrim {position:absolute;inset:0;}
+body.desk-app .desk-pose-editor__dialog {position:relative;display:flex;flex-direction:column;width:min(1680px,calc(100vw - 36px));height:min(980px,calc(100dvh - 36px));overflow:hidden;}
+body.desk-app .desk-pose-editor__header {display:flex;align-items:center;gap:8px;min-height:40px;padding:6px 12px;box-sizing:border-box;flex-shrink:0;}
+body.desk-app .desk-pose-editor__brand {display:grid;place-items:center;width:24px;height:24px;flex:0 0 auto;}
+body.desk-app .desk-pose-editor__brand svg {width:16px;height:16px;}
+body.desk-app .desk-pose-editor__heading {display:flex;align-items:baseline;min-width:0;max-width:420px;gap:10px;}
+body.desk-app .desk-pose-editor__heading strong {flex:0 0 auto;white-space:nowrap;}
+body.desk-app .desk-pose-editor__heading small {min-width:0;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+body.desk-app .desk-pose-editor__passes {display:flex;align-items:center;gap:2px;min-width:0;flex:1;margin:0 8px;}
+body.desk-app .desk-pose-editor__passes button {display:flex;align-items:center;justify-content:center;min-width:52px;height:24px;padding:0 8px;white-space:nowrap;}
+body.desk-app .desk-pose-editor__status {flex:0 0 auto;padding:2px 7px;}
+body.desk-app .desk-pose-editor__header-button {height:24px;padding:0 8px;flex-shrink:0;}
+body.desk-app .desk-pose-editor__header-button.is-icon {display:grid;place-items:center;width:24px;padding:0;}
+body.desk-app .desk-pose-editor__header-button svg {width:14px;height:14px;}
+body.desk-app .desk-pose-editor__layout {display:grid;grid-template-columns:240px minmax(0,1fr) 360px;flex:1;min-height:0;transition:grid-template-columns .18s ease;}
+body.desk-app .desk-pose-editor.is-inspector-collapsed .desk-pose-editor__layout {grid-template-columns:240px minmax(0,1fr) 0;}
+body.desk-app .desk-pose-editor.is-inspector-collapsed .desk-pose-editor__inspector {visibility:hidden;overflow:hidden;}
+
+/* Outline */
+body.desk-app .desk-pose-editor__outline {display:flex;min-width:0;min-height:0;flex-direction:column;overflow:auto;scrollbar-width:thin;}
+body.desk-app .desk-pose-editor__outline-section {padding:10px 10px 12px;}
+body.desk-app .desk-pose-editor__outline-section.is-library {flex:1;}
+body.desk-app .desk-pose-editor__outline-section>header {display:flex;align-items:center;gap:6px;height:24px;margin:0 0 6px;padding:0 4px;}
+body.desk-app .desk-pose-editor__outline-section h3 {flex:1;margin:0;}
+body.desk-app .desk-pose-editor__outline-section>header button {display:grid;place-items:center;width:22px;height:22px;padding:0;}
+body.desk-app .desk-pose-editor__outline-section>header svg,body.desk-app .desk-pose-editor__row-tools svg,body.desk-app .desk-pose-editor__row-icon {width:13px;height:13px;}
+body.desk-app .desk-pose-editor__rows {display:flex;flex-direction:column;gap:2px;margin:0;padding:0;list-style:none;}
+body.desk-app .desk-pose-editor__row {display:flex;align-items:center;gap:8px;min-height:30px;padding:0 4px 0 8px;}
+body.desk-app .desk-pose-editor__swatch {display:inline-block;width:10px;height:10px;flex:0 0 auto;}
+body.desk-app .desk-pose-editor__row-icon {flex:0 0 auto;}
+body.desk-app .desk-pose-editor__row-copy {display:flex;flex:1;min-width:0;flex-direction:column;}
+body.desk-app .desk-pose-editor__row-copy :is(strong,small) {overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+body.desk-app .desk-pose-editor__row-tools {display:flex;gap:1px;}
+body.desk-app .desk-pose-editor__row-tools button {display:grid;place-items:center;width:22px;height:22px;padding:0;}
+body.desk-app .desk-pose-editor__badge {padding:1px 5px;white-space:nowrap;}
+body.desk-app .desk-pose-editor__library {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;}
+body.desk-app .desk-pose-editor__library-group {grid-column:1/-1;margin:6px 0 0;}
+body.desk-app .desk-pose-editor__library-group:first-child {margin-top:0;}
+body.desk-app .desk-pose-editor__preset {display:flex;flex-direction:column;gap:4px;padding:4px 4px 6px;}
+body.desk-app .desk-pose-editor__preset :is(img,.desk-pose-editor__preset-placeholder) {display:block;width:100%;aspect-ratio:1;}
+
+/* Stage and viewport */
+body.desk-app .desk-pose-editor__stage {display:grid;grid-template-rows:auto minmax(160px,1fr) auto;min-width:0;min-height:0;padding:8px 12px 10px;box-sizing:border-box;}
+body.desk-app .desk-pose-editor__toolbar {display:flex;align-items:center;flex-wrap:wrap;gap:8px;min-height:36px;padding:0 0 8px;}
+body.desk-app .desk-pose-editor__selection-label {margin-left:auto;white-space:nowrap;}
+body.desk-app .desk-pose-editor__segments {display:flex;gap:2px;padding:2px;}
+body.desk-app .desk-pose-editor__segments.is-fill>button {flex:1;min-width:0;padding:0 4px;white-space:nowrap;}
+body.desk-app .desk-pose-editor__segments button {display:flex;align-items:center;justify-content:center;height:24px;padding:0 9px;}
+body.desk-app .desk-pose-editor__segments button[hidden] {display:none;}
+body.desk-app .desk-pose-editor__viewer {position:relative;min-height:0;overflow:hidden;touch-action:none;outline:none;}
+body.desk-app :is(.desk-pose-editor__canvas,.desk-pose-editor__overlay) {position:absolute;inset:0;display:block;width:100%;height:100%;}
+body.desk-app .desk-pose-editor__overlay {pointer-events:none;}
+body.desk-app .desk-pose-editor__frame {position:absolute;z-index:3;pointer-events:none;}
+body.desk-app .desk-pose-editor__frame span {position:absolute;left:0;bottom:calc(100% + 6px);white-space:nowrap;}
+body.desk-app .desk-pose-editor__reference {position:absolute;inset:0;width:100%;height:100%;object-fit:contain;}
+body.desk-app .desk-pose-editor__axes {position:absolute;z-index:4;top:8px;right:8px;width:64px;height:64px;}
+body.desk-app .desk-pose-editor__hint {position:absolute;z-index:4;left:10px;bottom:9px;display:flex;flex-wrap:wrap;gap:4px 12px;pointer-events:none;}
+body.desk-app .desk-pose-editor__notice {position:absolute;z-index:5;top:50%;left:50%;display:flex;max-width:320px;transform:translate(-50%,-50%);flex-direction:column;gap:5px;padding:13px 15px;text-align:center;pointer-events:none;}
+body.desk-app .desk-pose-editor__notice[hidden] {display:none;}
+
+/* Inspector */
+body.desk-app .desk-pose-editor__inspector {display:flex;min-width:0;min-height:0;flex-direction:column;}
+body.desk-app .desk-pose-editor__tabs {display:grid;grid-template-columns:repeat(4,1fr);gap:2px;margin:8px 14px 0;padding:2px;flex-shrink:0;}
+body.desk-app .desk-pose-editor__tabs button {height:24px;}
+body.desk-app .desk-pose-editor__panel {flex:1;min-height:0;overflow:auto;padding:0 14px;scrollbar-width:thin;scrollbar-gutter:stable;}
+body.desk-app .desk-pose-editor__section {margin:0 -14px;padding:10px 14px 12px;}
+body.desk-app .desk-pose-editor__section-title {display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 8px;}
+body.desk-app .desk-pose-editor__section-title h3 {margin:0;}
+body.desk-app .desk-pose-editor__selection {display:flex;align-items:center;gap:8px;min-height:24px;}
+body.desk-app .desk-pose-editor__bodymap {position:relative;height:208px;margin:6px 0 2px;}
+body.desk-app .desk-pose-editor__bodymap svg {position:absolute;inset:0;width:100%;height:100%;}
+body.desk-app .desk-pose-editor__bodymap button {position:absolute;width:13px;height:13px;padding:0;transform:translate(-50%,-50%);}
+body.desk-app .desk-pose-editor__bodymap small {position:absolute;bottom:6px;}
+body.desk-app .desk-pose-editor__bodymap small.is-right {left:8px;}
+body.desk-app .desk-pose-editor__bodymap small.is-left {right:8px;}
+body.desk-app .desk-pose-editor__params {display:flex;flex-direction:column;gap:4px;padding-top:4px;}
+body.desk-app .desk-pose-editor__params>label {display:grid;grid-template-columns:104px minmax(0,1fr);align-items:center;gap:8px;min-height:24px;}
+body.desk-app .desk-pose-editor__params>label>div {display:grid;grid-template-columns:minmax(0,1fr) 64px;align-items:center;gap:10px;}
+body.desk-app .desk-pose-editor__axis {display:inline-block;width:12px;margin-right:4px;}
+body.desk-app .desk-pose-editor__actions {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-top:10px;}
+body.desk-app :is(.desk-pose-editor__actions button,.desk-pose-editor__transport button,.desk-pose-editor__wide-button) {height:26px;padding:0 6px;white-space:nowrap;}
+body.desk-app .desk-pose-editor__timeline {display:grid;gap:6px;padding-top:8px;}
+body.desk-app .desk-pose-editor__timeline[hidden] {display:none;}
+body.desk-app .desk-pose-editor__transport {display:flex;align-items:center;gap:4px;min-width:0;}
+body.desk-app .desk-pose-editor__transport button {min-width:28px;}
+body.desk-app .desk-pose-editor__transport-gap {flex:1;}
+body.desk-app .desk-pose-editor__track {position:relative;height:30px;touch-action:none;}
+body.desk-app .desk-pose-editor__track canvas {display:block;width:100%;height:100%;}
+body.desk-app .desk-pose-editor__wide-button {width:100%;margin-top:6px;}
+body.desk-app .desk-pose-editor__field {display:grid;grid-template-columns:104px minmax(0,1fr);align-items:center;gap:8px;min-height:28px;}
+body.desk-app .desk-pose-editor__row-fields {display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;margin-top:6px;}
+body.desk-app .desk-pose-editor__row-fields label {display:flex;min-width:0;flex-direction:column;gap:4px;margin:0 0 8px;}
+body.desk-app .desk-pose-editor__panel :is(select,input[type=number],input[type=text]) {width:100%;min-width:0;height:24px;padding:0 8px;box-sizing:border-box;}
+body.desk-app .desk-pose-editor__panel input[type=number] {padding:0 6px;}
+body.desk-app .desk-pose-editor__panel input[type=range] {width:100%;height:24px;margin:0;padding:0;}
+body.desk-app .desk-pose-editor__colors {display:flex;gap:6px;}
+body.desk-app .desk-pose-editor__colors button {width:20px;height:20px;padding:0;}
+body.desk-app .desk-pose-editor__check {display:flex;align-items:center;gap:8px;min-height:26px;}
+body.desk-app .desk-pose-editor__check input {margin:0;}
+body.desk-app .desk-pose-editor__check small {margin-left:auto;}
+body.desk-app .desk-pose-editor__note {margin:6px 0 0;}
+body.desk-app .desk-pose-editor__pass-grid {display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;}
+body.desk-app .desk-pose-editor__pass {display:flex;flex-direction:column;gap:4px;padding:3px 3px 5px;}
+body.desk-app .desk-pose-editor__pass canvas {width:100%;aspect-ratio:1;}
+body.desk-app .desk-pose-editor__footer {display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:12px 14px;flex-shrink:0;}
+body.desk-app .desk-pose-editor__footer button {min-height:32px;padding:6px 8px;}
+body.desk-app .desk-pose-editor__footer small {grid-column:1/-1;}
+body.desk-app > .desk-select-menu[data-select-variant="pose-editor"] {z-index:2602;padding:4px;gap:2px;}
+
+/* Narrow windows keep the viewport usable: side columns narrow and secondary labels drop. */
+@media (max-width:1280px) {
+  body.desk-app .desk-pose-editor__layout {grid-template-columns:196px minmax(0,1fr) 320px;}
+  body.desk-app .desk-pose-editor.is-inspector-collapsed .desk-pose-editor__layout {grid-template-columns:196px minmax(0,1fr) 0;}
+  body.desk-app .desk-pose-editor__segments kbd,body.desk-app .desk-pose-editor__selection-label,body.desk-app .desk-pose-editor__hint {display:none;}
+}
+@media (prefers-reduced-motion:reduce) {body.desk-app .desk-pose-editor__layout {transition:none;}}

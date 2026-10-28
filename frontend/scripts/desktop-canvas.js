@@ -364,12 +364,7 @@
       subtitle: '本地高清放大',
       icon: '<svg class="desk-node-icon desk-node-icon--upscale" viewBox="0 0 24 24"><g class="desk-node-icon__upscale-arrow"><path d="M16 3h5v5"></path><path d="m21 3-5 5"></path></g><g class="desk-node-icon__upscale-frame"><path d="M17 21h2a2 2 0 0 0 2-2"></path><path d="M21 12v3"></path><path d="M3 7V5a2 2 0 0 1 2-2"></path><path d="m5 21 4.144-4.144a1.21 1.21 0 0 1 1.712 0L13 19"></path><path d="M9 3h3"></path><rect x="3" y="11" width="10" height="10" rx="1"></rect></g></svg>'
     },
-    {
-      type: 'pose',
-      title: '姿态参考',
-      subtitle: '多角色机位参考',
-      icon: '<svg class="desk-node-icon desk-node-icon--pose" viewBox="0 0 24 24"><g class="desk-node-icon__pose-body"><circle cx="12" cy="5" r="1"></circle><path d="m9 20 3-6 3 6"></path><path d="m6 8 6 2 6-2"></path><path d="M12 10v4"></path></g></svg>'
-    },
+    window.DesktopPoseModel.menu,
     {
       type: 'text',
       title: '文本节点',
@@ -423,6 +418,7 @@
   let pendingFileMode = 'reference';
   let pendingImageNodeCenter = null;
   let pendingImageTargetNodeId = '';
+  let pendingVideoTargetNodeId = '';
   // contextMenuPoint is owned by DesktopCanvasConnections.
   let contextMenuEl = null;
   // contextMenuCloseTimer is owned by DesktopCanvasConnections.
@@ -859,6 +855,7 @@
       'deskInputDrawer',
       'deskUploadDrop',
       'deskFileInput',
+      'deskVideoFileInput',
       'deskReferenceThumbs',
       'deskArchiveToggle',
       'deskTelegramToggle',
@@ -1838,10 +1835,6 @@
     return canvasNodes.createNodeState(type);
   }
 
-  function createDefaultDirectorData() {
-    return canvasNodes.createDefaultDirectorData();
-  }
-
   function inputNodeHtml(nodeId) {
     return canvasModelNodes.inputNodeHtml(nodeId);
   }
@@ -2115,22 +2108,6 @@
 
   function layoutNodeHtml(node) {
     return canvasNodes.layoutNodeHtml(node);
-  }
-
-  function getPoseInputImages(poseNodeId) {
-    return canvasNodes.getPoseInputImages(poseNodeId);
-  }
-
-  function poseStatusText(node, preview, backgroundCount) {
-    return canvasNodes.poseStatusText(node, preview, backgroundCount);
-  }
-
-  function poseDisplayTitle(node = {}, fallback = '姿态参考') {
-    return canvasNodes.poseDisplayTitle(node, fallback);
-  }
-
-  function poseNodeHtml(node) {
-    return canvasNodes.poseNodeHtml(node);
   }
 
   // floatingSwellStates is owned by DesktopCanvasPortInteraction.
@@ -3001,10 +2978,6 @@
     return canvasReferences.normalizeImageSourceFromNode(node);
   }
 
-  function normalizePoseReferenceFromNode(node) {
-    return canvasReferences.normalizePoseReferenceFromNode(node);
-  }
-
   function getLayoutInputImages(layoutNodeId) {
     return canvasNodes.getLayoutInputImages(layoutNodeId);
   }
@@ -3249,11 +3222,7 @@
   }
 
   function refreshPoseNode(nodeId) {
-    return canvasNodes.refreshPoseNode(nodeId);
-  }
-
-  function connectPoseToDefaultInput(nodeId) {
-    return canvasNodes.connectPoseToDefaultInput(nodeId);
+    return canvasPose.refresh(nodeId);
   }
 
   function finishConnectionDrag(event) {
@@ -3589,6 +3558,7 @@
     canvasMusic.disposeAll();
     canvasVideoControl.disposeAll(true);
     canvasTopazVideo.disposeAll(true);
+    canvasPose.disposeAll();
     canvasCyimg.disposeAll();
     canvasKrea2.disposeAll(); canvasKrea2Control.disposeAll(); canvasQwen21.disposeAll();
     revokeCurrentWorkflowObjectUrls();
@@ -4079,6 +4049,18 @@
     return canvasMediaImport.createVideoNodeFromAsset(item, clientX, clientY);
   }
 
+  function isLocalVideoFile(file) {
+    return canvasMediaImport.isLocalVideoFile(file);
+  }
+
+  function uploadVideoToNode(nodeId, file) {
+    return canvasMediaImport.uploadVideoToNode(nodeId, file);
+  }
+
+  function createVideoNodesFromFiles(files, clientX, clientY) {
+    return canvasMediaImport.createVideoNodesFromFiles(files, clientX, clientY);
+  }
+
   function hasAddNodeDragPayload(dataTransfer) {
     const types = Array.from(dataTransfer?.types || []);
     return types.includes('application/x-desktop-add-node');
@@ -4399,82 +4381,6 @@
         return;
       }
 
-      const poseOpenButton = event.target.closest('[data-pose-open]');
-      if (poseOpenButton) {
-        const node = poseOpenButton.closest('.desk-node--pose[data-node-id]');
-        if (!node) return;
-        event.preventDefault();
-        event.stopPropagation();
-        selectNode(node.dataset.nodeId);
-        const nodeState = DesktopState.state.canvas.nodes[node.dataset.nodeId];
-        if (!window.DesktopPoseStudio?.open || !nodeState) {
-          DesktopResults.showTransientMessage('Pose Studio Lite 正在加载，请稍后再试。');
-          return;
-        }
-        if (nodeState.mode === 'director_stage' && nodeState.poseTitle === '3D 导演台') {
-          nodeState.poseTitle = '姿态参考';
-        }
-        window.DesktopPoseStudio.open({
-          nodeId: node.dataset.nodeId,
-          node: nodeState,
-          backgroundImages: getPoseInputImages(node.dataset.nodeId),
-          onUpdate: patch => {
-            if (!patch || typeof patch !== 'object') return;
-            if (patch.backgroundImage !== undefined) nodeState.backgroundImage = patch.backgroundImage || '';
-            if (patch.backgroundName !== undefined) nodeState.backgroundName = patch.backgroundName || '';
-            if (patch.backgroundSource !== undefined) nodeState.backgroundSource = patch.backgroundSource || '';
-            if (patch.backgroundSourceNodeId !== undefined) nodeState.backgroundSourceNodeId = patch.backgroundSourceNodeId || '';
-            if (patch.backgroundMeta !== undefined) nodeState.backgroundMeta = patch.backgroundMeta || null;
-            if (patch.mode !== undefined) nodeState.mode = patch.mode || nodeState.mode || 'director_stage';
-            if (patch.poseTitle !== undefined) nodeState.poseTitle = patch.poseTitle || nodeState.poseTitle || '姿态参考';
-            if (patch.directorData !== undefined) nodeState.directorData = patch.directorData || {};
-            if (patch.poseData !== undefined) nodeState.poseData = patch.poseData || {};
-            if (patch.humanConfig !== undefined) nodeState.humanConfig = patch.humanConfig || {};
-            refreshPoseNode(node.dataset.nodeId);
-            DesktopState.saveSettings();
-          },
-          onExport: result => {
-            const resultMode = result.mode || nodeState.mode || 'director_stage';
-            const isDirectorStage = resultMode === 'director_stage';
-            nodeState.mode = resultMode;
-            nodeState.poseTitle = result.poseTitle || nodeState.poseTitle || (isDirectorStage ? '姿态参考' : '姿态编辑器');
-            nodeState.poseData = result.poseData || {};
-            if (isDirectorStage) {
-              nodeState.directorData = result.directorData || nodeState.directorData || {};
-            } else {
-              delete nodeState.directorData;
-            }
-            nodeState.previewImage = result.imageData || '';
-            nodeState.exportImage = result.imageData || '';
-            nodeState.exportMode = result.exportMode || (isDirectorStage ? 'mannequin_only' : 'pose_reference');
-            nodeState.backgroundImage = result.backgroundImage || nodeState.backgroundImage || '';
-            nodeState.backgroundName = result.backgroundName || nodeState.backgroundName || '';
-            nodeState.backgroundSource = result.backgroundSource || nodeState.backgroundSource || '';
-            nodeState.backgroundSourceNodeId = result.backgroundSourceNodeId || nodeState.backgroundSourceNodeId || '';
-            nodeState.backgroundMeta = result.backgroundMeta || nodeState.backgroundMeta || null;
-            nodeState.camera = result.camera || {};
-            nodeState.lights = result.lights || [];
-            nodeState.humanConfig = result.poseData?.humanConfig || nodeState.humanConfig || {};
-            nodeState.status = 'exported';
-            nodeState.error = '';
-            refreshPoseNode(node.dataset.nodeId);
-            DesktopState.saveSettings();
-            DesktopResults.showTransientMessage('姿态参考图已导出到节点。');
-          }
-        });
-        return;
-      }
-
-      const poseConnectButton = event.target.closest('[data-pose-connect-input]');
-      if (poseConnectButton) {
-        const node = poseConnectButton.closest('.desk-node--pose[data-node-id]');
-        if (!node) return;
-        event.preventDefault();
-        event.stopPropagation();
-        connectPoseToDefaultInput(node.dataset.nodeId);
-        return;
-      }
-
       const deleteButton = event.target.closest('[data-node-delete]');
       if (deleteButton) {
         const node = deleteButton.closest('.desk-node[data-node-id]');
@@ -4517,6 +4423,18 @@
         pendingImageTargetNodeId = node.dataset.nodeId;
         selectNode(node.dataset.nodeId);
         els.deskFileInput?.click();
+        return;
+      }
+
+      const videoUploadButton = event.target.closest('[data-video-upload]');
+      if (videoUploadButton) {
+        const node = videoUploadButton.closest('.desk-node--video[data-node-id]');
+        if (!node) return;
+        event.preventDefault();
+        event.stopPropagation();
+        pendingVideoTargetNodeId = node.dataset.nodeId;
+        selectNode(node.dataset.nodeId);
+        els.deskVideoFileInput?.click();
         return;
       }
 
@@ -4829,6 +4747,13 @@
       pendingImageTargetNodeId = '';
       event.target.value = '';
     });
+    els.deskVideoFileInput?.addEventListener('change', event => {
+      const file = event.target.files?.[0];
+      const nodeId = pendingVideoTargetNodeId;
+      pendingVideoTargetNodeId = '';
+      event.target.value = '';
+      if (file && nodeId) uploadVideoToNode(nodeId, file).catch(error => DesktopResults.showError(error));
+    });
 
     els.deskUploadDrop?.addEventListener('dragover', event => {
       event.preventDefault();
@@ -4950,6 +4875,19 @@
         return;
       }
 
+      // Local videos: onto an empty video node fills it; anywhere else creates video nodes.
+      const droppedVideos = getLocalDragFiles(event.dataTransfer).filter(isLocalVideoFile);
+      if (droppedVideos.length) {
+        event.preventDefault();
+        event.stopPropagation();
+        els.deskCanvasViewport.classList.remove('is-history-dragover');
+        const targetVideo = document.elementFromPoint(event.clientX, event.clientY)?.closest?.('.desk-node--video.is-empty[data-node-id]');
+        (targetVideo
+          ? uploadVideoToNode(targetVideo.dataset.nodeId, droppedVideos[0])
+          : createVideoNodesFromFiles(droppedVideos, event.clientX, event.clientY)).catch(error => DesktopResults.showError(error));
+        return;
+      }
+
       if (!hasExternalImageDragPayload(event.dataTransfer)) return;
       event.preventDefault();
       event.stopPropagation();
@@ -5046,9 +4984,9 @@
       }
     });
     window.addEventListener('pointermove', moveInteraction);
-    window.addEventListener('pagehide', event => { if (!event.persisted) canvasProgress.destroy(); canvasAudio.disposeAll(); canvasMusic.disposeAll(); canvasVideoControl.disposeAll(); canvasTopazVideo.disposeAll(); canvasCyimg.disposeAll(); canvasKrea2.disposeAll(); canvasKrea2Control.disposeAll(); canvasQwen21.disposeAll(); });
+    window.addEventListener('pagehide', event => { if (!event.persisted) canvasProgress.destroy(); canvasAudio.disposeAll(); canvasMusic.disposeAll(); canvasVideoControl.disposeAll(); canvasTopazVideo.disposeAll(); canvasPose.disposeAll(); canvasCyimg.disposeAll(); canvasKrea2.disposeAll(); canvasKrea2Control.disposeAll(); canvasQwen21.disposeAll(); });
     window.addEventListener('desktop:progress-preferences-change', canvasProgress.refreshPreferences);
-    window.addEventListener('pageshow', () => { canvasAudio.reconcile(); canvasMusic.reconcile(); canvasVideoControl.reconcile(); canvasTopazVideo.reconcile(); canvasCyimg.reconcile(); canvasKrea2.reconcile(); canvasKrea2Control.reconcile(); canvasQwen21.reconcile(); });
+    window.addEventListener('pageshow', () => { canvasAudio.reconcile(); canvasMusic.reconcile(); canvasVideoControl.reconcile(); canvasTopazVideo.reconcile(); canvasPose.reconcile(); canvasCyimg.reconcile(); canvasKrea2.reconcile(); canvasKrea2Control.reconcile(); canvasQwen21.reconcile(); });
     window.addEventListener('pointerup', endInteraction);
     window.addEventListener('pointercancel', endInteraction);
     window.addEventListener('blur', () => {
@@ -5226,6 +5164,7 @@
 
   function init() {
     collectElements();
+    if (canvasPose.purgeLegacy()) DesktopState.saveSettings({ criticalCanvas: true });
     canvasProgress.refreshPreferences();
     renderNodePaletteItems();
     const comfyMigrated = migrateLegacyComfyProviders();
@@ -5257,9 +5196,9 @@
     window.addEventListener('desktop:connection-swell-style-change', refreshFloatingSwellStyle);
     window.addEventListener('desktop:connection-line-style-change', updateLinkPath);
     window.addEventListener('desktop:canvas-collision-change', () => canvasCollision.settle());
-    window.addEventListener('desktop:canvas-text-nodes-change', () => { canvasMusic.graphChanged(); canvasVideoControl.graphChanged(); canvasTopazVideo.graphChanged(); canvasCyimg.graphChanged(); canvasKrea2.graphChanged(); canvasKrea2Control.graphChanged(); canvasQwen21.graphChanged(); });
+    window.addEventListener('desktop:canvas-text-nodes-change', () => { canvasMusic.graphChanged(); canvasVideoControl.graphChanged(); canvasTopazVideo.graphChanged(); canvasPose.graphChanged(); canvasCyimg.graphChanged(); canvasKrea2.graphChanged(); canvasKrea2Control.graphChanged(); canvasQwen21.graphChanged(); });
     window.addEventListener('desktop:canvas-selection-change', event => { taskRegistry.showStatus(event.detail?.selectedNodeId); });
-    window.addEventListener('desktop:canvas-node-removed', () => { canvasMusic.graphChanged(); canvasVideoControl.graphChanged(); canvasTopazVideo.graphChanged(); canvasCyimg.graphChanged(); canvasKrea2.graphChanged(); canvasKrea2Control.graphChanged(); canvasQwen21.graphChanged(); });
+    window.addEventListener('desktop:canvas-node-removed', () => { canvasMusic.graphChanged(); canvasVideoControl.graphChanged(); canvasTopazVideo.graphChanged(); canvasPose.graphChanged(); canvasCyimg.graphChanged(); canvasKrea2.graphChanged(); canvasKrea2Control.graphChanged(); canvasQwen21.graphChanged(); });
     window.addEventListener('desktop:video-runtime-status-updated', () => {
       Object.values(DesktopState.state.canvas.nodes || {})
         .filter(node => node.type === 'video_inference')
@@ -5400,6 +5339,26 @@
     saveState: () => DesktopState.saveSettings({ criticalCanvas: true }),
     reportStatus: feedback => taskRegistry.report('topaz_video', feedback),
   });
+  const canvasPose = window.DesktopCanvasPose.create({
+    model: window.DesktopPoseModel, api: window.DesktopPoseAPI,
+    view: window.DesktopPoseView.create({ model: window.DesktopPoseModel, escapeHtml, stateIcon }),
+    capture: window.DesktopPoseCapture.create({ api: window.DesktopPoseAPI, maxPeople: window.DesktopPoseModel.MAX_CHARACTERS }),
+    confirm: message => window.confirm(message),
+    getCanvas: () => DesktopState.state.canvas, getNodeState, getNodeElement, addNode, connectNodes, refreshVideoNode,
+    saveState: () => DesktopState.saveSettings({ criticalCanvas: true }),
+    connectedImages: nodeId => (DesktopState.state.canvas.edges || [])
+      .filter(edge => edge.to === nodeId)
+      .map(edge => normalizeImageSourceFromNode(DesktopState.state.canvas.nodes[edge.from]))
+      .filter(Boolean)
+      .map(ref => ({ url: ref.imageUrl || ref.imageData || ref.url || '', name: ref.title || ref.name || '' }))
+      .filter(ref => ref.url),
+    connectedVideos: nodeId => (DesktopState.state.canvas.edges || [])
+      .filter(edge => edge.to === nodeId)
+      .map(edge => DesktopState.state.canvas.nodes[edge.from])
+      .filter(node => node?.type === 'video' && node.mediaUrl)
+      .map(node => ({ url: node.mediaUrl, name: node.mediaName || '', kind: 'video' })),
+    showMessage: message => DesktopResults.showTransientMessage(message),
+  });
   taskRegistry.register('music', {client: () => window.DesktopMusicAPI.tasks,
     listCancelable: canvasMusic.getCancelableTasks, showStatus: canvasMusic.showStatus});
   taskRegistry.register('video_control', {client: () => window.DesktopVideoControlAPI.tasks,
@@ -5455,6 +5414,7 @@
     qwen21Definition: window.DesktopQwen21Model,
     videoControlDefinition: window.DesktopVideoControlModel,
     topazVideoDefinition: window.DesktopTopazVideoModel,
+    poseDefinition: window.DesktopPoseModel,
     embedAudioAssets: window.DesktopAudioAssets.embedWorkflowAssets,
     clamp,
     dataUrlValue,
@@ -5739,7 +5699,7 @@
     imageGroupItemSource,
     imageNodeSource,
     normalizeImageSourceFromGroupItem,
-    poseDisplayTitle,
+    poseDefinition: window.DesktopPoseModel,
     screenToWorld,
     selectNode,
     setPromptTextForInputNode,
@@ -5784,6 +5744,7 @@
     qwen21Node: canvasQwen21,
     videoControlNode: canvasVideoControl,
     topazVideoNode: canvasTopazVideo,
+    poseNode: canvasPose,
     audioNodeDefinition: window.DesktopCanvasAudio,
     musicNodeDefinition: window.DesktopMusicModel,
     topazDefinition: window.DesktopTopazModel,
@@ -5793,6 +5754,7 @@
     qwen21Definition: window.DesktopQwen21Model,
     videoControlDefinition: window.DesktopVideoControlModel,
     topazVideoDefinition: window.DesktopTopazVideoModel,
+    poseDefinition: window.DesktopPoseModel,
     clearPromptDocumentHistory,
     comfyNodeHtml,
     comfyWorkflowCatalogRef: { get current() { return comfyWorkflowCatalog; }, set current(value) { comfyWorkflowCatalog = value; } },

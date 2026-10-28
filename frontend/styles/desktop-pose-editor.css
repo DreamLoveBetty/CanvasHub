@@ -1,0 +1,129 @@
+/* Pose editor paint: CanvasHub surface, field, segment, status and action tokens, matching the
+   Topaz Video workbench. Layout lives in desktop-pose-editor-geometry.css; pose-specific values
+   (viewport, joints, frame dim) are tokens in desktop-tokens.css. */
+body.desk-app .desk-pose-editor {
+  color:var(--desk-color-text-primary);font:400 var(--desk-font-size-caption)/var(--desk-line-height-normal) var(--desk-font-family-sans);
+  color-scheme:var(--desk-settings-color-scheme);
+}
+body.desk-app .desk-pose-editor__scrim {background:var(--desk-color-surface-dark);}
+body.desk-app .desk-pose-editor__dialog {border:1px solid var(--desk-color-border-glass);border-radius:var(--desk-radius-panel);background:var(--desk-node-glass-background);box-shadow:var(--desk-shadow-panel-soft);}
+body.desk-app .desk-pose-editor__header {border-bottom:1px solid var(--desk-color-border-subtle);}
+body.desk-app .desk-pose-editor__brand {border-radius:var(--desk-radius-control);background:var(--desk-color-accent-soft);color:var(--desk-color-accent);}
+body.desk-app .desk-pose-editor__heading strong {font-size:14px;font-weight:600;line-height:20px;}
+body.desk-app .desk-pose-editor__heading small {color:var(--desk-color-text-secondary);font-size:var(--desk-font-size-micro);line-height:14px;}
+body.desk-app .desk-pose-editor__passes button {border:1px solid transparent;border-radius:var(--desk-radius-control);background:transparent;color:var(--desk-color-text-secondary);font:inherit;font-weight:500;cursor:pointer;}
+body.desk-app .desk-pose-editor__passes button.is-active {background:var(--desk-color-accent-soft);color:var(--desk-color-accent);}
+body.desk-app .desk-pose-editor__status {border:1px solid var(--desk-status-success-soft-border);border-radius:var(--desk-radius-control);background:var(--desk-status-success-soft-background);color:var(--desk-status-success-soft-ink);font-size:var(--desk-font-size-micro);font-weight:500;}
+body.desk-app .desk-pose-editor__status:is(.is-dirty,.is-busy) {border-color:var(--desk-action-primary-border);background:var(--desk-color-accent-soft);color:var(--desk-color-accent);}
+body.desk-app .desk-pose-editor__status.is-failed {border-color:var(--desk-status-error-soft-border);background:var(--desk-status-error-soft-background);color:var(--desk-status-error-soft-ink);}
+body.desk-app .desk-pose-editor__header-button {border:1px solid var(--desk-settings-field-border);border-radius:var(--desk-radius-control);background:var(--desk-color-control-bg);color:var(--desk-color-control-ink);font:inherit;font-size:16px;font-weight:500;line-height:1;cursor:pointer;}
+body.desk-app .desk-pose-editor__header-button:hover:not(:disabled) {border-color:var(--desk-color-control-border-hover);background:var(--desk-color-control-bg-hover);}
+body.desk-app .desk-pose-editor__header-button:disabled {opacity:.4;cursor:not-allowed;}
+body.desk-app .desk-pose-editor :is(.desk-pose-editor__header-button,.desk-pose-editor__outline-section>header,.desk-pose-editor__row-tools,.desk-pose-editor__brand) svg {fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;}
+body.desk-app .desk-pose-editor__brand svg {stroke-width:1.8;}
+body.desk-app .desk-pose-editor button:focus-visible,body.desk-app .desk-pose-editor__panel :is(select,input):focus-visible {outline:2px solid var(--desk-color-accent);outline-offset:2px;}
+
+/* Outline */
+body.desk-app .desk-pose-editor__outline {border-right:1px solid var(--desk-color-border-subtle);}
+body.desk-app .desk-pose-editor__outline-section {border-bottom:1px solid var(--desk-color-border-subtle);}
+body.desk-app .desk-pose-editor__outline-section.is-library {border-bottom:0;}
+body.desk-app .desk-pose-editor__outline-section h3 {font-size:var(--desk-font-size-caption);font-weight:600;}
+body.desk-app .desk-pose-editor__outline-section>header span {color:var(--desk-color-text-secondary);font-size:var(--desk-font-size-micro);}
+body.desk-app .desk-pose-editor__outline-section>header button {border:1px solid var(--desk-settings-field-border);border-radius:var(--desk-radius-control);background:var(--desk-color-control-bg);color:var(--desk-color-control-ink);cursor:pointer;}
+body.desk-app .desk-pose-editor__outline-section>header button:hover:not(:disabled) {border-color:var(--desk-color-control-border-hover);background:var(--desk-color-control-bg-hover);}
+body.desk-app .desk-pose-editor__outline-section>header button:disabled {opacity:.4;cursor:not-allowed;}
+body.desk-app .desk-pose-editor__row {border:1px solid transparent;border-radius:var(--desk-radius-control);color:var(--desk-color-text-primary);cursor:pointer;}
+body.desk-app .desk-pose-editor__row:hover {background:var(--desk-color-control-bg-hover);}
+body.desk-app .desk-pose-editor__row.is-active {border-color:color-mix(in srgb,var(--desk-color-accent) 34%,transparent);background:var(--desk-color-accent-soft);}
+body.desk-app .desk-pose-editor__row.is-hidden>.desk-pose-editor__row-copy {opacity:.45;}
+body.desk-app .desk-pose-editor__swatch {border-radius:3px;box-shadow:inset 0 0 0 1px rgba(0,0,0,.18);}
+body.desk-app .desk-pose-editor__row-icon {fill:none;stroke:var(--desk-color-text-secondary);stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;}
+body.desk-app .desk-pose-editor__row-copy {line-height:1.25;}
+body.desk-app .desk-pose-editor__row-copy strong {font-size:var(--desk-font-size-caption);font-weight:500;}
+body.desk-app .desk-pose-editor__row-copy small {color:var(--desk-color-text-secondary);font-size:var(--desk-font-size-micro);font-variant-numeric:tabular-nums;}
+body.desk-app .desk-pose-editor__row-tools {opacity:0;transition:opacity .12s ease;}
+body.desk-app :is(.desk-pose-editor__row:hover,.desk-pose-editor__row.is-active) .desk-pose-editor__row-tools,body.desk-app .desk-pose-editor__row-tools:has(button[aria-pressed="true"]) {opacity:1;}
+body.desk-app .desk-pose-editor__row-tools button {border:0;border-radius:var(--desk-radius-control);background:transparent;color:var(--desk-color-text-secondary);cursor:pointer;}
+body.desk-app .desk-pose-editor__row-tools button:hover {background:var(--desk-color-control-bg);color:var(--desk-color-text-primary);}
+body.desk-app .desk-pose-editor__row-tools button[aria-pressed="true"] {color:var(--desk-color-accent);}
+body.desk-app .desk-pose-editor__badge {border-radius:4px;background:var(--desk-color-accent-soft);color:var(--desk-color-accent);font-size:9px;font-weight:600;}
+body.desk-app .desk-pose-editor__preset {border:1px solid var(--desk-settings-field-border);border-radius:var(--desk-radius-control);background:var(--desk-color-control-bg);color:var(--desk-color-control-ink);font:inherit;font-size:var(--desk-font-size-micro);font-weight:500;cursor:pointer;}
+body.desk-app .desk-pose-editor__preset:hover {border-color:var(--desk-color-accent);}
+body.desk-app .desk-pose-editor__library-group {color:var(--desk-color-text-secondary);font-size:var(--desk-font-size-micro);font-weight:600;}
+body.desk-app .desk-pose-editor__preset :is(img,.desk-pose-editor__preset-placeholder) {border-radius:4px;background:var(--desk-pose-viewport-bg);}
+
+/* Stage and viewport */
+body.desk-app .desk-pose-editor__stage {background:var(--desk-color-control-bg);}
+body.desk-app .desk-pose-editor__toolbar,body.desk-app .desk-pose-editor__selection-label {color:var(--desk-color-text-secondary);font-size:var(--desk-font-size-micro);font-variant-numeric:tabular-nums;}
+body.desk-app .desk-pose-editor__segments,body.desk-app .desk-pose-editor__tabs {border-radius:var(--desk-radius-control);background:var(--desk-settings-segment-background);box-shadow:inset 0 0 0 1px var(--desk-settings-segment-border);}
+body.desk-app .desk-pose-editor__segments button,body.desk-app .desk-pose-editor__tabs button {border:0;border-radius:var(--desk-radius-control);background:transparent;color:var(--desk-color-text-secondary);font:inherit;font-size:var(--desk-font-size-caption);font-weight:500;cursor:pointer;}
+body.desk-app .desk-pose-editor__tabs button {font-weight:600;}
+body.desk-app .desk-pose-editor__segments button.is-active,body.desk-app .desk-pose-editor__tabs button.is-active {background:var(--desk-color-accent-soft);color:var(--desk-color-accent);}
+body.desk-app .desk-pose-editor__segments button:disabled {opacity:.4;cursor:not-allowed;}
+body.desk-app .desk-pose-editor kbd {margin-left:5px;font:inherit;font-size:9px;opacity:.55;}
+body.desk-app .desk-pose-editor__viewer {border:1px solid var(--desk-pose-viewport-border);border-radius:5px;background:var(--desk-pose-viewport-bg);}
+body.desk-app .desk-pose-editor__frame {box-shadow:0 0 0 9999px var(--desk-pose-frame-dim);outline:1px solid var(--desk-pose-frame-line);}
+body.desk-app .desk-pose-editor__frame span {color:var(--desk-pose-viewport-ink);font-size:var(--desk-font-size-micro);font-weight:500;font-variant-numeric:tabular-nums;}
+body.desk-app .desk-pose-editor__reference {opacity:.45;}
+body.desk-app .desk-pose-editor__timecode {color:var(--desk-color-text-secondary);font-size:var(--desk-font-size-micro);font-variant-numeric:tabular-nums;}
+body.desk-app .desk-pose-editor__track {border-radius:var(--desk-radius-control);background:var(--desk-pose-timeline-bg);cursor:ew-resize;}
+body.desk-app .desk-pose-editor__transport .is-play {color:var(--desk-color-accent);}
+body.desk-app .desk-pose-editor__axes {cursor:pointer;}
+body.desk-app .desk-pose-editor__hint {color:var(--desk-pose-viewport-muted-ink);font-size:var(--desk-font-size-micro);}
+body.desk-app .desk-pose-editor__hint kbd {margin:0 4px 0 0;padding:1px 4px;border:1px solid var(--desk-pose-chip-border);border-radius:3px;color:var(--desk-pose-viewport-ink);opacity:1;}
+body.desk-app .desk-pose-editor__notice {border:1px solid var(--desk-pose-chip-border);border-radius:6px;background:var(--desk-pose-chip-background);color:var(--desk-pose-viewport-ink);}
+body.desk-app .desk-pose-editor__notice strong {font-size:11px;}
+body.desk-app .desk-pose-editor__notice span {color:var(--desk-pose-viewport-muted-ink);font-size:var(--desk-font-size-caption);line-height:1.5;}
+
+/* Inspector */
+body.desk-app .desk-pose-editor__inspector {border-left:1px solid var(--desk-color-border-subtle);}
+body.desk-app .desk-pose-editor__section {border-bottom:1px solid var(--desk-color-border-subtle);}
+body.desk-app .desk-pose-editor__section:last-child {border-bottom:0;}
+body.desk-app .desk-pose-editor__section-title h3 {font-size:var(--desk-font-size-caption);font-weight:600;}
+body.desk-app .desk-pose-editor__section-title span {color:var(--desk-color-text-secondary);font-size:var(--desk-font-size-micro);}
+body.desk-app .desk-pose-editor__selection strong {font-size:13px;font-weight:600;}
+body.desk-app .desk-pose-editor__selection small {color:var(--desk-color-text-secondary);font-size:var(--desk-font-size-micro);font-family:ui-monospace,SFMono-Regular,Menlo,monospace;}
+body.desk-app .desk-pose-editor__bodymap {border:1px solid var(--desk-color-border-subtle);border-radius:var(--desk-radius-control);background:var(--desk-settings-field-background);}
+body.desk-app .desk-pose-editor__bodymap svg {fill:none;stroke:color-mix(in srgb,var(--desk-color-text-secondary) 28%,transparent);stroke-width:4;stroke-linecap:round;stroke-linejoin:round;}
+body.desk-app .desk-pose-editor__bodymap button {border:2px solid var(--desk-color-text-secondary);border-radius:50%;background:var(--desk-settings-field-background);cursor:pointer;}
+body.desk-app .desk-pose-editor__bodymap button:hover,body.desk-app .desk-pose-editor__bodymap button.is-edited {border-color:var(--desk-color-accent);}
+body.desk-app .desk-pose-editor__bodymap button.is-active {border-color:var(--desk-color-accent);background:var(--desk-color-accent);box-shadow:0 0 0 3px var(--desk-color-accent-soft);}
+body.desk-app .desk-pose-editor__bodymap small {color:var(--desk-color-text-secondary);font-size:9px;}
+body.desk-app .desk-pose-editor__params>label,body.desk-app .desk-pose-editor__field,body.desk-app .desk-pose-editor__row-fields label {color:var(--desk-color-text-secondary);font-size:var(--desk-font-size-caption);}
+body.desk-app .desk-pose-editor__row-fields label {font-weight:500;}
+body.desk-app .desk-pose-editor__axis {font-style:normal;font-weight:700;}
+body.desk-app .desk-pose-editor__axis.is-x {color:var(--desk-pose-axis-x);}
+body.desk-app .desk-pose-editor__axis.is-y {color:var(--desk-pose-axis-y);}
+body.desk-app .desk-pose-editor__axis.is-z {color:var(--desk-pose-axis-z);}
+body.desk-app :is(.desk-pose-editor__actions button,.desk-pose-editor__transport button,.desk-pose-editor__wide-button) {border:1px solid var(--desk-settings-field-border);border-radius:var(--desk-radius-control);background:var(--desk-color-control-bg);color:var(--desk-color-control-ink);font:inherit;font-weight:500;cursor:pointer;}
+body.desk-app :is(.desk-pose-editor__actions button,.desk-pose-editor__transport button,.desk-pose-editor__wide-button):hover:not(:disabled) {border-color:var(--desk-color-control-border-hover);background:var(--desk-color-control-bg-hover);}
+body.desk-app :is(.desk-pose-editor__actions button,.desk-pose-editor__transport button,.desk-pose-editor__wide-button):disabled {opacity:.46;cursor:not-allowed;}
+body.desk-app .desk-pose-editor__panel :is(select,input[type=number],input[type=text]) {border:1px solid var(--desk-settings-field-border);border-radius:var(--desk-radius-control);background:var(--desk-settings-field-background);box-shadow:none;color:var(--desk-settings-field-ink);font:inherit;font-weight:400;font-variant-numeric:tabular-nums;}
+body.desk-app .desk-pose-editor__panel input[type=number] {text-align:right;}
+body.desk-app .desk-pose-editor__panel input[readonly] {color:var(--desk-color-text-secondary);}
+/* A fine rail, not a smaller target: the native range input stays 24px high. */
+body.desk-app .desk-pose-editor__panel input[type=range] {appearance:none;-webkit-appearance:none;border:0;border-radius:var(--desk-radius-control);background:transparent;accent-color:var(--desk-color-accent);cursor:pointer;}
+body.desk-app .desk-pose-editor__panel input[type=range]::-webkit-slider-runnable-track {height:3px;border:0;border-radius:var(--desk-radius-pill);background:var(--desk-color-border-faint);}
+body.desk-app .desk-pose-editor__panel input[type=range]::-webkit-slider-thumb {appearance:none;-webkit-appearance:none;width:10px;height:10px;margin-top:-3.5px;border:0;border-radius:50%;background:var(--desk-color-accent);}
+body.desk-app .desk-pose-editor__panel input[type=range]::-moz-range-track {height:3px;border:0;border-radius:var(--desk-radius-pill);background:var(--desk-color-border-faint);}
+body.desk-app .desk-pose-editor__panel input[type=range]::-moz-range-thumb {width:10px;height:10px;border:0;border-radius:50%;background:var(--desk-color-accent);}
+body.desk-app .desk-pose-editor__colors button {border:2px solid transparent;border-radius:6px;cursor:pointer;}
+body.desk-app .desk-pose-editor__colors button.is-active {border-color:var(--desk-color-text-primary);}
+body.desk-app .desk-pose-editor__check {color:var(--desk-color-text-primary);font-size:var(--desk-font-size-caption);}
+body.desk-app .desk-pose-editor__check input {accent-color:var(--desk-color-accent);}
+body.desk-app :is(.desk-pose-editor__check small,.desk-pose-editor__note,.desk-pose-editor__footer small) {color:var(--desk-color-text-secondary);font-size:var(--desk-font-size-micro);line-height:var(--desk-line-height-normal);}
+body.desk-app .desk-pose-editor__pass {border:1px solid var(--desk-settings-field-border);border-radius:var(--desk-radius-control);background:var(--desk-color-control-bg);color:var(--desk-color-control-ink);font:inherit;font-size:9.5px;font-weight:500;cursor:pointer;}
+body.desk-app .desk-pose-editor__pass.is-active {border-color:var(--desk-color-accent);background:var(--desk-color-accent-soft);color:var(--desk-color-accent);}
+body.desk-app .desk-pose-editor__pass canvas {border-radius:3px;background:#000;}
+body.desk-app .desk-pose-editor__footer {border-top:1px solid var(--desk-color-border-subtle);background:var(--desk-color-control-bg);}
+body.desk-app .desk-pose-editor__footer button {border:1px solid var(--desk-settings-field-border);border-radius:var(--desk-radius-control);background:var(--desk-color-control-bg);color:var(--desk-color-control-ink);font:inherit;font-weight:600;cursor:pointer;}
+body.desk-app .desk-pose-editor__footer button.is-export {
+  border-color:var(--desk-action-primary-border);background:var(--desk-action-primary-gloss);
+  background-position:var(--desk-action-primary-silk-position);background-size:var(--desk-action-primary-silk-background-size);
+  color:var(--desk-action-primary-ink);box-shadow:inset 0 1px 0 var(--desk-action-primary-highlight),0 1px 3px var(--desk-action-primary-shadow);
+}
+body.desk-app .desk-pose-editor__footer button:disabled {opacity:.46;cursor:not-allowed;}
+body.desk-app > .desk-select-menu[data-select-variant="pose-editor"] {border-radius:var(--desk-radius-popover);}
+body.desk-app[data-theme] > .desk-select-menu[data-select-variant="pose-editor"] .desk-select-option {min-height:24px;padding:0 8px;border-radius:var(--desk-radius-control);font-size:var(--desk-font-size-caption);line-height:24px;font-weight:400;}
+body.desk-app[data-theme] > .desk-select-menu[data-select-variant="pose-editor"] .desk-select-option.is-selected:not(:disabled) {background:var(--desk-color-accent-soft);color:var(--desk-color-accent);font-weight:600;}
+@media (prefers-reduced-motion:reduce) {body.desk-app .desk-pose-editor__row-tools {transition:none;}}

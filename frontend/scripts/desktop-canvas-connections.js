@@ -11,7 +11,7 @@
     input: Object.freeze(['image', 'file_output', 'upscale', 'output']),
     comfy: Object.freeze(['image', 'upscale']),
     video_inference: Object.freeze(['video']),
-    video: Object.freeze(['video_inference']),
+    video: Object.freeze(['video_inference', 'pose']),
     // The independent music domain extends audio targets; image/video accept none.
     audio: Object.freeze([]),
     image_group: Object.freeze(['input', 'comfy']),
@@ -19,7 +19,7 @@
     image: Object.freeze(['input', 'comfy', 'video_inference', 'layout', 'pose', 'upscale']),
     upscale: Object.freeze(['image']),
     layout: Object.freeze(['input', 'comfy', 'video_inference', 'upscale']),
-    pose: Object.freeze(['input', 'comfy', 'video_inference', 'upscale']),
+    pose: Object.freeze(['input', 'comfy', 'video_inference', 'upscale', 'video']),
     text: Object.freeze(['input', 'comfy', 'video_inference'])
   });
 
@@ -692,6 +692,7 @@
     const imageGroupToComfy = from?.type === 'image_group' && to?.type === 'comfy';
     const imageToLayout = from?.type === 'image' && to?.type === 'layout';
     const imageToPoseReference = from?.type === 'image' && to?.type === 'pose';
+    const videoToPose = from?.type === 'video' && to?.type === 'pose';
     const imageToUpscale = from?.type === 'image' && to?.type === 'upscale';
     const layoutToComfy = from?.type === 'layout' && to?.type === 'comfy';
     const layoutToUpscale = from?.type === 'layout' && to?.type === 'upscale';
@@ -759,7 +760,12 @@
         });
     } else if (imageToPoseReference) {
       refreshPoseNode(toNodeId);
-      DesktopResults.showTransientMessage('图片已接入姿态参考节点，可作为背景参考。');
+      DesktopResults.showTransientMessage('图片已接入姿态参考节点，可在编辑器机位视角中对照。');
+      DesktopState.saveSettings();
+      return edgeId;
+    } else if (videoToPose) {
+      refreshPoseNode(toNodeId);
+      DesktopResults.showTransientMessage('视频已接入姿态参考节点，点击「识别动作」生成动作序列。');
       DesktopState.saveSettings();
       return edgeId;
     } else if (imageToUpscale || layoutToUpscale || poseToUpscale) {

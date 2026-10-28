@@ -22,7 +22,7 @@ function fixture(items) {
   // Use actual domain menu declarations and the host's injected catalog, not a
   // second list of labels that can silently drift when new node types are added.
   for (const name of ['topaz-model', 'krea2-control', 'krea2-model', 'qwen21-model', 'cyimg-model',
-    'canvas-audio', 'video-control-model', 'topaz-video-pipeline', 'topaz-video-model', 'music-model', 'canvas-nodes']) {
+    'canvas-audio', 'video-control-model', 'topaz-video-pipeline', 'topaz-video-model', 'pose-model', 'music-model', 'canvas-nodes']) {
     vm.runInContext(read(`scripts/desktop-${name}.js`), context);
   }
   const catalogSource = read('scripts/desktop-canvas.js').match(/const NODE_MENU_ITEMS = (\[[\s\S]+?\n  \]);/)[1];

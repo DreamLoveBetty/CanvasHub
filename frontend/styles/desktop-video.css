@@ -373,8 +373,32 @@
   border-radius: 50%;
 }
 
-.desk-app .desk-video-result__empty.is-busy > span {
+.desk-app .desk-video-result__empty.is-busy > :is(span, .desk-video-result__upload) {
   animation: desk-video-result-pulse 1.6s ease-in-out infinite;
+}
+
+.desk-app .desk-video-result__upload {
+  display: grid;
+  place-items: center;
+  width: 72px;
+  height: 48px;
+  margin-top: 6px;
+  padding: 0;
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1;
+  border: 1px dashed;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: transform 150ms ease, background 150ms ease, border-color 150ms ease;
+}
+
+.desk-app .desk-video-result__upload:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.desk-app .desk-video-result__upload:disabled {
+  cursor: progress;
 }
 
 @keyframes desk-video-result-pulse {

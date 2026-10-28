@@ -56,10 +56,6 @@ body.desk-app .desk-compare {
   z-index: var(--desk-layer-workspace-compare);
 }
 
-body.desk-app .desk-pose-studio {
-  z-index: var(--desk-layer-workspace-tool);
-}
-
 body.desk-app :is(
   .desk-release__panel,
   .desk-settings,
@@ -2213,7 +2209,7 @@ body.desk-app[data-theme] :is(
 }
 
 /* Fixed-light editors remain visually local, but their controls share readable metrics. */
-body.desk-app[data-theme] :is(.desk-layout-editor, .desk-pose-studio) :where(
+body.desk-app[data-theme] .desk-layout-editor :where(
   button,
   input,
   select,
@@ -2225,14 +2221,10 @@ body.desk-app[data-theme] :is(.desk-layout-editor, .desk-pose-studio) :where(
   letter-spacing: 0;
 }
 
-body.desk-app[data-theme] .desk-pose-studio__bar-actions .desk-pose-studio__close {
-  font-size: 18px;
-}
-
-body.desk-app[data-theme] :is(.desk-layout-editor, .desk-pose-studio) :where(
+body.desk-app[data-theme] .desk-layout-editor :where(
   input:not([type="checkbox"]):not([type="radio"]),
   select,
-  button:not(.desk-layout-handle):not(.desk-pose-joint)
+  button:not(.desk-layout-handle)
 ) {
   min-height: var(--desk-control-height-sm);
 }

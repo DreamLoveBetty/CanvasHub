@@ -198,7 +198,6 @@ body.desk-app[data-theme] :is(
   .desk-settings,
   .desk-layout-editor,
   .desk-layout-create,
-  .desk-pose-studio,
   .desk-node,
   .desk-text-polish-modal,
   .desk-text-copy-fallback,
@@ -246,7 +245,6 @@ body.desk-app[data-theme] :is(
   .desk-settings,
   .desk-layout-editor,
   .desk-layout-create,
-  .desk-pose-studio,
   .desk-node,
   .desk-text-polish-modal,
   .desk-text-copy-fallback,
@@ -290,7 +288,6 @@ body.desk-app[data-theme] :is(
   .desk-settings,
   .desk-layout-editor,
   .desk-layout-create,
-  .desk-pose-studio,
   .desk-node,
   .desk-text-polish-modal,
   .desk-text-copy-fallback,
@@ -333,7 +330,6 @@ body.desk-app[data-theme] :is(
   .desk-settings,
   .desk-layout-editor,
   .desk-layout-create,
-  .desk-pose-studio,
   .desk-node,
   .desk-text-polish-modal,
   .desk-text-copy-fallback,
@@ -818,8 +814,7 @@ body.desk-app[data-theme] :where(
   .desk-prompt-mode-switch button,
   .desk-prompt-library__tabs button,
   .desk-agent-provider button,
-  .desk-video-runtime-mode button,
-  .desk-pose-segmented button
+  .desk-video-runtime-mode button
 ) {
   transition: var(--desk-motion-control-transition);
 }
@@ -836,8 +831,7 @@ body.desk-app[data-theme] :where(
   .desk-prompt-mode-switch button,
   .desk-prompt-library__tabs button,
   .desk-agent-provider button,
-  .desk-video-runtime-mode button,
-  .desk-pose-segmented button
+  .desk-video-runtime-mode button
 ):active:not(:disabled) {
   transform: translateY(var(--desk-motion-distance-xs));
 }
@@ -854,8 +848,7 @@ body.desk-app[data-theme] :where(
   .desk-prompt-mode-switch button,
   .desk-prompt-library__tabs button,
   .desk-agent-provider button,
-  .desk-video-runtime-mode button,
-  .desk-pose-segmented button
+  .desk-video-runtime-mode button
 ):disabled {
   color: var(--desk-color-text-disabled);
   opacity: 1;
@@ -882,7 +875,6 @@ body.desk-app[data-theme] .desk-prompt-library__tabs button:hover:not([aria-sele
 body.desk-app[data-theme] .desk-gallery-video-source button:hover:not(.is-active):not(:disabled),
 body.desk-app[data-theme] .desk-segment button:hover:not(.is-active):not(:disabled),
 body.desk-app[data-theme] .desk-settings-canvas-interaction__segment button:hover:not(.is-active):not(:disabled),
-body.desk-app[data-theme] .desk-pose-segmented button:hover:not(.is-active):not(:disabled),
 body.desk-app[data-theme] .desk-prompt-source-actions button:hover:not(:disabled),
 body.desk-app[data-theme] .desk-prompt-source-tabs button:hover:not(.is-active):not(:disabled),
 body.desk-app[data-theme] .desk-prompt-source-taxonomy button:hover:not(.is-active):not(:disabled),
@@ -899,7 +891,6 @@ body.desk-app[data-theme] .desk-prompt-library__tabs button[aria-selected="true"
 body.desk-app[data-theme] .desk-gallery-video-source button.is-active:not(:disabled),
 body.desk-app[data-theme] .desk-segment button.is-active:not(:disabled),
 body.desk-app[data-theme] .desk-settings-canvas-interaction__segment button.is-active:not(:disabled),
-body.desk-app[data-theme] .desk-pose-segmented button.is-active:not(:disabled),
 body.desk-app[data-theme] .desk-prompt-source-tabs button.is-active:not(:disabled),
 body.desk-app[data-theme] .desk-prompt-source-taxonomy button.is-active:not(:disabled),
 body.desk-app[data-theme] .desk-video-runtime-mode button.is-active:not(:disabled) {
@@ -924,7 +915,6 @@ body.desk-app[data-theme] .desk-prompt-library__tabs button[aria-selected="true"
 body.desk-app[data-theme] .desk-gallery-video-source button.is-active:hover:not(:disabled),
 body.desk-app[data-theme] .desk-segment button.is-active:hover:not(:disabled),
 body.desk-app[data-theme] .desk-settings-canvas-interaction__segment button.is-active:hover:not(:disabled),
-body.desk-app[data-theme] .desk-pose-segmented button.is-active:hover:not(:disabled),
 body.desk-app[data-theme] .desk-prompt-source-tabs button.is-active:hover:not(:disabled),
 body.desk-app[data-theme] .desk-prompt-source-taxonomy button.is-active:hover:not(:disabled),
 body.desk-app[data-theme] .desk-video-runtime-mode button.is-active:hover:not(:disabled) {
@@ -944,7 +934,6 @@ body.desk-app[data-theme] :is(
   .desk-gallery-video-source,
   .desk-segment,
   .desk-settings-canvas-interaction__segment,
-  .desk-pose-segmented,
   .desk-prompt-source-tabs,
   .desk-prompt-source-taxonomy,
   .desk-video-runtime-mode

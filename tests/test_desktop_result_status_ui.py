@@ -332,7 +332,8 @@ class DesktopResultStatusUiTest(unittest.TestCase):
             "desk-node-icon--layout",
         ):
             self.assertIn(icon_class, html)
-            self.assertIn(icon_class, canvas_js)
+            # Domain nodes publish their palette entry from their own model module.
+            self.assertIn(icon_class, canvas_js + read_text("scripts/desktop-pose-model.js"))
 
         self.assertIn("desk-node-icon__enter", html)
         self.assertIn("desk-node-icon__file-front", html)
@@ -746,10 +747,11 @@ class DesktopResultStatusUiTest(unittest.TestCase):
         self.assertRegex(css, r"\.desk-gallery__actions button\s*\{[^}]*background:\s*rgba\(255,\s*255,\s*255,\s*0\.7\);")
         self.assertRegex(css, r"\.desk-button--generate:hover:not\(:disabled\),[^}]*background:\s*var\(--desk-jewel-gradient-hover\);")
         assert_asset_has_cache_bust(self, html, "styles/desktop-layout.css")
-        assert_asset_has_cache_bust(self, html, "styles/desktop-pose.css")
+        for pose_asset in ("styles/desktop-pose-node.css", "styles/desktop-pose-editor-geometry.css", "styles/desktop-pose-editor.css"):
+            assert_asset_has_cache_bust(self, html, pose_asset)
+            self.assertNotRegex(read_text(pose_asset), r"background:\s*var\(--desk-jewel-gradient,")
         assert_asset_has_cache_bust(self, html, "styles/desktop-file-results.css")
         self.assertNotRegex(read_text("styles/desktop-layout.css"), r"background:\s*var\(--desk-jewel-gradient,")
-        self.assertNotRegex(read_text("styles/desktop-pose.css"), r"background:\s*var\(--desk-jewel-gradient,")
         self.assertNotRegex(read_text("styles/desktop-file-results.css"), r"background:\s*var\(--desk-jewel-gradient,")
         self.assertRegex(read_text("styles/desktop-file-results.css"), r"\.desk-file-card__actions a,[^}]*\.desk-file-card__actions button\s*\{[^}]*background:\s*rgba\(255,\s*255,\s*255,\s*0\.62\);")
         self.assertRegex(css, r"\.desk-gallery-inspector\s*\{[^}]*background:\s*rgba\(250,\s*253,\s*255,\s*0\.72\);")
@@ -1782,14 +1784,16 @@ class DesktopResultStatusUiTest(unittest.TestCase):
         geometry_css = read_text("styles/desktop-geometry.css")
         creation_tools_css = read_text("styles/desktop-creation-tools.css")
         layout_css = read_text("styles/desktop-layout.css")
-        pose_css = read_text("styles/desktop-pose.css")
+        pose_css = "\n".join(read_text(f"styles/{name}.css") for name in ("desktop-pose-node", "desktop-pose-editor-geometry", "desktop-pose-editor"))
 
         # Resource versions may advance independently of the layer contract.
         for asset_path in (
             "styles/desktop-tokens.css",
             "styles/desktop-liquid.css",
             "styles/desktop-layout.css",
-            "styles/desktop-pose.css",
+            "styles/desktop-pose-node.css",
+            "styles/desktop-pose-editor-geometry.css",
+            "styles/desktop-pose-editor.css",
             "styles/desktop-prompt-library.css",
             "styles/desktop-canvas-nodes.css",
             "styles/desktop-creation-tools.css",
@@ -1817,21 +1821,11 @@ class DesktopResultStatusUiTest(unittest.TestCase):
             r"(?ms)body\.desk-app\[data-theme=\"dark\"\] "
             r"\.desk-gallery-inspector__actions \.desk-button:disabled,[^}]*!important",
         )
+        # Only `[hidden]` guards may use !important in the pose node and editor.
         pose_important_lines = [line.strip() for line in pose_css.splitlines() if "!important" in line]
-        self.assertEqual(
-            pose_important_lines,
-            ["cursor: ns-resize !important;", "user-select: none !important;"],
-        )
-        self.assertRegex(
-            creation_tools_css,
-            r"\.desk-pose-studio__bar-actions \.desk-pose-studio__close\s*\{"
-            r"[^}]*color:\s*var\(--desk-pose-close-ink\);",
-        )
-        self.assertRegex(
-            geometry_css,
-            r"\.desk-pose-studio__bar-actions \.desk-pose-studio__close\s*\{"
-            r"[^}]*font-size:\s*18px;",
-        )
+        self.assertTrue(pose_important_lines)
+        self.assertTrue(all("[hidden]" in line and "display:none!important" in line for line in pose_important_lines), pose_important_lines)
+        self.assertNotIn("desk-pose-studio", creation_tools_css + geometry_css + controls_css)
 
         legacy_top_level_selectors = {
             liquid_css: (
@@ -1866,7 +1860,7 @@ class DesktopResultStatusUiTest(unittest.TestCase):
             ),
             prompt_css: (".desk-prompt-library", ".desk-prompt-slash-menu"),
             layout_css: (".desk-layout-editor",),
-            pose_css: (".desk-pose-studio",),
+            pose_css: (".desk-pose-editor",),
         }
         for stylesheet, selectors in legacy_top_level_selectors.items():
             for selector in selectors:
@@ -2300,9 +2294,6 @@ class DesktopResultStatusUiTest(unittest.TestCase):
             "body.desk-app[data-theme] .desk-video-node__icon {",
             "body.desk-app[data-theme] .desk-video-runtime-mode button.is-active {",
             "body.desk-app[data-theme] .desk-video-result__preview {",
-            "body.desk-app[data-theme] .desk-pose-studio__panel {",
-            "body.desk-app[data-theme] .desk-director-joint-hud__card {",
-            ".desk-director-field .desk-select-trigger",
             "body.desk-app[data-theme] .desk-layout-editor {",
             "body.desk-app[data-theme] .desk-layout-stage {",
             "body.desk-app[data-theme] .desk-layout-group-selection {",
@@ -2315,7 +2306,8 @@ class DesktopResultStatusUiTest(unittest.TestCase):
         )
         declared_tokens = set(re.findall(r"(--desk-[\w-]+)\s*:", tokens_css))
         self.assertFalse(referenced_tokens - declared_tokens, sorted(referenced_tokens - declared_tokens))
-        self.assertGreaterEqual(len(referenced_tokens), 250)
+        # The old pose studio's 63 tokens left with it; only the minimap token remains here.
+        self.assertGreaterEqual(len(referenced_tokens), 240)
         for token in sorted(referenced_tokens):
             self.assertTrue(
                 token.startswith(("--desk-file-", "--desk-video-", "--desk-pose-", "--desk-layout-")),

@@ -1,6 +1,6 @@
-// 本地文件 MIME/内容识别与读取、外部地址/HTML/拖放/剪贴板输入、图片节点插入替换回流及历史/视频资产导入；保持现有 API 适配、失败回退和返回值。
+// 本地文件 MIME/内容识别与读取、外部地址/HTML/拖放/剪贴板输入、图片节点插入替换回流、历史/视频资产导入及本地视频上传；保持现有 API 适配、失败回退和返回值。
 // Explicit host callbacks preserve ordering; shared state ports always resolve the live value.
-// No API/schema changes. Load before desktop-canvas.js; create() has no I/O or event binding.
+// Local videos go through DesktopApi.uploadVideo (/api/video/upload); no other API/schema changes. Load before desktop-canvas.js; create() has no I/O or event binding.
 (function () {
   function create({
     DEFAULT_IMAGE_LONGEST_SIDE,
@@ -885,6 +885,15 @@
     const nodeId = addNode('video', worldPoint);
     const node = DesktopState.state.canvas.nodes[nodeId];
     if (!node) throw new Error('视频节点创建失败');
+    applyVideoAsset(nodeId, item);
+    selectNode(nodeId);
+    return nodeId;
+  }
+
+    function applyVideoAsset(nodeId, item) {
+    const node = DesktopState.state.canvas.nodes[nodeId];
+    const mediaUrl = String(item?.mediaUrl || item?.videoUrl || item?.url || '').trim();
+    if (!node || node.type !== 'video' || !mediaUrl) return;
     node.mediaUrl = mediaUrl;
     node.posterUrl = String(item?.posterUrl || item?.poster_url || '').trim();
     node.mediaName = String(item?.mediaName || item?.name || item?.filename || '视频资产');
@@ -896,11 +905,64 @@
     node.fps = Math.max(1, Number(item?.fps || 24));
     node.fileSize = Math.max(0, Number(item?.fileSize || item?.file_size || item?.size_bytes || 0));
     node.status = 'succeeded';
+    node.error = '';
     fitVideoNodeToMedia(node);
     refreshVideoNode(nodeId);
-    selectNode(nodeId);
     DesktopState.saveSettings();
-    return nodeId;
+  }
+
+    // Local videos: uploaded into the archive (see /api/video/upload), never kept as data URLs in canvas state.
+    const LOCAL_VIDEO_EXTENSION = /\.(mp4|m4v|mov|webm)$/i;
+    function isLocalVideoFile(file) {
+    const type = String(file?.type || '').toLowerCase();
+    return /^video\/(mp4|quicktime|webm|x-m4v)$/.test(type) || (!type.startsWith('image/') && LOCAL_VIDEO_EXTENSION.test(String(file?.name || '')));
+  }
+
+    function markVideoNodeUploading(nodeId, file) {
+    const empty = getNodeElement(nodeId)?.querySelector('.desk-video-result__empty');
+    if (!empty) return;
+    empty.classList.add('is-busy');
+    empty.querySelector('strong').textContent = '正在上传视频';
+    empty.querySelector('small').textContent = String(file?.name || '');
+    empty.querySelector('[data-video-upload]')?.setAttribute('disabled', '');
+  }
+
+    async function uploadVideoToNode(nodeId, file) {
+    if (!isLocalVideoFile(file)) throw new Error('仅支持 MP4、MOV 或 WebM 视频');
+    markVideoNodeUploading(nodeId, file);
+    try {
+      const asset = await DesktopApi.uploadVideo(file, file.name);
+      const node = DesktopState.state.canvas.nodes[nodeId];
+      if (!node || node.type !== 'video') return '';
+      applyVideoAsset(nodeId, { ...asset, mediaName: asset.mediaName || file.name, fps: asset.fps || 24 });
+      return nodeId;
+    } catch (error) {
+      refreshVideoNode(nodeId);
+      throw error;
+    }
+  }
+
+    async function createVideoNodesFromFiles(files, clientX, clientY) {
+    const videos = Array.from(files || []).filter(isLocalVideoFile);
+    const created = [];
+    for (let index = 0; index < videos.length; index += 1) {
+      const point = Number.isFinite(clientX) && Number.isFinite(clientY)
+        ? screenToWorld(clientX + index * 28, clientY + index * 24)
+        : getViewportCenterWorldPoint();
+      const nodeId = addNode('video', point);
+      if (!nodeId) continue;
+      try {
+        await uploadVideoToNode(nodeId, videos[index]);
+        created.push(nodeId);
+      } catch (error) {
+        DesktopResults.showError(error);
+      }
+    }
+    if (created.length) {
+      selectNode(created[created.length - 1]);
+      DesktopResults.showTransientMessage(created.length > 1 ? `${created.length} 个本地视频已创建为视频节点。` : '本地视频已创建为视频节点。');
+    }
+    return created;
   }
 
     return Object.freeze({
@@ -951,6 +1013,9 @@
       getGalleryDragPayload,
       createImageNodesFromHistoryItems,
       createVideoNodeFromAsset,
+      isLocalVideoFile,
+      uploadVideoToNode,
+      createVideoNodesFromFiles,
     });
   }
 

@@ -57,6 +57,8 @@
     videoControlDefinition,
     topazVideoNode,
     topazVideoDefinition,
+    poseNode,
+    poseDefinition,
     clearPromptDocumentHistory,
     comfyNodeHtml,
     comfyWorkflowCatalogRef,
@@ -132,6 +134,7 @@
     if (nodeState.type === qwen21Definition?.TYPE) qwen21Definition.normalize(nodeState);
     if (nodeState.type === videoControlDefinition?.TYPE) videoControlDefinition.normalize(nodeState);
     if (nodeState.type === topazVideoDefinition?.TYPE) topazVideoDefinition.normalize(nodeState);
+    if (nodeState.type === poseDefinition?.TYPE) poseDefinition.normalize(nodeState);
     if (musicNodeDefinition?.TYPES.includes(nodeState.type)) musicNodeDefinition.normalizeState(nodeState);
     if (nodeState.type === 'file_output') {
       nodeState.width = DEFAULT_FILE_OUTPUT_NODE_WIDTH;
@@ -392,7 +395,7 @@
           ? DEFAULT_VIDEO_INFERENCE_NODE_WIDTH
           : (type === 'video'
             ? DEFAULT_VIDEO_NODE_WIDTH
-            : (type === 'upscale' ? DEFAULT_UPSCALE_NODE_WIDTH : (type === 'layout' ? 320 : (type === 'pose' ? 340 : (type === 'text' ? DEFAULT_TEXT_NODE_WIDTH : DEFAULT_INPUT_NODE_WIDTH))))))));
+            : (type === 'upscale' ? DEFAULT_UPSCALE_NODE_WIDTH : (type === 'layout' ? 320 : (type === 'text' ? DEFAULT_TEXT_NODE_WIDTH : DEFAULT_INPUT_NODE_WIDTH)))))));
     const defaultHeight = type === 'file_output'
       ? DEFAULT_FILE_OUTPUT_NODE_HEIGHT
       : (type === 'image_group'
@@ -403,7 +406,7 @@
           ? DEFAULT_VIDEO_INFERENCE_NODE_HEIGHT
           : (type === 'video'
             ? DEFAULT_VIDEO_NODE_HEIGHT
-            : (type === 'upscale' ? DEFAULT_UPSCALE_NODE_HEIGHT : (type === 'layout' ? 300 : (type === 'pose' ? 300 : (type === 'text' ? DEFAULT_TEXT_NODE_HEIGHT : DEFAULT_INPUT_NODE_HEIGHT))))))));
+            : (type === 'upscale' ? DEFAULT_UPSCALE_NODE_HEIGHT : (type === 'layout' ? 300 : (type === 'text' ? DEFAULT_TEXT_NODE_HEIGHT : DEFAULT_INPUT_NODE_HEIGHT)))))));
     const node = {
       id,
       type,
@@ -419,6 +422,7 @@
     if (type === qwen21Definition?.TYPE) qwen21Definition.normalize(node);
     if (type === videoControlDefinition?.TYPE) videoControlDefinition.normalize(node);
     if (type === topazVideoDefinition?.TYPE) topazVideoDefinition.normalize(node);
+    if (type === poseDefinition?.TYPE) Object.assign(node, poseDefinition.createState());
     if (type === 'audio') Object.assign(node, audioNodeDefinition.createState(id, { x: node.x, y: node.y }));
     if (musicNodeDefinition?.TYPES.includes(type)) Object.assign(node, musicNodeDefinition.createState(id, type, { x: node.x, y: node.y }));
     if (type === 'input') {
@@ -487,26 +491,6 @@
       node.layoutPreview = '';
       node.layoutExport = '';
     }
-    if (type === 'pose') {
-      node.mode = 'director_stage';
-      node.poseTitle = '姿态参考';
-      node.poseData = {};
-      node.legacyPoseData = {};
-      node.directorData = createDefaultDirectorData();
-      node.backgroundImage = null;
-      node.backgroundName = '';
-      node.backgroundSource = '';
-      node.backgroundSourceNodeId = '';
-      node.backgroundMeta = null;
-      node.previewImage = '';
-      node.exportImage = '';
-      node.exportMode = 'mannequin_only';
-      node.humanConfig = { skeletonVisible: true };
-      node.camera = {};
-      node.lights = [];
-      node.status = 'idle';
-      node.error = '';
-    }
     if (type === 'upscale') {
       node.model = '4x-UltraSharp';
       node.tileSize = 256;
@@ -534,69 +518,6 @@
       };
     }
     return node;
-  }
-
-    function createDefaultDirectorData() {
-    const controls = {
-      torsoTwist: 0,
-      headYaw: 0,
-      leftShoulderSide: 0,
-      leftShoulderFront: 8,
-      leftElbow: 6,
-      rightShoulderSide: 8,
-      rightShoulderFront: 0,
-      rightElbow: 6,
-      leftHipSide: 2,
-      leftHipFront: 0,
-      leftKnee: 0,
-      rightHipSide: 2,
-      rightHipFront: 0,
-      rightKnee: 0
-    };
-    return {
-      version: 5,
-      characters: [
-        {
-          id: 'char_a',
-          name: '角色A',
-          modelKey: 'mixamo_xbot',
-          bodyPreset: 'female_proxy',
-          color: '#4F8EF7',
-          position: [-0.7, 0, 0],
-          rotation: [0, 0, 0],
-          scale: 1,
-          posePreset: 'stand',
-          boneControls: { ...controls }
-        },
-        {
-          id: 'char_b',
-          name: '角色B',
-          modelKey: 'mixamo_ybot',
-          bodyPreset: 'male_proxy',
-          color: '#F25F5C',
-          position: [0.7, 0, 0],
-          rotation: [0, 0, 0],
-          scale: 1,
-          posePreset: 'stand',
-          boneControls: { ...controls }
-        }
-      ],
-      props: [],
-      cameras: [
-        {
-          id: 'camera_01',
-          name: '机位1',
-          position: [0, 2.1, 5.4],
-          target: [0, 1.45, 0],
-          fov: 45,
-          aspect: '16:9',
-          thumbnail: ''
-        }
-      ],
-      activeCameraId: 'camera_01',
-      selectedId: 'char_a',
-      viewMode: 'director'
-    };
   }
 
     function imageNodeSource(node) {
@@ -676,59 +597,6 @@
     `;
   }
 
-    function getPoseInputImages(poseNodeId) {
-    return (DesktopState.state.canvas.edges || [])
-      .filter(edge => edge.to === poseNodeId)
-      .map(edge => normalizeImageSourceFromNode(DesktopState.state.canvas.nodes[edge.from]))
-      .filter(Boolean);
-  }
-
-    function poseStatusText(node, preview, backgroundCount) {
-    if (node.error) return `错误：${node.error}`;
-    if (preview) return '已导出参考图';
-    return backgroundCount ? `已接入 ${backgroundCount} 张参考图` : '等待姿态编辑';
-  }
-
-    function poseDisplayTitle(node = {}, fallback = '姿态参考') {
-    const title = String(node.poseTitle || fallback);
-    return title === '3D 导演台' ? '姿态参考' : title;
-  }
-
-    function poseNodeHtml(node) {
-    const preview = escapeHtml(node.previewImage || node.exportImage || '');
-    const inputCount = getPoseInputImages(node.id).length;
-    const backgroundCount = inputCount + (node.backgroundImage ? 1 : 0);
-    const statusText = poseStatusText(node, preview, backgroundCount);
-    const title = node.mode === 'director_stage' ? poseDisplayTitle(node) : (node.poseTitle || '姿态节点');
-    const eyebrow = node.mode === 'director_stage' ? 'Pose Reference' : 'Pose Node';
-    const emptyTitle = node.mode === 'director_stage' ? '姿态参考' : 'Pose Studio Lite';
-    const emptyHint = node.mode === 'director_stage' ? '多角色低模人偶 / 机位截图' : '打开编辑器调整姿态';
-    return `
-      <section class="desk-node desk-node--pose desk-glass" data-node-id="${node.id}" aria-label="${escapeHtml(title)}">
-        <div class="desk-node__header" data-node-drag-handle>
-          <div>
-            <p class="desk-node__eyebrow">${escapeHtml(eyebrow)}</p>
-            <h2>${escapeHtml(title)}</h2>
-          </div>
-          <div class="desk-node-tools">
-            <button type="button" class="desk-node-delete" data-node-delete title="删除节点" aria-label="删除节点">删</button>
-          </div>
-        </div>
-        <button type="button" class="desk-port desk-port--in desk-port--pose-in" data-port="in" data-node-id="${node.id}" title="连接图片作为背景参考" aria-label="连接姿态参考输入"></button>
-        <button type="button" class="desk-port desk-port--out desk-port--pose-out" data-port="out" data-node-id="${node.id}" title="连接到模型节点作为参考图" aria-label="连接姿态输出"></button>
-        <div class="desk-pose-node-preview" data-pose-preview>
-          ${preview ? `<img src="${preview}" alt="姿态预览">` : `<span><strong>${escapeHtml(emptyTitle)}</strong><em>${escapeHtml(emptyHint)}</em></span>`}
-        </div>
-        <div class="desk-pose-node-actions">
-          <button type="button" class="desk-key is-primary" data-pose-open>打开编辑器</button>
-          <button type="button" class="desk-key" data-pose-connect-input>接入模型</button>
-        </div>
-        <div class="desk-pill-row"><span data-pose-status>${escapeHtml(statusText)}</span><span data-pose-input-count>${backgroundCount ? `背景 ${backgroundCount}` : '可接入背景'}</span></div>
-        <span class="desk-resize-handle" data-node-resize-handle title="缩放节点" aria-hidden="true"></span>
-      </section>
-    `;
-  }
-
     function nodeHtmlForState(nodeId, node) {
     if (node.type === topazDefinition?.TYPE) return topazNode.nodeHtml(node);
     if (node.type === krea2Definition?.TYPE) return krea2Node.nodeHtml(node);
@@ -746,7 +614,7 @@
     if (node.type === 'video_inference') return videoInferenceNodeHtml(node);
     if (node.type === 'comfy') return comfyNodeHtml(node);
     if (node.type === 'upscale') return upscaleNodeHtml(node);
-    if (node.type === 'pose') return poseNodeHtml(node);
+    if (node.type === poseDefinition?.TYPE) return poseNode.nodeHtml(poseDefinition.normalize(node));
     if (node.type === 'layout') return layoutNodeHtml(node);
     if (node.type === 'text') return textNodeHtml(node);
     return inputNodeHtml(nodeId);
@@ -774,6 +642,7 @@
     musicNode?.reconcile();
     videoControlNode?.reconcile();
     topazVideoNode?.reconcile();
+    poseNode?.reconcile();
     topazNode?.reconcile();
     cyimgNode?.reconcile();
     krea2Node?.reconcile();
@@ -786,6 +655,7 @@
     musicNode?.disposeAll();
     videoControlNode?.disposeAll(true);
     topazVideoNode?.disposeAll(true);
+    poseNode?.disposeAll();
     cyimgNode?.disposeAll();
     krea2Node?.disposeAll();
     krea2ControlNode?.disposeAll();
@@ -887,6 +757,7 @@
     if (!node) return;
     if (node.type === videoControlDefinition?.TYPE) videoControlNode.dispose(nodeId, true);
     if (node.type === topazVideoDefinition?.TYPE) topazVideoNode.dispose(nodeId, true);
+    if (node.type === poseDefinition?.TYPE) poseNode.dispose(nodeId);
     if (cyimgDefinition?.TYPES.includes(node.type)) cyimgNode.dispose(nodeId);
     if (node.type === krea2Definition?.TYPE) krea2Node.dispose(nodeId);
     if (node.type === krea2ControlDefinition?.TYPE) krea2ControlNode.dispose(nodeId);
@@ -937,7 +808,7 @@
     window.dispatchEvent(new CustomEvent('desktop:canvas-node-removed', { detail: { nodeId } }));
     if (node.type === 'text') notifyTextNodeListChange(nodeId);
     affectedLayoutIds.forEach(updateLayoutInputCount);
-    affectedPoseIds.forEach(refreshPoseNode);
+    affectedPoseIds.forEach(id => poseNode?.refresh(id));
     affectedUpscaleIds.forEach(updateUpscaleInputCount);
     affectedVideoInferenceIds.forEach(refreshVideoInferenceNode);
     affectedVideoIds.forEach(refreshVideoNode);
@@ -956,41 +827,6 @@
     preview.innerHTML = src ? `<img src="${escapeHtml(src)}" alt="排版预览">` : '<span>尚未排版</span>';
     updateLayoutInputCount(nodeId);
     renderMiniMap();
-  }
-
-    function refreshPoseNode(nodeId) {
-    const node = DesktopState.state.canvas.nodes[nodeId];
-    const el = getNodeElement(nodeId);
-    if (!node || node.type !== 'pose' || !el) return;
-    const preview = el.querySelector('[data-pose-preview]');
-    const inputCountTarget = el.querySelector('[data-pose-input-count]');
-    const statusTarget = el.querySelector('[data-pose-status]');
-    const src = node.previewImage || node.exportImage || '';
-    const inputCount = getPoseInputImages(nodeId).length;
-    const backgroundCount = inputCount + (node.backgroundImage ? 1 : 0);
-    if (preview) {
-      preview.innerHTML = src
-        ? `<img src="${escapeHtml(src)}" alt="姿态预览">`
-        : '<span><strong>姿态参考</strong><em>打开编辑器调整姿态</em></span>';
-    }
-    if (inputCountTarget) inputCountTarget.textContent = backgroundCount ? `背景 ${backgroundCount}` : '可接入背景';
-    if (statusTarget) {
-      statusTarget.textContent = poseStatusText(node, src, backgroundCount);
-    }
-    renderMiniMap();
-  }
-
-    function connectPoseToDefaultInput(nodeId) {
-    const node = DesktopState.state.canvas.nodes[nodeId];
-    if (!node || node.type !== 'pose') return;
-    const targetInputId = findDefaultInputNodeId();
-    if (!targetInputId) {
-      DesktopResults.showTransientMessage('没有可接入的模型节点。');
-      return;
-    }
-    connectNodes(nodeId, targetInputId);
-    selectNode(nodeId);
-    updateLinkPath();
   }
 
     function toggleNodeDrawer(node) {
@@ -1118,16 +954,11 @@
       applyNodeSelection,
       nextNodeId,
       createNodeState,
-      createDefaultDirectorData,
       imageNodeSource,
       imageNodePlaceholderHtml,
       imageNodeToolsHtml,
       imageNodeHtml,
       layoutNodeHtml,
-      getPoseInputImages,
-      poseStatusText,
-      poseDisplayTitle,
-      poseNodeHtml,
       nodeHtmlForState,
       ensureGraphDom,
       resetNodeLayout,
@@ -1139,8 +970,6 @@
       addNodeFromMenu,
       removeNode,
       refreshLayoutNode,
-      refreshPoseNode,
-      connectPoseToDefaultInput,
       toggleNodeDrawer,
       refreshImageNode,
       refreshImageNodeContent,

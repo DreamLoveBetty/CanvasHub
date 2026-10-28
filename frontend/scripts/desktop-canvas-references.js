@@ -14,7 +14,7 @@
     imageGroupItemSource,
     imageNodeSource,
     normalizeImageSourceFromGroupItem,
-    poseDisplayTitle,
+    poseDefinition,
     screenToWorld,
     selectNode,
     setPromptTextForInputNode,
@@ -237,24 +237,24 @@
   }
 
     function normalizePoseReferenceFromNode(node) {
-    if (!node || node.type !== 'pose') return null;
-    const source = node.exportImage || node.previewImage || '';
-    if (!source) return null;
+    const url = poseDefinition.artifactUrl(node);
+    if (!url) return null;
+    const title = `${node.title || '姿态参考'} · ${poseDefinition.PASSES[node.output.pass] || ''}`;
     return {
       id: `pose-node:${node.id}`,
       assetId: '',
       sourceNodeId: node.id,
-      name: `${poseDisplayTitle(node, node.id)}.png`,
-      title: poseDisplayTitle(node, '姿态参考图'),
-      prompt: '3D mannequin pose reference',
+      name: `${title}.png`,
+      title,
+      prompt: 'pose reference',
       file: '',
       taskId: '',
       provider: '',
       type: 'image/png',
-      url: source,
-      base64: source.startsWith('data:') ? source : '',
-      imageData: source.startsWith('data:') ? source : '',
-      imageUrl: source.startsWith('data:') ? '' : source,
+      url,
+      base64: '',
+      imageData: '',
+      imageUrl: url,
       source: 'pose-node'
     };
   }
@@ -271,7 +271,7 @@
         (node?.type === 'image' && (node.imageData || node.imageUrl))
         || (node?.type === 'image_group' && node.items?.some(imageGroupItemSource))
         || (node?.type === 'layout' && node.layoutExport)
-        || (node?.type === 'pose' && (node.exportImage || node.previewImage))
+        || (node?.type === 'pose' && poseDefinition.artifactUrl(node))
       ))
       .flatMap(node => {
         if (node.type === 'image') return normalizeImageSourceFromNode(node);

@@ -787,19 +787,6 @@ body.desk-app[data-theme="dark"] .desk-language-picker:focus-within {
 
 
 
-.desk-director-field .desk-select-shell {
-  width: 100%;
-}
-
-.desk-director-field .desk-select-trigger {
-  min-height: 30px;
-  padding: 0 8px;
-  font-weight: 800;
-  border-radius: 8px;
-}
-
-
-
 .desk-layout-actions .desk-select-trigger {
   min-width: 150px;
   padding: 0 28px 0 10px;

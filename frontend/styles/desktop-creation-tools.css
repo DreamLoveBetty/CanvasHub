@@ -33,18 +33,6 @@ body.desk-app[data-theme] :where(
 }
 
 body.desk-app[data-theme] :where(
-  .desk-node--pose,
-  .desk-pose-studio,
-  .desk-pose-human-panel,
-  .desk-select-menu[data-select-variant="pose"]
-) {
-  --desk-ink: var(--desk-pose-ink);
-  --desk-muted: var(--desk-pose-muted-ink);
-  --desk-blue: var(--desk-pose-accent-ink);
-  color-scheme: var(--desk-pose-color-scheme);
-}
-
-body.desk-app[data-theme] :where(
   .desk-layout-editor,
   .desk-layout-create,
   .desk-layout-node-preview,
@@ -521,6 +509,16 @@ body.desk-app[data-theme] .desk-video-result__empty small {
   color: var(--desk-video-preview-subtle-ink);
 }
 
+body.desk-app[data-theme] .desk-video-result__upload {
+  color: var(--desk-video-preview-ink);
+  background: var(--desk-video-preview-chip-background);
+  border-color: var(--desk-video-preview-chip-border);
+}
+
+body.desk-app[data-theme] .desk-video-result__upload:hover:not(:disabled) {
+  border-color: var(--desk-video-preview-strong-ink);
+}
+
 body.desk-app[data-theme] .desk-video-result__meta {
   color: var(--desk-video-preview-meta-ink);
   text-shadow: var(--desk-video-preview-meta-shadow);
@@ -588,243 +586,9 @@ body.desk-app[data-theme] :where(
   box-shadow: var(--desk-video-error-dot-shadow);
 }
 
-/* Pose node, studio and director controls. */
+/* Pose reference nodes in the minimap. */
 body.desk-app[data-theme] .desk-minimap__node.is-pose {
   background: var(--desk-pose-minimap-background);
-}
-
-body.desk-app[data-theme] .desk-pose-node-preview {
-  color: var(--desk-pose-muted-ink);
-  background: var(--desk-pose-preview-background);
-  border-color: var(--desk-pose-preview-border);
-}
-
-body.desk-app[data-theme] .desk-pose-node-preview strong {
-  color: var(--desk-pose-ink);
-}
-
-body.desk-app[data-theme] .desk-pose-node-preview em {
-  color: var(--desk-pose-muted-ink);
-}
-
-body.desk-app[data-theme] .desk-pose-node-actions button {
-  color: var(--desk-pose-ink);
-  background: var(--desk-pose-node-action-background);
-  border-color: var(--desk-pose-node-action-border);
-}
-
-body.desk-app[data-theme] .desk-pose-node-actions button.is-primary {
-  color: var(--desk-pose-primary-ink);
-  background: var(--desk-pose-primary-background);
-  border-color: var(--desk-pose-primary-border);
-}
-
-body.desk-app[data-theme] .desk-pose-studio {
-  background: var(--desk-pose-overlay-background);
-}
-
-body.desk-app[data-theme] .desk-pose-studio__panel {
-  color: var(--desk-pose-ink);
-  background: var(--desk-pose-panel-background);
-  border-color: var(--desk-pose-panel-border);
-  box-shadow: var(--desk-pose-panel-shadow);
-}
-
-body.desk-app[data-theme] .desk-pose-studio__bar {
-  border-color: var(--desk-pose-divider);
-}
-
-body.desk-app[data-theme] .desk-pose-studio__bar p {
-  color: var(--desk-pose-accent-ink);
-}
-
-body.desk-app[data-theme] :where(
-  .desk-pose-studio__bar-actions button,
-  .desk-pose-background-upload span,
-  .desk-director-panel__head button,
-  .desk-director-preset-grid button,
-  .desk-director-joint-actions button,
-  .desk-director-camera-actions button
-) {
-  color: var(--desk-pose-ink);
-  background: var(--desk-pose-control-background);
-  border-color: var(--desk-pose-control-border);
-}
-
-body.desk-app[data-theme] .desk-pose-studio__bar-actions .desk-pose-studio__close {
-  color: var(--desk-pose-close-ink);
-}
-
-body.desk-app[data-theme] :where(
-  .desk-pose-studio__bar-actions button.is-primary,
-  .desk-director-joint-list button.is-active,
-  .desk-director-preset-grid button.is-active
-) {
-  color: var(--desk-pose-primary-ink);
-  background: var(--desk-pose-primary-background);
-  border-color: var(--desk-pose-primary-border);
-}
-
-body.desk-app[data-theme] .desk-pose-studio__stage {
-  background: var(--desk-pose-stage-background);
-  border-color: var(--desk-pose-stage-border);
-}
-
-/* The joint HUD deliberately stays a high-contrast dark instrument in both themes. */
-body.desk-app[data-theme] .desk-director-joint-hud__card {
-  background: var(--desk-pose-hud-background);
-  border-color: var(--desk-pose-hud-border);
-  box-shadow: var(--desk-pose-hud-shadow);
-}
-
-body.desk-app[data-theme] .desk-director-joint-hud__head strong {
-  color: var(--desk-pose-hud-ink);
-}
-
-body.desk-app[data-theme] .desk-director-joint-hud__head span,
-body.desk-app[data-theme] .desk-director-joint-hud__feedback em {
-  color: var(--desk-pose-hud-muted-ink);
-}
-
-body.desk-app[data-theme] .desk-director-joint-axis {
-  color: var(--desk-pose-hud-axis-ink);
-  background: var(--desk-pose-hud-axis-background);
-  border-color: var(--desk-pose-hud-axis-border);
-}
-
-body.desk-app[data-theme] :where(
-  .desk-director-joint-axis:hover,
-  .desk-director-joint-axis.is-active
-) {
-  color: var(--desk-pose-hud-strong-ink);
-  background: var(--desk-pose-hud-axis-hover-background);
-  border-color: var(--joint-axis-color, var(--desk-pose-accent-ink));
-}
-
-body.desk-app[data-theme] :where(
-  .desk-director-joint-axis i,
-  .desk-director-joint-axis em,
-  .desk-director-joint-hud__feedback strong
-) {
-  color: var(--desk-pose-hud-strong-ink);
-}
-
-body.desk-app[data-theme] .desk-director-joint-hud__feedback {
-  color: var(--desk-pose-hud-feedback-ink);
-  border-color: var(--desk-pose-hud-feedback-border);
-}
-
-body.desk-app[data-theme] .desk-director-joint-hud__stem {
-  background: var(--desk-pose-hud-stem-background);
-}
-
-body.desk-app[data-theme] .desk-director-joint-hud__anchor {
-  border-color: var(--desk-pose-hud-anchor-border);
-  box-shadow: var(--desk-pose-hud-anchor-shadow);
-}
-
-body.desk-app[data-theme] .desk-pose-studio__stage-footer,
-body.desk-app[data-theme] .desk-pose-background-clear,
-body.desk-app[data-theme] .desk-director-field span,
-body.desk-app[data-theme] .desk-director-empty {
-  color: var(--desk-pose-muted-ink);
-}
-
-body.desk-app[data-theme] .desk-pose-background-clear {
-  background: var(--desk-pose-quiet-background);
-  border-color: var(--desk-pose-quiet-border);
-}
-
-body.desk-app[data-theme] :where(
-  .desk-director-panel,
-  .desk-pose-human-panel
-) {
-  background: var(--desk-pose-section-background);
-  border-color: var(--desk-pose-section-border);
-}
-
-body.desk-app[data-theme] .desk-director-panel__head span {
-  color: var(--desk-pose-panel-badge-ink);
-  background: var(--desk-pose-panel-badge-background);
-  border-color: var(--desk-pose-panel-badge-border);
-}
-
-body.desk-app[data-theme] :where(
-  .desk-director-scene-list button,
-  .desk-director-joint-list button,
-  .desk-director-camera-list button
-) {
-  color: var(--desk-pose-ink);
-  background: var(--desk-pose-list-background);
-  border-color: var(--desk-pose-list-border);
-}
-
-body.desk-app[data-theme] :where(
-  .desk-director-scene-list button.is-active,
-  .desk-director-camera-list button.is-active
-) {
-  background: var(--desk-pose-list-active-background);
-  border-color: var(--desk-pose-list-active-border);
-}
-
-body.desk-app[data-theme] .desk-director-scene-list span {
-  box-shadow: var(--desk-pose-scene-thumb-shadow);
-}
-
-body.desk-app[data-theme] .desk-director-joint-actions button:disabled {
-  color: var(--desk-pose-disabled-ink);
-  background: var(--desk-pose-disabled-background);
-}
-
-body.desk-app[data-theme] :where(
-  .desk-director-camera-list img,
-  .desk-director-camera-list span
-) {
-  background: var(--desk-pose-camera-thumb-background);
-}
-
-body.desk-app[data-theme] :where(
-  .desk-director-field input,
-  .desk-director-field .desk-select-trigger
-) {
-  color: var(--desk-pose-field-ink);
-  background: var(--desk-pose-field-background);
-  border-color: var(--desk-pose-field-border);
-}
-
-body.desk-app[data-theme] .desk-pose-human-panel__head span {
-  color: var(--desk-pose-human-badge-ink);
-  background: var(--desk-pose-human-badge-background);
-  border-color: var(--desk-pose-human-badge-border);
-}
-
-body.desk-app[data-theme] .desk-pose-segmented {
-  background: var(--desk-pose-segment-background);
-  border-color: var(--desk-pose-segment-border);
-}
-
-body.desk-app[data-theme] .desk-pose-segmented button {
-  color: var(--desk-pose-muted-ink);
-  background: transparent;
-}
-
-body.desk-app[data-theme] .desk-pose-segmented button.is-active {
-  color: var(--desk-pose-ink);
-  background: var(--desk-pose-segment-active-background);
-  box-shadow: var(--desk-pose-segment-active-shadow);
-}
-
-body.desk-app[data-theme] .desk-pose-control {
-  background: var(--desk-pose-control-row-background);
-  border-color: var(--desk-pose-control-row-border);
-}
-
-body.desk-app[data-theme] .desk-pose-control em {
-  color: var(--desk-pose-accent-ink);
-}
-
-body.desk-app[data-theme] .desk-pose-control input {
-  accent-color: var(--desk-pose-accent-ink);
 }
 
 /* Layout editor, creation dialog and canvas-node preview. */

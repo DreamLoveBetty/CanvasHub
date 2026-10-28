@@ -1,0 +1,46 @@
+/* Pose reference node: the Topaz Video node frame, header, field and footer rhythm.
+   Consumes node, status and action tokens; pose-specific values live in desktop-tokens.css. */
+body.desk-app .desk-node--pose {display:flex;flex-direction:column;padding:16px;box-sizing:border-box;border:1px solid var(--desk-node-stroke);border-radius:var(--desk-node-radius);background:var(--desk-node-sheen-background),var(--desk-node-glass-background);color:var(--desk-node-ink);box-shadow:var(--desk-node-glass-shadow);overflow:visible;}
+body.desk-app .desk-node--pose::before {display:none;}
+body.desk-app .desk-node--pose.is-selected {border-color:var(--desk-node-selection-stroke);}
+body.desk-app .desk-node--pose [hidden] {display:none!important;}
+body.desk-app .desk-pose-node__header {display:flex;align-items:center;gap:12px;padding-bottom:12px;border-bottom:1px solid var(--desk-color-border-faint);}
+body.desk-app .desk-pose-node__header>div {flex:1;min-width:0;}
+body.desk-app .desk-pose-node__header strong {font-size:17px;}
+body.desk-app .desk-pose-node__header small {display:block;margin-top:4px;color:var(--desk-node-muted-ink);font-size:9px;letter-spacing:.16em;}
+body.desk-app .desk-pose-node__icon {display:grid;place-items:center;width:40px;height:40px;box-sizing:border-box;border-radius:10px;background:var(--desk-color-accent-soft);color:var(--desk-color-accent);}
+body.desk-app .desk-pose-node__icon svg {width:25px;height:25px;}
+body.desk-app .desk-pose-node__body {display:flex;flex:1;flex-direction:column;gap:12px;padding-top:13px;min-height:0;}
+body.desk-app .desk-pose-node__preview {position:relative;flex:1;min-height:220px;overflow:hidden;border:1px solid var(--desk-color-border-faint);border-radius:10px;background:var(--desk-pose-viewport-bg);}
+body.desk-app .desk-pose-node__preview>img {position:absolute;inset:0;width:100%;height:100%;object-fit:contain;}
+body.desk-app .desk-pose-node__preview-empty {position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;color:var(--desk-pose-viewport-muted-ink);font-size:11px;text-align:center;}
+body.desk-app .desk-pose-node__preview-empty strong {color:var(--desk-pose-viewport-ink);font-size:12px;font-weight:600;}
+body.desk-app .desk-pose-node__preview-meta {position:absolute;left:10px;bottom:10px;display:flex;gap:6px;pointer-events:none;}
+body.desk-app .desk-pose-node__preview-meta span {padding:3px 7px;border-radius:5px;background:var(--desk-pose-chip-background);color:var(--desk-pose-viewport-ink);font-size:10px;font-weight:600;font-variant-numeric:tabular-nums;}
+body.desk-app .desk-pose-node__preview-open {position:absolute;top:10px;right:10px;display:grid;place-items:center;width:28px;height:28px;padding:0;border:1px solid var(--desk-pose-chip-border);border-radius:7px;background:var(--desk-pose-chip-background);color:var(--desk-pose-viewport-ink);cursor:pointer;opacity:0;transition:opacity .15s ease;}
+body.desk-app .desk-pose-node__preview:hover .desk-pose-node__preview-open,body.desk-app .desk-pose-node__preview-open:focus-visible {opacity:1;}
+body.desk-app .desk-pose-node__preview-open:disabled {display:none;}
+body.desk-app .desk-pose-node__preview-open svg {width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;}
+body.desk-app .desk-pose-node__grid {display:grid;grid-template-columns:1.1fr 1.2fr 1fr;gap:10px;}
+body.desk-app .desk-pose-node__body label {display:flex;flex-direction:column;gap:5px;min-width:0;color:var(--desk-node-muted-ink);font-size:10.5px;font-weight:600;}
+body.desk-app .desk-pose-node__body select {width:100%;height:34px;padding:6px 9px;box-sizing:border-box;border-radius:8px;background:var(--desk-node-glass-background);border:1px solid var(--desk-color-border-faint);color:var(--desk-node-ink);font:inherit;font-weight:600;}
+body.desk-app .desk-pose-node__source-row {display:flex;align-items:center;gap:11px;min-height:42px;padding:8px 10px;border:1px solid var(--desk-color-border-faint);border-radius:9px;background:color-mix(in srgb,var(--desk-color-accent-soft) 36%,transparent);}
+body.desk-app .desk-pose-node__source-copy {display:flex;flex:1;min-width:0;flex-direction:column;gap:3px;}
+body.desk-app .desk-pose-node__source-copy>span {overflow:hidden;color:var(--desk-node-ink);font-size:11px;font-weight:650;text-overflow:ellipsis;white-space:nowrap;}
+body.desk-app .desk-pose-node__source-copy>small {overflow:hidden;color:var(--desk-node-muted-ink);font-size:9.5px;text-overflow:ellipsis;white-space:nowrap;}
+body.desk-app .desk-pose-node__source-row>button,body.desk-app .desk-pose-node__editor {height:32px;padding:0 12px;border:1px solid var(--desk-color-border-faint);border-radius:8px;background:var(--desk-node-sheen-background),var(--desk-node-glass-background);color:var(--desk-node-ink);font:inherit;font-size:11px;font-weight:650;cursor:pointer;}
+body.desk-app .desk-pose-node__source-row>button:disabled,body.desk-app .desk-pose-node__editor:disabled {opacity:.5;cursor:not-allowed;}
+body.desk-app .desk-pose-node__evidence[aria-pressed="true"] {border-color:color-mix(in srgb,var(--desk-color-accent) 45%,transparent);background:var(--desk-color-accent-soft);color:var(--desk-color-accent);}
+body.desk-app .desk-pose-node__footer {display:flex;align-items:flex-end;gap:12px;color:var(--desk-node-muted-ink);font-size:10.5px;}
+body.desk-app .desk-pose-node__editor {display:inline-flex;align-items:center;gap:7px;height:36px;color:var(--desk-color-accent);}
+body.desk-app .desk-pose-node__editor svg {width:15px;height:15px;}
+body.desk-app .desk-pose-node__editor:hover:not(:disabled) {border-color:color-mix(in srgb,var(--desk-color-accent) 40%,var(--desk-color-border-faint));background:var(--desk-color-accent-soft);}
+body.desk-app .desk-pose-node__note {flex:1;min-width:0;padding-bottom:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+body.desk-app .desk-pose-node__note.is-dirty {color:var(--desk-color-accent);}
+body.desk-app .desk-pose-node__note.is-unavailable {color:var(--desk-color-danger,#b73564);}
+body.desk-app .desk-pose-node__export {margin:-2px 0 0;}
+body.desk-app .desk-pose-node__progress {position:absolute;top:calc(100% + 2px);left:0;width:100%;box-sizing:border-box;}
+body.desk-app .desk-pose-node__progress .desk-progress-float__panel {border-radius:0 0 var(--desk-node-radius) var(--desk-node-radius);}
+body.desk-app .desk-pose-node__progress [data-pose-bar] {width:40%;animation:desk-pose-node-rail 1.2s ease-in-out infinite alternate;}
+@keyframes desk-pose-node-rail {from {transform:translateX(0);}to {transform:translateX(150%);}}
+@media (prefers-reduced-motion:reduce) {body.desk-app .desk-pose-node__progress [data-pose-bar] {animation:none;}}

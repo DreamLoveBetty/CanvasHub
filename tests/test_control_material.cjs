@@ -164,7 +164,8 @@ test('every canvas generate action is covered, including ones without .desk-butt
 test('node push buttons opt in through the style-free .desk-key hook; segments, drop zones and the audio transport do not', () => {
   const src = file => read(`frontend/scripts/${file}`);
   const keyed = {
-    'desktop-canvas-nodes.js': ['data-image-edit ', 'data-image-view-mask', 'data-image-view-prompt', 'data-layout-open', 'data-layout-quick-export', 'data-pose-open', 'data-pose-connect-input'],
+    'desktop-canvas-nodes.js': ['data-image-edit ', 'data-image-view-mask', 'data-image-view-prompt', 'data-layout-open', 'data-layout-quick-export'],
+    'desktop-pose-view.js': ['data-pose-recognize', 'desk-pose-node__editor" data-pose-open'],
     'desktop-canvas-text-editor.js': ['data-text-action="preset"', 'data-text-action="google-polish"', 'data-text-action="gpt-polish"', 'data-text-action="safe-rewrite"', 'data-text-action="clear"'],
     'desktop-topaz-video-view.js': ['data-topaz-video-import', 'data-topaz-video-workbench'],
     'desktop-video-control-view.js': ['data-control-import'],

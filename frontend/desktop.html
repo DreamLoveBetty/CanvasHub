@@ -5,18 +5,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="canvashub-version" content="V26.5.0">
   <title>图像画布</title>
-  <link rel="stylesheet" href="styles/desktop-tokens.css?v=20261019-pinterest-red1">
-  <link rel="stylesheet" href="styles/desktop-liquid.css?v=20261016-liquid-shared2">
+  <link rel="stylesheet" href="styles/desktop-tokens.css?v=20261021-pose-video1">
+  <link rel="stylesheet" href="styles/desktop-liquid.css?v=20261020-pose-rebuild1">
   <link rel="stylesheet" href="styles/desktop-shell-geometry.css?v=20261015-shell-preserve1">
   <link rel="stylesheet" href="styles/desktop-settings-auth-geometry.css?v=20261015-interaction-kept4">
   <link rel="stylesheet" href="styles/desktop-prompt-assistant-geometry.css?v=20261015-interaction-kept4">
   <link rel="stylesheet" href="styles/desktop-canvas-nodes-geometry.css?v=20261015-interaction-kept4">
   <link rel="stylesheet" href="styles/desktop-gallery-geometry.css?v=20261019-pinterest-switch1">
+  <link rel="stylesheet" href="styles/desktop-video.css?v=20261021-video-upload1">
   <link rel="stylesheet" href="styles/desktop-google-web-geometry.css?v=20261023-google-web2">
   <link rel="stylesheet" href="styles/desktop-google-web.css?v=20261023-google-web2">
-  <link rel="stylesheet" href="styles/desktop-video.css?v=20260816-h3-supervisor-buttons1">
   <link rel="stylesheet" href="styles/desktop-layout.css?v=20261014-layout-module1">
-  <link rel="stylesheet" href="styles/desktop-pose.css?v=20260831-status-silk2">
   <link rel="stylesheet" href="styles/desktop-file-results.css?v=20260831-status-silk2">
   <link rel="stylesheet" href="styles/desktop-prompt-library.css?v=20261019-prompt-cards1">
   <link rel="stylesheet" href="styles/desktop-color-bloom.css?v=20261019-color-drag1">
@@ -28,13 +27,16 @@
   <link rel="stylesheet" href="styles/desktop-prompt-assistant.css?v=20260929-prompt-video1">
   <link rel="stylesheet" href="styles/desktop-gallery.css?v=20260827-style-cleanup1">
   <link rel="stylesheet" href="styles/desktop-settings-auth.css?v=20261010-color-bloom1">
-  <link rel="stylesheet" href="styles/desktop-creation-tools.css?v=20260831-status-silk2">
-  <link rel="stylesheet" href="styles/desktop-controls.css?v=20261019-prompt-shell1">
-  <link rel="stylesheet" href="styles/desktop-geometry.css?v=20261019-prompt-shell1">
+  <link rel="stylesheet" href="styles/desktop-creation-tools.css?v=20261021-video-upload1">
+  <link rel="stylesheet" href="styles/desktop-controls.css?v=20261020-pose-rebuild1">
+  <link rel="stylesheet" href="styles/desktop-geometry.css?v=20261020-pose-rebuild1">
   <link rel="stylesheet" href="styles/desktop-motion.css?v=20261017-image-group-tap1">
   <link rel="stylesheet" href="styles/desktop-video-control.css?v=20261011-select-stepper1">
   <link rel="stylesheet" href="styles/desktop-topaz-video.css?v=20261005-topaz-pipeline1">
   <link rel="stylesheet" href="styles/desktop-topaz-video-workbench.css?v=20261006-topaz-panel-polish2">
+  <link rel="stylesheet" href="styles/desktop-pose-node.css?v=20261022-pose-evidence1">
+  <link rel="stylesheet" href="styles/desktop-pose-editor-geometry.css?v=20261022-pose-hands1">
+  <link rel="stylesheet" href="styles/desktop-pose-editor.css?v=20261021-pose-video1">
   <link rel="stylesheet" href="styles/desktop-music.css?v=20261004-state-icons1">
   <link rel="stylesheet" href="styles/desktop-audio.css?v=20261004-node-surfaces1">
   <link rel="stylesheet" href="styles/desktop-performance.css?v=20261017-image-group-picker1">
@@ -1571,6 +1573,7 @@
   </main>
 
   <input id="deskFileInput" type="file" accept="image/*" multiple hidden>
+  <input id="deskVideoFileInput" type="file" accept="video/mp4,video/quicktime,video/webm,.mp4,.m4v,.mov,.webm" hidden>
   <input id="deskWorkflowFileInput" type="file" accept=".tcflow.json,.json,application/json" hidden>
   <div class="desk-layout-editor" id="deskLayoutEditor" aria-hidden="true">
     <div class="desk-layout-topbar">
@@ -1824,7 +1827,7 @@
     <input id="deskLayoutImageInput" type="file" accept="image/*" hidden>
   </div>
 
-  <script src="scripts/desktop-i18n.js?v=20261011-i18n-dedupe1"></script>
+  <script src="scripts/desktop-i18n.js?v=20261021-video-upload1"></script>
   <script src="scripts/auth-api.js?v=20260824-auth-debug-clean1"></script>
   <script src="vendor/fabric.min.js?v=5.3.0"></script>
   <script src="vendor/fabric-eraser.mixin.js?v=20260628-image-editor-pin16"></script>
@@ -1838,7 +1841,7 @@
   <script src="scripts/desktop-control-material.js?v=20261018-panel-keys1"></script>
   <script src="scripts/desktop-settings-drawer.js?v=20261009-settings-drawer2"></script>
   <script src="scripts/desktop-preferences.js?v=20261011-release-26-5-0"></script>
-  <script src="scripts/desktop-select.js?v=20261017-image-group-picker1"></script>
+  <script src="scripts/desktop-select.js?v=20261020-pose-rebuild1"></script>
   <script src="scripts/desktop-number-stepper.js?v=20261011-stepper-panels1"></script>
   <script src="scripts/desktop-tasks.js?v=20260921-task-contract1"></script>
   <script src="scripts/desktop-task-output-adapter.js?v=20260921-task-contract1"></script>
@@ -1877,6 +1880,12 @@
   <script src="scripts/desktop-topaz-video-view.js?v=20261010-node-keys1"></script>
   <script src="scripts/desktop-topaz-video-workbench.js?v=20261011-stepper-panels1"></script>
   <script src="scripts/desktop-canvas-topaz-video.js?v=20261005-topaz-pipeline1"></script>
+  <script src="scripts/desktop-pose-model.js?v=20261022-pose-evidence1"></script>
+  <script src="scripts/desktop-pose-api.js?v=20261021-pose-video3"></script>
+  <script src="scripts/desktop-pose-view.js?v=20261022-pose-evidence1"></script>
+  <script src="scripts/desktop-pose-capture.js?v=20261022-pose-evidence1"></script>
+  <script src="scripts/desktop-pose-sequence.js?v=20261022-pose-hips1"></script>
+  <script src="scripts/desktop-canvas-pose.js?v=20261022-pose-evidence1"></script>
   <script src="scripts/desktop-music-api.js?v=20260921-task-contract1"></script>
   <script src="scripts/desktop-music-model.js?v=20260919-music-status2"></script>
   <script src="scripts/desktop-music-score.js?v=20260919-score-title2"></script>
@@ -1896,20 +1905,20 @@
   <script src="scripts/desktop-canvas-image-group-role-picker.js?v=20261017-image-group-icons1"></script>
   <script src="scripts/desktop-canvas-image-editor-tools.js?v=20260912-canvas-business1"></script>
   <script src="scripts/desktop-canvas-image-editor.js?v=20260912-canvas-business1"></script>
-  <script src="scripts/desktop-canvas-media-import.js?v=20260912-canvas-business1"></script>
+  <script src="scripts/desktop-canvas-media-import.js?v=20261021-video-upload1"></script>
   <script src="scripts/desktop-canvas-references.js?v=20261023-google-web2"></script>
+  <script src="scripts/desktop-canvas-nodes.js?v=20261020-pose-rebuild1"></script>
   <script src="scripts/desktop-google-web-controls.js?v=20261024-google-web-2k-prompt1"></script>
-  <script src="scripts/desktop-canvas-nodes.js?v=20261017-area-control1"></script>
   <script src="scripts/desktop-canvas-model-nodes.js?v=20261023-google-web-labels1"></script>
-  <script src="scripts/desktop-canvas-connections.js?v=20261007-connection-feedback-natural1"></script>
+  <script src="scripts/desktop-canvas-connections.js?v=20261021-pose-video3"></script>
   <script src="scripts/desktop-canvas-connection-feedback.js?v=20261007-connection-arc1"></script>
   <script src="scripts/desktop-canvas-port-interaction.js?v=20261017-image-group-picker1"></script>
   <script src="scripts/desktop-canvas-generation-config.js?v=20261023-google-web2"></script>
   <script src="scripts/desktop-canvas-generation.js?v=20260922-topaz-node5"></script>
   <script src="scripts/desktop-canvas-collision.js?v=20260913-canvas-collision1"></script>
   <script src="scripts/desktop-canvas-lora.js?v=20261002-lora-library3"></script>
-  <script src="scripts/desktop-canvas.js?v=20261017-area-control1"></script>
-  <script type="module" src="scripts/desktop-pose-studio.js?v=20260705-pose-legacy-skeleton1"></script>
+  <script src="scripts/desktop-canvas.js?v=20261021-video-upload1"></script>
+  <script type="module" src="scripts/desktop-pose-editor.js?v=20261023-pose-track-visible1"></script>
   <script src="scripts/desktop-layout-editor.js?v=20260908-layout-fonts2"></script>
   <script src="scripts/desktop-file-results.js?v=20260711-file-board-list3"></script>
   <script src="scripts/desktop-results.js?v=20261007-node-progress4"></script>

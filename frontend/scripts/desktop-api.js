@@ -506,6 +506,29 @@
     return requireApi().json('/api/assets/health');
   }
 
+  // Local video for a canvas video node: raw bytes in, an archive /video/ URL and ffprobe metadata out.
+  async function uploadVideo(file, name) {
+    if (!(file instanceof Blob) || !file.size) throw new Error('视频文件为空');
+    if (file.size > 200 * 1024 * 1024) throw new Error('视频须小于 200 MB');
+    const response = await requireApi().request(`/api/video/upload?name=${encodeURIComponent(name || file.name || 'video.mp4')}`, {
+      method: 'POST',
+      body: file
+    });
+    let payload = {};
+    try { payload = await response.json(); } catch (error) {}
+    if (!response.ok) throw new Error(payload?.error || `HTTP ${response.status}`);
+    return {
+      mediaUrl: String(payload.url || ''),
+      mediaName: String(payload.name || ''),
+      mimeType: String(payload.mime_type || 'video/mp4'),
+      mediaWidth: Number(payload.width || 0),
+      mediaHeight: Number(payload.height || 0),
+      fps: Number(payload.fps || 0),
+      durationSeconds: Number(payload.duration_seconds || 0),
+      fileSize: Number(payload.file_size || 0)
+    };
+  }
+
   function listVideoAssets(options = {}) {
     const params = new URLSearchParams();
     params.set('limit', options.limit || 500);
@@ -1445,6 +1468,7 @@
     deleteAssets,
     getAssetHealth,
     listVideoAssets,
+    uploadVideo,
     listEditableFiles,
     sendEditableFile,
     deleteEditableFile,

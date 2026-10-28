@@ -72,8 +72,7 @@
     if (select.closest('.desk-layout-actions')) return 'layout-actions';
     if (select.closest('.desk-layout-inspector')) return 'layout-inspector';
     if (select.closest('.desk-layout-editor, .desk-layout-create')) return 'layout';
-    if (select.closest('.desk-pose-studio')) return 'pose';
-    if (select.closest('.desk-director-field')) return 'director';
+    if (select.closest('.desk-pose-editor')) return 'pose-editor';
     return 'default';
   }
 

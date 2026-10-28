@@ -851,13 +851,18 @@
     const emptyTitle = nodeStatus === 'failed' ? '视频生成失败' : (busy ? 'MiniMax H3 正在生成' : '视频会出现在这里');
     const emptyHint = nodeStatus === 'failed'
       ? (node.error || '请返回生成节点查看错误')
-      : (busy ? (node.progressText || '任务进度会自动同步') : '连接 MiniMax H3 节点作为输出');
+      : (busy ? (node.progressText || '任务进度会自动同步') : '连接结果或上传视频');
+    // Generating shows the pulsing play mark; otherwise the empty node offers a local upload like the image node.
+    const emptyMark = busy ? '<span aria-hidden="true">▶</span>' : '';
+    const uploadButton = busy
+      ? ''
+      : '<button type="button" class="desk-video-result__upload" data-video-upload title="上传视频（MP4 / MOV / WebM）" aria-label="上传视频"><span aria-hidden="true">+</span></button>';
     return `
       <section class="desk-node desk-node--video ${rawSource ? 'has-video' : 'is-empty'}" data-node-id="${node.id}" data-node-drag-handle aria-label="视频结果节点">
         <div class="desk-video-result__preview">
           ${source
             ? `<video controls preload="metadata" data-node-drag-ignore${poster ? ` poster="${poster}"` : ''} src="${source}"></video>`
-            : `<div class="desk-video-result__empty${busy ? ' is-busy' : ''}"><span aria-hidden="true">▶</span><strong>${escapeHtml(emptyTitle)}</strong><small>${escapeHtml(emptyHint)}</small></div>`}
+            : `<div class="desk-video-result__empty${busy ? ' is-busy' : ''}">${emptyMark}<strong>${escapeHtml(emptyTitle)}</strong><small>${escapeHtml(emptyHint)}</small>${uploadButton}</div>`}
         </div>
         ${rawSource ? `<div class="desk-video-result__meta" title="${escapeHtml(formatVideoDuration(node.durationSeconds))} · ${escapeHtml(dimensions)} · ${Number(node.fps || 24)}fps" aria-label="视频信息：${escapeHtml(formatVideoDuration(node.durationSeconds))}，${escapeHtml(dimensions)}，${Number(node.fps || 24)}fps"><span>${escapeHtml(dimensions)}</span><i></i><span>${Number(node.fps || 24)}fps</span></div>` : ''}
         <button type="button" class="desk-port desk-port--in desk-port--video-result-in" data-port="in" data-node-id="${node.id}" title="连接视频生成输出" aria-label="连接视频输入"></button>

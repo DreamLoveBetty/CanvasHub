@@ -981,6 +981,8 @@
     '可接入背景': 'Background can be connected',
     '空图片节点': 'Empty Image Node',
     '连接结果或上传图片': 'Connect a result or upload an image',
+    '连接结果或上传视频': 'Connect a result or upload a video',
+    '正在上传视频': 'Uploading video',
     '已应用': 'Applied',
     '已导入新背景图': 'Imported new background image',
     '导入中...': 'Importing...',

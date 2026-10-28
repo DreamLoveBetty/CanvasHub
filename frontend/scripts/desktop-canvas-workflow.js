@@ -45,6 +45,7 @@
     qwen21Definition,
     videoControlDefinition,
     topazVideoDefinition,
+    poseDefinition,
     embedAudioAssets,
     clamp,
     dataUrlValue,
@@ -136,6 +137,8 @@
     clean.id = id;
     topazDefinition?.migrate(clean);
     clean.type = normalizeNodeMenuType(clean.type || (id === 'input' ? 'input' : 'image'));
+    // Old Mixamo/Director pose nodes are dropped, not migrated; their edges go with them.
+    if (poseDefinition?.isLegacy(clean)) return null;
     clean.groupId = normalizeNodeGroupId(clean.groupId);
     if (!clean.groupId) delete clean.groupId;
     clean.x = Number.isFinite(Number(clean.x)) ? Number(clean.x) : 56;
@@ -237,6 +240,7 @@
     if (clean.type === qwen21Definition?.TYPE) qwen21Definition.normalize(clean);
     if (clean.type === videoControlDefinition?.TYPE) videoControlDefinition.normalize(clean);
     if (clean.type === topazVideoDefinition?.TYPE) topazVideoDefinition.normalize(clean);
+    if (clean.type === poseDefinition?.TYPE) poseDefinition.normalize(clean);
     if (musicNodeDefinition?.TYPES.includes(clean.type)) musicNodeDefinition.normalizeState(clean);
     if (clean.type === 'video') {
       clean.width = clamp(clean.width, MIN_VIDEO_NODE_WIDTH, MAX_VIDEO_NODE_WIDTH);
@@ -282,6 +286,8 @@
       if (clean) acc[clean.id] = clean;
       return acc;
     }, {});
+    const legacyPoseNodes = Object.values(sourceNodes).filter(node => poseDefinition?.isLegacy(node)).length;
+    if (legacyPoseNodes) window.DesktopResults?.showTransientMessage(`已移除 ${legacyPoseNodes} 个旧版姿态节点，请用新的姿态参考节点重新摆姿势。`);
     if (!nodes.input) {
       nodes.input = { id: 'input', type: 'input', x: 56, y: 72, width: DEFAULT_INPUT_NODE_WIDTH, height: DEFAULT_INPUT_NODE_HEIGHT };
     }

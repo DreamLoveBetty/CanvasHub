@@ -244,9 +244,9 @@ test('self, missing and unknown source types are rejected',()=>{
   for(const type of ['unknown','toString','constructor']){h.canvas.nodes.from.type=type;assert.equal(h.api.canConnectNodes('from','to'),false);assert.equal(h.api.getConnectableNodeMenuItems('from').length,0);}
 });
 const contracts={
-  input:['image','file_output','upscale','output'],comfy:['image','upscale'],video_inference:['video'],video:['video_inference'],
+  input:['image','file_output','upscale','output'],comfy:['image','upscale'],video_inference:['video'],video:['video_inference','pose'],
   image_group:['input','comfy'],output:['image'],image:['input','comfy','video_inference','layout','pose','upscale'],
-  upscale:['image'],layout:['input','comfy','video_inference','upscale'],pose:['input','comfy','video_inference','upscale'],text:['input','comfy','video_inference'],file_output:[]
+  upscale:['image'],layout:['input','comfy','video_inference','upscale'],pose:['input','comfy','video_inference','upscale','video'],text:['input','comfy','video_inference'],file_output:[]
 };
 test('all source/target type pairs share one policy with highlight and magnetic capture',()=>{
   for(const [fromType,targets] of Object.entries(contracts)) for(const toType of Object.keys(contracts)) {

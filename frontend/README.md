@@ -402,7 +402,7 @@ suffix:
 | `image-group-role-picker` | The per-thumbnail morph role picker, opened by a tap on the thumbnail (or Enter/Space on the image): options spring out of the thumbnail centre onto a ring over a goo-filtered blob layer (a vanilla port of liquid-gooey's morph merge), with keyboard, Escape and outside-press closing. | No event binding, persistence or prompt-token updates: the sort gesture reports taps, the host forwards clicks/keys/pointers and commits the role through `onSelect`. The role tag on the thumbnail is display-only model markup. |
 | `image-editor-tools` | Fabric object creation/modification, shapes/arrows/pins/text, selection colors, drawing tools and cursor assets. | Editor sessions, Fabric canvas ownership, history and generation submission. |
 | `image-editor` | Editor modal/session, viewport/zoom, Fabric lifecycle/events, project/history serialization, mask/annotation export and open/save/close behavior. | `submitImageEditor` belongs to `generation`; file/media preparation belongs to `media-import`. |
-| `media-import` | MIME/header/filename checks, image reading, external URL/HTML input, drag/drop/paste, image-node creation/replacement/result feedback and historical/video-asset import. | New upload/generation APIs, reference ordering policy or changes to media authentication. |
+| `media-import` | MIME/header/filename checks, image reading, external URL/HTML input, drag/drop/paste, image-node creation/replacement/result feedback, historical/video-asset import and local video upload into video nodes (`DesktopApi.uploadVideo` → archive `/video/` URL; empty-node `data-video-upload` button, `#deskVideoFileInput`, drops onto an empty video node fill it, elsewhere create nodes). | New upload/generation APIs, reference ordering policy or changes to media authentication. |
 | `references` | Current reference stores, source normalization, connected-reference order, thumbnails, deduplication/limits, history/layout attachments and asset-parameter application. | Prompt-document token semantics and binary/remote file preparation. |
 | `nodes` | Node lifecycle, node palette, non-model node presentation, graph DOM/layout operations, layout/pose inputs and existing migration adapters. | Shared pointer/keyboard dispatch, graph-frame scheduling and model forms. |
 | `model-nodes` | Existing GPT/Google/Comfy/video/file/upscale controls, model catalogs, node templates, form-to-state adapters and media-size presentation. | Task submission/polling/cancellation. |
@@ -1099,6 +1099,28 @@ video-control connection policies without either domain reading the other's priv
 with typed `controlMetadata`. Status is reported through `DesktopResults.reportTaskStatus`;
 its global stop includes video-control tasks. No new music/image state or external Provider UI.
 H3 control-video input stays explicitly gated pending online backend integration.
+
+## Pose reference node (SOMA mannequins, photo / video recognition)
+
+Classic scripts, in this order before `desktop-canvas.js`: `desktop-pose-model.js` (node state, SOMA
+joint table, pose library, bodies, sequence / track / keyframe normalisation, snapshot contract),
+`desktop-pose-api.js` (authenticated `/api/pose/*` and `/api/pose_capture/*`, video export frames),
+`desktop-pose-view.js` (node HTML / paint), `desktop-pose-capture.js` (one recognition job per node:
+upload, submit, poll, cancel, fetch a video's sequence), `desktop-pose-sequence.js` (decoded sequences,
+per-frame character evaluation, the keyframe override layer), `desktop-canvas-pose.js` (controller:
+mounting, recognition, image and video export, publishing the pose video to a connected `video` node).
+The editor is one ES module graph loaded after the canvas: `desktop-pose-editor.js` imports
+`-scene.js` (stage, templates per body, sequence cache, offscreen `renderNode`; `Stage.entries()` gives each figure's character as shown at the current frame, so render passes hide a recognised person outside their track), `-soma-rig.js`
+(per-figure template, posing), `-ik.js`, `-render-passes.js`, `-editor-view.js` and `-timeline.js`
+(transport, scrub track, playback). Canvas injects graph access, `connectedImages` / `connectedVideos`
+and `addNode` / `connectNodes` / `refreshVideoNode`; connections add video → pose (recognition source)
+and pose → video (pose video output). Pose videos are archive files served by `/video/`, so every
+video consumer accepts them. Hands: a character's `hands` per side is a preset (`relaxed` / `grip` / `fist` / `open`) that
+replaces every finger of that hand, including a video's recognised and keyed fingers, or `captured`, which keeps them
+(`model.effectiveRotations`); `handsVersion` marks the semantics so older scenes, where explicit fingers always won,
+read as `captured`, and it is left out of the export key. Recognition options live in `node.capture` (`{evidence}`: the 精修手部 key,
+shown when the engine reports `modes.evidence`), also outside the export key; `DesktopPoseCapture.run(…, {evidence})` sends it for videos only. Styles: `desktop-pose-node.css`, `desktop-pose-editor-geometry.css`,
+`desktop-pose-editor.css`; tokens `--desk-pose-*` live in `desktop-tokens.css`.
 
 ## Topaz Video enhancement node
 
