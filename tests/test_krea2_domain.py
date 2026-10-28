@@ -16,7 +16,7 @@ from unittest import mock
 from PIL import Image
 
 from backend.krea2.contracts import (BASE_REPO, BUILTIN_MODEL_IDS, DEFAULT_MODEL_ID,
-                                     SAFETY_REPO, TASK_TYPE, normalize_job)
+                                     SAFETY_REPO, TASK_TYPE, catalog, normalize_job)
 from backend.krea2.install import prepare_models
 from backend.krea2.lora_store import LoRAStore
 from backend.krea2.model_store import BaseModelStore
@@ -132,6 +132,27 @@ class FakeModelStore:
 
 
 class Krea2Tests(unittest.TestCase):
+    def test_signed_ordinary_lora_scales_preserve_edit_adapter_limits(self):
+        self.assertEqual(catalog()['limits']['lora_scale'], [-20, 20])
+        self.assertEqual(catalog()['limits']['edit_adapter_scale'], [.01, 2])
+        for scale in (-20, -3.25, 0, 20):
+            for edit in (False, True):
+                fields = {'mode': 'edit', 'edit_image_upload_token': 'source',
+                          'edit_adapter_asset_id': 'e' * 64, 'edit_adapter_scale': .95} if edit else {}
+                with self.subTest(scale=scale, edit=edit):
+                    spec = normalize_job({'prompt': 'synthetic slider', **fields,
+                        'loras': [{'asset_id': 'a' * 64, 'scale': scale}]})
+                    self.assertEqual(spec['loras'][0]['scale'], scale)
+                    if edit:
+                        self.assertEqual(spec['edit_adapter_scale'], .95)
+        for scale in (-20.01, 20.01, float('nan'), float('inf')):
+            with self.subTest(scale=scale), self.assertRaises(ValueError):
+                normalize_job({'prompt': 'synthetic slider',
+                    'loras': [{'asset_id': 'a' * 64, 'scale': scale}]})
+        for field in ('edit_adapter_scale', 'control_adapter_scale'):
+            with self.subTest(field=field), self.assertRaises(ValueError):
+                normalize_job({'prompt': 'synthetic slider', field: 20})
+
     def test_contract_normalizes_multi_lora_and_dimensions(self):
         first, second = "a" * 64, "b" * 64
         spec = normalize_job({"prompt": "local image", "width": 768, "height": 1024,

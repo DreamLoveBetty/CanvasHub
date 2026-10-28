@@ -1,5 +1,7 @@
 # Krea 2 · MLX component boundary
 
+Maintenance handoff: [signed ordinary-LoRA strength fix and Identity Edit interaction findings (2026-10-26)](../LORA_STRENGTH_HANDOFF_2026-10-26.md).
+
 This domain integrates the pinned `avlp12/krea2_alis_mlx` revision
 `3d01ab823cfd969298332c2f9540d4cc822c4450` without creating a second Python
 environment.
@@ -165,6 +167,12 @@ The browser stores only content-addressed asset IDs and uploads the connected
 source through the existing authenticated image-upload adapter. The source,
 adapter path and full local configuration never enter workflow state or API
 responses.
+
+Ordinary LoRA strengths accept finite values from **-20 to 20**, including signed
+sliders, in standard, edit and control modes. Canvas input and workflow reload use
+the same normalization; the visible input is updated to the actual bounded value.
+The dedicated Identity Edit adapter remains **0.01–2**, and the dedicated control
+adapter remains **0–2**; neither inherits the ordinary-LoRA slider range.
 
 The implementation intentionally preserves both conditioning paths used by the
 community adapter: grounded Qwen3-VL supplies scene/subject semantics, while

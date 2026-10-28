@@ -26,6 +26,7 @@ TURBO_SHA256 = ADAPTERS["viggle-v021-r128"]["sha256"]
 MAX_IMAGE_UPLOAD = 32 * 1024**2
 MAX_LORA_UPLOAD = 2 * 1024**3
 MAX_LORAS = 4
+LORA_SCALE_MIN, LORA_SCALE_MAX = -20, 20
 TERMINAL = {"succeeded", "succeeded_no_telegram", "failed", "telegram_failed", "canceled", "cancelled"}
 ASPECT_RATIOS = ("1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "9:21", "21:9")
 
@@ -114,7 +115,8 @@ def normalize_job(body):
         if asset in seen:
             raise ValueError("同一 LoRA 不能重复添加")
         seen.add(asset)
-        loras.append({"asset_id": asset, "scale": number(raw.get("scale", 1), "LoRA 强度", 0, 2)})
+        loras.append({"asset_id": asset, "scale": number(raw.get("scale", 1), "LoRA 强度",
+                                                       LORA_SCALE_MIN, LORA_SCALE_MAX)})
     seed = body.get("seed")
     seed = secrets.randbits(32) if seed is None or str(seed).strip() in {"", "random", "-1"} else integer(seed, "Seed", 0, 2**32 - 1)
     ratio = str(body.get("aspect_ratio") or "custom")

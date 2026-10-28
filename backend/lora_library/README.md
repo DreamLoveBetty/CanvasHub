@@ -1,5 +1,7 @@
 # Shared local-first LoRA library
 
+Maintenance handoff: [signed recommendation/generation strength boundaries (2026-10-26)](../LORA_STRENGTH_HANDOFF_2026-10-26.md).
+
 This domain owns descriptive metadata, previews and optional online enrichment.
 It does not own model weights, generation jobs, MLX, conversion or the accelerator
 lease. No new environment, service process or package dependency is required.
@@ -44,6 +46,9 @@ from removing a LoRA from a node or deleting its copied preview.
 Effective fields: **manual > local sidecar/header > remote > filename fallback**.
 Empty trigger words and `none` (confirmed unnecessary) are meaningful manual
 values. Resetting selected manual fields exposes the underlying automatic values.
+`recommended_scale` is descriptive metadata: null or a finite number from -20 to
+20, so signed sliders can document their intended range. It is never automatically
+applied to a node; each engine retains its own generation-strength contract.
 Local `.lora.json`, `.civitai.info` and explicit header trigger fields are read;
 training-tag frequency is never treated as a trigger list. A sibling
 `.preview.png/.jpg/.webp` or `.png/.jpg/.webp` is imported as a local preview.

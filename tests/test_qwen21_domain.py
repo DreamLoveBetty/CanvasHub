@@ -89,6 +89,17 @@ class ContractTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, '重复'): normalize_job({'prompt': 'x', 'loras': loras[:1] * 2})
         with self.assertRaises(ValueError): normalize_job({'prompt': 'x', 'loras': loras + [{'asset_id': 'e'*64}]})
 
+    def test_slider_lora_signed_strength_survives_request_normalization(self):
+        for scale in (-20, -3.25, 0, 1, 20):
+            with self.subTest(scale=scale):
+                spec = normalize_job({'prompt': 'synthetic slider', 'loras': [
+                    {'asset_id': 'a' * 64, 'scale': scale}]})
+                self.assertEqual(spec['loras'][0]['scale'], scale)
+        for scale in (-20.01, 20.01, float('nan'), float('inf'), -float('inf')):
+            with self.subTest(scale=scale), self.assertRaises(ValueError):
+                normalize_job({'prompt': 'synthetic slider', 'loras': [
+                    {'asset_id': 'a' * 64, 'scale': scale}]})
+
     def test_shifted_profiles_and_independent_reference_noise(self):
         for steps in (5,6,7,8,9,12,60):
             sigma = viggle_sigmas(steps, 1024, 1024)

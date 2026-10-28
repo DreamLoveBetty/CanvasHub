@@ -1,5 +1,7 @@
 # Qwen-Image 2.1 · MLX integration boundary
 
+Maintenance handoff: [signed LoRA strength fix and edit-stack investigation (2026-10-26)](../LORA_STRENGTH_HANDOFF_2026-10-26.md).
+
 ## Design and installation order
 
 1. Verify the existing CanvasHub interpreter; prepare an isolated, pinned MFLUX
@@ -152,6 +154,11 @@ Ordinary LoRA names are normalized in the worker to the pinned upstream mapping;
 PEFT/default and known Comfy prefixes are accepted only for supported Qwen targets.
 Alpha/rank is folded into B in a separate cache copy, never into the Base or original
 LoRA. Unsupported targets fail inspection instead of silently being ignored.
+
+Ordinary LoRA strength accepts finite values from **-20 to 20**, including negative
+slider directions. The canvas uses the same range for input and workflow reload,
+and displays the actual bounded value after an edit. This does not change the
+managed Viggle accelerator's fixed strength of 1.
 
 ### Verified on the development Mac
 

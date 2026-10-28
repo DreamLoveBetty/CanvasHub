@@ -24,8 +24,8 @@ def validate_fields(value):
             result[key] = item
         elif key == "recommended_scale":
             if item is not None and (isinstance(item, bool) or not isinstance(item, (int, float))
-                                     or not math.isfinite(item) or not 0 <= item <= 2):
-                raise ValueError("推荐强度须在 0–2 之间")
+                                     or not math.isfinite(item) or not -20 <= item <= 20):
+                raise ValueError("推荐强度须在 -20–20 之间")
             result[key] = item
         else:
             if not isinstance(item, str) or len(item) > (12000 if key == "description" else 1000):

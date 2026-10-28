@@ -20,6 +20,7 @@ TASK_TYPE = "krea2-image"
 MAX_IMAGE_UPLOAD = 32 * 1024 * 1024
 MAX_LORA_UPLOAD = 2 * 1024 * 1024 * 1024
 MAX_LORAS = 4
+LORA_SCALE_MIN, LORA_SCALE_MAX = -20, 20
 TERMINAL = {"succeeded", "succeeded_no_telegram", "failed", "telegram_failed", "canceled"}
 ASPECT_RATIOS = ("1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "9:21", "21:9")
 
@@ -197,7 +198,8 @@ def normalize_job(body):
         if asset_id in seen:
             raise ValueError("同一 LoRA 不能重复添加")
         seen.add(asset_id)
-        loras.append({"asset_id": asset_id, "scale": _number(raw.get("scale", 1), "LoRA 强度", 0, 2)})
+        loras.append({"asset_id": asset_id, "scale": _number(raw.get("scale", 1), "LoRA 强度",
+                                                          LORA_SCALE_MIN, LORA_SCALE_MAX)})
     if edit_adapter_asset_id and edit_adapter_asset_id in seen:
         raise ValueError("编辑 LoRA 不能在普通 LoRA 栈中重复加载")
     if control_adapter_asset_id and control_adapter_asset_id in seen:
@@ -251,7 +253,7 @@ def catalog(models=None):
             "steps": [1, 50],
             "image_count": [1, 4],
             "lora_count": MAX_LORAS,
-            "lora_scale": [0, 2],
+            "lora_scale": [LORA_SCALE_MIN, LORA_SCALE_MAX],
             "edit_adapter_scale": [0.01, 2],
             "reference_strength": [0.01, 20],
             "grounding_px": [0, 2048],

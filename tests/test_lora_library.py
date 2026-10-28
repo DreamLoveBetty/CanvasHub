@@ -246,6 +246,15 @@ class LibraryTests(unittest.TestCase):
             with self.subTest(fields=fields), self.assertRaises(ValueError):
                 validate_fields(fields)
 
+    def test_slider_recommended_strength_round_trips_as_metadata(self):
+        for scale in (-20, -3.25, 0, 20, None):
+            with self.subTest(scale=scale):
+                self.edit({'recommended_scale': scale})
+                self.assertEqual(self.service.detail(self.identity)['recommended_scale'], scale)
+        for scale in (-20.01, 20.01, float('inf'), -float('inf'), True):
+            with self.subTest(scale=scale), self.assertRaises(ValueError):
+                validate_fields({'recommended_scale': scale})
+
     def test_delete_uses_domain_guard_and_keeps_metadata(self):
         def blocked(identity):
             raise RuntimeError("busy")
