@@ -1,7 +1,7 @@
 // Google account settings controller. Owns only Google UI state; API/auth is injected.
 // Load after desktop-api.js and before desktop-settings.js.
 (function () {
-  function create({ request, renderCard, escapeHtml, onRender, onGptSelected }) {
+  function create({ request, renderCard, escapeHtml, onRender, onGptSelected, webSettings = null }) {
     let provider = 'gpt';
     let status = null;
     let busy = false;
@@ -11,11 +11,13 @@
     const button = (action, label, extra = '') => `<button type="button" data-google-pool-action="${action}" ${extra}${busy ? ' disabled' : ''}>${label}</button>`;
 
     function render(gptHtml) {
-      const tabs = `<div class="desk-segment desk-key-bank desk-google-pool-tabs${provider === 'google' ? ' desk-google-pool-tabs--compact' : ''}" role="tablist" aria-label="账号池类型">
+      const tabs = `<div class="desk-segment desk-key-bank desk-google-pool-tabs${webSettings ? ' desk-google-pool-tabs--web' : ''}${provider === 'google' ? ' desk-google-pool-tabs--compact' : ''}" role="tablist" aria-label="账号池类型">
         <button type="button" role="tab" data-google-pool-provider="gpt" aria-selected="${provider === 'gpt'}" class="${provider === 'gpt' ? 'is-active' : ''}">GPT 账号池</button>
         <button type="button" role="tab" data-google-pool-provider="google" aria-selected="${provider === 'google'}" class="${provider === 'google' ? 'is-active' : ''}">Google OAuth</button>
+        ${webSettings ? `<button type="button" role="tab" data-google-pool-provider="web" aria-selected="${provider === 'web'}" class="${provider === 'web' ? 'is-active' : ''}">Gemini Web</button>` : ''}
       </div>`;
       if (provider === 'gpt') return tabs + gptHtml;
+      if (provider === 'web') return tabs + webSettings.render();
       const items = status?.items || [];
       const accounts = items.map(account => {
         const models = (account.models || []).map(model => {
@@ -98,12 +100,14 @@
       const tab = event.target.closest('[data-google-pool-provider]');
       if (tab) {
         event.preventDefault();
-        provider = tab.dataset.googlePoolProvider === 'google' ? 'google' : 'gpt';
+        provider = tab.dataset.googlePoolProvider === 'google' ? 'google' : tab.dataset.googlePoolProvider === 'web' && webSettings ? 'web' : 'gpt';
         onRender();
         if (provider === 'google' && !status && !busy) void run('status');
+        if (provider === 'web') void webSettings.refresh();
         if (provider === 'gpt') onGptSelected();
         return true;
       }
+      if (provider === 'web') return webSettings.handleClick(event);
       const control = event.target.closest('[data-google-pool-action]');
       if (!control) return false;
       event.preventDefault();
@@ -129,7 +133,9 @@
       void run(action, body);
       return true;
     }
-    return { render, handleClick, isGoogle: () => provider === 'google', refresh: () => run('status') };
+    return { render, handleClick,
+      handleChange: event => provider === 'web' && webSettings?.handleChange(event),
+      isGoogle: () => provider !== 'gpt', refresh: () => provider === 'web' ? webSettings.refresh() : run('status') };
   }
   window.DesktopGooglePool = { create };
 })();

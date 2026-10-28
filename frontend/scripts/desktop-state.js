@@ -185,6 +185,10 @@
     return /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(normalized) ? normalized : fallback;
   }
 
+  function normalizeGoogleProviderRoute(value, fallback = 'third_party') {
+    return ['third_party', 'google_pool', 'google_web'].includes(value) ? value : fallback;
+  }
+
   function normalizeGoogleModel(value, fallback = 'gemini-3.1-flash-image') {
     const normalized = String(value || '').trim();
     if (normalized === 'gemini-3-pro-image-preview') return 'gemini-3-pro-image';
@@ -668,6 +672,7 @@
     normalizeRatio,
     normalizeResolution,
     normalizeGoogleModel,
+    normalizeGoogleProviderRoute,
     normalizeGptQuality,
     normalizeModeration,
     normalizePromptMode,

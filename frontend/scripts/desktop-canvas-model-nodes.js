@@ -264,6 +264,7 @@
       const scopes = String(item.dataset.providerParam || '').split(/\s+/).filter(Boolean);
       item.hidden = scopes.length > 0 && !scopes.includes(current);
     });
+    window.DesktopGoogleWebControls?.apply(root, current);
   }
 
     function updateAllProviderParamVisibility() {
@@ -370,7 +371,7 @@
         <div class="desk-param-grid" aria-label="模型参数">
           <label data-provider-param="gpt google"><span>画幅</span><select class="desk-select" data-field="ratio">${ratioOptionsHtml(defaults.ratio || '9:16')}</select></label>
           <label data-provider-param="gpt google"><span>分辨率</span><select class="desk-select" data-field="resolution">${optionListHtml([{ value: '1k', label: '1k' }, { value: '2k', label: '2k' }, { value: '4k', label: '4k' }], defaults.resolution || '2k')}</select></label>
-          <label data-provider-param="google" hidden><span>线路</span><select class="desk-select" data-field="googleProviderRoute">${optionListHtml([{value: 'third_party', label: '第三方 API'}, {value: 'google_pool', label: 'Google OAuth'}], defaults.googleProviderRoute || 'third_party')}</select></label>
+          <label data-provider-param="google" hidden><span>线路</span><select class="desk-select" data-field="googleProviderRoute">${optionListHtml([{value: 'third_party', label: '第三方 API'}, {value: 'google_pool', label: 'Google OAuth'}, {value: 'google_web', label: 'Gemini Web'}], defaults.googleProviderRoute || 'third_party')}</select></label>
           <label data-provider-param="google" hidden><span>模型</span><select class="desk-select" data-field="model">${googleModelOptionsHtml(defaults.model || DEFAULT_GOOGLE_MODEL)}</select></label>
           <label data-provider-param="gpt"><span>质量</span><select class="desk-select" data-field="quality">${optionListHtml([{ value: 'auto', label: 'auto' }, { value: 'low', label: 'low' }, { value: 'medium', label: 'medium' }, { value: 'high', label: 'high' }], defaults.quality || 'auto')}</select></label>
           <label data-provider-param="gpt"><span>数量</span><select class="desk-select" data-field="imageCount">${imageCountOptionsHtml(defaults.imageCount || 2)}</select></label>
@@ -1069,7 +1070,7 @@
         : (state.params.model || DEFAULT_GOOGLE_MODEL);
     }
     const googleRoute = els.deskInputNode?.querySelector('[data-field="googleProviderRoute"]');
-    if (googleRoute) googleRoute.value = state.params.googleProviderRoute === 'google_pool' ? 'google_pool' : 'third_party';
+    if (googleRoute) googleRoute.value = DesktopState.normalizeGoogleProviderRoute(state.params.googleProviderRoute);
     if (els.deskQualitySelect) els.deskQualitySelect.value = state.params.quality;
     if (els.deskCountInput) els.deskCountInput.value = DesktopState.clamp(state.params.imageCount, 1, 8, 2);
     if (els.deskModerationSelect) els.deskModerationSelect.value = state.params.moderation;
@@ -1118,7 +1119,8 @@
     state.params.model = typeof DesktopState.normalizeGoogleModel === 'function'
       ? DesktopState.normalizeGoogleModel(els.deskModelSelect?.value || state.params.model || DEFAULT_GOOGLE_MODEL, DEFAULT_GOOGLE_MODEL)
       : (els.deskModelSelect?.value || state.params.model || DEFAULT_GOOGLE_MODEL);
-    state.params.googleProviderRoute = els.deskInputNode?.querySelector('[data-field="googleProviderRoute"]')?.value === 'google_pool' ? 'google_pool' : 'third_party';
+    state.params.googleProviderRoute = DesktopState.normalizeGoogleProviderRoute(els.deskInputNode?.querySelector('[data-field="googleProviderRoute"]')?.value);
+    window.DesktopGoogleWebControls?.apply(els.deskInputNode, state.provider);
     state.params.quality = DesktopState.normalizeGptQuality(els.deskQualitySelect?.value, 'auto');
     state.params.imageCount = DesktopState.clamp(els.deskCountInput?.value, 1, 8, 1);
     state.params.moderation = DesktopState.normalizeModeration(els.deskModerationSelect?.value, 'auto');
@@ -1188,7 +1190,7 @@
       moderation: DesktopState.normalizeModeration(node.querySelector('[data-field="moderation"]')?.value, 'auto'),
       gptTaskType: taskType,
       gptProviderRoute: route,
-      googleProviderRoute: node.querySelector('[data-field="googleProviderRoute"]')?.value === 'google_pool' ? 'google_pool' : 'third_party',
+      googleProviderRoute: DesktopState.normalizeGoogleProviderRoute(node.querySelector('[data-field="googleProviderRoute"]')?.value),
       useThirdPartyApi: route === 'third_party_image_api',
       gptMainModel: DesktopState.normalizeGptMainModel(node.querySelector('[data-field="gptMainModel"]')?.value, 'gpt-5.5'),
       gptModelsByRoute: routeModels,
@@ -1197,6 +1199,7 @@
       batchMode: !!node.querySelector('[data-field="batchMode"]')?.checked
     };
     nodeState.batchMode = !!nodeState.params.batchMode;
+    window.DesktopGoogleWebControls?.apply(node, nodeState.provider);
     nodeState.output = readOutputControlsFromNode(node, nodeState.output || DesktopState.state.output);
     return nodeState;
   }

@@ -166,16 +166,17 @@
     }
 
     if (provider === 'google') {
-      const googleModel = typeof DesktopState.normalizeGoogleModel === 'function'
+      const googleRoute = DesktopState.normalizeGoogleProviderRoute(params.googleProviderRoute);
+      const googleModel = googleRoute === 'google_web' ? 'gemini-3-pro-image' : typeof DesktopState.normalizeGoogleModel === 'function'
         ? DesktopState.normalizeGoogleModel(params.model)
         : (params.model || 'gemini-3.1-flash-image');
       const body = {
         prompt,
         ratio: DesktopState.normalizeRatio(params.ratio, '1:1'),
-        quality: DesktopState.normalizeResolution(params.resolution, '2k'),
+        quality: googleRoute === 'google_web' ? '2k' : DesktopState.normalizeResolution(params.resolution, '2k'),
         model: googleModel,
         params: {
-          google_provider_route: params.googleProviderRoute === 'google_pool' ? 'google_pool' : 'third_party',
+          google_provider_route: googleRoute,
           archive_enabled: archiveEnabled,
           telegram_enabled: telegramEnabled
         }
@@ -276,7 +277,11 @@
     const outputControls = DesktopState.state.output || {};
     const batchParams = { ...(config.params || {}) };
     if (provider === 'google') {
-      batchParams.google_provider_route = batchParams.googleProviderRoute === 'google_pool' ? 'google_pool' : 'third_party';
+      batchParams.google_provider_route = DesktopState.normalizeGoogleProviderRoute(batchParams.googleProviderRoute);
+      if (batchParams.google_provider_route === 'google_web') {
+        batchParams.model = 'gemini-3-pro-image';
+        batchParams.resolution = '2k';
+      }
     }
     delete batchParams.googleProviderRoute;
     if (batchParams.archiveEnabled == null && batchParams.archive_enabled == null) {
@@ -1377,6 +1382,15 @@
     });
   }
 
+  function googleWeb(action = 'status', body) {
+    if (!['status', 'config', 'accounts-import', 'account-check', 'account-update', 'account-delete', 'account-expand', 'browser-profiles', 'browser-import'].includes(action)) {
+      throw new Error('未知 Web 账号池操作');
+    }
+    return requireApi().json('/api/google-web/' + action, action === 'status' ? {} : {
+      method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body || {})
+    });
+  }
+
   function taskArtifacts(raw) {
     if (Array.isArray(raw.artifacts)) return raw.artifacts;
     if (Array.isArray(raw.tasks)) return raw.tasks.flatMap(taskArtifacts);
@@ -1403,6 +1417,7 @@
     get lora() { return loraLibrary ||= window.DesktopLoRAData.create({ getClient: requireApi }); },
     tasks,
     googlePool,
+    googleWeb,
     submitTaskConfig: originalReceipt(tasks.generation.submit),
     submitBatchConfig: originalReceipt(tasks.batch.submit),
     submitCurrentTask,

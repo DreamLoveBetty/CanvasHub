@@ -110,7 +110,7 @@
         model: typeof DesktopState.normalizeGoogleModel === 'function'
           ? DesktopState.normalizeGoogleModel(node.querySelector('[data-field="model"]')?.value || DEFAULT_GOOGLE_MODEL, DEFAULT_GOOGLE_MODEL)
           : (node.querySelector('[data-field="model"]')?.value || DEFAULT_GOOGLE_MODEL),
-        googleProviderRoute: node.querySelector('[data-field="googleProviderRoute"]')?.value === 'google_pool' ? 'google_pool' : 'third_party',
+        googleProviderRoute: DesktopState.normalizeGoogleProviderRoute(node.querySelector('[data-field="googleProviderRoute"]')?.value),
         quality: node.querySelector('[data-field="quality"]')?.value || 'auto',
         imageCount: node.querySelector('[data-field="imageCount"]')?.value || 1,
         moderation: node.querySelector('[data-field="moderation"]')?.value || 'auto',

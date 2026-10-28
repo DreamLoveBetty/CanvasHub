@@ -130,6 +130,8 @@ class LineageRequestTests(unittest.TestCase):
 const fs = require('node:fs'), vm = require('node:vm'), assert = require('node:assert/strict');
 const ctx = {window: {}, api: {json: async (url, options) => JSON.parse(options.body)},
   DesktopState: {state: {output: {}, params: {}}, normalizeRatio: x => x, normalizeResolution: x => x}};
+vm.runInNewContext(fs.readFileSync(process.argv[3], 'utf8'), ctx);
+ctx.DesktopState = ctx.window.DesktopState;
 vm.runInNewContext(fs.readFileSync(process.argv[1], 'utf8'), ctx);
 vm.runInNewContext(fs.readFileSync(process.argv[2], 'utf8'), ctx);
 (async () => {
@@ -149,6 +151,7 @@ vm.runInNewContext(fs.readFileSync(process.argv[2], 'utf8'), ctx);
             script,
             str(root / "frontend/scripts/desktop-tasks.js"),
             str(root / "frontend/scripts/desktop-api.js"),
+            str(root / "frontend/scripts/desktop-state.js"),
         ], capture_output=True, text=True)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 

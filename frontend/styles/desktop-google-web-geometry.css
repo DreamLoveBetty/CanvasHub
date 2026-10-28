@@ -1,0 +1,16 @@
+.desk-app .desk-google-web { display: grid; gap: 10px; }
+.desk-app .desk-google-pool-tabs--web { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.desk-app .desk-google-web h3, .desk-app .desk-google-web p { margin: 0; }
+.desk-app .desk-google-web-toolbar, .desk-app .desk-google-web-actions,
+.desk-app .desk-google-web-account__head, .desk-app .desk-google-web-account__actions {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap;
+}
+.desk-app .desk-google-web-actions { justify-content: flex-start; }
+.desk-app .desk-google-web-import__body, .desk-app .desk-google-web-browser { display: grid; gap: 8px; padding-top: 8px; }
+.desk-app .desk-google-web-import__body > label { display: grid; gap: 5px; }
+.desk-app .desk-google-web textarea { width: 100%; box-sizing: border-box; min-height: 90px; resize: vertical; }
+.desk-app .desk-google-web-account { display: grid; gap: 7px; padding: 10px 0; }
+.desk-app .desk-google-web-account__head strong { min-width: 0; overflow-wrap: anywhere; }
+.desk-app .desk-google-web-account__actions small { margin-right: auto; }
+.desk-app .desk-google-web-capability { display: flex; align-items: center; min-height: 40px; padding: 0 12px; box-sizing: border-box; }
+.desk-app .desk-google-web-capability[hidden] { display: none; }

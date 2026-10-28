@@ -26,6 +26,10 @@
   const googlePoolSettings = window.DesktopGooglePool.create({
     request: (action, body) => window.DesktopApi.googlePool(action, body),
     renderCard, escapeHtml,
+    webSettings: window.DesktopGoogleWeb.create({
+      request: (action, body) => window.DesktopApi.googleWeb(action, body),
+      escapeHtml, onRender: () => { if (lastDiagnostics) renderDiagnostics(lastDiagnostics); }
+    }),
     onRender: () => { if (lastDiagnostics) renderDiagnostics(lastDiagnostics); },
     onGptSelected: () => loadChatgptPoolAccounts().catch(error => showSettingsFeedback(error, '账号池列表读取失败'))
   });
@@ -2925,6 +2929,7 @@
       updateVideoSupervisorStatusView(lastVideoSupervisorStatus);
     });
     els.deskSettingsBody?.addEventListener('change', event => {
+      if (googlePoolSettings.handleChange(event)) return;
       if (updateProgressPreference(event) || updateControlMaterialPreference(event)) return;
       if (loraSettings?.handleInput?.(event) || qwen21Tools?.handleInput?.(event) || krea2Tools?.handleInput?.(event)) return;
       const systemField = event.target.closest('[data-system-setting-field]');

@@ -442,7 +442,7 @@
         promptMode: DesktopState.normalizePromptMode(firstParam(asset, ['prompt_mode', 'promptMode']), fallbackParams.promptMode || 'smart'),
         gptTaskType: DesktopState.normalizeGptTaskType(firstParam(asset, ['task_type', 'taskType', 'gpt_task_type', 'gptTaskType']), fallbackParams.gptTaskType || 'image'),
         gptProviderRoute,
-        googleProviderRoute: firstParam(asset, ['google_provider_route', 'googleProviderRoute']) === 'google_pool' ? 'google_pool' : 'third_party',
+        googleProviderRoute: DesktopState.normalizeGoogleProviderRoute(firstParam(asset, ['google_provider_route', 'googleProviderRoute'])),
         useThirdPartyApi: gptProviderRoute === 'third_party_image_api',
         gptMainModel: DesktopState.normalizeGptMainModel(firstParam(asset, ['main_model', 'mainModel']), fallbackParams.gptMainModel || 'gpt-5.5'),
         reasoningEffort: DesktopState.normalizeReasoningEffort(firstParam(asset, ['reasoning_effort', 'reasoningEffort']), fallbackParams.reasoningEffort || 'medium'),

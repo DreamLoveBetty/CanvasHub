@@ -1,0 +1,12 @@
+.desk-app .desk-google-web { color: var(--desk-ink); font-size: 12px; }
+.desk-app .desk-google-web p, .desk-app .desk-google-web small { color: var(--desk-muted); line-height: 1.55; overflow-wrap: anywhere; }
+.desk-app .desk-google-web h3 { font-size: 14px; }
+.desk-app .desk-google-web-account { border-top: 1px solid var(--desk-line); }
+.desk-app .desk-google-web button, .desk-app .desk-google-web-file,
+.desk-app .desk-google-web input[type="text"], .desk-app .desk-google-web textarea {
+  color: var(--desk-ink); background: var(--desk-control-bg, transparent); border: 1px solid var(--desk-line); border-radius: 7px; padding: 7px 10px; font: inherit;
+}
+.desk-app .desk-google-web button, .desk-app .desk-google-web summary { cursor: pointer; }
+.desk-app .desk-google-web button:disabled { opacity: .5; cursor: default; }
+.desk-app .desk-google-web .desk-google-web-error { color: var(--desk-red, #b42348); }
+.desk-app .desk-google-web-capability { color: var(--desk-ink); border: 1px solid var(--desk-line); border-radius: 7px; background: var(--desk-control-bg, transparent); font-size: 11px; }

@@ -12,6 +12,8 @@
   <link rel="stylesheet" href="styles/desktop-prompt-assistant-geometry.css?v=20261015-interaction-kept4">
   <link rel="stylesheet" href="styles/desktop-canvas-nodes-geometry.css?v=20261015-interaction-kept4">
   <link rel="stylesheet" href="styles/desktop-gallery-geometry.css?v=20261019-pinterest-switch1">
+  <link rel="stylesheet" href="styles/desktop-google-web-geometry.css?v=20261023-google-web2">
+  <link rel="stylesheet" href="styles/desktop-google-web.css?v=20261023-google-web2">
   <link rel="stylesheet" href="styles/desktop-video.css?v=20260816-h3-supervisor-buttons1">
   <link rel="stylesheet" href="styles/desktop-layout.css?v=20261014-layout-module1">
   <link rel="stylesheet" href="styles/desktop-pose.css?v=20260831-status-silk2">
@@ -478,6 +480,7 @@
             <select class="desk-select" data-field="googleProviderRoute">
               <option value="third_party">第三方 API</option>
               <option value="google_pool">Google OAuth</option>
+              <option value="google_web">Gemini Web</option>
             </select>
           </label>
           <label data-provider-param="google" hidden>
@@ -1825,7 +1828,7 @@
   <script src="scripts/auth-api.js?v=20260824-auth-debug-clean1"></script>
   <script src="vendor/fabric.min.js?v=5.3.0"></script>
   <script src="vendor/fabric-eraser.mixin.js?v=20260628-image-editor-pin16"></script>
-  <script src="scripts/desktop-state.js?v=20260914-google-pool1"></script>
+  <script src="scripts/desktop-state.js?v=20261023-google-web2"></script>
   <script src="scripts/desktop-progress-model.js?v=20261019-color-drag1"></script>
   <script src="scripts/desktop-progress-materials.js?v=20261007-node-progress4"></script>
   <script src="scripts/desktop-progress-renderer.js?v=20261007-node-progress4"></script>
@@ -1846,7 +1849,7 @@
   <script src="scripts/desktop-lora-data.js?v=20261002-lora-library3"></script>
   <script src="scripts/desktop-lora-settings.js?v=20261002-lora-library3"></script>
   <script src="scripts/desktop-lora-view.js?v=20261026-lora-signed20"></script>
-  <script src="scripts/desktop-api.js?v=20261002-lora-library3"></script>
+  <script src="scripts/desktop-api.js?v=20261024-google-web-multi1"></script>
   <script src="scripts/desktop-krea2-control.js?v=20261017-area-control1"></script>
   <script src="scripts/desktop-krea2-model.js?v=20261026-lora-signed20"></script>
   <script src="scripts/desktop-krea2-api.js?v=20260929-krea2-layout-3"></script>
@@ -1884,7 +1887,7 @@
   <script src="scripts/desktop-canvas-port-geometry.js?v=20260911-canvas-port-geometry1"></script>
   <script src="scripts/desktop-canvas-selection.js?v=20261010-marquee-frame1"></script>
   <script src="scripts/desktop-canvas-viewport.js?v=20261009-zoom-style-cost1"></script>
-  <script src="scripts/desktop-canvas-workflow.js?v=20261017-area-control1"></script>
+  <script src="scripts/desktop-canvas-workflow.js?v=20261023-google-web2"></script>
   <script src="scripts/desktop-canvas-prompt-document.js?v=20260912-canvas-business1"></script>
   <script src="scripts/desktop-canvas-text-editor.js?v=20261010-node-keys1"></script>
   <script src="scripts/desktop-canvas-image-group-model.js?v=20261017-image-group-tap1"></script>
@@ -1894,13 +1897,14 @@
   <script src="scripts/desktop-canvas-image-editor-tools.js?v=20260912-canvas-business1"></script>
   <script src="scripts/desktop-canvas-image-editor.js?v=20260912-canvas-business1"></script>
   <script src="scripts/desktop-canvas-media-import.js?v=20260912-canvas-business1"></script>
-  <script src="scripts/desktop-canvas-references.js?v=20260929-prompt-video1"></script>
+  <script src="scripts/desktop-canvas-references.js?v=20261023-google-web2"></script>
+  <script src="scripts/desktop-google-web-controls.js?v=20261024-google-web-2k-prompt1"></script>
   <script src="scripts/desktop-canvas-nodes.js?v=20261017-area-control1"></script>
-  <script src="scripts/desktop-canvas-model-nodes.js?v=20261010-segment-bank1"></script>
+  <script src="scripts/desktop-canvas-model-nodes.js?v=20261023-google-web-labels1"></script>
   <script src="scripts/desktop-canvas-connections.js?v=20261007-connection-feedback-natural1"></script>
   <script src="scripts/desktop-canvas-connection-feedback.js?v=20261007-connection-arc1"></script>
   <script src="scripts/desktop-canvas-port-interaction.js?v=20261017-image-group-picker1"></script>
-  <script src="scripts/desktop-canvas-generation-config.js?v=20260920-reshot2"></script>
+  <script src="scripts/desktop-canvas-generation-config.js?v=20261023-google-web2"></script>
   <script src="scripts/desktop-canvas-generation.js?v=20260922-topaz-node5"></script>
   <script src="scripts/desktop-canvas-collision.js?v=20260913-canvas-collision1"></script>
   <script src="scripts/desktop-canvas-lora.js?v=20261002-lora-library3"></script>
@@ -1915,9 +1919,10 @@
   <script src="scripts/desktop-gallery-prompt-sources.js?v=20261016-gallery-sources1"></script>
   <script src="scripts/desktop-gallery-videos.js?v=20261016-gallery-videos1"></script>
   <script src="scripts/desktop-history.js?v=20261019-pinterest-switch1"></script>
-  <script src="scripts/desktop-google-pool.js?v=20261010-segment-bank1"></script>
+  <script src="scripts/desktop-google-web.js?v=20261024-google-web-multi1"></script>
+  <script src="scripts/desktop-google-pool.js?v=20261023-google-web2"></script>
   <script src="scripts/desktop-settings-search.js?v=20261010-color-bloom1"></script>
-  <script src="scripts/desktop-settings.js?v=20261019-color-drag1"></script>
+  <script src="scripts/desktop-settings.js?v=20261023-google-web2"></script>
   <script src="scripts/desktop-prompt-media.js?v=20260929-prompt-video1"></script>
   <script src="scripts/desktop-prompt-editor.js?v=20260929-prompt-video1"></script>
   <script src="scripts/desktop-prompt-drawer.js?v=20260929-prompt-video1"></script>

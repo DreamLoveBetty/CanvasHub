@@ -110,6 +110,7 @@
     return {
       ...jsonClone(fallback, {}),
       ...jsonClone(source, {}),
+      googleProviderRoute: DesktopState.normalizeGoogleProviderRoute(source.googleProviderRoute ?? source.google_provider_route),
       ratio: DesktopState.normalizeRatio(source.ratio ?? fallback.ratio, '9:16'),
       resolution: DesktopState.normalizeResolution(source.resolution ?? fallback.resolution, '2k'),
       quality: DesktopState.normalizeGptQuality(source.quality ?? fallback.quality, 'auto'),

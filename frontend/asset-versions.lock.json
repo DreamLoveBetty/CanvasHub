@@ -7,8 +7,8 @@
     "sha256": "1dbff0b5cd3abb375618e330d7afc7ad2df38e6616c9de2b13881af8d1e87956"
    },
    "scripts/desktop-api.js": {
-    "v": "20261002-lora-library3",
-    "sha256": "fa0668b56a98514e01e3f4608d5fc9b2c68b116dcbb10a7418a2bf239eedc1b1"
+    "v": "20261024-google-web-multi1",
+    "sha256": "d3bc9d9f380e3a4391c81017191a01173a1fe8ac0272f97ffbf55e7d1c38b5e2"
    },
    "scripts/desktop-audio-assets.js": {
     "v": "20260915-audio-node1",
@@ -43,8 +43,8 @@
     "sha256": "d9bf9d1fb7c89ce9f8485b77b9d72596d7f9dab8162934db85892c78cbf78871"
    },
    "scripts/desktop-canvas-generation-config.js": {
-    "v": "20260920-reshot2",
-    "sha256": "db0fc71562e23563a870a04889b07ae13b2c09e6606b57bc2bccd4bb2e36f950"
+    "v": "20261023-google-web2",
+    "sha256": "50193996cfb260fab3dfe6947ca2ec5eb426689b5ab906577b7dfa71664f97de"
    },
    "scripts/desktop-canvas-generation.js": {
     "v": "20260922-topaz-node5",
@@ -91,8 +91,8 @@
     "sha256": "7e26194677b160126a2e993dd5d0c7ac1b71df6e133404018a9c1c177de03c99"
    },
    "scripts/desktop-canvas-model-nodes.js": {
-    "v": "20261010-segment-bank1",
-    "sha256": "a00b84efac27c55200889e08fb961e4b60663be0197d75510b317e7e82598123"
+    "v": "20261023-google-web-labels1",
+    "sha256": "6004a81dd5a266ebf72ac8e330b68236c5c8db02585644e2521d15127ccb1955"
    },
    "scripts/desktop-canvas-music.js": {
     "v": "20260919-music-status2",
@@ -119,8 +119,8 @@
     "sha256": "fdcf33a926dced630c495475070d3adb567ce4b2017fea1359590e3ca4bccc2b"
    },
    "scripts/desktop-canvas-references.js": {
-    "v": "20260929-prompt-video1",
-    "sha256": "42ac374d71dc337b5f8ed1bbe5689d7aafa7f7f2328fc00af23359cd02fc71d0"
+    "v": "20261023-google-web2",
+    "sha256": "2fb9e431660b8808b0f774ad67cc0903b63e7921d157217f28929daa342517a5"
    },
    "scripts/desktop-canvas-selection.js": {
     "v": "20261010-marquee-frame1",
@@ -147,8 +147,8 @@
     "sha256": "cef023eb2ee2c61842935bfe9564d290730eef24e82711329a185f81863e2604"
    },
    "scripts/desktop-canvas-workflow.js": {
-    "v": "20261017-area-control1",
-    "sha256": "b22e2058f2ce5b8b4a53dd127b241722b2c1b5c8ba03b9ee8d918f847e7914db"
+    "v": "20261023-google-web2",
+    "sha256": "a574cfcb1ac7484ccab0730af19bce9dab6ca63cfb074544cbd908906fd4e694"
    },
    "scripts/desktop-canvas.js": {
     "v": "20261017-area-control1",
@@ -199,8 +199,16 @@
     "sha256": "727e37a85d8d2cb29f5879307ee16df024084f69e85604290e5fc7b57146acf5"
    },
    "scripts/desktop-google-pool.js": {
-    "v": "20261010-segment-bank1",
-    "sha256": "760c34c00b133afbd2af965a0b04ee7e59a8655382f7425a45b0a798625a9523"
+    "v": "20261023-google-web2",
+    "sha256": "06f8b6a595cf20031b118807311fd68c7a6d8b436c3611b43fdafc9c63dc6921"
+   },
+   "scripts/desktop-google-web-controls.js": {
+    "v": "20261024-google-web-2k-prompt1",
+    "sha256": "b725f3da35115430af0439c38410cdca9b373f7064bd06fa0cfe0707b336be4f"
+   },
+   "scripts/desktop-google-web.js": {
+    "v": "20261024-google-web-multi1",
+    "sha256": "b371cf0d697d7a8b2a31c68e91e9cb940bb4466806730ec9ed51db0057e6e274"
    },
    "scripts/desktop-history.js": {
     "v": "20261019-pinterest-switch1",
@@ -347,16 +355,16 @@
     "sha256": "cd644f2ea231956d69a7ece00c274708d08dab2d81ff85e13d433379ce3c5596"
    },
    "scripts/desktop-settings.js": {
-    "v": "20261019-color-drag1",
-    "sha256": "34c90e3e62dc79df7ce0c30136f4f19b54fcf583c61a1c3514325bd8b1ea4a06"
+    "v": "20261023-google-web2",
+    "sha256": "73dad80ab2f3ec7912c570f2ac33ec1f3d37cff4097311fb6c6444c1d1dca7e3"
    },
    "scripts/desktop-state-icon.js": {
     "v": "20261004-state-icons1",
     "sha256": "48f028c3e5ff4c1ca246539806c2dcdb4ba6bd3ee690249426d0db0cc5b00d5a"
    },
    "scripts/desktop-state.js": {
-    "v": "20260914-google-pool1",
-    "sha256": "2a83cc54d8ac5a710ccc276eb23988cce254ff5e8cc4fe7ca1fc06fd2ef5717f"
+    "v": "20261023-google-web2",
+    "sha256": "5e8adb4ea7095097e3adabe212e4e6326f5109c196cb03721eef00a771cfcf85"
    },
    "scripts/desktop-task-output-adapter.js": {
     "v": "20260921-task-contract1",
@@ -469,6 +477,14 @@
    "styles/desktop-geometry.css": {
     "v": "20261019-prompt-shell1",
     "sha256": "138f39d11dbd405e57f2b9a1e4a2e8826a52012774423ff175d8781954194932"
+   },
+   "styles/desktop-google-web-geometry.css": {
+    "v": "20261023-google-web2",
+    "sha256": "e213bc005edc27cc15e95e490378c509387c44c079260f0c985435184510747f"
+   },
+   "styles/desktop-google-web.css": {
+    "v": "20261023-google-web2",
+    "sha256": "72be900aec8cd304718e517c4da85d5cec8d083d4fc3de05c597c17a65417fdb"
    },
    "styles/desktop-image-group-geometry.css": {
     "v": "20261017-image-group-glass1",
