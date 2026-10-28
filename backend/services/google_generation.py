@@ -56,6 +56,7 @@ def process_task(
     update_task_status,
     write_obsidian_prompt_sidecar,
     google_pool_generate=None,
+    google_web_generate=None,
 ):
     """后台线程：处理任务（skill 调用支持 GPT 托底）"""
     def progress_cb(stage=None, progress_text=None, heartbeat=False, **extra):
@@ -72,8 +73,9 @@ def process_task(
 
     run_id = ''
     task_kind = 'google-gen'
-    task_provider = 'google_pool' if (params or {}).get('google_provider_route') == 'google_pool' else 'google'
-    task_route = 'google_pool_gen' if task_provider == 'google_pool' else 'google_gen'
+    task_provider = (params or {}).get('google_provider_route')
+    task_provider = task_provider if task_provider in ('google_pool', 'google_web') else 'google'
+    task_route = task_provider + '_gen' if task_provider in ('google_pool', 'google_web') else 'google_gen'
     try:
         params = dict(params or {})
         params['ratio'] = _effective_image_ratio(prompt, params.get('ratio'), '1:1')
@@ -87,7 +89,7 @@ def process_task(
 
         model = params.get('model', DEFAULT_GOOGLE_IMAGE_MODEL)
         task_kind = 'gpt' if 'gpt' in str(model).lower() else 'google-gen'
-        if task_provider == 'google_pool' and task_kind == 'gpt':
+        if task_provider in ('google_pool', 'google_web') and task_kind == 'gpt':
             raise ValueError('Google OAuth 线路不能调用 GPT 模型')
         task_provider = 'chatgpt_pool' if task_kind == 'gpt' else task_provider
         task_route = 'gpt_pool' if task_kind == 'gpt' else task_route
@@ -226,7 +228,7 @@ def process_task(
         response_meta = {}
         primary_error = None
         try:
-            selected_generate = google_pool_generate if task_provider == "google_pool" else generate_image
+            selected_generate = {"google_pool": google_pool_generate, "google_web": google_web_generate}.get(task_provider, generate_image)
             if not selected_generate: raise RuntimeError("Google OAuth账号池适配器未装配")
             image_data, response_meta = selected_generate(
                 final_prompt,
@@ -236,7 +238,7 @@ def process_task(
                 max_tokens=max_tokens,
                 temperature=temperature,
                 progress_cb=progress_cb,
-                **({"task_id": task_id} if task_provider == "google_pool" else {}),
+                **({"task_id": task_id} if task_provider in ("google_pool", "google_web") else {}),
             )
         except Exception as e:
             primary_error = str(e)
@@ -477,12 +479,14 @@ def process_edit_task(
     update_task_status,
     write_obsidian_prompt_sidecar,
     google_pool_edit=None,
+    google_web_edit=None,
 ):
     """后台线程：处理编辑任务（skill 调用支持 GPT 托底）"""
     run_id = ''
     task_kind = 'google-edit'
-    task_provider = 'google_pool' if (params or {}).get('google_provider_route') == 'google_pool' else 'google'
-    task_route = 'google_pool_edit' if task_provider == 'google_pool' else 'google_edit'
+    task_provider = (params or {}).get('google_provider_route')
+    task_provider = task_provider if task_provider in ('google_pool', 'google_web') else 'google'
+    task_route = task_provider + '_edit' if task_provider in ('google_pool', 'google_web') else 'google_edit'
     try:
         params = dict(params or {})
         params['ratio'] = _effective_image_ratio(prompt, params.get('ratio'), '1:1')
@@ -567,7 +571,7 @@ def process_edit_task(
         response_meta = {}
         primary_error = None
         try:
-            selected_edit = google_pool_edit if task_provider == "google_pool" else edit_image
+            selected_edit = {"google_pool": google_pool_edit, "google_web": google_web_edit}.get(task_provider, edit_image)
             if not selected_edit: raise RuntimeError("Google OAuth账号池适配器未装配")
             image_data, response_meta = selected_edit(
                 prompt,
@@ -578,7 +582,7 @@ def process_edit_task(
                 max_tokens=max_tokens,
                 temperature=temperature,
                 progress_cb=progress_cb,
-                **({"task_id": task_id} if task_provider == "google_pool" else {}),
+                **({"task_id": task_id} if task_provider in ("google_pool", "google_web") else {}),
             )
         except Exception as e:
             primary_error = str(e)
@@ -812,7 +816,7 @@ def _map_quality_to_gpt_resolution(quality):
 
 def _should_fallback_to_gpt(params, primary_error_msg, *, _is_retryable_generation_error):
     """skill 调用时是否触发 GPT 托底"""
-    if (params or {}).get('google_provider_route') == 'google_pool':
+    if (params or {}).get('google_provider_route') in ('google_pool', 'google_web'):
         return False  # Explicit Google OAuth selection never silently routes to GPT.
     caller = str((params or {}).get('caller', 'webapp')).lower()
     if caller != 'skill':

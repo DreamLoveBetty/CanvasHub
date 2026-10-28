@@ -1,0 +1,6 @@
+# Install into the existing account-service environment; no new service process.
+curl-cffi~=0.15.0
+orjson~=3.11.7
+pydantic>=2.12.5,<3
+# Optional on local desktop hosts; used only after an explicit browser import.
+browser-cookie3~=0.20.1

@@ -4,7 +4,7 @@ import json
 from .base import ProtectedRouter
 
 
-def create_router(client):
+def create_router(client, *, domain='google-pool'):
     def handle(handler, action, method):
         try:
             body = None
@@ -31,9 +31,15 @@ def create_router(client):
         'account-update',
         'account-delete',
     ]
-    routes = {('GET', '/api/google-pool/status'): lambda h: handle(h, 'status', 'GET')}
+    if domain == 'google-web':
+        actions = ['config', 'accounts-import', 'account-check', 'account-update',
+                   'account-delete', 'account-expand', 'browser-profiles', 'browser-import']
+    elif domain != 'google-pool':
+        raise ValueError('未知 Google 账号服务')
+    prefix = '/api/' + domain + '/'
+    routes = {('GET', prefix + 'status'): lambda h: handle(h, 'status', 'GET')}
     for action in actions:
-        routes[('POST', '/api/google-pool/' + action)] = lambda h, a=action: handle(
+        routes[('POST', prefix + action)] = lambda h, a=action: handle(
             h, a, 'POST'
         )
     return ProtectedRouter(routes)

@@ -13,6 +13,8 @@ hiddenimports = sorted(set(
     collect_submodules("backend")
     + collect_submodules("sidecars.chatgpt_pool")
     + collect_submodules("sidecars.google_pool")
+    + collect_submodules("sidecars.google_web")
+    + collect_submodules("orjson")
     + ["sidecars.account_service"]
     + collect_submodules("uvicorn")
     + collect_submodules("fastapi")
@@ -30,6 +32,8 @@ hiddenimports = sorted(set(
 ))
 
 datas = collect_data_files("certifi") + collect_data_files("curl_cffi")
+datas += [(str(PROJECT_ROOT / 'sidecars/google_web' / name), 'sidecars/google_web')
+          for name in ('LICENSE.gemini-webapi', 'VENDOR.md', 'requirements.txt')]
 # The optional MLX environment executes this file, not the frozen server binary.
 datas += [(str(PROJECT_ROOT / "backend" / "audio" / "worker.py"), "backend/audio")]
 datas += [(str(PROJECT_ROOT / "backend" / "audio" / "requirements-py314.txt"), "backend/audio")]

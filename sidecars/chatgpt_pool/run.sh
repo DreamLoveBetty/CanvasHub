@@ -47,7 +47,7 @@ PY
 ensure_venv
 
 "$VENV_DIR/bin/python" -m pip install -q --upgrade pip
-"$VENV_DIR/bin/python" -m pip install -q -r "$SIDECAR_DIR/requirements.txt"
+"$VENV_DIR/bin/python" -m pip install -q -r "$SIDECAR_DIR/requirements.txt" -r "$ROOT_DIR/sidecars/google_web/requirements.txt"
 "$VENV_DIR/bin/python" - <<'PY'
 from backend.app_config import get_chatgpt_pool_config
 

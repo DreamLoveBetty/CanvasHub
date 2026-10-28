@@ -17,9 +17,10 @@ RUN pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple
 # Install Python deps (server + sidecar)
 COPY requirements.txt ./
 COPY sidecars/chatgpt_pool/requirements.txt ./sidecar-reqs.txt
+COPY sidecars/google_web/requirements.txt ./google-web-reqs.txt
 RUN pip install --no-cache-dir -r requirements.txt && \
-    pip install --no-cache-dir -r sidecar-reqs.txt && \
-    rm requirements.txt sidecar-reqs.txt
+    pip install --no-cache-dir -r sidecar-reqs.txt -r google-web-reqs.txt && \
+    rm requirements.txt sidecar-reqs.txt google-web-reqs.txt
 
 # Copy source code
 COPY backend/ backend/

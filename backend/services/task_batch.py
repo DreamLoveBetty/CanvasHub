@@ -69,7 +69,7 @@ def _make_batch_task_params(
     incoming_params = incoming_params if isinstance(incoming_params, dict) else {}
     if provider == 'google':
         google_route = incoming_params.get('google_provider_route', 'third_party')
-        if google_route not in ('third_party', 'google_pool'):
+        if google_route not in ('third_party', 'google_pool', 'google_web'):
             raise TaskRetryError('Google 线路无效')
         archive_enabled = _coerce_bool(incoming_params.get('archiveEnabled', incoming_params.get('archive_enabled')), True)
         telegram_enabled = _coerce_bool(incoming_params.get('telegramEnabled', incoming_params.get('telegram_enabled')), True)
@@ -82,6 +82,12 @@ def _make_batch_task_params(
             'telegram_enabled': telegram_enabled,
         }
         params['google_provider_route'] = google_route
+        if google_route == 'google_web':
+            if not incoming_params.get('model'):
+                params['model'] = 'gemini-3-pro-image'
+            if params['model'].removesuffix('-preview') != 'gemini-3-pro-image':
+                raise TaskRetryError('Gemini Web 仅支持网页 Pro 生图模式')
+            params['resolution_mode'] = 'auto'
         if google_route == 'google_pool' and params['model'].removesuffix('-preview') not in (
             'gemini-3-pro-image', 'gemini-3.1-pro-image', 'gemini-3-flash-image', 'gemini-3.1-flash-image'
         ):

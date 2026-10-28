@@ -8,9 +8,12 @@ import requests
 
 
 class GooglePoolClient:
-    def __init__(self, get_transport, session_factory=requests.Session):
+    def __init__(self, get_transport, session_factory=requests.Session, *, domain='google-pool'):
         self.get_transport = get_transport
         self.session_factory = session_factory
+        if domain not in ('google-pool', 'google-web'):
+            raise ValueError('未知 Google 账号服务')
+        self.domain = domain
 
     def connection(self):
         cfg = self.get_transport()
@@ -31,6 +34,9 @@ class GooglePoolClient:
             'account-update',
             'account-delete',
         }
+        if self.domain == 'google-web':
+            allowed = {'status', 'config', 'accounts-import', 'account-check',
+                       'account-update', 'account-delete', 'account-expand', 'browser-profiles', 'browser-import'}
         if action not in allowed:
             raise ValueError('未知 Google 账号池操作')
         base, headers = self.connection()
@@ -39,7 +45,7 @@ class GooglePoolClient:
                 s.trust_env = False
                 with s.request(
                     'GET' if body is None else 'POST',
-                    base + '/api/google-pool/' + action,
+                    base + '/api/' + self.domain + '/' + action,
                     headers=headers,
                     json=body,
                     timeout=(5, 150),

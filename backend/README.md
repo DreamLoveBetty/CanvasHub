@@ -207,3 +207,16 @@ view (`qwen21/vae_runtime.py`) extend that domain without changing shared Base p
 or other local-image domains. Selection and checkpoint identity are snapshotted
 per task; the original MFLUX VAE path remains unchanged. Settings Model Tools uses
 the existing Qwen controller/API, and no new dependency or process is introduced.
+
+## Gemini Web 独立账号池（2026-10-23）
+
+- `sidecars/google_web` owns Web Cookie storage, async sessions, explicit import and
+  round-robin leases inside the existing account-service process. OAuth/GPT pools,
+  their stores and request semantics remain independent.
+- `GooglePoolClient` / `GooglePoolProvider` take an explicit Web domain/route while
+  retaining their original OAuth defaults. The main server only assembles the
+  additional protected management router and injects Web generate/edit callables.
+- `google_provider_route: google_web` travels through the existing generate/edit/
+  batch APIs. `google_generation` still owns daily archives, prompt sidecars and
+  Telegram delivery; explicit Web requests never enter GPT fallback.
+- Full module/API/dependency/lifecycle contracts: `sidecars/google_web/README.md`.

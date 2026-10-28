@@ -79,3 +79,10 @@ downloaded runtime assets, not bundled in the project. Their pinned repositories
 revisions and checksums are recorded by the Qwen installer. They retain their model
 licenses and upstream attribution. Qwen-specific quantization and sigma handling do
 not substitute Krea weights or its quantization recipes.
+
+## Gemini Web runtime
+
+`sidecars/google_web/vendor/gemini_webapi` is derived from
+`vanch007/gemini-banana-pro-skill` commit `921f63a7f27fb1dc1deb2a43146677b0bf49b772`.
+Its GNU AGPL v3 license is preserved at `sidecars/google_web/LICENSE.gemini-webapi`;
+local isolation/no-replay patches are documented in `sidecars/google_web/VENDOR.md`.

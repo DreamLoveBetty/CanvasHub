@@ -36,7 +36,7 @@ def handle_generate(
             return
         incoming_params = data.get('params') if isinstance(data.get('params'), dict) else {}
         requested_route = data.get('google_provider_route', incoming_params.get('google_provider_route', 'third_party'))
-        if requested_route not in ('third_party', 'google_pool'):
+        if requested_route not in ('third_party', 'google_pool', 'google_web'):
             handler.send_json({'error': 'Google线路无效'}, 400)
             return
         prompt = data.get('prompt', '')
@@ -63,6 +63,13 @@ def handle_generate(
                 True,
             ),
         }
+        if requested_route == 'google_web':
+            if not (data.get('model') or incoming_params.get('model')):
+                params['model'] = 'gemini-3-pro-image'
+            if params['model'].removesuffix('-preview') != 'gemini-3-pro-image':
+                handler.send_json({'error': 'Gemini Web 仅支持网页 Pro 生图模式'}, 400)
+                return
+            params['resolution_mode'] = 'auto'
         if requested_route == 'google_pool' and params['model'].removesuffix('-preview') not in (
             'gemini-3-pro-image', 'gemini-3.1-pro-image', 'gemini-3-flash-image', 'gemini-3.1-flash-image'
         ):
@@ -157,7 +164,7 @@ def handle_edit(
             return
         incoming_params = data.get('params') if isinstance(data.get('params'), dict) else {}
         requested_route = data.get('google_provider_route', incoming_params.get('google_provider_route', 'third_party'))
-        if requested_route not in ('third_party', 'google_pool'):
+        if requested_route not in ('third_party', 'google_pool', 'google_web'):
             handler.send_json({'error': 'Google线路无效'}, 400)
             return
         prompt = data.get('prompt', '')
@@ -189,6 +196,13 @@ def handle_edit(
                 True,
             ),
         }
+        if requested_route == 'google_web':
+            if not (data.get('model') or incoming_params.get('model')):
+                params['model'] = 'gemini-3-pro-image'
+            if params['model'].removesuffix('-preview') != 'gemini-3-pro-image':
+                handler.send_json({'error': 'Gemini Web 仅支持网页 Pro 生图模式'}, 400)
+                return
+            params['resolution_mode'] = 'auto'
         if requested_route == 'google_pool' and params['model'].removesuffix('-preview') not in (
             'gemini-3-pro-image', 'gemini-3.1-pro-image', 'gemini-3-flash-image', 'gemini-3.1-flash-image'
         ):

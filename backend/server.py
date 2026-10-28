@@ -2389,6 +2389,11 @@ _google_pool_client = GooglePoolClient(get_chatgpt_pool_config)
 _google_pool_provider = GooglePoolProvider(
     _google_pool_client, is_cancelled=lambda task_id: (get_task(task_id) or {}).get("status") in {"canceled", "cancelled"})
 _GOOGLE_POOL_ROUTES = create_google_pool_router(_google_pool_client)
+_google_web_client = GooglePoolClient(get_chatgpt_pool_config, domain='google-web')
+_google_web_provider = GooglePoolProvider(
+    _google_web_client, route='google_web',
+    is_cancelled=lambda task_id: (get_task(task_id) or {}).get("status") in {"canceled", "cancelled"})
+_GOOGLE_WEB_ROUTES = create_google_pool_router(_google_web_client, domain='google-web')
 _CYIMG_SERVICE = CyimgService(
     get_config=get_cyimg_config, create_task=create_task, get_task=get_task,
     get_all_tasks=get_all_tasks, update_task=update_task, update_task_status=update_task_status,
@@ -2565,6 +2570,8 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
         if _AUDIO_ROUTES.dispatch(self, 'GET', path):
             return
         if _GOOGLE_POOL_ROUTES.dispatch(self, 'GET', path):
+            return
+        if _GOOGLE_WEB_ROUTES.dispatch(self, 'GET', path):
             return
         if _MIGRATED_ROUTES.dispatch(self, 'GET', path):
             return
@@ -2857,6 +2864,8 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
         if _AUDIO_ROUTES.dispatch(self, 'POST', path):
             return
         if _GOOGLE_POOL_ROUTES.dispatch(self, 'POST', path):
+            return
+        if _GOOGLE_WEB_ROUTES.dispatch(self, 'POST', path):
             return
 
         
@@ -4048,7 +4057,7 @@ def process_task(task_id, prompt, params):
         _is_generic_19_fidelity_prompt=_is_generic_19_fidelity_prompt, _map_quality_to_gpt_resolution=_map_quality_to_gpt_resolution, _merge_task_params=_merge_task_params,
         _record_generation_event=_record_generation_event, _result_image_filenames=_result_image_filenames, _should_fallback_to_gpt=_should_fallback_to_gpt,
         _start_generation_audit=_start_generation_audit, _translate_generation_failure=_translate_generation_failure, daily_output_dir=daily_output_dir,
-        generate_image=generate_image, google_pool_generate=_google_pool_provider.generate, generate_image_gpt_pool=generate_image_gpt_pool, os=os,
+        generate_image=generate_image, google_pool_generate=_google_pool_provider.generate, google_web_generate=_google_web_provider.generate, generate_image_gpt_pool=generate_image_gpt_pool, os=os,
         save_image=save_image, save_thumbnail=save_thumbnail, send_status_notification=send_status_notification,
         send_telegram=send_telegram, send_telegram_result=send_telegram_result, time=time,
         update_task_fields=update_task_fields, update_task_status=update_task_status, write_obsidian_prompt_sidecar=write_obsidian_prompt_sidecar,
@@ -4062,7 +4071,7 @@ def process_edit_task(task_id, prompt, images, params):
         _finalize_generation_task=_finalize_generation_task, _is_generic_19_fidelity_prompt=_is_generic_19_fidelity_prompt, _map_quality_to_gpt_resolution=_map_quality_to_gpt_resolution,
         _merge_task_params=_merge_task_params, _record_generation_event=_record_generation_event, _result_image_filenames=_result_image_filenames,
         _should_fallback_to_gpt=_should_fallback_to_gpt, _start_generation_audit=_start_generation_audit, _translate_generation_failure=_translate_generation_failure,
-        daily_output_dir=daily_output_dir, google_pool_edit=_google_pool_provider.edit, generate_image_gpt_pool=generate_image_gpt_pool, json=json,
+        daily_output_dir=daily_output_dir, google_pool_edit=_google_pool_provider.edit, google_web_edit=_google_web_provider.edit, generate_image_gpt_pool=generate_image_gpt_pool, json=json,
         os=os, save_image=save_image, save_thumbnail=save_thumbnail,
         send_status_notification=send_status_notification, send_telegram=send_telegram, send_telegram_result=send_telegram_result,
         time=time, update_task_fields=update_task_fields, update_task_status=update_task_status,

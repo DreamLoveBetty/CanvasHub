@@ -16,9 +16,12 @@ from .image_resolution import build_resolution_metadata
 
 
 class GooglePoolProvider:
-    def __init__(self, client, is_cancelled=lambda _task_id: False):
+    def __init__(self, client, is_cancelled=lambda _task_id: False, *, route='google_pool'):
         self.client = client
         self.is_cancelled = is_cancelled
+        if route not in ('google_pool', 'google_web'):
+            raise ValueError('未知 Google 账号线路')
+        self.route = route
 
     def generate(
         self,
@@ -81,7 +84,7 @@ class GooglePoolProvider:
         }
         base, headers = self.client.connection()
         endpoint = (
-            '/v1beta/models/'
+            ('/api/google-web/models/' if self.route == 'google_web' else '/v1beta/models/')
             + quote(str(model), safe='')
             + ':streamGenerateContent?alt=sse'
         )
@@ -99,6 +102,11 @@ class GooglePoolProvider:
                         if key in info
                     }
                 )
+                if self.route == 'google_web' and info.get('web_image_source') in ('original_rpc', 'preview_fallback'):
+                    route_meta.update({'web_image_source': info['web_image_source'],
+                        'web_original_verified': info['web_image_source'] == 'original_rpc' and info.get('web_original_verified') is True})
+                    if info.get('web_original_error') in ('rpc_missing_context', 'rpc_unavailable', 'download_failed'):
+                        route_meta['web_original_error'] = info['web_original_error']
 
         start = time.monotonic()
         decoder = GeminiImageResponse(on_document=capture_document)
@@ -132,7 +140,7 @@ class GooglePoolProvider:
                         if progress_cb:
                             progress_cb(
                                 stage='calling_api',
-                                progress_text='Google OAuth账号池生成中…',
+                                progress_text='Gemini Web账号池生成中…' if self.route == 'google_web' else 'Google OAuth账号池生成中…',
                                 heartbeat=True,
                             )
                         if decoder.feed(chunk) is not None:
@@ -150,7 +158,7 @@ class GooglePoolProvider:
         metadata.update(
             {
                 'request_endpoint': endpoint,
-                'google_provider_route': 'google_pool',
+                'google_provider_route': self.route,
                 'requested_model': model,
                 'requested_aspect_ratio': aspect_ratio,
                 'aspect_ratio_mismatch': ratio_mismatch,
@@ -160,8 +168,15 @@ class GooglePoolProvider:
             }
         )
         metadata.update(route_meta)
+        warnings = []
+        if self.route == 'google_web' and not metadata.get('web_original_verified'):
+            warnings.append(f'Gemini Web 原图下载未确认，已保留网页返回图片{width}×{height}，可能是预览图；未放大、未重新生成')
         if ratio_mismatch or metadata.get('resolution_mismatch'):
-            metadata['output_size_warning'] = (
-                f'Google返回原图{width}×{height}，与请求{aspect_ratio}/{size}不完全一致；原图已保留，未重新生成'
-            )
+            requested_output = f'{aspect_ratio}/{size}'
+            if self.route == 'google_web':
+                warnings.append(f'网页返回图片{width}×{height}，与提示词请求{requested_output}不完全一致；未放大、未重新生成')
+            else:
+                warnings.append(f'Google返回原图{width}×{height}，与请求{requested_output}不完全一致；原图已保留，未重新生成')
+        if warnings:
+            metadata['output_size_warning'] = '；'.join(warnings)
         return image, metadata
