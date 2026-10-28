@@ -51,7 +51,6 @@ work/
 models/upscale/*.pth
 models/upscale/*.pt
 models/upscale/*.safetensors
-static/pose/mannequin/*.glb
 frontend/thumb/
 frontend/assets/image-editor-icons/*.png
 frontend/assets/image-editor-cursors/*.png

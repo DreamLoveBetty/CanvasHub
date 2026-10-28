@@ -35,6 +35,9 @@ flowchart TD
 | --- | --- | --- |
 | 资产、候选集、历史 | `asset_*_routes`、`history_routes`、`asset_maintenance_routes` | `asset_files`、`asset_delete`、`asset_undo`、`asset_health`、`history_*`、`generation_timing`（统一总用时与本地分段耗时公开契约） |
 | 图片、视频、归档资源 | `media_routes` | `media_lookup`、`image_import`、`archive_sidecars`、`archive_video` |
+| 视频节点本地上传 | `routes/video_upload_routes.py`（`POST /api/video/upload`） | `services/video_upload.py`：文件头识别 MP4/MOV/WebM（≤ 200 MiB）、写入当天归档目录 `video_upload_<时间>_<sha12>.<扩展名>`（同日同内容复用）、ffprobe 读尺寸/帧率/时长，读不出画面即删除；由 `/video/` 提供，资产库归为「导入素材」，下游视频节点按归档视频接受 |
+| 姿态识别多人追踪 | `pose_capture/comotion.py`、`comotion_pose.py`（worker 内） | 可选的 CoMotion：影片人物轨迹（代替 YOLOX + ByteTrack）与 GEM-X 起始姿态（SMPL→SOMA）；固定 `ml-comotion` `04b035a`，模型与 SMPL 逐一校验；需 MPS；`install.py --comotion-only` 补装，`requirements-comotion-py314.txt` 单独校验；状态 `modes.comotion`；失败或没人时退回侦测器 |
+| 姿态识别影像证据 | `pose_capture/evidence.py`（worker 内） | 可选的 SAM 3D Body：手臂深度与手指形状；骨干放 MPS、其余 CPU；固定 sam-3d-body `b5c765a` 与 DINOv3 `6876159a`，权重来自 `nvidia/GEM-X` 固定版本；`install.py --evidence-only` 补装，`requirements-evidence-py314.txt` 单独校验；状态 `modes.evidence` |
 | 排版、字体、成品读取与操作 | `layout_routes`、`editable_routes` | `layout_publish`；沿用原草稿与成品存储 |
 | 鉴权、设置、运行诊断 | `auth_routes`、`system_routes` | `auth_policy`、`system_settings` |
 | 模型与账号管理 | `provider_account_routes` | `provider_accounts` |
@@ -47,6 +50,8 @@ flowchart TD
 | 放大、H3 视频、ComfyUI | `runtime_generation_routes` | `upscale_generation`、`video_generation`、`comfy_workflows`、`comfy_gateway`、`comfy_transport`、`comfy_generation` |
 | Topaz 独立增强节点 | `topaz/routes.py` / 既有任务查询与取消 | `topaz/` 独立参数、服务适配、版本门禁与子进程；`services/image_enhancement` 仅共享归档/任务生命周期，Spandrel 不依赖 Topaz；见 `topaz/README.md` |
 | Topaz Video 独立节点 | `routes/topaz_video_routes.py` | `topaz_video/` 独立模型目录、视频素材、串行任务、进度/取消/结果和本地子进程；不依赖 Gigapixel 图片域、ReShot 视频控制或音频域；见 `topaz_video/README.md` |
+| 姿态识别（GEM-X 精简版） | `routes/pose_capture_routes.py` | `pose_capture/` 固定 GEM-X 源码与模型、常驻 CPU worker（照片识别）、场景转换（重力、机位、地面）、视频识别（`video.py`，CoreML 加速在 `accel.py`）、识别体型 GLB（`bodies.py`）、任务队列；HTTP 进程不导入推理依赖；见 `pose_capture/README.md` |
+| 姿态参考（SOMA 人偶） | `routes/pose_routes.py` | `pose_scene/` 固定 SOMA 与 Anny 资产、安装时子进程生成中性 / 女性 / 男性人偶 GLB、姿态视频 ffmpeg 编码（`video_export.py`，成品进图片归档）、导出图与场景快照存放；不依赖识别、图像 Provider 或其他本地模型；见 `pose_scene/README.md` |
 | 绘栾图像/视频 | `routes/cyimg_routes.py` | `provider_cyimg.py` 对接官方 API 与动态目录；`services/cyimg_generation.py` 校验、任务恢复、轮询、原件归档和 Telegram 投递 |
 | Krea 2 本地图像 | `routes/krea2_routes.py` | `krea2/` 固定源码/模型准备、内容寻址 LoRA、Base 模型目录与离线量化转换、串行队列、共享 `.venv` 子进程与归档；见 `krea2/README.md` |
 | Qwen 2.1 本地图像 | `routes/qwen21_routes.py` | `qwen21/` 独立固定源码/模型、文生图与有序多参考编辑、按版本/秩选择 Viggle 且步数可调、普通 LoRA、Base 转换/发布；共享 `.venv` 与本地加速器租约；见 `qwen21/README.md` |
@@ -155,6 +160,14 @@ is its only HTTP adapter; server assembly injects `APP_DATA_DIR` and its runtime
 state is reused. Audio and ReShot explicitly share the neutral `runtime_resources.local_accelerator`
 lease; their task databases remain separate. Byte-range file responses now live in
 `routes/artifact_response.py`. Installation and validation limits: `video_control/README.md`.
+
+## Independent pose-scene domain (SOMA mannequin)
+
+`pose_scene/` owns the pinned SOMA assets, the numpy GLB writer, the install-time conversion
+subprocess (`py-soma-x` legacy mode, never imported by the HTTP process) and exported pose
+images with their scene snapshot sidecars. `routes/pose_routes.py` is its only HTTP adapter;
+`server.py` injects `APP_DATA_DIR/components/pose-soma` and `APP_DATA_DIR/data/pose`. It replaces
+the old Mixamo/Blender `pose_service.py`. Installation and limits: `pose_scene/README.md`.
 
 ## Independent Topaz Video domain
 

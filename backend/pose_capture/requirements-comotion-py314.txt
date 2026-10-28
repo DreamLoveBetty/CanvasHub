@@ -1,0 +1,11 @@
+# CoMotion multi-person tracking on top of requirements-py314.txt (timm >= 0.9 is pinned there): pure-Python
+# packages its inference path imports. pytest, pluggy and iniconfig are pypose's declared runtime dependencies.
+# scenedetect stays on 0.6.x: CoMotion uses the ContentDetector API that 0.7 changed.
+tensordict==0.15.3
+pyvers==0.2.3
+cloudpickle==3.1.2
+pypose==0.9.5
+pytest==9.1.1
+pluggy==1.7.0
+iniconfig==2.3.1
+scenedetect==0.6.5

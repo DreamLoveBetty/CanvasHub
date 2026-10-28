@@ -115,10 +115,3 @@ def handle_upscale_component_remove(handler, *, remove_upscale_component):
     except Exception as e:
         handler.send_json({"error": str(e)}, 409)
 
-
-def handle_pose_assets_status(handler, *, pose_assets_status):
-    try:
-        handler.send_json(pose_assets_status())
-    except Exception as e:
-        print(f"❌ pose assets status failed: {e}")
-        handler.send_json({"ok": False, "error": str(e)}, 500)

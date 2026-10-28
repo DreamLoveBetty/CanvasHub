@@ -118,19 +118,19 @@ curation and open-source work; here are several repository links.
 | YouMind Nano Banana Pro | `https://github.com/YouMind-OpenLab/awesome-nano-banana-pro-prompts` |
 | DavidWu GPT Image2 Prompts | `https://github.com/davidwuw0811-boop/awesome-gpt-image2-prompts` |
 
-## Optional 3D Assets
+## Optional Pose Mannequin (SOMA)
 
-The public repository does not bundle Director Stage `xbot.glb` / `ybot.glb`
-model files. Without them, the app uses the procedural mannequin fallback.
+The pose reference node uses NVIDIA's SOMA-X body model (Apache-2.0). It is not
+bundled in the repository; install it once into the existing Python 3.14 venv:
 
-To enable the optional GLB mannequins, download the files and place them at:
-
-```text
-static/pose/mannequin/xbot.glb
-static/pose/mannequin/ybot.glb
+```sh
+.venv/bin/python -m backend.pose_scene.install
 ```
 
-See `static/pose/mannequin/README.md` for source links and commands.
+This downloads about 59 MB of pinned SOMA files (including the Anny wrap used for the
+female / male mannequins) from Hugging Face, adds a few
+pinned converter packages without changing existing ones, and generates the
+mannequin GLBs under `components/pose-soma/`. Details: `backend/pose_scene/README.md`.
 
 ## Public Mode
 
@@ -145,6 +145,10 @@ Public mode is disabled by default. To expose the app beyond the local machine:
 Public mode only changes the server bind address. For an internet-facing
 deployment, use HTTPS, a reverse proxy, firewall rules, and Telegram domain
 settings appropriate for your environment.
+
+## Development Handoff
+
+- [LoRA strength fix and Krea2 edit-stack investigation · 2026-10-26](backend/LORA_STRENGTH_HANDOFF_2026-10-26.md): changed files, parameter boundaries, regression coverage, deployment and experiment conclusions.
 
 ## Third-party Notices
 

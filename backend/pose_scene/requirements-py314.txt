@@ -1,0 +1,8 @@
+py-soma-x==0.3.4
+warp-lang==1.18.0
+usd-core==26.8
+cholespy==2.2.0
+rtree==1.4.1
+trimesh==5.1.1
+anny==0.6.1
+roma==1.5.7

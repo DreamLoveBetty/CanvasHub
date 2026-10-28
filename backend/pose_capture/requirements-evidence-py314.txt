@@ -1,0 +1,4 @@
+# Image evidence (SAM 3D Body) on top of requirements-py314.txt: pure-Python packages its inference path imports.
+yacs==0.1.8
+braceexpand==0.1.7
+termcolor==3.3.0

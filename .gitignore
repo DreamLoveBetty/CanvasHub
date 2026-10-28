@@ -60,7 +60,6 @@ models/upscale/*.safetensors
 workflows/*.json
 !workflows/Lumina_2_Upscale.json
 !workflows/sd15_text_to_image.json
-static/pose/mannequin/*.glb
 sidecars/chatgpt_pool/launchd/*.plist
 launchd/*.plist
 # Regression sources and synthetic fixtures may be tracked. Keep local probes
@@ -149,3 +148,9 @@ raglite/
 
 # Local architecture diagrams (kept out of the repository by request)
 diagrams/
+
+# Installed SOMA pose mannequin assets, generated GLBs and receipt; source lives in backend/pose_scene.
+/components/pose-soma/
+
+# Installed GEM-X checkout, recognition models, caches and receipt; source lives in backend/pose_capture.
+/components/pose-capture/

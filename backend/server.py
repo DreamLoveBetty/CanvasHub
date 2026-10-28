@@ -112,6 +112,11 @@ from .audio.runtime import Runtime as AudioRuntime
 from .video_control.service import VideoControlService
 from .video_control.runtime import Runtime as VideoControlRuntime
 from .routes.video_control_routes import create_router as create_video_control_router
+from .pose_scene.service import PoseSceneService
+from .routes.pose_routes import create_router as create_pose_router
+from .pose_capture.service import PoseCaptureService
+from .pose_capture.runtime import Runtime as PoseCaptureRuntime
+from .routes.pose_capture_routes import create_router as create_pose_capture_router
 from .routes.cyimg_routes import create_router as create_cyimg_router
 from .services.cyimg_generation import CyimgService
 from .krea2.runtime import Runtime as Krea2Runtime
@@ -128,6 +133,8 @@ from .runtime_resources import IdleWorkerCoordinator
 from .topaz_video.service import TopazVideoService
 from .topaz_video.runtime import TopazVideoRuntime
 from .routes.topaz_video_routes import create_router as create_topaz_video_router
+from .routes.video_upload_routes import create_router as create_video_upload_router
+from .services.video_upload import VideoUploads
 from .audio.service import AudioService
 from .routes.audio_routes import create_router as create_audio_router
 from .api_client_gpt import send_telegram_result, send_tg_document
@@ -312,7 +319,6 @@ from .thumb_cache import (
     resolve_media_path,
     thumb_url_for_media_url,
 )
-from .pose_service import pose_assets_status
 from .app_updates import get_app_update_status
 from .agent_store import init_agent_store
 from .agent_runtime import (
@@ -2425,14 +2431,23 @@ _LORA_LIBRARY = LoRALibraryService(
     excluded_ids=[item['sha256'] for item in QWEN21_MANAGED_ADAPTERS.values()],
     provider=CivitaiMetadataProvider(APP_DATA_DIR / 'data' / 'lora_library'))
 _LORA_LIBRARY_ROUTES = create_lora_library_router(_LORA_LIBRARY)
+_POSE_SCENE_SERVICE = PoseSceneService(APP_DATA_DIR / 'components' / 'pose-soma', APP_DATA_DIR / 'data' / 'pose',
+                                       output_dir=daily_output_dir)
+_POSE_CAPTURE_SERVICE = PoseCaptureService(
+    APP_DATA_DIR / 'data' / 'pose-capture', PoseCaptureRuntime(APP_DATA_DIR / 'components' / 'pose-capture'),
+    body_assets=_POSE_SCENE_SERVICE.assets_dir)
 _LOCAL_IMAGE_MEMORY = IdleWorkerCoordinator({
-    'krea2': _KREA2_SERVICE.runtime.close, 'qwen21': _QWEN21_SERVICE.runtime.close})
+    'krea2': _KREA2_SERVICE.runtime.close, 'qwen21': _QWEN21_SERVICE.runtime.close,
+    'pose_capture': _POSE_CAPTURE_SERVICE.runtime.close})
 _KREA2_SERVICE.runtime.before_load = lambda: _LOCAL_IMAGE_MEMORY.release_other('krea2')
 _QWEN21_SERVICE.runtime.before_load = lambda: _LOCAL_IMAGE_MEMORY.release_other('qwen21')
 _topaz_runtime.before_load = _LOCAL_IMAGE_MEMORY.release_all
 _VIDEO_CONTROL_ROUTES = create_video_control_router(VideoControlService(
     APP_DATA_DIR / 'data' / 'video-control', VideoControlRuntime(
         APP_DATA_DIR / 'components' / 'reshot', before_load=_LOCAL_IMAGE_MEMORY.release_all)))
+_POSE_ROUTES = create_pose_router(_POSE_SCENE_SERVICE)
+_VIDEO_UPLOAD_ROUTES = create_video_upload_router(VideoUploads(daily_output_dir, _probe_archive_video_metadata))
+_POSE_CAPTURE_ROUTES = create_pose_capture_router(_POSE_CAPTURE_SERVICE)
 _TOPAZ_VIDEO_ROUTES = create_topaz_video_router(TopazVideoService(
     APP_DATA_DIR / 'data' / 'topaz-video', TopazVideoRuntime(
         APP_DATA_DIR / 'components' / 'topaz-video', before_load=_LOCAL_IMAGE_MEMORY.release_all)))
@@ -2556,6 +2571,10 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
             return
 
         if _VIDEO_CONTROL_ROUTES.dispatch(self, 'GET', path):
+            return
+        if _POSE_ROUTES.dispatch(self, 'GET', path):
+            return
+        if _POSE_CAPTURE_ROUTES.dispatch(self, 'GET', path):
             return
         if _CYIMG_ROUTES.dispatch(self, 'GET', path):
             return
@@ -2806,10 +2825,6 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
             if not self.require_auth():
                 return
             self.handle_layout_draft_get(parsed)
-        elif path == '/api/pose/assets/status':
-            if not self.require_auth():
-                return
-            self.handle_pose_assets_status()
         else:
             # 静态文件服务
             super().do_GET()
@@ -2850,6 +2865,12 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
         parsed = urllib.parse.urlparse(self.path)
         path = parsed.path
         if _VIDEO_CONTROL_ROUTES.dispatch(self, 'POST', path):
+            return
+        if _POSE_ROUTES.dispatch(self, 'POST', path):
+            return
+        if _VIDEO_UPLOAD_ROUTES.dispatch(self, 'POST', path):
+            return
+        if _POSE_CAPTURE_ROUTES.dispatch(self, 'POST', path):
             return
         if _CYIMG_ROUTES.dispatch(self, 'POST', path):
             return
@@ -3235,9 +3256,6 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
     def handle_desktop_workflow_save(self):
         """Save a desktop workflow JSON file (.tcflow.json or .json) to a local path."""
         return _domain_routes_agent_routes.handle_desktop_workflow_save(self, Path=Path, _coerce_bool=_coerce_bool, json=json, os=os, uuid=uuid)
-
-    def handle_pose_assets_status(self):
-        return _domain_routes_system_routes.handle_pose_assets_status(self, pose_assets_status=pose_assets_status)
 
     def handle_layout_fonts(self):
         """Compatibility entrypoint; resolve the font directory per request."""

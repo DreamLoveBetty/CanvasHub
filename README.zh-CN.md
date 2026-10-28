@@ -114,18 +114,15 @@ tasks.db
 | YouMind Nano Banana Pro | `https://github.com/YouMind-OpenLab/awesome-nano-banana-pro-prompts` |
 | DavidWu GPT Image2 Prompts | `https://github.com/davidwuw0811-boop/awesome-gpt-image2-prompts` |
 
-## 可选 3D 资产
+## 可选姿态人偶（SOMA）
 
-公开仓库不内置 Director Stage 的 `xbot.glb` / `ybot.glb` 模型文件。缺少这些文件时，应用会使用程序化人体模型作为 fallback。
+姿态参考节点使用 NVIDIA SOMA-X 人体模型（Apache-2.0）。仓库不内置，在现有 Python 3.14 虚拟环境中安装一次：
 
-如需启用可选 GLB 人体模型，请下载文件并放到：
-
-```text
-static/pose/mannequin/xbot.glb
-static/pose/mannequin/ybot.glb
+```sh
+.venv/bin/python -m backend.pose_scene.install
 ```
 
-来源链接和命令见 `static/pose/mannequin/README.md`。
+会从 Hugging Face 下载约 59 MB 的固定版本 SOMA 文件（含女性 / 男性人偶用的 Anny 包装网格），新增少量固定版本的转换依赖（不改动已有包），并在 `components/pose-soma/` 生成中性 / 女性 / 男性人偶 GLB。详见 `backend/pose_scene/README.md`。
 
 ## 公网模式
 
@@ -138,6 +135,10 @@ static/pose/mannequin/ybot.glb
 5. 保存并重启 Python 服务。
 
 公网模式只改变服务绑定地址。面向互联网部署时，请自行配置 HTTPS、反向代理、防火墙规则以及 Telegram 域名设置。
+
+## 开发交接
+
+- [LoRA 强度修复与 Krea2 编辑叠加诊断 · 2026-10-26](backend/LORA_STRENGTH_HANDOFF_2026-10-26.md)：修改文件、参数边界、回归覆盖、部署状态和对照结论，供后续 agent 接手。
 
 ## 第三方通知
 
