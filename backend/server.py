@@ -343,6 +343,7 @@ from .video_runtime import (
 
 from .services import asset_files as _domain_services_asset_files
 from .services.task_duration_estimate import TaskDurationEstimator
+from .services.cloud_task_progress import progress_stage as _cloud_progress_stage
 from .routes import asset_maintenance_routes as _domain_routes_asset_maintenance_routes
 
 from .services import media_lookup as _domain_services_media_lookup
@@ -597,6 +598,10 @@ def _status_response_task(task):
     estimate = _task_duration_estimator.estimate_seconds(task)
     if estimate:
         task['estimated_duration_seconds'] = estimate
+    stage = _cloud_progress_stage(task)
+    if stage:
+        task.update(progress_stage_index=stage['stage_index'], progress_stage_count=stage['stage_count'],
+                    progress_stage_label=stage['stage_label'], progress_stage_kind=stage['stage_kind'])
     return task
 
 
