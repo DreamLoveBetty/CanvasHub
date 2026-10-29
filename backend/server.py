@@ -94,7 +94,7 @@ from .app_config import (
     save_app_settings,
     update_app_settings_section,
 )
-from .database import init_db, create_task, update_task, update_task_status, update_task_fields, get_task, get_all_tasks, delete_task, restore_task_snapshot, fail_stale_processing_tasks
+from .database import init_db, create_task, update_task, update_task_status, update_task_fields, get_task, get_all_tasks, delete_task, restore_task_snapshot, fail_stale_processing_tasks, recent_task_durations
 from .generation_tracking import (
     finish_generation_run,
     get_generation_events,
@@ -342,6 +342,7 @@ from .video_runtime import (
 )
 
 from .services import asset_files as _domain_services_asset_files
+from .services.task_duration_estimate import TaskDurationEstimator
 from .routes import asset_maintenance_routes as _domain_routes_asset_maintenance_routes
 
 from .services import media_lookup as _domain_services_media_lookup
@@ -584,12 +585,18 @@ def _finalize_generation_task(
     )
 
 
+_task_duration_estimator = TaskDurationEstimator(recent_task_durations)
+
+
 def _status_response_task(task):
     task = _domain_services_task_tracking._status_response_task(
         task, H3_VIDEO_TASK_TYPE=H3_VIDEO_TASK_TYPE, _history_task_result_files=_history_task_result_files,
         _public_h3_task_params=_public_h3_task_params, safe_basename=safe_basename, urllib=urllib,
     )
     task.setdefault('progress', 100 if task.get('status') in ('succeeded', 'success', 'failed', 'telegram_failed', 'canceled') else 0)
+    estimate = _task_duration_estimator.estimate_seconds(task)
+    if estimate:
+        task['estimated_duration_seconds'] = estimate
     return task
 
 

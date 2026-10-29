@@ -402,6 +402,25 @@ def get_all_tasks(limit=50, offset=0):
         return tasks
 
 
+def recent_task_durations(task_type, limit=200):
+    """Recent successful runs of one task type as (params, seconds), newest first."""
+    with get_db() as conn:
+        rows = conn.execute(
+            "SELECT params, finished_at - started_at AS seconds FROM tasks "
+            "WHERE type=? AND status LIKE 'succeeded%' AND started_at > 0 AND finished_at > started_at "
+            "ORDER BY created_at DESC LIMIT ?",
+            (task_type, limit),
+        ).fetchall()
+    result = []
+    for row in rows:
+        try:
+            params = json.loads(row['params']) if row['params'] else {}
+        except ValueError:
+            params = {}
+        result.append((params if isinstance(params, dict) else {}, float(row['seconds'])))
+    return result
+
+
 def delete_task(task_id):
     """按 task_id 删除单条任务"""
     with get_db() as conn:
