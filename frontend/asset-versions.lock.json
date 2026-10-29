@@ -155,8 +155,8 @@
     "sha256": "40c9f288d68ff173466a67c991048df5ed25114297f570fb15c28b972e205214"
    },
    "scripts/desktop-canvas.js": {
-    "v": "20261021-video-upload1",
-    "sha256": "8027ad87e3be5187aa0588929b5da1e602e1ed709a2409c76cf37471ffa55744"
+    "v": "20261029-image-role-style1",
+    "sha256": "299127af9881f593d7586f1c1bd6c84f9e1cf4df623388a1d22582362d67faf1"
    },
    "scripts/desktop-color-bloom.js": {
     "v": "20261019-color-drag1",
