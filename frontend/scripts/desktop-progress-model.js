@@ -235,6 +235,14 @@ function knownPercent(value) {
   const number = Number(value);
   return Number.isFinite(number) ? clamp(number, 0, 100) : null;
 }
+// Cloud APIs report no progress; map elapsed time against the server's history-based
+// estimate. Reaches 90% at the estimate, then creeps toward 95% and never claims done.
+function estimatedPercent(estimateSeconds, startedAt, now = Date.now()) {
+  const total = Number(estimateSeconds) * 1000, start = epochMs(startedAt);
+  if (!(total > 0) || !start) return null;
+  const ratio = Math.max(0, now - start) / total;
+  return ratio <= 1 ? ratio * 90 : 95 - 5 * Math.exp(-(ratio - 1) * 2);
+}
 function formatElapsed(ms) {
   if (!Number.isFinite(ms) || ms < 0) return '00:00';
   const seconds = Math.floor(ms / 1000), hours = Math.floor(seconds / 3600);
@@ -264,7 +272,7 @@ window.DesktopProgressModel = Object.freeze({
   clamp, normalizeProgress, LiquidMotion, FlowMotion, sampleFront,
   normalizeFillColor, FillTint, ORIGINAL_FILL_TINT, classicFillGradient,
   PROGRESS_STYLES, PROGRESS_HEIGHTS, normalizePreferences, epochMs,
-  knownPercent, formatElapsed, normalizeDisplay, elapsedLabel,
+  knownPercent, estimatedPercent, formatElapsed, normalizeDisplay, elapsedLabel,
 });
 
 })();

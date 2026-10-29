@@ -125,7 +125,8 @@
       set(entry.time, elapsed === '—' ? '用时 —' : `已用时 ${elapsed}`);
       set(entry.value, d.valueLabel || (d.percent === null ? '处理中' : `${Math.round(d.percent)}%`));
       entry.track.title = [d.title, d.detail, `已用时 ${elapsed}`].filter(Boolean).join(' · ');
-      // Unknown and stage-local progress retain their meaning; never invent ETA/percent.
+      // Unknown progress stays indeterminate; the renderer never invents a percent. Callers pass
+      // history-based estimates with an explicit "约" valueLabel.
       if (entry.track.getAttribute('role') === 'progressbar') {
         entry.track.setAttribute('aria-label', d.title);
         entry.track.setAttribute('aria-valuetext', [entry.value.textContent, d.detail].filter(Boolean).join(' · '));

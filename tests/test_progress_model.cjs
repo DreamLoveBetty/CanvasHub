@@ -25,6 +25,16 @@ test('real receipt values include zero and one percent, never guessed stages/NaN
   assert.equal(d.percent,null);assert.equal(M.elapsedLabel(d,1e12),'—');
   assert.equal(M.normalizeDisplay({visible:false,running:true}).running,false);
 });
+test('history estimate reaches 90% at the expected time and never claims completion', () => {
+  const start=1790910000, at=s=>(start+s)*1000;
+  for (const input of [[0,start],[null,start],[60,0],[-1,start]]) assert.equal(M.estimatedPercent(input[0],input[1],at(10)),null);
+  assert.equal(M.estimatedPercent(60,start,at(0)),0);
+  assert.equal(M.estimatedPercent(60,start,at(30)),45);
+  assert.equal(M.estimatedPercent(60,start*1000,at(60)),90);
+  const late=M.estimatedPercent(60,start,at(600));
+  assert.ok(late>94 && late<95);
+  assert.ok(M.estimatedPercent(60,start,at(90))>90);
+});
 test('elapsed uses authoritative seconds or milliseconds and survives repeated identical receipts', () => {
   const epoch=1790910750;
   for(const startedAt of [epoch, epoch*1000]) {

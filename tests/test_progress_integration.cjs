@@ -77,7 +77,10 @@ test('common results and MLX/Cyimg adapters use task receipts, not the legacy es
   const source=read(name);assert.match(source,/progressView\?\.update\(progress/);
   assert.match(source,/task\?\.progress\?\?null/);assert.match(source,/progressView\?\.releaseWithin\(s\.el\)/);
  }
- const results=read('desktop-results');assert.match(results,/percent: task\?\.progress \?\? task\?\.progress_percent \?\? task\?\.progressPercent \?\? null/);
+ const results=read('desktop-results');assert.match(results,/const reported = Number\(task\?\.progress \?\? task\?\.progress_percent \?\? task\?\.progressPercent\)/);
+ // Real receipts win; the history estimate is used only without one and is labelled "约".
+ assert.match(results,/reported > 0 \? null\s*: window\.DesktopProgressModel\?\.estimatedPercent\?\.\(task\?\.estimated_duration_seconds/);
+ assert.match(results,/valueLabel: estimated == null \? '' : `约 \$\{Math\.round\(estimated\)\}%`/);
  assert.match(results,/materialRoot = resultNode\.querySelector\('\[data-input-material-progress\]'\)/);
  assert.match(read('desktop-canvas-model-nodes'),/progressView\?\.replaceRoot/);
 });

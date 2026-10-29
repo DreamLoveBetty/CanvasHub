@@ -311,8 +311,8 @@
     "sha256": "093fe57bd573c484f12ca4218000142c7dced916092bab57b7a2dad7c2b16fdd"
    },
    "scripts/desktop-progress-model.js": {
-    "v": "20261019-color-drag1",
-    "sha256": "04f03214df16a7879863c9c3a1fc8608766bf513e9307b63ac6bc6c83a2e78e4"
+    "v": "20261029-cloud-estimate1",
+    "sha256": "7a5684c97759919b076740a910b608ca2399fe6230e7e5b8ae5a5c91f2e5b224"
    },
    "scripts/desktop-progress-preview.js": {
     "v": "20261011-progress-preview1",
@@ -323,8 +323,8 @@
     "sha256": "f107a1c7ee4bc34b68f7ddf255bbd00ab4d9680a00ba1e65d95427329929e253"
    },
    "scripts/desktop-progress.js": {
-    "v": "20261019-color-drag1",
-    "sha256": "c8e0136be5bde956dd3c935d0d7e4b9c5bd1dc86009fcb9f250a076603f54166"
+    "v": "20261029-cloud-estimate1",
+    "sha256": "5bceeb0260f69dabf9f907ab8ae8868435e59da4d5903bea668f3b9613fb7ca6"
    },
    "scripts/desktop-prompt-agent.js": {
     "v": "20260929-prompt-video1",
@@ -363,8 +363,8 @@
     "sha256": "00bcf41ac9ff41be853543d905f492719605476ec2a2443f6fd12dc237e36ac1"
    },
    "scripts/desktop-results.js": {
-    "v": "20261007-node-progress4",
-    "sha256": "62bccc10e68b304ae9345dc3c5411b609c348171fef39156c7373c99883a4f86"
+    "v": "20261029-cloud-estimate1",
+    "sha256": "c1669c6d02be17b79287df84b4930eb9d07c92fe86eae88de0bc09ef92151dd0"
    },
    "scripts/desktop-select.js": {
     "v": "20261020-pose-rebuild1",
