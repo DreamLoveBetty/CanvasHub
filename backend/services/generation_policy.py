@@ -284,9 +284,11 @@ def _coerce_google_quality(value, default='2k'):
 
 def _coerce_google_edit_quality(value):
     quality = str(value or 'hd').strip().lower()
-    if quality in ('1k', 'standard', 'normal'):
-        return 'standard'
-    return 'hd' if quality in ('2k', '4k', 'hd') else 'hd'
+    if quality in ('1k', '2k'):
+        return quality
+    if quality in ('standard', 'normal'):
+        return 'standard'  # Legacy mobile tier; providers render it at 2K.
+    return 'hd'
 
 
 def _coerce_model(value, default):
