@@ -5,7 +5,7 @@
     const field = (key, label, value, choices) => `<label>${label}${choices ? `<select data-control-field="${key}">${choices.map(([v,t]) => `<option value="${v}" ${String(v) === String(value) ? 'selected' : ''}>${t}</option>`).join('')}</select>` : `<input type="number" data-control-field="${key}" value="${value}">`}</label>`;
     function html(node) {
       return `<section class="desk-node desk-node--video-control" data-node-id="${e(node.id)}" data-node-drag-handle aria-label="ReShot 视频控制">
-      <header class="desk-video-control__header"><span class="desk-video-control__icon">${model.ICON}</span><div><strong>ReShot 视频控制</strong><small>VIDEO CONTROL</small></div><span class="desk-status-pill" data-control-status>就绪</span><button type="button" class="desk-node-delete" data-node-delete aria-label="删除视频控制节点">删</button></header>
+      <header class="desk-video-control__header"><span class="desk-video-control__icon">${model.ICON}</span><div><strong>ReShot 视频控制</strong><small>深度 · 姿态 · 边缘</small></div><span class="desk-status-pill" data-control-status>就绪</span><button type="button" class="desk-node-delete" data-node-delete aria-label="删除视频控制节点" title="删除视频控制节点"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16"></path><path d="M9 7V4h6v3"></path><path d="m7 7 1 13h8l1-13"></path><path d="M10 11v5M14 11v5"></path></svg></button></header>
       <div class="desk-video-control__body" data-node-drag-ignore>
         <div class="desk-video-control__grid">
           ${field('control','处理模式',node.control,[['depth','深度 · Depth'],['pose','姿态 · Pose'],['canny','边缘 · Canny']])}

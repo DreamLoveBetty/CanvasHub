@@ -579,7 +579,7 @@
             <h2>图文版面</h2>
           </div>
           <div class="desk-node-tools">
-            <button type="button" class="desk-node-delete" data-node-delete title="删除节点" aria-label="删除节点">删</button>
+            <button type="button" class="desk-node-delete" data-node-delete title="删除节点" aria-label="删除节点"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16"></path><path d="M9 7V4h6v3"></path><path d="m7 7 1 13h8l1-13"></path><path d="M10 11v5M14 11v5"></path></svg></button>
           </div>
         </div>
         <button type="button" class="desk-port desk-port--in desk-port--layout-in" data-port="in" data-node-id="${node.id}" title="连接图片节点到排版" aria-label="连接图片输入"></button>

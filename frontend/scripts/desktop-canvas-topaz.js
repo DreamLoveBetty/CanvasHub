@@ -50,7 +50,7 @@
     function nodeHtml(node) {
       M.normalize(node);
       return `<section class="desk-node desk-node--topaz desk-glass" data-node-id="${esc(node.id)}" aria-label="Topaz Gigapixel 节点">
-        <header class="desk-topaz__header" data-node-drag-handle><span class="desk-topaz__icon">${M.ICON}</span><div><strong>Topaz Gigapixel</strong><small>IMAGE ENHANCEMENT · LOCAL</small></div><span class="desk-status-pill" data-output-status>就绪</span><button class="desk-node-delete" data-node-delete aria-label="删除节点">删</button></header>
+        <header class="desk-topaz__header" data-node-drag-handle><span class="desk-topaz__icon">${M.ICON}</span><div><strong>Topaz Gigapixel</strong><small>图像增强 · 本地</small></div><span class="desk-status-pill" data-output-status>就绪</span><button class="desk-node-delete" data-node-delete aria-label="删除节点" title="删除节点"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16"></path><path d="M9 7V4h6v3"></path><path d="m7 7 1 13h8l1-13"></path><path d="M10 11v5M14 11v5"></path></svg></button></header>
         <button class="desk-port desk-port--in" data-port="in" data-node-id="${esc(node.id)}" aria-label="连接图片输入"></button>
         <button class="desk-port desk-port--out" data-port="out" data-node-id="${esc(node.id)}" aria-label="连接增强结果"></button>
         <div class="desk-topaz__fields">${fields(node)}</div><small class="desk-topaz__availability" data-topaz-availability></small>

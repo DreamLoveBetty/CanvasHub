@@ -28,7 +28,7 @@
     }
     function html(node) {
       return `<section class="desk-node desk-node--topaz-video" data-node-id="${esc(node.id)}" aria-label="Topaz 视频增强节点">
-        <header class="desk-topaz-video__header" data-node-drag-handle><span class="desk-topaz-video__icon">${model.ICON}</span><div><strong>Topaz 视频增强</strong><small>VIDEO ENHANCEMENT · LOCAL</small></div><span class="desk-status-pill" data-topaz-video-status>检测中</span><button type="button" class="desk-node-delete" data-node-delete aria-label="删除视频增强节点">删</button></header>
+        <header class="desk-topaz-video__header" data-node-drag-handle><span class="desk-topaz-video__icon">${model.ICON}</span><div><strong>Topaz 视频增强</strong><small>视频增强 · 本地</small></div><span class="desk-status-pill" data-topaz-video-status>检测中</span><button type="button" class="desk-node-delete" data-node-delete aria-label="删除视频增强节点" title="删除视频增强节点"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16"></path><path d="M9 7V4h6v3"></path><path d="m7 7 1 13h8l1-13"></path><path d="M10 11v5M14 11v5"></path></svg></button></header>
         <button type="button" class="desk-port desk-port--in" data-port="in" data-node-id="${esc(node.id)}" aria-label="连接视频输入"></button>
         <button type="button" class="desk-port desk-port--out" data-port="out" data-node-id="${esc(node.id)}" aria-label="连接增强视频"></button>
         <div class="desk-topaz-video__body" data-node-drag-ignore>

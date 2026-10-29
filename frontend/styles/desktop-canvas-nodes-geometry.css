@@ -14,8 +14,28 @@
  * are the original ones.
  */
 
-:where(body.desk-app[data-theme]) .desk-node--input .desk-generation-action {
-  margin-left: 8px;
+/* Canvas generate action box (every node's 72px button); paint and states stay in
+   desktop-controls.css. Same selector as there, so the cascade is unchanged. */
+body.desk-app[data-theme] .desk-node .desk-generation-action {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  box-sizing: border-box;
+  width: 72px;
+  height: 72px;
+  min-width: 72px;
+  min-height: 72px;
+  padding: 8px 4px;
+  border-radius: var(--desk-node-radius);
+}
+
+body.desk-app[data-theme] .desk-node .desk-generation-action svg {
+  flex: none;
+  width: 28px;
+  height: 28px;
 }
 
 :where(body.desk-app[data-theme]) .desk-node-context-menu {
@@ -844,19 +864,26 @@
   align-items: center;
 }
 
+/* Icon-only delete control; paint comes from desktop-controls.css (danger material). */
 :where(body.desk-app[data-theme]) .desk-node-delete {
-  min-width: 28px;
+  display: grid;
+  width: 26px;
   height: 26px;
-  padding: 0 8px;
-  font-size: 12px;
-  font-weight: 800;
-  background: rgba(255, 255, 255, 0.46);
-  border: 1px solid rgba(255, 255, 255, 0.54);
+  padding: 0;
+  place-items: center;
+  border-width: 1px;
+  border-style: solid;
   border-radius: 999px;
 }
 
-:where(body.desk-app[data-theme]) .desk-node-delete:hover {
-  background: rgba(224, 82, 82, 0.12);
+:where(body.desk-app[data-theme]) .desk-node-delete svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 :where(body.desk-app[data-theme]) .desk-port {
@@ -1303,7 +1330,9 @@ body.desk-app[data-theme="dark"] .desk-image-editor {
 }
 
 :where(body.desk-app[data-theme]) .desk-node--input .desk-thumb-row {
+  flex-wrap: wrap;
   min-height: 48px;
+  overflow: hidden;
 }
 
 :where(body.desk-app[data-theme]) .desk-node--input .desk-thumb {
@@ -1312,15 +1341,77 @@ body.desk-app[data-theme="dark"] .desk-image-editor {
   height: 48px;
 }
 
-:where(body.desk-app[data-theme]) .desk-node--input .desk-thumb-row {
-  flex-wrap: wrap;
-  overflow: hidden;
-}
-
 :where(body.desk-app[data-theme]) .desk-node-hint {
   font-size: 12px;
   font-weight: 650;
   line-height: 1.45;
+}
+
+/* Output switches, manual send and the absolutely placed generate action shared by the
+   model input, Krea 2 and Qwen 2.1 footers. */
+:where(body.desk-app[data-theme]) .desk-output-controls {
+  flex: 0 0 auto;
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+:where(body.desk-app[data-theme]) .desk-output-controls--input {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
+  min-width: 0;
+  min-height: 30px;
+  margin-bottom: 0;
+  gap: 8px;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: geometricPrecision;
+}
+
+:where(body.desk-app[data-theme]) .desk-manual-send {
+  flex: 0 0 auto;
+  min-width: 92px;
+  height: 30px;
+  min-height: 30px;
+  padding: 0 10px;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+:where(body.desk-app[data-theme]) .desk-input-footer {
+  display: flex;
+  position: relative;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  gap: 6px 8px;
+  align-items: flex-end;
+  min-height: 64px;
+  margin-top: auto;
+  padding-top: 2px;
+  padding-right: 90px;
+}
+
+:where(body.desk-app[data-theme]) .desk-input-footer .desk-action-row {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  margin: 0;
+}
+
+@container (max-width: 470px) {
+  :where(body.desk-app[data-theme]) .desk-output-controls {
+    grid-template-columns: repeat(2, minmax(0, max-content));
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+
+  :where(body.desk-app[data-theme]) .desk-output-controls--input {
+    flex-wrap: wrap;
+  }
 }
 
 :where(body.desk-app[data-theme]) .desk-input-footer .desk-pill-row {

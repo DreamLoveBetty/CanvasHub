@@ -4,7 +4,7 @@ body.desk-app .desk-node--topaz.is-selected { border-color:var(--desk-node-selec
 body.desk-app .desk-topaz__header { display:flex; gap:12px; align-items:center; border-bottom:1px solid var(--desk-color-border-faint); padding-bottom:14px; margin-bottom:14px; }
 body.desk-app .desk-topaz__header > div { flex:1; }
 body.desk-app .desk-topaz__header strong { font-size:18px; }
-body.desk-app .desk-topaz__header small { display:block; font-size:9px; letter-spacing:.15em; margin-top:4px; color:var(--desk-node-muted-ink); }
+body.desk-app .desk-topaz__header small { display:block; font-size:9px; margin-top:4px; color:var(--desk-node-muted-ink); }
 body.desk-app .desk-topaz__icon { width:42px; height:42px; padding:8px; box-sizing:border-box; border-radius:10px; background:var(--desk-color-accent-soft); color:var(--desk-color-accent); }
 body.desk-app .desk-topaz__grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; }
 body.desk-app .desk-topaz__grid--five { grid-template-columns:repeat(5,minmax(0,1fr)); }

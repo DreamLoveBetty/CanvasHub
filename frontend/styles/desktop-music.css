@@ -6,7 +6,7 @@ body.desk-app .desk-node--music [hidden] { display:none!important; }
 body.desk-app .desk-music__header { display:flex; gap:12px; align-items:center; padding:0 0 14px; flex:none; border-bottom:1px solid var(--desk-color-border-faint); cursor:grab; }
 body.desk-app .desk-music__header > div { flex:1; min-width:0; }
 body.desk-app .desk-music__header strong { font-size:17px; line-height:1.35; display:block; }
-body.desk-app .desk-music__header small { display:block; color:var(--desk-node-muted-ink); letter-spacing:.16em; font-size:9px; margin-top:4px; }
+body.desk-app .desk-music__header small { display:block; color:var(--desk-node-muted-ink); font-size:9px; margin-top:4px; }
 body.desk-app .desk-music__icon { display:grid; place-items:center; width:42px; height:42px; border-radius:13px; color:var(--desk-color-accent); background:var(--desk-color-accent-soft); }
 body.desk-app .desk-music__icon svg { width:25px; height:25px; fill:none; stroke:currentColor; stroke-width:1.7; }
 body.desk-app .desk-music__body { min-height:0; flex:1; overflow:auto; overscroll-behavior:contain; scrollbar-width:thin; display:flex; flex-direction:column; gap:12px; padding:14px 2px 2px; font-size:12px; }

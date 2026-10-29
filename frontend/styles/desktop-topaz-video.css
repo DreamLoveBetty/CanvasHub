@@ -5,7 +5,7 @@ body.desk-app .desk-node--topaz-video [hidden] {display:none!important;}
 body.desk-app .desk-topaz-video__header {display:flex;align-items:center;gap:12px;padding-bottom:12px;border-bottom:1px solid var(--desk-color-border-faint);}
 body.desk-app .desk-topaz-video__header>div {flex:1;}
 body.desk-app .desk-topaz-video__header strong {font-size:17px;}
-body.desk-app .desk-topaz-video__header small {display:block;margin-top:4px;color:var(--desk-node-muted-ink);font-size:9px;letter-spacing:.16em;}
+body.desk-app .desk-topaz-video__header small {display:block;margin-top:4px;color:var(--desk-node-muted-ink);font-size:9px;}
 body.desk-app .desk-topaz-video__icon {display:grid;place-items:center;width:40px;height:40px;box-sizing:border-box;border-radius:10px;background:var(--desk-color-accent-soft);color:var(--desk-color-accent);}
 body.desk-app .desk-topaz-video__icon svg {width:25px;height:25px;}
 body.desk-app .desk-topaz-video__body {display:flex;flex:1;flex-direction:column;gap:12px;padding-top:13px;min-height:0;}

@@ -36,7 +36,7 @@ body.desk-app .desk-audio__header > span,
 body.desk-app .desk-audio__header > div { display: flex; align-items: center; gap: 8px; min-width: 0; }
 body.desk-app .desk-audio__header { justify-content: space-between; cursor: grab; }
 body.desk-app .desk-audio__header strong { font-size: 12px; letter-spacing: .04em; }
-body.desk-app .desk-audio__header em { font-size: 9px; letter-spacing: .18em; font-style: normal; color: var(--desk-audio-muted); }
+body.desk-app .desk-audio__header em { font-size: 9px; font-style: normal; color: var(--desk-audio-muted); }
 body.desk-app .desk-audio__header .desk-node-icon { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; }
 body.desk-app .desk-audio__header .desk-status-pill { font-size: 10px; padding: 3px 8px; min-height: 20px; }
 body.desk-app .desk-audio__timeline { position: relative; min-width: 0; overflow: hidden; border-bottom: 1px solid var(--desk-audio-line); }

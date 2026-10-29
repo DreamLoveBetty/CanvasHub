@@ -102,7 +102,7 @@ class ProgressRenderer {
     ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
     ctx.globalAlpha = 1;
     ctx.globalCompositeOperation = 'source-over';
-    ctx.fillStyle = '#1b1f27';
+    ctx.fillStyle = PROGRESS_STYLES.liquid.track;
     ctx.fillRect(0, 0, w, h);
     if (p > 0) {
       const front = sampleFront({ width: w, height: h, progress: p, energy, phase, amount });

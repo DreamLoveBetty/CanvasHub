@@ -20,7 +20,7 @@ test('true percent, stage and real elapsed are inside the track; unknown does no
  h.controller.update(root,receipt({percent:null,startedAt:0}));
  assert.equal(track(root).getAttribute('aria-valuenow'),null);
  assert.equal(root.querySelector('.desk-progress-material__value').textContent,'处理中');
- assert.equal(root.querySelector('.desk-progress-material__time').textContent,'用时 —');
+ assert.equal(root.querySelector('.desk-progress-material__time').textContent,'已用时 —');
  h.controller.destroy();
 });
 test('style/height/color switching does not restart task time, change numbers or hide legacy permanently',()=>{

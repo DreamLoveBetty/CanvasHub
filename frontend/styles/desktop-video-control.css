@@ -5,7 +5,7 @@ body.desk-app .desk-node--video-control [hidden] { display:none!important; }
 body.desk-app .desk-video-control__header { display:flex; gap:12px; align-items:center; border-bottom:1px solid var(--desk-color-border-faint); padding-bottom:14px; }
 body.desk-app .desk-video-control__header > div { flex:1; }
 body.desk-app .desk-video-control__header strong { font-size:17px; }
-body.desk-app .desk-video-control__header small { display:block; font-size:9px; letter-spacing:.16em; margin-top:4px; color:var(--desk-node-muted-ink); }
+body.desk-app .desk-video-control__header small { display:block; font-size:9px; margin-top:4px; color:var(--desk-node-muted-ink); }
 body.desk-app .desk-video-control__icon { width:40px; height:40px; padding:8px; box-sizing:border-box; border-radius:12px; background:var(--desk-color-accent-soft); color:var(--desk-color-accent); }
 body.desk-app .desk-video-control__body { display:flex; flex:1; flex-direction:column; gap:16px; padding-top:16px; font-size:12px; min-height:0; }
 body.desk-app .desk-video-control__grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; }

@@ -2,11 +2,11 @@
 (function () {
   const ICON = '<svg viewBox="0 0 24 24" class="desk-node-icon" aria-hidden="true"><path d="M9 18V5l11-2v13M9 8l11-2"/><ellipse cx="6" cy="18" rx="3" ry="2"/><ellipse cx="17" cy="16" rx="3" ry="2"/></svg>';
   const definitions = {
-    music_generate: { title: 'mlx-Yue 音乐生成', subtitle: '风格 + 歌词 → 歌曲', width: 720, height: 460, kind: 'MODEL' },
-    music_transcribe: { title: '音频转谱', subtitle: '音频 → ABC / MIDI', width: 380, height: 460, kind: 'TRANSCRIBE' },
-    music_abc: { title: 'ABC 乐谱编辑', subtitle: '编辑 · 校验 · 整理', width: 510, height: 560, kind: 'ABC' },
-    music_score: { title: '乐谱可视化', subtitle: '五线谱与导出', width: 700, height: 615, kind: 'SCORE' },
-    music_compare: { title: '结果对比', subtitle: '音频 · 乐谱 · 参数', width: 650, height: 525, kind: 'COMPARE' },
+    music_generate: { title: 'mlx-Yue 音乐生成', subtitle: '风格 + 歌词 → 歌曲', width: 720, height: 460 },
+    music_transcribe: { title: '音频转谱', subtitle: '音频 → ABC / MIDI', width: 380, height: 460 },
+    music_abc: { title: 'ABC 乐谱编辑', subtitle: '编辑 · 校验 · 整理', width: 510, height: 560 },
+    music_score: { title: '乐谱可视化', subtitle: '五线谱与导出', width: 700, height: 615 },
+    music_compare: { title: '结果对比', subtitle: '音频 · 乐谱 · 参数', width: 650, height: 525 },
   };
   const TYPES = Object.keys(definitions);
   const TARGETS = Object.freeze({

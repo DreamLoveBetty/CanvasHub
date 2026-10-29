@@ -709,7 +709,7 @@
     const total = Number(stats.total || 0);
     if (!pool.enabled) {
       setSidecarStatus('账号池 未启用', 'warn', 'ChatGPT account-pool sidecar is disabled');
-      setFallbackStatus('GPT fallback 未启用', 'warn', '账号池未启用，本地 Codex 失败时不会托底');
+      setFallbackStatus('GPT 托底 未启用', 'warn', '账号池未启用，本地 Codex 失败时不会托底');
       return;
     }
     if (pool.online) {
@@ -723,20 +723,20 @@
         `Sidecar online${total ? `, available ${available}/${total}` : ''}${busyText}${issueText}`
       );
       if (available > 0) {
-        setFallbackStatus('GPT fallback 可用', 'ok', `本地 Codex 失败时切到账号池托底（可用账号 ${available}${total ? `/${total}` : ''}）`);
+        setFallbackStatus('GPT 托底 可用', 'ok', `本地 Codex 失败时切到账号池托底（可用账号 ${available}${total ? `/${total}` : ''}）`);
       } else {
-        setFallbackStatus('GPT fallback 无可用账号', 'warn', `账号池在线但没有可用账号${issueText}，本地 Codex 失败时无法托底`);
+        setFallbackStatus('GPT 托底 无可用账号', 'warn', `账号池在线但没有可用账号${issueText}，本地 Codex 失败时无法托底`);
       }
       return;
     }
     setSidecarStatus('账号池 离线', 'error', pool.health_error || 'Sidecar health check failed');
-    setFallbackStatus('GPT fallback 不可用', 'error', '账号池离线，本地 Codex 失败时无法托底');
+    setFallbackStatus('GPT 托底 不可用', 'error', '账号池离线，本地 Codex 失败时无法托底');
   }
 
   async function refreshSidecarStatus() {
     if (!window.DesktopApi?.getChatgptPoolStatus) {
       setSidecarStatus('账号池 未加载', 'warn');
-      setFallbackStatus('GPT fallback 未知', 'warn', '账号池状态接口未加载');
+      setFallbackStatus('GPT 托底 未知', 'warn', '账号池状态接口未加载');
       return;
     }
     try {
@@ -744,14 +744,23 @@
       setServiceStatus(true);
       renderSidecarStatus(payload);
     } catch (error) {
-      setServiceStatus(!isNetworkFailure(error));
-      setSidecarStatus('账号池 离线', 'error', error?.message || '账号池状态读取失败');
-      setFallbackStatus('GPT fallback 未知', 'warn', '无法读取账号池状态，本地 Codex 失败时能否托底未知');
+      const networkFailure = isNetworkFailure(error);
+      setServiceStatus(!networkFailure);
+      // Before sign-in the status call is refused; the pool itself is not known to be offline.
+      if (!networkFailure && window.isMiniappAuthReady?.() === false) {
+        setSidecarStatus('账号池 未验证', 'checking', '输入访问密码后读取账号池状态');
+      } else {
+        setSidecarStatus('账号池 离线', 'error', error?.message || '账号池状态读取失败');
+      }
+      setFallbackStatus('GPT 托底 未知', 'warn', '无法读取账号池状态，本地 Codex 失败时能否托底未知');
     }
   }
 
   function startSidecarStatusPolling() {
     if (sidecarStatusTimer) window.clearInterval(sidecarStatusTimer);
+    else window.addEventListener('miniapp:auth-state-change', event => {
+      if (event.detail?.authenticated) refreshSidecarStatus();
+    });
     refreshSidecarStatus();
     sidecarStatusTimer = window.setInterval(refreshSidecarStatus, 30000);
   }

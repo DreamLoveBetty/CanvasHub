@@ -36,7 +36,7 @@
       M.normalize(node);
       const video=kind(node)==='video', title=video?'绘栾视频':'绘栾图像';
       return `<section class="desk-node desk-node--cyimg desk-node--${esc(node.type)} desk-glass" data-node-id="${esc(node.id)}" aria-label="${title}节点">
-        <header class="desk-cyimg__header" data-node-drag-handle><span class="desk-cyimg__icon">${video?M.ICON_VIDEO:M.ICON_IMAGE}</span><div><strong>${title}</strong><small>${video?'VIDEO':'IMAGE'} GENERATION · CYIMG API</small></div><span class="desk-status-pill" data-cyimg-status>目录加载中</span><button class="desk-node-delete" data-node-delete aria-label="删除${title}节点">删</button></header>
+        <header class="desk-cyimg__header" data-node-drag-handle><span class="desk-cyimg__icon">${video?M.ICON_VIDEO:M.ICON_IMAGE}</span><div><strong>${title}</strong><small>${video?'视频':'图像'}生成 · CYIMG API</small></div><span class="desk-status-pill" data-cyimg-status>目录加载中</span><button class="desk-node-delete" data-node-delete aria-label="删除${title}节点" title="删除${title}节点"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16"></path><path d="M9 7V4h6v3"></path><path d="m7 7 1 13h8l1-13"></path><path d="M10 11v5M14 11v5"></path></svg></button></header>
         <button class="desk-port desk-port--in" data-port="in" data-node-id="${esc(node.id)}" aria-label="连接提示词与素材"></button>
         <button class="desk-port desk-port--out" data-port="out" data-node-id="${esc(node.id)}" aria-label="连接生成结果"></button>
         <div class="desk-cyimg__body" data-node-drag-ignore>

@@ -76,7 +76,7 @@
   function nodeHtml(node, escapeHtml, stateIcon) {
     const id = escapeHtml(node.id);
     return `<section class="desk-node desk-node--audio" data-node-id="${id}" aria-label="音频节点" data-i18n-skip>
-      <header class="desk-audio__header" data-node-drag-handle><span>${ICON}<strong>音频</strong><em>AUDIO</em></span><div><span class="desk-status-pill" data-audio-status>待导入</span><button type="button" class="desk-node-delete" data-node-delete title="删除音频节点" aria-label="删除音频节点">删</button></div></header>
+      <header class="desk-audio__header" data-node-drag-handle><span>${ICON}<strong>音频</strong><em>音频素材</em></span><div><span class="desk-status-pill" data-audio-status>待导入</span><button type="button" class="desk-node-delete" data-node-delete title="删除音频节点" aria-label="删除音频节点"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16"></path><path d="M9 7V4h6v3"></path><path d="m7 7 1 13h8l1-13"></path><path d="M10 11v5M14 11v5"></path></svg></button></div></header>
       <button type="button" class="desk-port desk-port--in" data-port="in" data-node-id="${id}" data-value-type="audio" aria-label="音频输入端点" title="音频模型结果输入"></button>
       <button type="button" class="desk-port desk-port--out" data-port="out" data-node-id="${id}" data-value-type="audio" aria-label="音频输出端点" title="音频输出 · 转谱 / 结果对比"></button>
       <div class="desk-audio__timeline" data-node-drag-ignore>

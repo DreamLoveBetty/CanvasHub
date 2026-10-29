@@ -21,7 +21,7 @@
     }
     function html(node) {
       return `<section class="desk-node desk-node--pose" data-node-id="${esc(node.id)}" aria-label="姿态参考节点">
-        <header class="desk-pose-node__header" data-node-drag-handle><span class="desk-pose-node__icon">${model.ICON}</span><div><strong>${esc(node.title)}</strong><small>POSE REFERENCE · SOMA</small></div><span class="desk-status-pill" data-pose-status>就绪</span><button type="button" class="desk-node-delete" data-node-delete aria-label="删除姿态参考节点">删</button></header>
+        <header class="desk-pose-node__header" data-node-drag-handle><span class="desk-pose-node__icon">${model.ICON}</span><div><strong>${esc(node.title)}</strong><small>姿态参考 · SOMA</small></div><span class="desk-status-pill" data-pose-status>就绪</span><button type="button" class="desk-node-delete" data-node-delete aria-label="删除姿态参考节点" title="删除姿态参考节点"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16"></path><path d="M9 7V4h6v3"></path><path d="m7 7 1 13h8l1-13"></path><path d="M10 11v5M14 11v5"></path></svg></button></header>
         <button type="button" class="desk-port desk-port--in" data-port="in" data-node-id="${esc(node.id)}" aria-label="连接参考图片"></button>
         <button type="button" class="desk-port desk-port--out" data-port="out" data-node-id="${esc(node.id)}" aria-label="连接姿态参考输出"></button>
         <div class="desk-pose-node__body" data-node-drag-ignore>

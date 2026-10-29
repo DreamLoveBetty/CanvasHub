@@ -162,9 +162,9 @@ body.desk-app[data-theme] .desk-image-group__thumb strong {
   z-index: 2;
 }
 
-/* Role tag (top left, display only: tapping the thumbnail picks the role) and the
-   prompt-reference button (top right): hidden at rest, revealed by hover or focus. An open
-   picker hides them again: its ring would otherwise frame them. */
+/* Role tag (top left, display only: tapping the thumbnail picks the role) stays visible so
+   every image's role reads at a glance. The prompt-reference button (top right) is revealed by
+   hover or focus. An open picker hides both: its ring would otherwise frame them. */
 body.desk-app[data-theme] :is(.desk-image-group__role, .desk-image-group__insert) {
   position: absolute;
   top: calc(12px * var(--desk-image-group-ui-scale));
@@ -179,9 +179,7 @@ body.desk-app[data-theme] :is(.desk-image-group__role, .desk-image-group__insert
   white-space: nowrap;
   border: 0;
   border-radius: 999px;
-  opacity: 0;
   pointer-events: none;
-  transform: scale(.92);
   transition: opacity 140ms ease, transform 180ms cubic-bezier(.22, 1, .36, 1);
 }
 
@@ -195,13 +193,15 @@ body.desk-app[data-theme] .desk-image-group__insert {
   width: calc(44px * var(--desk-image-group-ui-scale));
 }
 
-body.desk-app[data-theme] .desk-image-group__item:is(:hover, :focus-visible, :has(:focus-visible)):not(.is-picking) :is(.desk-image-group__role, .desk-image-group__insert) {
-  opacity: 1;
-  transform: none;
+body.desk-app[data-theme] :is(.desk-image-group__item.is-picking .desk-image-group__role, .desk-image-group__insert) {
+  opacity: 0;
+  transform: scale(.92);
 }
 
 body.desk-app[data-theme] .desk-image-group__item:is(:hover, :focus-visible, :has(:focus-visible)):not(.is-picking) .desk-image-group__insert {
+  opacity: 1;
   pointer-events: auto;
+  transform: none;
 }
 
 /* Role picker (liquid-gooey morph): round icon buttons spring out of the thumbnail centre

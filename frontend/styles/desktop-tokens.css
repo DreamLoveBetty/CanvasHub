@@ -1574,6 +1574,12 @@ body.desk-app {
   --desk-file-progress-background: rgba(255, 255, 255, 0.46);
   --desk-file-progress-border: rgba(255, 255, 255, 0.64);
   --desk-file-progress-shadow: none;
+  /* Canvas progress instrument: a dark well in both themes. Per-style track colours are
+     set inline from DesktopProgressModel; this is the colour before a style applies. */
+  --desk-progress-track: #1b1f27;
+  --desk-progress-ink: #f7faff;
+  --desk-progress-meta-ink: #d6e5fa;
+  --desk-progress-sweep: rgba(255, 255, 255, 0.24);
   --desk-file-scrollbar-thumb: rgba(55, 92, 137, 0.24);
   --desk-file-scrollbar-color: rgba(55, 92, 137, 0.26) transparent;
   --desk-file-layer-scrollbar-color: inherit;

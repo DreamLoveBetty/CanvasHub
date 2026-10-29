@@ -82,9 +82,8 @@
 }
 
 .desk-node--file-output .desk-node-delete {
-  min-width: 26px;
+  width: 24px;
   height: 24px;
-  padding: 0 7px;
 }
 
 .desk-node--file-output .desk-progress-wrap {

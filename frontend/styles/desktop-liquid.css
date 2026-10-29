@@ -2697,7 +2697,6 @@ body.desk-app[data-theme="dark"] .desk-image-editor__canvas-wrap {
 
 
 
-.desk-node h1,
 .desk-node h2 {
   margin: 0;
   font-size: 20px;
@@ -2776,6 +2775,13 @@ body.desk-app[data-theme="dark"] .desk-image-editor__canvas-wrap {
   color: var(--desk-muted);
   font-size: 11px;
   font-weight: 750;
+}
+
+/* One line box for field captions and select values, whatever font the glyphs fall back to,
+   so labels and values share a baseline across a row. */
+:is(.desk-param-grid, .desk-prompt-mode) label > span:first-child,
+:is(.desk-param-grid, .desk-prompt-mode) .desk-select-value {
+  line-height: 15px;
 }
 
 
@@ -3268,86 +3274,6 @@ body.desk-app[data-theme="dark"] .desk-image-editor__canvas-wrap {
   backdrop-filter: blur(10px);
 }
 
-.desk-output-controls {
-  flex: 0 0 auto;
-  position: relative;
-  z-index: 2;
-  display: grid;
-  grid-template-columns: auto auto minmax(0, 1fr);
-  gap: 10px;
-  align-items: center;
-  margin-bottom: 12px;
-}
-
-.desk-output-controls--input {
-  display: flex;
-  flex: 0 0 auto;
-  flex-wrap: nowrap;
-  grid-template-columns: none;
-  min-width: 0;
-  min-height: 30px;
-  margin-bottom: 0;
-  gap: 8px;
-  -webkit-font-smoothing: antialiased;
-  text-rendering: geometricPrecision;
-}
-
-
-.desk-manual-send {
-  flex: 0 0 auto;
-  justify-self: auto;
-  min-width: 92px;
-  height: 30px;
-  min-height: 30px;
-  padding: 0 10px;
-  font-size: 12px;
-}
-
-.desk-input-footer {
-  display: flex;
-  position: relative;
-  flex: 0 0 auto;
-  flex-wrap: wrap;
-  gap: 6px 8px;
-  align-items: flex-end;
-  min-height: 64px;
-  margin-top: auto;
-  padding-top: 2px;
-  padding-right: 90px;
-}
-
-
-.desk-input-footer .desk-action-row {
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  margin: 0;
-}
-
-@container (max-width: 470px) {
-  .desk-output-controls {
-    grid-template-columns: repeat(2, minmax(0, max-content));
-    gap: 8px;
-    margin-bottom: 8px;
-  }
-
-  .desk-output-controls--input {
-    flex-wrap: wrap;
-  }
-
-  .desk-path-chip {
-    grid-column: 1 / -1;
-  }
-
-  .desk-manual-send {
-    justify-self: start;
-  }
-
-  .desk-input-footer {
-    flex-wrap: wrap;
-  }
-}
-
 .desk-switch {
   display: inline-flex;
   gap: 7px;
@@ -3414,19 +3340,6 @@ body.desk-app[data-theme="dark"] .desk-image-editor__canvas-wrap {
 .desk-node--input .desk-switch em {
   color: rgba(40, 54, 73, 0.88);
   font-weight: 800;
-}
-
-.desk-path-chip {
-  overflow: hidden;
-  min-height: 28px;
-  padding: 6px 9px;
-  color: var(--desk-muted);
-  font-size: 12px;
-  font-weight: 700;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  background: rgba(255, 255, 255, 0.34);
-  border-radius: var(--desk-radius);
 }
 
 .desk-action-row,
@@ -9029,7 +8942,6 @@ body.desk-app[data-theme="dark"] .desk-smart-guide--y {
   filter: drop-shadow(0 0 5px rgba(0, 0, 0, 0.28));
 }
 
-body.desk-app[data-theme="dark"] .desk-node h1,
 body.desk-app[data-theme="dark"] .desk-node h2,
 body.desk-app[data-theme="dark"] .desk-result-empty strong,
 body.desk-app[data-theme="dark"] .desk-upload span {
@@ -9047,7 +8959,6 @@ body.desk-app[data-theme="dark"] .desk-node-hint,
 body.desk-app[data-theme="dark"] .desk-switch,
 body.desk-app[data-theme="dark"] .desk-node--input .desk-switch,
 body.desk-app[data-theme="dark"] .desk-node--input .desk-switch em,
-body.desk-app[data-theme="dark"] .desk-path-chip,
 body.desk-app[data-theme="dark"] .desk-pill-row span {
   color: var(--desk-muted);
 }
@@ -9252,7 +9163,6 @@ body.desk-app[data-theme="dark"] .desk-text-style-menu button,
 body.desk-app[data-theme="dark"] .desk-text-node__drawer button,
 body.desk-app[data-theme="dark"] .desk-mini-toggle,
 body.desk-app[data-theme="dark"] .desk-upload,
-body.desk-app[data-theme="dark"] .desk-path-chip,
 body.desk-app[data-theme="dark"] .desk-pill-row span,
 body.desk-app[data-theme="dark"] .desk-status-pill,
 body.desk-app[data-theme="dark"] .desk-result-empty,

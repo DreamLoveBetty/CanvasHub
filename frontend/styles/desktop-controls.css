@@ -1032,16 +1032,13 @@ body.desk-app[data-theme] .desk-pinterest-split-modal__footer button.is-primary:
   }
 }
 
-/* Canvas generate action: the single, complete style source for every node's
-   72px "开始生成" button (图像输入, Qwen, Krea, 绘栾, Topaz Gigapixel, 音乐, ReShot,
-   Topaz Video). Controllers own state only: `disabled` while unavailable and
-   `aria-busy="true"` while a job runs; a busy button keeps the primary finish even
-   when disabled. Comfy / upscale / video-inference runs are a separate compact
+/* Canvas generate action: the paint and state source for every node's 72px "开始生成"
+   button (图像输入, Qwen, Krea, 绘栾, Topaz Gigapixel, 音乐, ReShot, Topaz Video); its box
+   lives in desktop-canvas-nodes-geometry.css. Controllers own state only: `disabled` while
+   unavailable and `aria-busy="true"` while a job runs; a busy button keeps the primary
+   finish even when disabled. Comfy / upscale / video-inference runs are a separate compact
    variant (.desk-button--generate) and do not use this class. */
 body.desk-app[data-theme] .desk-node .desk-generation-action {
-  display:flex; flex:none; flex-direction:column; align-items:center; justify-content:center;
-  gap:4px; box-sizing:border-box; width:72px; height:72px; min-width:72px; min-height:72px;
-  padding:8px 4px; border-radius:var(--desk-node-radius);
   transition:var(--desk-motion-control-transition),var(--desk-motion-material-transition);
 }
 body.desk-app[data-theme] .desk-node .desk-generation-action:not(:disabled),
@@ -1060,8 +1057,8 @@ body.desk-app[data-theme] .desk-node .desk-generation-action:disabled:not([aria-
   background-position:0 0; background-size:100% 100%;
   box-shadow:none; opacity:1; transform:none;
 }
-body.desk-app[data-theme] .desk-node .desk-generation-action svg { width:28px; height:28px; flex:none; fill:currentColor; filter:none; }
-body.desk-app[data-theme] .desk-node .desk-generation-action__label { font-size:10px; font-weight:500; line-height:1.3; white-space:nowrap; }
+body.desk-app[data-theme] .desk-node .desk-generation-action svg { fill:currentColor; filter:none; }
+body.desk-app[data-theme] .desk-node .desk-generation-action__label { font-size:11px; font-weight:750; line-height:1.3; white-space:nowrap; }
 body.desk-app[data-theme] .desk-node .desk-generation-action:hover:not(:disabled) {
   background-image:var(--desk-action-primary-gloss-hover);
   background-position:var(--desk-action-primary-silk-position-hover);

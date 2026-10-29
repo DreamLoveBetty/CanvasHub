@@ -79,7 +79,7 @@
       return `<section class="desk-node desk-node--krea2 desk-glass" data-node-id="${esc(node.id)}" aria-label="Krea 2 节点">
         <header class="desk-node__header desk-krea2__header" data-node-drag-handle>
           <div><p class="desk-node__eyebrow">本地图像生成</p><h2>Krea 2 · MLX</h2></div>
-          <div class="desk-node-tools"><span class="desk-status-pill" data-krea2-status>检查环境</span><button type="button" class="desk-node-delete" data-node-delete aria-label="删除 Krea 2 节点">删</button></div>
+          <div class="desk-node-tools"><span class="desk-status-pill" data-krea2-status>检查环境</span><button type="button" class="desk-node-delete" data-node-delete aria-label="删除 Krea 2 节点" title="删除 Krea 2 节点"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16"></path><path d="M9 7V4h6v3"></path><path d="m7 7 1 13h8l1-13"></path><path d="M10 11v5M14 11v5"></path></svg></button></div>
         </header>
         <button class="desk-port desk-port--in" data-port="in" data-node-id="${esc(node.id)}" aria-label="连接提示词、参考图或区域控制"></button>
         <button class="desk-port desk-port--out" data-port="out" data-node-id="${esc(node.id)}" aria-label="连接生成图片"></button>

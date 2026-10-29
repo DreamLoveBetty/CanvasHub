@@ -47,8 +47,8 @@ body.desk-app .desk-progress-material > .desk-progress-material__track {
   padding: 0 12px;
   border: 0;
   border-radius: inherit;
-  color: #f7faff;
-  background: #1b1f27;
+  color: var(--desk-progress-ink);
+  background: var(--desk-progress-track);
   box-shadow: 0 3px 8px rgb(11 25 50 / 10%);
   text-shadow: 0 1px 2px rgb(2 8 24 / 45%);
   font-variant-numeric: tabular-nums;
@@ -67,6 +67,25 @@ body.desk-app .desk-progress-material__canvas {
   z-index: -1;
 }
 body.desk-app .desk-progress-material__canvas[hidden] { display: none; }
+/* Unknown progress: an empty (or last real) fill with a light band sweeping across it. */
+body.desk-app .desk-progress-material__sweep {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  display: none;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, var(--desk-progress-sweep), transparent) no-repeat;
+  background-size: 40% 100%;
+  animation: desk-progress-sweep 1.6s linear infinite;
+}
+body.desk-app .desk-progress-material__track.is-indeterminate > .desk-progress-material__sweep { display: block; }
+@keyframes desk-progress-sweep {
+  from { background-position: -100% 0; }
+  to { background-position: 200% 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  body.desk-app .desk-progress-material__sweep { animation: none; background-position: 50% 0; }
+}
 body.desk-app .desk-progress-material__copy { display: flex; flex-direction: column; min-width: 0; gap: 1px; }
 body.desk-app .desk-progress-material__title {
   display: block;
@@ -78,7 +97,7 @@ body.desk-app .desk-progress-material__title {
   line-height: 14px;
   color: inherit;
 }
-body.desk-app .desk-progress-material__meta { display: flex; align-items: baseline; gap: 10px; min-width: 0; font-size: 9px; line-height: 12px; color: #d6e5fa; }
+body.desk-app .desk-progress-material__meta { display: flex; align-items: baseline; gap: 10px; min-width: 0; font-size: 9px; line-height: 12px; color: var(--desk-progress-meta-ink); }
 body.desk-app .desk-progress-material__detail { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 body.desk-app .desk-progress-material__time { flex: 0 0 auto; white-space: nowrap; }
 body.desk-app .desk-progress-material__value { flex: 0 0 auto; font-size: 19px; line-height: 1; font-weight: 650; color: inherit; white-space: nowrap; }

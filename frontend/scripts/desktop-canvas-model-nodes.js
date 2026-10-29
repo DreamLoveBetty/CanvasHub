@@ -355,11 +355,11 @@
         <div class="desk-node__header" data-node-drag-handle>
           <div>
             <p class="desk-node__eyebrow">模型输入</p>
-            <h1>选择模型并组织提示词</h1>
+            <h2>选择模型并组织提示词</h2>
           </div>
           <div class="desk-node-tools">
             <span class="desk-status-pill" data-output-status>空闲</span>
-            <button type="button" class="desk-node-delete" data-node-delete title="删除节点" aria-label="删除节点">删</button>
+            <button type="button" class="desk-node-delete" data-node-delete title="删除节点" aria-label="删除节点"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16"></path><path d="M9 7V4h6v3"></path><path d="m7 7 1 13h8l1-13"></path><path d="M10 11v5M14 11v5"></path></svg></button>
           </div>
         </div>
         <button type="button" class="desk-port desk-port--out" data-port="out" data-node-id="${nodeId}" title="连接到图片节点" aria-label="连接输出"></button>
@@ -409,7 +409,7 @@
               </button>
               <div class="desk-thumb-row" data-reference-thumbs aria-label="参考图缩略图"></div>
             </div>
-            <div class="desk-node-hint">连接文本节点作为提示词，手动上传图片或连接[图片,姿态,排版节点]作为参考图。</div>
+            <div class="desk-node-hint">连接文本节点作为提示词，手动上传图片或连接图片、姿态或排版节点作为参考图。</div>
           </div>
         </div>
         <div class="desk-input-footer">
@@ -574,7 +574,7 @@
       <section class="desk-node desk-node--comfy desk-glass" data-node-id="${node.id}" aria-label="Comfy 工作流节点">
         <div class="desk-node__header" data-node-drag-handle>
           <div><p class="desk-node__eyebrow">Comfy 工作流</p><h2>选择并运行本地工作流</h2></div>
-          <div class="desk-node-tools"><span class="desk-status-pill" data-output-status>空闲</span><button type="button" class="desk-node-delete" data-node-delete title="删除节点" aria-label="删除节点">删</button></div>
+          <div class="desk-node-tools"><span class="desk-status-pill" data-output-status>空闲</span><button type="button" class="desk-node-delete" data-node-delete title="删除节点" aria-label="删除节点"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16"></path><path d="M9 7V4h6v3"></path><path d="m7 7 1 13h8l1-13"></path><path d="M10 11v5M14 11v5"></path></svg></button></div>
         </div>
         <button type="button" class="desk-port desk-port--out" data-port="out" data-node-id="${node.id}" title="连接到图片或高清放大节点" aria-label="连接输出"></button>
         <button type="button" class="desk-port desk-port--in desk-port--image-in" data-port="in" data-node-id="${node.id}" title="连接文本、图片、姿态或排版节点" aria-label="连接输入"></button>
@@ -733,7 +733,7 @@
           <div class="desk-node-tools">
             <span class="desk-video-runtime-pill is-${runtime.tone}" data-video-runtime-status>${escapeHtml(runtime.label)}</span>
             <span class="desk-status-pill" data-output-status>${escapeHtml(statusLabel)}</span>
-            <button type="button" class="desk-node-delete" data-node-delete title="删除节点" aria-label="删除节点">删</button>
+            <button type="button" class="desk-node-delete" data-node-delete title="删除节点" aria-label="删除节点"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16"></path><path d="M9 7V4h6v3"></path><path d="m7 7 1 13h8l1-13"></path><path d="M10 11v5M14 11v5"></path></svg></button>
           </div>
         </div>
         <button type="button" class="desk-port desk-port--in desk-port--video-in" data-port="in" data-node-id="${node.id}" title="连接提示词、首帧或参考视频" aria-label="连接视频生成输入"></button>
@@ -976,7 +976,7 @@
           </div>
           <div class="desk-node-tools">
             <span class="desk-status-pill" data-output-status>空闲</span>
-            <button type="button" class="desk-node-delete" data-node-delete title="删除节点" aria-label="删除节点">删</button>
+            <button type="button" class="desk-node-delete" data-node-delete title="删除节点" aria-label="删除节点"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16"></path><path d="M9 7V4h6v3"></path><path d="m7 7 1 13h8l1-13"></path><path d="M10 11v5M14 11v5"></path></svg></button>
           </div>
         </div>
         <button type="button" class="desk-port desk-port--in" data-port="in" data-node-id="${nodeId}" title="连接模型节点到这里" aria-label="连接输入"></button>
@@ -1027,7 +1027,7 @@
           </div>
           <div class="desk-node-tools">
             <span class="desk-status-pill" data-output-status>空闲</span>
-            <button type="button" class="desk-node-delete" data-node-delete title="删除节点" aria-label="删除节点">删</button>
+            <button type="button" class="desk-node-delete" data-node-delete title="删除节点" aria-label="删除节点"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16"></path><path d="M9 7V4h6v3"></path><path d="m7 7 1 13h8l1-13"></path><path d="M10 11v5M14 11v5"></path></svg></button>
           </div>
         </div>
         <button type="button" class="desk-port desk-port--in desk-port--upscale-in" data-port="in" data-node-id="${node.id}" title="连接图片到这里" aria-label="连接图片输入" data-i18n-title="upscaleInputTitle" data-i18n-aria="upscaleInputAria"></button>

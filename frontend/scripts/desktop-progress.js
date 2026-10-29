@@ -99,6 +99,7 @@
         entry.canvas = element('canvas', 'desk-progress-material__canvas', entry.track);
         entry.canvas.width = entry.canvas.height = 1;
         entry.canvas.setAttribute('aria-hidden', 'true');
+        element('span', 'desk-progress-material__sweep', entry.track).setAttribute('aria-hidden', 'true');
         const copy = element('div', 'desk-progress-material__copy', entry.track);
         entry.title = element('strong', 'desk-progress-material__title', copy);
         const meta = element('div', 'desk-progress-material__meta', copy);
@@ -122,7 +123,7 @@
       set(entry.title, d.title);
       set(entry.detail, d.detail);
       entry.detail.hidden = !d.detail;
-      set(entry.time, elapsed === '—' ? '用时 —' : `已用时 ${elapsed}`);
+      set(entry.time, `已用时 ${elapsed}`);
       set(entry.value, d.valueLabel || (d.percent === null ? '处理中' : `${Math.round(d.percent)}%`));
       entry.track.title = [d.title, d.detail, `已用时 ${elapsed}`].filter(Boolean).join(' · ');
       // Unknown progress stays indeterminate; the renderer never invents a percent. Callers pass
@@ -143,7 +144,7 @@
       let entry = entries.get(root);
       if (!entry) {
         initObservers();
-        entry = { root, owner, display: next, motion: new M.LiquidMotion((next.percent ?? 35) / 100),
+        entry = { root, owner, display: next, motion: new M.LiquidMotion((next.percent ?? 0) / 100),
           flow: new M.FlowMotion(), inView: !observer, dirty: true, measure: true,
           width: 0, lastPaint: 0, renderer: null, track: null };
         entries.set(root, entry);
@@ -152,12 +153,13 @@
         syncStyle(entry);
       } else {
         if (next.taskId !== entry.display.taskId) {
-          entry.motion.reset((next.percent ?? 35) / 100);
+          entry.motion.reset((next.percent ?? 0) / 100);
           entry.flow.reset();
         }
         entry.display = next;
         entry.owner = owner;
-        entry.motion.setTarget((next.percent ?? 35) / 100, reduced());
+        // Unknown progress keeps the last real level; the sweep shows that work continues.
+        if (next.percent !== null) entry.motion.setTarget(next.percent / 100, reduced());
         entry.dirty = true;
         paintText(entry);
       }

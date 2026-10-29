@@ -51,19 +51,19 @@ function statusHarness(getChatgptPoolStatus) {
   return { ...api, els, dot };
 }
 
-test('GPT fallback chip follows the account pool instead of a hard-coded green', () => {
+test('GPT 托底 chip follows the account pool instead of a hard-coded green', () => {
   const h = statusHarness();
   const fallback = () => [h.els.deskFallbackStatus.textContent, h.els.deskFallbackStatus.dataset.tone];
   h.renderSidecarStatus({ enabled: false });
-  assert.deepEqual(fallback(), ['GPT fallback 未启用', 'warn']);
+  assert.deepEqual(fallback(), ['GPT 托底 未启用', 'warn']);
   h.renderSidecarStatus({ enabled: true, online: true, stats: { available: 2, total: 3 } });
-  assert.deepEqual(fallback(), ['GPT fallback 可用', 'ok']);
+  assert.deepEqual(fallback(), ['GPT 托底 可用', 'ok']);
   h.renderSidecarStatus({ enabled: true, online: true, stats: { available: 0, total: 3, limited: 3 } });
-  assert.deepEqual(fallback(), ['GPT fallback 无可用账号', 'warn']);
+  assert.deepEqual(fallback(), ['GPT 托底 无可用账号', 'warn']);
   h.renderSidecarStatus({ enabled: true, online: false });
-  assert.deepEqual(fallback(), ['GPT fallback 不可用', 'error']);
+  assert.deepEqual(fallback(), ['GPT 托底 不可用', 'error']);
   assert.doesNotMatch(fn(results, 'renderOutputStatusChips'), /deskFallbackStatus/);
-  assert.match(read('frontend/desktop.html'), /desk-status-chip--checking" id="deskFallbackStatus">GPT fallback 检查中</);
+  assert.match(read('frontend/desktop.html'), /desk-status-chip--checking" id="deskFallbackStatus">GPT 托底 检查中</);
 });
 
 test('service chip goes offline only when the poll gets no HTTP response', async () => {
@@ -74,7 +74,7 @@ test('service chip goes offline only when the poll gets no HTTP response', async
   assert.equal(service.dataset.tone, 'error');
   assert.ok(!service.classes.has('desk-status-chip--service'));
   assert.deepEqual(service.children, ['服务 18463 离线']);
-  assert.equal(offline.els.deskFallbackStatus.textContent, 'GPT fallback 未知');
+  assert.equal(offline.els.deskFallbackStatus.textContent, 'GPT 托底 未知');
 
   const unauthorized = statusHarness(() => Promise.reject(new Error('HTTP 401')));
   await unauthorized.refreshSidecarStatus();
@@ -172,19 +172,93 @@ test('progress track takes hover so its full-text title can show', () => {
 });
 
 const liquid = read('frontend/styles/desktop-liquid.css');
-const rule = selector => {
-  const start = liquid.indexOf(`\n${selector} {`);
+const geometry = read('frontend/styles/desktop-canvas-nodes-geometry.css');
+const ruleIn = (css, selector) => {
+  const start = css.indexOf(`\n${selector} {`);
   assert.ok(start >= 0, selector);
-  return liquid.slice(start, liquid.indexOf('}', start));
+  return css.slice(start, css.indexOf('}', start));
 };
+const rule = selector => ruleIn(liquid, selector);
+const geometryRule = selector => ruleIn(geometry, `:where(body.desk-app[data-theme]) ${selector}`);
 
 test('input footer controls share one centre line and the action meets the grid edge', () => {
-  assert.match(rule('.desk-output-controls--input'), /min-height: 30px;/);
-  assert.match(rule('.desk-input-footer'), /padding-right: 90px;/);
-  const action = rule('.desk-input-footer .desk-action-row');
+  assert.match(geometryRule('.desk-output-controls--input'), /min-height: 30px;/);
+  assert.match(geometryRule('.desk-input-footer'), /padding-right: 90px;/);
+  const action = geometryRule('.desk-input-footer .desk-action-row');
   assert.match(action, /right: 0;/);
   assert.match(action, /bottom: 0;/);
   assert.match(rule('.desk-pill-row span'), /box-shadow: inset 0 0 0 1px/);
+});
+
+test('input footer and generate-action geometry live in the node geometry file only', () => {
+  for (const selector of ['.desk-output-controls', '.desk-output-controls--input', '.desk-manual-send', '.desk-input-footer', '.desk-path-chip']) {
+    assert.ok(!liquid.includes(`\n${selector} {`), selector);
+  }
+  assert.ok(!liquid.includes('desk-path-chip'));
+  assert.match(ruleIn(geometry, 'body.desk-app[data-theme] .desk-node .desk-generation-action'), /width: 72px;/);
+  const controls = read('frontend/styles/desktop-controls.css');
+  assert.doesNotMatch(controls, /\.desk-generation-action \{[^}]*width:72px/);
+  assert.match(controls, /\.desk-generation-action__label \{ font-size:11px; font-weight:750;/);
+  assert.equal(geometry.match(/\.desk-node--input \.desk-thumb-row \{/g).length, 1);
+  assert.ok(!geometry.includes('.desk-node--input .desk-generation-action {'));
+});
+
+test('field captions and select values share one line box', () => {
+  assert.match(liquid, /:is\(\.desk-param-grid, \.desk-prompt-mode\) label > span:first-child,\n:is\(\.desk-param-grid, \.desk-prompt-mode\) \.desk-select-value \{\n  line-height: 15px;/);
+  assert.match(read('frontend/styles/desktop-prompt-assistant-geometry.css'), /\.desk-gpt-model-caption \{[^}]*height: 15px;/);
+});
+
+test('every ordinary node delete control is an icon with a tooltip', () => {
+  const sources = ['frontend/desktop.html', ...fs.readdirSync(path.join(__dirname, '../frontend/scripts')).filter(name => name.startsWith('desktop-')).map(name => `frontend/scripts/${name}`)];
+  let buttons = 0;
+  for (const file of sources) {
+    for (const [tag] of read(file).matchAll(/<button[^>]*class="desk-node-delete"[^>]*>[^<]*/g)) {
+      buttons++;
+      assert.match(tag, / title="/, `${file}: ${tag}`);
+      assert.ok(!tag.endsWith('删'), `${file}: ${tag}`);
+    }
+  }
+  assert.ok(buttons >= 17);
+  assert.match(geometryRule('.desk-node-delete svg'), /stroke: currentColor;/);
+});
+
+test('node headers speak Chinese and the input node uses h2', () => {
+  for (const file of ['desktop-canvas-audio.js', 'desktop-canvas-topaz.js', 'desktop-pose-view.js', 'desktop-topaz-video-view.js', 'desktop-video-control-view.js', 'desktop-canvas-cyimg.js']) {
+    assert.doesNotMatch(read(`frontend/scripts/${file}`), /<(small|em)>[A-Z]{4,}[A-Z ·]*<\/(small|em)>|'VIDEO':'IMAGE'/, file);
+  }
+  assert.match(read('frontend/scripts/desktop-music-view.js'), /<small>\$\{def\.subtitle\}<\/small>/);
+  assert.ok(!read('frontend/scripts/desktop-music-model.js').includes('kind:'));
+  assert.ok(!read('frontend/desktop.html').includes('<h1>'));
+  assert.ok(!liquid.includes('.desk-node h1'));
+});
+
+test('status bar copy separates not-loaded, unsigned and real states', () => {
+  const html = read('frontend/desktop.html');
+  assert.ok(html.includes('id="deskTodayCount" title="历史记录加载后显示">今日任务 未加载</span>'));
+  assert.ok(html.includes('id="deskQueueCount" title="历史记录加载后显示">队列 未加载</span>'));
+  assert.ok(html.includes('连接图片、姿态或排版节点作为参考图。'));
+  assert.ok(!results.includes('GPT fallback'));
+  assert.match(fn(results, 'refreshSidecarStatus'), /isMiniappAuthReady\?\.\(\) === false[\s\S]*'账号池 未验证'/);
+  assert.match(fn(results, 'startSidecarStatusPolling'), /miniapp:auth-state-change/);
+});
+
+test('unknown progress starts empty and sweeps instead of faking 35%', () => {
+  const progress = read('frontend/scripts/desktop-progress.js');
+  assert.ok(!progress.includes('?? 35'));
+  assert.match(progress, /if \(next\.percent !== null\) entry\.motion\.setTarget/);
+  assert.match(progress, /desk-progress-material__sweep/);
+  const css = read('frontend/styles/desktop-progress.css');
+  assert.match(css, /\.desk-progress-material__track\.is-indeterminate > \.desk-progress-material__sweep \{ display: block; \}/);
+  assert.match(css, /prefers-reduced-motion: reduce[\s\S]*__sweep \{ animation: none;/);
+  assert.match(css, /background: var\(--desk-progress-track\);/);
+  assert.match(read('frontend/styles/desktop-tokens.css'), /--desk-progress-track: #1b1f27;/);
+  assert.ok(!read('frontend/scripts/desktop-progress-renderer.js').includes("'#1b1f27'"));
+});
+
+test('image group role tags stay visible except while picking', () => {
+  const css = read('frontend/styles/desktop-image-group-geometry.css');
+  assert.match(css, /:is\(\.desk-image-group__item\.is-picking \.desk-image-group__role, \.desk-image-group__insert\) \{\n  opacity: 0;/);
+  assert.doesNotMatch(css, /:not\(\.is-picking\) :is\(\.desk-image-group__role/);
 });
 
 test('image reference tokens fit inside the 14px/1.55 editor line', () => {

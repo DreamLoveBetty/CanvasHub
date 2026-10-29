@@ -28,7 +28,7 @@
     const targets=s=>(getCanvas().edges||[]).filter(e=>e.from===s.id).map(e=>getNodeState(e.to)).filter(n=>n?.type==='krea2');
     function dimensions(s){const target=targets(s)[0];return{width:target?.imageWidth||832,height:target?.imageHeight||1248};}
     function nodeHtml(node){normalize(node);return `<section class="desk-node desk-node--krea2-control desk-glass" data-node-id="${esc(node.id)}" aria-label="Krea 2 区域控制节点">
-      <header class="desk-node__header" data-node-drag-handle><div><p class="desk-node__eyebrow">控制图 · 实验性</p><h2>Krea 2 区域控制</h2></div><button type="button" class="desk-node-delete" data-node-delete aria-label="删除区域控制节点">删</button></header>
+      <header class="desk-node__header" data-node-drag-handle><div><p class="desk-node__eyebrow">控制图 · 实验性</p><h2>Krea 2 区域控制</h2></div><button type="button" class="desk-node-delete" data-node-delete aria-label="删除区域控制节点" title="删除区域控制节点"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16"></path><path d="M9 7V4h6v3"></path><path d="m7 7 1 13h8l1-13"></path><path d="M10 11v5M14 11v5"></path></svg></button></header>
       <button class="desk-port desk-port--in" data-port="in" data-node-id="${esc(node.id)}" aria-label="连接辅助底图，不参与生成"></button><button class="desk-port desk-port--out" data-port="out" data-node-id="${esc(node.id)}" aria-label="连接 Krea2 区域控制输入"></button>
       <div class="desk-krea2-control__body" data-node-drag-ignore>
         <div class="desk-krea2-control__presets">${Object.keys(PRESETS).map(key=>`<button type="button" class="desk-button" data-area-preset="${key}" title="标记面积 ${(PRESETS[key]*100).toFixed(2)}%">${labels[key]}</button>`).join('')}</div>
