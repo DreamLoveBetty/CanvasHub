@@ -5,10 +5,22 @@ Single POST per generation: a timeout/disconnect never triggers a blind retry.
 
 from __future__ import annotations
 import json
+import logging
 import time
 import uuid
 import requests
 from .errors import GoogleError
+
+logger = logging.getLogger(__name__)
+CONNECT_TIMEOUT = 15
+# requests applies the connect timeout to the whole body upload (socket sendall is
+# bounded in total, not per write), so reference images need time proportional to size.
+MIN_UPLOAD_BYTES_PER_SECOND = 64 * 1024
+MAX_UPLOAD_TIMEOUT = 600
+
+
+def upload_timeout(size):
+    return min(MAX_UPLOAD_TIMEOUT, CONNECT_TIMEOUT + size / MIN_UPLOAD_BYTES_PER_SECOND)
 
 TOKEN_URL = 'https://oauth2.googleapis.com/token'
 PROFILE_URL = 'https://www.googleapis.com/oauth2/v2/userinfo'
@@ -133,20 +145,25 @@ class GoogleUpstream:
             'requestId': f'agent/{int(time.time() * 1000)}/{uuid.uuid4().hex[:8]}',
             'request': request,
         }
-        deadline = time.monotonic() + self.settings.timeout
+        size = len(json.dumps(payload))
+        started = time.monotonic()
+        deadline = started + self.settings.timeout
+        phase = 'connect'
+        decoder = None
         try:
             with self.session() as s, s.post(
                 self.settings.upstream + ':streamGenerateContent?alt=sse',
                 json=payload,
                 headers=self.headers(account['access_token']),
                 stream=True,
-                timeout=(15, self.settings.timeout),
+                timeout=(upload_timeout(size), self.settings.timeout),
                 allow_redirects=False,
             ) as r:
                 if not 200 <= r.status_code < 300:
                     self.checked_json(r, 'Google 图像生成')
                 from .wire import ImageResponse
 
+                phase = 'stream'
                 decoder = ImageResponse()
                 for chunk in r.iter_content(chunk_size=8192):
                     if cancelled and cancelled.is_set():
@@ -164,9 +181,21 @@ class GoogleUpstream:
                 if result is None:
                     raise GoogleError('Google 未返回图片', 502, 'google_no_image')
                 return result
-        except requests.RequestException:
+        except requests.RequestException as e:
+            # The cause is the only clue to where the request died; keep it, minus URLs/headers.
+            kind = type(e).__name__
+            elapsed = time.monotonic() - started
+            received = decoder.total if decoder else 0
+            logger.warning(
+                'Google image stream failed: %s phase=%s elapsed=%.1fs sent=%d bytes=%d '
+                'mode=%s account=%s model=%s request=%s',
+                kind, phase, elapsed, size, received, decoder.mode if decoder else None,
+                account.get('id'), model, payload['requestId'],
+            )
             raise GoogleError(
-                'Google 图像连接中断或超时；上游执行状态未知，未重新提交',
+                f'Google 图像连接中断或超时（{kind}，{phase}，{elapsed:.0f}s，'
+                f'请求 {size / 1048576:.1f}MB，已收 {received} 字节）；'
+                '上游执行状态未知，未重新提交',
                 502,
                 'google_execution_unknown',
             ) from None
