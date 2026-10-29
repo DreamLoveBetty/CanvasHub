@@ -846,10 +846,9 @@
         <button type="button" class="desk-port desk-port--out" data-port="out" data-node-id="${node.id}" title="连接提示词到模型节点" aria-label="连接文本输出"></button>
         <div class="desk-text-node__drawer" aria-label="文本节点操作">
           <button type="button" class="desk-key" data-text-action="preset">预设风格</button>
-          <button type="button" class="desk-key" data-text-action="google-polish">google 润色</button>
-          <button type="button" class="desk-key" data-text-action="gpt-polish">Gpt 润色</button>
+          <button type="button" class="desk-key" data-text-action="gpt-polish">GPT 润色</button>
           <button type="button" class="desk-key" data-text-action="safe-rewrite">安全审核版</button>
-          <button type="button" class="desk-key" data-text-action="clear" aria-label="清空文本节点" title="清空">❌</button>
+          <button type="button" class="desk-key" data-text-action="clear" aria-label="清空文本节点" title="清空"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg></button>
         </div>
         <div class="desk-text-style-menu" data-text-style-menu hidden aria-label="选择预设风格">
           ${textStylePresetButtonsHtml()}

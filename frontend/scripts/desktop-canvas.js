@@ -1057,6 +1057,7 @@
     event.preventDefault();
     event.stopPropagation();
     getEditableKeyboardTarget(event.target)?.blur?.();
+    if (!canvasNodes.confirmNodeRemoval(nodeIds)) return;
     nodeIds.forEach((nodeId, index) => removeNode(nodeId, {
       clearSelection: true,
       focusCanvas: index === nodeIds.length - 1
@@ -4374,10 +4375,7 @@
           } else {
             DesktopResults.showTransientMessage('提示词助手尚未加载，无法生成安全审核版。', 'warning');
           }
-          return;
         }
-        const label = textAction.textContent.trim();
-        DesktopResults.showTransientMessage(`${label} 会在文本节点工作流中接入。`);
         return;
       }
 
@@ -4387,6 +4385,7 @@
         event.preventDefault();
         event.stopPropagation();
         deleteButton.blur?.();
+        if (!canvasNodes.confirmNodeRemoval([node?.dataset.nodeId])) return;
         removeNode(node?.dataset.nodeId, { clearSelection: true, focusCanvas: true });
         return;
       }
@@ -5140,6 +5139,7 @@
           event.preventDefault();
           event.stopPropagation();
           getEditableKeyboardTarget(event.target)?.blur?.();
+          if (!canvasNodes.confirmNodeRemoval(selectedNodeIds)) return;
           selectedNodeIds.forEach((nodeId, index) => removeNode(nodeId, {
             clearSelection: true,
             focusCanvas: index === selectedNodeIds.length - 1

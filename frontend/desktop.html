@@ -6,7 +6,7 @@
   <meta name="canvashub-version" content="V26.5.0">
   <title>图像画布</title>
   <link rel="stylesheet" href="styles/desktop-tokens.css?v=20261021-pose-video1">
-  <link rel="stylesheet" href="styles/desktop-liquid.css?v=20261020-pose-rebuild1">
+  <link rel="stylesheet" href="styles/desktop-liquid.css?v=20261030-ui-align2">
   <link rel="stylesheet" href="styles/desktop-shell-geometry.css?v=20261015-shell-preserve1">
   <link rel="stylesheet" href="styles/desktop-settings-auth-geometry.css?v=20261015-interaction-kept4">
   <link rel="stylesheet" href="styles/desktop-prompt-assistant-geometry.css?v=20261015-interaction-kept4">
@@ -48,7 +48,7 @@
   <link rel="stylesheet" href="styles/desktop-lora.css?v=20261003-lora-quick-add1">
   <link rel="stylesheet" href="styles/desktop-qwen21.css?v=20261003-auto-image-mode1">
   <link rel="stylesheet" href="styles/desktop-compare.css?v=20261013-compare-module2">
-  <link rel="stylesheet" href="styles/desktop-progress.css?v=20261011-progress-instrument2">
+  <link rel="stylesheet" href="styles/desktop-progress.css?v=20261030-ui-defects1">
   <link rel="stylesheet" href="styles/desktop-ambient-controls.css?v=20261018-segment-norail1">
   <link rel="stylesheet" href="styles/desktop-control-material.css?v=20261019-pinterest-body2">
   <link rel="stylesheet" href="styles/desktop-number-stepper.css?v=20261011-stepper-panels1">
@@ -472,9 +472,9 @@
           <label data-provider-param="gpt google">
             <span>分辨率</span>
             <select id="deskResolutionSelect" class="desk-select">
-              <option>1k</option>
-              <option selected>2k</option>
-              <option>4k</option>
+              <option value="1k">1K</option>
+              <option value="2k" selected>2K</option>
+              <option value="4k">4K</option>
             </select>
           </label>
           <label data-provider-param="google" hidden>
@@ -495,10 +495,10 @@
           <label data-provider-param="gpt">
             <span>质量</span>
             <select id="deskQualitySelect" class="desk-select">
-              <option selected>auto</option>
-              <option>low</option>
-              <option>medium</option>
-              <option>high</option>
+              <option value="auto" selected>自动</option>
+              <option value="low">低</option>
+              <option value="medium">中</option>
+              <option value="high">高</option>
             </select>
           </label>
           <label data-provider-param="gpt">
@@ -517,8 +517,8 @@
           <label data-provider-param="gpt">
             <span>审核</span>
             <select id="deskModerationSelect" class="desk-select">
-              <option selected>auto</option>
-              <option>low</option>
+              <option value="auto" selected>自动</option>
+              <option value="low">低</option>
             </select>
           </label>
         </div>
@@ -1527,9 +1527,9 @@
       <div class="desk-bottombar__status" id="deskStatusBarStatus">
         <div class="desk-status-indicators" role="group" aria-labelledby="deskTodayCount deskQueueCount" tabindex="0">
           <div class="desk-status-group desk-status-group--run">
-            <span class="desk-status-chip desk-status-chip--ok desk-status-chip--service"><i class="desk-live-dot"></i>服务 18463 在线</span>
+            <span class="desk-status-chip desk-status-chip--ok desk-status-chip--service" id="deskServiceStatus"><i class="desk-live-dot"></i>服务 18463 在线</span>
             <span class="desk-status-chip desk-status-chip--checking" id="deskSidecarStatus">账号池 检查中</span>
-            <span class="desk-status-chip desk-status-chip--ok" id="deskFallbackStatus">GPT fallback 可用</span>
+            <span class="desk-status-chip desk-status-chip--checking" id="deskFallbackStatus">GPT fallback 检查中</span>
           </div>
           <div class="desk-status-group desk-status-group--task">
             <span class="desk-status-chip desk-status-chip--ok" id="deskTodayCount">今日任务 --</span>
@@ -1827,7 +1827,7 @@
     <input id="deskLayoutImageInput" type="file" accept="image/*" hidden>
   </div>
 
-  <script src="scripts/desktop-i18n.js?v=20261021-video-upload1"></script>
+  <script src="scripts/desktop-i18n.js?v=20261030-ui-align1"></script>
   <script src="scripts/auth-api.js?v=20260824-auth-debug-clean1"></script>
   <script src="vendor/fabric.min.js?v=5.3.0"></script>
   <script src="vendor/fabric-eraser.mixin.js?v=20260628-image-editor-pin16"></script>
@@ -1898,7 +1898,7 @@
   <script src="scripts/desktop-canvas-viewport.js?v=20261009-zoom-style-cost1"></script>
   <script src="scripts/desktop-canvas-workflow.js?v=20261023-google-web2"></script>
   <script src="scripts/desktop-canvas-prompt-document.js?v=20260912-canvas-business1"></script>
-  <script src="scripts/desktop-canvas-text-editor.js?v=20261010-node-keys1"></script>
+  <script src="scripts/desktop-canvas-text-editor.js?v=20261030-ui-align1"></script>
   <script src="scripts/desktop-canvas-image-group-model.js?v=20261017-image-group-tap1"></script>
   <script src="scripts/desktop-canvas-image-group-melt.js?v=20261017-image-group-rounded1"></script>
   <script src="scripts/desktop-canvas-image-group-interaction.js?v=20261017-image-group-melt-sort1"></script>
@@ -1907,21 +1907,21 @@
   <script src="scripts/desktop-canvas-image-editor.js?v=20260912-canvas-business1"></script>
   <script src="scripts/desktop-canvas-media-import.js?v=20261021-video-upload1"></script>
   <script src="scripts/desktop-canvas-references.js?v=20261023-google-web2"></script>
-  <script src="scripts/desktop-canvas-nodes.js?v=20261020-pose-rebuild1"></script>
+  <script src="scripts/desktop-canvas-nodes.js?v=20261030-ui-defects1"></script>
   <script src="scripts/desktop-google-web-controls.js?v=20261024-google-web-2k-prompt1"></script>
-  <script src="scripts/desktop-canvas-model-nodes.js?v=20261023-google-web-labels1"></script>
+  <script src="scripts/desktop-canvas-model-nodes.js?v=20261030-ui-align1"></script>
   <script src="scripts/desktop-canvas-connections.js?v=20261021-pose-video3"></script>
   <script src="scripts/desktop-canvas-connection-feedback.js?v=20261007-connection-arc1"></script>
   <script src="scripts/desktop-canvas-port-interaction.js?v=20261017-image-group-picker1"></script>
   <script src="scripts/desktop-canvas-generation-config.js?v=20261023-google-web2"></script>
-  <script src="scripts/desktop-canvas-generation.js?v=20260922-topaz-node5"></script>
+  <script src="scripts/desktop-canvas-generation.js?v=20261030-ui-align1"></script>
   <script src="scripts/desktop-canvas-collision.js?v=20260913-canvas-collision1"></script>
   <script src="scripts/desktop-canvas-lora.js?v=20261002-lora-library3"></script>
-  <script src="scripts/desktop-canvas.js?v=20261029-image-role-style1"></script>
+  <script src="scripts/desktop-canvas.js?v=20261030-ui-defects1"></script>
   <script type="module" src="scripts/desktop-pose-editor.js?v=20261023-pose-track-visible1"></script>
   <script src="scripts/desktop-layout-editor.js?v=20260908-layout-fonts2"></script>
   <script src="scripts/desktop-file-results.js?v=20260711-file-board-list3"></script>
-  <script src="scripts/desktop-results.js?v=20261029-cloud-stage1"></script>
+  <script src="scripts/desktop-results.js?v=20261030-ui-align1"></script>
   <script src="scripts/desktop-compare-viewport.js?v=20260922-compare-zoom2"></script>
   <script src="scripts/desktop-genie-fx.js?v=20261016-genie-fx1"></script>
   <script src="scripts/desktop-gallery-pinterest.js?v=20261019-pinterest-switch1"></script>

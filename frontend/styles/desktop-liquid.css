@@ -2080,8 +2080,8 @@ body.desk-app[data-theme="dark"]::after {
   display: inline-flex;
   box-sizing: border-box;
   max-width: calc(100% - 4px);
-  min-height: 22px;
-  margin: 1px 2px;
+  min-height: 18px;
+  margin: 0 2px;
   padding: 0 7px;
   gap: 5px;
   align-items: center;
@@ -2089,7 +2089,7 @@ body.desk-app[data-theme="dark"]::after {
   color: var(--desk-blue);
   font-size: 11px;
   font-weight: 880;
-  line-height: 20px;
+  line-height: 16px;
   white-space: nowrap;
   background: rgba(232, 243, 255, 0.92);
   border: 1px solid rgba(8, 79, 189, 0.24);
@@ -2222,8 +2222,19 @@ body.desk-app[data-theme="dark"]::after {
 }
 
 .desk-text-node__drawer button[data-text-action="clear"] {
+  display: grid;
   flex: 0 0 42px;
   padding: 0;
+  place-items: center;
+}
+
+.desk-text-node__drawer button[data-text-action="clear"] svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  stroke-linecap: round;
 }
 
 .desk-text-node__drawer button:hover {
@@ -3274,6 +3285,7 @@ body.desk-app[data-theme="dark"] .desk-image-editor__canvas-wrap {
   flex-wrap: nowrap;
   grid-template-columns: none;
   min-width: 0;
+  min-height: 30px;
   margin-bottom: 0;
   gap: 8px;
   -webkit-font-smoothing: antialiased;
@@ -3301,14 +3313,14 @@ body.desk-app[data-theme="dark"] .desk-image-editor__canvas-wrap {
   min-height: 64px;
   margin-top: auto;
   padding-top: 2px;
-  padding-right: 98px;
+  padding-right: 90px;
 }
 
 
 .desk-input-footer .desk-action-row {
   position: absolute;
-  right: 8px;
-  bottom: 4px;
+  right: 0;
+  bottom: 0;
   margin: 0;
 }
 
@@ -3439,8 +3451,9 @@ body.desk-app[data-theme="dark"] .desk-image-editor__canvas-wrap {
   color: var(--desk-muted);
   font-size: 11px;
   font-weight: 750;
-  background: rgba(255, 255, 255, 0.34);
+  background: rgba(85, 101, 120, 0.08);
   border-radius: 999px;
+  box-shadow: inset 0 0 0 1px rgba(85, 101, 120, 0.14);
 }
 
 .desk-pill-row span.is-busy {

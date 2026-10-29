@@ -370,12 +370,12 @@
         </div>
         <div class="desk-param-grid" aria-label="模型参数">
           <label data-provider-param="gpt google"><span>画幅</span><select class="desk-select" data-field="ratio">${ratioOptionsHtml(defaults.ratio || '9:16')}</select></label>
-          <label data-provider-param="gpt google"><span>分辨率</span><select class="desk-select" data-field="resolution">${optionListHtml([{ value: '1k', label: '1k' }, { value: '2k', label: '2k' }, { value: '4k', label: '4k' }], defaults.resolution || '2k')}</select></label>
+          <label data-provider-param="gpt google"><span>分辨率</span><select class="desk-select" data-field="resolution">${optionListHtml([{ value: '1k', label: '1K' }, { value: '2k', label: '2K' }, { value: '4k', label: '4K' }], defaults.resolution || '2k')}</select></label>
           <label data-provider-param="google" hidden><span>线路</span><select class="desk-select" data-field="googleProviderRoute">${optionListHtml([{value: 'third_party', label: '第三方 API'}, {value: 'google_pool', label: 'Google OAuth'}, {value: 'google_web', label: 'Gemini Web'}], defaults.googleProviderRoute || 'third_party')}</select></label>
           <label data-provider-param="google" hidden><span>模型</span><select class="desk-select" data-field="model">${googleModelOptionsHtml(defaults.model || DEFAULT_GOOGLE_MODEL)}</select></label>
-          <label data-provider-param="gpt"><span>质量</span><select class="desk-select" data-field="quality">${optionListHtml([{ value: 'auto', label: 'auto' }, { value: 'low', label: 'low' }, { value: 'medium', label: 'medium' }, { value: 'high', label: 'high' }], defaults.quality || 'auto')}</select></label>
+          <label data-provider-param="gpt"><span>质量</span><select class="desk-select" data-field="quality">${optionListHtml([{ value: 'auto', label: '自动' }, { value: 'low', label: '低' }, { value: 'medium', label: '中' }, { value: 'high', label: '高' }], defaults.quality || 'auto')}</select></label>
           <label data-provider-param="gpt"><span>数量</span><select class="desk-select" data-field="imageCount">${imageCountOptionsHtml(defaults.imageCount || 2)}</select></label>
-          <label data-provider-param="gpt"><span>审核</span><select class="desk-select" data-field="moderation">${optionListHtml([{ value: 'auto', label: 'auto' }, { value: 'low', label: 'low' }], defaults.moderation || 'auto')}</select></label>
+          <label data-provider-param="gpt"><span>审核</span><select class="desk-select" data-field="moderation">${optionListHtml([{ value: 'auto', label: '自动' }, { value: 'low', label: '低' }], defaults.moderation || 'auto')}</select></label>
         </div>
         <div class="desk-prompt-mode" data-provider-param="gpt" aria-label="提示词理解方式">
           <label>

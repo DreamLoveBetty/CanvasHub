@@ -752,6 +752,29 @@
     return id;
   }
 
+    // What removeNode destroys for good: typed prompts, uploaded references (their object URLs are
+    // revoked), grouped images and the canvas link to a running task. Generated results stay in the
+    // archive, so they never need a confirmation.
+    function describeNodeRemovalLoss(nodeId) {
+    const node = DesktopState.state.canvas.nodes[nodeId];
+    if (!node) return [];
+    const losses = [];
+    if (node.type === 'text' && String(node.text || '').trim()) losses.push('文本节点中的提示词');
+    const refs = nodeId === 'input' ? DesktopState.state.referenceImages : getNodeReferenceStore()[nodeId];
+    if (refs?.length) losses.push(`${refs.length} 张参考图`);
+    if (node.type === 'image_group' && node.items?.length) losses.push(`图片组中的 ${node.items.length} 张图片`);
+    const statuses = [DesktopState.state.outputs?.[nodeId]?.status, nodeId === 'input' ? DesktopState.state.output?.status : ''];
+    if (statuses.some(status => DesktopState.isInFlight(status))) losses.push('进行中任务在画布上的结果（任务本身会在后台继续并归档）');
+    return losses;
+  }
+
+    function confirmNodeRemoval(nodeIds = []) {
+    const losses = nodeIds.flatMap(describeNodeRemovalLoss);
+    if (!losses.length || !window.confirm) return true;
+    const subject = nodeIds.length > 1 ? `这 ${nodeIds.length} 个节点` : '这个节点';
+    return window.confirm(`删除${subject}后无法恢复：\n${[...new Set(losses)].map(item => `· ${item}`).join('\n')}\n\n继续删除？`);
+  }
+
     function removeNode(nodeId, options = {}) {
     const node = DesktopState.state.canvas.nodes[nodeId];
     if (!node) return;
@@ -968,6 +991,7 @@
       addNode,
       normalizeNodeMenuType,
       addNodeFromMenu,
+      confirmNodeRemoval,
       removeNode,
       refreshLayoutNode,
       toggleNodeDrawer,

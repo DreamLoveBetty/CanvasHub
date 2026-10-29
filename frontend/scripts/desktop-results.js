@@ -3,6 +3,7 @@
   const pollTimers = new Map();
   const batchPollTimers = new Map();
   let sidecarStatusTimer = null;
+  let serviceLiveDot = null;
   let transientTimer = null;
   let progressTimerId = null;
   const DEFAULT_STATUS_MESSAGE = '就绪';
@@ -110,6 +111,7 @@
       'deskStatusTipRaw',
       'deskStatusTipCopy',
       'deskStatusTipClose',
+      'deskServiceStatus',
       'deskSidecarStatus',
       'deskFallbackStatus',
       'deskArchiveStatus',
@@ -614,6 +616,32 @@
     chip.title = title || chip.textContent;
   }
 
+  // Codex -> account-pool fallback only runs when the pool is enabled, online and has an account.
+  function setFallbackStatus(text, tone, title = '') {
+    const chip = els.deskFallbackStatus;
+    if (!chip) return;
+    setStatusChipTone(chip, tone);
+    chip.textContent = text;
+    chip.title = title || text;
+  }
+
+  // Loading the page proves the service was up; afterwards only a request that got no HTTP
+  // response at all means it went away. Any HTTP status, 401 included, still means online.
+  function setServiceStatus(online) {
+    const chip = els.deskServiceStatus;
+    if (!chip) return;
+    serviceLiveDot ||= chip.querySelector('.desk-live-dot');
+    const port = window.location.port || (window.location.protocol === 'https:' ? '443' : '80');
+    chip.classList.toggle('desk-status-chip--service', online);
+    setStatusChipTone(chip, online ? 'ok' : 'error');
+    chip.replaceChildren(...(online && serviceLiveDot ? [serviceLiveDot] : []), `服务 ${port} ${online ? '在线' : '离线'}`);
+    chip.title = online ? `本地服务 ${port} 在线` : `无法连接本地服务 ${port}，请确认服务仍在运行`;
+  }
+
+  function isNetworkFailure(error) {
+    return Boolean(error?.isProxyError) || error?.name === 'TypeError';
+  }
+
   function statusParamEnabled(params, camelName, snakeName, fallbackSelector, fallback = true) {
     if (params && Object.prototype.hasOwnProperty.call(params, camelName)) return params[camelName] !== false;
     if (params && Object.prototype.hasOwnProperty.call(params, snakeName)) return params[snakeName] !== false;
@@ -642,11 +670,6 @@
     const controls = globalOutputControlParams(params);
     const archiveEnabled = controls.archiveEnabled !== false;
     const telegramEnabled = controls.telegramEnabled !== false;
-    if (els.deskFallbackStatus) {
-      els.deskFallbackStatus.textContent = 'GPT fallback 可用';
-      setStatusChipTone(els.deskFallbackStatus, 'ok');
-      els.deskFallbackStatus.title = 'GPT fallback 可用';
-    }
     if (els.deskArchiveStatus) {
       els.deskArchiveStatus.textContent = archiveEnabled ? '归档开启' : '归档关闭';
       setStatusChipTone(els.deskArchiveStatus, archiveEnabled ? 'ok' : 'warn');
@@ -686,6 +709,7 @@
     const total = Number(stats.total || 0);
     if (!pool.enabled) {
       setSidecarStatus('账号池 未启用', 'warn', 'ChatGPT account-pool sidecar is disabled');
+      setFallbackStatus('GPT fallback 未启用', 'warn', '账号池未启用，本地 Codex 失败时不会托底');
       return;
     }
     if (pool.online) {
@@ -698,21 +722,31 @@
         tone,
         `Sidecar online${total ? `, available ${available}/${total}` : ''}${busyText}${issueText}`
       );
+      if (available > 0) {
+        setFallbackStatus('GPT fallback 可用', 'ok', `本地 Codex 失败时切到账号池托底（可用账号 ${available}${total ? `/${total}` : ''}）`);
+      } else {
+        setFallbackStatus('GPT fallback 无可用账号', 'warn', `账号池在线但没有可用账号${issueText}，本地 Codex 失败时无法托底`);
+      }
       return;
     }
     setSidecarStatus('账号池 离线', 'error', pool.health_error || 'Sidecar health check failed');
+    setFallbackStatus('GPT fallback 不可用', 'error', '账号池离线，本地 Codex 失败时无法托底');
   }
 
   async function refreshSidecarStatus() {
     if (!window.DesktopApi?.getChatgptPoolStatus) {
       setSidecarStatus('账号池 未加载', 'warn');
+      setFallbackStatus('GPT fallback 未知', 'warn', '账号池状态接口未加载');
       return;
     }
     try {
       const payload = await window.DesktopApi.getChatgptPoolStatus();
+      setServiceStatus(true);
       renderSidecarStatus(payload);
     } catch (error) {
+      setServiceStatus(!isNetworkFailure(error));
       setSidecarStatus('账号池 离线', 'error', error?.message || '账号池状态读取失败');
+      setFallbackStatus('GPT fallback 未知', 'warn', '无法读取账号池状态，本地 Codex 失败时能否托底未知');
     }
   }
 
@@ -1048,13 +1082,23 @@
     const selectedCount = getExportFiles(resultNodeId).length;
     const isFallback = isBrowserFallback(task, output);
     const isPartial = imageCount > 0 && requestedCount > imageCount;
+    // Without images the first pill states the task outcome, matching the header status pill;
+    // an in-flight task already leads with its busy pill.
+    let resultPill = null;
+    if (imageCount) {
+      resultPill = {
+        text: requestedCount > 1 ? `已出 ${imageCount}/${requestedCount} 张` : `已出 ${imageCount} 张`,
+        tone: isPartial ? 'warning' : 'success'
+      };
+    } else if (DesktopState.isFailure(status)) {
+      resultPill = { text: DesktopState.getStatusLabel(status), tone: 'error' };
+    } else if (status === 'canceled') {
+      resultPill = { text: DesktopState.getStatusLabel(status) };
+    } else if (!DesktopState.isInFlight(status)) {
+      resultPill = { text: '等待结果' };
+    }
     const pills = [
-      {
-        text: imageCount
-          ? (requestedCount > 1 ? `图片 ${imageCount}/${requestedCount}` : '图片 1')
-          : '等待结果',
-        tone: imageCount && !isPartial ? 'success' : (isPartial ? 'warning' : '')
-      },
+      resultPill,
       imageCount > 1 ? { text: `已选 ${selectedCount}`, tone: selectedCount ? '' : 'warning' } : null,
       params.resolution ? { text: `${String(params.resolution).toUpperCase()} · ${params.ratio || '默认比例'}` } : null,
       isFallback ? { text: '托底中', tone: 'warning' } : null,

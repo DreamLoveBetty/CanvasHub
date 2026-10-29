@@ -166,7 +166,7 @@ test('node push buttons opt in through the style-free .desk-key hook; segments, 
   const keyed = {
     'desktop-canvas-nodes.js': ['data-image-edit ', 'data-image-view-mask', 'data-image-view-prompt', 'data-layout-open', 'data-layout-quick-export'],
     'desktop-pose-view.js': ['data-pose-recognize', 'desk-pose-node__editor" data-pose-open'],
-    'desktop-canvas-text-editor.js': ['data-text-action="preset"', 'data-text-action="google-polish"', 'data-text-action="gpt-polish"', 'data-text-action="safe-rewrite"', 'data-text-action="clear"'],
+    'desktop-canvas-text-editor.js': ['data-text-action="preset"', 'data-text-action="gpt-polish"', 'data-text-action="safe-rewrite"', 'data-text-action="clear"'],
     'desktop-topaz-video-view.js': ['data-topaz-video-import', 'data-topaz-video-workbench'],
     'desktop-video-control-view.js': ['data-control-import'],
     'desktop-canvas-audio.js': ['data-audio-action="import"', 'data-audio-action="download"'],

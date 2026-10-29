@@ -317,7 +317,7 @@
     } finally {
       if (triggerButton) {
         triggerButton.disabled = false;
-        triggerButton.textContent = previousLabel || 'Gpt 润色';
+        triggerButton.textContent = previousLabel || 'GPT 润色';
       }
     }
   }

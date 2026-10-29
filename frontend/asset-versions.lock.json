@@ -47,8 +47,8 @@
     "sha256": "50193996cfb260fab3dfe6947ca2ec5eb426689b5ab906577b7dfa71664f97de"
    },
    "scripts/desktop-canvas-generation.js": {
-    "v": "20260922-topaz-node5",
-    "sha256": "056ad23f5f4e3decdff8ac7c7e000b04f1dcd03282406e04fa9cec942e3dc9e5"
+    "v": "20261030-ui-align1",
+    "sha256": "496270b9bde5acd51d5239fec32e88a28a1191e2456ec60358621123701e963c"
    },
    "scripts/desktop-canvas-geometry.js": {
     "v": "20261002-curve-direct1",
@@ -91,16 +91,16 @@
     "sha256": "24ae72dfe8123cf2b93e7561ffdbe644bf9be784d2891845de8662f855e25ef5"
    },
    "scripts/desktop-canvas-model-nodes.js": {
-    "v": "20261023-google-web-labels1",
-    "sha256": "ad861ec00923abeac9516c96755cc4ed59cff6b3af0cf84a413485e65ae849bf"
+    "v": "20261030-ui-align1",
+    "sha256": "ac5779cc519c361f076d18ed355d2158315c5126196eebd5194188056b134fba"
    },
    "scripts/desktop-canvas-music.js": {
     "v": "20260919-music-status2",
     "sha256": "b93826e20d41af49a57ea9a60668e489908347b5b7fce3995ca57d40230a1f3e"
    },
    "scripts/desktop-canvas-nodes.js": {
-    "v": "20261020-pose-rebuild1",
-    "sha256": "f8dca7f50a2ac47b84d905541de0d664429d398c5c2ad9955290b7695bbd8230"
+    "v": "20261030-ui-defects1",
+    "sha256": "3bf16a2cb9b56b1fcfe27d1dffecdad3a62c9eafa331ace324505008f614f983"
    },
    "scripts/desktop-canvas-port-geometry.js": {
     "v": "20260911-canvas-port-geometry1",
@@ -131,8 +131,8 @@
     "sha256": "d70db5353fd2b96b97eca3f7ac79bfc15cda35d1b12b9b2c77691464f319bc1a"
    },
    "scripts/desktop-canvas-text-editor.js": {
-    "v": "20261010-node-keys1",
-    "sha256": "af3eb4c6e47ee25daf8895ebfe4690a58ae72efb148731b8041281b2f520aef4"
+    "v": "20261030-ui-align1",
+    "sha256": "d668678cf61bc2dd9f70d14630d0feaa6112077a8ec793a5814925035888f707"
    },
    "scripts/desktop-canvas-topaz-video.js": {
     "v": "20261005-topaz-pipeline1",
@@ -155,8 +155,8 @@
     "sha256": "40c9f288d68ff173466a67c991048df5ed25114297f570fb15c28b972e205214"
    },
    "scripts/desktop-canvas.js": {
-    "v": "20261029-image-role-style1",
-    "sha256": "299127af9881f593d7586f1c1bd6c84f9e1cf4df623388a1d22582362d67faf1"
+    "v": "20261030-ui-defects1",
+    "sha256": "42f21ebc72463002c1cd1fbd2a9269355c1fb8b0da8b17adf0b2522bffa83b81"
    },
    "scripts/desktop-color-bloom.js": {
     "v": "20261019-color-drag1",
@@ -219,8 +219,8 @@
     "sha256": "a09d5ae0aa705c8d1da5640d33b32bb6bf267cc4c0df30a8ca167e7d45e50d12"
    },
    "scripts/desktop-i18n.js": {
-    "v": "20261021-video-upload1",
-    "sha256": "f4d93c163c5399829c3f0252eebe5ae0904007d1df8b4c5bbd97efb3f19d0453"
+    "v": "20261030-ui-align1",
+    "sha256": "3643ee73e54b0161c0d6a3f7dafcf7cf6d6ca21bf059c73fdc723f74bba9f4c5"
    },
    "scripts/desktop-krea2-api.js": {
     "v": "20260929-krea2-layout-3",
@@ -363,8 +363,8 @@
     "sha256": "00bcf41ac9ff41be853543d905f492719605476ec2a2443f6fd12dc237e36ac1"
    },
    "scripts/desktop-results.js": {
-    "v": "20261029-cloud-stage1",
-    "sha256": "c1147af6aefff420e0edd7f0c39f59327c16a94f0c65349b59b95db5f2daa71e"
+    "v": "20261030-ui-align1",
+    "sha256": "fd1e0fb77ab91dedab307daa0dbe04cf6943c5d1f8cc340f3ba2b5b4f07aa9a9"
    },
    "scripts/desktop-select.js": {
     "v": "20261020-pose-rebuild1",
@@ -539,8 +539,8 @@
     "sha256": "f0f42e1cb340f262bf81c64abe22bd953d0aac190213c56bc288735e448bfc12"
    },
    "styles/desktop-liquid.css": {
-    "v": "20261020-pose-rebuild1",
-    "sha256": "9fe667da9445439f4a5e349d79421207c533f495c3a0d77a0ee6804c91ab03ff"
+    "v": "20261030-ui-align2",
+    "sha256": "edf7579edcd1fdbac5b6d7214c173e4f02138242bc079dc527bb23e68a181189"
    },
    "styles/desktop-lora.css": {
     "v": "20261003-lora-quick-add1",
@@ -575,8 +575,8 @@
     "sha256": "2689db777cad998a50f8875345a30590b92b6a3ba2b4d258cf99767094dd023e"
    },
    "styles/desktop-progress.css": {
-    "v": "20261011-progress-instrument2",
-    "sha256": "689d576316c7f6c75b49ab5f0adcea889a0dc29cc89eee2cd3821abb1df78bf7"
+    "v": "20261030-ui-defects1",
+    "sha256": "533da718888daf34221b66aa6083e1cd599c5375c48b808e76b217710edb4566"
    },
    "styles/desktop-prompt-assistant-geometry.css": {
     "v": "20261015-interaction-kept4",
