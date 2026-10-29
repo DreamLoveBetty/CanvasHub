@@ -243,6 +243,14 @@ function estimatedPercent(estimateSeconds, startedAt, now = Date.now()) {
   const ratio = Math.max(0, now - start) / total;
   return ratio <= 1 ? ratio * 90 : 95 - 5 * Math.exp(-(ratio - 1) * 2);
 }
+// Stage-based progress: each observable stage owns an equal band. Only a stage given an
+// estimate advances inside its band, and never beyond 95% of it.
+function stagePercent(index, count, estimateSeconds, startedAt, now = Date.now()) {
+  const i = Math.floor(Number(index)), n = Math.floor(Number(count));
+  if (!(n > 0) || !(i >= 1 && i <= n)) return null;
+  const band = 100 / n, inside = estimatedPercent(estimateSeconds, startedAt, now);
+  return (i - 1) * band + band * (inside == null ? 0 : inside / 100);
+}
 function formatElapsed(ms) {
   if (!Number.isFinite(ms) || ms < 0) return '00:00';
   const seconds = Math.floor(ms / 1000), hours = Math.floor(seconds / 3600);
@@ -272,7 +280,7 @@ window.DesktopProgressModel = Object.freeze({
   clamp, normalizeProgress, LiquidMotion, FlowMotion, sampleFront,
   normalizeFillColor, FillTint, ORIGINAL_FILL_TINT, classicFillGradient,
   PROGRESS_STYLES, PROGRESS_HEIGHTS, normalizePreferences, epochMs,
-  knownPercent, estimatedPercent, formatElapsed, normalizeDisplay, elapsedLabel,
+  knownPercent, estimatedPercent, stagePercent, formatElapsed, normalizeDisplay, elapsedLabel,
 });
 
 })();

@@ -311,8 +311,8 @@
     "sha256": "093fe57bd573c484f12ca4218000142c7dced916092bab57b7a2dad7c2b16fdd"
    },
    "scripts/desktop-progress-model.js": {
-    "v": "20261029-cloud-estimate1",
-    "sha256": "7a5684c97759919b076740a910b608ca2399fe6230e7e5b8ae5a5c91f2e5b224"
+    "v": "20261029-cloud-stage1",
+    "sha256": "46e2f8ec08cec55ae5b2c3de0f7c927f7b6c62552ff942dc32647f85cc1ea02e"
    },
    "scripts/desktop-progress-preview.js": {
     "v": "20261011-progress-preview1",
@@ -363,8 +363,8 @@
     "sha256": "00bcf41ac9ff41be853543d905f492719605476ec2a2443f6fd12dc237e36ac1"
    },
    "scripts/desktop-results.js": {
-    "v": "20261029-cloud-estimate1",
-    "sha256": "c1669c6d02be17b79287df84b4930eb9d07c92fe86eae88de0bc09ef92151dd0"
+    "v": "20261029-cloud-stage1",
+    "sha256": "c1147af6aefff420e0edd7f0c39f59327c16a94f0c65349b59b95db5f2daa71e"
    },
    "scripts/desktop-select.js": {
     "v": "20261020-pose-rebuild1",

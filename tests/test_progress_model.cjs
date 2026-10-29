@@ -35,6 +35,16 @@ test('history estimate reaches 90% at the expected time and never claims complet
   assert.ok(late>94 && late<95);
   assert.ok(M.estimatedPercent(60,start,at(90))>90);
 });
+test('stage progress gives each stage an equal band and estimates only inside its own band', () => {
+  const start=1790910000, at=s=>(start+s)*1000;
+  for (const [i,n] of [[0,3],[4,3],[1,0],[null,3]]) assert.equal(M.stagePercent(i,n,null,start,at(5)),null);
+  assert.equal(M.stagePercent(1,4,null,start,at(5)),0);
+  assert.equal(M.stagePercent(2,4,null,start,at(50)),25);
+  assert.equal(M.stagePercent(3,4,null,start,at(50)),50);
+  assert.equal(M.stagePercent(2,4,60,start,at(30)),25+25*0.45);
+  const late=M.stagePercent(2,4,60,start,at(6000));
+  assert.ok(late>48 && late<50, 'generating never reaches the next stage');
+});
 test('elapsed uses authoritative seconds or milliseconds and survives repeated identical receipts', () => {
   const epoch=1790910750;
   for(const startedAt of [epoch, epoch*1000]) {

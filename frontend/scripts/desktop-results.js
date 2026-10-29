@@ -1168,13 +1168,21 @@
     if (materialRoot) {
       const labels = { gpt: 'GPT · 图像生成', google: '图像生成', comfy: 'ComfyUI',
         topaz: 'Topaz · 图像增强', upscale: '本地高清放大', file_output: '文件生成', video_inference: 'MiniMax H3' };
+      const progressModel = window.DesktopProgressModel;
       const reported = Number(task?.progress ?? task?.progress_percent ?? task?.progressPercent);
-      const estimated = Number.isFinite(reported) && reported > 0 ? null
-        : window.DesktopProgressModel?.estimatedPercent?.(task?.estimated_duration_seconds, output.startedAt || output.createdAt);
+      const hasReported = Number.isFinite(reported) && reported > 0;
+      const startedAt = output.startedAt || output.createdAt;
+      const stageIndex = task?.progress_stage_index, stageCount = task?.progress_stage_count;
+      // Real receipts win; cloud tasks advance by observable stage, estimating only inside the generating stage.
+      const staged = hasReported ? null : progressModel?.stagePercent?.(stageIndex, stageCount,
+        task?.progress_stage_kind === 'generating' ? task?.estimated_duration_seconds : null, startedAt);
+      const estimated = hasReported || staged != null ? null
+        : progressModel?.estimatedPercent?.(task?.estimated_duration_seconds, startedAt);
       window.DesktopCanvas?.updateTaskProgress?.(materialRoot, {
         visible: DesktopState.isInFlight(status), running: DesktopState.isInFlight(status), taskId: output.taskId,
-        percent: estimated ?? (Number.isFinite(reported) && reported > 0 ? reported : null),
-        valueLabel: estimated == null ? '' : `约 ${Math.round(estimated)}%`,
+        percent: hasReported ? reported : (staged ?? estimated ?? null),
+        valueLabel: staged != null ? `${stageIndex}/${stageCount} · ${Math.round(staged)}%`
+          : (estimated == null ? '' : `约 ${Math.round(estimated)}%`),
         title: output.progressText || DesktopState.getStatusLabel(status),
         detail: labels[resultNode?.dataset.nodeType || state.canvas?.nodes?.[resultNodeId]?.type] || labels[output.type] || '图像生成',
         startedAt: output.startedAt || output.createdAt, finishedAt: output.finishedAt,
