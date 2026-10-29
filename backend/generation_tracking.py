@@ -359,7 +359,11 @@ def translate_generation_error(
 
     if "http 429" in lower or "rate limit" in lower or "限流" in text:
         display = "请求过于频繁，被上游限流了"
-        if "chatgpt_pool" in provider_key or "pool" in provider_key:
+        if provider_key.startswith("google_pool"):
+            display = "Google OAuth 账号池账号被限流了（HTTP 429），可稍后重试或停用该账号"
+        elif provider_key.startswith("google_web"):
+            display = "Gemini Web 账号池账号被限流了，可稍后重试或停用该账号"
+        elif "pool" in provider_key:
             display = "ChatGPT 账号池账号被限流了"
         return {
             "error_code": _error_code(provider_key or "generation", "rate_limited"),

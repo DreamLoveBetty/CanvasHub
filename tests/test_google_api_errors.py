@@ -152,6 +152,23 @@ class GoogleApiErrorFormattingTest(unittest.TestCase):
         self.assertIn("Google 图像生成被安全策略拦截", info["display_error"])
         self.assertIn("受限内容", info["display_error"])
 
+    def test_google_pool_rate_limit_names_the_google_pool(self) -> None:
+        for provider, label in (("google_pool", "Google OAuth 账号池"), ("google_web", "Gemini Web 账号池")):
+            info = translate_generation_error(
+                "Google 流式接口错误：Google 图像生成失败（HTTP 429）",
+                provider=provider,
+                route=provider + "_edit",
+                task_type="google-edit",
+                stage="failed",
+            )
+            self.assertEqual(info["error_code"], provider + ".rate_limited")
+            self.assertEqual(info["error_category"], "rate_limit")
+            self.assertIn(label, info["display_error"])
+            self.assertNotIn("ChatGPT", info["display_error"])
+
+        info = translate_generation_error("HTTP 429 rate limit", provider="chatgpt_pool")
+        self.assertEqual(info["display_error"], "ChatGPT 账号池账号被限流了")
+
     def test_generation_error_translation_maps_third_party_ssl_eof(self) -> None:
         info = translate_generation_error(
             "HTTPSConnectionPool(host='api.change2pro.com', port=443): Max retries exceeded "
