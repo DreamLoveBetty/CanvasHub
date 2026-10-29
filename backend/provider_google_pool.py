@@ -12,6 +12,7 @@ from urllib.parse import quote
 import requests
 from PIL import Image
 from .gemini_image_response import GeminiImageResponse
+from .gemini_request_parts import labeled_reference_parts
 from .image_resolution import build_resolution_metadata
 
 
@@ -63,7 +64,7 @@ class GooglePoolProvider:
             if str(quality).lower() in ('4k', 'hd')
             else ('1K' if str(quality).lower() == '1k' else '2K')
         )
-        parts = [{'text': str(prompt)}]
+        image_parts = []
         for value in images:
             encoded = str(value).split(',', 1)[-1]
             try:
@@ -75,7 +76,11 @@ class GooglePoolProvider:
                     raise ValueError()
             except Exception:
                 raise ValueError('Google参考图数据无效') from None
-            parts.append({'inlineData': {'mimeType': mime, 'data': encoded}})
+            image_parts.append({'inlineData': {'mimeType': mime, 'data': encoded}})
+        # Gemini Web joins every text part into one prompt, so labels would only add noise there.
+        parts = [{'text': str(prompt)}] + (
+            labeled_reference_parts(image_parts) if self.route == 'google_pool' else image_parts
+        )
         body = {
             'contents': [{'role': 'user', 'parts': parts}],
             'generationConfig': {

@@ -11,6 +11,7 @@ from urllib.parse import quote, urlsplit, urlunsplit
 
 from PIL import Image
 
+from .gemini_request_parts import labeled_reference_parts
 from .image_resolution import build_resolution_metadata
 
 
@@ -64,7 +65,7 @@ def reference_part(value: str) -> dict:
 
 
 def google_payload(prompt: str, aspect_ratio: str, image_size: str, images=()) -> dict:
-    parts = [{'text': prompt}, *(reference_part(img) for img in images)]
+    parts = [{'text': prompt}, *labeled_reference_parts(reference_part(img) for img in images)]
     return {
         'contents': [{'role': 'user', 'parts': parts}],
         'generationConfig': {'imageConfig': {

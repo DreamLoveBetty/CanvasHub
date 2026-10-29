@@ -21,6 +21,7 @@ from urllib3 import PoolManager
 from .app_config import get_telegram_config, get_yunwu_api_base_url, get_yunwu_api_key
 from . import provider_change2pro as change2pro
 from .gemini_image_response import GeminiImageResponse
+from .gemini_request_parts import labeled_reference_parts
 
 # ── 配置 ──────────────────────────────────────────────────────────────────────
 DEFAULT_API_BASE = ''
@@ -818,10 +819,10 @@ def edit_image(
         image_size = '1K'
     api_model = (_requested_native_model(model)
                  if documented_native else _normalize_openai_chat_model(model))
-    parts = []
-    for img in images:
-        img_base64 = img.split(',')[1] if ',' in img else img
-        parts.append({'inlineData': {'mimeType': 'image/png', 'data': img_base64}})
+    parts = labeled_reference_parts(
+        {'inlineData': {'mimeType': 'image/png', 'data': img.split(',')[1] if ',' in img else img}}
+        for img in images
+    )
     parts.append({'text': prompt})
 
     payload = {
