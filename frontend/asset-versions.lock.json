@@ -71,8 +71,8 @@
     "sha256": "831225fa67972e185ea4ee88f5864919413d47ac96d2fe0a8e73dcd48f359541"
    },
    "scripts/desktop-canvas-image-group-model.js": {
-    "v": "20261017-image-group-tap1",
-    "sha256": "626d5669a89c5c71ea968399b2c7273290046e89f9eaec985529cd36144a3142"
+    "v": "20261030-qwen-roles2",
+    "sha256": "128384ca27004b882e9c5b3ca6b5ae96a2b0983467c8da6c58872c1ea796c6e6"
    },
    "scripts/desktop-canvas-image-group-role-picker.js": {
     "v": "20261017-image-group-icons1",
@@ -119,8 +119,8 @@
     "sha256": "20891a7f17d01e340e233112673c4745ca80065023565735ed99e7769626c8f2"
    },
    "scripts/desktop-canvas-qwen21.js": {
-    "v": "20261030-group-input1",
-    "sha256": "e7505dc92c43511c35de2689f29d8af16bd99d73e6b06ef6a15fb463ed0d55e9"
+    "v": "20261030-qwen-roles1",
+    "sha256": "f07641b648aa8225d51ebf92733bd078c2ab85233d0b2dff7ba015bdb2307129"
    },
    "scripts/desktop-canvas-references.js": {
     "v": "20261023-google-web2",
@@ -155,8 +155,8 @@
     "sha256": "40c9f288d68ff173466a67c991048df5ed25114297f570fb15c28b972e205214"
    },
    "scripts/desktop-canvas.js": {
-    "v": "20261030-ui-defects1",
-    "sha256": "42f21ebc72463002c1cd1fbd2a9269355c1fb8b0da8b17adf0b2522bffa83b81"
+    "v": "20261030-qwen-roles2",
+    "sha256": "39a7c340539ac80c6f24ca8c256a777db0c82fb50bf5ba24fef09b6b20be8516"
    },
    "scripts/desktop-color-bloom.js": {
     "v": "20261019-color-drag1",

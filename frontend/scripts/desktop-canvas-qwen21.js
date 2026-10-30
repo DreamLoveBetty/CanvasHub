@@ -1,6 +1,6 @@
 // Qwen node controller. Explicit canvas ports; jobs/models/archives belong to the backend.
 (function () {
-  function create({model:M,api,loraLibrary,loraView,getCanvas,getNodeState,getNodeElement,getImageReferences,getTextNodes,
+  function create({model:M,api,loraLibrary,loraView,getCanvas,getNodeState,getNodeElement,getImageReferences,getTextNodes,getPrompt,
     materializeText,addNode,connectNodes,setImageFromResult,applyNodeLayout,updateLinkPath,saveState,reportStatus,progressView}={}){
     const sessions=new Map();let status=null,loras=[],loading=null,statusTimer=0;
     const esc=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
@@ -122,7 +122,7 @@
       }catch(error){if(live(s)&&s.node.jobId===id){feedback(s,error.message,'error');if(!terminal(s.node.status))s.timer=setTimeout(()=>poll(s),3000);}}}
     async function run(s){if(s.pending||s.preparing||s.starting)return;if(M.active(s.node.status)){if(s.node.jobId){s.pending=true;try{await api.cancel(s.node.jobId);}catch(error){feedback(s,error.message,'error');}finally{s.pending=false;poll(s);}}return;}
       s.progressStartedAt=Date.now();s.starting=true;paint(s);
-      try{if(!status)await loadResources();if(!live(s))return;syncBase(s,true);paint(s);const prompt=(getTextNodes(s.id)||[]).map(node=>materializeText(node)).map(x=>String(x||'').trim()).filter(Boolean).join('\n\n');if(!prompt)throw new Error('请连接含有提示词的文本节点');
+      try{if(!status)await loadResources();if(!live(s))return;syncBase(s,true);paint(s);if(!(getTextNodes(s.id)||[]).some(node=>String(materializeText(node)||'').trim()))throw new Error('请连接含有提示词的文本节点');const prompt=String(getPrompt(s.id)||'').trim();
         const refs=refsFor(s),limit=M.PRESETS[s.node.preset].references;
         if(M.missingInputIds(s.node,getCanvas(),refs.map(({ref})=>ref)).length)throw new Error('连接的参考图节点尚无可读取内容，请先加载图片或完成导出');
         if(s.node.mode==='edit'&&(!refs.length||refs.length>limit))throw new Error(`该编辑预设需要 1–${limit} 张参考图`);

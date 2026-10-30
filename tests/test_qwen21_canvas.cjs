@@ -108,7 +108,9 @@ test('节点使用标准控件、两行参数区，不暴露模型路径或另�
   assert.ok(html.indexOf('data-qwen21-field="ratio"')<html.indexOf('data-qwen21-field="imageWidth"'));
   assert.match(html,/<\/footer>\s*<\/div><div class="desk-progress-float desk-qwen21__progress"/);
   const source=read('desktop-canvas-qwen21.js');
-  assert.match(source,/map\(node=>materializeText\(node\)\)/);
+  assert.match(source,/\.some\(node=>String\(materializeText\(node\)\|\|''\)\.trim\(\)\)/);
+  // The shared prompt carries the image group's role block, like Google generation.
+  assert.match(source,/const prompt=String\(getPrompt\(s\.id\)\|\|''\)\.trim\(\)/);
   assert.match(source,/reference_upload_tokens:tokens/);
   assert.match(source,/referenceOrder=order/);
   assert.match(source,/s\.node\.jobId!==id\|\|\(s\.epoch\|\|0\)!==epoch/);
@@ -204,4 +206,17 @@ test('image group inputs count as readable although their items keep the origina
   }
   const krea=(()=>{const c={window:{}};vm.runInNewContext(read('desktop-krea2-model.js'),c);return c.window.DesktopKrea2Model;})();
   assert.deepEqual(Array.from(krea.missingInputIds({id:'k'},{nodes:{group:{type:'image_group'},k:{type:krea.TYPE||'krea2'}},edges:[{from:'group',to:'k'}]},[{sourceNodeId:'a',imageGroupId:'group'}])),[]);
+});
+
+test('a subject reference yields its clothing to a clothing reference on the same input',()=>{
+  const group=read('desktop-canvas-image-group-model.js'),canvas=read('desktop-canvas.js');
+  const start=group.indexOf('function imageGroupRoleInstruction(');
+  const body=group.slice(start,group.indexOf('\n  }\n',start)+4);
+  const subject=canvas.match(/subject: '([^']+)'/)[1],withClothing=canvas.match(/subjectWithClothing: '([^']+)'/)[1];
+  const c={IMAGE_GROUP_ROLE_INSTRUCTIONS:{reference:'r',subject,subjectWithClothing:withClothing,clothing:'c'},normalizeImageGroupRole:x=>x};
+  vm.runInNewContext(`${body}\nthis.f=imageGroupRoleInstruction;`,c);
+  assert.equal(c.f('subject'),subject);
+  assert.equal(c.f('subject',{hasClothingReference:true}),withClothing);
+  assert.equal(c.f('clothing',{hasClothingReference:true}),'c');
+  assert.ok(subject.includes('服装设计')&&!withClothing.includes('服装设计'));
 });

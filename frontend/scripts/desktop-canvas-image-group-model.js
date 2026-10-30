@@ -70,8 +70,10 @@
     return IMAGE_GROUP_ROLES.find(item => item.value === normalized)?.label || '参考';
   }
 
-    function imageGroupRoleInstruction(value) {
-    return IMAGE_GROUP_ROLE_INSTRUCTIONS[normalizeImageGroupRole(value)]
+    function imageGroupRoleInstruction(value, { hasClothingReference = false } = {}) {
+    const role = normalizeImageGroupRole(value);
+    if (role === 'subject' && hasClothingReference) return IMAGE_GROUP_ROLE_INSTRUCTIONS.subjectWithClothing;
+    return IMAGE_GROUP_ROLE_INSTRUCTIONS[role]
       || IMAGE_GROUP_ROLE_INSTRUCTIONS.reference;
   }
 
@@ -634,9 +636,11 @@
   }
 
     function imageGroupRoleEntriesForTarget(targetNodeId) {
-    return getConnectedImageReferences(targetNodeId)
+    const entries = getConnectedImageReferences(targetNodeId)
       .map((reference, index) => ({ reference, imageNumber: index + 1 }))
-      .filter(entry => entry.reference.imageGroupId && entry.reference.imageGroupItemId)
+      .filter(entry => entry.reference.imageGroupId && entry.reference.imageGroupItemId);
+    const hasClothingReference = entries.some(entry => normalizeImageGroupRole(entry.reference.imageRole) === 'clothing');
+    return entries
       .map(entry => ({
         targetNodeId,
         groupId: entry.reference.imageGroupId,
@@ -645,7 +649,7 @@
         imageNumber: entry.imageNumber,
         role: normalizeImageGroupRole(entry.reference.imageRole),
         roleLabel: imageGroupRoleLabel(entry.reference.imageRole),
-        instruction: imageGroupRoleInstruction(entry.reference.imageRole),
+        instruction: imageGroupRoleInstruction(entry.reference.imageRole, { hasClothingReference }),
         name: entry.reference.name || entry.reference.title || `图片${entry.imageNumber}`
       }));
   }

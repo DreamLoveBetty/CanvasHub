@@ -81,7 +81,7 @@ function fixture({ready=true,prompt='Synthetic landscape',refs=2,models=null,nod
     sourceBlob:async()=>({}),uploadImage:async()=>({upload_token:'synthetic-upload'}),
     prepare:async()=>{throw new Error('Synthetic preparation failure');}};
   const controller=sandbox.window.DesktopCanvasQwen21.create({model,api,getCanvas:()=>canvas,getNodeState:id=>canvas.nodes[id],
-    getNodeElement:id=>id==='q'?element:null,getImageReferences:()=>references,getTextNodes:()=>prompt?[{text:prompt}]:[],materializeText:item=>item.text,
+    getNodeElement:id=>id==='q'?element:null,getImageReferences:()=>references,getTextNodes:()=>prompt?[{text:prompt}]:[],materializeText:item=>item.text,getPrompt:()=>prompt,
     saveState:()=>saved.push(plain(node)),reportStatus:report=>reports.push(report),
     addNode(){throw new Error('Unexpected output publication');},connectNodes(){},setImageFromResult(){},applyNodeLayout(){},updateLinkPath(){}});
   controller.nodeHtml(node);controller.reconcile();

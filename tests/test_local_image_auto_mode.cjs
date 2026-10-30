@@ -51,7 +51,7 @@ function fixture(engine,options={}){
   const controller=context.window[controllerName].create({model,api,getCanvas:()=>canvas,
     getNodeState:id=>canvas.nodes[id],getNodeElement:id=>id==='n'?element:null,getImageReferences:references,
     getTextNodes:id=>canvas.edges.filter(edge=>edge.to===id).map(edge=>canvas.nodes[edge.from]).filter(node=>node?.type==='text'),
-    materializeText:node=>node.text,saveState:()=>saves++,reportStatus:value=>feedback.push(value),
+    materializeText:node=>node.text,getPrompt:id=>canvas.edges.filter(edge=>edge.to===id).map(edge=>canvas.nodes[edge.from]).filter(node=>node?.type==='text').map(node=>node.text).join('\n\n'),saveState:()=>saves++,reportStatus:value=>feedback.push(value),
     addNode(){throw new Error('Unexpected output publication');},connectNodes(){},setImageFromResult(){},applyNodeLayout(){},updateLinkPath(){}});
   const html=controller.nodeHtml(canvas.nodes.n);controller.reconcile();
   return{model,controller,html,submitted,uploads,sources,feedback,

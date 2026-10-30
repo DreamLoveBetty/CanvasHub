@@ -212,6 +212,8 @@
   const IMAGE_GROUP_ROLE_INSTRUCTIONS = Object.freeze({
     reference: '作为通用视觉参考，仅参考用户明确指定的内容。',
     subject: '保持主体身份、发型发色、服装设计和关键特征；画风与渲染媒介由风格参考或正文决定。',
+    // Used instead of `subject` when the same input also has a clothing reference.
+    subjectWithClothing: '保持主体身份、脸部、发型发色和体型特征；服装以服饰参考为准，不沿用此图的服装；画风与渲染媒介由风格参考或正文决定。',
     clothing: '参考服装款式、剪裁、层次、配色、面料纹理和配饰，不继承人物身份、脸部、姿态及背景。',
     style: '参考整体画风与渲染媒介（如真人实拍、插画、3D）及其色调、光影和质感，并按此风格重新呈现主体；不继承此图的人物、服装和场景。',
     composition: '仅参考机位、景别、主体位置和空间布局。',
@@ -5314,6 +5316,7 @@
     loraLibrary: DesktopApi.lora, loraView,
     getCanvas:()=>DesktopState.state.canvas, getNodeState,getNodeElement,
     getImageReferences:getConnectedImageReferences, getTextNodes:getConnectedTextNodes,
+    getPrompt:getVisibleInputPrompt,
     materializeText:materializeTextNode, addNode,connectNodes,
     setImageFromResult:setImageNodeFromResult,applyNodeLayout,updateLinkPath,
     saveState:()=>DesktopState.saveSettings({criticalCanvas:true}),
