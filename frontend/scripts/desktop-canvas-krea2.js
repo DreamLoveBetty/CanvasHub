@@ -242,7 +242,7 @@
           if(s.node.loras.some(item=>item.assetId===s.node.controlAdapterId))throw new Error('控制适配器不能在普通 LoRA 栈中重复加载');
           control=C.request(getNodeState(ids[0]));
         }
-        if(M.imageInputIds(s.node,getCanvas()).some(id=>!refs.some(ref=>ref.sourceNodeId===id)))throw new Error('连接的编辑源图尚无可读取内容，请先加载图片');
+        if(M.missingInputIds(s.node,getCanvas(),refs).length)throw new Error('连接的编辑源图尚无可读取内容，请先加载图片');
         if(s.node.mode==='edit'&&refs.length!==1)throw new Error('Krea 2 指令编辑必须连接 1 张编辑源图');
         if(s.node.mode==='edit'&&!s.node.editAdapterId)throw new Error('请选择 Krea 2 Identity Edit LoRA');
         if(M.regularLoras(s.node).length>regularLoraLimit(s.node))throw new Error('编辑或控制模式最多 3 个普通 LoRA，请移除多余 LoRA 后再生成');

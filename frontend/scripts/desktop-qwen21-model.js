@@ -63,8 +63,11 @@
   function imageInputIds(node,canvas){
     return [...new Set((canvas?.edges||[]).filter(edge=>edge.to===node.id&&policy(canvas?.nodes?.[edge.from],node)?.inputRole==='image').map(edge=>edge.from))];
   }
+  // Image-group references keep their original image node as sourceNodeId, so a group input
+  // is matched through imageGroupId.
+  const missingInputIds=(node,canvas,refs)=>imageInputIds(node,canvas).filter(id=>!refs.some(ref=>ref.sourceNodeId===id||ref.imageGroupId===id));
   const resolveMode=(node,canvas)=>imageInputIds(node,canvas).length?'edit':'text';
   const ICON='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M5 4h14v14H5zM8 14l3-4 5 5M15 7h.01M13 18l4 4"/></svg>';
   const MENU_ITEM=Object.freeze({type:TYPE,title:'Qwen 2.1 · MLX',subtitle:'本地生成 / 多参考编辑 · Turbo / Viggle 加速',icon:ICON});
-  window.DesktopQwen21Model=Object.freeze({TYPE,WIDTH,HEIGHT,DEFAULT_MODEL_ID,DEFAULT_PRESET,TURBO_PRESET,LORA_SCALE_MIN,LORA_SCALE_MAX,ASPECT_RATIOS,PRESETS,ICON,MENU_ITEM,normalizeLoraScale,normalize,active,selectAvailableBase,presetAllowed,applyModelPreset,dimensionsForRatio,ratioFromDimensions,outputPosition,targets,policy,imageInputIds,resolveMode});
+  window.DesktopQwen21Model=Object.freeze({TYPE,WIDTH,HEIGHT,DEFAULT_MODEL_ID,DEFAULT_PRESET,TURBO_PRESET,LORA_SCALE_MIN,LORA_SCALE_MAX,ASPECT_RATIOS,PRESETS,ICON,MENU_ITEM,normalizeLoraScale,normalize,active,selectAvailableBase,presetAllowed,applyModelPreset,dimensionsForRatio,ratioFromDimensions,outputPosition,targets,policy,imageInputIds,missingInputIds,resolveMode});
 })();

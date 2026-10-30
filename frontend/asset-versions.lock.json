@@ -79,8 +79,8 @@
     "sha256": "6e583036345a7999042bbedb4acc7abf4aa3f642b6bad17b3e9e8537ae34ec6c"
    },
    "scripts/desktop-canvas-krea2.js": {
-    "v": "20261030-ui-polish1",
-    "sha256": "a6af84428d601ca8e6d881900d20316411d3136ebd9677344ce1bf6e21000689"
+    "v": "20261030-group-input1",
+    "sha256": "3733b4c79b7ad223cd240894e8dccd78d10e449df2ac2448f1fab7802a789ee1"
    },
    "scripts/desktop-canvas-lora.js": {
     "v": "20261002-lora-library3",
@@ -119,8 +119,8 @@
     "sha256": "20891a7f17d01e340e233112673c4745ca80065023565735ed99e7769626c8f2"
    },
    "scripts/desktop-canvas-qwen21.js": {
-    "v": "20261030-ui-polish1",
-    "sha256": "c108246f0916da1c9afb74b8385edeef3cb5264826429c34ef34ff15f2f316a5"
+    "v": "20261030-group-input1",
+    "sha256": "e7505dc92c43511c35de2689f29d8af16bd99d73e6b06ef6a15fb463ed0d55e9"
    },
    "scripts/desktop-canvas-references.js": {
     "v": "20261023-google-web2",
@@ -235,8 +235,8 @@
     "sha256": "07e32dd06a8de0803bc96417bda66a05a3d68c465d890dfc29a181e14d4afc30"
    },
    "scripts/desktop-krea2-model.js": {
-    "v": "20261026-lora-signed20",
-    "sha256": "94396fa8662cac06cc8afbf350bf6e9d061029fa99b76d679402da1dbf1081d6"
+    "v": "20261030-group-input1",
+    "sha256": "f7326cead3f8aa7d7ffff90dc162ffb7f173402a7ac5dae8bf63e19d0afa2747"
    },
    "scripts/desktop-krea2-tools.js": {
     "v": "20261006-bf16-transformer1",
@@ -359,8 +359,8 @@
     "sha256": "34d201ee62c8a81e04b8c462733fb4034e17416198effe37f4a3e9b410c61544"
    },
    "scripts/desktop-qwen21-model.js": {
-    "v": "20261026-lora-signed20",
-    "sha256": "40788d9aca0a89a3f7c102dedcfe0e5ba8060299846f3ddf788fa36d32f3cc75"
+    "v": "20261030-group-input1",
+    "sha256": "357a1e2c8b4f03e4c55052cb96d8a340000ee3f072083e014ec632cb6d11f3cd"
    },
    "scripts/desktop-qwen21-tools.js": {
     "v": "20261011-qwen-turbo8",

@@ -191,3 +191,17 @@ test('VAE 管理沿用认证适配，显式应用且不会隐式覆盖原版',as
   tool.handleInput(input('vaeId','builtin'));tool.handleClick(click('data-qwen21-vae-select'));await new Promise(resolve=>setImmediate(resolve));
   assert.equal(data.vae.selected_id,'builtin');tool.deactivate();
 });
+
+test('image group inputs count as readable although their items keep the original node id',()=>{
+  const canvas={nodes:{group:{type:'image_group'},image:{type:'image'},q:{id:'q',type:'qwen21'}},edges:[{from:'group',to:'q'},{from:'image',to:'q'}]};
+  const node=canvas.nodes.q,groupRefs=['a','b','c'].map(id=>({sourceNodeId:id,imageGroupId:'group'}));
+  assert.deepEqual(Array.from(M.missingInputIds(node,canvas,[...groupRefs,{sourceNodeId:'image'}])),[]);
+  assert.deepEqual(Array.from(M.missingInputIds(node,canvas,groupRefs)),['image']);
+  assert.deepEqual(Array.from(M.missingInputIds(node,canvas,[])),['group','image']);
+  for(const file of ['desktop-canvas-qwen21.js','desktop-canvas-krea2.js']){
+    assert.match(read(file),/M\.missingInputIds\(s\.node,getCanvas\(\),/);
+    assert.doesNotMatch(read(file),/ref\.sourceNodeId===id/);
+  }
+  const krea=(()=>{const c={window:{}};vm.runInNewContext(read('desktop-krea2-model.js'),c);return c.window.DesktopKrea2Model;})();
+  assert.deepEqual(Array.from(krea.missingInputIds({id:'k'},{nodes:{group:{type:'image_group'},k:{type:krea.TYPE||'krea2'}},edges:[{from:'group',to:'k'}]},[{sourceNodeId:'a',imageGroupId:'group'}])),[]);
+});
