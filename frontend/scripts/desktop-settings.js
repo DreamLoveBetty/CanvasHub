@@ -1811,6 +1811,7 @@
       settingsDrafts.restore(els.deskSettingsBody);
     }
     progressPreview?.mount(els.deskSettingsBody);
+    settingsSearch?.refresh();
     const statuses = tabStatuses(data);
     els.deskSettingsTabs?.querySelectorAll('[data-settings-tab]').forEach(button => {
       const status = statuses[button.dataset.settingsTab];
@@ -2974,7 +2975,7 @@
   }
 
   function settingsSearchIndex() {
-    if (!lastDiagnostics) return [];
+    if (!lastDiagnostics) return null;
     if (searchIndexCache?.data === lastDiagnostics) return searchIndexCache.entries;
     const categories = settingsCategories().map(category => ({
       ...category,

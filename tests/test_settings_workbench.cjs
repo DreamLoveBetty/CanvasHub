@@ -113,3 +113,30 @@ test('workbench geometry: the asset library place, light glass, two light column
   for (const token of ['--desk-settings-panel-background: var(--desk-gallery-panel-background);', '--desk-settings-column-background: var(--desk-gallery-inspector-background);'])
     assert.equal(tokens.split(token).length - 1, 2, token);
 });
+
+test('searching before settings load says so, then re-runs once they arrive', () => {
+  const S = load('frontend/scripts/desktop-settings-search.js').context.window.DesktopSettingsSearch;
+  const handlers = {};
+  const input = { value: '超时', setAttribute() {}, removeAttribute() {}, addEventListener: (type, fn) => { handlers[type] = fn; } };
+  const results = { hidden: true, innerHTML: '', querySelectorAll: () => [], querySelector: () => null, addEventListener() {} };
+  let index = null;
+  const box = S.create({ input, results, getIndex: () => index, onSelect() {} });
+  handlers.input();
+  assert.match(results.innerHTML, /正在读取设置/);
+  index = [{ tab: 'comfy', tabLabel: 'ComfyUI', cardIndex: 0, title: 'ComfyUI 服务连接', fields: ['请求超时'], notes: [] }];
+  box.refresh();
+  assert.match(results.innerHTML, /请求<mark>超时<\/mark>/);
+  const js = read('frontend/scripts/desktop-settings.js');
+  assert.match(js, /function settingsSearchIndex\(\) \{\n    if \(!lastDiagnostics\) return null;/);
+  assert.ok(js.includes('    settingsSearch?.refresh();\n'));
+});
+
+test('English UI swaps nav glyphs for abbreviations; a lone grouped card takes the row', () => {
+  const html = read('frontend/desktop.html');
+  const glyphs = html.match(/<i class="desk-settings-tabs__glyph"[^>]*>/g);
+  assert.equal(glyphs.length, 13);
+  for (const glyph of glyphs) assert.match(glyph, /data-i18n-skip data-glyph-en="[\w]{2}"/);
+  const geometry = read('frontend/styles/desktop-geometry.css');
+  assert.match(geometry, /\[data-lang="en"\] \.desk-settings-tabs__glyph::after \{[^}]*content: attr\(data-glyph-en\);/);
+  assert.match(geometry, /\.desk-settings__body:not\(\[data-settings-page="status"\]\) \.desk-settings-group__cards:has\(> :only-child\) \{\n    grid-template-columns: minmax\(0, 1fr\);/);
+});

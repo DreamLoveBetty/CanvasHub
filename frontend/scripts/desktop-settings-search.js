@@ -68,7 +68,8 @@
   }
 
   // Wires the search box. getIndex() is called lazily per query so the index always
-  // reflects the latest loaded settings; onSelect(hit) performs navigation.
+  // reflects the latest loaded settings, and returns null while settings are still
+  // loading; onSelect(hit) performs navigation.
   function create({ input, results, getIndex, onSelect }) {
     if (!input || !results) return null;
     let hits = [], active = -1;
@@ -93,9 +94,12 @@
     function render() {
       const query = input.value;
       if (!normalize(query)) { hits = []; results.innerHTML = ''; setOpen(false); return; }
-      hits = search(getIndex() || [], query);
+      const index = getIndex();
+      hits = index ? search(index, query) : [];
       active = hits.length ? 0 : -1;
-      results.innerHTML = hits.length
+      results.innerHTML = !index
+        ? '<div class="desk-settings-search__empty">正在读取设置…</div>'
+        : hits.length
         ? hits.map((hit, index) => `<div class="desk-settings-search__option" role="option" id="deskSettingsSearchOption${index}" data-search-index="${index}" aria-selected="false">
             <span class="desk-settings-search__path">${escapeHtml(hit.entry.tabLabel)} ›</span>
             <strong>${highlight(hit.entry.title, query)}</strong>
@@ -143,6 +147,8 @@
 
     return Object.freeze({
       clear() { input.value = ''; render(); },
+      // Re-run an open query once the settings it searches have loaded.
+      refresh() { if (!results.hidden) render(); },
       close() { setOpen(false); },
       destroy() { controller.abort(); },
     });

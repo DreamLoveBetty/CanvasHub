@@ -1456,6 +1456,11 @@ body.desk-app[data-theme] .desk-settings__body {
   body.desk-app[data-theme] .desk-settings__body[data-settings-page="status"] .desk-settings-group__cards {
     grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   }
+
+  /* A group holding one card gives it the whole row instead of a half-empty one. */
+  body.desk-app[data-theme] .desk-settings__body:not([data-settings-page="status"]) .desk-settings-group__cards:has(> :only-child) {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 body.desk-app[data-theme] .desk-settings__body > :not(.desk-settings-group) {
@@ -1664,6 +1669,17 @@ body.desk-app[data-theme] .desk-settings-tabs__glyph {
   border-width: 1px;
   border-style: solid;
   border-radius: 6px;
+}
+
+/* English UI: the Chinese glyph gives way to a two-letter abbreviation. */
+body.desk-app[data-theme][data-lang="en"] .desk-settings-tabs__glyph {
+  font-size: 0;
+}
+
+body.desk-app[data-theme][data-lang="en"] .desk-settings-tabs__glyph::after {
+  font-size: 9px;
+  letter-spacing: 0;
+  content: attr(data-glyph-en);
 }
 
 body.desk-app[data-theme] .desk-settings-tabs__label {

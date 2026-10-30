@@ -353,6 +353,8 @@
     '系统': 'System',
     '外观': 'Appearance',
     '概览': 'Overview',
+    '正在读取设置…': 'Loading settings…',
+    '没有匹配的设置': 'No matching settings',
     '常用': 'Common',
     '生成线路': 'Generation Routes',
     '本地模型': 'Local Models',

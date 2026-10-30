@@ -29,7 +29,7 @@
   <link rel="stylesheet" href="styles/desktop-settings-auth.css?v=20261030-settings-workbench3">
   <link rel="stylesheet" href="styles/desktop-creation-tools.css?v=20261021-video-upload1">
   <link rel="stylesheet" href="styles/desktop-controls.css?v=20261030-settings-workbench1">
-  <link rel="stylesheet" href="styles/desktop-geometry.css?v=20261030-settings-workbench3">
+  <link rel="stylesheet" href="styles/desktop-geometry.css?v=20261030-settings-fixes1">
   <link rel="stylesheet" href="styles/desktop-motion.css?v=20261017-image-group-tap1">
   <link rel="stylesheet" href="styles/desktop-video-control.css?v=20261030-ui-polish1">
   <link rel="stylesheet" href="styles/desktop-topaz-video.css?v=20261030-ui-polish1">
@@ -948,28 +948,28 @@
         <nav class="desk-settings-tabs" id="deskSettingsTabs" role="tablist" aria-orientation="vertical" aria-label="设置分类">
           <div class="desk-settings-tabs__group" data-settings-group="常用">
             <span class="desk-settings-tabs__group-label" aria-hidden="true">常用</span>
-            <button type="button" class="is-active" role="tab" aria-controls="deskSettingsBody" data-settings-tab="status"><i class="desk-settings-tabs__glyph" aria-hidden="true" data-i18n-skip>总</i><span class="desk-settings-tabs__label">状态</span><b class="desk-settings-tabs__dot" aria-hidden="true"></b></button>
-            <button type="button" role="tab" aria-controls="deskSettingsBody" data-settings-tab="appearance"><i class="desk-settings-tabs__glyph" aria-hidden="true" data-i18n-skip>观</i><span class="desk-settings-tabs__label">外观</span><b class="desk-settings-tabs__dot" aria-hidden="true"></b></button>
-            <button type="button" role="tab" aria-controls="deskSettingsBody" data-settings-tab="system"><i class="desk-settings-tabs__glyph" aria-hidden="true" data-i18n-skip>系</i><span class="desk-settings-tabs__label">系统</span><b class="desk-settings-tabs__dot" aria-hidden="true"></b></button>
+            <button type="button" class="is-active" role="tab" aria-controls="deskSettingsBody" data-settings-tab="status"><i class="desk-settings-tabs__glyph" aria-hidden="true" data-i18n-skip data-glyph-en="Ov">总</i><span class="desk-settings-tabs__label">状态</span><b class="desk-settings-tabs__dot" aria-hidden="true"></b></button>
+            <button type="button" role="tab" aria-controls="deskSettingsBody" data-settings-tab="appearance"><i class="desk-settings-tabs__glyph" aria-hidden="true" data-i18n-skip data-glyph-en="Ap">观</i><span class="desk-settings-tabs__label">外观</span><b class="desk-settings-tabs__dot" aria-hidden="true"></b></button>
+            <button type="button" role="tab" aria-controls="deskSettingsBody" data-settings-tab="system"><i class="desk-settings-tabs__glyph" aria-hidden="true" data-i18n-skip data-glyph-en="Sy">系</i><span class="desk-settings-tabs__label">系统</span><b class="desk-settings-tabs__dot" aria-hidden="true"></b></button>
           </div>
           <div class="desk-settings-tabs__group" data-settings-group="生成线路">
             <span class="desk-settings-tabs__group-label" aria-hidden="true">生成线路</span>
-            <button type="button" role="tab" aria-controls="deskSettingsBody" data-settings-tab="provider"><i class="desk-settings-tabs__glyph" aria-hidden="true" data-i18n-skip>主</i><span class="desk-settings-tabs__label">Provider</span><b class="desk-settings-tabs__dot" aria-hidden="true"></b></button>
-            <button type="button" role="tab" aria-controls="deskSettingsBody" data-settings-tab="third-party"><i class="desk-settings-tabs__glyph" aria-hidden="true" data-i18n-skip>三</i><span class="desk-settings-tabs__label">第三方</span><b class="desk-settings-tabs__dot" aria-hidden="true"></b></button>
-            <button type="button" role="tab" aria-controls="deskSettingsBody" data-settings-tab="chatgpt-pool"><i class="desk-settings-tabs__glyph" aria-hidden="true" data-i18n-skip>池</i><span class="desk-settings-tabs__label">账号池</span><b class="desk-settings-tabs__dot" aria-hidden="true"></b></button>
-            <button type="button" role="tab" aria-controls="deskSettingsBody" data-settings-tab="telegram"><i class="desk-settings-tabs__glyph" aria-hidden="true" data-i18n-skip>投</i><span class="desk-settings-tabs__label">Telegram</span><b class="desk-settings-tabs__dot" aria-hidden="true"></b></button>
+            <button type="button" role="tab" aria-controls="deskSettingsBody" data-settings-tab="provider"><i class="desk-settings-tabs__glyph" aria-hidden="true" data-i18n-skip data-glyph-en="Pr">主</i><span class="desk-settings-tabs__label">Provider</span><b class="desk-settings-tabs__dot" aria-hidden="true"></b></button>
+            <button type="button" role="tab" aria-controls="deskSettingsBody" data-settings-tab="third-party"><i class="desk-settings-tabs__glyph" aria-hidden="true" data-i18n-skip data-glyph-en="3P">三</i><span class="desk-settings-tabs__label">第三方</span><b class="desk-settings-tabs__dot" aria-hidden="true"></b></button>
+            <button type="button" role="tab" aria-controls="deskSettingsBody" data-settings-tab="chatgpt-pool"><i class="desk-settings-tabs__glyph" aria-hidden="true" data-i18n-skip data-glyph-en="Po">池</i><span class="desk-settings-tabs__label">账号池</span><b class="desk-settings-tabs__dot" aria-hidden="true"></b></button>
+            <button type="button" role="tab" aria-controls="deskSettingsBody" data-settings-tab="telegram"><i class="desk-settings-tabs__glyph" aria-hidden="true" data-i18n-skip data-glyph-en="Tg">投</i><span class="desk-settings-tabs__label">Telegram</span><b class="desk-settings-tabs__dot" aria-hidden="true"></b></button>
           </div>
           <div class="desk-settings-tabs__group" data-settings-group="本地模型">
             <span class="desk-settings-tabs__group-label" aria-hidden="true">本地模型</span>
-            <button type="button" role="tab" aria-controls="deskSettingsBody" data-settings-tab="model-tools"><i class="desk-settings-tabs__glyph" aria-hidden="true" data-i18n-skip>模</i><span class="desk-settings-tabs__label">模型工具</span><b class="desk-settings-tabs__dot" aria-hidden="true"></b></button>
-            <button type="button" role="tab" aria-controls="deskSettingsBody" data-settings-tab="comfy"><i class="desk-settings-tabs__glyph" aria-hidden="true" data-i18n-skip>流</i><span class="desk-settings-tabs__label">ComfyUI</span><b class="desk-settings-tabs__dot" aria-hidden="true"></b></button>
-            <button type="button" role="tab" aria-controls="deskSettingsBody" data-settings-tab="video-inference"><i class="desk-settings-tabs__glyph" aria-hidden="true" data-i18n-skip>视</i><span class="desk-settings-tabs__label">视频推理</span><b class="desk-settings-tabs__dot" aria-hidden="true"></b></button>
+            <button type="button" role="tab" aria-controls="deskSettingsBody" data-settings-tab="model-tools"><i class="desk-settings-tabs__glyph" aria-hidden="true" data-i18n-skip data-glyph-en="Mt">模</i><span class="desk-settings-tabs__label">模型工具</span><b class="desk-settings-tabs__dot" aria-hidden="true"></b></button>
+            <button type="button" role="tab" aria-controls="deskSettingsBody" data-settings-tab="comfy"><i class="desk-settings-tabs__glyph" aria-hidden="true" data-i18n-skip data-glyph-en="Cf">流</i><span class="desk-settings-tabs__label">ComfyUI</span><b class="desk-settings-tabs__dot" aria-hidden="true"></b></button>
+            <button type="button" role="tab" aria-controls="deskSettingsBody" data-settings-tab="video-inference"><i class="desk-settings-tabs__glyph" aria-hidden="true" data-i18n-skip data-glyph-en="Vi">视</i><span class="desk-settings-tabs__label">视频推理</span><b class="desk-settings-tabs__dot" aria-hidden="true"></b></button>
           </div>
           <div class="desk-settings-tabs__group" data-settings-group="其它">
             <span class="desk-settings-tabs__group-label" aria-hidden="true">其它</span>
-            <button type="button" role="tab" aria-controls="deskSettingsBody" data-settings-tab="prompt"><i class="desk-settings-tabs__glyph" aria-hidden="true" data-i18n-skip>润</i><span class="desk-settings-tabs__label">润色</span><b class="desk-settings-tabs__dot" aria-hidden="true"></b></button>
-            <button type="button" role="tab" aria-controls="deskSettingsBody" data-settings-tab="pinterest"><i class="desk-settings-tabs__glyph" aria-hidden="true" data-i18n-skip>图</i><span class="desk-settings-tabs__label">Pinterest</span><b class="desk-settings-tabs__dot" aria-hidden="true"></b></button>
-            <button type="button" role="tab" aria-controls="deskSettingsBody" data-settings-tab="paths"><i class="desk-settings-tabs__glyph" aria-hidden="true" data-i18n-skip>径</i><span class="desk-settings-tabs__label">路径</span><b class="desk-settings-tabs__dot" aria-hidden="true"></b></button>
+            <button type="button" role="tab" aria-controls="deskSettingsBody" data-settings-tab="prompt"><i class="desk-settings-tabs__glyph" aria-hidden="true" data-i18n-skip data-glyph-en="Pl">润</i><span class="desk-settings-tabs__label">润色</span><b class="desk-settings-tabs__dot" aria-hidden="true"></b></button>
+            <button type="button" role="tab" aria-controls="deskSettingsBody" data-settings-tab="pinterest"><i class="desk-settings-tabs__glyph" aria-hidden="true" data-i18n-skip data-glyph-en="Pi">图</i><span class="desk-settings-tabs__label">Pinterest</span><b class="desk-settings-tabs__dot" aria-hidden="true"></b></button>
+            <button type="button" role="tab" aria-controls="deskSettingsBody" data-settings-tab="paths"><i class="desk-settings-tabs__glyph" aria-hidden="true" data-i18n-skip data-glyph-en="Pa">径</i><span class="desk-settings-tabs__label">路径</span><b class="desk-settings-tabs__dot" aria-hidden="true"></b></button>
           </div>
         </nav>
         <div class="desk-settings__main">
@@ -1831,7 +1831,7 @@
     <input id="deskLayoutImageInput" type="file" accept="image/*" hidden>
   </div>
 
-  <script src="scripts/desktop-i18n.js?v=20261030-settings-workbench2"></script>
+  <script src="scripts/desktop-i18n.js?v=20261030-settings-fixes1"></script>
   <script src="scripts/auth-api.js?v=20260824-auth-debug-clean1"></script>
   <script src="vendor/fabric.min.js?v=5.3.0"></script>
   <script src="vendor/fabric-eraser.mixin.js?v=20260628-image-editor-pin16"></script>
@@ -1934,9 +1934,9 @@
   <script src="scripts/desktop-history.js?v=20261030-panels-polish1"></script>
   <script src="scripts/desktop-google-web.js?v=20261024-google-web-multi1"></script>
   <script src="scripts/desktop-google-pool.js?v=20261023-google-web2"></script>
-  <script src="scripts/desktop-settings-search.js?v=20261010-color-bloom1"></script>
+  <script src="scripts/desktop-settings-search.js?v=20261030-settings-fixes1"></script>
   <script src="scripts/desktop-settings-drafts.js?v=20261030-settings-drafts1"></script>
-  <script src="scripts/desktop-settings.js?v=20261030-settings-workbench2"></script>
+  <script src="scripts/desktop-settings.js?v=20261030-settings-fixes1"></script>
   <script src="scripts/desktop-prompt-media.js?v=20260929-prompt-video1"></script>
   <script src="scripts/desktop-prompt-editor.js?v=20260929-prompt-video1"></script>
   <script src="scripts/desktop-prompt-drawer.js?v=20261030-panels-polish1"></script>
