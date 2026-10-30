@@ -1883,7 +1883,7 @@
     const resolution = galleryAssetResolutionLabel(asset, params);
     const source = isRemoteLibraryAsset(asset)
       ? (asset?.boardName || asset?.sourceName || asset?.providerLabel || '远程源')
-      : (asset?.missingArchive ? (asset?.imageUrl ? '未归档记录' : '原图缺失') : (asset?.hasTaskRecord ? '有任务记录' : '仅归档文件'));
+      : (asset?.missingArchive ? (asset?.imageUrl ? '未归档记录' : '原图缺失') : (asset?.hasTaskRecord ? '有记录' : '仅归档'));
     const pixels = asset?.megapixels ? `${Number(asset.megapixels).toFixed(2).replace(/\.?0+$/, '')} MP` : '';
     const timing = assetGenerationTiming(asset, params);
     const timingRows = timing
@@ -2315,8 +2315,8 @@
           <div class="desk-gallery-card__meta-actions${isPinterest ? ' is-pinterest' : ''}" aria-label="图片操作">
             ${refCount || derivedCount ? `
               <div class="desk-gallery-card__lineage" aria-label="图片溯源">
-                ${refCount ? `<em>源 ${refCount}</em>` : ''}
-                ${derivedCount ? `<em>派 ${derivedCount}</em>` : ''}
+                ${refCount ? `<em title="生成时参考了 ${refCount} 张来源图" aria-label="来源图 ${refCount} 张">源 ${refCount}</em>` : ''}
+                ${derivedCount ? `<em title="以此图为参考衍生出 ${derivedCount} 张图" aria-label="衍生图 ${derivedCount} 张">派 ${derivedCount}</em>` : ''}
               </div>
             ` : ''}
             ${isRemote ? '' : `
@@ -2388,9 +2388,9 @@
       `Obsidian ${value('obsidian_image_count')}`,
       `资产库 ${value('gallery_asset_count')}`,
       `有记录 ${value('task_record_image_count')}`,
-      `孤儿 ${value('orphan_asset_count')}`,
+      `仅归档 ${value('orphan_asset_count')}`,
       `有尺寸 ${value('metadata_image_count')}`,
-      `未归档 ${value('history_missing_archive_count')}`,
+      `未归档记录 ${value('history_missing_archive_count')}`,
       `原图缺失 ${value('history_missing_count')}`
     ].map(item => `<span>${escapeHtml(item)}</span>`).join('');
   }
@@ -4398,8 +4398,8 @@
     const parts = [];
     parts.push(`Obsidian ${Number(stats.obsidian_image_count || 0).toLocaleString('zh-CN')} 张`);
     parts.push(`资产库 ${Number(stats.gallery_asset_count || 0).toLocaleString('zh-CN')} 张`);
-    parts.push(`有任务记录 ${Number(stats.task_record_image_count || 0).toLocaleString('zh-CN')} 张`);
-    parts.push(`孤儿图 ${Number(stats.orphan_asset_count || 0).toLocaleString('zh-CN')} 张`);
+    parts.push(`有记录 ${Number(stats.task_record_image_count || 0).toLocaleString('zh-CN')} 张`);
+    parts.push(`仅归档 ${Number(stats.orphan_asset_count || 0).toLocaleString('zh-CN')} 张`);
     if (stats.history_missing_archive_count) parts.push(`未归档记录 ${Number(stats.history_missing_archive_count || 0).toLocaleString('zh-CN')} 条`);
     if (stats.history_missing_count) parts.push(`原图缺失 ${Number(stats.history_missing_count || 0).toLocaleString('zh-CN')} 条`);
     if (health.missing_count) parts.push(`缺文件资产 ${health.missing_count} 个`);

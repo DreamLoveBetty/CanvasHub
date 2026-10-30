@@ -21,6 +21,8 @@
   let settingsDrawer = null;
   // Progress preview: a sample task drawn by its own presenter (desktop-progress-preview.js).
   const progressPreview = window.DesktopProgressPreview?.create({ getPreferences: () => window.DesktopPreferences?.state?.progress }) || null;
+  // Unsaved field edits survive every re-render below (desktop-settings-drafts.js).
+  const settingsDrafts = window.DesktopSettingsDrafts.create();
   let searchIndexCache = null;
   const searchHitTimers = new WeakMap();
   const googlePoolSettings = window.DesktopGooglePool.create({
@@ -1536,7 +1538,7 @@
         tab: 'status',
         html: renderCard('系统', [
           renderKv('监听地址', `${server.host || '127.0.0.1'}:${server.port || 18463}`),
-          renderKv('公网模式', server.public_mode ? '已开启' : '本机模式'),
+          renderKv('访问模式', server.public_mode ? '公网' : '本机'),
           renderKv('公网密码', server.password_configured, { boolean: true }),
           server.restart_required ? renderKv('重启状态', '需要重启') : ''
         ], !server.public_mode || server.password_configured)
@@ -1690,6 +1692,7 @@
     }
     if (els.deskSettingsBody) {
       els.deskSettingsBody.innerHTML = visibleHtml.join('');
+      settingsDrafts.restore(els.deskSettingsBody);
     }
     progressPreview?.mount(els.deskSettingsBody);
     updateTabs();
@@ -1977,6 +1980,7 @@
   async function saveGptProviderConfig() {
     if (!window.DesktopApi?.saveGptConfig) throw new Error('GPT 配置 API 未加载');
     await window.DesktopApi.saveGptConfig(collectGptProviderForm());
+    settingsDrafts.forget(els.deskSettingsBody, '[data-gpt-provider-field]');
     await refresh();
     window.DesktopResults?.showTransientMessage?.('GPT Provider 配置已保存。', 'success');
   }
@@ -2106,6 +2110,7 @@
     const card = button?.closest('[data-system-settings-card]');
     const payload = collectSystemSettingsForm(card);
     await window.DesktopApi.saveSystemSettings(payload);
+    settingsDrafts.forget(card);
     await refresh();
     if (payload.cyimg) window.dispatchEvent(new CustomEvent('desktop:cyimg-settings-updated'));
     window.DesktopResults?.showTransientMessage?.('系统配置已保存。', 'success');
@@ -2118,6 +2123,7 @@
     const card = button?.closest('[data-system-settings-card="pinterest"]');
     const payload = collectSystemSettingsForm(card);
     await window.DesktopApi.saveSystemSettings(payload);
+    settingsDrafts.forget(card);
     let result;
     try {
       result = await window.DesktopApi.verifyPinterestAuth();
@@ -2140,6 +2146,7 @@
     const payload = collectSystemSettingsForm(card);
     const saved = await window.DesktopApi.saveSystemSettings(payload);
     if (saved?.ok) lastSystemSettings = saved;
+    settingsDrafts.forget(card);
     const result = await window.DesktopApi.startPinterestAuth();
     pinterestAuthSessionId = result.session_id || '';
     if (pinterestAuthSessionId) window.sessionStorage?.setItem('deskPinterestAuthSessionId', pinterestAuthSessionId);
@@ -2251,6 +2258,7 @@
     const card = els.deskSettingsBody?.querySelector('[data-system-settings-card="video-inference"]');
     const payload = collectSystemSettingsForm(card);
     await window.DesktopApi.saveSystemSettings(payload);
+    settingsDrafts.forget(card);
     const result = await window.DesktopApi.startVideoRuntime();
     window.DesktopResults?.showTransientMessage?.(result.message || 'H3 Runtime 启动命令已发送。', 'success');
     window.setTimeout(() => refresh().catch(() => {}), 1800);
@@ -2912,6 +2920,7 @@
       selectTab(button.dataset.settingsTab);
     });
     els.deskSettingsBody?.addEventListener('input', event => {
+      settingsDrafts.track(event);
       if (updateProgressPreference(event) || updateControlMaterialPreference(event)) return;
       if (loraSettings?.handleInput?.(event) || qwen21Tools?.handleInput?.(event) || krea2Tools?.handleInput?.(event)) return;
       const managerField = event.target.closest('[data-system-setting-field="video_inference.manager_base_url"]');
@@ -2929,6 +2938,7 @@
       updateVideoSupervisorStatusView(lastVideoSupervisorStatus);
     });
     els.deskSettingsBody?.addEventListener('change', event => {
+      settingsDrafts.track(event);
       if (googlePoolSettings.handleChange(event)) return;
       if (updateProgressPreference(event) || updateControlMaterialPreference(event)) return;
       if (loraSettings?.handleInput?.(event) || qwen21Tools?.handleInput?.(event) || krea2Tools?.handleInput?.(event)) return;

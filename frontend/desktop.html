@@ -6,10 +6,10 @@
   <meta name="canvashub-version" content="V26.5.0">
   <title>图像画布</title>
   <link rel="stylesheet" href="styles/desktop-tokens.css?v=20261030-ui-polish2">
-  <link rel="stylesheet" href="styles/desktop-liquid.css?v=20261030-ui-polish2">
+  <link rel="stylesheet" href="styles/desktop-liquid.css?v=20261030-panels-fix1">
   <link rel="stylesheet" href="styles/desktop-shell-geometry.css?v=20261015-shell-preserve1">
   <link rel="stylesheet" href="styles/desktop-settings-auth-geometry.css?v=20261015-interaction-kept4">
-  <link rel="stylesheet" href="styles/desktop-prompt-assistant-geometry.css?v=20261030-ui-polish1">
+  <link rel="stylesheet" href="styles/desktop-prompt-assistant-geometry.css?v=20261030-panels-fix1">
   <link rel="stylesheet" href="styles/desktop-canvas-nodes-geometry.css?v=20261030-ui-polish1">
   <link rel="stylesheet" href="styles/desktop-gallery-geometry.css?v=20261019-pinterest-switch1">
   <link rel="stylesheet" href="styles/desktop-video.css?v=20261021-video-upload1">
@@ -725,8 +725,8 @@
           <option value="google">Google</option>
           <option value="comfy">Comfy</option>
           <option value="layout">排版导出</option>
-          <option value="linked">有任务记录</option>
-          <option value="orphan">仅归档文件</option>
+          <option value="linked">有记录</option>
+          <option value="orphan">仅归档</option>
           <option value="missing_history">未归档记录</option>
           <option value="landscape">横图</option>
           <option value="portrait">竖图</option>
@@ -750,8 +750,10 @@
         <span>Obsidian --</span>
         <span>资产库 --</span>
         <span>有记录 --</span>
-        <span>孤儿 --</span>
+        <span>仅归档 --</span>
         <span>有尺寸 --</span>
+        <span>未归档记录 --</span>
+        <span>原图缺失 --</span>
       </div>
       <div class="desk-gallery__body">
         <div class="desk-gallery-grid" id="deskGalleryGrid" role="tabpanel" aria-labelledby="deskGalleryTabImages" aria-label="资产列表">
@@ -931,7 +933,7 @@
         </div>
         <div class="desk-settings__actions">
           <button type="button" id="deskSettingsInfoBtn" class="desk-settings-info-trigger" title="查看当前页说明" aria-label="查看当前页说明" aria-haspopup="dialog" aria-expanded="false" aria-controls="deskSettingsInfoTip" hidden>
-            <span aria-hidden="true">!</span>
+            <span aria-hidden="true">?</span>
           </button>
           <button type="button" id="deskSettingsRefreshBtn" title="刷新诊断" aria-label="刷新诊断">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12a7 7 0 1 0 2.1-5"></path><path d="M5 5v5h5"></path></svg>
@@ -1827,7 +1829,7 @@
     <input id="deskLayoutImageInput" type="file" accept="image/*" hidden>
   </div>
 
-  <script src="scripts/desktop-i18n.js?v=20261030-ui-polish1"></script>
+  <script src="scripts/desktop-i18n.js?v=20261030-panels-fix1"></script>
   <script src="scripts/auth-api.js?v=20260824-auth-debug-clean1"></script>
   <script src="vendor/fabric.min.js?v=5.3.0"></script>
   <script src="vendor/fabric-eraser.mixin.js?v=20260628-image-editor-pin16"></script>
@@ -1927,17 +1929,18 @@
   <script src="scripts/desktop-gallery-pinterest.js?v=20261019-pinterest-switch1"></script>
   <script src="scripts/desktop-gallery-prompt-sources.js?v=20261016-gallery-sources1"></script>
   <script src="scripts/desktop-gallery-videos.js?v=20261016-gallery-videos1"></script>
-  <script src="scripts/desktop-history.js?v=20261019-pinterest-switch1"></script>
+  <script src="scripts/desktop-history.js?v=20261030-panels-fix2"></script>
   <script src="scripts/desktop-google-web.js?v=20261024-google-web-multi1"></script>
   <script src="scripts/desktop-google-pool.js?v=20261023-google-web2"></script>
   <script src="scripts/desktop-settings-search.js?v=20261010-color-bloom1"></script>
-  <script src="scripts/desktop-settings.js?v=20261023-google-web2"></script>
+  <script src="scripts/desktop-settings-drafts.js?v=20261030-settings-drafts1"></script>
+  <script src="scripts/desktop-settings.js?v=20261030-panels-fix1"></script>
   <script src="scripts/desktop-prompt-media.js?v=20260929-prompt-video1"></script>
   <script src="scripts/desktop-prompt-editor.js?v=20260929-prompt-video1"></script>
   <script src="scripts/desktop-prompt-drawer.js?v=20260929-prompt-video1"></script>
   <script src="scripts/desktop-prompt-agent.js?v=20260929-prompt-video1"></script>
   <script src="scripts/desktop-color-extractor.js?v=20260719-color-image-analysis10"></script>
-  <script src="scripts/desktop-prompt-library.js?v=20261010-color-bloom1"></script>
+  <script src="scripts/desktop-prompt-library.js?v=20261030-panels-fix1"></script>
   <script src="scripts/desktop-prompt-insert.js?v=20260827-agent-references-fix1"></script>
   <script src="scripts/desktop-bootstrap.js?v=20260818-canvas-persist2"></script>
 </body>

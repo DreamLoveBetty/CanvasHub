@@ -45,7 +45,7 @@ test('settings card shows the preview instead of the hint; the host mounts, refr
   const settings = read('frontend/scripts/desktop-settings.js');
   assert.doesNotMatch(settings, /新样式将进度、阶段和用时置于轨道内/);
   assert.match(settings, /\$\{window\.DesktopProgressPreview\?\.html\(\) \|\| ''\}/);
-  assert.match(settings, /els\.deskSettingsBody\.innerHTML = visibleHtml\.join\(''\);\n    \}\n    progressPreview\?\.mount\(els\.deskSettingsBody\);/);
+  assert.match(settings, /els\.deskSettingsBody\.innerHTML = visibleHtml\.join\(''\);\n      settingsDrafts\.restore\(els\.deskSettingsBody\);\n    \}\n    progressPreview\?\.mount\(els\.deskSettingsBody\);/);
   assert.equal(settings.match(/progressPreview\?\.refresh\(\);/g).length, 2, 'select/reset sync and colour edits');
   assert.equal(settings.match(/progressPreview\?\.release\(\);/g).length, 3, 'loading, error and drawer close');
   const css = read('frontend/styles/desktop-progress.css');

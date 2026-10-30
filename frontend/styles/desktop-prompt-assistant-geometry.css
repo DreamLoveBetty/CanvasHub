@@ -861,7 +861,7 @@ body.desk-app[data-theme="dark"] .desk-text-polish-modal__panel footer button[da
 
 :where(body.desk-app[data-theme]) .desk-prompt-mode-switch {
   display: grid;
-  height: 24px;
+  height: 30px;
   flex: 0 0 112px;
   grid-template-columns: 1fr 1fr;
   padding: 2px;
@@ -880,9 +880,9 @@ body.desk-app[data-theme="dark"] .desk-prompt-drawer.is-open .desk-prompt-mode-s
   --desk-prompt-task-accent: var(--desk-blue);
   display: grid;
   position: relative;
-  width: 72px;
-  height: 20px;
-  flex: 0 0 72px;
+  width: 84px;
+  height: 28px;
+  flex: 0 0 84px;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   padding: 1px;
   border: 1px solid rgba(92, 112, 132, 0.18);
@@ -891,8 +891,8 @@ body.desk-app[data-theme="dark"] .desk-prompt-drawer.is-open .desk-prompt-mode-s
 
 :where(body.desk-app[data-theme]) .desk-prompt-task-mode__icon {
   display: block;
-  width: 10px;
-  height: 10px;
+  width: 14px;
+  height: 14px;
   overflow: visible;
   fill: none;
   stroke: currentColor;

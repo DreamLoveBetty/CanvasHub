@@ -118,6 +118,8 @@
     storyboard: '影视分镜', illustration: '插画漫画', poster: '海报与 KV', social: '品牌社媒', infographic: '信息图表',
     three_d: '3D 视觉', pattern: '图案纹理'
   };
+  // Nav glyphs where the first character would collide (视角与镜头 / 视觉风格).
+  const MODULE_ICONS = { camera: '镜', style: '风' };
   const MODULE_LABELS = {
     raw: '原始提示词', custom: '自定义', identity: '身份', appearance: '外貌', body_shape: '体形身材', pose: '动作姿态', expression: '表情视线',
     clothing: '服装造型', makeup_hair: '妆发', accessories: '配饰', subject: '主体', scene: '场景环境', composition: '构图',
@@ -385,7 +387,8 @@
   }
   function formatDate(timestamp) {
     if (!Number(timestamp)) return '';
-    try { return new Intl.DateTimeFormat('zh-CN', { month: 'numeric', day: 'numeric' }).format(new Date(Number(timestamp) * 1000)); }
+    // "8月11日", never "8/11": a bare numeric date reads like a fraction next to use counts.
+    try { return new Intl.DateTimeFormat('zh-CN', { month: 'long', day: 'numeric' }).format(new Date(Number(timestamp) * 1000)); }
     catch (error) { return ''; }
   }
   function notify(message, tone = 'success') { window.DesktopResults?.showTransientMessage?.(message, tone); }
@@ -453,6 +456,18 @@
     items.forEach(item => { const value = item?.[key] || 'other'; counts[value] = (counts[value] || 0) + 1; });
     return counts;
   }
+  // One distinct glyph per module, in nav order: the explicit map first, else the first character
+  // of the label not already taken by an earlier module.
+  function moduleIcons(keys) {
+    const used = new Set();
+    return keys.map(key => {
+      const label = moduleLabel(key);
+      const icon = MODULE_ICONS[key] || [...label].find(char => !used.has(char)) || label.slice(0, 1);
+      used.add(icon);
+      return icon;
+    });
+  }
+
   function navButton(id, label, count, icon) {
     const active = state.category[state.workspace] === id;
     return `<button type="button" class="${active ? 'is-active' : ''}" data-prompt-category="${escapeHtml(id)}">
@@ -474,7 +489,7 @@
         .sort((a, b) => (preferred.indexOf(a) < 0 ? 99 : preferred.indexOf(a)) - (preferred.indexOf(b) < 0 ? 99 : preferred.indexOf(b)) || moduleLabel(a).localeCompare(moduleLabel(b), 'zh-CN'));
       els.deskPromptLibraryNav.innerHTML = `<div class="desk-prompt-library__nav-group"><div class="desk-prompt-library__nav-label">素材模块</div>
         ${navButton('all', '全部素材块', state.blocks.length, '/')}
-        ${keys.map(key => navButton(key, moduleLabel(key), counts[key] || 0, moduleLabel(key).slice(0, 1))).join('')}</div>`;
+        ${moduleIcons(keys).map((icon, index) => navButton(keys[index], moduleLabel(keys[index]), counts[keys[index]] || 0, icon)).join('')}</div>`;
       return;
     }
     if (state.workspace === 'templates') {
@@ -542,9 +557,10 @@
       ? [moduleLabel(item.module_type), ...(item.applicable_types || []).slice(0, 1).map(typeLabel), ...(item.tags || []).slice(0, 1)]
       : [`${(item.modules || []).filter(module => module.enabled !== false).length} 个模块`, item.system ? '内置规则' : `自定义 v${Number(item.version || 1)}`];
     const side = isBlock ? (item.use_count ? `${item.use_count} 次` : formatDate(item.updated_at)) : '';
+    const sideTitle = !isBlock ? '' : (item.use_count ? `已插入 ${item.use_count} 次` : (side ? `更新于 ${side}` : ''));
     return `<button type="button" class="desk-prompt-library-row ${selected ? 'is-selected' : ''}" data-prompt-item-id="${escapeHtml(id)}">
       <span class="desk-prompt-library-row__main"><span class="desk-prompt-library-row__title"><strong data-i18n-skip>${escapeHtml(title || '未命名')}</strong>${item.favorite ? '<span class="desk-prompt-library-row__star">★</span>' : ''}</span><span class="desk-prompt-library-row__preview" data-i18n-skip>${escapeHtml(preview || '暂无内容')}</span><span class="desk-prompt-library-row__meta">${meta.filter(Boolean).map(value => `<span>${escapeHtml(value)}</span>`).join('')}</span></span>
-      <span class="desk-prompt-library-row__side"><span>${escapeHtml(side)}</span><span class="desk-prompt-library-row__insert" data-prompt-row-action="primary">${isBlock ? '/ 插入' : '拆分'}</span></span>
+      <span class="desk-prompt-library-row__side"><span${sideTitle ? ` title="${escapeHtml(sideTitle)}"` : ''}>${escapeHtml(side)}</span><span class="desk-prompt-library-row__insert" data-prompt-row-action="primary">${isBlock ? '/ 插入' : '拆分'}</span></span>
     </button>`;
   }
 
