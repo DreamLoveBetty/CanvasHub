@@ -5,13 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="canvashub-version" content="V26.5.0">
   <title>图像画布</title>
-  <link rel="stylesheet" href="styles/desktop-tokens.css?v=20261030-ui-polish2">
-  <link rel="stylesheet" href="styles/desktop-liquid.css?v=20261030-panels-fix1">
+  <link rel="stylesheet" href="styles/desktop-tokens.css?v=20261030-panels-polish1">
+  <link rel="stylesheet" href="styles/desktop-liquid.css?v=20261030-panels-polish1">
   <link rel="stylesheet" href="styles/desktop-shell-geometry.css?v=20261015-shell-preserve1">
   <link rel="stylesheet" href="styles/desktop-settings-auth-geometry.css?v=20261015-interaction-kept4">
-  <link rel="stylesheet" href="styles/desktop-prompt-assistant-geometry.css?v=20261030-panels-fix1">
+  <link rel="stylesheet" href="styles/desktop-prompt-assistant-geometry.css?v=20261030-panels-polish1">
   <link rel="stylesheet" href="styles/desktop-canvas-nodes-geometry.css?v=20261030-ui-polish1">
-  <link rel="stylesheet" href="styles/desktop-gallery-geometry.css?v=20261019-pinterest-switch1">
+  <link rel="stylesheet" href="styles/desktop-gallery-geometry.css?v=20261030-panels-polish1">
   <link rel="stylesheet" href="styles/desktop-video.css?v=20261021-video-upload1">
   <link rel="stylesheet" href="styles/desktop-google-web-geometry.css?v=20261023-google-web2">
   <link rel="stylesheet" href="styles/desktop-google-web.css?v=20261023-google-web2">
@@ -24,12 +24,12 @@
   <link rel="stylesheet" href="styles/desktop-image-group-geometry.css?v=20261030-ui-polish1">
   <link rel="stylesheet" href="styles/desktop-image-group.css?v=20261017-image-group-glass1">
   <link rel="stylesheet" href="styles/desktop-image-group-interaction.css?v=20261017-image-group-picker1">
-  <link rel="stylesheet" href="styles/desktop-prompt-assistant.css?v=20260929-prompt-video1">
-  <link rel="stylesheet" href="styles/desktop-gallery.css?v=20260827-style-cleanup1">
-  <link rel="stylesheet" href="styles/desktop-settings-auth.css?v=20261010-color-bloom1">
+  <link rel="stylesheet" href="styles/desktop-prompt-assistant.css?v=20261030-panels-polish2">
+  <link rel="stylesheet" href="styles/desktop-gallery.css?v=20261030-panels-polish2">
+  <link rel="stylesheet" href="styles/desktop-settings-auth.css?v=20261030-panels-polish1">
   <link rel="stylesheet" href="styles/desktop-creation-tools.css?v=20261021-video-upload1">
-  <link rel="stylesheet" href="styles/desktop-controls.css?v=20261030-ui-polish1">
-  <link rel="stylesheet" href="styles/desktop-geometry.css?v=20261020-pose-rebuild1">
+  <link rel="stylesheet" href="styles/desktop-controls.css?v=20261030-panels-polish1">
+  <link rel="stylesheet" href="styles/desktop-geometry.css?v=20261030-panels-polish1">
   <link rel="stylesheet" href="styles/desktop-motion.css?v=20261017-image-group-tap1">
   <link rel="stylesheet" href="styles/desktop-video-control.css?v=20261030-ui-polish1">
   <link rel="stylesheet" href="styles/desktop-topaz-video.css?v=20261030-ui-polish1">
@@ -716,31 +716,31 @@
           </span>
           <input id="deskGallerySearchInput" type="search" placeholder="搜索提示词 / 文件名 / 16:9 / PNG">
         </label>
-        <select id="deskGalleryFilterSelect" class="desk-gallery-filter" aria-label="资产筛选">
+        <select id="deskGalleryFilterSelect" class="desk-gallery-filter" aria-label="资产范围">
           <option value="all">全部资产</option>
-          <option value="today">今天</option>
-          <option value="ppt">PPT 文件</option>
-          <option value="psd">PSD 文件</option>
-          <option value="gpt">GPT</option>
-          <option value="google">Google</option>
-          <option value="comfy">Comfy</option>
-          <option value="layout">排版导出</option>
-          <option value="linked">有记录</option>
-          <option value="orphan">仅归档</option>
-          <option value="missing_history">未归档记录</option>
-          <option value="landscape">横图</option>
-          <option value="portrait">竖图</option>
-          <option value="square">方图</option>
-          <option value="1k">1K</option>
-          <option value="2k">2K</option>
-          <option value="4k">4K</option>
-          <option value="png">PNG</option>
-          <option value="jpg">JPG</option>
-          <option value="webp">WEBP</option>
-          <option value="favorite">已收藏</option>
-          <option value="hidden">已隐藏</option>
-          <option value="selected">已选择</option>
+          <optgroup label="时间">
+            <option value="today">今天</option>
+          </optgroup>
+          <optgroup label="来源">
+            <option value="gpt">GPT</option>
+            <option value="google">Google</option>
+            <option value="comfy">Comfy</option>
+            <option value="layout">排版导出</option>
+          </optgroup>
+          <optgroup label="文件">
+            <option value="ppt">PPT 文件</option>
+            <option value="psd">PSD 文件</option>
+          </optgroup>
+          <optgroup label="标记">
+            <option value="favorite">已收藏</option>
+            <option value="hidden">已隐藏</option>
+            <option value="selected">已选择</option>
+          </optgroup>
         </select>
+        <div class="desk-gallery-facets" id="deskGalleryFacets">
+          <button type="button" class="desk-gallery-facets__toggle" data-gallery-facets-toggle aria-haspopup="true" aria-expanded="false" aria-controls="deskGalleryFacetsPanel" title="按记录、方向、分辨率、格式组合筛选">规格<em hidden></em></button>
+          <div class="desk-gallery-facets__panel" id="deskGalleryFacetsPanel" data-gallery-facets-panel role="group" aria-label="规格筛选" hidden></div>
+        </div>
         <label class="desk-gallery-tag-filter" title="按标签筛选">
           <span aria-hidden="true">#</span>
           <input id="deskGalleryTagInput" type="search" placeholder="标签">
@@ -768,15 +768,16 @@
             <div class="desk-gallery-empty">选择图片后可对比、发送到画布或整理候选集。</div>
           </div>
           <div class="desk-gallery-inspector__actions">
-            <button type="button" class="desk-button desk-button--primary" id="deskGalleryCompareBtn" disabled>对比</button>
-            <button type="button" class="desk-button" id="deskGalleryCanvasBtn" disabled>到画布</button>
-            <button type="button" class="desk-button" id="deskGallerySaveSetBtn" disabled>存候选集</button>
-            <button type="button" class="desk-button" id="deskGalleryRefreshMetaBtn">刷元数据</button>
-            <button type="button" class="desk-button" id="deskGalleryTagBtn" disabled>标签</button>
-            <button type="button" class="desk-button" id="deskGalleryHideBtn" disabled>隐藏</button>
-            <button type="button" class="desk-button desk-button--danger" id="deskGalleryDeleteBtn" disabled>删除文件</button>
-            <button type="button" class="desk-button" id="deskGalleryUndoDeleteBtn" disabled>撤销删除</button>
-            <button type="button" class="desk-button" id="deskGalleryClearBtn" disabled>清空</button>
+            <button type="button" class="desk-button desk-button--primary" id="deskGalleryCompareBtn" title="并排对比选中的图片" disabled>对比</button>
+            <button type="button" class="desk-button" id="deskGalleryCanvasBtn" title="把选中的图片放到画布" disabled>到画布</button>
+            <button type="button" class="desk-button" id="deskGallerySaveSetBtn" title="把选中的图片存为候选集" disabled>存候选集</button>
+            <button type="button" class="desk-button" id="deskGalleryTagBtn" title="给选中的图片编辑标签" disabled>标签</button>
+            <button type="button" class="desk-button" id="deskGalleryHideBtn" title="隐藏或恢复选中的图片，不删除文件" disabled>隐藏</button>
+            <button type="button" class="desk-button" id="deskGalleryClearBtn" title="清空选择篮，不影响图片" disabled>清空</button>
+            <div class="desk-gallery-inspector__danger">
+              <button type="button" class="desk-button desk-button--danger" id="deskGalleryDeleteBtn" title="从归档目录删除选中图片的文件" disabled>删除文件</button>
+              <button type="button" class="desk-gallery-inspector__undo" id="deskGalleryUndoDeleteBtn" title="恢复上一次删除的文件" disabled>撤销删除</button>
+            </div>
           </div>
         </aside>
       </div>
@@ -948,6 +949,7 @@
           <div class="desk-settings-tabs__group" data-settings-group="常用">
             <span class="desk-settings-tabs__group-label" aria-hidden="true">常用</span>
             <button type="button" class="is-active" role="tab" aria-controls="deskSettingsBody" data-settings-tab="status">状态</button>
+            <button type="button" role="tab" aria-controls="deskSettingsBody" data-settings-tab="appearance">外观</button>
             <button type="button" role="tab" aria-controls="deskSettingsBody" data-settings-tab="system">系统</button>
           </div>
           <div class="desk-settings-tabs__group" data-settings-group="生成线路">
@@ -966,6 +968,7 @@
           <div class="desk-settings-tabs__group" data-settings-group="其它">
             <span class="desk-settings-tabs__group-label" aria-hidden="true">其它</span>
             <button type="button" role="tab" aria-controls="deskSettingsBody" data-settings-tab="prompt">润色</button>
+            <button type="button" role="tab" aria-controls="deskSettingsBody" data-settings-tab="pinterest">Pinterest</button>
             <button type="button" role="tab" aria-controls="deskSettingsBody" data-settings-tab="paths">路径</button>
           </div>
         </nav>
@@ -1829,7 +1832,7 @@
     <input id="deskLayoutImageInput" type="file" accept="image/*" hidden>
   </div>
 
-  <script src="scripts/desktop-i18n.js?v=20261030-panels-fix1"></script>
+  <script src="scripts/desktop-i18n.js?v=20261030-panels-polish2"></script>
   <script src="scripts/auth-api.js?v=20260824-auth-debug-clean1"></script>
   <script src="vendor/fabric.min.js?v=5.3.0"></script>
   <script src="vendor/fabric-eraser.mixin.js?v=20260628-image-editor-pin16"></script>
@@ -1854,7 +1857,7 @@
   <script src="scripts/desktop-lora-data.js?v=20261002-lora-library3"></script>
   <script src="scripts/desktop-lora-settings.js?v=20261002-lora-library3"></script>
   <script src="scripts/desktop-lora-view.js?v=20261026-lora-signed20"></script>
-  <script src="scripts/desktop-api.js?v=20261024-google-web-multi1"></script>
+  <script src="scripts/desktop-api.js?v=20261030-panels-polish1"></script>
   <script src="scripts/desktop-krea2-control.js?v=20261030-ui-polish1"></script>
   <script src="scripts/desktop-krea2-model.js?v=20261026-lora-signed20"></script>
   <script src="scripts/desktop-krea2-api.js?v=20260929-krea2-layout-3"></script>
@@ -1929,18 +1932,19 @@
   <script src="scripts/desktop-gallery-pinterest.js?v=20261019-pinterest-switch1"></script>
   <script src="scripts/desktop-gallery-prompt-sources.js?v=20261016-gallery-sources1"></script>
   <script src="scripts/desktop-gallery-videos.js?v=20261016-gallery-videos1"></script>
-  <script src="scripts/desktop-history.js?v=20261030-panels-fix2"></script>
+  <script src="scripts/desktop-gallery-facets.js?v=20261030-gallery-facets1"></script>
+  <script src="scripts/desktop-history.js?v=20261030-panels-polish1"></script>
   <script src="scripts/desktop-google-web.js?v=20261024-google-web-multi1"></script>
   <script src="scripts/desktop-google-pool.js?v=20261023-google-web2"></script>
   <script src="scripts/desktop-settings-search.js?v=20261010-color-bloom1"></script>
   <script src="scripts/desktop-settings-drafts.js?v=20261030-settings-drafts1"></script>
-  <script src="scripts/desktop-settings.js?v=20261030-panels-fix1"></script>
+  <script src="scripts/desktop-settings.js?v=20261030-panels-polish2"></script>
   <script src="scripts/desktop-prompt-media.js?v=20260929-prompt-video1"></script>
   <script src="scripts/desktop-prompt-editor.js?v=20260929-prompt-video1"></script>
-  <script src="scripts/desktop-prompt-drawer.js?v=20260929-prompt-video1"></script>
-  <script src="scripts/desktop-prompt-agent.js?v=20260929-prompt-video1"></script>
+  <script src="scripts/desktop-prompt-drawer.js?v=20261030-panels-polish1"></script>
+  <script src="scripts/desktop-prompt-agent.js?v=20261030-panels-polish1"></script>
   <script src="scripts/desktop-color-extractor.js?v=20260719-color-image-analysis10"></script>
-  <script src="scripts/desktop-prompt-library.js?v=20261030-panels-fix1"></script>
+  <script src="scripts/desktop-prompt-library.js?v=20261030-panels-polish1"></script>
   <script src="scripts/desktop-prompt-insert.js?v=20260827-agent-references-fix1"></script>
   <script src="scripts/desktop-bootstrap.js?v=20260818-canvas-persist2"></script>
 </body>

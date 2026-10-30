@@ -769,6 +769,7 @@ body.desk-app {
   --desk-prompt-assistant-muted-ink: var(--desk-color-text-secondary);
   --desk-prompt-assistant-placeholder-ink: var(--desk-color-text-placeholder);
   --desk-prompt-assistant-accent-ink: var(--desk-blue-royal);
+  --desk-prompt-assistant-caption-shadow: var(--desk-shadow-panel-soft);
   --desk-prompt-assistant-accent-soft: rgba(var(--desk-blue-royal-rgb), 0.14);
   --desk-prompt-assistant-accent-emphasis-ink: var(--desk-blue-royal);
   --desk-prompt-assistant-on-accent-ink: #ffffff;
@@ -1113,6 +1114,14 @@ body.desk-app {
   --desk-gallery-color-scheme: light;
   --desk-gallery-ink: var(--desk-color-text-primary);
   --desk-gallery-muted-ink: var(--desk-color-text-secondary);
+  --desk-gallery-accent-soft: var(--desk-color-accent-soft);
+  --desk-gallery-control-hover-border: var(--desk-color-control-border-hover);
+  --desk-gallery-badge-ink: var(--desk-action-primary-ink);
+  --desk-gallery-popover-ink: var(--desk-color-control-ink);
+  --desk-gallery-popover-background: var(--desk-color-popover-bg);
+  --desk-gallery-popover-border: var(--desk-color-popover-border);
+  --desk-gallery-popover-shadow: var(--desk-shadow-panel-soft);
+  --desk-gallery-disabled-ink: var(--desk-color-text-disabled);
   --desk-gallery-accent-ink: var(--desk-color-accent);
   --desk-gallery-toolbar-ink: var(--desk-color-text-primary);
   --desk-gallery-tag-ink: var(--desk-color-text-secondary);
@@ -2639,6 +2648,7 @@ body.desk-app[data-theme="dark"] {
   --desk-prompt-assistant-muted-ink: rgba(190, 199, 201, 0.68);
   --desk-prompt-assistant-placeholder-ink: var(--desk-color-text-placeholder);
   --desk-prompt-assistant-accent-ink: #ff5a1f;
+  --desk-prompt-assistant-caption-shadow: var(--desk-shadow-panel-soft);
   --desk-prompt-assistant-accent-soft: rgba(255, 90, 31, 0.18);
   --desk-prompt-assistant-accent-emphasis-ink: #ffb089;
   --desk-prompt-assistant-on-accent-ink: #ffffff;
@@ -2959,6 +2969,14 @@ body.desk-app[data-theme="dark"] {
   --desk-gallery-color-scheme: dark;
   --desk-gallery-ink: var(--desk-color-text-primary);
   --desk-gallery-muted-ink: var(--desk-color-text-secondary);
+  --desk-gallery-accent-soft: var(--desk-color-accent-soft);
+  --desk-gallery-control-hover-border: var(--desk-color-control-border-hover);
+  --desk-gallery-badge-ink: var(--desk-action-primary-ink);
+  --desk-gallery-popover-ink: var(--desk-color-control-ink);
+  --desk-gallery-popover-background: var(--desk-color-popover-bg);
+  --desk-gallery-popover-border: var(--desk-color-popover-border);
+  --desk-gallery-popover-shadow: var(--desk-shadow-panel-soft);
+  --desk-gallery-disabled-ink: var(--desk-color-text-disabled);
   --desk-gallery-accent-ink: var(--desk-color-accent);
   --desk-gallery-toolbar-ink: rgba(214, 220, 221, 0.76);
   --desk-gallery-tag-ink: rgba(214, 220, 221, 0.76);

@@ -399,6 +399,12 @@
   }
   function setBusy(button, busy) { if (button) button.disabled = !!busy; }
   function typeLabel(id) { return TYPE_LABELS[id] || state.templates.find(item => item.primary_type === id)?.name || id || '通用'; }
+  // Applicable types are stored as ids but edited by their Chinese names; unknown text stays as typed.
+  function typeIdFromLabel(text) {
+    const entry = Object.entries(TYPE_LABELS).find(([, label]) => label === text);
+    return entry?.[0] || state.templates.find(item => item.name === text)?.primary_type || text;
+  }
+  const INSERT_BLOCK_TITLE = '插入到当前提示词；在输入框输入 / 也能搜索素材块';
   function moduleLabel(id) {
     for (const template of state.templates) {
       const found = (template.modules || []).find(item => item.key === id);
@@ -539,7 +545,7 @@
     if (state.workspace === 'colors') {
       return `<button type="button" class="desk-prompt-library-row desk-prompt-library-row--color ${selected ? 'is-selected' : ''}" data-prompt-item-id="${escapeHtml(id)}">
         <span class="desk-prompt-library-row__main"><span class="desk-prompt-library-row__palette" aria-label="${escapeHtml(item.colors.join('、'))}">${item.colors.map(color => `<i style="background:${safeColor(color)}"></i>`).join('')}</span><span class="desk-prompt-library-row__title"><strong data-i18n-skip>${escapeHtml(item.name)}</strong>${item.favorite ? '<span class="desk-prompt-library-row__star">★</span>' : ''}</span><span class="desk-prompt-library-row__preview" data-i18n-skip>${escapeHtml(item.description)}</span><span class="desk-prompt-library-row__meta">${item.custom ? '<span>自定义</span>' : ''}${(item.tags || []).slice(0, item.custom ? 1 : 2).map(tag => `<span>${escapeHtml(tag)}</span>`).join('')}</span></span>
-        <span class="desk-prompt-library-row__side"><span>${item.colors.length} 色</span><span class="desk-prompt-library-row__insert" data-prompt-row-action="primary"># 插入</span></span>
+        <span class="desk-prompt-library-row__side"><span>${item.colors.length} 色</span><span class="desk-prompt-library-row__insert" data-prompt-row-action="primary" title="插入到当前提示词；在输入框输入 # 也能选择配色">插入</span></span>
       </button>`;
     }
     if (state.workspace === 'inspiration') {
@@ -554,13 +560,13 @@
     const title = isBlock ? item.name : item.name;
     const preview = isBlock ? (item.compact_content || item.content) : item.description;
     const meta = isBlock
-      ? [moduleLabel(item.module_type), ...(item.applicable_types || []).slice(0, 1).map(typeLabel), ...(item.tags || []).slice(0, 1)]
+      ? [moduleLabel(item.module_type), ...(item.applicable_types || []).slice(0, 1).map(typeLabel), ...(item.tags || []).slice(0, 1)].filter(value => value !== title)
       : [`${(item.modules || []).filter(module => module.enabled !== false).length} 个模块`, item.system ? '内置规则' : `自定义 v${Number(item.version || 1)}`];
     const side = isBlock ? (item.use_count ? `${item.use_count} 次` : formatDate(item.updated_at)) : '';
     const sideTitle = !isBlock ? '' : (item.use_count ? `已插入 ${item.use_count} 次` : (side ? `更新于 ${side}` : ''));
     return `<button type="button" class="desk-prompt-library-row ${selected ? 'is-selected' : ''}" data-prompt-item-id="${escapeHtml(id)}">
       <span class="desk-prompt-library-row__main"><span class="desk-prompt-library-row__title"><strong data-i18n-skip>${escapeHtml(title || '未命名')}</strong>${item.favorite ? '<span class="desk-prompt-library-row__star">★</span>' : ''}</span><span class="desk-prompt-library-row__preview" data-i18n-skip>${escapeHtml(preview || '暂无内容')}</span><span class="desk-prompt-library-row__meta">${meta.filter(Boolean).map(value => `<span>${escapeHtml(value)}</span>`).join('')}</span></span>
-      <span class="desk-prompt-library-row__side"><span${sideTitle ? ` title="${escapeHtml(sideTitle)}"` : ''}>${escapeHtml(side)}</span><span class="desk-prompt-library-row__insert" data-prompt-row-action="primary">${isBlock ? '/ 插入' : '拆分'}</span></span>
+      <span class="desk-prompt-library-row__side"><span${sideTitle ? ` title="${escapeHtml(sideTitle)}"` : ''}>${escapeHtml(side)}</span><span class="desk-prompt-library-row__insert" data-prompt-row-action="primary"${isBlock ? ` title="${INSERT_BLOCK_TITLE}"` : ''}>${isBlock ? '插入' : '拆分'}</span></span>
     </button>`;
   }
 
@@ -602,9 +608,9 @@
       <div class="desk-prompt-field-grid"><label class="desk-prompt-field"><span>名称</span><input name="name" maxlength="120" value="${escapeHtml(block.name || '')}" placeholder="例如：克制微笑" required></label><label class="desk-prompt-field"><span>所属模块</span><select name="module_type">${moduleTypeOptions(block.module_type)}</select></label></div>
       <label class="desk-prompt-field"><span>完整内容</span><textarea name="content" placeholder="可直接插入提示词的内容" required>${escapeHtml(block.content || '')}</textarea></label>
       <div class="desk-prompt-field-grid"><label class="desk-prompt-field"><span>精简版本</span><textarea name="compact_content" placeholder="可选">${escapeHtml(block.compact_content || '')}</textarea></label><label class="desk-prompt-field"><span>英文版本</span><textarea name="english_content" placeholder="可选">${escapeHtml(block.english_content || '')}</textarea></label></div>
-      <div class="desk-prompt-field-grid"><label class="desk-prompt-field"><span>适用类型</span><input name="applicable_types" value="${escapeHtml((block.applicable_types || []).join(', '))}" placeholder="portrait, poster；留空代表通用"></label><label class="desk-prompt-field"><span>标签</span><input name="tags" value="${escapeHtml((block.tags || []).join(', '))}" placeholder="常用, 商业"></label></div>
+      <div class="desk-prompt-field-grid"><label class="desk-prompt-field"><span>适用类型</span><input name="applicable_types" value="${escapeHtml((block.applicable_types || []).map(typeLabel).join(', '))}" placeholder="人像人物, 海报与 KV；留空代表通用"></label><label class="desk-prompt-field"><span>标签</span><input name="tags" value="${escapeHtml((block.tags || []).join(', '))}" placeholder="常用, 商业"></label></div>
       ${ruleTrace}
-      <div class="desk-prompt-editor-actions"><button type="submit" class="is-primary" ${state.blockSaveBusy ? 'disabled' : ''}>${state.blockSaveBusy ? (state.blockWriteAction === 'delete' ? '正在删除…' : '正在保存…') : '保存素材块'}</button><button type="button" data-prompt-action="insert-block" ${state.blockSaveBusy ? 'disabled' : ''}>/ 插入</button><button type="button" data-prompt-action="copy-block" ${state.blockSaveBusy ? 'disabled' : ''}>复制</button></div>
+      <div class="desk-prompt-editor-actions"><button type="submit" class="is-primary" ${state.blockSaveBusy ? 'disabled' : ''}>${state.blockSaveBusy ? (state.blockWriteAction === 'delete' ? '正在删除…' : '正在保存…') : '保存素材块'}</button><button type="button" data-prompt-action="insert-block" title="${INSERT_BLOCK_TITLE}" ${state.blockSaveBusy ? 'disabled' : ''}>插入</button><button type="button" data-prompt-action="copy-block" ${state.blockSaveBusy ? 'disabled' : ''}>复制</button></div>
     </form>`;
   }
   function blockEditorHtml(block) {
@@ -1462,7 +1468,8 @@
         const list = workspace === 'blocks' ? state.blocks : workspace === 'templates' ? state.templates : state.colors;
         if (state.selected[workspace] && !list.some(item => itemId(item) === state.selected[workspace])) state.selected[workspace] = '';
         const keepNewBlock = workspace === 'blocks' && state.blockDraft && !itemId(state.blockDraft);
-        if (!state.selected[workspace] && list.length && !options.keepNew && !keepNewBlock) state.selected[workspace] = itemId(list[0]);
+        // Blocks open on the list, not on an editable form of whichever block sorts first.
+        if (workspace !== 'blocks' && !state.selected[workspace] && list.length && !options.keepNew && !keepNewBlock) state.selected[workspace] = itemId(list[0]);
       }
     } finally { state.loading = false; render(); }
   }
@@ -1547,7 +1554,7 @@
       id: cleanText(form.querySelector('[name="id"]')?.value), name: cleanText(form.querySelector('[name="name"]')?.value),
       module_type: cleanText(form.querySelector('[name="module_type"]')?.value) || 'custom', content: cleanText(form.querySelector('[name="content"]')?.value),
       compact_content: cleanText(form.querySelector('[name="compact_content"]')?.value), english_content: cleanText(form.querySelector('[name="english_content"]')?.value),
-      applicable_types: parseTags(form.querySelector('[name="applicable_types"]')?.value), tags: parseTags(form.querySelector('[name="tags"]')?.value), favorite: !!previous.favorite,
+      applicable_types: parseTags(form.querySelector('[name="applicable_types"]')?.value).map(typeIdFromLabel), tags: parseTags(form.querySelector('[name="tags"]')?.value), favorite: !!previous.favorite,
       // Provenance is not editable in this form, but it is required when a
       // saved Pinterest 19-module bundle is inserted into the canvas later.
       // Rebuilding the form payload without it silently disabled fidelity and

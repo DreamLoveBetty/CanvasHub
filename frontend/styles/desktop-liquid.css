@@ -4135,8 +4135,8 @@ body.desk-history-collapsed .desk-gallery {
   display: inline-grid;
   place-items: center;
   place-content: center;
-  width: 24px;
-  height: 24px;
+  width: 28px;
+  height: 28px;
   padding: 0;
   border: 1px solid rgba(8, 79, 189, 0.42);
   border-radius: var(--desk-radius);
@@ -4667,9 +4667,6 @@ body.desk-history-collapsed .desk-gallery {
 .desk-gallery__actions button {
   display: grid;
   place-items: center;
-  width: 24px;
-  min-width: 24px;
-  height: 24px;
   padding: 0;
   font-size: 11px;
   color: var(--desk-ink);
@@ -5071,7 +5068,7 @@ body.desk-history-collapsed .desk-gallery {
 
 
 
-.desk-gallery-stats span {
+.desk-gallery-stats :is(span, button) {
   display: inline-flex;
   align-items: center;
   min-height: 21px;
@@ -7079,7 +7076,7 @@ body.desk-app[data-theme="dark"] .desk-file-preview-modal__actions #deskFilePrev
 .desk-gallery-search,
 .desk-gallery-filter,
 .desk-gallery-tag-filter,
-.desk-gallery-stats span,
+.desk-gallery-stats :is(span, button),
 .desk-gallery-inspector,
 .desk-gallery-empty,
 .desk-gallery-more,
@@ -7120,9 +7117,9 @@ body.desk-app[data-theme="dark"] .desk-file-preview-modal__actions #deskFilePrev
 }
 
 .desk-gallery__actions button {
-  width: 24px;
-  min-width: 24px;
-  height: 24px;
+  width: 28px;
+  min-width: 28px;
+  height: 28px;
   color: rgba(22, 32, 43, 0.86);
   background: rgba(255, 255, 255, 0.7);
   border-color: rgba(92, 112, 132, 0.16);
@@ -7697,7 +7694,7 @@ body.desk-app[data-theme="dark"] .desk-file-preview-modal__actions #deskFilePrev
 
 .desk-prompt-drawer__grid {
   display: grid;
-  grid-template-columns: minmax(210px, 0.82fr) minmax(270px, 1.18fr);
+  grid-template-columns: minmax(240px, 1fr) minmax(270px, 1fr);
   gap: 9px;
   min-height: 0;
 }
@@ -10758,7 +10755,7 @@ body.desk-app[data-theme="dark"] .desk-gallery-tabs,
 body.desk-app[data-theme="dark"] .desk-gallery-search,
 body.desk-app[data-theme="dark"] .desk-gallery-filter,
 body.desk-app[data-theme="dark"] .desk-gallery-tag-filter,
-body.desk-app[data-theme="dark"] .desk-gallery-stats span {
+body.desk-app[data-theme="dark"] .desk-gallery-stats :is(span, button) {
   background: rgba(28, 34, 36, 0.58);
 }
 

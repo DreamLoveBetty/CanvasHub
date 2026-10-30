@@ -436,6 +436,7 @@
     if (options.orientation) params.set('orientation', options.orientation);
     if (options.format) params.set('format', options.format);
     if (options.resolution) params.set('resolution', options.resolution);
+    if (options.source) params.set('source', options.source);
     if (options.includeHidden) params.set('include_hidden', '1');
     if (options.fields) params.set('fields', options.fields);
     if (options.refresh) params.set('refresh', '1');

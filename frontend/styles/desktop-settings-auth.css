@@ -37,6 +37,23 @@ body.desk-app[data-theme] :is(
   color: var(--desk-settings-ink);
 }
 
+body.desk-app[data-theme] .desk-settings-card__goto {
+  color: var(--desk-settings-segment-ink);
+  background: var(--desk-settings-segment-background);
+  border-color: var(--desk-settings-segment-border);
+  box-shadow: var(--desk-settings-segment-shadow);
+}
+
+body.desk-app[data-theme] .desk-settings-card__goto:hover {
+  color: var(--desk-settings-accent-ink);
+  border-color: var(--desk-settings-selected-border);
+}
+
+body.desk-app[data-theme] .desk-settings-card__goto:focus-visible {
+  outline: 2px solid var(--desk-settings-hit-ring);
+  outline-offset: 1px;
+}
+
 body.desk-app[data-theme] .desk-settings__version {
   color: var(--desk-settings-version-ink);
 }

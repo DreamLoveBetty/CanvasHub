@@ -5,7 +5,7 @@
 设置中心改为左侧抽屉：位于标题栏与状态栏之间，从工具栏右侧滑入并盖在画布上方（画布不缩放、
 不加遮罩）。默认宽 760px，右缘拖动 / 方向键调宽（560–1100px，双击恢复默认），宽度存于
 `DesktopPreferences.state.settingsWidth`；显示宽度另按窗口收窄，保证工具栏与右侧留白。
-11 个分类常驻左侧纵向导航，分组：常用 / 生成线路 / 本地模型 / 其它（取消“展开更多”）。
+13 个分类常驻左侧纵向导航，分组：常用 / 生成线路 / 本地模型 / 其它（取消“展开更多”）。
 顶部搜索框按卡片标题、字段名（说明文字低权重）跨分类定位：切换分类、滚动到卡片并短暂高亮，
 焦点落到该字段的实际控件；Esc 先清空搜索，再关闭抽屉。
 
@@ -13,6 +13,8 @@
   窗口变化重算；不管内容和开关。在 `desktop-preferences.js` 之前加载。
 - `scripts/desktop-settings-search.js`：从各分类卡片 HTML 建索引（惰性 `<template>` 解析）、
   多词匹配与排序、结果列表与键盘交互；不持有设置数据、不负责跳转。在 `desktop-settings.js` 前加载。
+- `scripts/desktop-settings-drafts.js`：未保存的字段草稿（`data-system-setting-field` / `data-gpt-provider-field`），
+  设置区每次重绘后放回，卡片保存成功后丢弃；不发请求。在 `desktop-settings.js` 前加载。
 - `desktop-settings.js`：`buildSections(data, tab)` 抽出原分类渲染（遮蔽 `activeTab`），搜索索引
   据此离屏生成各分类卡片，不额外请求；`selectTab()` 统一点击与搜索跳转；装配上述两个模块。
 - 几何在 `desktop-geometry.css`（抽屉位置、导航、搜索、把手、内容区 ≥820px 两列），配色在
@@ -200,9 +202,11 @@ ID；下拉显示服务端返回的真实模型名称，而不是把量化方案
 
 - `desktop-gallery-prompt-sources.js`：资产库「提示词源」分页，`window.DesktopGalleryPromptSources.create(deps)`。持有远程提示词源列表与条目、来源页签与滑块、风格/主体/类型分类筛选、同步运行与轮询、可见条目缓存。宿主的视图/搜索/标签/虚拟网格数据版本号以 getter 传入；宿主的 `invalidateGalleryVirtualData()` 经 `invalidateVisibleCache()` 让模块清空自身缓存。共享虚拟网格的首屏数量常量 `PROMPT_SOURCE_INITIAL_RENDER_LIMIT` 由宿主 `resetGalleryRenderLimit()` 使用，故留在宿主。
 
+- `desktop-gallery-facets.js`：资产库「规格」筛选，`window.DesktopGalleryFacets.create({ root, escapeHtml, onChange })`。持有记录/方向/分辨率/格式四个单选面向（面向之间为 AND，叠加在宿主的范围下拉之上）和弹出面板；宿主经 `params()` 把它们作为 `/api/assets` 的 `source`/`orientation`/`resolution`/`format` 参数，经 `matches()` 做本地过滤，统计行的记录数字经 `set('record', …)` 当作快捷筛选。
+
 - `desktop-gallery-videos.js`：资产库「视频」文件夹，`window.DesktopGalleryVideos.create(deps)`（宿主实例名 `galleryVideoFolder`）。持有视频与资源列表、生成/导入/全部来源切换（含其点击绑定）、文件夹卡片与展开详情/播放、发送到画布和视频统计行。宿主的视图/搜索以 getter 传入；宿主切换分页或关闭资产库时经 `collapseExpanded()` 收起展开的卡片，选择栏文案经 `source()` 读当前来源。历史面板自己的 `isVideoHistoryItem` 与共享剪贴板工具 `copyPinterestSplitText` 留在宿主。
 
-加载顺序：`desktop-genie-fx.js` → `desktop-gallery-pinterest.js` → `desktop-gallery-prompt-sources.js` → `desktop-gallery-videos.js` → `desktop-history.js` → `desktop-prompt-drawer.js`。宿主以 `const genieFx = window.DeskGenieFX;`、`const galleryPinterest = window.DesktopGalleryPinterest.create({...});` 等显式取得依赖，不保留第二套实现。源码契约测试经 `tests/history_js.py` 按 `desktop.html` 加载顺序读取宿主及拆出的模块；边界回归：`tests/test_desktop_genie_fx.py`、`tests/test_desktop_gallery_pinterest.py`、`tests/test_desktop_gallery_prompt_sources.py`、`tests/test_desktop_gallery_videos.py`。
+加载顺序：`desktop-genie-fx.js` → `desktop-gallery-pinterest.js` → `desktop-gallery-prompt-sources.js` → `desktop-gallery-videos.js` → `desktop-gallery-facets.js` → `desktop-history.js` → `desktop-prompt-drawer.js`。宿主以 `const genieFx = window.DeskGenieFX;`、`const galleryPinterest = window.DesktopGalleryPinterest.create({...});` 等显式取得依赖，不保留第二套实现。源码契约测试经 `tests/history_js.py` 按 `desktop.html` 加载顺序读取宿主及拆出的模块；边界回归：`tests/test_desktop_genie_fx.py`、`tests/test_desktop_gallery_pinterest.py`、`tests/test_desktop_gallery_prompt_sources.py`、`tests/test_desktop_gallery_videos.py`。
 
 ## 资产库对比视口（2026-09-22）
 

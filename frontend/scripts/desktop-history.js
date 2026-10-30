@@ -75,6 +75,15 @@
     getGalleryView: () => galleryView,
     getGalleryQuery: () => galleryQuery
   });
+  const galleryFacets = window.DesktopGalleryFacets.create({
+    root: document.getElementById('deskGalleryFacets'),
+    escapeHtml,
+    onChange: () => {
+      renderGalleryStats();
+      refreshGalleryAssets();
+    }
+  });
+  let galleryMetaRefreshing = false;
 
   function $(id) {
     return document.getElementById(id);
@@ -672,7 +681,6 @@
       'deskGalleryCompareBtn',
       'deskGalleryCanvasBtn',
       'deskGallerySaveSetBtn',
-      'deskGalleryRefreshMetaBtn',
       'deskGalleryTagBtn',
       'deskGalleryHideBtn',
       'deskGalleryDeleteBtn',
@@ -1513,12 +1521,7 @@
       if (galleryFilter === 'favorite' && !asset.favorite) return false;
       if (galleryFilter === 'hidden' && !asset.hidden) return false;
       if (['gpt', 'google', 'comfy', 'layout'].includes(galleryFilter) && asset.provider !== galleryFilter) return false;
-      if (galleryFilter === 'linked' && !asset.hasTaskRecord) return false;
-      if (galleryFilter === 'orphan' && asset.hasTaskRecord) return false;
-      if (galleryFilter === 'missing_history' && !asset.missingArchive) return false;
-      if (['landscape', 'portrait', 'square'].includes(galleryFilter) && asset.orientation !== galleryFilter) return false;
-      if (['1k', '2k', '4k'].includes(galleryFilter) && String(asset.resolution || '').toLowerCase() !== galleryFilter) return false;
-      if (['png', 'jpg', 'webp'].includes(galleryFilter) && String(asset.format || '').toLowerCase() !== galleryFilter) return false;
+      if (!galleryFacets.matches(asset)) return false;
       if (tagQuery && !parseTags(asset.tags).some(tag => tag.toLowerCase().includes(tagQuery))) return false;
       if (!query) return true;
       const haystack = assetMetaSearchText(asset).toLowerCase();
@@ -1559,12 +1562,7 @@
       if (galleryFilter === 'favorite' && !assets.some(asset => asset.favorite)) return false;
       if (galleryFilter === 'hidden' && !assets.some(asset => asset.hidden)) return false;
       if (['gpt', 'google', 'comfy', 'layout'].includes(galleryFilter) && !assets.some(asset => asset.provider === galleryFilter)) return false;
-      if (galleryFilter === 'linked' && !assets.some(asset => asset.hasTaskRecord)) return false;
-      if (galleryFilter === 'orphan' && !assets.some(asset => !asset.hasTaskRecord)) return false;
-      if (galleryFilter === 'missing_history' && !assets.some(asset => asset.missingArchive)) return false;
-      if (['landscape', 'portrait', 'square'].includes(galleryFilter) && !assets.some(asset => asset.orientation === galleryFilter)) return false;
-      if (['1k', '2k', '4k'].includes(galleryFilter) && !assets.some(asset => String(asset.resolution || '').toLowerCase() === galleryFilter)) return false;
-      if (['png', 'jpg', 'webp'].includes(galleryFilter) && !assets.some(asset => String(asset.format || '').toLowerCase() === galleryFilter)) return false;
+      if (galleryFacets.activeCount && !assets.some(asset => galleryFacets.matches(asset))) return false;
       if (tagQuery) {
         const allTags = [
           ...setTags,
@@ -2290,7 +2288,7 @@
       : `比例 ${ratioLabel} · 分辨率 ${resolutionLabel}`;
     const detailLine = isPinterest
       ? [sourceBadge, asset.localCached ? '已同步到本地' : '远程', asset.dimensions || '', asset.format].filter(Boolean).join(' · ')
-      : [modelLabel, sourceBadge, asset.format].filter(Boolean).join(' · ');
+      : [sourceBadge, asset.format].filter(Boolean).join(' · ');
     return `
       <article class="desk-gallery-card${selected ? ' is-selected' : ''}${focused ? ' is-focus-active' : ''}${asset.favorite ? ' is-favorite' : ''}${isPinterest ? ' is-pinterest' : ''}${isRemote ? ' is-remote-source' : ''}${hasSwitcher ? ' has-gallery-switcher' : ''}${hasIndexBadge ? ' has-gallery-count' : ''}${asset.hidden ? ' is-hidden-asset' : ''}${asset.missingArchive ? ' is-missing-archive' : ''}${asset.stale ? ' is-stale-remote' : ''}" data-asset-id="${escapeHtml(asset.id)}" draggable="${asset.imageUrl ? 'true' : 'false'}" tabindex="-1">
         <div class="desk-gallery-card__image">
@@ -2307,10 +2305,10 @@
         <div class="desk-gallery-card__meta">
           <div class="desk-gallery-card__meta-copy${isPinterest && asset.localCached ? ' is-pinterest-local' : ''}" data-gallery-select-card="${escapeHtml(asset.id)}" role="button" tabindex="0" aria-pressed="${selected ? 'true' : 'false'}" aria-label="${selected ? '取消选择图片' : '选择图片'}">
             <div class="desk-gallery-card__meta-head">
-              <strong>${escapeHtml(modelLabel)}</strong>
+              <strong title="${escapeHtml(modelLabel)}">${escapeHtml(modelLabel)}</strong>
             </div>
-            <span class="desk-gallery-card__description">${escapeHtml(summaryLine)}</span>
-            <em>${escapeHtml(detailLine)}</em>
+            <span class="desk-gallery-card__description" title="${escapeHtml(summaryLine)}">${escapeHtml(summaryLine)}</span>
+            <em title="${escapeHtml(detailLine)}">${escapeHtml(detailLine)}</em>
           </div>
           <div class="desk-gallery-card__meta-actions${isPinterest ? ' is-pinterest' : ''}" aria-label="图片操作">
             ${refCount || derivedCount ? `
@@ -2384,15 +2382,22 @@
     }
     const stats = galleryAssetStats || {};
     const value = key => Number(stats[key] || 0).toLocaleString('zh-CN');
+    const plain = text => `<span>${escapeHtml(text)}</span>`;
+    // Record counts double as the record facet: clicking one filters by it, again clears it.
+    const recordFilter = (label, key, record) => {
+      const pressed = galleryFacets.value('record') === record;
+      return `<button type="button" data-gallery-stat-record="${record}" aria-pressed="${pressed}"${pressed ? ' class="is-active"' : ''} title="${pressed ? '取消筛选' : `只看${label}`}">${escapeHtml(`${label} ${value(key)}`)}</button>`;
+    };
     els.deskGalleryStats.innerHTML = [
-      `Obsidian ${value('obsidian_image_count')}`,
-      `资产库 ${value('gallery_asset_count')}`,
-      `有记录 ${value('task_record_image_count')}`,
-      `仅归档 ${value('orphan_asset_count')}`,
-      `有尺寸 ${value('metadata_image_count')}`,
-      `未归档记录 ${value('history_missing_archive_count')}`,
-      `原图缺失 ${value('history_missing_count')}`
-    ].map(item => `<span>${escapeHtml(item)}</span>`).join('');
+      plain(`Obsidian ${value('obsidian_image_count')}`),
+      plain(`资产库 ${value('gallery_asset_count')}`),
+      recordFilter('有记录', 'task_record_image_count', 'linked'),
+      recordFilter('仅归档', 'orphan_asset_count', 'orphan'),
+      plain(`有尺寸 ${value('metadata_image_count')}`),
+      recordFilter('未归档记录', 'history_missing_archive_count', 'missing_history'),
+      plain(`原图缺失 ${value('history_missing_count')}`),
+      `<button type="button" class="desk-gallery-stats__action" data-gallery-refresh-meta title="重新读取图片尺寸并重建资产索引"${galleryMetaRefreshing ? ' disabled' : ''}>${galleryMetaRefreshing ? '刷新中' : '刷新元数据'}</button>`
+    ].join('');
   }
 
   function renderGalleryImages() {
@@ -3429,6 +3434,7 @@
     if (els.deskGalleryTagInput && els.deskGalleryTagInput.value !== galleryTag) els.deskGalleryTagInput.value = galleryTag;
     const isSimpleMediaView = ['pinterest', 'videos'].includes(galleryView);
     if (els.deskGalleryFilterSelect) els.deskGalleryFilterSelect.hidden = isSimpleMediaView;
+    galleryFacets.setHidden(isSimpleMediaView || galleryView === 'files');
     const tagFilter = els.deskGalleryTagInput?.closest('.desk-gallery-tag-filter');
     if (tagFilter) tagFilter.hidden = isSimpleMediaView;
     if (els.deskGallerySearchInput) {
@@ -3457,7 +3463,6 @@
 
   function renderGallerySelection() {
     if (galleryView === 'loras') return;
-    if (els.deskGalleryRefreshMetaBtn) els.deskGalleryRefreshMetaBtn.disabled = galleryView === 'videos';
     if (galleryView === 'videos') {
       const count = galleryVideoFolder.visibleVideos().length;
       if (els.deskGallerySelectedCount) els.deskGallerySelectedCount.textContent = `${count} 个`;
@@ -3772,6 +3777,7 @@
         offset: 0,
         query: galleryQuery,
         filter: galleryFilter,
+        ...galleryFacets.params(),
         tag: galleryTag,
         includeHidden: galleryFilter === 'hidden',
         fields: 'card',
@@ -3845,6 +3851,7 @@
           offset: requestOffset,
           query: galleryQuery,
           filter: galleryFilter,
+          ...galleryFacets.params(),
           tag: galleryTag,
           includeHidden: galleryFilter === 'hidden',
           fields: 'card'
@@ -4452,13 +4459,10 @@
   }
 
   async function refreshGalleryMetadata() {
-    const button = els.deskGalleryRefreshMetaBtn;
-    const originalText = button?.textContent || '';
+    if (galleryMetaRefreshing) return;
     try {
-      if (button) {
-        button.disabled = true;
-        button.textContent = '刷新中';
-      }
+      galleryMetaRefreshing = true;
+      renderGalleryStats();
       galleryMessage('正在刷新资产库元数据...');
       await Promise.all([
         loadHistory(80),
@@ -4470,11 +4474,8 @@
     } catch (error) {
       galleryError(error, '刷新元数据失败');
     } finally {
-      if (button && originalText) {
-        button.textContent = originalText;
-        button.disabled = false;
-      }
-      renderGallerySelection();
+      galleryMetaRefreshing = false;
+      renderGalleryStats();
     }
   }
 
@@ -4718,8 +4719,16 @@
     els.deskGallerySaveSetBtn?.addEventListener('click', () => {
       saveSelectedAsSet().catch(error => DesktopResults.showError(error));
     });
-    els.deskGalleryRefreshMetaBtn?.addEventListener('click', () => {
-      refreshGalleryMetadata().catch(error => DesktopResults.showError(error));
+    els.deskGalleryStats?.addEventListener('click', event => {
+      const record = event.target.closest('[data-gallery-stat-record]');
+      if (record) {
+        galleryFacets.set('record', record.dataset.galleryStatRecord);
+        els.deskGalleryStats.querySelector(`[data-gallery-stat-record="${record.dataset.galleryStatRecord}"]`)?.focus();
+        return;
+      }
+      if (event.target.closest('[data-gallery-refresh-meta]')) {
+        refreshGalleryMetadata().catch(error => DesktopResults.showError(error));
+      }
     });
     els.deskGalleryTagBtn?.addEventListener('click', () => {
       editSelectedTags().catch(error => DesktopResults.showError(error));

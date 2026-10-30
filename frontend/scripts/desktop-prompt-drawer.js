@@ -762,6 +762,7 @@
     handleEyesRect = null;
     els.deskPromptDrawer?.classList.toggle('is-open', state.open);
     els.deskPromptDrawer?.setAttribute('aria-expanded', state.open ? 'true' : 'false');
+    els.deskPromptDrawerToggle?.setAttribute('aria-expanded', state.open ? 'true' : 'false');
     resetPromptDrawerHandleEyes();
     if (state.open && !els.deskPromptDrawer?.classList.contains('is-agent')) {
       window.setTimeout(focusEditor, 40);
@@ -954,15 +955,16 @@
     const taskContext = activeH3TaskContext(target);
     const modeCopy = taskModeCopy();
     const nodes = getTextNodes();
-    if (els.deskPromptDrawerTarget) els.deskPromptDrawerTarget.textContent = active ? target.label : '未选择文本节点';
+    // The node select is the one place that says whether a text node is bound.
+    if (els.deskPromptDrawerTarget) els.deskPromptDrawerTarget.textContent = active ? target.label : modeCopy.meta;
     if (els.deskPromptDrawerMeta) {
       els.deskPromptDrawerMeta.textContent = taskContext
         ? `MiniMax H3 · ${taskContext.mode} · ${taskContext.duration_seconds}s · ${taskContext.aspect_ratio}`
-        : (active ? modeCopy.meta : `${modeCopy.meta} · 无需文本节点`);
+        : modeCopy.meta;
     }
     if (els.deskPromptNodeSelect) {
       els.deskPromptNodeSelect.innerHTML = [
-        `<option value="">${nodes.length ? '不绑定文本节点' : '画布中没有文本节点'}</option>`,
+        `<option value="">${nodes.length ? '不绑定文本节点' : '无文本节点'}</option>`,
         ...nodes.map(node => `<option value="${escapeHtml(node.nodeId)}">${escapeHtml(node.alias || node.label || '文本节点')}</option>`)
       ].join('');
       els.deskPromptNodeSelect.value = active ? target.nodeId : '';
@@ -981,7 +983,7 @@
     const modeCopy = taskModeCopy();
     let createButton = '';
     if (!hasTextTarget()) {
-      createButton = '<button type="button" data-prompt-create-text title="可选">新建文本节点</button>';
+      createButton = '<button type="button" data-prompt-create-text title="在画布上新建一个文本节点，结果可直接写入">新建文本节点</button>';
     }
     els.deskPromptChatMessages.innerHTML = `
       <div class="desk-prompt-chat__empty">
@@ -2413,6 +2415,7 @@
     restorePromptDrawerSession();
     els.deskPromptDrawer?.classList.toggle('is-open', state.open);
     els.deskPromptDrawer?.setAttribute('aria-expanded', state.open ? 'true' : 'false');
+    els.deskPromptDrawerToggle?.setAttribute('aria-expanded', state.open ? 'true' : 'false');
     resetPromptDrawerHandleEyes();
     render();
     bindEvents();

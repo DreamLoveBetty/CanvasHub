@@ -1104,6 +1104,16 @@ body.desk-app[data-theme] .desk-agent-workbench {
   --desk-agent-footer-height: 64px;
 }
 
+@media (min-width: 761px) {
+  body.desk-app[data-theme] .desk-agent-workbench.is-draft {
+    grid-template-columns: minmax(300px, 1.4fr) minmax(260px, 1fr);
+  }
+
+  body.desk-app[data-theme] .desk-agent-workbench.is-draft .desk-agent-pane--activity {
+    display: none;
+  }
+}
+
 body.desk-app[data-theme] :is(.desk-agent-compose, .desk-agent-approval, .desk-agent-artifact) {
   box-sizing: border-box;
   height: var(--desk-agent-footer-height);
@@ -1247,8 +1257,8 @@ body.desk-app[data-theme] .desk-prompt-library__syntax {
 }
 
 body.desk-app[data-theme] .desk-prompt-library__header-actions button {
-  width: var(--desk-control-height-xs);
-  height: var(--desk-control-height-xs);
+  width: var(--desk-control-height-sm);
+  height: var(--desk-control-height-sm);
   border-radius: 7px;
 }
 
@@ -1640,6 +1650,17 @@ body.desk-app[data-theme] .desk-settings-card h3 {
   font-size: var(--desk-font-size-caption);
   line-height: var(--desk-line-height-caption);
   font-weight: var(--desk-font-weight-medium);
+}
+
+:where(body.desk-app[data-theme]) .desk-settings-card__goto {
+  height: 24px;
+  margin-left: auto;
+  padding: 0 9px;
+  font-size: 11px;
+  font-weight: 700;
+  border: 1px solid;
+  border-radius: 8px;
+  cursor: pointer;
 }
 
 body.desk-app[data-theme] .desk-settings .desk-settings-form {

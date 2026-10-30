@@ -2988,6 +2988,8 @@
   }
 
   function renderWorkspace() {
+    // Before a plan exists the run log has nothing to show; its column goes to the goal.
+    els.deskAgentWorkbench?.classList.toggle('is-draft', !state.run && !state.events.length);
     renderControls();
     renderSteps();
     renderApproval();

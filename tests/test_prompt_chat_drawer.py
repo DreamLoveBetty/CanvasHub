@@ -810,7 +810,7 @@ class PromptChatFrontendTest(unittest.TestCase):
         self.assertRegex(css, r"\.desk-text-node__alias button\s*\{[^}]*width:\s*20px;[^}]*height:\s*20px;")
         self.assertRegex(css, r"\.desk-text-node__alias input\s*\{[^}]*border-radius:\s*4px;")
         self.assertRegex(css, r"\.desk-prompt-node-picker select\s*\{[^}]*border-radius:\s*4px;")
-        self.assertRegex(css, r"\.desk-prompt-drawer__grid\s*\{[^}]*grid-template-columns:\s*minmax\(210px,\s*0\.82fr\)\s*minmax\(270px,\s*1\.18fr\);")
+        self.assertRegex(css, r"\.desk-prompt-drawer__grid\s*\{[^}]*grid-template-columns:\s*minmax\(240px,\s*1fr\)\s*minmax\(270px,\s*1fr\);")
         self.assertRegex(css, r"\.desk-prompt-chat,\s*\n\.desk-prompt-candidates\s*\{[^}]*background:\s*transparent;")
         self.assertRegex(css, r"\.desk-prompt-chat\s*\{[^}]*grid-template-rows:\s*minmax\(0,\s*1fr\)\s*auto;")
         self.assertRegex(css, r"\.desk-prompt-chat\s*\{[^}]*border:\s*1px\s*solid\s*rgba\(92,\s*112,\s*132,\s*0\.16\);")

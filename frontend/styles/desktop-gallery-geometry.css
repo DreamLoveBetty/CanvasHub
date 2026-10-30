@@ -377,6 +377,124 @@ body.desk-app[data-lang="en"] .desk-gallery-tabs button[data-gallery-view="sets"
   display: none;
 }
 
+:where(body.desk-app[data-theme]) .desk-gallery-stats button {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+:where(body.desk-app[data-theme]) .desk-gallery-stats__action {
+  margin-left: auto;
+}
+
+:where(body.desk-app[data-theme]) .desk-gallery-facets {
+  position: relative;
+  display: flex;
+  flex: 0 0 auto;
+}
+
+:where(body.desk-app[data-theme]) .desk-gallery-facets[hidden] {
+  display: none;
+}
+
+:where(body.desk-app[data-theme]) .desk-gallery-facets__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 30px;
+  padding: 0 10px;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  border: 1px solid;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+:where(body.desk-app[data-theme]) .desk-gallery-facets__toggle em {
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  font-size: 10px;
+  font-style: normal;
+  line-height: 16px;
+  text-align: center;
+  border-radius: 999px;
+}
+
+:where(body.desk-app[data-theme]) .desk-gallery-facets__toggle em[hidden] {
+  display: none;
+}
+
+:where(body.desk-app[data-theme]) .desk-gallery-facets__panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 30;
+  display: grid;
+  gap: 10px;
+  width: 252px;
+  padding: 12px;
+  border: 1px solid;
+  border-radius: 12px;
+}
+
+:where(body.desk-app[data-theme]) .desk-gallery-facets__panel[hidden] {
+  display: none;
+}
+
+:where(body.desk-app[data-theme]) .desk-gallery-facets__group {
+  display: grid;
+  gap: 6px;
+}
+
+:where(body.desk-app[data-theme]) .desk-gallery-facets__group > span {
+  font-size: 11px;
+  font-weight: 700;
+}
+
+:where(body.desk-app[data-theme]) .desk-gallery-facets__options {
+  display: flex;
+  gap: 3px;
+  padding: 2px;
+  border: 1px solid;
+  border-radius: 9px;
+}
+
+:where(body.desk-app[data-theme]) .desk-gallery-facets__options button {
+  flex: 1 1 0;
+  height: 26px;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  cursor: pointer;
+}
+
+:where(body.desk-app[data-theme]) .desk-gallery-facets__foot {
+  display: flex;
+  justify-content: flex-end;
+}
+
+:where(body.desk-app[data-theme]) .desk-gallery-facets__foot button {
+  height: 26px;
+  padding: 0 4px;
+  font-family: inherit;
+  font-size: 11px;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+:where(body.desk-app[data-theme]) .desk-gallery-facets__foot button:disabled {
+  cursor: default;
+  text-decoration: none;
+  opacity: 0.5;
+}
+
 :where(body.desk-app[data-theme]) .desk-gallery-stats[hidden] + .desk-gallery__body {
   grid-row: 3 / -1;
 }
@@ -761,7 +879,15 @@ body.desk-app[data-lang="en"] .desk-gallery-tabs button[data-gallery-view="sets"
 }
 
 :where(body.desk-app[data-theme]) .desk-gallery-card__favorite {
+  position: relative;
   color: rgba(18, 26, 34, 0.78);
+}
+
+/* The 18px star keeps its look; the hit area grows to 24px. */
+:where(body.desk-app[data-theme]) .desk-gallery-card__favorite::after {
+  position: absolute;
+  inset: -4px;
+  content: "";
 }
 
 :where(body.desk-app[data-theme]) .desk-gallery-card__favorite[aria-pressed="true"] {
@@ -1371,6 +1497,34 @@ body.desk-app[data-lang="en"] .desk-gallery-tabs button[data-gallery-view="sets"
   min-height: 30px;
   padding: 0 7px;
   font-size: 11px;
+}
+
+/* Deleting files sits apart from the selection actions; undo is a quiet text action. */
+:where(body.desk-app[data-theme]) .desk-gallery-inspector__danger {
+  display: flex;
+  flex: 1 1 100%;
+  gap: 7px;
+  align-items: center;
+  padding-top: 7px;
+  border-top: 1px solid;
+}
+
+:where(body.desk-app[data-theme]) .desk-gallery-inspector__undo {
+  flex: 0 0 auto;
+  min-height: 30px;
+  padding: 0 4px;
+  font-size: 11px;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+:where(body.desk-app[data-theme]) .desk-gallery-inspector__undo:disabled {
+  cursor: default;
+  text-decoration: none;
 }
 
 :where(body.desk-app[data-theme]) .desk-gallery-more {

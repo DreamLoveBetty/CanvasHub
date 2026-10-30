@@ -61,12 +61,34 @@
         ]],
         ['对应模块', [
           'server.py 启动绑定、桌面端设置中心、Mini App 登录鉴权。',
-          '访问密码也保护系统诊断、历史、图片读取和生成接口。',
-          'Pinterest 图库参数保存在 settings.json，完整浏览器登录态单独保存在 browser_auth.json。'
+          '访问密码也保护系统诊断、历史、图片读取和生成接口。'
         ]],
         ['注意事项', [
           '公网模式只解决监听地址，不替代 HTTPS、反向代理、系统防火墙或 Telegram 域名配置。',
-          '如果只是本机使用，不要开启公网模式。',
+          '如果只是本机使用，不要开启公网模式。'
+        ]]
+      ]
+    },
+    appearance: {
+      title: '外观',
+      subtitle: '画布交互与界面样式',
+      summary: '画布连接样式、进度条、按钮材质和输入框样式；修改即时生效，只保存在当前浏览器。',
+      sections: [
+        ['配置方式', [
+          '这里的选项没有保存按钮，改动立即应用到当前画布。',
+          '偏好保存在本浏览器，换浏览器或清除站点数据后恢复默认。'
+        ]]
+      ]
+    },
+    pinterest: {
+      title: 'Pinterest 图库',
+      subtitle: '资产库的 Pinterest 来源',
+      summary: '连接 Pinterest 账号后，资产库的 Pinterest 分页可同步图板与图片。',
+      sections: [
+        ['对应模块', [
+          'Pinterest 图库参数保存在 settings.json，完整浏览器登录态单独保存在 browser_auth.json。'
+        ]],
+        ['注意事项', [
           '“连接 Pinterest”会打开隔离浏览器窗口；登录完成后回到设置页点击“完成登录”。',
           'Cookie 备用导入保存后不会回显；退出登录会删除 browser_auth.json。'
         ]]
@@ -358,18 +380,36 @@
     `;
   }
 
-  function renderCard(title, rows, ok) {
+  // `goto` names the settings tab that configures this card; the status page offers a jump there.
+  function renderCard(title, rows, ok, { goto = '' } = {}) {
+    const gotoButton = goto
+      ? `<button type="button" class="desk-settings-card__goto" data-settings-goto="${escapeHtml(goto)}">去设置</button>`
+      : '';
     return `
       <section class="desk-settings-card ${statusClass(ok)}">
         <header>
           <span class="desk-settings-dot" aria-hidden="true"></span>
           <h3>${escapeHtml(title)}</h3>
+          ${gotoButton}
         </header>
         <div class="desk-settings-card__body">
           ${rows.join('')}
         </div>
       </section>
     `;
+  }
+
+  // One label per reasoning effort, wherever a setting shows it.
+  const REASONING_EFFORT_LABELS = { none: '关闭', low: '低', medium: '中', high: '高', xhigh: '超高', max: '最高' };
+  const reasoningEffortLabel = value => REASONING_EFFORT_LABELS[value] || value;
+
+  // Catalog label for a model id; ids like gpt-5-5 read as GPT-5.5 when the catalog has none.
+  function modelLabel(id) {
+    const value = String(id || '');
+    const routes = Object.values(lastGptModelCatalog?.routes || {});
+    const known = routes.flatMap(route => route?.models || []).find(item => item?.id === value);
+    if (known?.label) return known.label;
+    return value.replace(/^gpt-(\d+)-(\d+)$/i, (_, major, minor) => `GPT-${major}.${minor}`);
   }
 
   function optionHtml(value, label, selectedValue) {
@@ -717,7 +757,7 @@
         ? selectedModelMeta.default_reasoning_effort
         : (reasoningEfforts.includes('medium') ? 'medium' : reasoningEfforts[0]));
     const effortOptions = reasoningEfforts.length
-      ? reasoningEfforts.map(value => optionHtml(value, value, selectedEffort)).join('')
+      ? reasoningEfforts.map(value => optionHtml(value, reasoningEffortLabel(value), selectedEffort)).join('')
       : optionHtml('none', '不适用', 'none');
     return renderCard('Provider 连接', [
       `<div class="desk-settings-form" data-system-settings-card="provider">
@@ -733,7 +773,7 @@
         <div class="desk-settings-form__actions desk-settings-form__actions--compact">
           <button type="button" data-gpt-generation-models-refresh>刷新线路模型</button>
         </div>
-        ${renderSystemSaveButton('provider', '保存 Provider 配置')}
+        ${renderSystemSaveButton('provider', '保存模型设置')}
       </div>`
     ], true);
   }
@@ -752,7 +792,7 @@
         ? model.default_reasoning_effort
         : (efforts.includes('medium') ? 'medium' : efforts[0]));
     reasoningSelect.innerHTML = efforts.length
-      ? efforts.map(value => optionHtml(value, value, selected)).join('')
+      ? efforts.map(value => optionHtml(value, reasoningEffortLabel(value), selected)).join('')
       : optionHtml('none', '不适用', 'none');
     reasoningSelect.disabled = !efforts.length;
     window.DesktopSelect?.refresh?.(reasoningSelect);
@@ -1140,11 +1180,11 @@
   function renderPromptOverview(promptRuntime) {
     const cfg = promptRuntime?.prompt_skill || {};
     return renderCard('提示词润色', [
-      renderKv('Provider', cfg.provider || promptRuntime?.provider || '未设置'),
-      renderKv('Skill', cfg.skill || 'image_prompt_v7'),
+      renderKv('服务商', cfg.provider || promptRuntime?.provider || '未设置'),
+      renderKv('润色模板', cfg.skill || 'image_prompt_v7'),
       renderKv('推理模型', cfg.model || promptRuntime?.default_model || '未选择'),
-      renderKv('推理强度', cfg.reasoning_effort || 'medium')
-    ], Boolean(cfg.model || promptRuntime?.default_model));
+      renderKv('推理强度', reasoningEffortLabel(cfg.reasoning_effort || 'medium'))
+    ], Boolean(cfg.model || promptRuntime?.default_model), { goto: 'prompt' });
   }
 
   function transportLabel(mode) {
@@ -1175,7 +1215,7 @@
         </label>
         <p class="desk-settings-form__hint">默认 600 秒。到达本地 Codex 总等待上限后，自动切账号池托底。</p>
         <div class="desk-settings-form__actions">
-          <button type="button" class="is-primary" data-gpt-provider-save>保存 GPT Provider 配置</button>
+          <button type="button" class="is-primary" data-gpt-provider-save>保存传输设置</button>
         </div>
       </div>`
     ], true);
@@ -1325,7 +1365,7 @@
           ${renderInput('Accounts Dir', 'managed_codex_oauth.accounts_dir', managed?.accounts_dir || 'data/managed_codex_oauth/accounts')}
           ${renderInput('Codex API Base', 'managed_codex_oauth.api_base', managed?.api_base || 'https://chatgpt.com/backend-api/codex')}
           ${renderInput('Redirect URI', 'managed_codex_oauth.redirect_uri', managed?.redirect_uri || 'http://localhost:1455/auth/callback')}
-          ${renderSystemSaveButton('managed-codex-oauth', '保存托管 OAuth 配置')}
+          ${renderSystemSaveButton('managed-codex-oauth', '保存托管 OAuth 设置')}
         </div>
       </details>`
     ], Boolean(managed?.enabled !== false));
@@ -1406,14 +1446,14 @@
     const stats = accountsPayload?.stats || pool?.stats || {};
     const online = Boolean(pool?.online);
     return renderCard('账号池', [
-      renderKv('Sidecar', online ? '在线' : (pool?.health_error || '未在线')),
+      renderKv('账号池服务', online ? '在线' : (pool?.health_error || '未在线')),
       renderKv('启用状态', pool?.enabled, { boolean: true }),
       renderKv('账号数', stats.total ?? 0),
       renderKv('可用 / 忙碌 / 总数', `${stats.available ?? stats.active ?? 0} / ${stats.inflight ?? 0} / ${stats.total ?? 0}`),
       renderKv('限流 / 异常', `${stats.limited ?? 0} / ${stats.abnormal ?? 0}`),
       renderKv('可续期', stats.refreshable ?? 0),
-      renderKv('模型', pool?.generation_model || pool?.model || 'gpt-image-2')
-    ], online && Boolean(pool?.enabled));
+      renderKv('模型', modelLabel(pool?.generation_model || pool?.model || 'gpt-image-2'))
+    ], online && Boolean(pool?.enabled), { goto: 'chatgpt-pool' });
   }
 
   function renderChatgptPoolSettings(pool, accountsPayload) {
@@ -1529,7 +1569,7 @@
     const managedReady = Boolean(managedCodex.configured) && managedReloginCount <= 0;
     const providerStatusLabel = providerNeedsRelogin
       ? '需要重新登录'
-      : (providerReady ? (provider.expiring ? 'AT 将过期/会尝试刷新' : '可用') : '未就绪');
+      : (providerReady ? (provider.expiring ? '访问令牌将过期，会尝试刷新' : '可用') : '未就绪');
     const managedStatusLabel = managedReloginCount > 0
       ? '需要重新登录'
       : (managedReady ? '已授权' : '未授权');
@@ -1541,13 +1581,21 @@
           renderKv('访问模式', server.public_mode ? '公网' : '本机'),
           renderKv('公网密码', server.password_configured, { boolean: true }),
           server.restart_required ? renderKv('重启状态', '需要重启') : ''
-        ], !server.public_mode || server.password_configured)
+        ], !server.public_mode || server.password_configured, { goto: 'system' })
+      },
+      {
+        tab: 'appearance',
+        html: activeTab === 'appearance'
+          ? renderCanvasInteractionSettings() + renderProgressSettings() + renderControlMaterialSettings() + renderFieldStyleSettings()
+          : ''
       },
       {
         tab: 'system',
-        html: activeTab === 'system'
-          ? renderCanvasInteractionSettings() + renderProgressSettings() + renderControlMaterialSettings() + renderFieldStyleSettings() + renderSystemRuntimeSettings(editableServer, setting('auth', auth)) + renderPinterestSettings(pinterest)
-          : ''
+        html: activeTab === 'system' ? renderSystemRuntimeSettings(editableServer, setting('auth', auth)) : ''
+      },
+      {
+        tab: 'pinterest',
+        html: activeTab === 'pinterest' ? renderPinterestSettings(pinterest) : ''
       },
       {
         tab: 'status',
@@ -1556,7 +1604,7 @@
         renderKv('Chat ID', telegram.chat_id_configured, { boolean: true }),
         renderKv('发送方式', telegram.delivery_method || 'sendDocument'),
         renderKv('代理', telegram.proxy_url || '未使用')
-        ], telegram.bot_token_configured && telegram.chat_id_configured && telegram.delivery_method === 'sendDocument')
+        ], telegram.bot_token_configured && telegram.chat_id_configured && telegram.delivery_method === 'sendDocument', { goto: 'telegram' })
       },
       {
         tab: 'telegram',
@@ -1568,7 +1616,7 @@
           renderKv('访问密码', auth.password_enabled, { boolean: true }),
           renderKv('Telegram initData', auth.telegram_init_data_enabled, { boolean: true }),
           renderKv('允许用户数', auth.allowed_user_count ?? 0)
-        ], auth.password_enabled || auth.telegram_init_data_enabled)
+        ], auth.password_enabled || auth.telegram_init_data_enabled, { goto: 'telegram' })
       },
       {
         tab: 'status',
@@ -1577,9 +1625,9 @@
         renderKv('托管 Codex OAuth', managedStatusLabel),
         renderKv('GPT 传输策略', transportLabel(provider.transport_mode || 'stream_then_nonstream')),
         renderKv('本地 Codex 超时', `${provider.total_timeout_seconds || 600}s`),
-        renderKv('Auth File 配置', provider.auth_file_configured, { boolean: true }),
-        renderKv('Auth Dir 配置', provider.auth_dir_configured, { boolean: true })
-        ], providerReady || managedReady)
+        renderKv('凭证文件', provider.auth_file_configured, { boolean: true }),
+        renderKv('凭证目录', provider.auth_dir_configured, { boolean: true })
+        ], providerReady || managedReady, { goto: 'provider' })
       },
       {
         tab: 'provider',
@@ -1608,7 +1656,7 @@
           renderKv('编辑接口', thirdParty.edit_path || '/v1/images/edits'),
           renderKv('模型', thirdParty.model || 'gpt-image-2'),
           renderKv('绘栾 API Key', cyimg.api_key_configured, { boolean: true })
-        ], thirdPartyReady)
+        ], thirdPartyReady, { goto: 'third-party' })
       },
       {
         tab: 'chatgpt-pool',
@@ -1622,7 +1670,7 @@
         renderPath('Image Archive', storage.image_archive_dir),
         renderPath('Source Image', storage.source_image_dir),
         renderPath('Tasks DB', database.tasks_db)
-        ], Boolean(storage.image_archive_dir?.exists && storage.source_image_dir?.exists && database.tasks_db?.exists))
+        ], Boolean(storage.image_archive_dir?.exists && storage.source_image_dir?.exists && database.tasks_db?.exists), { goto: 'paths' })
       },
       {
         tab: 'prompt',
@@ -1646,7 +1694,7 @@
             renderKv('服务地址', comfyConfig.base_url || '未配置'),
             renderKv('工作流数量', (lastComfyWorkflows?.items || []).filter(item => item.enabled).length),
             renderKv('连接状态', lastComfyHealth?.online ? '在线' : '未测试')
-          ], Boolean(comfyConfig.base_url))
+          ], Boolean(comfyConfig.base_url), { goto: 'comfy' })
       },
       {
         tab: 'video-inference',
@@ -1658,7 +1706,7 @@
             renderKv('Runtime 版本', lastVideoRuntimeStatus?.version || '未知'),
             renderKv('Supervisor', lastVideoSupervisorStatus?.online ? '在线' : (lastVideoSupervisorStatus?.checked ? '离线' : '未检测')),
             renderKv('管理台地址', videoInferenceConfig.manager_base_url || '未配置')
-          ], Boolean(lastVideoRuntimeStatus?.online))
+          ], Boolean(lastVideoRuntimeStatus?.online), { goto: 'video-inference' })
       }
     ];
 
@@ -1677,7 +1725,7 @@
     if (els.deskSettingsSummary) {
       els.deskSettingsSummary.innerHTML = `
         <span class="${warnCount ? 'is-warn' : 'is-ok'}">${warnCount ? `${warnCount} 项需要确认` : '状态正常'}</span>
-        <span>GPT provider ${escapeHtml(providerStatusLabel)}</span>
+        <span>GPT ${escapeHtml(providerStatusLabel)}</span>
         <span>托管 Codex ${escapeHtml(managedStatusLabel)}</span>
         <span>${server.public_mode ? '公网模式' : '本机模式'}</span>
         <span>第三方 ${thirdPartyReady ? '已配置' : '未配置'}</span>
@@ -2953,6 +3001,12 @@
       }
     });
     els.deskSettingsBody?.addEventListener('click', event => {
+      const goto = event.target.closest('[data-settings-goto]');
+      if (goto) {
+        selectTab(goto.dataset.settingsGoto);
+        els.deskSettingsTabs?.querySelector(`[data-settings-tab="${goto.dataset.settingsGoto}"]`)?.focus();
+        return;
+      }
       if (event.target.closest('[data-control-material-accent-reset]') && updateControlMaterialPreference(event)) return;
       const progressColorReset = event.target.closest('[data-progress-color-reset]');
       if (progressColorReset) {

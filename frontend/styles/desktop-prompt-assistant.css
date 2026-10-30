@@ -67,6 +67,13 @@ body.desk-app[data-theme] .desk-prompt-drawer__handle em {
   color: var(--desk-prompt-assistant-accent-ink);
 }
 
+body.desk-app[data-theme] .desk-prompt-drawer__handle::after {
+  color: var(--desk-color-control-ink);
+  background: var(--desk-color-popover-bg);
+  border-color: var(--desk-color-popover-border);
+  box-shadow: var(--desk-prompt-assistant-caption-shadow);
+}
+
 body.desk-app[data-theme] :is(
   .desk-prompt-drawer__body,
   .desk-prompt-drawer.is-open .desk-prompt-drawer__body

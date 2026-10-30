@@ -420,6 +420,30 @@
   transform: translateX(-50%) translateY(-2px);
 }
 
+/* The collapsed handle is an unlabeled jewel; hovering or focusing it names the drawer. */
+:where(body.desk-app[data-theme]) .desk-prompt-drawer__handle::after {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  padding: 3px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 16px;
+  white-space: nowrap;
+  pointer-events: none;
+  content: attr(title);
+  border: 1px solid;
+  border-radius: 7px;
+  opacity: 0;
+  transform: translate(-50%, 2px);
+  transition: opacity 140ms ease, transform 140ms ease;
+}
+
+:where(body.desk-app[data-theme]) .desk-prompt-drawer:not(.is-open) .desk-prompt-drawer__handle:is(:hover, :focus-visible)::after {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
 :where(body.desk-app[data-theme]) .desk-prompt-drawer__handle-eye {
   position: absolute;
   top: calc(50% - 4px);

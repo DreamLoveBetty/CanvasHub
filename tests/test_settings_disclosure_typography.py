@@ -74,7 +74,7 @@ class SettingsDisclosureTypographyTests(unittest.TestCase):
         self.assertEqual(parser.nav["role"], "tablist")
         self.assertEqual(parser.nav["aria-orientation"], "vertical")
         self.assertEqual(parser.groups, ["常用", "生成线路", "本地模型", "其它"])
-        self.assertEqual(len(parser.tabs), 11)
+        self.assertEqual(len(parser.tabs), 13)
         for tab in parser.tabs:
             self.assertEqual(tab["role"], "tab")
             self.assertEqual(tab["aria-controls"], "deskSettingsBody")

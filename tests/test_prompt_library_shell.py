@@ -60,7 +60,7 @@ class PromptLibraryShellTest(unittest.TestCase):
     def test_controls_use_the_compact_sizes(self):
         self.assertIn("grid-template-rows: auto auto minmax(0, 1fr) auto;", self.geometry)
         header = _rule(self.geometry, "body.desk-app[data-theme] .desk-prompt-library__header-actions button")
-        self.assertIn("height: var(--desk-control-height-xs);", header)
+        self.assertIn("height: var(--desk-control-height-sm);", header)
         self.assertIn("min-height: var(--desk-control-height-sm);", _rule(self.geometry, "body.desk-app[data-theme] .desk-prompt-library__nav button"))
         prompt_rules = [block for block in re.findall(r"[^{}]+\{[^{}]*\}", self.geometry) if "desk-prompt-library" in block.split("{")[0]]
         self.assertTrue(prompt_rules)
