@@ -78,8 +78,8 @@ class SettingsDisclosureTypographyTests(unittest.TestCase):
         for tab in parser.tabs:
             self.assertEqual(tab["role"], "tab")
             self.assertEqual(tab["aria-controls"], "deskSettingsBody")
-        self.assertTrue({"deskSettingsSearchInput", "deskSettingsSearchResults", "deskSettingsResize"} <= parser.ids)
-        self.assertFalse({"deskSettingsTabsToggle", "deskSettingsExtraTabs"} & parser.ids)
+        self.assertTrue({"deskSettingsSearchInput", "deskSettingsSearchResults"} <= parser.ids)
+        self.assertFalse({"deskSettingsTabsToggle", "deskSettingsExtraTabs", "deskSettingsResize"} & parser.ids)
         self.assertNotIn("desk-settings-tabs__toggle {", self.controls + self.geometry)
 
 

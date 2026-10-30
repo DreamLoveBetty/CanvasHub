@@ -18,7 +18,7 @@
   let pinterestAuthActivity = null;
   let activeTab = 'status';
   let settingsSearch = null;
-  let settingsDrawer = null;
+  let tabStatusCache = null;
   // Progress preview: a sample task drawn by its own presenter (desktop-progress-preview.js).
   const progressPreview = window.DesktopProgressPreview?.create({ getPreferences: () => window.DesktopPreferences?.state?.progress }) || null;
   // Unsaved field edits survive every re-render below (desktop-settings-drafts.js).
@@ -49,6 +49,11 @@
   const MANAGED_CODEX_OAUTH_POLL_INTERVAL_MS = 1500;
   const MANAGED_CODEX_OAUTH_POLL_TIMEOUT_MS = 15 * 60 * 1000;
   const SETTINGS_TAB_HELP = {
+    status: {
+      title: '状态',
+      subtitle: '服务与配置概览',
+      summary: '各项服务与配置的当前状态；点卡片右上角的“去设置”直接跳到对应设置。'
+    },
     system: {
       title: '系统配置',
       subtitle: '本地监听与公网访问',
@@ -156,7 +161,7 @@
     'chatgpt-pool': {
       title: '账号池',
       subtitle: 'ChatGPT 账号托底与并发池',
-      summary: '管理账号池 Sidecar 连接、授权账号、刷新 AT 和 Codex 失败后的托底生成。',
+      summary: '管理账号池服务连接、授权账号、刷新访问令牌和 Codex 失败后的托底生成。',
       sections: [
         ['配置方式', [
           '启用账号池后，本地 Codex 失败或超时时可以切到账号池 API。',
@@ -176,7 +181,7 @@
     prompt: {
       title: '润色配置',
       subtitle: '提示词润色 Skill',
-      summary: '配置提示词助手使用的 Provider、Skill、模型、推理强度和默认回填内容。',
+      summary: '配置提示词助手使用的服务商、润色模板、模型、推理强度和默认回填内容。',
       sections: [
         ['配置方式', [
           '切换 Provider 后会刷新可用模型列表；保存后影响提示词抽屉的润色请求。',
@@ -311,7 +316,6 @@
       'deskSettingsTabs',
       'deskSettingsSearchInput',
       'deskSettingsSearchResults',
-      'deskSettingsResize',
       'deskSettingsSummary',
       'deskSettingsBody'
     ].forEach(id => {
@@ -398,6 +402,9 @@
       </section>
     `;
   }
+
+  // The status page groups its overview cards by area; other pages group cards by `group`.
+  const STATUS_AREAS = ['系统与访问', '生成线路', '本地服务', '提示词与投递'];
 
   // One label per reasoning effort, wherever a setting shows it.
   const REASONING_EFFORT_LABELS = { none: '关闭', low: '低', medium: '中', high: '高', xhigh: '超高', max: '最高' };
@@ -1576,6 +1583,7 @@
     const sections = [
       {
         tab: 'status',
+        area: '系统与访问',
         html: renderCard('系统', [
           renderKv('监听地址', `${server.host || '127.0.0.1'}:${server.port || 18463}`),
           renderKv('访问模式', server.public_mode ? '公网' : '本机'),
@@ -1585,8 +1593,14 @@
       },
       {
         tab: 'appearance',
+        group: '画布',
+        html: activeTab === 'appearance' ? renderCanvasInteractionSettings() : ''
+      },
+      {
+        tab: 'appearance',
+        group: '节点与控件',
         html: activeTab === 'appearance'
-          ? renderCanvasInteractionSettings() + renderProgressSettings() + renderControlMaterialSettings() + renderFieldStyleSettings()
+          ? renderProgressSettings() + renderControlMaterialSettings() + renderFieldStyleSettings()
           : ''
       },
       {
@@ -1599,6 +1613,7 @@
       },
       {
         tab: 'status',
+        area: '提示词与投递',
         html: renderCard('Telegram', [
         renderKv('Bot Token', telegram.bot_token_configured, { boolean: true }),
         renderKv('Chat ID', telegram.chat_id_configured, { boolean: true }),
@@ -1612,6 +1627,7 @@
       },
       {
         tab: 'status',
+        area: '系统与访问',
         html: renderCard('鉴权', [
           renderKv('访问密码', auth.password_enabled, { boolean: true }),
           renderKv('Telegram initData', auth.telegram_init_data_enabled, { boolean: true }),
@@ -1620,6 +1636,7 @@
       },
       {
         tab: 'status',
+        area: '生成线路',
         html: renderCard('Provider 连接', [
         renderKv('Codex 登录态', providerStatusLabel),
         renderKv('托管 Codex OAuth', managedStatusLabel),
@@ -1631,22 +1648,27 @@
       },
       {
         tab: 'provider',
+        group: '模型与传输',
         html: activeTab === 'provider' ? renderProviderCoreSettings(providerRuntime) : ''
       },
       {
         tab: 'provider',
+        group: '模型与传输',
         html: activeTab === 'provider' ? renderGptProviderSettings(providerRuntime) : ''
       },
       {
         tab: 'provider',
+        group: '托管 Codex 账号',
         html: activeTab === 'provider' ? renderManagedCodexOAuthSettings(managedCodex) : ''
       },
       {
         tab: 'provider',
+        group: '托管 Codex 账号',
         html: activeTab === 'provider' ? renderManagedCodexAddSettings(managedCodex) : ''
       },
       {
         tab: 'third-party',
+        area: '生成线路',
         html: activeTab === 'third-party' ? renderThirdPartyImageSettings(thirdParty, nanoBanana, cyimg) : renderCard('第三方 API', [
           renderKv('nano banana API Key', nanoBanana.api_key_configured, { boolean: true }),
           renderKv('nano banana API URL', nanoBanana.base_url || ''),
@@ -1660,12 +1682,14 @@
       },
       {
         tab: 'chatgpt-pool',
+        area: '生成线路',
         html: activeTab === 'chatgpt-pool'
           ? googlePoolSettings.render(renderChatgptPoolRuntimeSettings(editablePool) + renderChatgptPoolSettings(editablePool, lastChatgptPoolAccounts))
           : renderChatgptPoolOverview(pool, lastChatgptPoolAccounts)
       },
       {
         tab: 'paths',
+        area: '系统与访问',
         html: activeTab === 'paths' ? renderPathSettings(storage, database) : renderCard('路径与存储', [
         renderPath('Image Archive', storage.image_archive_dir),
         renderPath('Source Image', storage.source_image_dir),
@@ -1674,6 +1698,7 @@
       },
       {
         tab: 'prompt',
+        area: '提示词与投递',
         html: activeTab === 'prompt'
           ? renderPromptSettings(promptRuntime)
           : renderPromptOverview(promptRuntime)
@@ -1688,6 +1713,7 @@
       },
       {
         tab: 'comfy',
+        area: '本地服务',
         html: activeTab === 'comfy'
           ? renderComfySettings(comfyConfig, lastComfyWorkflows || {}, lastComfyHealth)
           : renderCard('ComfyUI', [
@@ -1698,6 +1724,7 @@
       },
       {
         tab: 'video-inference',
+        area: '本地服务',
         html: activeTab === 'video-inference'
           ? renderVideoInferenceSettings(videoInferenceConfig, lastVideoRuntimeStatus, lastVideoSupervisorStatus)
           : renderCard('视频推理', [
@@ -1710,45 +1737,92 @@
       }
     ];
 
-    return { sections, server, pool, telegram, pinterest, promptSkill, promptRuntime, thirdPartyReady, providerStatusLabel, managedStatusLabel };
+    return { sections };
+  }
+
+  // Cards grouped under small headings: by area on the status page, by `group` elsewhere.
+  // Ungrouped sections render as plain cards. Card order inside a page is unchanged, which
+  // keeps the search index's card positions valid.
+  function groupedSectionsHtml(sections, key, order = []) {
+    if (!sections.some(section => section[key] && section.html)) return sections.map(section => section.html).filter(Boolean).join('');
+    const groups = new Map(order.map(name => [name, []]));
+    sections.forEach(section => {
+      if (!section.html) return;
+      const name = section[key] || '';
+      if (!groups.has(name)) groups.set(name, []);
+      groups.get(name).push(section.html);
+    });
+    return [...groups.entries()].filter(([, html]) => html.length).map(([name, html]) => `
+      <section class="desk-settings-group">
+        ${name ? `<h4 class="desk-settings-group__title">${escapeHtml(name)}</h4>` : ''}
+        <div class="desk-settings-group__cards">${html.join('')}</div>
+      </section>`).join('');
+  }
+
+  // Each tab's state, read from its overview card on the status page (ok / warn).
+  function tabStatuses(data) {
+    if (tabStatusCache?.data === data) return tabStatusCache.statuses;
+    const statuses = {};
+    buildSections(data, 'status').sections.forEach(section => {
+      section.html.split('<section class="desk-settings-card ').slice(1).forEach(card => {
+        const tab = card.match(/data-settings-goto="([^"]+)"/)?.[1];
+        if (!tab) return;
+        const warn = card.startsWith('is-warn');
+        statuses[tab] = warn || statuses[tab] === 'warn' ? 'warn' : 'ok';
+      });
+    });
+    statuses.status = Object.values(statuses).includes('warn') ? 'warn' : 'ok';
+    tabStatusCache = { data, statuses };
+    return statuses;
+  }
+
+  function tabButton(tab) {
+    return els.deskSettingsTabs?.querySelector(`[data-settings-tab="${tab}"]`) || null;
+  }
+
+  const tabLabel = tab => tabButton(tab)?.querySelector('.desk-settings-tabs__label')?.textContent.trim() || '';
+
+  function renderPageHead(warnCount) {
+    if (!els.deskSettingsSummary) return;
+    const group = activeTab === 'status' ? '概览' : (tabButton(activeTab)?.closest('[data-settings-group]')?.dataset.settingsGroup || '');
+    const summary = SETTINGS_TAB_HELP[activeTab]?.summary || '';
+    els.deskSettingsSummary.innerHTML = `
+      <div class="desk-settings-page__copy">
+        ${group ? `<em>${escapeHtml(group)}</em>` : ''}
+        <h3>${escapeHtml(tabLabel(activeTab))}</h3>
+        ${summary ? `<p>${escapeHtml(summary)}</p>` : ''}
+      </div>
+      <span class="desk-settings__status ${warnCount ? 'is-warn' : 'is-ok'}">${warnCount ? `${warnCount} 项需要确认` : '状态正常'}</span>
+    `;
   }
 
   function renderDiagnostics(data) {
-    const { sections, server, pool, telegram, pinterest, promptSkill, promptRuntime, thirdPartyReady, providerStatusLabel, managedStatusLabel } = buildSections(data, activeTab);
-    const visibleSections = activeTab === 'status'
-      ? sections
-      : sections.filter(section => section.tab === activeTab);
-    const visibleHtml = visibleSections
-      .map(section => section.html)
-      .filter(Boolean);
-    const warnCount = sections.filter(section => section.html.includes('is-warn')).length;
-    if (els.deskSettingsSummary) {
-      els.deskSettingsSummary.innerHTML = `
-        <span class="${warnCount ? 'is-warn' : 'is-ok'}">${warnCount ? `${warnCount} 项需要确认` : '状态正常'}</span>
-        <span>GPT ${escapeHtml(providerStatusLabel)}</span>
-        <span>托管 Codex ${escapeHtml(managedStatusLabel)}</span>
-        <span>${server.public_mode ? '公网模式' : '本机模式'}</span>
-        <span>第三方 ${thirdPartyReady ? '已配置' : '未配置'}</span>
-        <span>账号池 ${pool.online ? '在线' : '未在线'}</span>
-        <span>ComfyUI ${lastComfyHealth?.online ? '在线' : '未测试'}</span>
-        <span>H3 Runtime ${lastVideoRuntimeStatus?.online ? '在线' : (lastVideoRuntimeStatus?.checked ? '离线' : '未检测')}</span>
-        <span>Supervisor ${lastVideoSupervisorStatus?.online ? '在线' : (lastVideoSupervisorStatus?.checked ? '离线' : '未检测')}</span>
-        <span>Pinterest ${pinterest.enabled ? pinterestAuthLabel(pinterest.auth_status, pinterest.auth_configured) : '未启用'}</span>
-        <span>润色 ${promptSkill.model || promptRuntime.default_model || '未选模型'}</span>
-        <span>Telegram ${telegram.bot_token_configured && telegram.chat_id_configured ? '可用' : '未就绪'}</span>
-      `;
-    }
+    const { sections } = buildSections(data, activeTab);
+    const isStatus = activeTab === 'status';
+    const visibleSections = isStatus ? sections : sections.filter(section => section.tab === activeTab);
+    const html = isStatus
+      ? groupedSectionsHtml(visibleSections, 'area', STATUS_AREAS)
+      : groupedSectionsHtml(visibleSections, 'group');
+    const warnCount = (html.match(/class="desk-settings-card is-warn"/g) || []).length;
+    renderPageHead(warnCount);
     if (els.deskSettingsBody) {
-      els.deskSettingsBody.innerHTML = visibleHtml.join('');
+      els.deskSettingsBody.innerHTML = html;
+      els.deskSettingsBody.dataset.settingsPage = activeTab;
       settingsDrafts.restore(els.deskSettingsBody);
     }
     progressPreview?.mount(els.deskSettingsBody);
+    const statuses = tabStatuses(data);
+    els.deskSettingsTabs?.querySelectorAll('[data-settings-tab]').forEach(button => {
+      const status = statuses[button.dataset.settingsTab];
+      if (status) button.dataset.settingsStatus = status;
+      else delete button.dataset.settingsStatus;
+    });
     updateTabs();
   }
 
   function renderLoading() {
     if (els.deskSettingsSummary) {
-      els.deskSettingsSummary.innerHTML = '<span>正在诊断</span>';
+      els.deskSettingsSummary.innerHTML = '<span class="desk-settings__status">正在诊断</span>';
     }
     progressPreview?.release();
     if (els.deskSettingsBody) {
@@ -2810,7 +2884,6 @@
     els.deskSettingsPanel?.classList.add('is-open');
     els.deskSettingsPanel?.setAttribute('aria-hidden', 'false');
     document.body.classList.add('desk-settings-open');
-    settingsDrawer?.refresh();
     updateTabs();
     // Focus moves into the drawer; search is the most useful first stop.
     els.deskSettingsSearchInput?.focus({ preventScroll: true });
@@ -2826,7 +2899,7 @@
       if (activeTab === 'model-tools') await Promise.all([krea2Tools?.activate?.(),qwen21Tools?.activate?.(),loraSettings?.activate?.()]);
     } catch (error) {
       if (els.deskSettingsSummary) {
-        els.deskSettingsSummary.innerHTML = '<span class="is-warn">诊断读取失败</span>';
+        els.deskSettingsSummary.innerHTML = '<span class="desk-settings__status is-warn">诊断读取失败</span>';
       }
       if (els.deskSettingsBody) {
         progressPreview?.release();
@@ -2894,7 +2967,7 @@
     return [...(els.deskSettingsTabs?.querySelectorAll('[data-settings-tab]') || [])]
       .map(button => ({
         tab: button.dataset.settingsTab,
-        label: button.textContent.trim(),
+        label: button.querySelector('.desk-settings-tabs__label')?.textContent.trim() || '',
         group: button.closest('[data-settings-group]')?.dataset.settingsGroup || ''
       }))
       .filter(category => category.tab !== 'status');
@@ -3505,12 +3578,6 @@
       api: window.DesktopQwen21API, escapeHtml,
       rerender: () => { if (activeTab === 'model-tools' && lastDiagnostics) renderDiagnostics(lastDiagnostics); },
       notify: (message, tone) => window.DesktopResults?.showTransientMessage?.(message, tone)
-    }) || null;
-    settingsDrawer = window.DesktopSettingsDrawer?.create({
-      panel: els.deskSettingsPanel,
-      handle: els.deskSettingsResize,
-      getWidth: () => window.DesktopPreferences?.state?.settingsWidth,
-      setWidth: width => window.DesktopPreferences?.setSettingsWidth?.(width)
     }) || null;
     settingsSearch = window.DesktopSettingsSearch?.create({
       input: els.deskSettingsSearchInput,

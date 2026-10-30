@@ -1337,99 +1337,164 @@ body.desk-app[data-theme] :is(.desk-prompt-help, .desk-prompt-template__stats di
 
 /* Settings owns a compact scale; do not shrink canvas/auth controls globally.
    Geometry stays here; colors and interaction states stay in the theme adapters.
-   The settings centre is a drawer docked between the title bar and the status bar,
-   sliding in from the canvas' left edge (right of the tool rail) over the canvas —
-   the canvas is never resized. Width: --desk-settings-width, owned by
-   desktop-settings-drawer.js (560–1100px, persisted). */
+   The settings centre is a workbench like the asset library and the prompt library:
+   same position and size over the canvas, a light navigation column and a light
+   content column, with controls on the prompt library's 28px / 6px scale. */
 body.desk-app[data-theme] .desk-settings {
   --desk-settings-tab-height: var(--desk-control-height-xs);
-  --desk-settings-control-height: var(--desk-control-height-xs);
+  --desk-settings-control-height: var(--desk-control-height-sm);
   --desk-settings-control-font: var(--desk-font-size-caption);
   --desk-settings-label-width: 100px;
-  --desk-settings-drawer-top: 42px;
-  --desk-settings-drawer-bottom: 36px;
-  --desk-settings-drawer-left: 72px;
-  --desk-settings-nav-width: 136px;
-  --desk-settings-nav-item-height: 28px;
-  position: fixed;
-  top: var(--desk-settings-drawer-top);
-  right: auto;
-  bottom: var(--desk-settings-drawer-bottom);
-  left: var(--desk-settings-drawer-left);
+  --desk-settings-nav-width: 184px;
+  --desk-settings-nav-item-height: 30px;
+  --desk-radius-control: 6px;
+  position: absolute;
+  inset: 52px calc(var(--desk-side-panel-width) + 18px) 48px 78px;
   grid-template-rows: auto minmax(0, 1fr);
-  width: var(--desk-settings-width, 760px);
-  min-width: 0;
-  max-width: calc(100vw - var(--desk-settings-drawer-left) - 24px);
-  height: auto;
-  max-height: none;
-  gap: 0;
-  padding: 0;
+  gap: 8px;
+  padding: 12px;
   overflow: visible;
-  transform: translateX(-24px);
-  transform-origin: 0 50%;
+  transform: translateY(10px) scale(0.99);
   transition:
-    opacity 180ms ease,
-    transform 220ms cubic-bezier(0.16, 1, 0.3, 1),
-    visibility 180ms ease;
+    opacity 160ms ease,
+    transform 200ms cubic-bezier(0.16, 1, 0.3, 1),
+    visibility 160ms ease;
+}
+
+body.desk-history-collapsed.desk-app[data-theme] .desk-settings {
+  right: 68px;
 }
 
 body.desk-app[data-theme] .desk-settings.is-open {
-  transform: translateX(0);
+  transform: none;
 }
 
-/* A large surface over the canvas: no backdrop blur, so canvas panning never
-   re-blurs it (glass performance rule); the near-opaque paint is in the tokens. */
-body.desk-app[data-theme] .desk-settings--drawer {
-  -webkit-backdrop-filter: none;
-  backdrop-filter: none;
-}
-
-body.desk-app[data-theme] .desk-settings.is-resizing {
-  transition: none;
-  user-select: none;
+/* The asset library's light glass: the columns inside are near-opaque cards. */
+body.desk-app[data-theme] .desk-settings--workbench {
+  -webkit-backdrop-filter: blur(4px) saturate(1.06);
+  backdrop-filter: blur(4px) saturate(1.06);
 }
 
 body.desk-app[data-theme] .desk-settings__layout {
   display: grid;
   grid-template-columns: var(--desk-settings-nav-width) minmax(0, 1fr);
+  gap: 8px;
   min-height: 0;
-  overflow: hidden;
-  border-radius: 0 0 inherit inherit;
 }
 
 body.desk-app[data-theme] .desk-settings__main {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
-  gap: 8px;
   min-width: 0;
   min-height: 0;
-  padding: var(--desk-space-3) var(--desk-space-4) var(--desk-space-4);
-}
-
-/* Cards flow in two columns once the content column is wide enough. */
-body.desk-app[data-theme] .desk-settings__main {
+  overflow: hidden;
+  border-width: 1px;
+  border-style: solid;
+  border-radius: 14px;
   container-type: inline-size;
   container-name: desk-settings-content;
 }
 
-@container desk-settings-content (min-width: 820px) {
-  body.desk-app[data-theme] .desk-settings__body {
-    display: grid;
+/* Page head, like the prompt library editor head: group, title, purpose, state. */
+body.desk-app[data-theme] .desk-settings__summary {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 13px 15px 11px;
+  border-bottom-width: 1px;
+  border-bottom-style: solid;
+}
+
+body.desk-app[data-theme] .desk-settings-page__copy {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+body.desk-app[data-theme] .desk-settings-page__copy em {
+  font-style: normal;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+body.desk-app[data-theme] .desk-settings-page__copy h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 900;
+}
+
+body.desk-app[data-theme] .desk-settings-page__copy p {
+  margin: 0;
+}
+
+body.desk-app[data-theme] .desk-settings__status {
+  flex: 0 0 auto;
+  margin-left: auto;
+  padding: 3px 10px;
+  font-weight: 800;
+  border-width: 1px;
+  border-style: solid;
+  border-radius: 999px;
+}
+
+body.desk-app[data-theme] .desk-settings__body {
+  display: block;
+  padding: 14px 15px 20px;
+}
+
+/* Ungrouped pages with several cards flow as two masonry columns once there is room. */
+@container desk-settings-content (min-width: 760px) {
+  body.desk-app[data-theme] .desk-settings__body:has(> .desk-settings-card + .desk-settings-card) {
+    columns: 2;
+    column-gap: 12px;
+  }
+
+  body.desk-app[data-theme] .desk-settings-group__cards {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    align-items: start;
+  }
+
+  body.desk-app[data-theme] .desk-settings__body[data-settings-page="status"] .desk-settings-group__cards {
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   }
 }
 
-body.desk-app[data-theme] .desk-settings__resize {
-  position: absolute;
-  top: 12px;
-  right: -5px;
-  bottom: 12px;
-  z-index: 3;
-  width: 10px;
-  border-radius: 5px;
-  cursor: col-resize;
-  touch-action: none;
+body.desk-app[data-theme] .desk-settings__body > :not(.desk-settings-group) {
+  break-inside: avoid;
+  margin-bottom: 12px;
+}
+
+body.desk-app[data-theme] .desk-settings-group + .desk-settings-group {
+  margin-top: 16px;
+}
+
+body.desk-app[data-theme] .desk-settings-group__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 8px;
+  font-size: var(--desk-font-size-micro);
+  font-weight: 850;
+  letter-spacing: 0.08em;
+}
+
+body.desk-app[data-theme] .desk-settings-group__title::after {
+  flex: 1;
+  height: 1px;
+  content: "";
+}
+
+body.desk-app[data-theme] .desk-settings-group__cards {
+  display: grid;
+  gap: 12px;
+  align-items: start;
+}
+
+@media (max-width: 980px) {
+  body.desk-app[data-theme] .desk-settings,
+  body.desk-history-collapsed.desk-app[data-theme] .desk-settings {
+    position: fixed;
+    inset: 48px 8px 44px 72px;
+  }
 }
 
 body.desk-app[data-theme] .desk-settings-search {
@@ -1439,7 +1504,8 @@ body.desk-app[data-theme] .desk-settings-search {
   align-items: center;
   gap: 6px;
   min-width: 0;
-  max-width: 420px;
+  max-width: 360px;
+  margin-left: auto;
   height: 28px;
   padding: 0 8px;
   border-radius: var(--desk-radius-control);
@@ -1534,16 +1600,17 @@ body.desk-app[data-theme] .desk-settings :where(button, input, select, textarea)
   font-size: var(--desk-settings-control-font);
 }
 
+/* The asset library's header: title left, search and icon actions right, no rule. */
 body.desk-app[data-theme] .desk-settings__header {
-  min-height: var(--desk-settings-control-height);
+  min-height: 30px;
   gap: 12px;
-  padding: var(--desk-space-3) var(--desk-space-4);
-  border-bottom: 1px solid var(--desk-settings-nav-divider);
+  padding: 0 2px;
 }
 
 body.desk-app[data-theme] .desk-settings__title h2 {
-  font-size: 15px;
-  font-weight: var(--desk-font-weight-medium);
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.1;
 }
 
 body.desk-app[data-theme] .desk-settings__version {
@@ -1559,29 +1626,59 @@ body.desk-app[data-theme] .desk-settings .desk-segment {
   margin-bottom: 0;
 }
 
-/* Vertical category navigation: every category visible, grouped. Scoped under
-   .desk-settings to outrank the shared tabs/segment track rule above. */
+/* Vertical category navigation, the prompt library's nav column: every category
+   visible and grouped, each with a glyph and a state lamp. Scoped under .desk-settings
+   to outrank the shared tabs/segment track rule above. */
 body.desk-app[data-theme] .desk-settings .desk-settings-tabs {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 13px;
   min-height: 0;
-  padding: var(--desk-space-3) var(--desk-space-2);
+  padding: 10px 8px;
   overflow: auto;
-  border-width: 0 1px 0 0;
-  border-radius: 0;
+  border-width: 1px;
+  border-style: solid;
+  border-radius: 14px;
 }
 
 body.desk-app[data-theme] .desk-settings-tabs__group {
   display: grid;
-  gap: 2px;
+  gap: 3px;
 }
 
 body.desk-app[data-theme] .desk-settings-tabs__group-label {
-  padding: 0 var(--desk-space-2) 2px;
+  padding: 0 8px 4px;
   font-size: var(--desk-font-size-micro);
-  font-weight: var(--desk-font-weight-medium);
-  letter-spacing: 0.02em;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+}
+
+body.desk-app[data-theme] .desk-settings-tabs__glyph {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  font-style: normal;
+  font-weight: 800;
+  border-width: 1px;
+  border-style: solid;
+  border-radius: 6px;
+}
+
+body.desk-app[data-theme] .desk-settings-tabs__label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body.desk-app[data-theme] .desk-settings-tabs__dot {
+  flex: 0 0 auto;
+  width: 6px;
+  height: 6px;
+  margin-left: auto;
+  border-radius: 50%;
 }
 
 body.desk-app[data-theme] .desk-settings :is(
@@ -1601,26 +1698,34 @@ body.desk-app[data-theme] .desk-settings :is(
   min-height: var(--desk-settings-control-height);
   height: auto;
   min-width: 0;
-  padding: var(--desk-space-1) var(--desk-space-3);
+  padding: 0 12px;
   font-size: var(--desk-settings-control-font);
-  font-weight: var(--desk-font-weight-medium);
+  font-weight: 800;
   line-height: var(--desk-line-height-caption);
   border-radius: var(--desk-radius-control);
 }
 
 /* Hierarchy comes from placement and weight, not oversized tab buttons. */
 body.desk-app[data-theme] .desk-settings-tabs button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   width: 100%;
   height: var(--desk-settings-nav-item-height);
   min-height: var(--desk-settings-nav-item-height);
   min-width: 0;
-  padding: var(--desk-space-1) var(--desk-space-3);
+  padding: 5px 8px;
   font-size: var(--desk-settings-control-font);
-  font-weight: var(--desk-font-weight-medium);
+  font-weight: 730;
   line-height: var(--desk-line-height-caption);
   text-align: left;
   justify-content: flex-start;
-  border-radius: var(--desk-radius-control);
+  border: 1px solid transparent;
+  border-radius: 8px;
+}
+
+body.desk-app[data-theme] .desk-settings-tabs button.is-active {
+  font-weight: 850;
 }
 
 /* Inset paint supplies the track outline without adding to its height. Keep
@@ -1637,29 +1742,35 @@ body.desk-app[data-theme] .desk-settings :is(
   border-radius: var(--desk-radius-control);
 }
 
-body.desk-app[data-theme] .desk-settings__body {
-  gap: 6px;
-}
-
+/* Cards are the prompt library's list rows: a titled head over a hairline. */
 body.desk-app[data-theme] .desk-settings-card {
   gap: var(--desk-space-3);
   padding: var(--desk-space-4);
+  border-radius: 10px;
+}
+
+body.desk-app[data-theme] .desk-settings-card > header {
+  min-height: 24px;
+  padding-bottom: var(--desk-space-3);
+  border-bottom-width: 1px;
+  border-bottom-style: solid;
 }
 
 body.desk-app[data-theme] .desk-settings-card h3 {
-  font-size: var(--desk-font-size-caption);
+  font-size: 12px;
   line-height: var(--desk-line-height-caption);
-  font-weight: var(--desk-font-weight-medium);
+  font-weight: 900;
 }
 
 :where(body.desk-app[data-theme]) .desk-settings-card__goto {
   height: 24px;
   margin-left: auto;
-  padding: 0 9px;
+  padding: 0 10px;
   font-size: 11px;
-  font-weight: 700;
-  border: 1px solid;
-  border-radius: 8px;
+  font-weight: 800;
+  border-width: 1px;
+  border-style: solid;
+  border-radius: 6px;
   cursor: pointer;
 }
 

@@ -115,21 +115,6 @@
   gap: 6px;
 }
 
-:where(body.desk-app[data-theme]) .desk-settings__summary {
-  display: none;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-:where(body.desk-app[data-theme]) .desk-settings-tabs {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 28px;
-  column-gap: 3px;
-  padding: 2px;
-  border: 1px solid rgba(255, 255, 255, 0.42);
-  border-radius: 8px;
-}
-
 :where(body.desk-app[data-theme]) .desk-settings-card {
   display: grid;
   align-self: start;
@@ -466,10 +451,6 @@
 :where(body.desk-app[data-theme]) .auth-password-input {
   border: 1px solid rgba(255, 255, 255, 0.58);
   outline: none;
-}
-
-:where(body.desk-app[data-theme]) .desk-settings {
-  border-radius: 12px;
 }
 
 body.desk-app[data-theme="dark"] .desk-settings-canvas-interaction__segment button:focus-visible {

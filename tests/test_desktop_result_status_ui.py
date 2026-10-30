@@ -417,14 +417,9 @@ class DesktopResultStatusUiTest(unittest.TestCase):
             css,
             r"body\.desk-app\[data-theme=\"dark\"\] \.desk-settings\s*\{[\s\S]*?--desk-ink:\s*#edf2f3;[\s\S]*?--desk-jewel-top:\s*#ff6a22;[\s\S]*?background:\s*\n\s*linear-gradient\(180deg, rgba\(48, 56, 58, 0\.86\), rgba\(31, 37, 39, 0\.92\)\),\n\s*rgba\(32, 38, 40, 0\.84\);"
         )
-        self.assertRegex(
-            css,
-            r"body\.desk-app\[data-theme=\"dark\"\] \.desk-settings-tabs\s*\{[\s\S]*?rgba\(28, 34, 36, 0\.58\);[\s\S]*?rgba\(255, 255, 255, 0\.07\);"
-        )
-        self.assertRegex(
-            css,
-            r"body\.desk-app\[data-theme=\"dark\"\] \.desk-settings-tabs button\.is-active,[\s\S]*?linear-gradient\(180deg, rgba\(255, 122, 51, 0\.96\), rgba\(185, 51, 18, 0\.96\)\);[\s\S]*?rgba\(255, 148, 92, 0\.58\);"
-        )
+        # The category navigation is the prompt library's nav column in both themes
+        # (desktop-tokens.css --desk-settings-nav-*), not a jewel-filled tab strip.
+        self.assertNotRegex(css, r"body\.desk-app\[data-theme=\"dark\"\] \.desk-settings-tabs button\.is-active")
         self.assertRegex(
             css,
             r"body\.desk-app\[data-theme=\"dark\"\] \.desk-settings__actions button\s*\{[\s\S]*?color:\s*#ffb089;[\s\S]*?rgba\(53, 62, 64, 0\.94\)[\s\S]*?rgba\(31, 37, 39, 0\.96\)[\s\S]*?rgba\(255, 106, 34, 0\.28\);"
@@ -2224,7 +2219,7 @@ class DesktopResultStatusUiTest(unittest.TestCase):
 
         for selector in (
             "body.desk-app[data-theme] .desk-settings {",
-            "body.desk-app[data-theme] .desk-settings-tabs {",
+            "body.desk-app[data-theme] :is(.desk-settings .desk-settings-tabs, .desk-settings__main) {",
             "body.desk-app[data-theme] .desk-settings-card {",
             "body.desk-app[data-theme] .desk-settings-form input[type=\"checkbox\"]",
             "body.desk-app[data-theme] .desk-settings-secret-clear {",

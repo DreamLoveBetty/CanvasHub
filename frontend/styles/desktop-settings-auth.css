@@ -38,10 +38,10 @@ body.desk-app[data-theme] :is(
 }
 
 body.desk-app[data-theme] .desk-settings-card__goto {
-  color: var(--desk-settings-segment-ink);
-  background: var(--desk-settings-segment-background);
-  border-color: var(--desk-settings-segment-border);
-  box-shadow: var(--desk-settings-segment-shadow);
+  color: var(--desk-settings-action-ink);
+  background: var(--desk-settings-action-background);
+  border-color: var(--desk-settings-action-border);
+  box-shadow: var(--desk-settings-action-shadow);
 }
 
 body.desk-app[data-theme] .desk-settings-card__goto:hover {
@@ -58,22 +58,61 @@ body.desk-app[data-theme] .desk-settings__version {
   color: var(--desk-settings-version-ink);
 }
 
-body.desk-app[data-theme] .desk-settings-tabs {
-  background: transparent;
-  border-color: transparent;
-  box-shadow: none;
+/* Navigation and content columns: the asset library inspector's light cards. */
+body.desk-app[data-theme] :is(.desk-settings .desk-settings-tabs, .desk-settings__main) {
+  background: var(--desk-settings-column-background);
+  border-color: var(--desk-settings-column-border);
+  box-shadow: var(--desk-settings-column-shadow);
 }
 
 body.desk-app[data-theme] :where(.desk-settings-tabs button) {
   color: var(--desk-settings-tabs-ink);
 }
 
-body.desk-app[data-theme] .desk-settings-tabs {
-  border-right: 1px solid var(--desk-settings-nav-divider);
+body.desk-app[data-theme] .desk-settings-tabs__glyph {
+  color: var(--desk-settings-glyph-ink);
+  background: var(--desk-settings-glyph-background);
+  border-color: var(--desk-settings-glyph-border);
+}
+
+body.desk-app[data-theme] .desk-settings-tabs button.is-active .desk-settings-tabs__glyph {
+  color: var(--desk-settings-glyph-active-ink);
+  background: var(--desk-settings-glyph-active-background);
+  border-color: var(--desk-settings-glyph-active-border);
+}
+
+body.desk-app[data-theme] .desk-settings-tabs button[data-settings-status="ok"] .desk-settings-tabs__dot {
+  background: var(--desk-settings-ok-dot);
+  box-shadow: var(--desk-settings-ok-dot-shadow);
+}
+
+body.desk-app[data-theme] .desk-settings-tabs button[data-settings-status="warn"] .desk-settings-tabs__dot {
+  background: var(--desk-settings-warn-dot);
+  box-shadow: var(--desk-settings-warn-dot-shadow);
 }
 
 body.desk-app[data-theme] .desk-settings-tabs__group-label {
   color: var(--desk-settings-tabs-group-ink);
+}
+
+body.desk-app[data-theme] :is(.desk-settings__summary, .desk-settings-card > header) {
+  border-color: var(--desk-settings-nav-divider);
+}
+
+body.desk-app[data-theme] .desk-settings-group__title::after {
+  background: var(--desk-settings-nav-divider);
+}
+
+body.desk-app[data-theme] .desk-settings-page__copy em {
+  color: var(--desk-settings-accent-ink);
+}
+
+body.desk-app[data-theme] :is(.desk-settings-page__copy h3) {
+  color: var(--desk-settings-ink);
+}
+
+body.desk-app[data-theme] :is(.desk-settings-page__copy p, .desk-settings-group__title) {
+  color: var(--desk-settings-muted-ink);
 }
 
 body.desk-app[data-theme] .desk-settings-search {
@@ -117,29 +156,24 @@ body.desk-app[data-theme] .desk-settings-search mark {
   background: var(--desk-settings-search-mark);
 }
 
-body.desk-app[data-theme] .desk-settings__resize:is(:hover, :focus-visible),
-body.desk-app[data-theme] .desk-settings.is-resizing .desk-settings__resize {
-  background: var(--desk-settings-resize-hover);
-}
-
 body.desk-app[data-theme] .desk-settings__body .is-search-hit {
   box-shadow: 0 0 0 2px var(--desk-settings-hit-ring);
 }
 
-body.desk-app[data-theme] .desk-settings__summary span {
+body.desk-app[data-theme] .desk-settings__status {
   color: var(--desk-settings-summary-ink);
   background: var(--desk-settings-summary-background);
   border-color: var(--desk-settings-summary-border);
   box-shadow: var(--desk-settings-summary-shadow);
 }
 
-body.desk-app[data-theme] .desk-settings__summary span.is-ok {
+body.desk-app[data-theme] .desk-settings__status.is-ok {
   color: var(--desk-settings-summary-ok-ink);
   background: var(--desk-settings-summary-ok-background);
   border-color: var(--desk-settings-summary-ok-border);
 }
 
-body.desk-app[data-theme] .desk-settings__summary span.is-warn {
+body.desk-app[data-theme] .desk-settings__status.is-warn {
   color: var(--desk-settings-summary-warn-ink);
   background: var(--desk-settings-summary-warn-background);
   border-color: var(--desk-settings-summary-warn-border);
@@ -148,7 +182,7 @@ body.desk-app[data-theme] .desk-settings__summary span.is-warn {
 body.desk-app[data-theme] .desk-settings-card {
   background: var(--desk-settings-card-background);
   border-color: var(--desk-settings-card-border);
-  box-shadow: none;
+  box-shadow: var(--desk-settings-card-shadow);
 }
 
 body.desk-app[data-theme] .desk-settings-dot {
@@ -328,7 +362,7 @@ body.desk-app[data-theme] .desk-settings-pool-summary span.is-warn {
 /* Settings success labels share the footer's pale silk, not the saturated
    service/online badges. Keep their existing geometry and warning states. */
 body.desk-app[data-theme] .desk-settings :is(
-  .desk-settings__summary span.is-ok,
+  .desk-settings__status.is-ok,
   .desk-settings-path:not(.is-warn) em,
   .desk-settings-account:not(.is-warn) .desk-settings-account__main span,
   .desk-settings-pool-summary span.is-ok,

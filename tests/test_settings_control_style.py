@@ -18,16 +18,13 @@ class SettingsControlStyleTests(unittest.TestCase):
     def test_settings_scale_uses_shared_tokens_without_global_changes(self):
         block = re.search(r"body\.desk-app\[data-theme\] \.desk-settings\s*\{([^}]+)\}", self.geometry)[1]
         self.assertIn("--desk-settings-tab-height: var(--desk-control-height-xs);", block)
-        self.assertIn("--desk-settings-control-height: var(--desk-control-height-xs);", block)
+        # Controls follow the prompt library's 28px / 6px scale.
+        self.assertIn("--desk-settings-control-height: var(--desk-control-height-sm);", block)
+        self.assertIn("--desk-radius-control: 6px;", block)
         self.assertIn("--desk-settings-control-font: var(--desk-font-size-caption);", block)
-        self.assertIn("min-width: 0;", block)
-        # Drawer between title bar and status bar, right of the tool rail; width is
-        # user-resizable through --desk-settings-width (desktop-settings-drawer.js).
-        self.assertIn("width: var(--desk-settings-width, 760px);", block)
-        self.assertIn("max-width: calc(100vw - var(--desk-settings-drawer-left) - 24px);", block)
-        for declaration in ("top: var(--desk-settings-drawer-top);", "bottom: var(--desk-settings-drawer-bottom);",
-                            "left: var(--desk-settings-drawer-left);"):
-            self.assertIn(declaration, block)
+        # A workbench in the asset library's place over the canvas.
+        self.assertIn("inset: 52px calc(var(--desk-side-panel-width) + 18px) 48px 78px;", block)
+        self.assertNotIn("--desk-settings-width", self.geometry)
         self.assertIn("--desk-settings-label-width: 100px;", block)
 
     def test_all_command_families_share_the_scale_but_thumbnail_cards_do_not(self):
@@ -44,8 +41,8 @@ class SettingsControlStyleTests(unittest.TestCase):
         self.assertIn("min-height: var(--desk-settings-control-height);", block)
         self.assertIn("line-height: var(--desk-line-height-caption);", block)
         self.assertIn("border-radius: var(--desk-radius-control);", block)
-        self.assertIn("font-weight: var(--desk-font-weight-medium);", block)
-        self.assertIn("padding: var(--desk-space-1) var(--desk-space-3);", block)
+        self.assertIn("font-weight: 800;", block)
+        self.assertIn("padding: 0 12px;", block)
 
     def test_help_text_includes_small_and_uses_caption_tokens(self):
         self.assertRegex(self.geometry, r"\.desk-settings :where\(\s*span, strong, em, p, small,")
@@ -69,9 +66,9 @@ class SettingsControlStyleTests(unittest.TestCase):
         match = re.search(r"body\.desk-app\[data-theme\] \.desk-settings-tabs button\s*\{([^}]+)\}", self.geometry)
         self.assertIsNotNone(match)
         for declaration in ("height: var(--desk-settings-nav-item-height);", "min-height: var(--desk-settings-nav-item-height);",
-                            "font-weight: var(--desk-font-weight-medium);", "text-align: left;"):
+                            "font-weight: 730;", "text-align: left;"):
             self.assertIn(declaration, match[1])
-        self.assertIn("--desk-settings-nav-item-height: 28px;", self.geometry)
+        self.assertIn("--desk-settings-nav-item-height: 30px;", self.geometry)
 
     def test_segments_use_inset_paint_not_extra_height_for_the_track(self):
         match = re.search(r"body\.desk-app\[data-theme\] \.desk-settings :is\(\s*\.desk-segment,([^}]+)\}", self.geometry)
@@ -175,10 +172,10 @@ class SettingsControlStyleTests(unittest.TestCase):
 
     def test_heading_hierarchy_does_not_make_auxiliary_text_bolder_than_values(self):
         title = re.search(r"\.desk-settings__title h2\s*\{([^}]+)\}", self.geometry)[1]
-        self.assertIn("font-size: 15px;", title)
+        self.assertIn("font-size: 17px;", title)  # the asset library's title size
         heading = re.search(r"\.desk-settings-card h3\s*\{([^}]+)\}", self.geometry)[1]
-        self.assertIn("font-size: var(--desk-font-size-caption);", heading)
-        self.assertIn("font-weight: var(--desk-font-weight-medium);", heading)
+        self.assertIn("font-size: 12px;", heading)
+        self.assertIn("font-weight: 900;", heading)
         labels = re.search(r"\.desk-settings-form :is\(label > span, \.desk-settings-secret-field__label > span\)\s*\{([^}]+)\}", self.geometry)[1]
         self.assertIn("font-weight: 500;", labels)
         self.assertRegex(self.geometry, r"\.desk-settings__body :is\(\s*p, small, em,[^}]+font-weight: var\(--desk-font-weight-regular\);")

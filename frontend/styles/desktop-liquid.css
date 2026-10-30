@@ -3601,7 +3601,6 @@ body.desk-history-collapsed .desk-gallery {
   visibility: hidden;
   opacity: 0;
   border: 1px solid rgba(255, 255, 255, 0.62);
-  -webkit-backdrop-filter: blur(28px) saturate(1.55) brightness(1.04);
 }
 
 .desk-text-polish-modal {
@@ -4176,12 +4175,6 @@ body.desk-history-collapsed .desk-gallery {
 
 
 
-.desk-settings-tabs button {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  border: 0;
-}
 
 
 
@@ -4264,26 +4257,6 @@ body.desk-history-collapsed .desk-gallery {
   background: #22c55e;
 }
 
-.desk-settings-tabs button.is-active,
-.desk-settings-tabs button:hover {
-  border: 1px solid rgba(8, 79, 189, 0.26);
-}
-
-.desk-settings__summary span {
-  max-width: 220px;
-  overflow: hidden;
-  padding: 5px 9px;
-  font-weight: 850;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  border: 1px solid rgba(255, 255, 255, 0.64);
-  border-radius: 999px;
-}
-
-.desk-settings__summary span.is-ok {
-  color: rgba(22, 101, 52, 0.92);
-  background: rgba(220, 252, 231, 0.72);
-}
 
 .desk-settings__body {
   display: grid;
@@ -8485,8 +8458,6 @@ body.desk-app[data-theme="dark"] .desk-file-preview-modal__actions #deskFilePrev
 .desk-node .desk-button[data-copy-prompt]:not(.desk-button--danger),
 .desk-button--generate,
 .desk-settings__actions button,
-.desk-settings-tabs button.is-active,
-.desk-settings-tabs button:hover,
 .desk-settings-form__actions button,
 .desk-settings-account__actions button:not([data-chatgpt-pool-account-delete]):not([data-managed-codex-account-delete]),
 .desk-image-editor__segmented button.is-active,
@@ -8515,7 +8486,6 @@ body.desk-app[data-theme="dark"] .desk-file-preview-modal__actions #deskFilePrev
 .desk-node .desk-button[data-copy-prompt]:hover:not(:disabled):not(.desk-button--danger),
 .desk-button--generate:hover:not(:disabled),
 .desk-settings__actions button:hover:not(:disabled),
-.desk-settings-tabs button.is-active:hover:not(:disabled),
 .desk-settings-form__actions button:hover:not(:disabled),
 .desk-settings-account__actions button:hover:not(:disabled):not([data-chatgpt-pool-account-delete]):not([data-managed-codex-account-delete]),
 .desk-image-editor__button--primary:hover:not(:disabled),
@@ -8553,28 +8523,21 @@ body.desk-app[data-theme="dark"] .desk-file-preview-modal__actions #deskFilePrev
   background: rgba(255, 245, 245, 0.72);
 }
 
+/* The prompt library's quiet glass command (desktop-prompt-library.css editor actions). */
 .desk-settings-form__actions button,
 .desk-settings-account__actions button:not([data-chatgpt-pool-account-delete]):not([data-managed-codex-account-delete]) {
-  color: rgba(42, 56, 74, 0.88);
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.78), rgba(255, 255, 255, 0.56)),
-    rgba(255, 255, 255, 0.52);
-  border-color: rgba(255, 255, 255, 0.78);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.74),
-    0 6px 14px rgba(31, 45, 62, 0.08);
+  color: var(--desk-settings-action-ink);
+  background: var(--desk-settings-action-background);
+  border-color: var(--desk-settings-action-border);
+  box-shadow: var(--desk-settings-action-shadow);
 }
 
 .desk-settings-form__actions button:hover,
 .desk-settings-account__actions button:not([data-chatgpt-pool-account-delete]):not([data-managed-codex-account-delete]):hover {
-  color: var(--desk-ink);
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(255, 255, 255, 0.7)),
-    rgba(255, 255, 255, 0.64);
-  border-color: rgba(255, 255, 255, 0.88);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.88),
-    0 8px 18px rgba(31, 45, 62, 0.1);
+  color: var(--desk-settings-accent-ink);
+  background: var(--desk-settings-action-background);
+  border-color: var(--desk-settings-selected-border);
+  box-shadow: var(--desk-settings-action-shadow);
 }
 
 .desk-settings-form__actions button.is-primary,
@@ -10377,22 +10340,6 @@ body.desk-app[data-theme="dark"] .desk-settings__actions button.is-loading {
     0 8px 18px rgba(196, 54, 14, 0.28);
 }
 
-body.desk-app[data-theme="dark"] .desk-settings-tabs {
-  background: rgba(28, 34, 36, 0.58);
-}
-
-body.desk-app[data-theme="dark"] .desk-settings-tabs button.is-active,
-body.desk-app[data-theme="dark"] .desk-settings-tabs button.is-active:hover {
-  color: #fff7f0;
-  background:
-    radial-gradient(circle at 28% 18%, rgba(255, 231, 216, 0.2), transparent 34%),
-    linear-gradient(180deg, rgba(255, 122, 51, 0.96), rgba(185, 51, 18, 0.96));
-  border: 1px solid rgba(255, 148, 92, 0.58);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.18),
-    0 8px 18px rgba(196, 54, 14, 0.28);
-}
-
 body.desk-app[data-theme="dark"] .desk-comfy-settings-workflow,
 body.desk-app[data-theme="dark"] .desk-comfy-workflow-card {
   color: var(--desk-ink);
@@ -10423,20 +10370,6 @@ body.desk-app[data-theme="dark"] .desk-comfy-workflow-card.is-selected {
   box-shadow: inset 2px 0 0 #ff6a22;
 }
 
-
-body.desk-app[data-theme="dark"] .desk-settings__summary span {
-  background: rgba(28, 34, 36, 0.58);
-}
-
-body.desk-app[data-theme="dark"] .desk-settings__summary span.is-ok {
-  color: #96f0bd;
-  background: rgba(34, 197, 94, 0.16);
-  border-color: rgba(150, 240, 189, 0.24);
-}
-
-body.desk-app[data-theme="dark"] .desk-settings__summary span.is-warn {
-  background: rgba(255, 106, 34, 0.14);
-}
 
 body.desk-app[data-theme="dark"] .desk-settings-card {
   background:

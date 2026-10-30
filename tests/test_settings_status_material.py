@@ -31,7 +31,7 @@ class SettingsStatusMaterialTests(unittest.TestCase):
     def test_silk_placement_is_settings_scoped_and_paint_only(self):
         css = (ROOT / "frontend/styles/desktop-settings-auth.css").read_text()
         block = re.search(
-            r"body\.desk-app\[data-theme\] \.desk-settings :is\((\s*\.desk-settings__summary[\s\S]+?)\)\s*\{([^}]+)\}",
+            r"body\.desk-app\[data-theme\] \.desk-settings :is\((\s*\.desk-settings__status[\s\S]+?)\)\s*\{([^}]+)\}",
             css,
         )
         self.assertIsNotNone(block)

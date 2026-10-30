@@ -88,12 +88,15 @@ test('asset cards stop repeating the model and show full text on hover', () => {
 });
 
 test('settings split appearance and Pinterest out of system and status cards jump to their tab', () => {
-  assert.match(html, /data-settings-tab="appearance">外观<\/button>\s*<button[^>]*data-settings-tab="system">系统/);
-  assert.match(html, /data-settings-tab="pinterest">Pinterest<\/button>/);
+  const label = tab => new RegExp(`data-settings-tab="${tab}">[\\s\\S]*?class="desk-settings-tabs__label">([^<]+)<`).exec(html)?.[1];
+  assert.equal(label('appearance'), '外观');
+  assert.equal(label('pinterest'), 'Pinterest');
+  assert.ok(html.indexOf('data-settings-tab="appearance"') < html.indexOf('data-settings-tab="system"'));
   const settings = read('frontend/scripts/desktop-settings.js');
   assert.ok(settings.includes("html: activeTab === 'system' ? renderSystemRuntimeSettings(editableServer, setting('auth', auth)) : ''"));
   assert.ok(settings.includes("html: activeTab === 'pinterest' ? renderPinterestSettings(pinterest) : ''"));
-  assert.ok(settings.includes('renderCanvasInteractionSettings() + renderProgressSettings() + renderControlMaterialSettings() + renderFieldStyleSettings()\n'));
+  assert.ok(settings.includes("html: activeTab === 'appearance' ? renderCanvasInteractionSettings() : ''"));
+  assert.ok(settings.includes('? renderProgressSettings() + renderControlMaterialSettings() + renderFieldStyleSettings()\n'));
   for (const tab of ['system', 'telegram', 'provider', 'third-party', 'paths', 'comfy', 'video-inference', 'prompt', 'chatgpt-pool']) {
     assert.ok(settings.includes(`{ goto: '${tab}' }`), tab);
   }

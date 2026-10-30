@@ -76,7 +76,7 @@ test('passwords stay drafted until their card is saved', () => {
 
 test('the settings host tracks, restores after every render and forgets saved cards', () => {
   const settings = read('frontend/scripts/desktop-settings.js');
-  assert.match(settings, /els\.deskSettingsBody\.innerHTML = visibleHtml\.join\(''\);\n      settingsDrafts\.restore\(els\.deskSettingsBody\);/);
+  assert.match(settings, /els\.deskSettingsBody\.innerHTML = html;\n      els\.deskSettingsBody\.dataset\.settingsPage = activeTab;\n      settingsDrafts\.restore\(els\.deskSettingsBody\);/);
   assert.match(settings, /addEventListener\('input', event => \{\n      settingsDrafts\.track\(event\);/);
   assert.match(settings, /addEventListener\('change', event => \{\n      settingsDrafts\.track\(event\);/);
   assert.equal(settings.match(/settingsDrafts\.forget\(card\);/g).length, 4);

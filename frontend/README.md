@@ -1,27 +1,30 @@
 # Web build boundary
 
-## 设置中心 · 左侧抽屉与搜索（2026-10-09）
+## 设置中心 · 工作台与搜索（2026-10-09，2026-10-30 改为工作台）
 
-设置中心改为左侧抽屉：位于标题栏与状态栏之间，从工具栏右侧滑入并盖在画布上方（画布不缩放、
-不加遮罩）。默认宽 760px，右缘拖动 / 方向键调宽（560–1100px，双击恢复默认），宽度存于
-`DesktopPreferences.state.settingsWidth`；显示宽度另按窗口收窄，保证工具栏与右侧留白。
-13 个分类常驻左侧纵向导航，分组：常用 / 生成线路 / 本地模型 / 其它（取消“展开更多”）。
+设置中心与资产库、提示词素材库同为工作台：同一位置与尺寸（`.desk-gallery` 的 inset），资产库的
+浅玻璃外壳，内部是两张近不透明的浅色栏卡（资产库检视栏的配色）。左栏为 13 个分类的纵向导航，
+分组：常用 / 生成线路 / 本地模型 / 其它，每项带字形图标与状态灯（取自状态页概览卡的 ok/warn）。
+右栏顶部是页头（分组、标题、`SETTINGS_TAB_HELP[tab].summary`、状态药丸），其下为卡片：
+状态页按 `area` 分为 系统与访问 / 生成线路 / 本地服务 / 提示词与投递 四组；其它分页按 section
+的 `group` 分组（目前 外观、Provider），未分组的多卡片页在内容区 ≥760px 时排成两栏瀑布流。
+按钮与输入框采用提示词素材库的 28px / 圆角 6 规格。
 顶部搜索框按卡片标题、字段名（说明文字低权重）跨分类定位：切换分类、滚动到卡片并短暂高亮，
-焦点落到该字段的实际控件；Esc 先清空搜索，再关闭抽屉。
+焦点落到该字段的实际控件；Esc 先清空搜索，再关闭设置中心。
 
-- `scripts/desktop-settings-drawer.js`：宽度归一化、拖动（每帧最多一次样式写入）、键盘/双击、
-  窗口变化重算；不管内容和开关。在 `desktop-preferences.js` 之前加载。
 - `scripts/desktop-settings-search.js`：从各分类卡片 HTML 建索引（惰性 `<template>` 解析）、
   多词匹配与排序、结果列表与键盘交互；不持有设置数据、不负责跳转。在 `desktop-settings.js` 前加载。
 - `scripts/desktop-settings-drafts.js`：未保存的字段草稿（`data-system-setting-field` / `data-gpt-provider-field`），
   设置区每次重绘后放回，卡片保存成功后丢弃；不发请求。在 `desktop-settings.js` 前加载。
 - `desktop-settings.js`：`buildSections(data, tab)` 抽出原分类渲染（遮蔽 `activeTab`），搜索索引
-  据此离屏生成各分类卡片，不额外请求；`selectTab()` 统一点击与搜索跳转；装配上述两个模块。
-- 几何在 `desktop-geometry.css`（抽屉位置、导航、搜索、把手、内容区 ≥820px 两列），配色在
-  `desktop-settings-auth.css` / `desktop-tokens.css`。大面板不用 backdrop-filter，改为近不透明底色
-  （毛玻璃性能红线）。
+  据此离屏生成各分类卡片，不额外请求；`groupedSectionsHtml()` 按 area / group 分组且不改变卡片顺序
+  （搜索索引的卡片序号依赖它）；`tabStatuses()` 由状态页概览卡推导导航状态灯；`selectTab()`
+  统一点击与搜索跳转。
+- 几何在 `desktop-geometry.css`（工作台位置、导航、页头、分组、两栏），配色在
+  `desktop-settings-auth.css` / `desktop-controls.css`（导航选中态）/ `desktop-tokens.css`
+  （`--desk-settings-column-*`、`--desk-settings-nav-*`、`--desk-settings-action-*` 等，明暗两套）。
 
-便携验证：`tests/test_settings_drawer.cjs`、`tests/test_settings_disclosure_typography.py`；
+便携验证：`tests/test_settings_workbench.cjs`、`tests/test_settings_disclosure_typography.py`；
 本地探针 `tests/local/settings_drawer_probe_local.mjs`（真实前端 + 全合成 `/api/*`）。
 
 ## 花朵取色器（2026-10-10）

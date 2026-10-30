@@ -223,8 +223,8 @@
     "sha256": "11ce49d2fa554af345ce7ceb4af073204361a2ba3ad9cec467851e5a4dacf3d2"
    },
    "scripts/desktop-i18n.js": {
-    "v": "20261030-panels-polish2",
-    "sha256": "7f6d5bd955b10694e0d0a0dc961720fe5d4b36f02dfa85f9863825031c2b071f"
+    "v": "20261030-settings-workbench2",
+    "sha256": "5053345867b809146881e094057f34300b7b72b452d0394db295060ce851b640"
    },
    "scripts/desktop-krea2-api.js": {
     "v": "20260929-krea2-layout-3",
@@ -307,8 +307,8 @@
     "sha256": "458aed2e112bf3517234e4f63cf9498769af57fdab6996a2101c6587194d320c"
    },
    "scripts/desktop-preferences.js": {
-    "v": "20261011-release-26-5-0",
-    "sha256": "2686ebde1d21dceaf02a513322ad383a5cf80898aa360c4c7c6c3d8f26a112d4"
+    "v": "20261030-settings-workbench1",
+    "sha256": "ee48a67f2eaeed70ee534a41a83c59760c9bd502337a00b6eaab618160862d05"
    },
    "scripts/desktop-progress-materials.js": {
     "v": "20261007-node-progress4",
@@ -378,17 +378,13 @@
     "v": "20261030-settings-drafts1",
     "sha256": "fc949acbbdcc13b35216d6de6f4ff0ed5a8593b55b88be3abdf3e4d40c545da3"
    },
-   "scripts/desktop-settings-drawer.js": {
-    "v": "20261009-settings-drawer2",
-    "sha256": "54c85465d07513663bb88f02c812290eec089b4952e5dce0f0fe509038cb9b4a"
-   },
    "scripts/desktop-settings-search.js": {
     "v": "20261010-color-bloom1",
     "sha256": "cd644f2ea231956d69a7ece00c274708d08dab2d81ff85e13d433379ce3c5596"
    },
    "scripts/desktop-settings.js": {
-    "v": "20261030-panels-polish2",
-    "sha256": "35fa2136f7aaf8dddc59c8d0f9094d34d476f5173f4ca6c6b1f391277ac61116"
+    "v": "20261030-settings-workbench2",
+    "sha256": "fdc1479e87a17b4c7029867ea2bf35e53a9d31ed27bfb9f7c539bac1e539ef74"
    },
    "scripts/desktop-state-icon.js": {
     "v": "20261004-state-icons1",
@@ -483,8 +479,8 @@
     "sha256": "15b159c8d422c6da0fcea418e95c21e0b6a085cfe09021ed00a2dc8693fd5b7d"
    },
    "styles/desktop-controls.css": {
-    "v": "20261030-panels-polish1",
-    "sha256": "a9da0ea5c3e59f30f980bcdb687cae07ab2612a8eea3305b1f780f94dafda20e"
+    "v": "20261030-settings-workbench1",
+    "sha256": "0bff89edd8951cbbc6e3a86a921713b0a23a799f595e221b3d2b60f48ba66b1e"
    },
    "styles/desktop-creation-tools.css": {
     "v": "20261021-video-upload1",
@@ -507,8 +503,8 @@
     "sha256": "e180daa4604f5034e1abb8d0b3ac7b992d7c61ce9f754b94700b04d9f1a17aa0"
    },
    "styles/desktop-geometry.css": {
-    "v": "20261030-panels-polish1",
-    "sha256": "80ad96a33aabf8ab3fe8ae966a754c9dd1ce7ffd0e42cb3bf676a9a22c1d1f4b"
+    "v": "20261030-settings-workbench3",
+    "sha256": "2067f27724befbaa55868572e50aedbd8888fca9c80103edf8734d42fd92518b"
    },
    "styles/desktop-google-web-geometry.css": {
     "v": "20261023-google-web2",
@@ -547,8 +543,8 @@
     "sha256": "f0f42e1cb340f262bf81c64abe22bd953d0aac190213c56bc288735e448bfc12"
    },
    "styles/desktop-liquid.css": {
-    "v": "20261030-panels-polish1",
-    "sha256": "6ddaba6dfdaabac4dbc00de228f3173b785204113387bd6af81676ff673d9975"
+    "v": "20261030-settings-workbench1",
+    "sha256": "daa7b66f6bffc650a29282fb6517f895fd77b8db3800bba233ada1383a255ffb"
    },
    "styles/desktop-lora.css": {
     "v": "20261003-lora-quick-add1",
@@ -603,12 +599,12 @@
     "sha256": "173ada061f8b474196f3e940512a04a0147e85d2046425ffd9c3e3cef3bad9c5"
    },
    "styles/desktop-settings-auth-geometry.css": {
-    "v": "20261015-interaction-kept4",
-    "sha256": "08da8a7c9b5a22d4b7f93037df64218bc80fd0a3401e1b8f47818e2aea28068f"
+    "v": "20261030-settings-workbench1",
+    "sha256": "b8a75e250dbf4bce681e46ba55db2513f445ee0defc0a3652db18ca78a9fb38f"
    },
    "styles/desktop-settings-auth.css": {
-    "v": "20261030-panels-polish1",
-    "sha256": "1f39714e44fb544615b2d4918411ceaac819b587934664be304f71f40c508995"
+    "v": "20261030-settings-workbench3",
+    "sha256": "4ab3117e3b5ee65ef82b3a04e620020582d8e49cd5b4aee07ae82620fc4f6e3f"
    },
    "styles/desktop-shell-geometry.css": {
     "v": "20261015-shell-preserve1",
@@ -619,8 +615,8 @@
     "sha256": "c1a80028721d1c04c0020512cf6d5fbf123b693970968cf242bbc50c5f3a3e01"
    },
    "styles/desktop-tokens.css": {
-    "v": "20261030-panels-polish1",
-    "sha256": "b8e086978ffe654d2d82f14448e4c981c02295c6c5cfce3d44f9143e069f9cce"
+    "v": "20261030-settings-workbench3",
+    "sha256": "0d9166b143671f6e7702e20c64d0c699615501d2d64ac44c76d0a1328d06e4d9"
    },
    "styles/desktop-topaz-video-workbench.css": {
     "v": "20261006-topaz-panel-polish2",

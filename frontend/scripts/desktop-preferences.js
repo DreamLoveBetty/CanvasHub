@@ -13,7 +13,6 @@
     canvasCollisionEnabled: false,
     progress: { style: 'liquid', height: 36, colors: {} },
     controlMaterial: normalizeControlMaterial(),
-    settingsWidth: normalizeSettingsWidth(),
   };
   let themeTransitionTimer = null;
   let activeThemeReveal = null;
@@ -51,7 +50,6 @@
       state.canvasCollisionEnabled = parsed.canvasCollisionEnabled === true;
       state.progress = normalizeProgressPreferences(parsed.progress);
       state.controlMaterial = normalizeControlMaterial(parsed.controlMaterial);
-      state.settingsWidth = normalizeSettingsWidth(parsed.settingsWidth);
     } catch (e) {
       state.theme = 'light';
       state.language = 'zh';
@@ -60,7 +58,6 @@
       state.canvasCollisionEnabled = false;
       state.progress = normalizeProgressPreferences();
       state.controlMaterial = normalizeControlMaterial();
-      state.settingsWidth = normalizeSettingsWidth();
     }
   }
 
@@ -74,7 +71,6 @@
         canvasCollisionEnabled: state.canvasCollisionEnabled,
         progress: state.progress,
         controlMaterial: state.controlMaterial,
-        settingsWidth: state.settingsWidth,
       }));
     } catch (e) {}
   }
@@ -373,16 +369,6 @@
     }));
   }
 
-  // Width bounds belong to the settings drawer module.
-  function normalizeSettingsWidth(value) {
-    return window.DesktopSettingsDrawer?.normalizeWidth(value) || 760;
-  }
-
-  function setSettingsWidth(width) {
-    state.settingsWidth = normalizeSettingsWidth(width);
-    savePreferences();
-  }
-
   function bindControls() {
     document.getElementById('deskThemeToggle')?.addEventListener('click', toggleTheme);
     document.getElementById('deskLanguageSelect')?.addEventListener('change', (event) => {
@@ -412,7 +398,6 @@
     setCanvasCollisionEnabled,
     setProgressPreferences,
     setControlMaterialPreferences,
-    setSettingsWidth,
     toggleTheme,
     normalizeConnectionSwellStyle,
     normalizeConnectionLineStyle,
