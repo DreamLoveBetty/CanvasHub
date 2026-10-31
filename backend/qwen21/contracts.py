@@ -91,6 +91,9 @@ def normalize_job(body):
         raise ValueError("参考图编辑须连接至少 1 张图片")
     if mode == "text" and tokens:
         raise ValueError("文生图模式不能携带编辑参考图")
+    align_reference = body.get("align_reference") is True
+    if align_reference and (mode != "edit" or len(tokens) != 1):
+        raise ValueError("零偏移对齐仅支持单张参考图编辑")
     width = integer(body.get("width", 1024), "宽度", 256, 2048)
     height = integer(body.get("height", 1024), "高度", 256, 2048)
     if width % 32 or height % 32:
@@ -128,6 +131,7 @@ def normalize_job(body):
             "steps": steps, "image_count": integer(body.get("image_count", 1), "张数", 1, 4),
             "seed": seed, "guidance": guidance, "negative_prompt": negative,
             "reference_upload_tokens": tokens, "reference_resolution": 1024,
+            "align_reference": align_reference,
             "loras": loras, "telegram_enabled": body.get("telegram_enabled") is True}
 
 

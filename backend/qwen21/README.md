@@ -28,6 +28,8 @@ Maintenance handoff: [signed LoRA strength fix and edit-stack investigation (202
   components, Base retirement/default selection and atomic custom-model publication. It never exposes checkpoint
   paths to canvas state. `conversion_service.py` owns durable conversion state;
   `converter_worker.py` alone imports the quantizer/FP8 decoder.
+- `edit_alignment.py` owns the optional zero-offset reference crop: Pillow only,
+  no HTTP, task or MLX access. `service.py` calls it at submission.
 - `runtime.py` supervises a persistent JSON-lines child. `worker.py` and
   `mlx_adapter.py` alone import Qwen/MFLUX/MLX. Runtime LoRAs are not baked into
   the quantized Base. Switching model/LoRA signatures reloads the child model.
@@ -126,6 +128,17 @@ idle migration, short labels and no retired option, without creating inference j
 ## Contracts and validation
 
 Base mode allows 0 references for T2I or 1–10 ordered references for editing.
+
+`align_reference=true` requires edit mode and exactly one reference. The service
+center-crops that image to the size closest to its ratio for which
+`dimensions(1024, ratio)` returns the size unchanged, then overrides `width` and
+`height` with it. The pipeline therefore does not resample the reference again,
+and reference and output latents share one grid. The original stays in the job
+directory as `reference_1.*`; the worker receives `reference_1_aligned.png`. Task
+params and the `generate` reply carry `edit_alignment` (source size, float
+`crop_box`, output size, `cropped_percent`). The output is the aligned frame, not
+the original canvas: pixels are regenerated, nothing is pasted back.
+
 Viggle allows 1–3 edit references, fixed CFG=1, no negative prompt and adapter
 strength=1. Step count is adjustable **5–60**, recommended 6, independently of
 adapter version/rank. The official repository has no separate 8-step LoRA file.

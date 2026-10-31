@@ -12,6 +12,7 @@ from ..local_image.archiving import archive_pngs
 from ..local_image.preparation import Preparation
 from ..local_image.task_queue import ImageTaskQueue
 from ..local_image.uploads import ImageUploads
+from .edit_alignment import align_reference
 from .contracts import (DEFAULT_MODEL_ID, ENGINE, REVISION, TASK_TYPE, TERMINAL,
                         catalog, normalize_job, normalize_model_id)
 from .profiles import ADAPTERS, DEFAULT_PRESET, PRESETS, TURBO_PRESET, canonical_preset
@@ -186,6 +187,13 @@ class Service:
             try:
                 references = [self.uploads.copy(token, directory, f"reference_{index + 1}")
                               for index, token in enumerate(spec.pop("reference_upload_tokens"))]
+                alignment = None
+                if spec["align_reference"]:
+                    aligned = directory / "reference_1_aligned.png"
+                    alignment = align_reference(references[0], aligned)
+                    references = [str(aligned.resolve())]
+                    spec.update(width=alignment["width"], height=alignment["height"],
+                                aspect_ratio="custom", edit_alignment=alignment)
                 spec.update(base_model_name=model["name"])
                 worker_spec = {**spec, "loras": resolved, "references": references,
                                "vae": vae,
@@ -204,7 +212,8 @@ class Service:
             except Exception:
                 shutil.rmtree(directory, ignore_errors=True)
                 raise
-        return {"ok": True, "task_id": task_id, "status": "queued", "type": TASK_TYPE}
+        reply = {"ok": True, "task_id": task_id, "status": "queued", "type": TASK_TYPE}
+        return {**reply, "edit_alignment": alignment} if alignment else reply
 
     def cancel(self, task_id):
         task = self.get_task(str(task_id or ""))
