@@ -25,6 +25,7 @@
 .desk-app .desk-qwen21__reference > span { max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .desk-app .desk-qwen21__reference > button { width:20px; height:20px; min-height:20px; padding:0; }
 .desk-app .desk-qwen21__footer { flex:0 0 auto; min-height:72px; margin-top:0; }
+.desk-app .desk-qwen21__footer .desk-switch[hidden] { display:none; }
 .desk-app .desk-qwen21__meta { flex-wrap:nowrap; overflow:hidden; }
 .desk-app .desk-qwen21__meta > span { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .desk-app .desk-qwen21__meta [data-qwen21-runtime] { flex:1 1 auto; }

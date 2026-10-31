@@ -220,3 +220,15 @@ test('a subject reference yields its clothing to a clothing reference on the sam
   assert.equal(c.f('clothing',{hasClothingReference:true}),'c');
   assert.ok(subject.includes('服装设计')&&!withClothing.includes('服装设计'));
 });
+
+test('零偏移对齐是编辑模式的单图开关，往返保存且锁定尺寸',()=>{
+  assert.equal(M.normalize({type:'qwen21'}).alignReference,false);
+  assert.equal(M.normalize({type:'qwen21',alignReference:'true'}).alignReference,false);
+  const node=M.normalize({type:'qwen21',mode:'edit',alignReference:true});
+  assert.equal(M.normalize(JSON.parse(JSON.stringify(node))).alignReference,true);
+  const source=read('desktop-canvas-qwen21.js');
+  assert.match(source,/data-qwen21-align\b/);
+  assert.match(source,/align_reference:alignReference/);
+  assert.match(source,/refs\.length!==1\)throw new Error\('零偏移对齐仅支持单张参考图'\)/);
+  assert.match(source,/aligned&&\['ratio','imageWidth','imageHeight'\]\.includes/);
+});

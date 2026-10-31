@@ -119,8 +119,8 @@
     "sha256": "20891a7f17d01e340e233112673c4745ca80065023565735ed99e7769626c8f2"
    },
    "scripts/desktop-canvas-qwen21.js": {
-    "v": "20261030-qwen-roles1",
-    "sha256": "f07641b648aa8225d51ebf92733bd078c2ab85233d0b2dff7ba015bdb2307129"
+    "v": "20261030-qwen-align1",
+    "sha256": "76785f11ca79907674c6521c68a71455812c7b14ffd2a9ff2753f6fafb2b55ab"
    },
    "scripts/desktop-canvas-references.js": {
     "v": "20261023-google-web2",
@@ -359,8 +359,8 @@
     "sha256": "34d201ee62c8a81e04b8c462733fb4034e17416198effe37f4a3e9b410c61544"
    },
    "scripts/desktop-qwen21-model.js": {
-    "v": "20261030-group-input1",
-    "sha256": "357a1e2c8b4f03e4c55052cb96d8a340000ee3f072083e014ec632cb6d11f3cd"
+    "v": "20261030-qwen-align1",
+    "sha256": "7be2497ef41164441a06d474c57277822ac56b2067c7dd22979131e0696a26b3"
    },
    "scripts/desktop-qwen21-tools.js": {
     "v": "20261011-qwen-turbo8",
@@ -595,8 +595,8 @@
     "sha256": "c1306dab225eab9b72677536bcac31ba82fb2ae8abec28134a20d3b5d4e3ff93"
    },
    "styles/desktop-qwen21.css": {
-    "v": "20261003-auto-image-mode1",
-    "sha256": "173ada061f8b474196f3e940512a04a0147e85d2046425ffd9c3e3cef3bad9c5"
+    "v": "20261030-qwen-align1",
+    "sha256": "22a91b45ffe5372ff1708c5afd2a560c672dfc409f5abbcb01bd3ab1ab5e44f3"
    },
    "styles/desktop-settings-auth-geometry.css": {
     "v": "20261030-settings-workbench1",

@@ -47,6 +47,7 @@
     node.imageCount=Math.round(clamp(node.imageCount,1,4,1));
     node.seed=node.seed===null||node.seed===undefined?'':String(node.seed).replace(/[^0-9]/g,'').slice(0,10);
     node.telegramEnabled=node.telegramEnabled===true;
+    node.alignReference=node.alignReference===true;
     const seen=new Set();node.loras=(Array.isArray(node.loras)?node.loras:[]).filter(item=>/^[a-f0-9]{64}$/.test(String(item?.assetId||''))&&!seen.has(item.assetId)&&seen.add(item.assetId)).slice(0,4).map(item=>({assetId:item.assetId,scale:normalizeLoraScale(item.scale)}));
     node.referenceOrder=[...new Set((Array.isArray(node.referenceOrder)?node.referenceOrder:[]).filter(id=>typeof id==='string'&&id.length<300))];
     node.jobId=/^qwen21_[a-f0-9]{32}$/.test(String(node.jobId||''))?node.jobId:'';
