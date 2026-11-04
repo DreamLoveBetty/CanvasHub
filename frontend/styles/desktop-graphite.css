@@ -19,6 +19,7 @@ body.desk-app[data-desk-style="graphite"] {
   --desk-graphite-ink: #262624;
   --desk-graphite-muted: #92928c;
   --desk-graphite-dot: rgba(38, 38, 36, 0.13);
+  --desk-graphite-line: rgba(38, 38, 36, 0.08);
   --desk-graphite-primary: #262624;
   --desk-graphite-primary-hover: #3a3a37;
   --desk-graphite-primary-ink: #fafaf8;
@@ -104,6 +105,7 @@ body.desk-app[data-desk-style="graphite"][data-theme="dark"] {
   --desk-graphite-ink: #ececec;
   --desk-graphite-muted: #8b8b8b;
   --desk-graphite-dot: rgba(236, 236, 236, 0.08);
+  --desk-graphite-line: rgba(236, 236, 236, 0.08);
   --desk-graphite-primary: #e6e6e6;
   --desk-graphite-primary-hover: #ffffff;
   --desk-graphite-primary-ink: #232323;
@@ -177,8 +179,54 @@ body.desk-app[data-desk-style="graphite"][data-theme="dark"] {
   --desk-file-type-border: transparent;
 }
 
-/* Canvas generate key: solid ink key instead of the glossy jewel (canvas only). */
-body.desk-app[data-desk-style="graphite"] .desk-canvas {
+/* App chrome (title bar, rail, panels, status bar, menus, tips): one token set for
+   both themes, built on the palette above. (0,3,1) so it also replaces the liquid
+   dark values defined at (0,2,1) in desktop-tokens.css and desktop-liquid.css. */
+body.desk-app[data-desk-style="graphite"][data-theme] {
+  --desk-bg: var(--desk-graphite-canvas);
+  --desk-ink: var(--desk-graphite-ink);
+  --desk-muted: var(--desk-graphite-ink-2);
+  --desk-faint: var(--desk-graphite-line);
+  --desk-line: transparent;
+  --desk-line-dark: var(--desk-graphite-line);
+  --desk-glass: var(--desk-graphite-card);
+  --desk-glass-strong: var(--desk-graphite-card);
+
+  --desk-color-bg-app: var(--desk-graphite-canvas);
+  --desk-color-bg-canvas: var(--desk-graphite-canvas);
+  --desk-color-text-primary: var(--desk-graphite-ink);
+  --desk-color-text-secondary: var(--desk-graphite-ink-2);
+  --desk-color-text-placeholder: var(--desk-graphite-muted);
+  --desk-color-text-disabled: var(--desk-graphite-muted);
+  --desk-color-border-faint: var(--desk-graphite-line);
+  --desk-color-border-glass: transparent;
+  --desk-color-border-subtle: var(--desk-graphite-line);
+  --desk-color-surface-glass: var(--desk-graphite-card);
+  --desk-color-surface-glass-strong: var(--desk-graphite-card);
+
+  /* Fields and menus: flat inset rows, no frost or edge light. */
+  --desk-color-control-ink: var(--desk-graphite-ink);
+  --desk-color-control-bg: var(--desk-graphite-inset);
+  --desk-color-control-bg-hover: var(--desk-graphite-inset-hover);
+  --desk-color-control-bg-active: var(--desk-graphite-inset-hover);
+  --desk-color-control-bg-disabled: var(--desk-graphite-inset);
+  --desk-color-control-border: transparent;
+  --desk-color-control-border-hover: transparent;
+  --desk-color-control-border-active: transparent;
+  --desk-color-control-border-disabled: transparent;
+  --desk-color-popover-bg: var(--desk-graphite-card);
+  --desk-color-popover-border: transparent;
+  --desk-color-accent: var(--desk-graphite-ink);
+  --desk-color-accent-soft: var(--desk-graphite-inset-hover);
+  --desk-color-focus-border: var(--desk-graphite-accent);
+  --desk-color-focus-ring: var(--desk-graphite-accent-soft);
+  --desk-shadow-control: none;
+  --desk-shadow-button: none;
+  --desk-shadow-panel-soft: var(--desk-graphite-popover-shadow);
+  --desk-shadow-panel: var(--desk-graphite-popover-shadow);
+  --desk-shadow-focus: 0 0 0 2px var(--desk-graphite-accent-soft);
+
+  /* Primary keys (generate, save, drawer handle, windchime): solid ink, no jewel gloss. */
   --desk-action-primary-ink: var(--desk-graphite-primary-ink);
   --desk-action-primary-border: transparent;
   --desk-action-primary-hover-border: transparent;
@@ -191,24 +239,509 @@ body.desk-app[data-desk-style="graphite"] .desk-canvas {
   --desk-action-primary-silk-position-active: 0 0;
   --desk-action-primary-shadow: transparent;
   --desk-action-primary-shadow-strong: transparent;
+  --desk-jewel: var(--desk-graphite-primary);
+  --desk-jewel-top: var(--desk-graphite-primary);
+  --desk-jewel-bottom: var(--desk-graphite-primary);
+  --desk-jewel-hover-top: var(--desk-graphite-primary-hover);
+  --desk-jewel-hover-bottom: var(--desk-graphite-primary-hover);
+  --desk-jewel-border: transparent;
+  --desk-jewel-hover-border: transparent;
+  --desk-jewel-shadow: transparent;
+  --desk-jewel-shadow-strong: transparent;
+  --desk-jewel-gloss: var(--desk-graphite-primary);
+  --desk-jewel-gloss-hover: var(--desk-graphite-primary-hover);
+  --desk-prompt-assistant-handle-ink: var(--desk-graphite-primary-ink);
+  --desk-prompt-assistant-handle-shadow: none;
+  --desk-prompt-assistant-handle-hover-shadow: none;
+  --desk-prompt-assistant-handle-stem-background: var(--desk-graphite-primary-ink);
+  --desk-prompt-assistant-handle-stem-shadow: none;
+  --desk-prompt-assistant-handle-eye-background: var(--desk-graphite-primary-ink);
+  --desk-prompt-assistant-handle-eye-shadow: none;
+  --desk-prompt-assistant-handle-eye-hover-background: var(--desk-graphite-primary-ink);
+  --desk-prompt-assistant-handle-eye-hover-shadow: none;
 
-  /* Fields and menus: flat inset rows, no frost or edge light. */
-  --desk-color-control-ink: var(--desk-graphite-ink);
-  --desk-color-control-bg: var(--desk-graphite-inset);
-  --desk-color-control-bg-hover: var(--desk-graphite-inset-hover);
-  --desk-color-control-bg-active: var(--desk-graphite-inset-hover);
-  --desk-color-control-bg-disabled: var(--desk-graphite-inset);
-  --desk-color-control-border: transparent;
-  --desk-color-control-border-hover: transparent;
-  --desk-color-control-border-active: transparent;
-  --desk-color-control-border-disabled: transparent;
-  --desk-shadow-button: none;
-  --desk-color-focus-border: var(--desk-graphite-accent);
-  --desk-shadow-focus: 0 0 0 2px var(--desk-graphite-accent-soft);
-  --desk-color-accent: var(--desk-graphite-ink);
-  --desk-color-accent-soft: var(--desk-graphite-inset-hover);
-  --desk-color-popover-bg: var(--desk-graphite-card);
-  --desk-color-popover-border: transparent;
+  /* Rail node palette, canvas context menu and link menu. */
+  --desk-canvas-palette-ink: var(--desk-graphite-ink);
+  --desk-canvas-palette-muted-ink: var(--desk-graphite-muted);
+  --desk-canvas-palette-background: var(--desk-graphite-card);
+  --desk-canvas-palette-border: transparent;
+  --desk-canvas-palette-shadow: none;
+  --desk-canvas-palette-filter: none;
+  --desk-canvas-palette-item-background: transparent;
+  --desk-canvas-palette-item-border: transparent;
+  --desk-canvas-palette-item-shadow: none;
+  --desk-canvas-palette-item-hover-ink: var(--desk-graphite-ink);
+  --desk-canvas-palette-item-hover-background: var(--desk-graphite-inset);
+  --desk-canvas-palette-item-hover-border: transparent;
+  --desk-canvas-palette-item-focus-ink: var(--desk-graphite-ink);
+  --desk-canvas-palette-item-focus-background: var(--desk-graphite-inset);
+  --desk-canvas-palette-item-focus-border: transparent;
+  --desk-canvas-palette-item-focus-outline: var(--desk-graphite-accent-soft);
+  --desk-canvas-palette-icon-ink: var(--desk-graphite-ink-2);
+  --desk-canvas-palette-icon-background: var(--desk-graphite-inset);
+  --desk-canvas-palette-icon-border: transparent;
+  --desk-canvas-palette-icon-shadow: none;
+  --desk-canvas-palette-icon-hover-ink: var(--desk-graphite-ink);
+  --desk-canvas-palette-icon-hover-background: var(--desk-graphite-chip);
+  --desk-canvas-palette-icon-hover-border: transparent;
+  --desk-canvas-menu-ink: var(--desk-graphite-ink);
+  --desk-canvas-menu-background: var(--desk-graphite-card);
+  --desk-canvas-menu-border: transparent;
+  --desk-canvas-menu-shadow: var(--desk-graphite-popover-shadow);
+  --desk-canvas-menu-cap-ink: var(--desk-graphite-primary-ink);
+  --desk-canvas-menu-cap-meta-ink: var(--desk-graphite-muted);
+  --desk-canvas-menu-search-background: var(--desk-graphite-inset);
+  --desk-canvas-menu-search-ink: var(--desk-graphite-ink);
+  --desk-canvas-menu-item-hover-ink: var(--desk-graphite-ink);
+  --desk-canvas-menu-item-hover-background: var(--desk-graphite-inset);
+  --desk-canvas-menu-item-meta-ink: var(--desk-graphite-muted);
+  --desk-canvas-edge-menu-background: var(--desk-graphite-card);
+  --desk-canvas-edge-menu-shadow: var(--desk-graphite-popover-shadow);
+  --desk-canvas-edge-delete-ink: var(--desk-graphite-model);
+  --desk-canvas-edge-delete-hover-ink: var(--desk-graphite-model);
+  --desk-canvas-edge-delete-hover-background: var(--desk-graphite-inset);
+
+  /* Zoom panel and minimap. */
+  --desk-canvas-control-accent: var(--desk-graphite-ink);
+  --desk-canvas-control-accent-soft: var(--desk-graphite-inset-hover);
+  --desk-canvas-zoom-ink: var(--desk-graphite-ink);
+  --desk-canvas-zoom-muted-ink: var(--desk-graphite-muted);
+  --desk-canvas-zoom-background: var(--desk-graphite-card);
+  --desk-canvas-zoom-border: transparent;
+  --desk-canvas-zoom-shadow: none;
+  --desk-canvas-zoom-filter: none;
+  --desk-canvas-zoom-button-ink: var(--desk-graphite-ink);
+  --desk-canvas-zoom-button-background: var(--desk-graphite-inset);
+  --desk-canvas-zoom-button-border: transparent;
+  --desk-canvas-zoom-button-shadow: none;
+  --desk-canvas-zoom-button-hover-ink: var(--desk-graphite-ink);
+  --desk-canvas-zoom-button-hover-background: var(--desk-graphite-inset-hover);
+  --desk-canvas-zoom-button-hover-border: transparent;
+  --desk-canvas-zoom-button-active-ink: var(--desk-graphite-primary-ink);
+  --desk-canvas-zoom-button-active-background: var(--desk-graphite-primary);
+  --desk-canvas-zoom-button-active-border: transparent;
+  --desk-canvas-zoom-label-active-ink: var(--desk-graphite-primary-ink);
+  --desk-canvas-zoom-label-active-background: var(--desk-graphite-primary);
+  --desk-canvas-zoom-label-active-border: transparent;
+  --desk-canvas-zoom-preset-background: var(--desk-graphite-card);
+  --desk-canvas-zoom-preset-border: transparent;
+  --desk-canvas-zoom-preset-shadow: var(--desk-graphite-popover-shadow);
+  --desk-canvas-zoom-preset-button-ink: var(--desk-graphite-ink-2);
+  --desk-canvas-zoom-preset-button-background: transparent;
+  --desk-canvas-zoom-preset-button-border: transparent;
+  --desk-canvas-zoom-preset-button-hover-ink: var(--desk-graphite-ink);
+  --desk-canvas-zoom-preset-button-hover-background: var(--desk-graphite-inset);
+  --desk-canvas-zoom-preset-button-hover-border: transparent;
+  --desk-canvas-zoom-preset-button-active-ink: var(--desk-graphite-primary-ink);
+  --desk-canvas-zoom-preset-button-active-background: var(--desk-graphite-primary);
+  --desk-canvas-zoom-preset-button-active-border: transparent;
+  --desk-canvas-minimap-background: var(--desk-graphite-inset);
+  --desk-canvas-minimap-border: transparent;
+  --desk-canvas-minimap-shadow: none;
+  --desk-canvas-minimap-node-background: var(--desk-graphite-chip);
+  --desk-canvas-minimap-node-border: transparent;
+  --desk-canvas-minimap-image-background: var(--desk-graphite-chip);
+  --desk-canvas-minimap-image-border: transparent;
+  --desk-canvas-minimap-output-background: var(--desk-graphite-chip);
+  --desk-canvas-minimap-output-border: transparent;
+  --desk-canvas-minimap-text-background: var(--desk-graphite-chip);
+  --desk-canvas-minimap-text-border: transparent;
+  --desk-canvas-minimap-viewport-background: var(--desk-graphite-accent-soft);
+  --desk-canvas-minimap-viewport-border: var(--desk-graphite-accent);
+  --desk-canvas-minimap-viewport-shadow: none;
+
+  --desk-shell-app-background: var(--desk-graphite-canvas);
+  --desk-shell-app-overlay: none;
+  --desk-shell-chrome-ink: var(--desk-graphite-ink);
+  --desk-shell-bottombar-ink: var(--desk-graphite-ink-2);
+  --desk-shell-titlebar-band-display: none;
+  --desk-shell-titlebar-band-height: 0px;
+  --desk-shell-titlebar-band-background: transparent;
+  --desk-shell-titlebar-band-shadow: none;
+  --desk-shell-titlebar-band-filter: none;
+  --desk-shell-bottombar-background: transparent;
+  --desk-shell-bottombar-shadow: none;
+  --desk-shell-bottombar-filter: none;
+  --desk-shell-rail-background: var(--desk-graphite-card);
+  --desk-shell-rail-border: transparent;
+  --desk-shell-rail-shadow: none;
+  --desk-shell-rail-filter: none;
+  --desk-shell-rail-item-ink: var(--desk-graphite-ink-2);
+  --desk-shell-rail-item-active-ink: var(--desk-graphite-ink);
+  --desk-shell-rail-item-active-background: var(--desk-graphite-inset);
+  --desk-shell-rail-item-active-shadow: none;
+  --desk-shell-rail-marker-ink: var(--desk-graphite-primary-ink);
+  --desk-shell-rail-marker-background: var(--desk-graphite-primary);
+  --desk-shell-rail-marker-open-background: var(--desk-graphite-ink-2);
+  --desk-shell-rail-marker-border: var(--desk-graphite-card);
+  --desk-shell-rail-marker-shadow: none;
+  --desk-shell-dock-handle-background: var(--desk-graphite-chip);
+  --desk-shell-dock-handle-shadow: none;
+  --desk-shell-dock-handle-active-background: var(--desk-graphite-ink-2);
+  --desk-shell-dock-handle-active-shadow: none;
+  --desk-shell-dock-background: var(--desk-graphite-card);
+  --desk-shell-dock-border: transparent;
+  --desk-shell-dock-shadow: var(--desk-graphite-popover-shadow);
+  --desk-shell-dock-button-ink: var(--desk-graphite-ink);
+  --desk-shell-dock-button-background: var(--desk-graphite-inset);
+  --desk-shell-dock-button-border: transparent;
+  --desk-shell-dock-button-hover-ink: var(--desk-graphite-ink);
+  --desk-shell-dock-button-hover-background: var(--desk-graphite-inset-hover);
+  --desk-shell-dock-button-hover-border: transparent;
+  --desk-shell-control-ink: var(--desk-graphite-ink);
+  --desk-shell-control-background: var(--desk-graphite-inset);
+  --desk-shell-control-border: transparent;
+  --desk-shell-control-shadow: none;
+  --desk-shell-control-hover-ink: var(--desk-graphite-ink);
+  --desk-shell-control-hover-background: var(--desk-graphite-inset-hover);
+  --desk-shell-control-hover-border: transparent;
+  --desk-shell-control-focus-border: var(--desk-graphite-accent);
+  --desk-shell-control-focus-shadow: 0 0 0 2px var(--desk-graphite-accent-soft);
+
+  --desk-release-trigger-background: var(--desk-graphite-inset);
+  --desk-release-trigger-border: transparent;
+  --desk-release-trigger-shadow: none;
+  --desk-release-trigger-hover-background: var(--desk-graphite-inset-hover);
+  --desk-release-trigger-hover-border: transparent;
+  --desk-release-trigger-hover-shadow: none;
+  --desk-release-panel-background: var(--desk-graphite-card);
+  --desk-release-panel-border: transparent;
+  --desk-release-panel-shadow: var(--desk-graphite-popover-shadow);
+  --desk-release-divider: var(--desk-graphite-line);
+  --desk-release-eyebrow: var(--desk-graphite-ink-2);
+  --desk-release-update-background: var(--desk-graphite-inset);
+  --desk-release-copy-ink: var(--desk-graphite-ink-2);
+  --desk-release-close-ink: var(--desk-graphite-ink-2);
+  --desk-release-close-background: var(--desk-graphite-inset);
+  --desk-release-close-border: transparent;
+  --desk-release-close-shadow: none;
+  --desk-release-latest-ink: var(--desk-graphite-ink);
+  --desk-release-latest-background: var(--desk-graphite-inset);
+  --desk-release-latest-border: transparent;
+  --desk-release-footer-background: var(--desk-graphite-inset);
+
+  /* Settings centre: canvas-coloured frame, card columns, inset cards and rows. */
+  --desk-settings-ink: var(--desk-graphite-ink);
+  --desk-settings-muted-ink: var(--desk-graphite-ink-2);
+  --desk-settings-accent-ink: var(--desk-graphite-ink);
+  --desk-settings-version-ink: var(--desk-graphite-muted);
+  --desk-settings-panel-background: var(--desk-graphite-canvas);
+  --desk-settings-panel-border: transparent;
+  --desk-settings-panel-shadow: var(--desk-graphite-popover-shadow);
+  --desk-settings-column-background: var(--desk-graphite-card);
+  --desk-settings-column-border: transparent;
+  --desk-settings-column-shadow: none;
+  --desk-settings-nav-active-ink: var(--desk-graphite-ink);
+  --desk-settings-nav-active-background: var(--desk-graphite-inset);
+  --desk-settings-nav-active-border: transparent;
+  --desk-settings-nav-active-shadow: none;
+  --desk-settings-nav-hover-background: var(--desk-graphite-inset);
+  --desk-settings-glyph-ink: var(--desk-graphite-ink-2);
+  --desk-settings-glyph-background: var(--desk-graphite-inset);
+  --desk-settings-glyph-border: transparent;
+  --desk-settings-glyph-active-ink: var(--desk-graphite-primary-ink);
+  --desk-settings-glyph-active-background: var(--desk-graphite-primary);
+  --desk-settings-glyph-active-border: transparent;
+  --desk-settings-action-ink: var(--desk-graphite-ink);
+  --desk-settings-action-background: var(--desk-graphite-inset);
+  --desk-settings-action-border: transparent;
+  --desk-settings-action-shadow: none;
+  --desk-settings-tabs-ink: var(--desk-graphite-ink-2);
+  --desk-settings-tabs-group-ink: var(--desk-graphite-muted);
+  --desk-settings-nav-divider: var(--desk-graphite-line);
+  --desk-settings-search-background: var(--desk-graphite-inset);
+  --desk-settings-search-border: transparent;
+  --desk-settings-search-results-background: var(--desk-graphite-card);
+  --desk-settings-search-active-background: var(--desk-graphite-inset);
+  --desk-settings-hit-ring: var(--desk-graphite-accent);
+  --desk-settings-summary-ink: var(--desk-graphite-ink-2);
+  --desk-settings-summary-background: var(--desk-graphite-inset);
+  --desk-settings-summary-border: transparent;
+  --desk-settings-summary-shadow: none;
+  --desk-settings-summary-ok-background: var(--desk-graphite-inset);
+  --desk-settings-summary-ok-border: transparent;
+  --desk-settings-summary-warn-background: var(--desk-graphite-inset);
+  --desk-settings-summary-warn-border: transparent;
+  --desk-settings-card-background: var(--desk-graphite-inset);
+  --desk-settings-card-border: transparent;
+  --desk-settings-card-shadow: none;
+  --desk-settings-inline-background: var(--desk-graphite-card);
+  --desk-settings-inline-border: transparent;
+  --desk-settings-inline-shadow: none;
+  --desk-settings-segment-ink: var(--desk-graphite-ink);
+  --desk-settings-segment-background: var(--desk-graphite-card);
+  --desk-settings-segment-border: transparent;
+  --desk-settings-segment-shadow: none;
+  --desk-settings-path-background: var(--desk-graphite-card);
+  --desk-settings-path-border: transparent;
+  --desk-settings-path-shadow: none;
+  --desk-settings-selected-border: var(--desk-graphite-accent);
+  --desk-settings-field-ink: var(--desk-graphite-ink);
+  --desk-settings-field-background: var(--desk-graphite-card);
+  --desk-settings-field-border: transparent;
+  --desk-settings-field-shadow: none;
+  --desk-settings-checkbox-accent: var(--desk-graphite-accent);
+  --desk-settings-danger-control-ink: var(--desk-graphite-model);
+  --desk-settings-danger-control-background: var(--desk-graphite-card);
+  --desk-settings-danger-control-border: transparent;
+  --desk-settings-danger-control-shadow: none;
+  --desk-settings-danger-control-hover-ink: var(--desk-graphite-primary-ink);
+  --desk-settings-danger-control-hover-background: var(--desk-graphite-model);
+  --desk-settings-danger-control-hover-border: transparent;
+  --desk-settings-danger-control-hover-shadow: none;
+  --desk-settings-pool-toolbar-background: var(--desk-graphite-inset);
+  --desk-settings-pool-toolbar-border: transparent;
+  --desk-settings-pool-toolbar-shadow: none;
+  --desk-settings-pool-chip-background: var(--desk-graphite-card);
+  --desk-settings-pool-chip-border: transparent;
+  --desk-settings-pool-chip-shadow: none;
+  --desk-settings-pool-activity-background: var(--desk-graphite-card);
+  --desk-settings-pool-activity-border: transparent;
+  --desk-settings-pool-activity-shadow: none;
+  --desk-settings-details-background: var(--desk-graphite-card);
+  --desk-settings-details-border: transparent;
+  --desk-settings-details-shadow: none;
+  --desk-settings-account-background: var(--desk-graphite-card);
+  --desk-settings-account-border: transparent;
+  --desk-settings-account-shadow: none;
+  --desk-settings-empty-background: var(--desk-graphite-inset);
+  --desk-settings-empty-border: transparent;
+  --desk-settings-empty-shadow: none;
+  --desk-settings-comfy-card-background: var(--desk-graphite-inset);
+  --desk-settings-comfy-card-border: transparent;
+  --desk-settings-comfy-card-shadow: none;
+  --desk-settings-comfy-card-hover-ink: var(--desk-graphite-ink);
+  --desk-settings-comfy-card-hover-background: var(--desk-graphite-inset-hover);
+  --desk-settings-comfy-card-hover-border: transparent;
+  --desk-settings-comfy-card-selected-background: var(--desk-graphite-card);
+  --desk-settings-comfy-card-selected-border: var(--desk-graphite-accent);
+  --desk-settings-comfy-card-selected-shadow: none;
+  --desk-settings-comfy-thumb-background: var(--desk-graphite-chip);
+  --desk-settings-comfy-divider: var(--desk-graphite-line);
+  --desk-settings-comfy-panel-background: var(--desk-graphite-card);
+  --desk-settings-comfy-panel-border: transparent;
+  --desk-settings-comfy-status-background: var(--desk-graphite-inset);
+  --desk-settings-info-background: var(--desk-graphite-card);
+  --desk-settings-info-border: transparent;
+  --desk-settings-info-shadow: var(--desk-graphite-popover-shadow);
+  --desk-settings-info-control-background: var(--desk-graphite-inset);
+  --desk-settings-info-control-border: transparent;
+  --desk-settings-info-control-shadow: none;
+  --desk-settings-info-summary-background: var(--desk-graphite-inset);
+  --desk-settings-info-summary-border: transparent;
+  --desk-settings-info-summary-shadow: none;
+  --desk-settings-info-section-background: var(--desk-graphite-inset);
+  --desk-settings-info-section-border: transparent;
+  --desk-settings-info-section-shadow: none;
+
+  /* Status bar: inset chips; success/warning/error keep their meaning as ink only. */
+  --desk-status-separator: var(--desk-graphite-line);
+  --desk-status-chip-ink: var(--desk-graphite-ink-2);
+  --desk-status-chip-background: var(--desk-graphite-inset);
+  --desk-status-chip-border: transparent;
+  --desk-status-chip-shadow: none;
+  --desk-status-checking-ink: var(--desk-graphite-muted);
+  --desk-status-ok-ink: var(--desk-graphite-accent);
+  --desk-status-ok-background: var(--desk-graphite-inset);
+  --desk-status-ok-border: transparent;
+  --desk-status-ok-shadow: none;
+  --desk-status-service-ink: var(--desk-graphite-ink);
+  --desk-status-service-background: var(--desk-graphite-inset);
+  --desk-status-service-border: transparent;
+  --desk-status-service-shadow: none;
+  --desk-status-service-underline: none;
+  --desk-status-live-dot: var(--desk-graphite-accent);
+  --desk-status-live-dot-halo: transparent;
+  --desk-status-live-dot-shadow: none;
+  --desk-status-feedback-background: var(--desk-graphite-inset);
+  --desk-status-feedback-border: transparent;
+  --desk-status-feedback-shadow: none;
+  --desk-status-feedback-hover-background: var(--desk-graphite-inset-hover);
+  --desk-status-feedback-hover-border: transparent;
+  --desk-status-stop-ink: var(--desk-graphite-model);
+  --desk-status-stop-background: var(--desk-graphite-inset);
+  --desk-status-stop-border: transparent;
+  --desk-status-stop-shadow: none;
+  --desk-status-stop-hover-ink: var(--desk-graphite-primary-ink);
+  --desk-status-stop-hover-background: var(--desk-graphite-model);
+  --desk-status-stop-hover-border: transparent;
+  --desk-status-stop-hover-shadow: none;
+  --desk-status-stop-active-shadow: none;
+  --desk-status-stop-icon-background: var(--desk-graphite-model);
+  --desk-status-warning-ink: var(--desk-status-warning-soft-ink);
+  --desk-status-warning-background: var(--desk-graphite-inset);
+  --desk-status-warning-border: transparent;
+  --desk-status-warning-shadow: none;
+  --desk-status-error-ink: var(--desk-status-error-soft-ink);
+  --desk-status-error-background: var(--desk-graphite-inset);
+  --desk-status-error-border: transparent;
+  --desk-status-error-shadow: none;
+  --desk-status-alert-dot-shadow: none;
+  --desk-status-tip-ink: var(--desk-graphite-ink);
+  --desk-status-tip-background: var(--desk-graphite-card);
+  --desk-status-tip-border: transparent;
+  --desk-status-tip-shadow: var(--desk-graphite-popover-shadow);
+  --desk-status-tip-arrow-background: var(--desk-graphite-card);
+  --desk-status-tip-title-ink: var(--desk-graphite-ink);
+  --desk-status-tip-muted-ink: var(--desk-graphite-muted);
+  --desk-status-tip-body-ink: var(--desk-graphite-ink);
+  --desk-status-tip-control-ink: var(--desk-graphite-ink-2);
+  --desk-status-tip-control-background: var(--desk-graphite-inset);
+  --desk-status-tip-control-border: transparent;
+  --desk-status-tip-control-shadow: none;
+  --desk-status-tip-card-background: var(--desk-graphite-inset);
+  --desk-status-tip-card-border: transparent;
+  --desk-status-tip-meta-background: var(--desk-graphite-inset);
+  --desk-status-tip-meta-border: transparent;
+  --desk-status-tip-raw-background: var(--desk-graphite-inset);
+  --desk-status-tip-raw-border: transparent;
+}
+
+/* Side panels: liquid dark paints these four directly at (0,3,1) and re-tints their
+   ink/accent/jewel variables, so graphite restates both here. */
+body.desk-app[data-desk-style="graphite"][data-theme] :is(.desk-rail, .desk-node-palette, .desk-history, .desk-zoom-controls) {
+  --desk-ink: var(--desk-graphite-ink);
+  --desk-muted: var(--desk-graphite-ink-2);
+  --desk-blue: var(--desk-graphite-ink);
+  --desk-blue-soft: var(--desk-graphite-inset-hover);
+  --desk-jewel: var(--desk-graphite-primary);
+  --desk-jewel-top: var(--desk-graphite-primary);
+  --desk-jewel-bottom: var(--desk-graphite-primary);
+  --desk-jewel-hover-top: var(--desk-graphite-primary-hover);
+  --desk-jewel-hover-bottom: var(--desk-graphite-primary-hover);
+  --desk-jewel-border: transparent;
+  --desk-jewel-hover-border: transparent;
+  --desk-jewel-shadow: transparent;
+  --desk-jewel-shadow-strong: transparent;
+}
+
+body.desk-app[data-desk-style="graphite"][data-theme] :is(.desk-rail, .desk-node-palette:not(.desk-node-context-menu), .desk-history:not(.is-collapsed), .desk-zoom-controls) {
+  background: var(--desk-graphite-card);
+  border-color: transparent;
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+/* History list: liquid paints the cards as white glass (light) and tinted slate (dark). */
+body.desk-app[data-desk-style="graphite"][data-theme] .desk-history-item {
+  background: var(--desk-graphite-inset);
+  border-color: transparent;
+  box-shadow: none;
+}
+
+body.desk-app[data-desk-style="graphite"][data-theme] .desk-history-item:hover {
+  background: var(--desk-graphite-inset-hover);
+  border-color: transparent;
+}
+
+body.desk-app[data-desk-style="graphite"][data-theme] .desk-history-item.is-selected {
+  background: var(--desk-graphite-inset-hover);
+  border-color: var(--desk-graphite-accent);
+}
+
+body.desk-app[data-desk-style="graphite"][data-theme] .desk-history-item__thumb {
+  background: var(--desk-graphite-chip);
+}
+
+body.desk-app[data-desk-style="graphite"][data-theme] :is(.desk-history__header strong, .desk-history-item strong) {
+  color: var(--desk-graphite-ink);
+}
+
+body.desk-app[data-desk-style="graphite"][data-theme] :is(.desk-history-empty, .desk-history-item span, .desk-history-item__meta) {
+  color: var(--desk-graphite-muted);
+}
+
+/* Canvas context and link menus: liquid dark paints these directly at (0,3,1). */
+body.desk-app[data-desk-style="graphite"][data-theme] .desk-node-context-menu {
+  color: var(--desk-canvas-menu-ink);
+  background: var(--desk-canvas-menu-background);
+  border-color: var(--desk-canvas-menu-border);
+  box-shadow: var(--desk-canvas-menu-shadow);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+body.desk-app[data-desk-style="graphite"][data-theme] .desk-node-context-menu__cap::before {
+  background: var(--desk-graphite-primary);
+}
+
+/* Liquid dark's `.desk-node-palette strong` would paint the cap title in panel ink. */
+body.desk-app[data-desk-style="graphite"][data-theme] .desk-node-context-menu__cap strong {
+  color: var(--desk-canvas-menu-cap-ink);
+}
+
+body.desk-app[data-desk-style="graphite"][data-theme] .desk-node-context-menu__cap span {
+  color: var(--desk-canvas-menu-cap-meta-ink);
+}
+
+body.desk-app[data-desk-style="graphite"][data-theme] .desk-node-context-menu__search {
+  background: var(--desk-canvas-menu-search-background);
+  border-color: transparent;
+}
+
+body.desk-app[data-desk-style="graphite"][data-theme] .desk-node-context-menu__search:focus-within {
+  border-color: var(--desk-graphite-accent);
+  box-shadow: none;
+}
+
+body.desk-app[data-desk-style="graphite"][data-theme] .desk-node-context-menu__search > svg {
+  stroke: var(--desk-graphite-muted);
+}
+
+body.desk-app[data-desk-style="graphite"][data-theme] :is(.desk-node-context-menu__search input, .desk-node-context-menu button[data-add-node] strong) {
+  color: var(--desk-canvas-menu-search-ink);
+}
+
+body.desk-app[data-desk-style="graphite"][data-theme] .desk-node-context-menu button[data-add-node]:is(:hover, :focus-visible) {
+  color: var(--desk-canvas-menu-item-hover-ink);
+  background: var(--desk-canvas-menu-item-hover-background);
+}
+
+body.desk-app[data-desk-style="graphite"][data-theme] .desk-node-context-menu .desk-node-palette__icon {
+  color: var(--desk-graphite-ink-2);
+}
+
+body.desk-app[data-desk-style="graphite"][data-theme] .desk-edge-menu {
+  color: var(--desk-canvas-menu-ink);
+  background: var(--desk-canvas-edge-menu-background);
+}
+
+body.desk-app[data-desk-style="graphite"][data-theme] .desk-edge-menu__delete {
+  color: var(--desk-canvas-edge-delete-ink);
+}
+
+body.desk-app[data-desk-style="graphite"][data-theme] .desk-edge-menu__delete:is(:hover, :focus-visible) {
+  color: var(--desk-canvas-edge-delete-hover-ink);
+  background: var(--desk-canvas-edge-delete-hover-background);
+}
+
+/* Frost behind chrome chips, keys and the settings sheet: every graphite surface is opaque. */
+body.desk-app[data-desk-style="graphite"][data-theme] :is(.desk-status-chip, .desk-status-stop, .desk-release__trigger, .desk-settings--workbench) {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+body.desk-app[data-desk-style="graphite"][data-theme] .desk-prompt-drawer__handle {
+  background: var(--desk-graphite-primary);
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+body.desk-app[data-desk-style="graphite"][data-theme] .desk-prompt-drawer__handle:hover {
+  background: var(--desk-graphite-primary-hover);
+  box-shadow: none;
+}
+
+body.desk-app[data-desk-style="graphite"][data-theme] .desk-prompt-drawer__handle::before,
+body.desk-app[data-desk-style="graphite"][data-theme] .desk-prompt-drawer__handle-eye {
+  background: var(--desk-graphite-primary-ink);
+  box-shadow: none;
+}
+
+/* Canvas-only control states. */
+body.desk-app[data-desk-style="graphite"] .desk-canvas {
   --desk-node-manual-send-disabled-ink: var(--desk-graphite-muted);
   --desk-node-manual-send-disabled-background: var(--desk-graphite-inset);
   --desk-node-manual-send-disabled-border: transparent;

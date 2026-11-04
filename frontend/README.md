@@ -291,7 +291,13 @@ bootstrap in `desktop.html`) and emits `desktop:theme-style-change`.
 `.desk-port-plates`, and cuts every generate node's notch with a mask on `::before`
 (`::after` is the notch-shaped selection ring; keep its node list in step with
 `NOTCHED_NODES`). It also flattens node controls, domain shells (text, audio) and
-media/file empty states.
+media/file empty states. The app chrome (title bar, rail, node palette, history,
+zoom/minimap, status bar, settings, release panel, context/link menus, tips) takes
+one shared token block at `body.desk-app[data-desk-style="graphite"][data-theme]`
+`(0,3,1)` that references only `--desk-graphite-*`; the few surfaces liquid dark
+paints directly at `(0,3,1)` (side panels, history cards, canvas menus) get
+explicit graphite rules one level above. Decorative pieces (theme toggle
+illustration, windchime bell, alert dots) keep their liquid look on purpose.
 Connection rendering passes optional endpoint rectangles through the host to both
 path styles. Classic curves deliberately ignore endpoint rectangles and always
 use a single cubic Bezier based only on endpoint positions and port normals,

@@ -271,3 +271,29 @@ test('pulling a link off a shared graphite plate detaches the grabbed link and k
   assert.match(connections, /syncLiveConnectionPlate\(svg, `\$\{sourcePlate\?\.path \|\| ''\}\$\{snapPlate\?\.path \|\| ''\}`\)/);
   assert.match(connections, /activeInteractionRef\.current\.fromAnchor,\n\s+activeInteractionRef\.current\.sourcePlate\n/);
 });
+
+test('app chrome uses one graphite token set and flat, unfrosted panels in both themes', () => {
+  const css = read('frontend/styles/desktop-graphite.css');
+  // Chrome tokens sit at (0,3,1) so they beat the liquid dark token blocks for either theme.
+  const chrome = css.slice(css.indexOf('body.desk-app[data-desk-style="graphite"][data-theme] {'));
+  assert.ok(chrome.length < css.length, 'chrome token block exists');
+  const block = chrome.slice(0, chrome.indexOf('\n}\n'));
+  [
+    '--desk-settings-panel-background',
+    '--desk-canvas-zoom-background',
+    '--desk-canvas-palette-background',
+    '--desk-canvas-menu-background',
+    '--desk-canvas-edge-menu-background',
+    '--desk-release-panel-background',
+    '--desk-status-tip-background',
+    '--desk-shell-titlebar-band-display',
+  ].forEach(token => assert.match(block, new RegExp(`${token}:`), `${token} is mapped for the chrome`));
+  assert.doesNotMatch(block, /rgba?\(|#[0-9a-f]{3,6}\b/i, 'chrome tokens only reference the graphite palette');
+
+  // Liquid dark paints the side panels and menus directly at (0,3,1); graphite restates them.
+  assert.match(css, /:is\(\.desk-rail, \.desk-node-palette:not\(\.desk-node-context-menu\), \.desk-history:not\(\.is-collapsed\), \.desk-zoom-controls\) \{[^}]*backdrop-filter: none;/);
+  assert.match(css, /\[data-theme\] \.desk-node-context-menu \{[^}]*box-shadow: var\(--desk-canvas-menu-shadow\);/);
+  assert.match(css, /\[data-theme\] \.desk-node-context-menu__cap strong \{\n  color: var\(--desk-canvas-menu-cap-ink\);/);
+  assert.match(css, /\[data-theme\] \.desk-history-item\.is-selected \{[^}]*border-color: var\(--desk-graphite-accent\);/);
+  assert.match(css, /:is\(\.desk-status-chip, \.desk-status-stop, \.desk-release__trigger, \.desk-settings--workbench\) \{[^}]*backdrop-filter: none;/);
+});
