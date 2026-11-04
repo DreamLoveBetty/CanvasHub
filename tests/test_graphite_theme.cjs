@@ -289,6 +289,8 @@ test('app chrome uses one graphite token set and flat, unfrosted panels in both 
     '--desk-shell-titlebar-band-display',
   ].forEach(token => assert.match(block, new RegExp(`${token}:`), `${token} is mapped for the chrome`));
   assert.doesNotMatch(block, /rgba?\(|#[0-9a-f]{3,6}\b/i, 'chrome tokens only reference the graphite palette');
+  // The sheet shares the canvas colour; dark loses its shadow, so a hairline frames it.
+  assert.match(block, /--desk-settings-panel-border: var\(--desk-graphite-line\);/);
 
   // Liquid dark paints the side panels and menus directly at (0,3,1); graphite restates them.
   assert.match(css, /:is\(\.desk-rail, \.desk-node-palette:not\(\.desk-node-context-menu\), \.desk-history:not\(\.is-collapsed\), \.desk-zoom-controls\) \{[^}]*backdrop-filter: none;/);
@@ -296,4 +298,15 @@ test('app chrome uses one graphite token set and flat, unfrosted panels in both 
   assert.match(css, /\[data-theme\] \.desk-node-context-menu__cap strong \{\n  color: var\(--desk-canvas-menu-cap-ink\);/);
   assert.match(css, /\[data-theme\] \.desk-history-item\.is-selected \{[^}]*border-color: var\(--desk-graphite-accent\);/);
   assert.match(css, /:is\(\.desk-status-chip, \.desk-status-stop, \.desk-release__trigger, \.desk-settings--workbench\) \{[^}]*backdrop-filter: none;/);
+});
+
+test('graphite swaps the default Ambient coral for its accent but keeps a custom accent', () => {
+  const css = read('frontend/styles/desktop-graphite.css');
+  // Beats the upstream `--amb-highlight-color: coral` on #deskApp[data-control-material="ambient"];
+  // a custom accent is written inline on <body> and so still wins.
+  assert.match(css, /#deskApp\[data-control-material="ambient"\]\[data-desk-style="graphite"\] \{\n  --amb-highlight-color: var\(--desk-graphite-accent\);/);
+  assert.match(css, /\[data-desk-style="graphite"\]\[data-theme="dark"\] :is\(\.desk-node, \.desk-settings\) :is\(\.desk-switch > span, input\[type="checkbox"\]:not\(\.desk-switch > input\)\)::after \{\n  --amb-albedo: var\(--desk-graphite-ink-2\);/);
+  assert.match(css, /\.desk-select-option\.is-selected:not\(:disabled\) \{\n  --desk-select-led: var\(--desk-graphite-accent\);/);
+  const material = read('frontend/scripts/desktop-control-material.js');
+  assert.match(material, /if \(prefs\.accent\) body\.style\.setProperty\('--amb-highlight-color', prefs\.accent\);/);
 });

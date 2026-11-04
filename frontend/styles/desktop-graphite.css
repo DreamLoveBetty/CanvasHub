@@ -425,8 +425,10 @@ body.desk-app[data-desk-style="graphite"][data-theme] {
   --desk-settings-muted-ink: var(--desk-graphite-ink-2);
   --desk-settings-accent-ink: var(--desk-graphite-ink);
   --desk-settings-version-ink: var(--desk-graphite-muted);
+  /* The sheet is canvas-coloured over the canvas; in dark its shadow is lost on the
+     near-black page, so a hairline keeps the frame readable in both themes. */
   --desk-settings-panel-background: var(--desk-graphite-canvas);
-  --desk-settings-panel-border: transparent;
+  --desk-settings-panel-border: var(--desk-graphite-line);
   --desk-settings-panel-shadow: var(--desk-graphite-popover-shadow);
   --desk-settings-column-background: var(--desk-graphite-card);
   --desk-settings-column-border: transparent;
@@ -974,4 +976,27 @@ body.desk-app[data-desk-style="graphite"] .desk-canvas .desk-node--audio .desk-a
 
 body.desk-app[data-desk-style="graphite"] .desk-canvas .desk-node--audio .desk-audio__wheel {
   box-shadow: none;
+}
+
+/* Ambient control material (Settings › System) under graphite. The upstream accent
+   (coral) only applies while the user has not picked one; desktop-control-material.js
+   writes a custom accent inline on <body>, which still wins over this default. */
+#deskApp[data-control-material="ambient"][data-desk-style="graphite"] {
+  --amb-highlight-color: var(--desk-graphite-accent);
+}
+
+/* Liquid pins the dark switch pill to coral so it shows in the near-black recess;
+   graphite keeps it neutral and leaves the on state to the accent LED beside it. */
+#deskApp[data-control-material="ambient"][data-desk-style="graphite"][data-theme="dark"] :is(.desk-node, .desk-settings) :is(.desk-switch > span, input[type="checkbox"]:not(.desk-switch > input))::after {
+  --amb-albedo: var(--desk-graphite-ink-2);
+}
+
+/* Selected dropdown option LED: liquid dark hard-codes coral and its glow. */
+body.desk-app[data-desk-style="graphite"][data-theme="dark"] .desk-select-menu:not([data-select-variant="image-group-role"]) .desk-select-option.is-selected:not(:disabled) {
+  --desk-select-led: var(--desk-graphite-accent);
+  --desk-select-led-glow: var(--desk-graphite-accent-soft);
+}
+
+body.desk-app[data-desk-style="graphite"][data-theme="dark"] .desk-select-menu:not([data-select-variant="image-group-role"]) .desk-select-option.is-selected:not(:disabled)::before {
+  box-shadow: 0 0 0 2px var(--desk-select-led-glow);
 }
