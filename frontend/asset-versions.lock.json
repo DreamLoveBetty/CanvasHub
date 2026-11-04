@@ -43,8 +43,8 @@
     "sha256": "cf4e726aab65091d8df1f23dc648a477f3c46f3c04b284789807216e13be2761"
    },
    "scripts/desktop-canvas-connections.js": {
-    "v": "20261105-graphite4",
-    "sha256": "7c2b67be2e7f726997520910547a7a3bfbb5102f8409ccc36ce4decf1482dcf5"
+    "v": "20261105-graphite6",
+    "sha256": "b7b34d5060b42e12287624c6d0d3a34baa795f22578c799f06534f8ddad9a891"
    },
    "scripts/desktop-canvas-cyimg.js": {
     "v": "20261030-ui-polish1",
@@ -119,12 +119,12 @@
     "sha256": "2bd0a1c434fae79cf3297fc9be0f7b1a5ad36873284eb64789b01db6b70f2a32"
    },
    "scripts/desktop-canvas-port-interaction.js": {
-    "v": "20261105-graphite5",
-    "sha256": "c0443c566867b45b57c61bfd2b4941472a96d332b832d47a8cd1740b8762760b"
+    "v": "20261105-graphite6",
+    "sha256": "aa36419aacac78fd427140ef69ed7afc3a934f61b73f19c7df90126e6d882f16"
    },
    "scripts/desktop-canvas-port-plates.js": {
-    "v": "20261105-graphite4",
-    "sha256": "996f50669b14fafda236f502aa88786112bed02d0e80c6920671937fe7dc36be"
+    "v": "20261105-graphite6",
+    "sha256": "d36c64a1f7c941367ce055e5557aa28adf69221200f3cd41941768341b925076"
    },
    "scripts/desktop-canvas-pose.js": {
     "v": "20261022-pose-evidence1",
@@ -547,8 +547,8 @@
     "sha256": "72be900aec8cd304718e517c4da85d5cec8d083d4fc3de05c597c17a65417fdb"
    },
    "styles/desktop-graphite.css": {
-    "v": "20261105-graphite5",
-    "sha256": "d50498d4a5653dad40f396c519616d1f4f737e27d1d9e26fcb638956231b1bd6"
+    "v": "20261105-graphite12",
+    "sha256": "d9469907921306b3af495963ea50427d68431e3f2af70bea33884276b051dc6b"
    },
    "styles/desktop-image-group-geometry.css": {
     "v": "20261101-image-group-item-delete4",

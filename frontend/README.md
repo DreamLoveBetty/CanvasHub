@@ -272,11 +272,15 @@ The original canvas helper signatures remain as thin forwarding functions.
 Geometry helpers must not access DOM, application state, timers, storage or APIs.
 
 `scripts/desktop-canvas-port-plates.js` is the pure graphite-style port layout
-(`DesktopCanvasPortPlates.layout(edges, geometryOf, notchOf)`): facing sides per
-link, one merged plate per node side with evenly spaced ports that lean toward
-their partners, and the plate/neck SVG path. The host injects it into
-`desktop-canvas-connections.js` as `portPlates`; connections only call it while
-`<body data-desk-style="graphite">` and own every DOM write.
+(`DesktopCanvasPortPlates.layout(edges, geometryOf, notchOf, motion, now)`): facing
+sides per link, one merged plate per node side with evenly spaced ports that lean
+toward their partners, the plate/neck SVG path, and per-node plate pointer targets.
+An optional `createMotion()` state eases ports along a side and grows/shrinks plates
+when a link switches sides (`settled` says when to stop animating). `NOTCHED_NODES` /
+`notchOf()` name the generate nodes cut around their key. The host injects it into
+`desktop-canvas-port-interaction.js` and `desktop-canvas-connections.js` as
+`portPlates`; connections only call it while `<body data-desk-style="graphite">`, own
+every DOM write and move a linked input port (the detach target) over its plate.
 
 Theme style (Settings › Appearance › 主题风格) is a second axis next to light/dark:
 `desktop-preferences.js` stores `themeStyle` (`liquid` default, `graphite`), projects
@@ -284,10 +288,10 @@ Theme style (Settings › Appearance › 主题风格) is a second axis next to 
 bootstrap in `desktop.html`) and emits `desktop:theme-style-change`.
 `styles/desktop-graphite.css` loads last; it overrides tokens with one block per theme
 (light `(0,2,1)`, dark `(0,3,1)`, same token set), paints the 8px pipes and
-`.desk-port-plates`, and cuts the model-input node's notch with a mask on `::before`
-(`::after` is the notch-shaped selection ring). Phase 1 restyles canvas, node shells,
-links and the generate key; inner controls and domain node backgrounds keep the
-liquid look.
+`.desk-port-plates`, and cuts every generate node's notch with a mask on `::before`
+(`::after` is the notch-shaped selection ring; keep its node list in step with
+`NOTCHED_NODES`). It also flattens node controls, domain shells (text, audio) and
+media/file empty states.
 Connection rendering passes optional endpoint rectangles through the host to both
 path styles. Classic curves deliberately ignore endpoint rectangles and always
 use a single cubic Bezier based only on endpoint positions and port normals,

@@ -479,10 +479,49 @@
 
     // Graphite style: links leave each node from merged port plates on the facing sides.
     const isGraphite = () => document.body?.dataset.deskStyle === 'graphite' && Boolean(portPlates);
-    const graphiteNotch = nodeId => (getNodeElement(nodeId)?.classList.contains('desk-node--input') ? portPlates.INPUT_NOTCH : null);
+    const graphiteNotch = nodeId => portPlates.notchOf(getNodeElement(nodeId));
+    let graphiteMotion = portPlates?.createMotion() || null;
+    let graphiteFrame = 0;
     function graphitePortLayout(edges) {
-    if (!isGraphite()) return null;
-    return portPlates.layout(edges, getNodeGeometry, graphiteNotch);
+    if (!isGraphite()) {
+      if (graphiteMotion?.time) graphiteMotion = portPlates.createMotion();
+      syncGraphitePortHits(null);
+      return null;
+    }
+    const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    const layout = portPlates.layout(edges, getNodeGeometry, graphiteNotch,
+      reduceMotion ? null : graphiteMotion, performance.now());
+    syncGraphitePortHits(layout.ports);
+    if (!layout.settled && !graphiteFrame) {
+      graphiteFrame = requestAnimationFrame(() => {
+        graphiteFrame = 0;
+        refreshGraphiteGeometry();
+      });
+    }
+    return layout;
+  }
+
+    // A settled input port is the pointer target for pulling a link off; in graphite it
+    // covers the plate that carries most of the node's incoming links.
+    function syncGraphitePortHits(ports) {
+    document.querySelectorAll('.desk-port[data-plate-hit]').forEach(port => {
+      if (ports?.has(port.dataset.nodeId)) return;
+      delete port.dataset.plateHit;
+      ['x', 'y', 'w', 'h'].forEach(key => port.style.removeProperty(`--desk-graphite-port-${key}`));
+    });
+    ports?.forEach((list, nodeId) => {
+      const port = getNodeElement(nodeId)?.querySelector('.desk-port[data-semantic-port][data-port="in"]');
+      if (!port) return;
+      const plate = list.reduce((best, item) => (item.incoming > (best?.incoming || 0) ? item : best), null);
+      if (!plate) {
+        delete port.dataset.plateHit;
+        return;
+      }
+      port.dataset.plateHit = plate.side;
+      Object.entries(plate.hit).forEach(([key, value]) => {
+        port.style.setProperty(`--desk-graphite-port-${key}`, `${value.toFixed(1)}px`);
+      });
+    });
   }
 
     // While dragging a link onto a target, its facing side grows a plate and the
@@ -579,22 +618,23 @@
     return edgeVisuals.get(edgeId)?.paths.find(path => path.classList.contains('desk-link-path')) || null;
   }
 
-    function refreshNodeConnectionGeometry(nodeId) {
     // Graphite ports slide and switch sides with the partner node, so the plates of
     // every node change together: re-layout once, then write only changed paths.
-    const graphite = (nodeEdgeVisuals.get(nodeId) || []).length
-      ? graphitePortLayout(DesktopState.state.canvas.edges || [])
-      : null;
-    if (graphite) {
-      edgeVisuals.forEach(({ edge, paths }) => {
-        const route = graphite.routes.get(edge.id);
-        if (!route || !paths.some(path => path.isConnected)) return;
-        const d = graphiteEdgePath(route, edge);
-        paths.forEach(path => { if (path.getAttribute('d') !== d) path.setAttribute('d', d); });
-      });
-      document.querySelector('.desk-link-layer [data-port-plates]')?.setAttribute('d', graphite.plates);
-      return;
-    }
+    function refreshGraphiteGeometry() {
+    const graphite = graphitePortLayout(DesktopState.state.canvas.edges || []);
+    if (!graphite) return false;
+    edgeVisuals.forEach(({ edge, paths }) => {
+      const route = graphite.routes.get(edge.id);
+      if (!route || !paths.some(path => path.isConnected)) return;
+      const d = graphiteEdgePath(route, edge);
+      paths.forEach(path => { if (path.getAttribute('d') !== d) path.setAttribute('d', d); });
+    });
+    document.querySelector('.desk-link-layer [data-port-plates]')?.setAttribute('d', graphite.plates);
+    return true;
+  }
+
+    function refreshNodeConnectionGeometry(nodeId) {
+    if ((nodeEdgeVisuals.get(nodeId) || []).length && isGraphite() && refreshGraphiteGeometry()) return;
     const geometries = new Map();
     const geometry = id => {
       if (!geometries.has(id)) geometries.set(id, getNodeGeometry(id));

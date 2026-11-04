@@ -12,8 +12,15 @@
   const STRAIGHT_SNAP = 36;   // a near-level single port snaps level so its pipe runs straight
   const MIN_HORIZONTAL_GAP = 60; // room for two 30px connection leads
   const OPPOSITE = Object.freeze({ right: 'left', left: 'right', top: 'bottom', bottom: 'top' });
-  // Bottom-right cut-out around the model-input node's 72px generate key.
-  const INPUT_NOTCH = Object.freeze({ w: 88, h: 88, r: 12 });
+  const EASE_SLIDE_MS = 90;   // time constant for ports sliding along a side
+  const EASE_GROW_MS = 110;   // time constant for a plate growing on / shrinking off a side
+  const SETTLED_PX = 0.2;
+  // Bottom-right cut-out around a generate node's 72px key; the graphite stylesheet
+  // cuts the same nodes (keep NOTCHED_NODES in step with desktop-graphite.css).
+  const NOTCH = Object.freeze({ w: 88, h: 88, r: 12 });
+  const NOTCHED_NODES = '.desk-node--input, .desk-node--krea2, .desk-node--moss, .desk-node--qwen21, '
+    + '.desk-node--topaz, .desk-node--pose, .desk-node--topaz-video, .desk-node--video-control';
+  const notchOf = element => (element?.matches?.(NOTCHED_NODES) ? NOTCH : null);
 
   const isHorizontal = side => side === 'left' || side === 'right';
   const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
@@ -70,11 +77,25 @@
   }
 
   // Small concave fillet where a pipe leaves the plate face.
-  function neckPath(frame, along) {
-    const out = PLATE.depth, r = NECK, w = PIPE_HALF, f = frame.at;
+  function neckPath(frame, along, amount = 1) {
+    const out = PLATE.depth * amount, r = NECK * amount, w = PIPE_HALF, f = frame.at;
     return `M${point(f(out - 2, along - w - r))} L${point(f(out, along - w - r))}${arc(frame, r, 0, out + r, along - w)}`
       + ` L${point(f(out + r, along + w))}${arc(frame, r, 0, out, along + w + r)}`
       + ` L${point(f(out - 2, along + w + r))} Z`;
+  }
+
+  // Pointer target over a plate spanning [from, to], in the node's local px.
+  function plateHit(rect, side, from, to) {
+    const inside = 4, outside = PLATE.depth + 6;
+    if (side === 'right') return { x: rect.w - inside, y: from - rect.y, w: inside + outside, h: to - from };
+    if (side === 'left') return { x: -outside, y: from - rect.y, w: inside + outside, h: to - from };
+    if (side === 'bottom') return { x: from - rect.x, y: rect.h - inside, w: to - from, h: inside + outside };
+    return { x: from - rect.x, y: -outside, w: to - from, h: inside + outside };
+  }
+
+  /** Easing state for layout(); keep one per link layer and drop it to snap. */
+  function createMotion() {
+    return { time: 0, ends: new Map(), groups: new Map() };
   }
 
   /**
@@ -95,9 +116,12 @@
    * @param {Array<{id:string, from:string, to:string}>} edges
    * @param {(nodeId:string) => {x:number,y:number,width:number,height:number}} geometryOf
    * @param {(nodeId:string) => ({w:number,h:number,r:number}|null)} [notchOf]
-   * @returns {{ routes: Map<string,{from:{x,y},to:{x,y},fromSide:string,toSide:string}>, plates: string }}
+   * @param {ReturnType<createMotion>|null} [motion] eases ports and plates toward this layout
+   * @param {number} [now] timestamp in ms for `motion`
+   * @returns {{ routes: Map<string,{from:{x,y},to:{x,y},fromSide:string,toSide:string}>, plates: string,
+   *   ports: Map<string, Array<{side:string, incoming:number, hit:{x,y,w,h}}>>, settled: boolean }}
    */
-  function layout(edges = [], geometryOf, notchOf = () => null) {
+  function layout(edges = [], geometryOf, notchOf = () => null, motion = null, now = 0) {
     const rects = new Map();
     const rect = id => {
       if (!rects.has(id)) rects.set(id, rectOf(geometryOf(id)));
@@ -118,8 +142,8 @@
         const r = edgeRange(rect(nodeId), side, notch(nodeId));
         return clamp(isHorizontal(side) ? other.y + other.h / 2 : other.x + other.w / 2, r.min, r.max);
       };
-      const from = { nodeId: edge.from, side: fromSide, desired: toward(edge.from, fromSide, b) };
-      const to = { nodeId: edge.to, side: toSide, desired: toward(edge.to, toSide, a) };
+      const from = { key: `${edge.id}|out`, nodeId: edge.from, side: fromSide, desired: toward(edge.from, fromSide, b) };
+      const to = { key: `${edge.id}|in`, nodeId: edge.to, side: toSide, desired: toward(edge.to, toSide, a), incoming: true };
       ends.push(from, to);
       links.push({ edge, from, to });
     });
@@ -163,23 +187,88 @@
       });
     });
 
+    const settled = motion ? ease(motion, now, ends, groups, rect) : true;
     let plates = '';
+    const ports = new Map();
+    const half = PIPE_HALF + PLATE.pad;
     groups.forEach(group => {
-      const frame = frameOf(rect(group.nodeId), group.side);
+      const r = rect(group.nodeId);
+      const frame = frameOf(r, group.side);
       const values = group.ends.map(end => end.desired);
-      plates += platePath(frame, Math.min(...values) - PIPE_HALF - PLATE.pad, Math.max(...values) + PIPE_HALF + PLATE.pad);
-      values.forEach(value => { plates += neckPath(frame, value); });
+      const from = Math.min(...values) - half, to = Math.max(...values) + half;
+      plates += platePath(frame, from, to, group.amount ?? 1);
+      values.forEach(value => { plates += neckPath(frame, value, group.amount ?? 1); });
+      if (!ports.has(group.nodeId)) ports.set(group.nodeId, []);
+      ports.get(group.nodeId).push({
+        side: group.side,
+        incoming: group.ends.filter(end => end.incoming).length,
+        hit: plateHit(r, group.side, from, to),
+      });
+    });
+    (motion?.groups || new Map()).forEach((state, key) => {
+      if (groups.has(key) || !rects.has(state.nodeId)) return;
+      const r = rect(state.nodeId), base = isHorizontal(state.side) ? r.y : r.x;
+      plates += platePath(frameOf(r, state.side), base + state.from, base + state.to, state.amount);
     });
     const routes = new Map();
     const face = end => {
-      const [x, y] = frameOf(rect(end.nodeId), end.side).at(PLATE.depth, end.desired);
+      const [x, y] = frameOf(rect(end.nodeId), end.side).at(PLATE.depth * (groupOf(end).amount ?? 1), end.desired);
       return { x, y };
     };
     links.forEach(({ edge, from, to }) => {
       routes.set(edge.id, { from: face(from), to: face(to), fromSide: from.side, toSide: to.side });
     });
-    return { routes, plates };
+    return { routes, plates, ports, settled };
   }
 
-  window.DesktopCanvasPortPlates = Object.freeze({ PLATE, PORT_GAP, PIPE_HALF, INPUT_NOTCH, facingSides, edgeRange, edgePlate, layout });
+  // Moves `ends` (port positions) and `groups` (plate amounts) part of the way from the
+  // previous frame toward this layout. Positions ease in node-local offsets, so a plate
+  // never trails behind its own node. Returns true once nothing is still moving.
+  function ease(motion, now, ends, groups, rect) {
+    const first = !motion.time;
+    const dt = first ? Infinity : Math.max(0, now - motion.time);
+    motion.time = now || 1;
+    const step = ms => 1 - Math.exp(-dt / ms);
+    let settled = true;
+    const origin = end => (isHorizontal(end.side) ? rect(end.nodeId).y : rect(end.nodeId).x);
+    const liveEnds = new Set();
+    ends.forEach(end => {
+      const local = end.desired - origin(end);
+      const prev = motion.ends.get(end.key);
+      let next = local;
+      if (prev && prev.side === end.side) next = prev.local + (local - prev.local) * step(EASE_SLIDE_MS);
+      if (Math.abs(next - local) < SETTLED_PX) next = local;
+      else settled = false;
+      motion.ends.set(end.key, { side: end.side, local: next });
+      liveEnds.add(end.key);
+      end.desired = next + origin(end);
+    });
+    motion.ends.forEach((_, key) => { if (!liveEnds.has(key)) motion.ends.delete(key); });
+
+    const half = PIPE_HALF + PLATE.pad;
+    groups.forEach((group, key) => {
+      const prev = motion.groups.get(key);
+      let amount = first ? 1 : (prev?.amount ?? 0) + (1 - (prev?.amount ?? 0)) * step(EASE_GROW_MS);
+      if (amount > 0.995) amount = 1;
+      else settled = false;
+      group.amount = amount;
+      const r = rect(group.nodeId), base = isHorizontal(group.side) ? r.y : r.x;
+      const values = group.ends.map(end => end.desired - base);
+      motion.groups.set(key, {
+        nodeId: group.nodeId, side: group.side, amount,
+        from: Math.min(...values) - half, to: Math.max(...values) + half,
+      });
+    });
+    motion.groups.forEach((state, key) => {
+      if (groups.has(key)) return;
+      state.amount *= 1 - step(EASE_GROW_MS);
+      if (state.amount < 0.02) motion.groups.delete(key);
+      else settled = false;
+    });
+    return settled;
+  }
+
+  window.DesktopCanvasPortPlates = Object.freeze({
+    PLATE, PORT_GAP, PIPE_HALF, NOTCH, NOTCHED_NODES, notchOf, facingSides, edgeRange, edgePlate, createMotion, layout,
+  });
 })();

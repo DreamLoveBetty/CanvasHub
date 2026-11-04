@@ -81,10 +81,10 @@ test('a single port at the end of its range levels the partner cluster instead o
 test('a transient plate grows with the swell, stays clear of corners and the notch, and ends on its face', () => {
   const P = loadPlates();
   const rect = { x: 0, y: 0, w: 720, h: 460 };
-  const full = P.edgePlate(rect, 'right', 2000, 1, P.INPUT_NOTCH);
-  const range = P.edgeRange(rect, 'right', P.INPUT_NOTCH);
+  const full = P.edgePlate(rect, 'right', 2000, 1, P.NOTCH);
+  const range = P.edgeRange(rect, 'right', P.NOTCH);
   assert.equal(full.along, range.max);
-  assert.ok(full.along < 460 - P.INPUT_NOTCH.h);
+  assert.ok(full.along < 460 - P.NOTCH.h);
   assert.deepEqual({ ...full.face }, { x: 720 + P.PLATE.depth, y: range.max });
   assert.equal(P.edgePlate(rect, 'top', -50).along, P.edgeRange(rect, 'top').min);
   assert.equal(P.edgePlate(rect, 'left', 200, 0).path, '');
@@ -102,8 +102,8 @@ test('graphite hover swell, drag preview and notch ring are wired through the in
   assert.equal(canvas.match(/portPlates: window\.DesktopCanvasPortPlates/g).length, 2);
   assert.match(canvas, /'desktop:theme-style-change', refreshFloatingSwellStyle/);
   const css = read('frontend/styles/desktop-graphite.css');
-  // The input node is borderless in graphite, so only the notch-shaped ring marks selection.
-  assert.match(css, /\.desk-node--input \{\n  --desk-node-border-width: 0px;/);
+  // Notched nodes are borderless in graphite, so only the notch-shaped ring marks selection.
+  assert.match(css, /\.desk-node--video-control\) \{\n  --desk-node-border-width: 0px;/);
   assert.match(css, /\.desk-node-swell-border__paint \{\n  fill: var\(--desk-graphite-card\);/);
   assert.match(css, /\.desk-link-path:is\(\.is-preview, \.is-pending\) \{\n  stroke: var\(--desk-graphite-card\);\n  stroke-width: 8;/);
 });
@@ -181,4 +181,81 @@ test('desktop page loads the graphite assets in order and wires the settings car
   const css = read('frontend/styles/desktop-graphite.css');
   assert.doesNotMatch(css, /!important/);
   assert.doesNotMatch(css.replace(/\/\*[\s\S]*?\*\//g, ''), /body\.desk-app(?!\[data-desk-style="graphite"\])[\s.:[]/);
+});
+
+test('every generate node with a 72px key is notched, in the stylesheet and the plate layout alike', () => {
+  const P = loadPlates();
+  const classes = P.NOTCHED_NODES.split(',').map(s => s.trim());
+  const css = read('frontend/styles/desktop-graphite.css');
+  const list = `:is(${classes.join(', ')})`;
+  assert.ok(css.includes(`${list}::before {`), 'card layer is cut on every notched node');
+  assert.ok(css.includes(`${list}.is-selected::after {`), 'selection ring follows the notch on every notched node');
+  assert.match(css, /::before \{[^}]*display: block;/);
+  const element = cls => ({ matches: selector => selector.split(',').map(s => s.trim()).includes(cls) });
+  assert.equal(P.notchOf(element('.desk-node--pose')), P.NOTCH);
+  assert.equal(P.notchOf(element('.desk-node--comfy')), null);
+  assert.equal(P.notchOf(null), null);
+});
+
+test('ports ease along their side and plates grow in / shrink out when a link switches sides', () => {
+  const P = loadPlates();
+  const nodes = { a: box(0, 0, 300, 400), b: box(600, -300) };
+  const geometry = id => nodes[id];
+  const edges = [{ id: 'e', from: 'a', to: 'b' }];
+  const motion = P.createMotion();
+  const still = P.layout(edges, geometry, undefined, null);
+  const first = P.layout(edges, geometry, undefined, motion, 1000);
+  assert.equal(first.settled, true, 'the first layout snaps');
+  assert.deepEqual(first.routes.get('e'), still.routes.get('e'));
+
+  nodes.b = box(600, 300);
+  const target = P.layout(edges, geometry).routes.get('e').from.y;
+  const start = first.routes.get('e').from.y;
+  const mid = P.layout(edges, geometry, undefined, motion, 1016);
+  assert.equal(mid.settled, false);
+  const y = mid.routes.get('e').from.y;
+  assert.ok(y > start && y < target, `slides part of the way (${start} → ${y} → ${target})`);
+  const done = P.layout(edges, geometry, undefined, motion, 3000);
+  assert.equal(done.settled, true);
+  assert.equal(done.routes.get('e').from.y, target);
+
+  // b moves below a: the link leaves from the bottom; the new plate grows, the old shrinks.
+  nodes.b = box(0, 700);
+  const switched = P.layout(edges, geometry, undefined, motion, 3016);
+  assert.equal(switched.routes.get('e').fromSide, 'bottom');
+  assert.ok(switched.routes.get('e').from.y < 400 + P.PLATE.depth, 'growing plate face is still near the card');
+  const plates = d => (d.match(/M/g) || []).length;
+  assert.ok(plates(switched.plates) > plates(P.layout(edges, geometry).plates), 'old plate is still shrinking');
+  const later = P.layout(edges, geometry, undefined, motion, 6000);
+  assert.equal(later.settled, true);
+  assert.equal(later.plates, P.layout(edges, geometry).plates);
+});
+
+test('each linked node reports a pointer target over its plate', () => {
+  const P = loadPlates();
+  const nodes = { a: box(0, 0), b: box(600, 0) };
+  const { ports } = P.layout([{ id: 'e', from: 'a', to: 'b' }], id => nodes[id]);
+  const [target] = ports.get('b');
+  assert.equal(target.side, 'left');
+  assert.equal(target.incoming, 1);
+  assert.ok(target.hit.x < 0 && target.hit.x + target.hit.w > 0, 'straddles the card edge');
+  assert.ok(target.hit.w >= P.PLATE.depth);
+  assert.equal(target.hit.h, 2 * (P.PIPE_HALF + P.PLATE.pad));
+  assert.equal(ports.get('a')[0].incoming, 0);
+
+  const css = read('frontend/styles/desktop-graphite.css');
+  assert.match(css, /\.desk-port\[data-semantic-port\]\[data-plate-hit\] \{[^}]*left: var\(--desk-graphite-port-x\);/);
+  const connections = read('frontend/scripts/desktop-canvas-connections.js');
+  assert.match(connections, /syncGraphitePortHits\(layout\.ports\)/);
+  assert.match(connections, /prefers-reduced-motion: reduce/);
+});
+
+test('domain shells and empty states are flat graphite surfaces in both themes', () => {
+  const css = read('frontend/styles/desktop-graphite.css');
+  // Liquid dark paints every non-image shell at (0,4,1); graphite shell rules sit above it.
+  assert.match(css, /\[data-desk-style="graphite"\] \.desk-canvas \.desk-node--text \{\n  background: var\(--desk-node-text-background\);/);
+  assert.match(css, /\[data-desk-style="graphite"\] \.desk-canvas \.desk-node--audio \{[^}]*--desk-audio-button: var\(--desk-graphite-inset\);/);
+  ['--desk-node-image-placeholder-background', '--desk-video-preview-background', '--desk-file-card-background'].forEach(token => {
+    assert.equal(css.split(`${token}:`).length - 1, 2, `${token} is set for light and dark`);
+  });
 });

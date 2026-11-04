@@ -243,7 +243,7 @@
     const side = floatingSwellSide(located);
     const rect = { x: state.geometryX, y: state.geometryY, w: state.geometryWidth, h: state.geometryHeight };
     const along = side === 'left' || side === 'right' ? located.y : located.x;
-    const notch = state.nodeElement.classList.contains('desk-node--input') ? portPlates.INPUT_NOTCH : null;
+    const notch = portPlates.notchOf(state.nodeElement);
     return {
       path: portPlates.edgePlate(rect, side, along, amplitude, notch).path,
       face: portPlates.edgePlate(rect, side, along, 1, notch).face,

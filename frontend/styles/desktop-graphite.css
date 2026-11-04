@@ -2,7 +2,7 @@
    Active only while <body data-desk-style="graphite">; liquid stays the default.
    Flat card-coloured nodes, 8px card-coloured pipes and one merged port plate per
    node side (drawn by desktop-canvas-port-plates.js into the link layer), and a
-   notch around the model-input node's 72px generate key.
+   notch around each generate node's 72px key.
    Loaded after every other desktop stylesheet: the token blocks below use the same
    token set in both themes, light at (0,2,1) and dark at (0,3,1), so they replace
    desktop-tokens.css values without raising specificity elsewhere. */
@@ -11,6 +11,11 @@ body.desk-app[data-desk-style="graphite"] {
   --desk-graphite-canvas: #e6e6e2;
   --desk-graphite-card: #fafaf8;
   --desk-graphite-inset: #eeeeea;
+  --desk-graphite-inset-hover: #e7e7e3;
+  --desk-graphite-chip: #e5e5e1;
+  --desk-graphite-ink-2: #5d5d59;
+  --desk-graphite-model: #d24f2f;
+  --desk-graphite-popover-shadow: 0 1px 0 rgba(20, 20, 18, 0.04), 0 12px 28px -12px rgba(20, 20, 18, 0.28);
   --desk-graphite-ink: #262624;
   --desk-graphite-muted: #92928c;
   --desk-graphite-dot: rgba(38, 38, 36, 0.13);
@@ -46,12 +51,56 @@ body.desk-app[data-desk-style="graphite"] {
   --desk-node-text-background: var(--desk-graphite-card);
   --desk-node-text-border: transparent;
   --desk-node-text-shadow: none;
+
+  /* Media and file empty states: card wells, inset chips, no frost or glow. */
+  --desk-node-image-placeholder-ink: var(--desk-graphite-muted);
+  --desk-node-image-placeholder-title-ink: var(--desk-graphite-ink);
+  --desk-node-image-placeholder-background: var(--desk-graphite-card);
+  --desk-node-image-placeholder-border: transparent;
+  --desk-node-image-placeholder-shadow: none;
+  --desk-node-image-upload-ink: var(--desk-graphite-ink);
+  --desk-node-image-upload-accent: var(--desk-graphite-ink);
+  --desk-node-image-upload-background: var(--desk-graphite-inset);
+  --desk-node-image-upload-border: transparent;
+  --desk-node-image-upload-shadow: none;
+  --desk-video-preview-background: var(--desk-graphite-card);
+  --desk-video-preview-shadow: none;
+  --desk-video-preview-ink: var(--desk-graphite-ink);
+  --desk-video-preview-muted-ink: var(--desk-graphite-muted);
+  --desk-video-preview-strong-ink: var(--desk-graphite-ink);
+  --desk-video-preview-subtle-ink: var(--desk-graphite-muted);
+  --desk-video-preview-chip-background: var(--desk-graphite-inset);
+  --desk-video-preview-chip-border: transparent;
+  --desk-file-accent-ink: var(--desk-graphite-ink-2);
+  --desk-file-emphasis-ink: var(--desk-graphite-ink);
+  --desk-file-accent-soft-paint: var(--desk-graphite-inset-hover);
+  --desk-file-accent-border: transparent;
+  --desk-file-icon-background: var(--desk-graphite-inset);
+  --desk-file-icon-border: transparent;
+  --desk-file-icon-shadow: none;
+  --desk-file-progress-background: var(--desk-graphite-inset);
+  --desk-file-progress-border: transparent;
+  --desk-file-progress-shadow: none;
+  --desk-file-card-background: var(--desk-graphite-inset);
+  --desk-file-card-border: transparent;
+  --desk-file-card-shadow: none;
+  --desk-file-empty-icon-halo: none;
+  --desk-file-empty-back-fill: var(--desk-graphite-chip);
+  --desk-file-empty-back-stroke: var(--desk-graphite-muted);
+  --desk-file-empty-front-fill: var(--desk-graphite-card);
+  --desk-file-type-background: var(--desk-graphite-card);
+  --desk-file-type-border: transparent;
 }
 
 body.desk-app[data-desk-style="graphite"][data-theme="dark"] {
   --desk-graphite-canvas: #232323;
   --desk-graphite-card: #383838;
   --desk-graphite-inset: #2f2f2f;
+  --desk-graphite-inset-hover: #343434;
+  --desk-graphite-chip: #444444;
+  --desk-graphite-ink-2: #b4b4b4;
+  --desk-graphite-model: #ee6a4b;
+  --desk-graphite-popover-shadow: 0 1px 0 rgba(0, 0, 0, 0.2), 0 14px 30px -14px rgba(0, 0, 0, 0.6);
   --desk-graphite-ink: #ececec;
   --desk-graphite-muted: #8b8b8b;
   --desk-graphite-dot: rgba(236, 236, 236, 0.08);
@@ -87,6 +136,45 @@ body.desk-app[data-desk-style="graphite"][data-theme="dark"] {
   --desk-node-text-background: var(--desk-graphite-card);
   --desk-node-text-border: transparent;
   --desk-node-text-shadow: none;
+
+  /* Media and file empty states: card wells, inset chips, no frost or glow. */
+  --desk-node-image-placeholder-ink: var(--desk-graphite-muted);
+  --desk-node-image-placeholder-title-ink: var(--desk-graphite-ink);
+  --desk-node-image-placeholder-background: var(--desk-graphite-card);
+  --desk-node-image-placeholder-border: transparent;
+  --desk-node-image-placeholder-shadow: none;
+  --desk-node-image-upload-ink: var(--desk-graphite-ink);
+  --desk-node-image-upload-accent: var(--desk-graphite-ink);
+  --desk-node-image-upload-background: var(--desk-graphite-inset);
+  --desk-node-image-upload-border: transparent;
+  --desk-node-image-upload-shadow: none;
+  --desk-video-preview-background: var(--desk-graphite-card);
+  --desk-video-preview-shadow: none;
+  --desk-video-preview-ink: var(--desk-graphite-ink);
+  --desk-video-preview-muted-ink: var(--desk-graphite-muted);
+  --desk-video-preview-strong-ink: var(--desk-graphite-ink);
+  --desk-video-preview-subtle-ink: var(--desk-graphite-muted);
+  --desk-video-preview-chip-background: var(--desk-graphite-inset);
+  --desk-video-preview-chip-border: transparent;
+  --desk-file-accent-ink: var(--desk-graphite-ink-2);
+  --desk-file-emphasis-ink: var(--desk-graphite-ink);
+  --desk-file-accent-soft-paint: var(--desk-graphite-inset-hover);
+  --desk-file-accent-border: transparent;
+  --desk-file-icon-background: var(--desk-graphite-inset);
+  --desk-file-icon-border: transparent;
+  --desk-file-icon-shadow: none;
+  --desk-file-progress-background: var(--desk-graphite-inset);
+  --desk-file-progress-border: transparent;
+  --desk-file-progress-shadow: none;
+  --desk-file-card-background: var(--desk-graphite-inset);
+  --desk-file-card-border: transparent;
+  --desk-file-card-shadow: none;
+  --desk-file-empty-icon-halo: none;
+  --desk-file-empty-back-fill: var(--desk-graphite-chip);
+  --desk-file-empty-back-stroke: var(--desk-graphite-muted);
+  --desk-file-empty-front-fill: var(--desk-graphite-card);
+  --desk-file-type-background: var(--desk-graphite-card);
+  --desk-file-type-border: transparent;
 }
 
 /* Canvas generate key: solid ink key instead of the glossy jewel (canvas only). */
@@ -103,6 +191,101 @@ body.desk-app[data-desk-style="graphite"] .desk-canvas {
   --desk-action-primary-silk-position-active: 0 0;
   --desk-action-primary-shadow: transparent;
   --desk-action-primary-shadow-strong: transparent;
+
+  /* Fields and menus: flat inset rows, no frost or edge light. */
+  --desk-color-control-ink: var(--desk-graphite-ink);
+  --desk-color-control-bg: var(--desk-graphite-inset);
+  --desk-color-control-bg-hover: var(--desk-graphite-inset-hover);
+  --desk-color-control-bg-active: var(--desk-graphite-inset-hover);
+  --desk-color-control-bg-disabled: var(--desk-graphite-inset);
+  --desk-color-control-border: transparent;
+  --desk-color-control-border-hover: transparent;
+  --desk-color-control-border-active: transparent;
+  --desk-color-control-border-disabled: transparent;
+  --desk-shadow-button: none;
+  --desk-color-focus-border: var(--desk-graphite-accent);
+  --desk-shadow-focus: 0 0 0 2px var(--desk-graphite-accent-soft);
+  --desk-color-accent: var(--desk-graphite-ink);
+  --desk-color-accent-soft: var(--desk-graphite-inset-hover);
+  --desk-color-popover-bg: var(--desk-graphite-card);
+  --desk-color-popover-border: transparent;
+  --desk-node-manual-send-disabled-ink: var(--desk-graphite-muted);
+  --desk-node-manual-send-disabled-background: var(--desk-graphite-inset);
+  --desk-node-manual-send-disabled-border: transparent;
+  --desk-node-manual-send-disabled-shadow: none;
+}
+
+/* Node controls whose liquid paint is not token-driven. Scoped to canvas nodes. */
+body.desk-app[data-desk-style="graphite"] .desk-node .desk-segment {
+  background: var(--desk-graphite-inset);
+  border-color: transparent;
+  box-shadow: none;
+}
+
+body.desk-app[data-desk-style="graphite"] .desk-node .desk-segment button:not(.is-active) {
+  color: var(--desk-graphite-ink-2);
+}
+
+body.desk-app[data-desk-style="graphite"] .desk-node .desk-segment button:hover:not(.is-active):not(:disabled) {
+  color: var(--desk-graphite-ink);
+  background: transparent;
+}
+
+body.desk-app[data-desk-style="graphite"] .desk-node .desk-segment button.is-active:not(:disabled) {
+  color: var(--desk-graphite-ink);
+  background: var(--desk-graphite-card);
+  border-color: transparent;
+  box-shadow: none;
+}
+
+body.desk-app[data-desk-style="graphite"] .desk-node :is(.desk-status-pill, .desk-pill-row > span) {
+  color: var(--desk-graphite-ink-2);
+  background: var(--desk-graphite-inset);
+  border-color: transparent;
+  box-shadow: none;
+}
+
+body.desk-app[data-desk-style="graphite"] .desk-canvas .desk-node .desk-node-delete {
+  color: var(--desk-graphite-muted);
+  background: var(--desk-graphite-inset);
+  border-color: transparent;
+  box-shadow: none;
+}
+
+body.desk-app[data-desk-style="graphite"] .desk-canvas .desk-node .desk-node-delete:hover:not(:disabled) {
+  color: var(--desk-graphite-model);
+  background: var(--desk-graphite-inset-hover);
+  border-color: transparent;
+  box-shadow: none;
+}
+
+body.desk-app[data-desk-style="graphite"] .desk-node .desk-upload {
+  color: var(--desk-graphite-muted);
+  background: var(--desk-graphite-inset);
+  border-color: transparent;
+}
+
+body.desk-app[data-desk-style="graphite"] .desk-node .desk-switch {
+  color: var(--desk-graphite-ink-2);
+}
+
+body.desk-app[data-desk-style="graphite"] .desk-node .desk-switch span {
+  background: var(--desk-graphite-chip);
+  border-color: transparent;
+  box-shadow: none;
+}
+
+body.desk-app[data-desk-style="graphite"] .desk-node .desk-switch span::after {
+  background: var(--desk-graphite-card);
+  box-shadow: none;
+}
+
+body.desk-app[data-desk-style="graphite"] .desk-node .desk-switch input:checked + span {
+  background: var(--desk-graphite-accent);
+}
+
+body.desk-app[data-desk-style="graphite"] .desk-node .desk-select-menu {
+  box-shadow: var(--desk-graphite-popover-shadow);
 }
 
 /* Pipes: card-coloured, scale with zoom, square ends hidden under the port plates. */
@@ -156,21 +339,34 @@ body.desk-app[data-desk-style="graphite"] .desk-node--edge-handles > .desk-port[
   box-shadow: none;
 }
 
-/* Model input node: the card is painted by ::before and cut around the generate
-   key (a 100px corner piece: 88px notch + 12px fillets); ::after is the same shape
-   1.5px outset as the selection ring. The node has no border, so no rectangular
+/* A linked input port covers its plate (placed by the connections controller), so a
+   link is pulled off where it visibly lands. */
+body.desk-app[data-desk-style="graphite"] .desk-node--edge-handles > .desk-port[data-semantic-port][data-plate-hit] {
+  top: var(--desk-graphite-port-y);
+  left: var(--desk-graphite-port-x);
+  right: auto;
+  width: var(--desk-graphite-port-w);
+  height: var(--desk-graphite-port-h);
+  border-radius: 6px;
+  transform: none;
+}
+
+/* Generate nodes (keep this list in step with NOTCHED_NODES in
+   desktop-canvas-port-plates.js): the card is painted by ::before and cut around the
+   generate key (a 100px corner piece: 88px notch + 12px fillets); ::after is the same
+   shape 1.5px outset as the selection ring. The node has no border, so no rectangular
    frame can show through the notch. Pieces are fixed px so radii never stretch, and
    the two bands overlap the corner piece by 1px: abutting edges would each lose
    half a pixel to anti-aliasing at fractional zoom and leave hairline seams. */
-body.desk-app[data-desk-style="graphite"] .desk-node--input {
+body.desk-app[data-desk-style="graphite"] :is(.desk-node--input, .desk-node--krea2, .desk-node--moss, .desk-node--qwen21, .desk-node--topaz, .desk-node--pose, .desk-node--topaz-video, .desk-node--video-control) {
   --desk-node-border-width: 0px;
   --desk-node-glass-background: transparent;
   --desk-node-sheen-background: var(--desk-graphite-card);
   --desk-node-selected-sheen-background: var(--desk-graphite-card);
 }
 
-body.desk-app[data-desk-style="graphite"] .desk-node--input::before,
-body.desk-app[data-desk-style="graphite"] .desk-node--input.is-selected::after {
+body.desk-app[data-desk-style="graphite"] :is(.desk-node--input, .desk-node--krea2, .desk-node--moss, .desk-node--qwen21, .desk-node--topaz, .desk-node--pose, .desk-node--topaz-video, .desk-node--video-control)::before,
+body.desk-app[data-desk-style="graphite"] :is(.desk-node--input, .desk-node--krea2, .desk-node--moss, .desk-node--qwen21, .desk-node--topaz, .desk-node--pose, .desk-node--topaz-video, .desk-node--video-control).is-selected::after {
   -webkit-mask:
     linear-gradient(#000 0 0) left top / 100% calc(100% - var(--desk-graphite-notch-box) + 1px) no-repeat,
     linear-gradient(#000 0 0) left bottom / calc(100% - var(--desk-graphite-notch-box) + 1px) var(--desk-graphite-notch-box) no-repeat,
@@ -181,13 +377,15 @@ body.desk-app[data-desk-style="graphite"] .desk-node--input.is-selected::after {
     var(--desk-graphite-notch-corner) right bottom / var(--desk-graphite-notch-box) var(--desk-graphite-notch-box) no-repeat;
 }
 
-body.desk-app[data-desk-style="graphite"] .desk-node--input::before {
+body.desk-app[data-desk-style="graphite"] :is(.desk-node--input, .desk-node--krea2, .desk-node--moss, .desk-node--qwen21, .desk-node--topaz, .desk-node--pose, .desk-node--topaz-video, .desk-node--video-control)::before {
   --desk-graphite-notch-box: 100px;
   --desk-graphite-notch-corner: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M0 0H100A12 12 0 0 1 88 12H24A12 12 0 0 0 12 24V88A12 12 0 0 1 0 100Z'/%3E%3C/svg%3E");
+  /* Topaz, pose and the video nodes hide their liquid sheen layer. */
+  display: block;
   inset: 0;
 }
 
-body.desk-app[data-desk-style="graphite"] .desk-node--input.is-selected::after {
+body.desk-app[data-desk-style="graphite"] :is(.desk-node--input, .desk-node--krea2, .desk-node--moss, .desk-node--qwen21, .desk-node--topaz, .desk-node--pose, .desk-node--topaz-video, .desk-node--video-control).is-selected::after {
   --desk-graphite-notch-box: 101.5px;
   --desk-graphite-notch-corner: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 101.5 101.5'%3E%3Cpath d='M0 0H101.5A13.5 13.5 0 0 1 88 13.5H24A10.5 10.5 0 0 0 13.5 24V88A13.5 13.5 0 0 1 0 101.5Z'/%3E%3C/svg%3E");
   position: absolute;
@@ -199,9 +397,48 @@ body.desk-app[data-desk-style="graphite"] .desk-node--input.is-selected::after {
   background: var(--desk-graphite-accent);
 }
 
-/* The key sits in the notch, 8px from the node's right and bottom edges
-   (the footer is inset by the node's 14px padding). */
-body.desk-app[data-desk-style="graphite"] .desk-node--input .desk-input-footer .desk-action-row {
+/* Nodes without .desk-glass paint their own shell (and liquid dark paints a gradient
+   on every non-image node at (0,4,1)); the notched ones leave it to ::before. */
+body.desk-app[data-desk-style="graphite"] .desk-canvas .desk-node:is(.desk-node--pose, .desk-node--topaz-video, .desk-node--video-control) {
+  background: transparent;
+}
+
+/* The key sits in the notch, 8px from the node's right and bottom edges: the
+   absolute action row is inset by the node's 14px padding, the flow-footer keys
+   by 16px. */
+body.desk-app[data-desk-style="graphite"] :is(.desk-node--input, .desk-node--krea2, .desk-node--moss, .desk-node--qwen21) .desk-input-footer .desk-action-row {
   right: -6px;
   bottom: -6px;
+}
+
+body.desk-app[data-desk-style="graphite"] :is(.desk-node--topaz, .desk-node--pose, .desk-node--topaz-video, .desk-node--video-control) .desk-generation-action {
+  translate: 8px 8px;
+}
+
+/* Domain shells without .desk-glass: flat cards in both themes. */
+body.desk-app[data-desk-style="graphite"] .desk-canvas .desk-node--text {
+  background: var(--desk-node-text-background);
+}
+
+/* Audio: flat card face, inset keys and a matte display instead of the hardware gloss. */
+body.desk-app[data-desk-style="graphite"] .desk-canvas .desk-node--audio {
+  --desk-audio-face: var(--desk-graphite-card);
+  --desk-audio-ink: var(--desk-graphite-ink);
+  --desk-audio-muted: var(--desk-graphite-muted);
+  --desk-audio-line: transparent;
+  --desk-audio-highlight: transparent;
+  --desk-audio-button: var(--desk-graphite-inset);
+  --desk-audio-button-shadow: none;
+  --desk-audio-head: var(--desk-graphite-model);
+  background: var(--desk-audio-face);
+}
+
+body.desk-app[data-desk-style="graphite"] .desk-canvas .desk-node--audio .desk-audio__display {
+  background: #1c1c1b;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+body.desk-app[data-desk-style="graphite"] .desk-canvas .desk-node--audio .desk-audio__wheel {
+  box-shadow: none;
 }
