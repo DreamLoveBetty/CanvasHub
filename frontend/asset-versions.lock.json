@@ -43,8 +43,8 @@
     "sha256": "cf4e726aab65091d8df1f23dc648a477f3c46f3c04b284789807216e13be2761"
    },
    "scripts/desktop-canvas-connections.js": {
-    "v": "20261105-graphite6",
-    "sha256": "b7b34d5060b42e12287624c6d0d3a34baa795f22578c799f06534f8ddad9a891"
+    "v": "20261105-graphite7",
+    "sha256": "19adc712efc6c96b2884e8b9641efb1d8d7a965cffad838e46403ee24958417f"
    },
    "scripts/desktop-canvas-cyimg.js": {
     "v": "20261030-ui-polish1",

@@ -259,3 +259,15 @@ test('domain shells and empty states are flat graphite surfaces in both themes',
     assert.equal(css.split(`${token}:`).length - 1, 2, `${token} is set for light and dark`);
   });
 });
+
+test('pulling a link off a shared graphite plate detaches the grabbed link and keeps its source plate', () => {
+  const connections = read('frontend/scripts/desktop-canvas-connections.js');
+  const detach = connections.slice(connections.indexOf('function startConnectionDetachDrag'));
+  // The grabbed link is the incoming route end nearest the pointer, not simply the newest link.
+  assert.match(detach, /graphiteGrabbedIncomingEdge\(nodeId, pointer\) \|\| getDetachableIncomingEdge\(nodeId\)/);
+  assert.match(connections, /Math\.hypot\(route\.to\.x - point\.x, route\.to\.y - point\.y\)/);
+  // The preview leaves from the source plate face and draws that plate while dragging.
+  assert.match(detach, /fromAnchor: graphiteSourcePlate\(sourcePlate\)\?\.face \|\| getAnchor/);
+  assert.match(connections, /syncLiveConnectionPlate\(svg, `\$\{sourcePlate\?\.path \|\| ''\}\$\{snapPlate\?\.path \|\| ''\}`\)/);
+  assert.match(connections, /activeInteractionRef\.current\.fromAnchor,\n\s+activeInteractionRef\.current\.sourcePlate\n/);
+});

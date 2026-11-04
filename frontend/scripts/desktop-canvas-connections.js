@@ -482,16 +482,19 @@
     const graphiteNotch = nodeId => portPlates.notchOf(getNodeElement(nodeId));
     let graphiteMotion = portPlates?.createMotion() || null;
     let graphiteFrame = 0;
+    let graphiteRoutes = new Map();
     function graphitePortLayout(edges) {
     if (!isGraphite()) {
       if (graphiteMotion?.time) graphiteMotion = portPlates.createMotion();
       syncGraphitePortHits(null);
+      graphiteRoutes = new Map();
       return null;
     }
     const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
     const layout = portPlates.layout(edges, getNodeGeometry, graphiteNotch,
       reduceMotion ? null : graphiteMotion, performance.now());
     syncGraphitePortHits(layout.ports);
+    graphiteRoutes = layout.routes;
     if (!layout.settled && !graphiteFrame) {
       graphiteFrame = requestAnimationFrame(() => {
         graphiteFrame = 0;
@@ -531,6 +534,14 @@
     const g = getNodeGeometry(snap.nodeId);
     const along = side === 'left' || side === 'right' ? from.y : from.x;
     return portPlates.edgePlate({ x: g.x, y: g.y, w: g.width, h: g.height }, side, along, 1, graphiteNotch(snap.nodeId));
+  }
+
+    // A link pulled off its target keeps leaving from the plate it had on its source.
+    function graphiteSourcePlate(sourcePlate) {
+    if (!isGraphite() || !sourcePlate) return null;
+    const g = getNodeGeometry(sourcePlate.nodeId);
+    return portPlates.edgePlate({ x: g.x, y: g.y, w: g.width, h: g.height }, sourcePlate.side, sourcePlate.along, 1,
+      graphiteNotch(sourcePlate.nodeId));
   }
 
     function graphiteEdgePath(route, edge) {
@@ -586,7 +597,8 @@
         activeInteractionRef.current.fromNodeId,
         activeInteractionRef.current.pointer,
         activeInteractionRef.current.fromSide,
-        activeInteractionRef.current.fromAnchor
+        activeInteractionRef.current.fromAnchor,
+        activeInteractionRef.current.sourcePlate
       );
     }
     if (edgeMenuElRef.current?.classList.contains('is-open')) requestAnimationFrame(() => positionEdgeMenu());
@@ -745,7 +757,8 @@
         ...(snap ? { toGeometry: getNodeGeometry(snap.nodeId) } : {})
       });
       ensureLiveConnectionPreviewPath(svg)?.setAttribute('d', d);
-      syncLiveConnectionPlate(svg, snapPlate?.path || '');
+      const sourcePlate = graphiteSourcePlate(preview.sourcePlate);
+      syncLiveConnectionPlate(svg, `${sourcePlate?.path || ''}${snapPlate?.path || ''}`);
     }
   }
 
@@ -780,14 +793,15 @@
     document.querySelectorAll('.desk-link-layer :is([data-live-connection-preview], [data-live-connection-plate])').forEach(path => path.remove());
   }
 
-    function renderConnectionPreview(fromNodeId, pointer, fromSide = 'right', fromAnchor = null) {
+    function renderConnectionPreview(fromNodeId, pointer, fromSide = 'right', fromAnchor = null, sourcePlate = null) {
     const svg = document.querySelector('.desk-link-layer');
     if (!svg) return;
     pendingConnectionPreview = {
       fromNodeId,
       pointer: { x: Number(pointer?.x) || 0, y: Number(pointer?.y) || 0 },
       fromSide,
-      fromAnchor: fromAnchor ? { x: Number(fromAnchor.x) || 0, y: Number(fromAnchor.y) || 0 } : null
+      fromAnchor: fromAnchor ? { x: Number(fromAnchor.x) || 0, y: Number(fromAnchor.y) || 0 } : null,
+      sourcePlate
     };
     scheduleConnectionPreviewFrame();
   }
@@ -979,6 +993,20 @@
     return removed;
   }
 
+    // Graphite: of the links landing on this node, the one whose plate port is nearest
+    // the pointer, so a shared plate detaches the link that was grabbed.
+    function graphiteGrabbedIncomingEdge(toNodeId, point) {
+    if (!isGraphite() || !point) return null;
+    let best = null;
+    (DesktopState.state.canvas.edges || []).forEach(edge => {
+      const route = graphiteRoutes.get(edge.id);
+      if (edge.to !== toNodeId || !route || !DesktopState.state.canvas.nodes[edge.from]) return;
+      const distance = Math.hypot(route.to.x - point.x, route.to.y - point.y);
+      if (!best || distance < best.distance) best = { edge, distance };
+    });
+    return best?.edge || null;
+  }
+
     function getDetachableIncomingEdge(toNodeId) {
     return [...(DesktopState.state.canvas.edges || [])]
       .reverse()
@@ -1114,14 +1142,21 @@
     const nodeId = button.dataset.nodeId;
     const port = button.dataset.port;
     if (port !== 'in') return;
-    const edge = getDetachableIncomingEdge(nodeId);
+    const pointer = screenToWorld(event.clientX, event.clientY);
+    const edge = graphiteGrabbedIncomingEdge(nodeId, pointer) || getDetachableIncomingEdge(nodeId);
     if (!edge) return;
     event.preventDefault();
     event.stopPropagation();
+    const route = isGraphite() ? graphiteRoutes.get(edge.id) : null;
+    const sourcePlate = route ? {
+      nodeId: edge.from,
+      side: route.fromSide,
+      along: route.fromSide === 'left' || route.fromSide === 'right' ? route.from.y : route.from.x
+    } : null;
     removeEdgesById([edge.id], { quiet: true });
     hideContextMenu();
     clearConnectionDragVisuals();
-    const sides = resolveConnectionSides(edge.from, edge.to);
+    const sides = route || resolveConnectionSides(edge.from, edge.to);
     const sourcePort = getNodeElement(edge.from)?.querySelector?.(`.desk-port[data-port="out"][data-port-side="${sides.fromSide}"]`)
       || getNodeElement(edge.from)?.querySelector?.('.desk-port[data-port="out"]');
     sourcePort?.classList.add('is-connecting');
@@ -1130,13 +1165,15 @@
       type: 'connect',
       fromNodeId: edge.from,
       fromSide: sides.fromSide,
-      fromAnchor: getAnchor(edge.from, sides.fromSide),
+      fromAnchor: graphiteSourcePlate(sourcePlate)?.face || getAnchor(edge.from, sides.fromSide),
+      sourcePlate,
       detachedEdge: edge,
       reconnecting: true,
-      pointer: screenToWorld(event.clientX, event.clientY)
+      pointer
     };
     markCompatibleConnectionTargets(edge.from);
-    renderConnectionPreview(edge.from, activeInteractionRef.current.pointer, activeInteractionRef.current.fromSide, activeInteractionRef.current.fromAnchor);
+    renderConnectionPreview(edge.from, pointer, activeInteractionRef.current.fromSide,
+      activeInteractionRef.current.fromAnchor, sourcePlate);
     DesktopResults.showTransientMessage('连接已拉开，拖到其它输入端点可重连，松开空白处则解除。');
   }
 
