@@ -666,13 +666,15 @@ body.desk-app[data-theme="dark"] .desk-theme-toggle__icon--moon {
   position: fixed;
   z-index: var(--desk-layer-menu);
   display: grid;
-  gap: 4px;
+  gap: 2px;
   max-width: 320px;
   min-width: 132px;
-  padding: 6px;
+  padding: 4px;
   overflow: auto;
+  /* Set from the trigger on open: a body-level menu would otherwise inherit 16px. */
+  font-size: var(--desk-select-menu-font-size, var(--desk-font-size-caption));
   border: 1px solid rgba(67, 86, 106, 0.16);
-  border-radius: 10px;
+  border-radius: var(--desk-radius-popover);
   backdrop-filter: blur(20px) saturate(1.15);
 }
 
@@ -695,8 +697,8 @@ body.desk-app[data-theme="dark"] .desk-theme-toggle__icon--moon {
 .desk-select-option,
 .desk-select-group-label {
   min-width: 0;
-  padding: 0 10px;
-  border-radius: 8px;
+  padding: 0 8px;
+  border-radius: var(--desk-radius-control);
 }
 
 .desk-select-group-label {
@@ -711,6 +713,9 @@ body.desk-app[data-theme="dark"] .desk-theme-toggle__icon--moon {
 .desk-select-option {
   display: block;
   width: 100%;
+  min-height: 24px;
+  padding-block: 5px;
+  line-height: 14px;
   text-align: left;
   background: transparent;
   border: 0;
@@ -1596,14 +1601,14 @@ body.desk-app[data-theme="dark"]::after {
 }
 
 .desk-comfy-parameter-panel__head > span {
-  font-size: 9px;
+  font-size: var(--desk-font-size-caption);
   font-weight: 880;
 }
 
 .desk-comfy-parameter-panel__head small,
 .desk-comfy-parameter-group header small {
   color: var(--desk-muted);
-  font-size: 8px;
+  font-size: var(--desk-font-size-micro);
   font-weight: 720;
 }
 
@@ -1621,7 +1626,7 @@ body.desk-app[data-theme="dark"]::after {
   min-width: 0;
   overflow: hidden;
   color: var(--desk-muted);
-  font-size: 8px;
+  font-size: var(--desk-font-size-micro);
   font-weight: 820;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1677,7 +1682,7 @@ body.desk-app[data-theme="dark"]::after {
 .desk-comfy-parameter-field .desk-select-trigger {
   min-height: 26px;
   padding: 0 7px;
-  font-size: 9px;
+  font-size: var(--desk-font-size-caption);
   border-radius: 7px;
 }
 
@@ -1692,10 +1697,23 @@ body.desk-app[data-theme="dark"]::after {
 .desk-comfy-parameter-bindings span {
   padding: 2px 6px;
   color: var(--desk-muted);
-  font-size: 7px;
+  font-size: var(--desk-font-size-micro);
   font-weight: 720;
   background: rgba(8, 79, 189, 0.05);
   border-radius: 999px;
+}
+
+.desk-comfy-default-prompt {
+  color: var(--desk-muted);
+  font-size: var(--desk-font-size-micro);
+  line-height: 1.45;
+  background: rgba(8, 79, 189, 0.05);
+}
+
+.desk-comfy-tag-warnings {
+  color: var(--desk-status-warning-soft-ink);
+  font-size: var(--desk-font-size-micro);
+  line-height: 1.45;
 }
 
 
@@ -2720,6 +2738,7 @@ body.desk-app[data-theme="dark"] .desk-image-editor__canvas-wrap {
   background: transparent;
   border: 0;
   border-radius: 7px;
+  font-size: var(--desk-font-size-label);
   font-weight: 750;
 }
 
@@ -2770,7 +2789,7 @@ body.desk-app[data-theme="dark"] .desk-image-editor__canvas-wrap {
 }
 
 
-.desk-param-grid span,
+.desk-param-grid span:not(.desk-select-value),
 .desk-panel-title {
   color: var(--desk-muted);
   font-size: 11px;
@@ -2791,7 +2810,7 @@ body.desk-app[data-theme="dark"] .desk-image-editor__canvas-wrap {
   gap: 6px;
 }
 
-.desk-prompt-mode span {
+.desk-prompt-mode span:not(.desk-select-value) {
   color: var(--desk-muted);
   font-size: 11px;
   font-weight: 750;
@@ -4151,26 +4170,14 @@ body.desk-history-collapsed .desk-gallery {
 }
 
 .desk-settings__actions svg {
-  height: 12px;
+  width: 14px;
+  height: 14px;
   fill: none;
   overflow: visible;
   stroke: currentColor;
   stroke-linecap: round;
   stroke-linejoin: round;
   stroke-width: 2;
-  transform: translateY(0.25px);
-}
-
-
-.desk-settings-info-trigger span {
-  display: grid;
-  place-items: center;
-  width: 13px;
-  height: 13px;
-  font-weight: 950;
-  border: 1.5px solid currentColor;
-  border-radius: 999px;
-  transform: translateY(0.25px);
 }
 
 
@@ -4349,7 +4356,7 @@ body.desk-history-collapsed .desk-gallery {
 
 
 
-.desk-settings-secret-field__label span {
+.desk-settings-secret-field > span {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -4471,34 +4478,6 @@ body.desk-history-collapsed .desk-gallery {
 
 
 
-.desk-settings-details summary {
-  display: flex;
-  align-items: center;
-  padding: 0 8px;
-  cursor: pointer;
-  list-style: none;
-}
-
-.desk-settings-details summary::after {
-  content: "›";
-  margin-left: auto;
-  font-size: 15px;
-  font-weight: 760;
-  transform: rotate(90deg);
-}
-
-
-.desk-settings-details summary span {
-  font-weight: 850;
-}
-
-.desk-settings-details summary em {
-  overflow: hidden;
-  min-width: 0;
-  font-style: normal;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
 
 
 
@@ -10407,7 +10386,6 @@ body.desk-app[data-theme="dark"] .desk-settings-dot {
 
 body.desk-app[data-theme="dark"] .desk-settings-path,
 body.desk-app[data-theme="dark"] .desk-settings-pool-toolbar,
-body.desk-app[data-theme="dark"] .desk-settings-details,
 body.desk-app[data-theme="dark"] .desk-settings-account,
 body.desk-app[data-theme="dark"] .desk-settings-empty {
   background: rgba(28, 34, 36, 0.58);

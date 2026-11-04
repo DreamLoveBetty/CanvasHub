@@ -31,7 +31,7 @@ class SettingsControlStyleTests(unittest.TestCase):
         match = re.search(r"body\.desk-app\[data-theme\] \.desk-settings :is\(\s*\.desk-segment button,([^}]+)\}", self.geometry)
         self.assertIsNotNone(match)
         block = match[1]
-        for selector in (".desk-button", ".desk-video-runtime-mode button", ".desk-settings-form__actions button",
+        for selector in (".desk-button", ".desk-settings-form__actions button",
                          ".desk-settings-account__actions button", ".desk-qwen21-tools__inspection > button",
                          ".desk-krea2-tools__model > button", ".desk-qwen21-tools__progress > button"):
             with self.subTest(selector=selector):
@@ -73,8 +73,7 @@ class SettingsControlStyleTests(unittest.TestCase):
     def test_segments_use_inset_paint_not_extra_height_for_the_track(self):
         match = re.search(r"body\.desk-app\[data-theme\] \.desk-settings :is\(\s*\.desk-segment,([^}]+)\}", self.geometry)
         self.assertIsNotNone(match)
-        for selector in (".desk-settings-canvas-interaction__segment", ".desk-video-runtime-mode"):
-            self.assertIn(selector, match[1])
+        self.assertIn(".desk-settings-canvas-interaction__segment", match[1])
         for declaration in ("padding: 0;", "border-width: 0;", "box-sizing: border-box;", "gap: var(--desk-space-1);"):
             self.assertIn(declaration, match[1])
         self.assertNotIn("height:", match[1], "do not clip wrapped labels or multi-row controls")
@@ -154,18 +153,9 @@ class SettingsControlStyleTests(unittest.TestCase):
                             "align-items: center;", "min-height: var(--desk-settings-control-height);"):
             self.assertIn(declaration, match[2])
 
-    def test_secret_clear_has_reserved_trailing_space_not_an_overlaid_input(self):
-        root = re.search(r"\.desk-settings \.desk-settings-secret-field:has\(> input\)\s*\{([^}]+)\}", self.geometry)[1]
-        self.assertIn("position: relative;", root)
-        reserve = re.search(r"\.desk-settings-secret-field:has\(> input\):has\(\.desk-settings-secret-clear\)\s*\{([^}]+)\}", self.geometry)[1]
-        self.assertIn("padding-inline-end: 42px;", reserve)
-        command = re.search(r"\.desk-settings-secret-field:has\(> input\) \.desk-settings-secret-clear\s*\{([^}]+)\}", self.geometry)[1]
-        for declaration in ("position: absolute;", "inset-inline-end: 0;", "width: 36px;",
-                            "height: var(--desk-settings-control-height);"):
-            self.assertIn(declaration, command)
-        self.assertIn(".desk-settings-secret-clear:is(.is-loading, .is-done)", self.geometry)
-        self.assertIn("padding-inline-end: 70px;", self.geometry)
-        self.assertRegex(self.geometry, r"\.desk-settings-secret-clear:is\(\.is-loading, \.is-done\)\s*\{\s*width: 64px;")
+    def test_secret_clear_lives_outside_the_field_and_cannot_be_clipped(self):
+        self.assertNotIn(".desk-settings-secret-field:has(> input):has(", self.geometry)
+        self.assertNotIn("secret-field__label", self.geometry)
         self.assertRegex(self.geometry, r"\.desk-settings-secret-clear\s*\{[^}]+white-space: nowrap;")
         self.assertNotIn("display: contents", self.geometry)
         self.assertIn(".desk-settings .desk-settings-secret-clear:active:not(:disabled)", self.controls)
@@ -176,18 +166,11 @@ class SettingsControlStyleTests(unittest.TestCase):
         heading = re.search(r"\.desk-settings-card h3\s*\{([^}]+)\}", self.geometry)[1]
         self.assertIn("font-size: 12px;", heading)
         self.assertIn("font-weight: 900;", heading)
-        labels = re.search(r"\.desk-settings-form :is\(label > span, \.desk-settings-secret-field__label > span\)\s*\{([^}]+)\}", self.geometry)[1]
+        labels = re.search(r"\.desk-settings-form :is\(label > span, \.desk-settings-secret-field > span\)\s*\{([^}]+)\}", self.geometry)[1]
         self.assertIn("font-weight: 500;", labels)
         self.assertRegex(self.geometry, r"\.desk-settings__body :is\(\s*p, small, em,[^}]+font-weight: var\(--desk-font-weight-regular\);")
 
-    def test_nested_groups_are_flat_but_real_status_frames_remain_domain_owned(self):
-        groups = re.search(r"\.desk-settings :is\(\.desk-video-runtime-panel, \.desk-video-supervisor\)\s*\{([^}]+)\}", self.geometry)[1]
-        self.assertIn("padding: var(--desk-space-3) 0 0;", groups)
-        self.assertIn("border-width: 1px 0 0;", groups)
-        self.assertIn("border-radius: 0;", groups)
-        paint = re.search(r"\.desk-settings :is\(\.desk-video-runtime-panel, \.desk-video-supervisor\)\s*\{([^}]+)\}", self.paint)[1]
-        self.assertIn("background: transparent;", paint)
-        self.assertIn("border-color: var(--desk-settings-field-border);", paint)
+    def test_real_status_frames_remain_domain_owned(self):
         for name in ("krea2", "qwen21"):
             css = (ROOT / f"frontend/styles/desktop-{name}.css").read_text()
             self.assertIn(f".desk-{name}-tools__inspection.is-warn", css)
@@ -197,7 +180,7 @@ class SettingsControlStyleTests(unittest.TestCase):
 
     def test_context_selection_has_flat_hover_pressed_disabled_and_focus_states(self):
         context = self.controls.split("/* Category/mode selection", 1)[1]
-        for family in (".desk-settings-tabs", ".desk-segment", ".desk-settings-canvas-interaction__segment", ".desk-video-runtime-mode"):
+        for family in (".desk-settings-tabs", ".desk-segment", ".desk-settings-canvas-interaction__segment"):
             self.assertIn(family, context)
         for state in ("button.is-active:not(", "button.is-active:hover:not(", "button.is-active:active:not(",
                       "button:disabled:not(", "button:focus-visible:not("):

@@ -19,7 +19,7 @@
       const modelOptions = options(models, node.model, item => item.id,
         item => item.label + (item.available === false ? ' · 不可用' : item.available === true && !item.verified ? ' · 待验证' : ''));
       return `<div class="desk-topaz-video__grid">
-        <label class="desk-topaz-video__model"><span>模型</span><select data-topaz-video-model aria-label="视频增强模型">${modelOptions}</select></label>
+        <label class="desk-topaz-video__model"><span>模型</span><select data-desk-select-width="content" data-topaz-video-model aria-label="视频增强模型">${modelOptions}</select></label>
         <label><span>预设</span><select data-topaz-video-preset aria-label="视频增强预设">${options(model.PRESETS, node.presetId)}</select></label>
         <label><span>放大倍数</span><select data-topaz-video-scale aria-label="放大倍数"${scales.length ? '' : ' disabled'}>${scales.length ? options(scales, node.scale, v => v, v => v + '×') : '<option>—</option>'}</select></label>
         <label><span>处理范围</span><select data-topaz-video-scope aria-label="处理范围"><option value="full"${node.maxSeconds === 0 ? ' selected' : ''}>全片</option><option value="clip"${node.maxSeconds > 0 ? ' selected' : ''}>前 N 秒</option></select></label>

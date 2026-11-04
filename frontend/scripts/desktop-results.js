@@ -80,6 +80,8 @@
   }
 
   function normalizeTaskImagePaths(task, resultFiles = []) {
+    // Video tasks report their files as video_paths; their result_file is never an image.
+    if (Array.isArray(task?.video_paths) && task.video_paths.length) return [];
     const explicit = Array.isArray(task?.image_paths) && task.image_paths.length
       ? task.image_paths
       : (Array.isArray(task?.imagePaths) ? task.imagePaths : []);
@@ -1155,6 +1157,8 @@
       : (DesktopState.isInFlight(status) ? 0 : (incomingCreatedAt > 0 ? incomingCreatedAt : (output.finishedAt || 0)));
     output.files = resultFiles;
     output.imagePaths = imagePaths;
+    output.videoPaths = Array.isArray(task?.video_paths) ? task.video_paths : [];
+    output.videoMetadata = task?.video_metadata || null;
     output.primaryFile = task?.result_file || task?.output_file || resultFiles[0] || '';
     output.primaryImagePath = imagePaths[0] || '';
     output.type = task?.type || output.type || state.provider;
@@ -1220,7 +1224,7 @@
     }
     if (materialRoot) {
       const labels = { gpt: 'GPT · 图像生成', google: '图像生成', comfy: 'ComfyUI',
-        topaz: 'Topaz · 图像增强', upscale: '本地高清放大', file_output: '文件生成', video_inference: 'MiniMax H3' };
+        topaz: 'Topaz · 图像增强', upscale: '本地高清放大', file_output: '文件生成' };
       const progressModel = window.DesktopProgressModel;
       const reported = Number(task?.progress ?? task?.progress_percent ?? task?.progressPercent);
       const hasReported = Number.isFinite(reported) && reported > 0;
@@ -1294,6 +1298,10 @@
           if (count) showTransientMessage(count > 1 ? `${count} 个图片节点已更新。` : '图片节点已更新。');
         })
         .catch(() => {});
+    }
+    if (DesktopState.isSuccess(status) && output.videoPaths.length) {
+      const count = window.DesktopCanvas?.populateResultVideoNodes?.(resultNodeId, output) || 0;
+      if (count) showTransientMessage(count > 1 ? `${count} 个视频节点已更新。` : '视频节点已更新。');
     }
     DesktopState.saveSettings();
     if (statusTipOpen) renderStatusTip();
@@ -1885,9 +1893,8 @@
     const registry = DesktopCanvas.getTaskRegistry();
     const outputs = window.DesktopTaskOutputAdapter.create({defaultResultNodeId: DEFAULT_RESULT_NODE_ID, getState: () => DesktopState.state,
       isInFlight: status => DesktopState.isInFlight(status), api: () => DesktopApi,
-      applyTask, applyBatch: applyBatchSummary, stopTaskPolling: stopResultPolling, stopBatchPolling,
-      cancelVideo: id => DesktopCanvas.cancelVideoInferenceTask(id)});
-    taskUnregister = ['generation','batch','video'].map(domain => registry.register(domain, {
+      applyTask, applyBatch: applyBatchSummary, stopTaskPolling: stopResultPolling, stopBatchPolling});
+    taskUnregister = ['generation','batch'].map(domain => registry.register(domain, {
       client: () => DesktopApi.tasks[domain], ...(domain === 'generation' ? {listCancelable: outputs.listCancelable} : {}),
     }));
     collectElements();

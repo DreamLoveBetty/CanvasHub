@@ -181,55 +181,6 @@
     return [...new Set(ids.map(id => String(id || '')).filter(Boolean))];
   }
 
-  function isMiniMaxH3VideoNode(node = {}) {
-    if (node?.type !== 'video_inference') return false;
-    const provider = String(node.provider || 'minimax_h3').trim().toLowerCase();
-    return provider === 'minimax_h3';
-  }
-
-  function videoInputRole(edge = {}, sourceNode = {}) {
-    const explicit = String(edge.inputRole || edge.input_role || '').trim();
-    if (explicit) return explicit;
-    if (sourceNode.type === 'text') return 'prompt';
-    if (['image', 'layout', 'pose'].includes(sourceNode.type)) return 'first_frame';
-    if (sourceNode.type === 'video') return 'reference_video';
-    return '';
-  }
-
-  function h3VideoNodeForTarget(target = getTarget()) {
-    if (target?.type !== 'text' || !target.nodeId) return null;
-    const canvas = canvasState();
-    const nodes = canvas.nodes || {};
-    const candidates = (Array.isArray(canvas.edges) ? canvas.edges : [])
-      .filter(edge => edge?.from === target.nodeId)
-      .map(edge => nodes[edge.to])
-      .filter(isMiniMaxH3VideoNode);
-    if (!candidates.length) return null;
-    const selected = new Set(selectedCanvasNodeIds(canvas));
-    return candidates.find(node => selected.has(node.id)) || candidates[0];
-  }
-
-  function preferredH3VideoNode() {
-    const canvas = canvasState();
-    const nodes = canvas.nodes || {};
-    const candidates = Object.values(nodes).filter(isMiniMaxH3VideoNode);
-    if (!candidates.length) return null;
-    const selected = new Set(selectedCanvasNodeIds(canvas));
-    return candidates.find(node => selected.has(node.id))
-      || (candidates.length === 1 ? candidates[0] : null);
-  }
-
-  function h3FirstFrameNode(videoNodeId) {
-    if (!videoNodeId) return null;
-    const canvas = canvasState();
-    const nodes = canvas.nodes || {};
-    const incoming = (Array.isArray(canvas.edges) ? canvas.edges : [])
-      .filter(edge => edge?.to === videoNodeId)
-      .map(edge => ({ edge, node: nodes[edge.from] }))
-      .filter(item => item.node);
-    return incoming.find(item => videoInputRole(item.edge, item.node) === 'first_frame')?.node || null;
-  }
-
   function h3ReferenceMetadata(item = {}, source = 'canvas') {
     const sourceNodeId = String(item.sourceNodeId || item.nodeId || item.source_node_id || item.id || '').trim();
     const label = String(item.label || item.imageName || item.sourceTitle || item.name || '首帧').trim();
@@ -243,32 +194,22 @@
     };
   }
 
-  function h3TaskContext(target = getTarget(), options = {}) {
-    const standalone = !!options.standalone;
-    const videoNode = h3VideoNodeForTarget(target) || (standalone ? preferredH3VideoNode() : null);
-    if (!videoNode && !standalone) return null;
+  function activeH3TaskContext(target = getTarget()) {
+    if (!isVideoPromptMode()) return null;
     const attachedFirstFrame = state.imageAttachments.find(item => attachmentMediaKind(item) === 'image') || null;
-    const connectedFirstFrame = h3FirstFrameNode(videoNode?.id);
-    const firstFrame = attachedFirstFrame
-      ? h3ReferenceMetadata(attachedFirstFrame, 'mention')
-      : (connectedFirstFrame ? h3ReferenceMetadata(connectedFirstFrame, 'canvas') : null);
+    const firstFrame = attachedFirstFrame ? h3ReferenceMetadata(attachedFirstFrame, 'mention') : null;
     return {
       task_domain: 'video',
       target_model: 'minimax_h3',
       provider: 'minimax_h3',
       mode: 'I2VA',
-      inference_mode: String(videoNode?.mode || 'image_to_video'),
-      video_node_id: String(videoNode?.id || ''),
+      inference_mode: 'image_to_video',
       text_node_id: String(target.nodeId || ''),
-      duration_seconds: Number(videoNode?.durationSeconds || videoNode?.duration_seconds || 15),
-      aspect_ratio: String(videoNode?.aspectRatio || videoNode?.aspect_ratio || '3:4'),
+      duration_seconds: 15,
+      aspect_ratio: '3:4',
       first_frame_node_id: String(firstFrame?.source_node_id || ''),
       first_frame: firstFrame
     };
-  }
-
-  function activeH3TaskContext(target = getTarget()) {
-    return isVideoPromptMode() ? h3TaskContext(target, { standalone: true }) : null;
   }
 
   function imageAttachmentKey(item = {}) {
@@ -1656,26 +1597,6 @@
     };
   }
 
-  async function h3CompileFirstFrame(taskContext = {}) {
-    const mentioned = await imageAttachmentPayloads();
-    if (mentioned.length) return h3CompileReference(mentioned[0]);
-    const sourceNodeId = String(taskContext.first_frame_node_id || '').trim();
-    if (!sourceNodeId) return null;
-    const image = getImageNodes().find(item => String(item.nodeId || item.sourceNodeId || item.id || '') === sourceNodeId);
-    if (!image) return null;
-    let dataUrl = String(image.dataUrl || image.imageData || '').trim();
-    const source = String(image.imageUrl || image.url || '').trim();
-    if (!dataUrl && source && window.DesktopApi?.imageUrlToDataUri) {
-      dataUrl = await window.DesktopApi.imageUrlToDataUri(source);
-    }
-    return h3CompileReference({
-      ...image,
-      id: image.id || sourceNodeId,
-      sourceNodeId,
-      dataUrl
-    });
-  }
-
   function normalizeH3PromptCandidates(result = {}, taskContext = {}) {
     const rootValidation = result.validation && typeof result.validation === 'object' ? result.validation : {};
     const rootProvenance = result.provenance && typeof result.provenance === 'object' ? result.provenance : {};
@@ -1968,7 +1889,8 @@
       const taskContext = activeH3TaskContext(target);
       let result;
       if (taskContext) {
-        const firstFrame = await h3CompileFirstFrame(taskContext);
+        const [mentionedFrame] = await imageAttachmentPayloads();
+        const firstFrame = mentionedFrame ? h3CompileReference(mentionedFrame) : null;
         result = await DesktopApi.compileVideoPrompt({
           target_model: 'minimax_h3',
           operation: 'compose',

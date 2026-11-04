@@ -611,11 +611,39 @@
     return result;
   }
 
-    function getConnectedTextNodes(inputNodeId) {
+    // Text nodes marked as negative (promptRole 'negative') never join the positive prompt.
+    function isNegativeTextNode(node) {
+    return node?.type === 'text' && node.promptRole === 'negative';
+  }
+
+    function connectedTextNodesByRole(inputNodeId, negative) {
     return (DesktopState.state.canvas.edges || [])
       .filter(edge => edge.to === inputNodeId)
       .map(edge => DesktopState.state.canvas.nodes[edge.from])
-      .filter(node => node?.type === 'text');
+      .filter(node => node?.type === 'text' && isNegativeTextNode(node) === negative);
+  }
+
+    function getConnectedTextNodes(inputNodeId) {
+    return connectedTextNodesByRole(inputNodeId, false);
+  }
+
+    function getConnectedNegativeTextNodes(inputNodeId) {
+    return connectedTextNodesByRole(inputNodeId, true);
+  }
+
+    function getConnectedNegativePrompt(inputNodeId) {
+    return getConnectedNegativeTextNodes(inputNodeId)
+      .map(node => materializeTextNode(node).trim())
+      .filter(Boolean)
+      .join('\n\n');
+  }
+
+    // Models without a negative-prompt parameter but with natural-language prompts (GPT / Google).
+    function foldNegativeConstraint(prompt, negativePrompt) {
+    const base = String(prompt || '').trim();
+    const negative = String(negativePrompt || '').trim();
+    if (!negative || base.includes(negative)) return base;
+    return `${base}\n\n负面约束：${negative}`.trim();
   }
 
     function splitBatchPromptItems(prompt) {
@@ -710,6 +738,10 @@
       setTextNodePromptMeta,
       composePromptWithTextStyles,
       getConnectedTextNodes,
+      getConnectedNegativeTextNodes,
+      getConnectedNegativePrompt,
+      foldNegativeConstraint,
+      isNegativeTextNode,
       splitBatchPromptItems,
       getBatchPromptItems,
       mergePromptWithConnectedText,

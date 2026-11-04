@@ -333,6 +333,7 @@
     if (!state || state.select.disabled) return;
     closeAll(state);
     refresh(state.select);
+    state.menu.style.setProperty('--desk-select-menu-font-size', window.getComputedStyle(state.valueEl).fontSize);
     renderMenu(state);
     cancelMenuClose(state);
     state.open = true;
@@ -459,7 +460,6 @@
     const anchorRoot = menuMode === 'anchored' ? select.closest('label') : null;
     const stackRoot = menuMode === 'anchored'
       ? select.closest('.desk-param-grid, .desk-prompt-mode, .desk-prompt-panel, .desk-upload-panel, .desk-node__drawer')
-        || select.closest('.desk-video-node__fields, .desk-video-node__advanced')
       : null;
     const shell = document.createElement('span');
     shell.className = 'desk-select-shell';

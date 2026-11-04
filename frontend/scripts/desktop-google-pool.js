@@ -11,7 +11,7 @@
     const button = (action, label, extra = '') => `<button type="button" data-google-pool-action="${action}" ${extra}${busy ? ' disabled' : ''}>${label}</button>`;
 
     function render(gptHtml) {
-      const tabs = `<div class="desk-segment desk-key-bank desk-google-pool-tabs${webSettings ? ' desk-google-pool-tabs--web' : ''}${provider === 'google' ? ' desk-google-pool-tabs--compact' : ''}" role="tablist" aria-label="账号池类型">
+      const tabs = `<div class="desk-segment desk-key-bank desk-google-pool-tabs${webSettings ? ' desk-google-pool-tabs--web' : ''}" role="tablist" aria-label="账号池类型">
         <button type="button" role="tab" data-google-pool-provider="gpt" aria-selected="${provider === 'gpt'}" class="${provider === 'gpt' ? 'is-active' : ''}">GPT 账号池</button>
         <button type="button" role="tab" data-google-pool-provider="google" aria-selected="${provider === 'google'}" class="${provider === 'google' ? 'is-active' : ''}">Google OAuth</button>
         ${webSettings ? `<button type="button" role="tab" data-google-pool-provider="web" aria-selected="${provider === 'web'}" class="${provider === 'web' ? 'is-active' : ''}">Gemini Web</button>` : ''}
@@ -64,13 +64,13 @@
             <div class="desk-settings-form__actions">${button('oauth-finish', '完成授权')}</div>
           </div>
         </div>` : ''}
-        <details class="desk-google-pool-import"><summary>导入 JSON</summary>
+        <section class="desk-google-pool-import"><strong>导入 JSON</strong>
           <div class="desk-google-pool-import__body">
             <p class="desk-google-pool-note">支持 Antigravity Tools 导出，保存后不回显。</p>
             <textarea class="desk-settings-textarea" data-google-pool-import rows="3" autocomplete="off" spellcheck="false" aria-label="Google 授权 JSON" placeholder="粘贴账号 JSON"></textarea>
             <div class="desk-settings-form__actions">${button('accounts-import', '导入')}</div>
           </div>
-        </details>
+        </section>
         <div class="desk-google-pool-accounts">${accounts || '<p class="desk-google-pool-empty">暂无账号，点击「添加授权」。</p>'}</div>
       </div>`], !!status?.enabled);
     }

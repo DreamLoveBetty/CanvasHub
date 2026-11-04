@@ -31,12 +31,12 @@
         <p>在模型节点的「线路」选择 Gemini Web。账号由服务端自动调度，不影响 Google OAuth。点击「检查登录态」可识别实际名称和邮箱，不消耗生图额度。</p>
         ${status?.capabilities?.backend_available===false?'<p class="desk-google-web-error">Web 运行依赖未安装，请在服务端安装 Web 依赖并重启账号服务。</p>':''}
         ${busy||message?`<p class="desk-google-web-feedback${hasError?' desk-google-web-error':''}" role="${hasError?'alert':'status'}">${esc(message||(busy?'处理中…':''))}</p>`:''}
-        <details class="desk-google-web-import"><summary>添加 Web 账号 · 导入 Cookie JSON</summary><div class="desk-google-web-import__body">
+        <section class="desk-google-web-import"><strong>添加 Web 账号 · 导入 Cookie JSON</strong><div class="desk-google-web-import__body">
           <label>账号名称（可选）<input type="text" maxlength="120" data-google-web-label autocomplete="off"></label>
           <textarea rows="4" data-google-web-cookies autocomplete="off" spellcheck="false" aria-label="Web Cookie JSON" placeholder="粘贴浏览器导出的 Cookie JSON，保存后不回显"></textarea>
           <div class="desk-google-web-actions">${button('accounts-import','导入 Cookie')}<label class="desk-google-web-file">选择 JSON 文件<input type="file" accept=".json,application/json" data-google-web-file${busy?' disabled':''}></label></div>
           <p>Cookie 仅保存在服务端；不写入浏览器设置或工作流。支持单账号 Cookie 导出，或 accounts 多账号列表。</p>
-        </div></details>
+        </div></section>
         ${status?.capabilities?.browser_import?`<div class="desk-google-web-browser">${button('browser-profiles','从服务端本机 Chrome 导入')}
           ${profiles.length?`<select class="desk-select" data-google-web-profile aria-label="服务端 Chrome Profile">${profiles.map(p=>`<option value="${esc(p.id)}">${esc(p.label)}</option>`).join('')}</select>${button('browser-import','导入所选 Profile')}`:''}
           <p>Profile 是 Chrome 用户目录，不是 Google 账号。导入会分别识别该用户内已登录的 Google 账号；已有会话也可点击「识别同会话账号」，无需重读 Chrome。如出现系统授权，请在服务端本机完成。</p></div>`:''}

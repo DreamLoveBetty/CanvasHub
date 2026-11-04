@@ -154,7 +154,8 @@ test('removing nodes asks first only when unrecoverable content would be lost', 
 });
 
 test('every node delete path confirms before removing', () => {
-  assert.equal(canvas.match(/canvasNodes\.confirmNodeRemoval\(/g).length, 3);
+  assert.equal(canvas.match(/canvasNodes\.confirmNodeRemoval\(/g).length, 4);
+  assert.match(canvas, /removeImageGroupNode: groupId => \{\s*if \(!canvasNodes\.confirmNodeRemoval\(\[groupId\]\)\) return false;\s*removeNode\(groupId/);
   assert.match(canvas, /confirmNodeRemoval\(\[node\?\.dataset\.nodeId\]\)\) return;\s*removeNode\(node\?\.dataset\.nodeId/);
   assert.match(canvas, /confirmNodeRemoval\(nodeIds\)\) return;\s*nodeIds\.forEach\(\(nodeId, index\) => removeNode/);
   assert.match(canvas, /confirmNodeRemoval\(selectedNodeIds\)\) return;\s*selectedNodeIds\.forEach\(\(nodeId, index\) => removeNode/);
@@ -257,7 +258,7 @@ test('unknown progress starts empty and sweeps instead of faking 35%', () => {
 
 test('image group role tags stay visible except while picking', () => {
   const css = read('frontend/styles/desktop-image-group-geometry.css');
-  assert.match(css, /:is\(\.desk-image-group__item\.is-picking \.desk-image-group__role, \.desk-image-group__insert\) \{\n  opacity: 0;/);
+  assert.match(css, /:is\(\.desk-image-group__item\.is-picking \.desk-image-group__role, \.desk-image-group__insert, \.desk-image-group__delete\) \{\n  opacity: 0;/);
   assert.doesNotMatch(css, /:not\(\.is-picking\) :is\(\.desk-image-group__role/);
 });
 

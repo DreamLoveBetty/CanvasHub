@@ -1,0 +1,67 @@
+.desk-app .desk-node--moss { width:720px; min-width:720px; min-height:500px; padding:14px; overflow:visible; }
+.desk-app .desk-moss__header { flex:0 0 auto; margin-bottom:4px; }
+.desk-app .desk-moss__body { display:flex; flex:1 1 auto; flex-direction:column; gap:4px; min-height:0; overflow:visible; }
+.desk-app .desk-moss__grid { display:grid; flex:0 0 auto; grid-template-columns:repeat(4,minmax(0,1fr)); gap:4px; margin:0; }
+.desk-app .desk-moss__grid label { display:grid; gap:3px; min-width:0; }
+.desk-app .desk-moss__grid .desk-select-shell { width:100%; }
+.desk-app .desk-moss__prompt { display:flex; flex:0 0 auto; flex-direction:column; gap:3px; }
+.desk-app .desk-moss__prompt > header { display:flex; align-items:center; gap:8px; min-height:22px; }
+.desk-app .desk-moss__prompt [data-moss-source] { display:flex; align-items:center; gap:4px; min-width:0; margin-left:auto; }
+.desk-app .desk-moss__prompt [data-moss-source] em { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.desk-app .desk-moss__prompt [data-moss-source] button { height:22px; min-height:22px; padding:0 7px; }
+.desk-app .desk-moss__prompt textarea { box-sizing:border-box; width:100%; height:72px; padding:6px 8px; resize:none; }
+.desk-app .desk-moss__loras { display:flex; flex:1 1 auto; flex-direction:column; gap:4px; min-height:58px; padding-top:6px; overflow:visible; }
+.desk-app .desk-moss__loras > header { display:flex; flex:0 0 auto; align-items:center; gap:10px; }
+.desk-app .desk-moss__lora-list { display:grid; flex:1 1 auto; grid-template-columns:repeat(2,minmax(0,1fr)); align-content:start; gap:4px; min-height:0; overflow:auto; }
+.desk-app .desk-moss__empty { display:flex; grid-column:1 / -1; align-items:center; justify-content:center; min-height:32px; }
+.desk-app .desk-moss__lora { display:grid; grid-template-columns:minmax(0,1fr) 58px 26px; align-items:center; gap:4px; min-height:32px; padding:2px 4px 2px 7px; }
+.desk-app .desk-moss__lora strong { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.desk-app .desk-moss__lora .desk-number,.desk-app .desk-moss__lora > button { height:26px; min-height:26px; }
+.desk-app .desk-moss__lora > button { padding:0; }
+.desk-app .desk-node--moss.is-layout .desk-moss__body { flex:0 0 auto; }
+.desk-app .desk-node--moss.is-layout .desk-moss__loras { flex:0 0 auto; }
+.desk-app .desk-node--moss.is-layout .desk-moss__lora-list { flex:0 0 auto; }
+.desk-app .desk-moss__expand { flex:0 0 auto; height:28px; min-height:28px; }
+.desk-app .desk-moss__expand[hidden],.desk-app .desk-moss-layout[hidden] { display:none; }
+.desk-app .desk-moss-layout { display:flex; flex:0 0 auto; flex-direction:column; align-items:center; gap:6px; }
+.desk-app .desk-moss-layout__tools { display:flex; align-items:center; gap:4px; width:100%; }
+.desk-app .desk-moss-layout__tools > span { flex:1 1 auto; }
+.desk-app .desk-moss-layout__tools button { height:26px; min-height:26px; padding:0 8px; }
+.desk-app .desk-moss-layout__board { position:relative; flex:0 0 auto; max-width:100%; overflow:visible; touch-action:none; user-select:none; }
+.desk-app .desk-moss-layout__keys { position:absolute; width:1px; height:1px; padding:0; border:0; opacity:0; pointer-events:none; }
+.desk-app .desk-moss-layout__box,.desk-app .desk-moss-layout__ghost { position:absolute; box-sizing:border-box; min-width:0; }
+.desk-app .desk-moss-layout__box { display:flex; flex-direction:column; gap:2px; padding:3px 5px; overflow:hidden; }
+.desk-app .desk-moss-layout__box.is-selected { z-index:3; overflow:visible; }
+.desk-app .desk-moss-layout__box p { flex:1 1 auto; min-height:0; margin:0; overflow:hidden; word-break:break-word; }
+.desk-app .desk-moss-layout__box em { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.desk-app .desk-moss-layout__box [data-moss-handle] { position:absolute; width:9px; height:9px; }
+.desk-app .desk-moss-layout__handle--nw { top:-5px; left:-5px; cursor:nwse-resize; }
+.desk-app .desk-moss-layout__handle--ne { top:-5px; right:-5px; cursor:nesw-resize; }
+.desk-app .desk-moss-layout__handle--sw { bottom:-5px; left:-5px; cursor:nesw-resize; }
+.desk-app .desk-moss-layout__handle--se { right:-5px; bottom:-5px; cursor:nwse-resize; }
+.desk-app .desk-moss-layout__input { box-sizing:border-box; width:100%; height:100%; padding:2px 3px; resize:none; }
+.desk-app .desk-moss-layout__float { position:absolute; top:6px; left:50%; z-index:5; display:flex; align-items:center; gap:3px; padding:3px; transform:translateX(-50%); white-space:nowrap; }
+.desk-app .desk-moss-layout__float.desk-moss-grid__selection { position:static; transform:none; }
+.desk-app .desk-moss-layout__float select,.desk-app .desk-moss-layout__float button { height:22px; padding:0 5px; }
+.desk-app .desk-moss-layout__float select { max-width:110px; }
+.desk-app .desk-moss-layout__hint { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; margin:0; pointer-events:none; }
+.desk-app .desk-moss-grid__count { height:26px; padding:0 4px; }
+.desk-app .desk-moss-grid__controls { display:flex; flex-wrap:wrap; align-items:center; gap:4px 12px; width:100%; }
+.desk-app .desk-moss-grid__controls label { display:flex; align-items:center; gap:4px; }
+.desk-app .desk-moss-grid__controls input.desk-number { width:52px; height:24px; min-height:24px; padding:0 4px; }
+.desk-app .desk-moss-grid__selection { display:flex; align-items:center; justify-content:center; gap:3px; min-height:30px; box-sizing:border-box; }
+.desk-app .desk-moss-grid__cell p { overflow:auto; }
+.desk-app .desk-moss-grid__notes { width:100%; margin:0; }
+.desk-app .desk-moss-layout__preview { box-sizing:border-box; width:100%; max-height:120px; margin:0; padding:6px 8px; overflow:auto; white-space:pre-wrap; word-break:break-all; }
+.desk-app .desk-moss__footer { flex:0 0 auto; min-height:72px; margin-top:0; }
+.desk-app .desk-moss__meta { flex-wrap:nowrap; overflow:hidden; }
+.desk-app .desk-moss__meta > span { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.desk-app .desk-moss__meta [data-moss-runtime] { flex:1 1 auto; }
+.desk-app .desk-node--moss > .desk-moss__progress { position:absolute; top:calc(100% + 2px); left:0; right:auto; z-index:8; width:100%; box-sizing:border-box; }
+.desk-app .desk-node--moss > .desk-moss__progress[hidden] { display:none; }
+.desk-app .desk-node--moss:has(.desk-select-shell.is-open) { z-index:30; }
+.desk-app .desk-moss-tools__rows,.desk-app .desk-moss-tools__form { display:grid; gap:6px; }
+.desk-app .desk-moss-tools__row { display:grid; gap:3px; min-width:0; padding:8px 10px; }
+.desk-app .desk-moss-tools__row strong { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.desk-app .desk-moss-tools__form { margin-top:8px; }
+.desk-app .desk-moss-tools__form label { display:grid; gap:5px; min-width:0; }

@@ -1,0 +1,207 @@
+/* Graphite theme style (Settings › Appearance › 主题风格), orthogonal to light/dark.
+   Active only while <body data-desk-style="graphite">; liquid stays the default.
+   Flat card-coloured nodes, 8px card-coloured pipes and one merged port plate per
+   node side (drawn by desktop-canvas-port-plates.js into the link layer), and a
+   notch around the model-input node's 72px generate key.
+   Loaded after every other desktop stylesheet: the token blocks below use the same
+   token set in both themes, light at (0,2,1) and dark at (0,3,1), so they replace
+   desktop-tokens.css values without raising specificity elsewhere. */
+
+body.desk-app[data-desk-style="graphite"] {
+  --desk-graphite-canvas: #e6e6e2;
+  --desk-graphite-card: #fafaf8;
+  --desk-graphite-inset: #eeeeea;
+  --desk-graphite-ink: #262624;
+  --desk-graphite-muted: #92928c;
+  --desk-graphite-dot: rgba(38, 38, 36, 0.13);
+  --desk-graphite-primary: #262624;
+  --desk-graphite-primary-hover: #3a3a37;
+  --desk-graphite-primary-ink: #fafaf8;
+  --desk-graphite-accent: #1f8f7c;
+  --desk-graphite-accent-soft: rgba(31, 143, 124, 0.14);
+  --desk-graphite-lift: 0 10px 24px -14px rgba(20, 20, 18, 0.28);
+
+  --desk-radius-node: 14px;
+
+  --desk-canvas-surface-background-color: var(--desk-graphite-canvas);
+  --desk-canvas-surface-background-image: radial-gradient(circle, var(--desk-graphite-dot) 1px, transparent 1.2px);
+  --desk-canvas-surface-background-position: var(--canvas-grid-x, 0px) var(--canvas-grid-y, 0px);
+  --desk-canvas-surface-background-repeat: repeat;
+  --desk-canvas-surface-background-size: var(--canvas-grid-size, 20px) var(--canvas-grid-size, 20px);
+  --desk-canvas-selection-stroke: var(--desk-graphite-accent);
+  --desk-canvas-flow-solid: var(--desk-graphite-accent);
+  --desk-canvas-flow-soft: var(--desk-graphite-accent-soft);
+  --desk-canvas-flow-border-soft: var(--desk-graphite-accent-soft);
+
+  --desk-node-ink: var(--desk-graphite-ink);
+  --desk-node-muted-ink: var(--desk-graphite-muted);
+  --desk-node-eyebrow-ink: var(--desk-graphite-muted);
+  --desk-node-glass-background: var(--desk-graphite-card);
+  --desk-node-glass-border: transparent;
+  --desk-node-glass-shadow: none;
+  --desk-node-glass-active-shadow: var(--desk-graphite-lift);
+  --desk-node-sheen-background: none;
+  --desk-node-selected-border: var(--desk-graphite-accent);
+  --desk-node-selected-shadow: none;
+  --desk-node-text-background: var(--desk-graphite-card);
+  --desk-node-text-border: transparent;
+  --desk-node-text-shadow: none;
+}
+
+body.desk-app[data-desk-style="graphite"][data-theme="dark"] {
+  --desk-graphite-canvas: #232323;
+  --desk-graphite-card: #383838;
+  --desk-graphite-inset: #2f2f2f;
+  --desk-graphite-ink: #ececec;
+  --desk-graphite-muted: #8b8b8b;
+  --desk-graphite-dot: rgba(236, 236, 236, 0.08);
+  --desk-graphite-primary: #e6e6e6;
+  --desk-graphite-primary-hover: #ffffff;
+  --desk-graphite-primary-ink: #232323;
+  --desk-graphite-accent: #5ec4b0;
+  --desk-graphite-accent-soft: rgba(94, 196, 176, 0.18);
+  --desk-graphite-lift: 0 10px 24px -14px rgba(0, 0, 0, 0.6);
+
+  --desk-radius-node: 14px;
+
+  --desk-canvas-surface-background-color: var(--desk-graphite-canvas);
+  --desk-canvas-surface-background-image: radial-gradient(circle, var(--desk-graphite-dot) 1px, transparent 1.2px);
+  --desk-canvas-surface-background-position: var(--canvas-grid-x, 0px) var(--canvas-grid-y, 0px);
+  --desk-canvas-surface-background-repeat: repeat;
+  --desk-canvas-surface-background-size: var(--canvas-grid-size, 20px) var(--canvas-grid-size, 20px);
+  --desk-canvas-selection-stroke: var(--desk-graphite-accent);
+  --desk-canvas-flow-solid: var(--desk-graphite-accent);
+  --desk-canvas-flow-soft: var(--desk-graphite-accent-soft);
+  --desk-canvas-flow-border-soft: var(--desk-graphite-accent-soft);
+
+  --desk-node-ink: var(--desk-graphite-ink);
+  --desk-node-muted-ink: var(--desk-graphite-muted);
+  --desk-node-eyebrow-ink: var(--desk-graphite-muted);
+  --desk-node-glass-background: var(--desk-graphite-card);
+  --desk-node-glass-border: transparent;
+  --desk-node-glass-shadow: none;
+  --desk-node-glass-active-shadow: var(--desk-graphite-lift);
+  --desk-node-sheen-background: none;
+  --desk-node-selected-border: var(--desk-graphite-accent);
+  --desk-node-selected-shadow: none;
+  --desk-node-text-background: var(--desk-graphite-card);
+  --desk-node-text-border: transparent;
+  --desk-node-text-shadow: none;
+}
+
+/* Canvas generate key: solid ink key instead of the glossy jewel (canvas only). */
+body.desk-app[data-desk-style="graphite"] .desk-canvas {
+  --desk-action-primary-ink: var(--desk-graphite-primary-ink);
+  --desk-action-primary-border: transparent;
+  --desk-action-primary-hover-border: transparent;
+  --desk-action-primary-gloss: var(--desk-graphite-primary);
+  --desk-action-primary-gloss-hover: linear-gradient(var(--desk-graphite-primary-hover), var(--desk-graphite-primary-hover));
+  --desk-action-primary-gloss-active: linear-gradient(var(--desk-graphite-primary), var(--desk-graphite-primary));
+  --desk-action-primary-silk-background-size: 100% 100%;
+  --desk-action-primary-silk-position: 0 0;
+  --desk-action-primary-silk-position-hover: 0 0;
+  --desk-action-primary-silk-position-active: 0 0;
+  --desk-action-primary-shadow: transparent;
+  --desk-action-primary-shadow-strong: transparent;
+}
+
+/* Pipes: card-coloured, scale with zoom, square ends hidden under the port plates. */
+body.desk-app[data-desk-style="graphite"] .desk-link-path {
+  stroke: var(--desk-graphite-card);
+  stroke-width: 8;
+  stroke-linecap: butt;
+  stroke-linejoin: round;
+  vector-effect: none;
+}
+
+body.desk-app[data-desk-style="graphite"] .desk-link-path.is-related {
+  stroke: var(--desk-graphite-card);
+}
+
+body.desk-app[data-desk-style="graphite"] .desk-link-path:is(.is-hovered, .is-selected) {
+  stroke: var(--desk-graphite-accent);
+  filter: none;
+}
+
+/* A link being dragged is the same card pipe; it starts on the travelling plate and
+   ends on the plate the snapped target grows. */
+body.desk-app[data-desk-style="graphite"] .desk-link-path:is(.is-preview, .is-pending) {
+  stroke: var(--desk-graphite-card);
+  stroke-width: 8;
+}
+
+body.desk-app[data-desk-style="graphite"] .desk-link-hit {
+  stroke-width: 12;
+  vector-effect: none;
+}
+
+.desk-port-plates {
+  fill: var(--desk-graphite-card);
+  pointer-events: none;
+}
+
+/* The plates replace the liquid style's settled edge caps and target port pills; the
+   travelling swell (desktop-canvas-port-interaction.js) is drawn as a plate. */
+body.desk-app[data-desk-style="graphite"] .desk-node-settled-port {
+  display: none;
+}
+
+body.desk-app[data-desk-style="graphite"] .desk-node-swell-border__paint {
+  fill: var(--desk-graphite-card);
+}
+
+body.desk-app[data-desk-style="graphite"] .desk-node--edge-handles > .desk-port[data-semantic-port] {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+/* Model input node: the card is painted by ::before and cut around the generate
+   key (a 100px corner piece: 88px notch + 12px fillets); ::after is the same shape
+   1.5px outset as the selection ring. The node has no border, so no rectangular
+   frame can show through the notch. Pieces are fixed px so radii never stretch, and
+   the two bands overlap the corner piece by 1px: abutting edges would each lose
+   half a pixel to anti-aliasing at fractional zoom and leave hairline seams. */
+body.desk-app[data-desk-style="graphite"] .desk-node--input {
+  --desk-node-border-width: 0px;
+  --desk-node-glass-background: transparent;
+  --desk-node-sheen-background: var(--desk-graphite-card);
+  --desk-node-selected-sheen-background: var(--desk-graphite-card);
+}
+
+body.desk-app[data-desk-style="graphite"] .desk-node--input::before,
+body.desk-app[data-desk-style="graphite"] .desk-node--input.is-selected::after {
+  -webkit-mask:
+    linear-gradient(#000 0 0) left top / 100% calc(100% - var(--desk-graphite-notch-box) + 1px) no-repeat,
+    linear-gradient(#000 0 0) left bottom / calc(100% - var(--desk-graphite-notch-box) + 1px) var(--desk-graphite-notch-box) no-repeat,
+    var(--desk-graphite-notch-corner) right bottom / var(--desk-graphite-notch-box) var(--desk-graphite-notch-box) no-repeat;
+  mask:
+    linear-gradient(#000 0 0) left top / 100% calc(100% - var(--desk-graphite-notch-box) + 1px) no-repeat,
+    linear-gradient(#000 0 0) left bottom / calc(100% - var(--desk-graphite-notch-box) + 1px) var(--desk-graphite-notch-box) no-repeat,
+    var(--desk-graphite-notch-corner) right bottom / var(--desk-graphite-notch-box) var(--desk-graphite-notch-box) no-repeat;
+}
+
+body.desk-app[data-desk-style="graphite"] .desk-node--input::before {
+  --desk-graphite-notch-box: 100px;
+  --desk-graphite-notch-corner: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M0 0H100A12 12 0 0 1 88 12H24A12 12 0 0 0 12 24V88A12 12 0 0 1 0 100Z'/%3E%3C/svg%3E");
+  inset: 0;
+}
+
+body.desk-app[data-desk-style="graphite"] .desk-node--input.is-selected::after {
+  --desk-graphite-notch-box: 101.5px;
+  --desk-graphite-notch-corner: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 101.5 101.5'%3E%3Cpath d='M0 0H101.5A13.5 13.5 0 0 1 88 13.5H24A10.5 10.5 0 0 0 13.5 24V88A13.5 13.5 0 0 1 0 101.5Z'/%3E%3C/svg%3E");
+  position: absolute;
+  inset: -1.5px;
+  z-index: -1;
+  content: "";
+  pointer-events: none;
+  border-radius: calc(var(--desk-radius-node) + 1.5px);
+  background: var(--desk-graphite-accent);
+}
+
+/* The key sits in the notch, 8px from the node's right and bottom edges
+   (the footer is inset by the node's 14px padding). */
+body.desk-app[data-desk-style="graphite"] .desk-node--input .desk-input-footer .desk-action-row {
+  right: -6px;
+  bottom: -6px;
+}

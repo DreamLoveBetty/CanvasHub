@@ -1,0 +1,38 @@
+.desk-app .desk-moss__grid label > span,.desk-app .desk-moss__loras small,.desk-app .desk-moss-tools__row span,.desk-app .desk-moss-tools__form label > span { color:var(--desk-muted); }
+.desk-app .desk-moss__grid label > span { font-size:11px; font-weight:750; }
+.desk-app .desk-moss__prompt strong,.desk-app .desk-moss__loras strong { color:var(--desk-ink); font-size:12px; font-weight:800; }
+.desk-app .desk-moss__prompt [data-moss-source] em { color:var(--desk-muted); font-size:10px; font-style:normal; font-weight:700; }
+.desk-app .desk-moss__prompt [data-moss-source] em.is-error,.desk-app [data-moss-budget].is-error { color:var(--desk-color-danger-ink); }
+.desk-app .desk-moss__prompt [data-moss-source] button { font-size:10px; }
+.desk-app .desk-moss__prompt textarea { color:var(--desk-ink); font-size:12px; line-height:1.45; background:var(--desk-color-control-bg); border:1px solid var(--desk-color-control-border); border-radius:var(--desk-radius); }
+.desk-app .desk-moss__prompt textarea::placeholder { color:var(--desk-muted); }
+.desk-app .desk-moss__loras { border-top:1px solid var(--desk-color-control-border); }
+.desk-app .desk-moss__loras small { font-size:9px; font-weight:700; }
+.desk-app .desk-moss__empty { color:var(--desk-muted); font-size:10px; font-weight:650; background:var(--desk-color-control-bg); border-radius:var(--desk-radius); }
+.desk-app .desk-moss__lora,.desk-app .desk-moss-tools__row { background:var(--desk-color-control-bg); border:1px solid var(--desk-color-control-border); border-radius:var(--desk-radius); }
+.desk-app .desk-moss__lora strong { font-size:10px; }
+.desk-app .desk-moss__lora > button { font-size:14px; }
+.desk-app .desk-moss-tools__row span,.desk-app .desk-moss-tools__form label > span { font-size:9px; font-weight:700; }
+.desk-app .desk-moss-tools__row strong { color:var(--desk-ink); font-size:10px; }
+.desk-app .desk-moss-layout__board { background:var(--desk-color-control-bg); border:1px solid var(--desk-color-control-border); cursor:crosshair; }
+.desk-app .desk-moss-layout__board.is-readonly { cursor:default; opacity:.72; }
+.desk-app .desk-moss-layout__box { color:var(--desk-ink); font-size:10px; line-height:1.35; cursor:move; background:color-mix(in srgb,var(--desk-action-primary) 14%,transparent); border:1px solid var(--desk-action-primary); border-radius:3px; }
+.desk-app .desk-moss-layout__box--character { background:color-mix(in srgb,var(--desk-color-danger-ink) 12%,transparent); border-color:var(--desk-color-danger-ink); }
+.desk-app .desk-moss-layout__box--text { border-style:dashed; }
+.desk-app .desk-moss-layout__box.is-selected { box-shadow:0 0 0 1px var(--desk-ink); }
+.desk-app .desk-moss-grid__cell { cursor:pointer; }
+.desk-app .desk-moss-grid__count { color:var(--desk-ink); font-size:11px; background:transparent; border:1px solid var(--desk-color-control-border); border-radius:6px; }
+.desk-app .desk-moss-grid__controls,.desk-app .desk-moss-grid__selection small { color:var(--desk-muted); font-size:10px; }
+.desk-app .desk-moss-grid__notes { color:var(--desk-color-danger-ink); font-size:10px; }
+.desk-app .desk-moss-layout__tag { color:var(--desk-muted); font-size:9px; font-weight:750; }
+.desk-app .desk-moss-layout__box p.is-empty { color:var(--desk-muted); }
+.desk-app .desk-moss-layout__box p.is-error { color:var(--desk-color-danger-ink); }
+.desk-app .desk-moss-layout__box em { color:var(--desk-muted); font-size:9px; font-style:normal; }
+.desk-app .desk-moss-layout__box [data-moss-handle] { background:var(--desk-ink); border-radius:2px; }
+.desk-app .desk-moss-layout__ghost { background:var(--desk-color-control-bg); border:1px dashed var(--desk-ink); }
+.desk-app .desk-moss-layout__input { color:var(--desk-ink); font-size:11px; background:var(--desk-color-control-bg); border:0; outline:0; }
+.desk-app .desk-moss-layout__float { background:var(--desk-color-popover-bg); border:1px solid var(--desk-color-control-border); border-radius:var(--desk-radius); }
+.desk-app .desk-moss-layout__float select,.desk-app .desk-moss-layout__float button { color:var(--desk-ink); font-size:10px; background:transparent; border:1px solid var(--desk-color-control-border); border-radius:3px; }
+.desk-app .desk-moss-layout__hint { color:var(--desk-muted); font-size:11px; }
+.desk-app .desk-moss-layout__preview { color:var(--desk-muted); font-size:10px; background:var(--desk-color-control-bg); border-radius:var(--desk-radius); }
+.desk-app .desk-moss-layout__tools .is-active { color:var(--desk-ink); border-color:var(--desk-ink); }

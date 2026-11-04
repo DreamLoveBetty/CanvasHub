@@ -12,7 +12,7 @@ body.desk-app .desk-cyimg__icon{width:40px;height:40px;display:grid;place-items:
 body.desk-app .desk-cyimg__icon svg{width:22px;height:22px}
 body.desk-app .desk-cyimg__body{display:flex;flex:1;min-height:0;flex-direction:column;gap:11px;padding-top:14px;font-size:12px}
 body.desk-app .desk-cyimg__body label{display:flex;flex-direction:column;gap:5px;color:var(--desk-node-muted-ink);font-size:11px}
-body.desk-app .desk-cyimg__body :is(select,input[type=number],input[type=text]){width:100%;box-sizing:border-box;padding:7px 10px;border:1px solid var(--desk-color-border-faint);border-radius:8px;background:var(--desk-node-glass-background);color:var(--desk-node-ink);font:inherit;outline:none}
+body.desk-app .desk-cyimg__body :is(select,input[type=number],input[type=text]){width:100%;box-sizing:border-box;padding:7px 10px;border:1px solid var(--desk-color-border-faint);border-radius:8px;background:var(--desk-node-glass-background);color:var(--desk-node-ink);font:inherit;font-size:var(--desk-font-size-label);outline:none}
 body.desk-app .desk-cyimg__body :is(select,input[type=number],input[type=text]):focus-visible{border-color:var(--desk-color-accent);box-shadow:0 0 0 2px var(--desk-color-accent-soft)}
 body.desk-app .desk-cyimg__model select{height:36px}
 body.desk-app .desk-cyimg__fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px 12px;overflow:visible;min-height:0;padding:1px 2px}

@@ -10,7 +10,7 @@ body.desk-app .desk-video-control__icon { width:40px; height:40px; padding:8px; 
 body.desk-app .desk-video-control__body { display:flex; flex:1; flex-direction:column; gap:16px; padding-top:16px; font-size:12px; min-height:0; }
 body.desk-app .desk-video-control__grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; }
 body.desk-app .desk-video-control__body label { display:flex; flex-direction:column; gap:6px; color:var(--desk-node-muted-ink); font-size:11px; }
-body.desk-app .desk-video-control__body :is(select,input[type=number]) { width:100%; height:34px; padding:6px 10px; box-sizing:border-box; border-radius:8px; background:var(--desk-node-glass-background); border:1px solid var(--desk-color-border-faint); color:var(--desk-node-ink); font:inherit; }
+body.desk-app .desk-video-control__body :is(select,input[type=number]) { width:100%; height:34px; padding:6px 10px; box-sizing:border-box; border-radius:8px; background:var(--desk-node-glass-background); border:1px solid var(--desk-color-border-faint); color:var(--desk-node-ink); font:inherit;font-size:var(--desk-font-size-label); }
 body.desk-app .desk-video-control__options { display:flex; gap:20px; align-items:center; min-height:40px; color:var(--desk-node-muted-ink); }
 body.desk-app .desk-video-control__options label:has(input[type=checkbox]) { flex-direction:row; align-items:center; }
 body.desk-app .desk-video-control__options :is(input[type=number], .desk-stepper) { width:100px; }

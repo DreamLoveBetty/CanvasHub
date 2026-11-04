@@ -21,7 +21,7 @@ function fixture(items) {
   vm.createContext(context);
   // Use actual domain menu declarations and the host's injected catalog, not a
   // second list of labels that can silently drift when new node types are added.
-  for (const name of ['topaz-model', 'krea2-control', 'krea2-model', 'qwen21-model', 'cyimg-model',
+  for (const name of ['topaz-model', 'krea2-control', 'krea2-model', 'qwen21-model', 'moss-model', 'cyimg-model',
     'canvas-audio', 'video-control-model', 'topaz-video-pipeline', 'topaz-video-model', 'pose-model', 'music-model', 'canvas-nodes']) {
     vm.runInContext(read(`scripts/desktop-${name}.js`), context);
   }
@@ -60,8 +60,8 @@ test('all registered nodes appear once in five semantic groups', () => {
   const before = JSON.stringify(h.catalog);
   h.api.renderNodePaletteItems();
   const expected = {
-    image: ['image', 'input', 'krea2', 'krea2_control', 'qwen21', 'cyimg_image', 'pose'],
-    video: ['video', 'video_inference', 'cyimg_video', 'video_control'],
+    image: ['image', 'input', 'krea2', 'krea2_control', 'qwen21', 'moss', 'cyimg_image', 'pose'],
+    video: ['video', 'cyimg_video', 'video_control'],
     audio: ['audio', 'music_generate', 'music_transcribe', 'music_abc', 'music_score', 'music_compare'],
     enhance: ['upscale', 'topaz', 'topaz_video'],
     general: ['text', 'comfy', 'file_output', 'layout']

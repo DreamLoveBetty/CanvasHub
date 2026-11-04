@@ -46,7 +46,7 @@ body.desk-app[data-theme] .desk-image-group__mother::after {
 }
 
 body.desk-app[data-theme] .desk-image-group__node-actions svg,
-body.desk-app[data-theme] .desk-image-group__insert svg {
+body.desk-app[data-theme] :is(.desk-image-group__insert, .desk-image-group__delete) svg {
   height: calc(26px * var(--desk-image-group-ui-scale));
   fill: none;
   stroke: currentColor;
@@ -146,8 +146,8 @@ body.desk-app[data-theme] .desk-image-group__thumb img {
 
 body.desk-app[data-theme] .desk-image-group__thumb strong {
   position: absolute;
-  right: calc(-4px * var(--desk-image-group-ui-scale));
-  bottom: calc(-4px * var(--desk-image-group-ui-scale));
+  right: calc(12px * var(--desk-image-group-ui-scale));
+  bottom: calc(12px * var(--desk-image-group-ui-scale));
   display: grid;
   width: calc(56px * var(--desk-image-group-ui-scale));
   height: calc(56px * var(--desk-image-group-ui-scale));
@@ -163,11 +163,11 @@ body.desk-app[data-theme] .desk-image-group__thumb strong {
 }
 
 /* Role tag (top left, display only: tapping the thumbnail picks the role) stays visible so
-   every image's role reads at a glance. The prompt-reference button (top right) is revealed by
-   hover or focus. An open picker hides both: its ring would otherwise frame them. */
-body.desk-app[data-theme] :is(.desk-image-group__role, .desk-image-group__insert) {
+   every image's role reads at a glance. The prompt-reference button (top right) and the delete
+   button (bottom left, clear of the role tag and number badge) are revealed by hover or focus.
+   An open picker hides them all: its ring would otherwise frame them. */
+body.desk-app[data-theme] :is(.desk-image-group__role, .desk-image-group__insert, .desk-image-group__delete) {
   position: absolute;
-  top: calc(12px * var(--desk-image-group-ui-scale));
   z-index: 6;
   display: grid;
   height: calc(44px * var(--desk-image-group-ui-scale));
@@ -184,21 +184,29 @@ body.desk-app[data-theme] :is(.desk-image-group__role, .desk-image-group__insert
 }
 
 body.desk-app[data-theme] .desk-image-group__role {
+  top: calc(12px * var(--desk-image-group-ui-scale));
   left: calc(12px * var(--desk-image-group-ui-scale));
   padding: 0 calc(16px * var(--desk-image-group-ui-scale));
 }
 
 body.desk-app[data-theme] .desk-image-group__insert {
+  top: calc(12px * var(--desk-image-group-ui-scale));
   right: calc(12px * var(--desk-image-group-ui-scale));
   width: calc(44px * var(--desk-image-group-ui-scale));
 }
 
-body.desk-app[data-theme] :is(.desk-image-group__item.is-picking .desk-image-group__role, .desk-image-group__insert) {
+body.desk-app[data-theme] .desk-image-group__delete {
+  bottom: calc(12px * var(--desk-image-group-ui-scale));
+  left: calc(12px * var(--desk-image-group-ui-scale));
+  width: calc(44px * var(--desk-image-group-ui-scale));
+}
+
+body.desk-app[data-theme] :is(.desk-image-group__item.is-picking .desk-image-group__role, .desk-image-group__insert, .desk-image-group__delete) {
   opacity: 0;
   transform: scale(.92);
 }
 
-body.desk-app[data-theme] .desk-image-group__item:is(:hover, :focus-visible, :has(:focus-visible)):not(.is-picking) .desk-image-group__insert {
+body.desk-app[data-theme] .desk-image-group__item:is(:hover, :focus-visible, :has(:focus-visible)):not(.is-picking) :is(.desk-image-group__insert, .desk-image-group__delete) {
   opacity: 1;
   pointer-events: auto;
   transform: none;
@@ -427,8 +435,8 @@ body.desk-app[data-theme] .desk-image-group-transition__chip img {
 
 body.desk-app[data-theme] .desk-image-group-transition__chip strong {
   position: absolute;
-  right: calc(var(--desk-image-group-chip-unit) * -4);
-  bottom: calc(var(--desk-image-group-chip-unit) * -4);
+  right: calc(var(--desk-image-group-chip-unit) * 12);
+  bottom: calc(var(--desk-image-group-chip-unit) * 12);
   z-index: 2;
   display: grid;
   width: calc(var(--desk-image-group-chip-unit) * 56);

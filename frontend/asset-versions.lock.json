@@ -7,8 +7,8 @@
     "sha256": "1dbff0b5cd3abb375618e330d7afc7ad2df38e6616c9de2b13881af8d1e87956"
    },
    "scripts/desktop-api.js": {
-    "v": "20261030-panels-polish1",
-    "sha256": "8a41a958be6136b91f652e57053afa6bc27d31342346e336190f2f6515129a74"
+    "v": "20261104-prompt-roles1",
+    "sha256": "47e73dc2194672123e5af2a7b526a40fa03cb955a95c20f09ab4d7b9a062d288"
    },
    "scripts/desktop-audio-assets.js": {
     "v": "20260915-audio-node1",
@@ -30,25 +30,33 @@
     "v": "20260913-canvas-collision1",
     "sha256": "1be59012f34283f718c69e91e54715484598bad8dbe8837bc9d48eb25a700efa"
    },
+   "scripts/desktop-canvas-comfy-inputs.js": {
+    "v": "20261104-prompt-roles1",
+    "sha256": "cc31640f141c5c3e41e3cf20dee55dcdc6b9dca886bdea5279faba3c25cbe97b"
+   },
+   "scripts/desktop-canvas-comfy-video.js": {
+    "v": "20261103-comfy-video1",
+    "sha256": "1e58fa0b95a64c3ed04942b3d5253025dd0ea1fde87aff936d3ec9d8171c61a4"
+   },
    "scripts/desktop-canvas-connection-feedback.js": {
     "v": "20261007-connection-arc1",
     "sha256": "cf4e726aab65091d8df1f23dc648a477f3c46f3c04b284789807216e13be2761"
    },
    "scripts/desktop-canvas-connections.js": {
-    "v": "20261021-pose-video3",
-    "sha256": "62a129c610a70a31028fef26a6d80d29191e2e281d89994d4e4f2abeca863477"
+    "v": "20261105-graphite4",
+    "sha256": "7c2b67be2e7f726997520910547a7a3bfbb5102f8409ccc36ce4decf1482dcf5"
    },
    "scripts/desktop-canvas-cyimg.js": {
     "v": "20261030-ui-polish1",
     "sha256": "83e81b41b0189c81bdac5d622b6ee56368e20b717c745292f172b468186d54cc"
    },
    "scripts/desktop-canvas-generation-config.js": {
-    "v": "20261023-google-web2",
-    "sha256": "50193996cfb260fab3dfe6947ca2ec5eb426689b5ab906577b7dfa71664f97de"
+    "v": "20261104-prompt-roles1",
+    "sha256": "7bee9a390392343245e78d505e80a200f453897e28cb8ee0874cc398d2d54d4f"
    },
    "scripts/desktop-canvas-generation.js": {
-    "v": "20261030-ui-align1",
-    "sha256": "496270b9bde5acd51d5239fec32e88a28a1191e2456ec60358621123701e963c"
+    "v": "20261102-h3-removal1",
+    "sha256": "58d05848a4fd63d3199cb757ec6ab4fba403df2708809bf5f339eb11d84ee3df"
    },
    "scripts/desktop-canvas-geometry.js": {
     "v": "20261002-curve-direct1",
@@ -71,8 +79,8 @@
     "sha256": "831225fa67972e185ea4ee88f5864919413d47ac96d2fe0a8e73dcd48f359541"
    },
    "scripts/desktop-canvas-image-group-model.js": {
-    "v": "20261030-qwen-roles2",
-    "sha256": "128384ca27004b882e9c5b3ca6b5ae96a2b0983467c8da6c58872c1ea796c6e6"
+    "v": "20261101-image-group-item-delete3",
+    "sha256": "fd95d2cd98a8e42bc8b746c8f3467110441ac2fa50db8effc4c516539bb87495"
    },
    "scripts/desktop-canvas-image-group-role-picker.js": {
     "v": "20261017-image-group-icons1",
@@ -83,44 +91,52 @@
     "sha256": "3733b4c79b7ad223cd240894e8dccd78d10e449df2ac2448f1fab7802a789ee1"
    },
    "scripts/desktop-canvas-lora.js": {
-    "v": "20261002-lora-library3",
-    "sha256": "ee451626dd4d5dcd77cc069fa1eb8d1003b334ac0ff66a3611ccc1c04ab3ad56"
+    "v": "20261031-moss-node1",
+    "sha256": "b7cfaa53c838eb0e3bc2a379341c3c2a43ab9e60f588ba73b72774f64a039307"
    },
    "scripts/desktop-canvas-media-import.js": {
     "v": "20261021-video-upload1",
     "sha256": "24ae72dfe8123cf2b93e7561ffdbe644bf9be784d2891845de8662f855e25ef5"
    },
    "scripts/desktop-canvas-model-nodes.js": {
-    "v": "20261030-ui-polish1",
-    "sha256": "0b074ff9946d75ea0dbebf83d385c2efe3c7eabe37a512f79917f3308b418c40"
+    "v": "20261104-prompt-roles1",
+    "sha256": "18049cdf2df71473c1fc9f5fea9327b8383233c44007d48f1d217134b5842d70"
+   },
+   "scripts/desktop-canvas-moss.js": {
+    "v": "20261104-local-negative1",
+    "sha256": "965531a860e642cfa1a7367d9635895ac90e83f7fad5684bb68760cb04a6b642"
    },
    "scripts/desktop-canvas-music.js": {
     "v": "20260919-music-status2",
     "sha256": "b93826e20d41af49a57ea9a60668e489908347b5b7fce3995ca57d40230a1f3e"
    },
    "scripts/desktop-canvas-nodes.js": {
-    "v": "20261030-ui-polish1",
-    "sha256": "1f704da2dcf849a7026f4d2c7888c8663249e5f2a644ee100cdc59e3815da669"
+    "v": "20261102-h3-removal1",
+    "sha256": "ff7dd29fab2750404d078faf782ee919095de715c4037c5f9c6e24f5c7f6fd48"
    },
    "scripts/desktop-canvas-port-geometry.js": {
     "v": "20260911-canvas-port-geometry1",
     "sha256": "2bd0a1c434fae79cf3297fc9be0f7b1a5ad36873284eb64789b01db6b70f2a32"
    },
    "scripts/desktop-canvas-port-interaction.js": {
-    "v": "20261017-image-group-picker1",
-    "sha256": "b6c048fd37a44082821136365c5fd6d96af366f9f4d54f94fbb518717f5c6bdd"
+    "v": "20261105-graphite5",
+    "sha256": "c0443c566867b45b57c61bfd2b4941472a96d332b832d47a8cd1740b8762760b"
+   },
+   "scripts/desktop-canvas-port-plates.js": {
+    "v": "20261105-graphite4",
+    "sha256": "996f50669b14fafda236f502aa88786112bed02d0e80c6920671937fe7dc36be"
    },
    "scripts/desktop-canvas-pose.js": {
     "v": "20261022-pose-evidence1",
     "sha256": "634c1f3715d2ce9e125ec05a339aaa27624e7971779e45d5533d288f5511ddfa"
    },
    "scripts/desktop-canvas-prompt-document.js": {
-    "v": "20260912-canvas-business1",
-    "sha256": "20891a7f17d01e340e233112673c4745ca80065023565735ed99e7769626c8f2"
+    "v": "20261104-prompt-roles1",
+    "sha256": "0c3bb7ec5104d9af562226990b58d2d5aaebfd52b62116625c3b24751bfa116c"
    },
    "scripts/desktop-canvas-qwen21.js": {
-    "v": "20261030-qwen-align1",
-    "sha256": "76785f11ca79907674c6521c68a71455812c7b14ffd2a9ff2753f6fafb2b55ab"
+    "v": "20261104-local-negative1",
+    "sha256": "fe796df13b7eda13b144315bda990df84238b9f898797e98cf4cb0e740ebecad"
    },
    "scripts/desktop-canvas-references.js": {
     "v": "20261023-google-web2",
@@ -131,8 +147,8 @@
     "sha256": "d70db5353fd2b96b97eca3f7ac79bfc15cda35d1b12b9b2c77691464f319bc1a"
    },
    "scripts/desktop-canvas-text-editor.js": {
-    "v": "20261030-ui-align1",
-    "sha256": "d668678cf61bc2dd9f70d14630d0feaa6112077a8ec793a5814925035888f707"
+    "v": "20261104-prompt-roles1",
+    "sha256": "317dc60b9cab9607934dd2d30188a5b5a2da2e44bc6a2c43c4dee1e47c8ed01a"
    },
    "scripts/desktop-canvas-topaz-video.js": {
     "v": "20261005-topaz-pipeline1",
@@ -147,16 +163,16 @@
     "sha256": "6fa7b320644e0a55e82de126d4c8b6f0ba768e44eea8248969595ad75d053f03"
    },
    "scripts/desktop-canvas-viewport.js": {
-    "v": "20261009-zoom-style-cost1",
-    "sha256": "cef023eb2ee2c61842935bfe9564d290730eef24e82711329a185f81863e2604"
+    "v": "20261103-trackpad-pan1",
+    "sha256": "70a41845f29bc7f1f6e0171694d6b8a7a7676dd94b27cbd0a1f4633563461939"
    },
    "scripts/desktop-canvas-workflow.js": {
-    "v": "20261023-google-web2",
-    "sha256": "40c9f288d68ff173466a67c991048df5ed25114297f570fb15c28b972e205214"
+    "v": "20261104-prompt-roles1",
+    "sha256": "c659a5395927a510eeb0e17e1ae14dcf230d5c3d86fcc4d8e9a8d8e0df96ab7b"
    },
    "scripts/desktop-canvas.js": {
-    "v": "20261030-qwen-roles2",
-    "sha256": "39a7c340539ac80c6f24ca8c256a777db0c82fb50bf5ba24fef09b6b20be8516"
+    "v": "20261105-graphite4",
+    "sha256": "0798cb7d2cecf731d74d56da47c5921d73f3a66c2e1eb3e0143197f87b786f37"
    },
    "scripts/desktop-color-bloom.js": {
     "v": "20261019-color-drag1",
@@ -207,24 +223,24 @@
     "sha256": "727e37a85d8d2cb29f5879307ee16df024084f69e85604290e5fc7b57146acf5"
    },
    "scripts/desktop-google-pool.js": {
-    "v": "20261023-google-web2",
-    "sha256": "06f8b6a595cf20031b118807311fd68c7a6d8b436c3611b43fdafc9c63dc6921"
+    "v": "20261102-pool-tabs1",
+    "sha256": "ba51bf87b3fa92826906b661f5218c9675cff15f24b1cb03bf9a2c4b48eed876"
    },
    "scripts/desktop-google-web-controls.js": {
     "v": "20261024-google-web-2k-prompt1",
     "sha256": "b725f3da35115430af0439c38410cdca9b373f7064bd06fa0cfe0707b336be4f"
    },
    "scripts/desktop-google-web.js": {
-    "v": "20261024-google-web-multi1",
-    "sha256": "b371cf0d697d7a8b2a31c68e91e9cb940bb4466806730ec9ed51db0057e6e274"
+    "v": "20261102-settings-flat1",
+    "sha256": "13ae825f278b6cc4a6ad45364cc4bb9d6492c6e569223ad1c5fd33a934dd9b7f"
    },
    "scripts/desktop-history.js": {
-    "v": "20261030-panels-polish1",
-    "sha256": "11ce49d2fa554af345ce7ceb4af073204361a2ba3ad9cec467851e5a4dacf3d2"
+    "v": "20261103-gpt-endpoint1",
+    "sha256": "a3386c9807a85ae2ae5ca8323b9ebacd58777435a15e4bb6d33cec76cf74c75e"
    },
    "scripts/desktop-i18n.js": {
-    "v": "20261030-settings-fixes1",
-    "sha256": "f89a28f700fa5adf1a5f8ee859b63864824743e16d6171a0bb23b16e3aebb323"
+    "v": "20261103-comfy-video1",
+    "sha256": "a1ddb9e88d6cfc069c8a20379e1671b4adee7f874a5c6391a4b10021c03b68a7"
    },
    "scripts/desktop-krea2-api.js": {
     "v": "20260929-krea2-layout-3",
@@ -251,12 +267,32 @@
     "sha256": "8fb3a353517e92839ce0e77a709d135c07e31fae0aa3542d8d987075b0cb4805"
    },
    "scripts/desktop-lora-settings.js": {
-    "v": "20261002-lora-library3",
-    "sha256": "134583f0b2d1a68c8b1f0a2036773fe93df695c10d509c579865233c2e2f0548"
+    "v": "20261101-secret-mask2",
+    "sha256": "dcad1c60b5d17a2a102d09b2fae2d5c77b7b5eb9b4214328ba48beae0905b887"
    },
    "scripts/desktop-lora-view.js": {
-    "v": "20261026-lora-signed20",
-    "sha256": "22e77bb0bcaac6543204913191e794c651f11201669233774daa4f87c4743613"
+    "v": "20261101-lora-detail2",
+    "sha256": "02f7955d8f0bd82e92278abee57214a5fd80a8f85acae282b709535f207b1b74"
+   },
+   "scripts/desktop-moss-api.js": {
+    "v": "20261104-local-negative1",
+    "sha256": "6e5c85751d078c8e50170ac3d0256d0b23107d32b7815be0634ec20521e1ad6f"
+   },
+   "scripts/desktop-moss-grid.js": {
+    "v": "20261101-moss-grid1",
+    "sha256": "e505e1cf79477bd8c4eb5fdfb2ac8b2b2063861acb718fe45dea11f1aca6ff2c"
+   },
+   "scripts/desktop-moss-layout.js": {
+    "v": "20261031-moss-layout5",
+    "sha256": "f549230168966c19af01374bd9cf97f8200f844b32074f198ce3a80e4fcdb63b"
+   },
+   "scripts/desktop-moss-model.js": {
+    "v": "20261104-local-negative1",
+    "sha256": "e71c0045b7ba3639ce5145d26d718e334ca0d1e67e58ec6750c2265522f143e4"
+   },
+   "scripts/desktop-moss-tools.js": {
+    "v": "20261101-moss-base3",
+    "sha256": "3586d45ebaaa6d3d9e07fffdcb7716d4315511eee1066328c26c0ea91f29dd48"
    },
    "scripts/desktop-music-api.js": {
     "v": "20260921-task-contract1",
@@ -307,8 +343,8 @@
     "sha256": "458aed2e112bf3517234e4f63cf9498769af57fdab6996a2101c6587194d320c"
    },
    "scripts/desktop-preferences.js": {
-    "v": "20261030-settings-workbench1",
-    "sha256": "ee48a67f2eaeed70ee534a41a83c59760c9bd502337a00b6eaab618160862d05"
+    "v": "20261104-graphite1",
+    "sha256": "b6f8b5f2e6678a5fef7a2514bf4e810e9ecc793f3902e0746ab524dad6e568dc"
    },
    "scripts/desktop-progress-materials.js": {
     "v": "20261007-node-progress4",
@@ -331,12 +367,12 @@
     "sha256": "b14076bedd42739a1787647bcd55f99257c675154de0a5c655c3d660a4e753aa"
    },
    "scripts/desktop-prompt-agent.js": {
-    "v": "20261030-panels-polish1",
-    "sha256": "ed1f2bb35fcba418eaf8578cb87e8b356dfe9303ec29e1eeb51722890fc4aa1a"
+    "v": "20261104-prompt-roles1",
+    "sha256": "31c343ecd2d920aa33e863de1b2ae4c75f364b44ab4c5c459310012d271ffd80"
    },
    "scripts/desktop-prompt-drawer.js": {
-    "v": "20261030-panels-polish1",
-    "sha256": "4bf14b7eff884edfcce38e72e068b8c7ba43963cca9e4ca7979b0e5a17985ca4"
+    "v": "20261102-h3-removal1",
+    "sha256": "4995d2bdae19da154b9f8d66bbaef3470354a926c5349b43bd6aeba98be2e79a"
    },
    "scripts/desktop-prompt-editor.js": {
     "v": "20260929-prompt-video1",
@@ -367,24 +403,24 @@
     "sha256": "00bcf41ac9ff41be853543d905f492719605476ec2a2443f6fd12dc237e36ac1"
    },
    "scripts/desktop-results.js": {
-    "v": "20261030-ui-polish1",
-    "sha256": "3cfef2328c6386a47d15da63e4a142448ebd5277abe8ae1786244ce0e6c2dc94"
+    "v": "20261103-comfy-video2",
+    "sha256": "7c45491eb6346d7ffa58681e5c0e03719df8aaa32279133ee2504b8419daf4e7"
    },
    "scripts/desktop-select.js": {
-    "v": "20261020-pose-rebuild1",
-    "sha256": "b8a61e6c84377a08180bafe1566f94df01b14f483ee1cb4196b935fa519166a4"
+    "v": "20261102-h3-removal1",
+    "sha256": "21747455139ba83903d91a1d57c8503fa3ff011ce0a50bd26918d1e3393344cc"
    },
    "scripts/desktop-settings-drafts.js": {
     "v": "20261030-settings-drafts1",
     "sha256": "fc949acbbdcc13b35216d6de6f4ff0ed5a8593b55b88be3abdf3e4d40c545da3"
    },
    "scripts/desktop-settings-search.js": {
-    "v": "20261030-settings-fixes1",
-    "sha256": "aef9c53c670f27905df3db10858846b0857f0436119b305bb766fe029459aa7e"
+    "v": "20261101-secret-mask1",
+    "sha256": "43e81dc5525b3de0c5613d1e35cf12222c76d74610a18f3f9eb899bac8922cf7"
    },
    "scripts/desktop-settings.js": {
-    "v": "20261030-settings-fixes1",
-    "sha256": "24c637bc6ded432753d48be0b421df69d2f147b1a3dd2b3802c90fae1b101e74"
+    "v": "20261104-graphite1",
+    "sha256": "915ee4ab3d9af971e9c507a18247203d7d302e2560cda20f4bd8fb5a520d7981"
    },
    "scripts/desktop-state-icon.js": {
     "v": "20261004-state-icons1",
@@ -395,8 +431,8 @@
     "sha256": "5e8adb4ea7095097e3adabe212e4e6326f5109c196cb03721eef00a771cfcf85"
    },
    "scripts/desktop-task-output-adapter.js": {
-    "v": "20260921-task-contract1",
-    "sha256": "b7f089f6f92bb31215df4b0284c9b00c00c73fd69ac60218f0fa6424295eba4c"
+    "v": "20261102-h3-removal1",
+    "sha256": "bd1b1d97d55e14a34b73501aa705bd5ecae6f9f23840f5f2f49b644144267b6e"
    },
    "scripts/desktop-tasks.js": {
     "v": "20260921-task-contract1",
@@ -427,16 +463,12 @@
     "sha256": "adcdcb27706a79f740983f0f861f7795f07535dbbb0290d297beb09d46d19898"
    },
    "scripts/desktop-topaz-video-view.js": {
-    "v": "20261030-ui-polish1",
-    "sha256": "35f030e9e30f3955f2f4128f39dcab992d0890b565c05037e8d34ce396cc13f9"
+    "v": "20261101-select-font2",
+    "sha256": "7a3d8a90490a9b66d9fa3bd5f3d82886563bb5a1a0c237662f0eee89de50928a"
    },
    "scripts/desktop-topaz-video-workbench.js": {
     "v": "20261011-stepper-panels1",
     "sha256": "00ecb5ec1c181d154b811cdfbea862a0760e82e3bf0640f7a5a209a25b21b9e3"
-   },
-   "scripts/desktop-video-config.js": {
-    "v": "20260808-video-4x2-controls1",
-    "sha256": "c48397135414f4d9ef0dd9af814ffba1911f93d370ebeb445d25af8a3d57ef81"
    },
    "scripts/desktop-video-control-api.js": {
     "v": "20260925-topaz-video1",
@@ -459,12 +491,12 @@
     "sha256": "b20ea9c6dcb130109a4fd40af8095059a025a931dc4e71afb2a0e6ef408de7e2"
    },
    "styles/desktop-canvas-nodes-geometry.css": {
-    "v": "20261030-ui-polish1",
-    "sha256": "f073b0410ed9e045015b9a5e61ca27a4a4a5ed22e77d560cd72af8fb998de768"
+    "v": "20261104-prompt-roles1",
+    "sha256": "784a62d2466edc7260b8de3e9eea00f219652c87f86a04b406ca8bf371837a35"
    },
    "styles/desktop-canvas-nodes.css": {
-    "v": "20261030-ui-polish1",
-    "sha256": "45004c75fc0d2edc375ac3709a803ebde58cd87e40e4c6fa25e813c298b939da"
+    "v": "20261104-prompt-roles1",
+    "sha256": "179f1131c5fb0b83258b8ae6f2dac9057b702cd778500d0c739705d98916524f"
    },
    "styles/desktop-color-bloom.css": {
     "v": "20261019-color-drag1",
@@ -479,16 +511,16 @@
     "sha256": "15b159c8d422c6da0fcea418e95c21e0b6a085cfe09021ed00a2dc8693fd5b7d"
    },
    "styles/desktop-controls.css": {
-    "v": "20261030-settings-workbench1",
-    "sha256": "0bff89edd8951cbbc6e3a86a921713b0a23a799f595e221b3d2b60f48ba66b1e"
+    "v": "20261102-h3-removal1",
+    "sha256": "aaa132d58e97c9b73d19afab37e428d4d73178515b28a66a10ead6dc8bd37598"
    },
    "styles/desktop-creation-tools.css": {
-    "v": "20261021-video-upload1",
-    "sha256": "256654132feae125214d59cacd6878a4a495e83780a87016baa071640fa233ba"
+    "v": "20261102-h3-removal1",
+    "sha256": "79e286e9796fc2ce0a601b7d411ae44c5a5ee4754c31b5646cfb341de4510234"
    },
    "styles/desktop-cyimg.css": {
-    "v": "20261030-ui-polish1",
-    "sha256": "aa8038ac5ec875280ab359ce88a44078872450ef3689b81d79f380726fe01a83"
+    "v": "20261101-select-font2",
+    "sha256": "ffe6aeacbe443d5ac477d8dfa9c6e03deb1cbc8b21dae3769644aeb0714121e2"
    },
    "styles/desktop-file-results.css": {
     "v": "20261030-ui-polish1",
@@ -503,8 +535,8 @@
     "sha256": "e180daa4604f5034e1abb8d0b3ac7b992d7c61ce9f754b94700b04d9f1a17aa0"
    },
    "styles/desktop-geometry.css": {
-    "v": "20261030-settings-fixes1",
-    "sha256": "3c0da5ff2cda7cbff00fddf37859749f9fc0a8fc450004b0d0de939933d9406f"
+    "v": "20261102-h3-removal1",
+    "sha256": "c4c1eb450160dad9bbf6720c5700d8362059de875821846aa921d9501972c317"
    },
    "styles/desktop-google-web-geometry.css": {
     "v": "20261023-google-web2",
@@ -514,17 +546,21 @@
     "v": "20261023-google-web2",
     "sha256": "72be900aec8cd304718e517c4da85d5cec8d083d4fc3de05c597c17a65417fdb"
    },
+   "styles/desktop-graphite.css": {
+    "v": "20261105-graphite5",
+    "sha256": "d50498d4a5653dad40f396c519616d1f4f737e27d1d9e26fcb638956231b1bd6"
+   },
    "styles/desktop-image-group-geometry.css": {
-    "v": "20261030-ui-polish1",
-    "sha256": "57d232b1cdfe8dd44aa02b0498aa000131c75dc08a020ddfb09582990b2b9453"
+    "v": "20261101-image-group-item-delete4",
+    "sha256": "24e13f7808349da47ab7366bdb20d9b330c497e19bf7d25049ab48aa03def209"
    },
    "styles/desktop-image-group-interaction.css": {
-    "v": "20261017-image-group-picker1",
-    "sha256": "a78825c9e458d22d5b2c5614317639a520d87b1f5a3692d23e773084d7a52cb9"
+    "v": "20261101-image-group-item-delete1",
+    "sha256": "890edc3ef6a7e44b8160903b6e475f1120546dee33492e2b8b3dc7bc893a6e2d"
    },
    "styles/desktop-image-group.css": {
-    "v": "20261017-image-group-glass1",
-    "sha256": "785b0812de7da43276aa205bd87a55e8c18117c7afbda21714e59a46baafd8a5"
+    "v": "20261101-image-group-item-delete1",
+    "sha256": "1cf6557e7d13044777c6690ecce10e0bb7c0612cae52241d661e2eee23e023ec"
    },
    "styles/desktop-krea2-control-geometry.css": {
     "v": "20261017-area-control1",
@@ -539,24 +575,32 @@
     "sha256": "c7a8804ed8b2d88253c4d0ba5ed7f511aff3527b4e74cb2d134b615c67145938"
    },
    "styles/desktop-layout.css": {
-    "v": "20261014-layout-module1",
-    "sha256": "f0f42e1cb340f262bf81c64abe22bd953d0aac190213c56bc288735e448bfc12"
+    "v": "20261102-pool-tabs1",
+    "sha256": "e60efb4504339324c42bcf212ad2e978040b6032b1a3b895300c867eecc61312"
    },
    "styles/desktop-liquid.css": {
-    "v": "20261030-settings-workbench1",
-    "sha256": "daa7b66f6bffc650a29282fb6517f895fd77b8db3800bba233ada1383a255ffb"
+    "v": "20261104-comfy-tags1",
+    "sha256": "02a4a2a251c8c05d7ff1c4d62dc431c4d9f5f2c35c93d6291a34b6c3df54a068"
    },
    "styles/desktop-lora.css": {
-    "v": "20261003-lora-quick-add1",
-    "sha256": "2a179d6b06778cc2ce0fbec23ded0c77d79dcb8f3311ada01921bfcb592510e3"
+    "v": "20261101-lora-detail1",
+    "sha256": "b565028ff9d07cc4f9348bf4f940c5420327d841f1dfc1609a1f45a818556f4d"
+   },
+   "styles/desktop-moss-geometry.css": {
+    "v": "20261101-moss-grid1",
+    "sha256": "b77339dfafaf9dfd83c09673f8390bc250ba8125c8ccc499508e01a936b3877e"
+   },
+   "styles/desktop-moss.css": {
+    "v": "20261101-moss-grid1",
+    "sha256": "10c30996d05867b62b0c6b1b9bdf5a29e72d4540af2b0daee17a638535d90081"
    },
    "styles/desktop-motion.css": {
     "v": "20261017-image-group-tap1",
     "sha256": "94effff8339d1c8d82ec02917eb5d7a1c617644fcc9a6641173da18580a8403b"
    },
    "styles/desktop-music.css": {
-    "v": "20261030-ui-polish1",
-    "sha256": "15bf724e0b2b2640ae2f923195c8d59f01c93d3fedbb0e92eb88c71fa7c52697"
+    "v": "20261101-select-font2",
+    "sha256": "27c361164168edea5a204076956cd88be00b86b1d4bdcef510bb83e793605039"
    },
    "styles/desktop-number-stepper.css": {
     "v": "20261011-stepper-panels1",
@@ -567,12 +611,12 @@
     "sha256": "bbcc2a99d7992633c48ed3fa20d46041e7eeda8507e3d4ca7a1f045b58b3718d"
    },
    "styles/desktop-pose-editor-geometry.css": {
-    "v": "20261022-pose-hands1",
-    "sha256": "b1d9851dc889bccfc160c3670043d8a0612fbd9066589d843731b8b7c0d0ef9d"
+    "v": "20261101-select-font1",
+    "sha256": "0f6ffa35a8504cbba43eff516e31a9eb7bd157505e9a5d5d155b726945409e4a"
    },
    "styles/desktop-pose-editor.css": {
-    "v": "20261021-pose-video1",
-    "sha256": "bb8697d77f0233aece62ccf6d9e232918fe53e1721395f3492e886ef3b9a2b1a"
+    "v": "20261101-select-font1",
+    "sha256": "b4b295bb1e67b6f0f99764a2e6914bcf3980d30247533e2bd21f9cdef6e165e5"
    },
    "styles/desktop-pose-node.css": {
     "v": "20261030-ui-polish1",
@@ -599,44 +643,44 @@
     "sha256": "22a91b45ffe5372ff1708c5afd2a560c672dfc409f5abbcb01bd3ab1ab5e44f3"
    },
    "styles/desktop-settings-auth-geometry.css": {
-    "v": "20261030-settings-workbench1",
-    "sha256": "b8a75e250dbf4bce681e46ba55db2513f445ee0defc0a3652db18ca78a9fb38f"
+    "v": "20261102-settings-flat2",
+    "sha256": "04b5633fe4c9ae4b2c2b9cfd111008b71a21df66a9319e222bb31328a2d76f9e"
    },
    "styles/desktop-settings-auth.css": {
-    "v": "20261030-settings-workbench3",
-    "sha256": "4ab3117e3b5ee65ef82b3a04e620020582d8e49cd5b4aee07ae82620fc4f6e3f"
+    "v": "20261102-h3-removal1",
+    "sha256": "f9174ff0e265c2f7c6b0027d5b5fdd501a1eee8c1e61f87c60d3cc63b01d894d"
    },
    "styles/desktop-shell-geometry.css": {
-    "v": "20261015-shell-preserve1",
-    "sha256": "18ef30e9bcd7c1b4869d2d26b7c1fbfe7ac79324a39cca40a63a40e9d9db5b32"
+    "v": "20261103-trackpad-pan3",
+    "sha256": "33176543568f1a30ec56e7167d580d01031bc9b9d620e317f6f86513aae170b5"
    },
    "styles/desktop-shell.css": {
     "v": "20261006-node-palette-frost1",
     "sha256": "c1a80028721d1c04c0020512cf6d5fbf123b693970968cf242bbc50c5f3a3e01"
    },
    "styles/desktop-tokens.css": {
-    "v": "20261030-settings-workbench3",
-    "sha256": "0d9166b143671f6e7702e20c64d0c699615501d2d64ac44c76d0a1328d06e4d9"
+    "v": "20261104-prompt-roles1",
+    "sha256": "7d1f2e8074f3706c9dbbf5f69478056b463969420cd0a1f0ec9a302a2629be82"
    },
    "styles/desktop-topaz-video-workbench.css": {
-    "v": "20261006-topaz-panel-polish2",
-    "sha256": "90cafab9b6b6032f9b3bb53aa87e34c1457f5d3064591822ba5509fc607aab60"
+    "v": "20261101-select-font1",
+    "sha256": "a3c1ecc1fd91bb9e31c15f7372e916745bfd8581b8ed5769200e1e0c3dd7b25e"
    },
    "styles/desktop-topaz-video.css": {
-    "v": "20261030-ui-polish1",
-    "sha256": "b93b92432001bfb4c69afda68ca2e714d708dfef641f423850f30086c69f0a40"
+    "v": "20261101-select-font1",
+    "sha256": "63dede0bb6342ebcd574a5f77ec11ddb2e2972df01d6ea7417536d0fc4824977"
    },
    "styles/desktop-topaz.css": {
-    "v": "20261030-ui-polish1",
-    "sha256": "49b7552dfbfb835841c0621ceb63c000e878a1e260aada3522a58c68042784a8"
+    "v": "20261101-select-font1",
+    "sha256": "97789f63dcec1563fdfc503258f8ffaa70c6e6b3c35c4918f03bfaa52814af3b"
    },
    "styles/desktop-video-control.css": {
-    "v": "20261030-ui-polish1",
-    "sha256": "047565316285f60869092913307a99c006cd8e3a23345eb0bc5074e4ab5f1ac0"
+    "v": "20261101-select-font1",
+    "sha256": "ec85f8bc2f8d4f700546f291e413a06f70dd8a0bbdf58031fafe2c525327698f"
    },
    "styles/desktop-video.css": {
-    "v": "20261021-video-upload1",
-    "sha256": "b353a511d8ebc239785f6cb0757d20e79725a438f6e5ee53453676a5485abdf1"
+    "v": "20261102-h3-removal1",
+    "sha256": "e75bc57da682632d1b915af4298b2a6342abd3c182f4c58c955600ea608e9d4f"
    }
   },
   "index.html": {

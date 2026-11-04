@@ -7,12 +7,10 @@
   let lastGptModelCatalog = null;
   let lastComfyWorkflows = null;
   let lastComfyHealth = null;
-  let lastVideoRuntimeStatus = null;
-  let lastVideoRuntimeCapabilities = null;
-  let lastVideoSupervisorStatus = null;
   let activeComfyWorkflowId = '';
   let krea2Tools = null;
   let qwen21Tools = null;
+  let mossTools = null;
   let loraSettings = null;
   let pinterestAuthSessionId = window.sessionStorage?.getItem('deskPinterestAuthSessionId') || '';
   let pinterestAuthActivity = null;
@@ -125,9 +123,9 @@
       summary: '配置 GPT 主模型、推理强度、托管 OAuth 和本地请求超时策略。',
       sections: [
         ['配置方式', [
-          'GPT 主模型和推理强度会影响本地 Codex 生成请求。',
+          'GPT 主模型和推理强度只在请求端点为 Responses API 时影响本地 Codex 生图请求。',
           'Codex 授权路径和 API endpoint 收在托管 OAuth 卡片的运行配置中，避免 Provider 连接卡重复。',
-          '本地超时到达上限后，会按现有策略切到账号池托底。'
+          '请求端点二选一，不再自动互相降级；本地超时同时是单次请求上限，到达后按现有策略切到账号池托底。'
         ]],
         ['对应模块', [
           '本地 Codex 生成、Codex 编辑、托管 Codex OAuth 授权、Codex 到账号池 fallback。'
@@ -220,7 +218,7 @@
     },
     'model-tools': {
       title: '模型工具',
-      subtitle: 'Qwen 2.1 / Krea 2 Base 权重转换与管理',
+      subtitle: 'Qwen 2.1 / Krea 2 / MOSS Base 权重转换与管理',
       summary: '按模型架构检查本地完整 Transformer，使用共享 MLX 环境转换并注册到对应画布节点。',
       sections: [
         ['转换流程', [
@@ -260,28 +258,6 @@
           '节点只显示已启用工作流；停用不会删除 JSON，也不会破坏旧画布引用。',
           '缩略图会压缩成 WebP 保存，工作流 JSON 本身仍保留在后端 workflows 目录。',
           '画布节点会自动解析 JSON 中的数字、开关、文本和常用枚举参数；节点修改只作为本次运行覆盖，不会改写原工作流。'
-        ]]
-      ]
-    },
-    'video-inference': {
-      title: '视频推理配置',
-      subtitle: '独立 MiniMax H3 Runtime',
-      summary: '选择主程序调用本机或局域网中的独立 H3 Runtime；画布不保存服务地址和密钥。',
-      sections: [
-        ['运行方式', [
-          '自动检测会先尝试本机 Runtime，再尝试已配置的局域网 Runtime。',
-          '本机 H3 适合主程序和 RTX 显卡部署在同一台 Windows 设备；局域网 H3 适合 Mac 或其他设备调用 Windows 推理机。',
-          'H3_Runtime_Server 独立启动，不依赖 ComfyUI 前端和工作流 JSON。'
-        ]],
-        ['参数边界', [
-          '节点中的画幅只决定宽高比，质量表示像素量，并由两者映射到实际分辨率。',
-          '实际尺寸始终按 Runtime 的 dimension_multiple 对齐，并受 max_pixels 限制。',
-          'FirstBlockCache 与 Sol-Attn 属于近似加速；Sol-Attn 和组合模式继续标记为实验性。'
-        ]],
-        ['安全与保存', [
-          '局域网 API Key 只保存在后端 settings.json，不会返回前端或写入画布工作流。',
-          'Runtime 与 Supervisor 地址只允许本机或局域网完整 URL；连接检测不经过系统代理。',
-          'Supervisor 管理员密码只在独立管理台登录，CanvasHub 不保存也不代理管理凭据。'
         ]]
       ]
     }
@@ -385,7 +361,7 @@
   }
 
   // `goto` names the settings tab that configures this card; the status page offers a jump there.
-  function renderCard(title, rows, ok, { goto = '' } = {}) {
+  function renderCard(title, rows, ok, { goto = '', actions = '' } = {}) {
     const gotoButton = goto
       ? `<button type="button" class="desk-settings-card__goto" data-settings-goto="${escapeHtml(goto)}">去设置</button>`
       : '';
@@ -395,6 +371,7 @@
           <span class="desk-settings-dot" aria-hidden="true"></span>
           <h3>${escapeHtml(title)}</h3>
           ${gotoButton}
+          ${actions ? `<div class="desk-settings-card__actions">${actions}</div>` : ''}
         </header>
         <div class="desk-settings-card__body">
           ${rows.join('')}
@@ -452,47 +429,54 @@
     `;
   }
 
+  const DEFAULT_SECRET_MASK_LENGTH = 8;
+
+  // The mask is a placeholder, never a value: it cannot be read back or submitted, so an
+  // untouched secret stays out of the save payload and the server keeps what it has.
+  // A configured secret with no single measurable value (Pinterest's cookie set) gets a default mask.
+  function secretMaskAttrs(label, configured, options, fallbackPlaceholder) {
+    const known = Number(options.length);
+    const lengthKnown = Number.isInteger(known) && known > 0;
+    if (!configured && !lengthKnown) return `placeholder="${escapeHtml(options.placeholder || fallbackPlaceholder)}"`;
+    const length = lengthKnown ? known : DEFAULT_SECRET_MASK_LENGTH;
+    const state = lengthKnown ? `已配置 ${length} 位` : '已配置';
+    return `placeholder="${'*'.repeat(length)}" title="${state}；输入新值覆盖，留空则不修改" aria-label="${escapeHtml(label)} ${state}，留空则不修改" data-secret-masked`;
+  }
+
+  function renderSecretClear(label, field, configured) {
+    if (!configured) return '';
+    const labelPrefix = /^[A-Za-z0-9]/.test(label) ? ' ' : '';
+    return `<button type="button" class="desk-settings-secret-clear" data-system-secret-clear-field="${escapeHtml(field)}" data-system-secret-clear-label="${escapeHtml(label)}" title="清除已保存的${labelPrefix}${escapeHtml(label)}">清除${labelPrefix}${escapeHtml(label)}</button>`;
+  }
+
   function renderSecretInput(label, field, configured, options = {}) {
-    const placeholder = options.placeholder || (configured ? '留空则不修改' : '粘贴新的密钥或密码');
+    const fallback = configured ? '留空则不修改' : '粘贴新的密钥或密码';
     return `
       <div class="desk-settings-secret-field">
-        <div class="desk-settings-secret-field__label">
-          <span>${escapeHtml(label)}</span>
-          ${configured ? `
-            <button type="button" class="desk-settings-secret-clear" data-system-secret-clear-field="${escapeHtml(field)}" data-system-secret-clear-label="${escapeHtml(label)}" title="清除已保存的${escapeHtml(label)}">
-              清除
-            </button>
-          ` : ''}
-        </div>
-        <input class="desk-input" type="password" data-system-setting-field="${escapeHtml(field)}" placeholder="${escapeHtml(placeholder)}" value="" autocomplete="new-password">
+        <span>${escapeHtml(label)}</span>
+        <input class="desk-input" type="password" data-system-setting-field="${escapeHtml(field)}" ${secretMaskAttrs(label, configured, options, fallback)} value="" autocomplete="new-password">
       </div>
     `;
   }
 
   function renderSecretTextarea(label, field, configured, options = {}) {
-    const placeholder = options.placeholder || (configured ? '留空则不修改' : '粘贴登录态');
+    const fallback = configured ? '留空则不修改' : '粘贴登录态';
     return `
       <div class="desk-settings-secret-field desk-settings-form__wide">
-        <div class="desk-settings-secret-field__label">
-          <span>${escapeHtml(label)}</span>
-          ${configured ? `
-            <button type="button" class="desk-settings-secret-clear" data-system-secret-clear-field="${escapeHtml(field)}" data-system-secret-clear-label="${escapeHtml(label)}" title="清除已保存的${escapeHtml(label)}">
-              清除
-            </button>
-          ` : ''}
-        </div>
-        <textarea class="desk-settings-textarea" data-system-setting-field="${escapeHtml(field)}" placeholder="${escapeHtml(placeholder)}" autocomplete="off" autocapitalize="off" spellcheck="false"></textarea>
+        <span>${escapeHtml(label)}</span>
+        <textarea class="desk-settings-textarea" data-system-setting-field="${escapeHtml(field)}" ${secretMaskAttrs(label, configured, options, fallback)} autocomplete="off" autocapitalize="off" spellcheck="false"></textarea>
       </div>
     `;
   }
 
-  function renderCheckbox(label, field, checked) {
-    return `
+  function renderCheckbox(label, field, checked, { action = '' } = {}) {
+    const row = `
       <label>
         <span>${escapeHtml(label)}</span>
         <input type="checkbox" data-system-setting-field="${escapeHtml(field)}"${checked ? ' checked' : ''}>
       </label>
     `;
+    return action ? `<div class="desk-settings-switch-row">${row}${action}</div>` : row;
   }
 
   function renderTextarea(label, field, value, placeholder = '') {
@@ -521,9 +505,11 @@
     return renderCard('Telegram 与访问', [
       `<div class="desk-settings-form" data-system-settings-card="telegram">
         ${renderSecretInput('访问密码', 'miniapp_access_password', auth.miniapp_access_password_configured, {
+          length: auth.miniapp_access_password_length,
           placeholder: auth.miniapp_access_password_configured ? '留空则不修改' : '设置 mini app 访问密码'
         })}
         ${renderSecretInput('Bot Token', 'telegram.bot_token', telegram.bot_token_configured, {
+          length: telegram.bot_token_length,
           placeholder: telegram.bot_token_configured ? '留空则不修改' : '粘贴 Telegram Bot Token'
         })}
         ${renderInput('Chat ID', 'telegram.chat_id', telegram.chat_id || '')}
@@ -532,7 +518,10 @@
         <p class="desk-settings-form__hint">图片投递仍固定走 sendDocument，避免 Telegram 压缩。</p>
         ${renderSystemSaveButton('telegram', '保存 Telegram 配置')}
       </div>`
-    ], Boolean(telegram.bot_token_configured && telegram.chat_id));
+    ], Boolean(telegram.bot_token_configured && telegram.chat_id), {
+      actions: renderSecretClear('访问密码', 'miniapp_access_password', auth.miniapp_access_password_configured)
+        + renderSecretClear('Bot Token', 'telegram.bot_token', telegram.bot_token_configured)
+    });
   }
 
   function renderSystemRuntimeSettings(server, auth) {
@@ -541,16 +530,34 @@
     const port = server?.port || setting('server.port', 18463);
     return renderCard('系统与公网访问', [
       `<div class="desk-settings-form" data-system-settings-card="system">
-        ${renderCheckbox('公网模式', 'server.public_mode', publicMode)}
+        ${renderCheckbox('公网模式', 'server.public_mode', publicMode, {
+          action: renderSecretClear('访问密码', 'miniapp_access_password', auth?.miniapp_access_password_configured)
+        })}
         ${renderInput('监听地址', 'server.host', host, { placeholder: publicMode ? '0.0.0.0' : '127.0.0.1' })}
         ${renderInput('端口', 'server.port', port, { type: 'number', min: 1, max: 65535, step: 1 })}
         ${renderSecretInput('访问密码', 'miniapp_access_password', auth?.miniapp_access_password_configured, {
+          length: auth?.miniapp_access_password_length,
           placeholder: auth?.miniapp_access_password_configured ? '留空则不修改' : '公网模式必须设置访问密码'
         })}
         <p class="desk-settings-form__hint">默认本机模式会强制绑定 127.0.0.1；公网模式保存后需要重启服务生效，且必须配置访问密码。</p>
         ${renderSystemSaveButton('system', '保存系统配置')}
       </div>`
     ], !publicMode || Boolean(auth?.miniapp_access_password_configured));
+  }
+
+  function renderThemeStyleSettings() {
+    const style = window.DesktopPreferences?.normalizeThemeStyle?.(
+      window.DesktopPreferences?.state?.themeStyle
+    ) || 'liquid';
+    return renderCard('主题风格', [
+      `<div class="desk-settings-canvas-interaction">
+        <span class="desk-settings-canvas-interaction__label" title="与日间/夜间模式独立组合">画布主题</span>
+        <div class="desk-settings-canvas-interaction__segment desk-key-bank" role="group" aria-label="画布主题风格">
+          <button type="button" class="${style === 'liquid' ? 'is-active' : ''}" data-theme-style="liquid" aria-pressed="${style === 'liquid' ? 'true' : 'false'}">液态</button>
+          <button type="button" class="${style === 'graphite' ? 'is-active' : ''}" data-theme-style="graphite" aria-pressed="${style === 'graphite' ? 'true' : 'false'}">石墨</button>
+        </div>
+      </div>`
+    ], true);
   }
 
   function renderCanvasInteractionSettings() {
@@ -702,7 +709,9 @@
     const activityText = pinterestAuthActivity?.message || '';
     return renderCard('Pinterest 图库', [
       `<div class="desk-settings-form" data-system-settings-card="pinterest">
-        ${renderCheckbox('启用 Pinterest 图库', 'pinterest.enabled', Boolean(config.enabled))}
+        ${renderCheckbox('启用 Pinterest 图库', 'pinterest.enabled', Boolean(config.enabled), {
+          action: renderSecretClear('Pinterest 登录态', 'pinterest.auth_cookie', authConfigured)
+        })}
         ${renderKv('授权账号', accountLabel)}
         ${renderKv('个人主页', authProfileUrl || (authConfigured ? '验证后自动识别' : '连接账号后自动识别'))}
         ${renderInput('同步目标主页（可选）', 'pinterest.sync_profile_url', config.sync_profile_url || '', { placeholder: 'https://www.pinterest.com/username/' })}
@@ -718,6 +727,7 @@
         ${renderInput('验证超时（秒）', 'pinterest.request_timeout_seconds', config.request_timeout_seconds || 20, { type: 'number', min: 5, max: 60, step: 1 })}
         ${renderCheckbox('下载 Pinterest 原图', 'pinterest.download_originals', config.download_originals !== false)}
         ${renderSecretTextarea('Cookie（备用导入）', 'pinterest.auth_cookie', authConfigured, {
+          length: config.auth_cookie_length,
           placeholder: authConfigured ? '登录态已保存；留空则不修改' : '浏览器登录不可用时，粘贴完整 Cookie'
         })}
         <div class="desk-settings-pinterest-status ${authOk ? 'is-ok' : 'is-warn'}">
@@ -777,6 +787,7 @@
           <select class="desk-select" data-system-setting-field="gpt_provider.reasoning_effort"${reasoningEfforts.length ? '' : ' disabled'}>${effortOptions}</select>
         </label>
         <p class="desk-settings-form__hint">生图引擎：${escapeHtml(codexRoute?.image_engine?.label || 'GPT Image 2')}</p>
+        ${requestEndpointValue(provider) === 'images' ? '<p class="desk-settings-form__hint">当前请求端点为 Images API：推理强度不参与生图，主模型仅在账号池托底时使用。</p>' : ''}
         <div class="desk-settings-form__actions desk-settings-form__actions--compact">
           <button type="button" data-gpt-generation-models-refresh>刷新线路模型</button>
         </div>
@@ -812,6 +823,7 @@
       `<div class="desk-settings-form" data-system-settings-card="third-party-nano">
         <p class="desk-settings-form__hint">Google / Gemini 兼容图像生成端点。</p>
         ${renderSecretInput('Nano Banana Key', 'nano_banana_api.api_key', nano.api_key_configured, {
+          length: nano.api_key_length,
           placeholder: nano.api_key_configured ? '留空则不修改' : '粘贴 nano banana API Key'
         })}
         ${renderInput('API URL', 'nano_banana_api.base_url', nano.base_url || '', {
@@ -819,11 +831,14 @@
         })}
         ${renderSystemSaveButton('third-party-nano', '保存 Nano Banana API')}
       </div>`
-    ], Boolean(nano.api_key_configured && nano.base_url));
+    ], Boolean(nano.api_key_configured && nano.base_url), {
+      actions: renderSecretClear('Nano Banana Key', 'nano_banana_api.api_key', nano.api_key_configured)
+    });
     const gptImageCard = renderCard('Gpt-Image-2 API', [
       `<div class="desk-settings-form" data-system-settings-card="third-party-gpt-image">
         <p class="desk-settings-form__hint">OpenAI Images 兼容第三方端点。只在模型节点“线路”选择“第三方 API”时启用，不参与默认 GPT fallback。</p>
         ${renderSecretInput('Gpt-Image-2 Key', 'third_party_image_api.api_key', api.api_key_configured, {
+          length: api.api_key_length,
           placeholder: api.api_key_configured ? '留空则不修改' : '粘贴 Gpt-image-2 API Key'
         })}
         ${renderInput('API URL', 'third_party_image_api.base_url', api.base_url || '', {
@@ -843,17 +858,22 @@
         ${renderInput('超时秒数', 'third_party_image_api.timeout_seconds', api.timeout_seconds || 900, { type: 'number', min: 30, max: 1800, step: 30 })}
         ${renderSystemSaveButton('third-party-gpt-image', '保存 Gpt-Image-2 API')}
       </div>`
-    ], Boolean(api.api_key_configured && api.base_url));
+    ], Boolean(api.api_key_configured && api.base_url), {
+      actions: renderSecretClear('Gpt-Image-2 Key', 'third_party_image_api.api_key', api.api_key_configured)
+    });
     const cyimgCard = renderCard('绘栾 API', [
       `<div class="desk-settings-form" data-system-settings-card="third-party-cyimg">
         <p class="desk-settings-form__hint">独立异步接口，支持画布上的绘栾图像与视频节点。模型目录实时读取；不会改动现有第三方图像或 GPT 托底线路。</p>
         ${renderSecretInput('绘栾 API Key', 'cyimg.api_key', cyimgConfig.api_key_configured, {
+          length: cyimgConfig.api_key_length,
           placeholder: cyimgConfig.api_key_configured ? '留空则不修改' : '粘贴 sk_ 开头的绘栾 API Key'
         })}
         ${renderInput('任务等待上限（秒）', 'cyimg.task_timeout_seconds', cyimgConfig.task_timeout_seconds || 3600, { type:'number', min:60, max:7200, step:60 })}
         ${renderSystemSaveButton('third-party-cyimg', '保存绘栾 API')}
       </div>`
-    ], Boolean(cyimgConfig.api_key_configured));
+    ], Boolean(cyimgConfig.api_key_configured), {
+      actions: renderSecretClear('绘栾 API Key', 'cyimg.api_key', cyimgConfig.api_key_configured)
+    });
     return nanoCard + gptImageCard + cyimgCard;
   }
 
@@ -940,144 +960,6 @@
     return serviceCard + workflowsCard;
   }
 
-  function renderVideoInferenceSettings(config = {}, status = null, supervisorStatus = null) {
-    const runtimeMode = ['auto', 'local', 'lan'].includes(config.runtime_mode) ? config.runtime_mode : 'auto';
-    const local = config.local || {};
-    const lan = config.lan || {};
-    const component = status?.component || {};
-    const environmentFields = Array.isArray(config.environment_fields) ? config.environment_fields : [];
-    const isManaged = field => environmentFields.includes(field);
-    const statusText = status?.online
-      ? `H3 Runtime ${status.version || ''} · 在线 · ${Number(status.latency_ms || 0)}ms`
-      : (status?.checked
-        ? `离线${status?.error ? ` · ${status.error}` : ''}`
-        : '尚未检测连接');
-    const componentText = component.exists
-      ? `组件已发现${component.start_script ? ` · ${component.start_script}` : ''}`
-      : (component.supported ? '组件目录未发现' : '当前设备仅可作为远程调用端');
-    const localVisible = runtimeMode !== 'lan';
-    const lanVisible = runtimeMode !== 'local';
-    const supervisorUrl = String(config.manager_base_url || '').trim();
-    const supervisorOnline = Boolean(supervisorStatus?.online);
-    const supervisorStatusText = supervisorOnline
-      ? `Supervisor ${supervisorStatus.version || ''} · 在线`
-      : (supervisorStatus?.checked ? 'Supervisor 离线' : 'Supervisor 未检测');
-    const supervisorMeta = supervisorOnline
-      ? `${Number(supervisorStatus.latency_ms || 0)}ms · ${supervisorStatus.admin_initialized ? '管理员已初始化' : '管理员待初始化'}`
-      : (supervisorStatus?.error || supervisorUrl || '未配置管理台地址');
-    const managerOpenUrl = String(supervisorStatus?.manager_url || '').trim();
-    return renderCard('视频推理运行方式', [
-      `<div class="desk-settings-form desk-video-runtime-settings" data-system-settings-card="video-inference">
-        <input type="hidden" data-system-setting-field="video_inference.runtime_mode" value="${escapeHtml(runtimeMode)}">
-        <div class="desk-video-runtime-mode desk-key-bank" role="tablist" aria-label="H3 Runtime 运行方式">
-          ${[
-            ['auto', '自动检测'],
-            ['local', '本机 H3'],
-            ['lan', '局域网 H3']
-          ].map(([value, label]) => `<button type="button" data-video-runtime-mode="${value}" class="${runtimeMode === value ? 'is-active' : ''}" aria-pressed="${runtimeMode === value ? 'true' : 'false'}">${label}</button>`).join('')}
-        </div>
-        <div class="desk-video-runtime-status${status?.online ? ' is-online' : ''}${status?.checked && !status?.online ? ' is-offline' : ''}">
-          <span aria-hidden="true"></span>
-          <div><strong>${escapeHtml(statusText)}</strong><small>${escapeHtml(status?.base_url || (runtimeMode === 'lan' ? lan.base_url : local.base_url) || '未配置服务地址')}</small></div>
-        </div>
-        <section class="desk-video-runtime-panel" data-video-runtime-mode-panel="local"${localVisible ? '' : ' hidden'}>
-          <div class="desk-settings-form__section-title"><strong>本机服务</strong><span>${escapeHtml(componentText)}</span></div>
-          ${renderInput('组件目录', 'video_inference.local.component_dir', local.component_dir || '', { placeholder: 'D:\\Program\\H3_Runtime_Server', disabled: isManaged('local.component_dir') })}
-          ${renderInput('服务地址', 'video_inference.local.base_url', local.base_url || 'http://127.0.0.1:8190', { placeholder: 'http://127.0.0.1:8190', disabled: isManaged('local.base_url') })}
-          <label><span>启动方式</span><select class="desk-select" data-system-setting-field="video_inference.local.start_mode"${isManaged('local.start_mode') ? ' disabled aria-disabled="true"' : ''}>
-            ${optionHtml('on_demand', '按需启动', local.start_mode || 'on_demand')}
-            ${optionHtml('manual', '手动启动', local.start_mode)}
-            ${optionHtml('always', '随组件常驻', local.start_mode)}
-          </select></label>
-        </section>
-        <section class="desk-video-runtime-panel" data-video-runtime-mode-panel="lan"${lanVisible ? '' : ' hidden'}>
-          <div class="desk-settings-form__section-title"><strong>局域网服务</strong><span>主程序与推理机可部署在不同设备</span></div>
-          ${renderInput('服务地址', 'video_inference.lan.base_url', lan.base_url || '', { placeholder: 'http://192.168.3.22:8190', disabled: isManaged('lan.base_url') })}
-          ${isManaged('lan.api_key')
-            ? '<p class="desk-settings-form__hint">Runtime API Key 由环境变量 H3_RUNTIME_API_KEY 托管。</p>'
-            : renderSecretInput('Runtime API Key', 'video_inference.lan.api_key', lan.api_key_configured, { placeholder: lan.api_key_configured ? '留空则不修改' : '填写 H3 Runtime API Key' })}
-          ${renderInput('连接超时（秒）', 'video_inference.lan.connect_timeout_seconds', lan.connect_timeout_seconds || 5, { type: 'number', min: 0.5, max: 30, step: 0.5, disabled: isManaged('lan.connect_timeout_seconds') })}
-        </section>
-        <section class="desk-video-supervisor">
-          <div class="desk-settings-form__section-title"><strong>H3 Supervisor 管理台</strong><span>独立于 Runtime 运行</span></div>
-          ${renderInput('管理台地址', 'video_inference.manager_base_url', supervisorUrl, { placeholder: 'http://192.168.3.22:8191', disabled: isManaged('manager_base_url') })}
-          <div class="desk-video-supervisor-status${supervisorOnline ? ' is-online' : ''}${supervisorStatus?.checked && !supervisorOnline ? ' is-offline' : ''}">
-            <span class="desk-video-supervisor-status__dot" aria-hidden="true"></span>
-            <div class="desk-video-supervisor-status__copy">
-              <strong data-video-supervisor-status-label>${escapeHtml(supervisorStatusText)}</strong>
-              <small data-video-supervisor-status-meta>${escapeHtml(supervisorMeta)}</small>
-            </div>
-            <div class="desk-settings-form__actions desk-settings-form__actions--compact desk-video-supervisor-status__actions">
-              <button type="button" data-video-supervisor-refresh title="检测 H3 Supervisor 管理台"><span aria-hidden="true">&#8635;</span><span>刷新状态</span></button>
-              <button type="button" class="is-primary" data-video-supervisor-open data-video-supervisor-url="${escapeHtml(managerOpenUrl)}" title="在新窗口打开 H3 Supervisor 管理台"${managerOpenUrl ? '' : ' disabled'}><span aria-hidden="true">&#8599;</span><span>打开管理台</span></button>
-            </div>
-          </div>
-          <p class="desk-settings-form__hint">Runtime API Key 用于推理请求；Supervisor 管理员密码只在独立管理台登录。</p>
-        </section>
-        <div class="desk-settings-form__actions desk-settings-form__wide">
-          <button type="button" data-video-runtime-test>检测连接</button>
-          <button type="button" data-video-runtime-start${component.startable ? '' : ' disabled'} title="${escapeHtml(component.startable ? '启动本机 H3 Runtime' : componentText)}">启动服务</button>
-          <button type="button" class="is-primary" data-system-settings-save="video-inference">保存视频推理设置</button>
-        </div>
-      </div>`
-    ], Boolean(status?.online));
-  }
-
-  function updateVideoRuntimeStatusView(status = null) {
-    const card = els.deskSettingsBody?.querySelector('[data-system-settings-card="video-inference"]');
-    const statusView = card?.querySelector('.desk-video-runtime-status');
-    if (!statusView || !status) return;
-    const online = Boolean(status.online);
-    const checked = Boolean(status.checked);
-    const statusText = online
-      ? `H3 Runtime ${status.version || ''} · 在线 · ${Number(status.latency_ms || 0)}ms`
-      : (checked
-        ? `离线${status.error ? ` · ${status.error}` : ''}`
-        : '尚未检测连接');
-    statusView.classList.toggle('is-online', online);
-    statusView.classList.toggle('is-offline', checked && !online);
-    const title = statusView.querySelector('strong');
-    const address = statusView.querySelector('small');
-    if (title) title.textContent = statusText;
-    if (address) {
-      const selectedMode = status.selected_mode || status.runtime_mode || 'lan';
-      const addressField = selectedMode === 'local'
-        ? 'video_inference.local.base_url'
-        : 'video_inference.lan.base_url';
-      const addressInput = card.querySelector(`[data-system-setting-field="${addressField}"]`);
-      address.textContent = status.base_url || addressInput?.value || '未配置服务地址';
-    }
-    const settingsCard = card.closest('.desk-settings-card');
-    settingsCard?.classList.toggle('is-ok', online);
-    settingsCard?.classList.toggle('is-warn', !online);
-  }
-
-  function updateVideoSupervisorStatusView(status = null) {
-    const card = els.deskSettingsBody?.querySelector('[data-system-settings-card="video-inference"]');
-    const statusView = card?.querySelector('.desk-video-supervisor-status');
-    if (!statusView || !status) return;
-    const online = Boolean(status.online);
-    const checked = Boolean(status.checked);
-    const statusText = online
-      ? `Supervisor ${status.version || ''} · 在线`
-      : (checked ? 'Supervisor 离线' : 'Supervisor 未检测');
-    const metaText = online
-      ? `${Number(status.latency_ms || 0)}ms · ${status.admin_initialized ? '管理员已初始化' : '管理员待初始化'}`
-      : (status.error || status.base_url || '未配置管理台地址');
-    statusView.classList.toggle('is-online', online);
-    statusView.classList.toggle('is-offline', checked && !online);
-    const title = statusView.querySelector('[data-video-supervisor-status-label]');
-    const meta = statusView.querySelector('[data-video-supervisor-status-meta]');
-    if (title) title.textContent = statusText;
-    if (meta) meta.textContent = metaText;
-    const openButton = statusView.querySelector('[data-video-supervisor-open]');
-    const managerUrl = String(status.manager_url || '').trim();
-    if (openButton) {
-      openButton.disabled = !managerUrl;
-      openButton.dataset.videoSupervisorUrl = managerUrl;
-    }
-  }
-
   function renderPathSettings(storage, database) {
     return renderCard('路径与存储', [
       `<div class="desk-settings-form" data-system-settings-card="paths">
@@ -1109,9 +991,12 @@
       : optionHtml('', '无可用模型', '');
     return renderCard('账号池运行配置', [
       `<div class="desk-settings-form" data-system-settings-card="chatgpt-pool">
-        ${renderCheckbox('启用账号池', 'chatgpt_pool.enabled', pool.enabled !== false)}
+        ${renderCheckbox('启用账号池', 'chatgpt_pool.enabled', pool.enabled !== false, {
+          action: renderSecretClear('Auth Key', 'chatgpt_pool.auth_key', pool.auth_key_configured)
+        })}
         ${renderInput('Base URL', 'chatgpt_pool.base_url', pool.base_url || 'http://127.0.0.1:18080')}
         ${renderSecretInput('Auth Key', 'chatgpt_pool.auth_key', pool.auth_key_configured, {
+          length: pool.auth_key_length,
           placeholder: pool.auth_key_configured ? '留空则不修改' : '留空可由服务自动生成'
         })}
         <label>
@@ -1203,14 +1088,36 @@
     return labels[mode] || labels.stream_then_nonstream;
   }
 
+  function requestEndpointValue(provider) {
+    return provider?.request_endpoint === 'responses' ? 'responses' : 'images';
+  }
+
+  function requestEndpointLabel(endpoint) {
+    return endpoint === 'responses' ? 'Responses API（主模型 + 生图工具）' : 'Images API（直连 gpt-image-2）';
+  }
+
+  function syncGptTransportField(endpointSelect) {
+    const transportSelect = endpointSelect?.closest('.desk-settings-form')
+      ?.querySelector('[data-gpt-provider-field="transport_mode"]');
+    if (transportSelect) transportSelect.disabled = endpointSelect.value !== 'responses';
+  }
+
   function renderGptProviderSettings(provider) {
+    const currentEndpoint = requestEndpointValue(provider);
     const currentMode = provider.transport_mode || 'stream_then_nonstream';
     const timeoutSeconds = Number(provider.total_timeout_seconds || 600);
-    return renderCard('GPT Provider 传输', [
+    return renderCard('GPT Provider 请求', [
       `<div class="desk-settings-form">
         <label>
+          <span>请求端点</span>
+          <select class="desk-select" data-gpt-provider-field="request_endpoint">
+            ${optionHtml('images', requestEndpointLabel('images'), currentEndpoint)}
+            ${optionHtml('responses', requestEndpointLabel('responses'), currentEndpoint)}
+          </select>
+        </label>
+        <label>
           <span>传输策略</span>
-          <select class="desk-select" data-gpt-provider-field="transport_mode">
+          <select class="desk-select" data-gpt-provider-field="transport_mode"${currentEndpoint === 'responses' ? '' : ' disabled'}>
             ${optionHtml('stream', '走流式', currentMode)}
             ${optionHtml('nonstream', '非流式', currentMode)}
             ${optionHtml('stream_then_nonstream', '先流式，失败走非流', currentMode)}
@@ -1220,9 +1127,10 @@
           <span>本地超时</span>
           <input class="desk-input" type="number" min="30" max="1800" step="30" data-gpt-provider-field="total_timeout_seconds" value="${escapeHtml(timeoutSeconds || 600)}">
         </label>
-        <p class="desk-settings-form__hint">默认 600 秒。到达本地 Codex 总等待上限后，自动切账号池托底。</p>
+        <p class="desk-settings-form__hint">传输策略仅对 Responses API 生效。两种端点互不降级，失败直接按现有策略切账号池托底。</p>
+        <p class="desk-settings-form__hint">默认 600 秒。单次请求与本地 Codex 总等待共用此上限，到达后自动切账号池托底。</p>
         <div class="desk-settings-form__actions">
-          <button type="button" class="is-primary" data-gpt-provider-save>保存传输设置</button>
+          <button type="button" class="is-primary" data-gpt-provider-save>保存请求设置</button>
         </div>
       </div>`
     ], true);
@@ -1314,12 +1222,8 @@
     const activity = managedCodexOAuthActivity;
     const activityText = activity ? `${activity.time} · ${activity.message}` : '';
     return renderCard('添加托管 Codex 账号', [
-      `<details class="desk-settings-details" open>
-        <summary>
-          <span>OAuth 登录</span>
-          <em>可反复添加多个 ChatGPT / Codex 账号</em>
-        </summary>
-        <div class="desk-settings-form desk-settings-form--compact">
+      `<div class="desk-settings-form desk-settings-form--compact">
+          <div class="desk-settings-form__section-title"><strong>OAuth 登录</strong><span>可反复添加多个 ChatGPT / Codex 账号</span></div>
           <input type="hidden" data-managed-codex-session-id value="${escapeHtml(managedCodexOAuthSessionId)}">
           <label>
             <span>邮箱</span>
@@ -1345,13 +1249,8 @@
             <button type="button" class="is-primary" data-managed-codex-oauth-finish>完成授权</button>
           </div>
         </div>
-      </details>
-      <details class="desk-settings-details">
-        <summary>
-          <span>粘贴 Auth JSON</span>
-          <em>支持单个对象或 accounts 数组</em>
-        </summary>
         <div class="desk-settings-form desk-settings-form--compact">
+          <div class="desk-settings-form__section-title"><strong>粘贴 Auth JSON</strong><span>支持单个对象或 accounts 数组</span></div>
           <label class="desk-settings-form__wide">
             <span>Auth JSON</span>
             <textarea class="desk-settings-textarea" data-managed-codex-import-json placeholder='{"access_token":"...","refresh_token":"...","id_token":"..."}'></textarea>
@@ -1359,22 +1258,20 @@
           <div class="desk-settings-form__actions">
             <button type="button" class="is-primary" data-managed-codex-import>导入粘贴 JSON</button>
           </div>
-        </div>
-      </details>
-      <details class="desk-settings-details">
-        <summary>
-          <span>运行配置</span>
-          <em>账号库路径与 Codex API endpoint</em>
-        </summary>
-        <div class="desk-settings-form" data-system-settings-card="managed-codex-oauth">
-          ${renderCheckbox('启用托管 OAuth', 'managed_codex_oauth.enabled', managed?.enabled !== false)}
-          ${renderInput('Auth File', 'managed_codex_oauth.auth_file', managed?.auth_file || 'data/managed_codex_oauth/auth.json')}
-          ${renderInput('Accounts Dir', 'managed_codex_oauth.accounts_dir', managed?.accounts_dir || 'data/managed_codex_oauth/accounts')}
-          ${renderInput('Codex API Base', 'managed_codex_oauth.api_base', managed?.api_base || 'https://chatgpt.com/backend-api/codex')}
-          ${renderInput('Redirect URI', 'managed_codex_oauth.redirect_uri', managed?.redirect_uri || 'http://localhost:1455/auth/callback')}
-          ${renderSystemSaveButton('managed-codex-oauth', '保存托管 OAuth 设置')}
-        </div>
-      </details>`
+        </div>`
+    ], Boolean(managed?.enabled !== false));
+  }
+
+  function renderManagedCodexRuntimeSettings(managed) {
+    return renderCard('托管 Codex 运行配置', [
+      `<div class="desk-settings-form" data-system-settings-card="managed-codex-oauth">
+        ${renderCheckbox('启用托管 OAuth', 'managed_codex_oauth.enabled', managed?.enabled !== false)}
+        ${renderInput('Auth File', 'managed_codex_oauth.auth_file', managed?.auth_file || 'data/managed_codex_oauth/auth.json')}
+        ${renderInput('Accounts Dir', 'managed_codex_oauth.accounts_dir', managed?.accounts_dir || 'data/managed_codex_oauth/accounts')}
+        ${renderInput('Codex API Base', 'managed_codex_oauth.api_base', managed?.api_base || 'https://chatgpt.com/backend-api/codex')}
+        ${renderInput('Redirect URI', 'managed_codex_oauth.redirect_uri', managed?.redirect_uri || 'http://localhost:1455/auth/callback')}
+        ${renderSystemSaveButton('managed-codex-oauth', '保存托管 OAuth 设置')}
+      </div>`
     ], Boolean(managed?.enabled !== false));
   }
 
@@ -1467,10 +1364,8 @@
     const stats = accountsPayload?.stats || pool?.stats || {};
     const accounts = Array.isArray(accountsPayload?.items) ? accountsPayload.items : [];
     const online = Boolean(pool?.online);
-    const noAccounts = accounts.length === 0;
     const oauthActivity = chatgptPoolOAuthActivity;
     const oauthActivityText = oauthActivity ? `${oauthActivity.time} · ${oauthActivity.message}` : '';
-    const oauthOpen = noAccounts || Boolean(chatgptPoolOAuthSessionId) || Boolean(oauthActivity);
     return [
       renderCard('账号列表', [
         renderChatgptPoolActionBar(pool, accountsPayload),
@@ -1479,12 +1374,8 @@
           : '<div class="desk-settings-empty desk-settings-empty--compact">暂无账号，先在下方添加一个授权账号。</div>'
       ], online && (stats.active ?? 0) > 0),
       renderCard('添加账号', [
-        `<details class="desk-settings-details"${oauthOpen ? ' open' : ''}>
-          <summary>
-            <span>OAuth 登录</span>
-            <em>生成授权，登录后粘贴 callback URL</em>
-          </summary>
-          <div class="desk-settings-form desk-settings-form--compact">
+        `<div class="desk-settings-form desk-settings-form--compact">
+            <div class="desk-settings-form__section-title"><strong>OAuth 登录</strong><span>生成授权，登录后粘贴 callback URL</span></div>
             <input type="hidden" data-chatgpt-pool-session-id value="${escapeHtml(chatgptPoolOAuthSessionId)}">
             <label>
               <span>邮箱</span>
@@ -1510,13 +1401,8 @@
               <button type="button" class="is-primary" data-chatgpt-pool-oauth-finish>完成授权</button>
             </div>
           </div>
-        </details>
-        <details class="desk-settings-details">
-          <summary>
-            <span>粘贴 Auth JSON</span>
-            <em>仅在已有完整 token JSON 时使用</em>
-          </summary>
           <div class="desk-settings-form desk-settings-form--compact">
+            <div class="desk-settings-form__section-title"><strong>粘贴 Auth JSON</strong><span>仅在已有完整 token JSON 时使用</span></div>
             <label class="desk-settings-form__wide">
               <span>Auth JSON</span>
               <textarea class="desk-settings-textarea" data-chatgpt-pool-import-json placeholder='{"access_token":"...","refresh_token":"...","id_token":"..."}'></textarea>
@@ -1524,8 +1410,7 @@
             <div class="desk-settings-form__actions">
               <button type="button" data-chatgpt-pool-import>导入粘贴 JSON</button>
             </div>
-          </div>
-        </details>`
+          </div>`
       ], online)
     ].join('');
   }
@@ -1564,10 +1449,6 @@
     const editableServer = { ...server, ...(setting('server', {}) || {}) };
     const editablePool = { ...pool, ...(setting('chatgpt_pool', {}) || {}) };
     const comfyConfig = { ...(data.comfy || {}), ...(setting('comfy', {}) || {}) };
-    const videoInferenceConfig = {
-      ...(data.video_inference || {}),
-      ...(setting('video_inference', {}) || {})
-    };
     const pinterest = setting('pinterest', {});
     const thirdPartyReady = Boolean(nanoBanana.api_key_configured || thirdParty.api_key_configured || cyimg.api_key_configured);
     const providerNeedsRelogin = Boolean(provider.requires_relogin);
@@ -1594,7 +1475,7 @@
       {
         tab: 'appearance',
         group: '画布',
-        html: activeTab === 'appearance' ? renderCanvasInteractionSettings() : ''
+        html: activeTab === 'appearance' ? renderThemeStyleSettings() + renderCanvasInteractionSettings() : ''
       },
       {
         tab: 'appearance',
@@ -1640,6 +1521,7 @@
         html: renderCard('Provider 连接', [
         renderKv('Codex 登录态', providerStatusLabel),
         renderKv('托管 Codex OAuth', managedStatusLabel),
+        renderKv('GPT 请求端点', requestEndpointLabel(requestEndpointValue(provider))),
         renderKv('GPT 传输策略', transportLabel(provider.transport_mode || 'stream_then_nonstream')),
         renderKv('本地 Codex 超时', `${provider.total_timeout_seconds || 600}s`),
         renderKv('凭证文件', provider.auth_file_configured, { boolean: true }),
@@ -1665,6 +1547,11 @@
         tab: 'provider',
         group: '托管 Codex 账号',
         html: activeTab === 'provider' ? renderManagedCodexAddSettings(managedCodex) : ''
+      },
+      {
+        tab: 'provider',
+        group: '运行配置',
+        html: activeTab === 'provider' ? renderManagedCodexRuntimeSettings(managedCodex) : ''
       },
       {
         tab: 'third-party',
@@ -1706,7 +1593,7 @@
       {
         tab: 'model-tools',
         html: activeTab === 'model-tools'
-          ? (loraSettings?.render?.() || '') + (qwen21Tools?.render?.() || '') + (krea2Tools?.render?.() || renderCard('Krea 2 模型转换', [
+          ? (loraSettings?.render?.() || '') + (mossTools?.render?.() || '') + (qwen21Tools?.render?.() || '') + (krea2Tools?.render?.() || renderCard('Krea 2 模型转换', [
               '<div class="desk-settings-empty">模型工具模块未加载。</div>'
             ], false))
           : ''
@@ -1721,19 +1608,6 @@
             renderKv('工作流数量', (lastComfyWorkflows?.items || []).filter(item => item.enabled).length),
             renderKv('连接状态', lastComfyHealth?.online ? '在线' : '未测试')
           ], Boolean(comfyConfig.base_url), { goto: 'comfy' })
-      },
-      {
-        tab: 'video-inference',
-        area: '本地服务',
-        html: activeTab === 'video-inference'
-          ? renderVideoInferenceSettings(videoInferenceConfig, lastVideoRuntimeStatus, lastVideoSupervisorStatus)
-          : renderCard('视频推理', [
-            renderKv('运行方式', ({ auto: '自动检测', local: '本机 H3', lan: '局域网 H3' })[videoInferenceConfig.runtime_mode] || '自动检测'),
-            renderKv('连接状态', lastVideoRuntimeStatus?.online ? '在线' : (lastVideoRuntimeStatus?.checked ? '离线' : '未检测')),
-            renderKv('Runtime 版本', lastVideoRuntimeStatus?.version || '未知'),
-            renderKv('Supervisor', lastVideoSupervisorStatus?.online ? '在线' : (lastVideoSupervisorStatus?.checked ? '离线' : '未检测')),
-            renderKv('管理台地址', videoInferenceConfig.manager_base_url || '未配置')
-          ], Boolean(lastVideoRuntimeStatus?.online), { goto: 'video-inference' })
       }
     ];
 
@@ -2031,30 +1905,22 @@
       throw new Error('诊断 API 未加载');
     }
     renderLoading();
-    const [data, systemSettings, promptConfig, gptModels, comfyWorkflows, videoRuntimeStatus, videoRuntimeCapabilities, videoSupervisorStatus] = await Promise.all([
+    const [data, systemSettings, promptConfig, gptModels, comfyWorkflows] = await Promise.all([
       window.DesktopApi.getSystemDiagnostics(),
       window.DesktopApi.getSystemSettings ? window.DesktopApi.getSystemSettings().catch(error => ({ ok: false, error: error.message })) : Promise.resolve(null),
       window.DesktopApi.getPromptConfig ? window.DesktopApi.getPromptConfig().catch(error => ({ ok: false, error: error.message })) : Promise.resolve(null),
       window.DesktopApi.getGptModels ? window.DesktopApi.getGptModels().catch(error => ({ ok: false, error: error.message })) : Promise.resolve(null),
-      window.DesktopApi.getComfyWorkflows ? window.DesktopApi.getComfyWorkflows(true).catch(error => ({ ok: false, error: error.message })) : Promise.resolve(null),
-      window.DesktopApi.getVideoRuntimeStatus ? window.DesktopApi.getVideoRuntimeStatus(true).catch(error => ({ ok: false, online: false, checked: true, error: error.message })) : Promise.resolve(null),
-      window.DesktopApi.getVideoRuntimeCapabilities ? window.DesktopApi.getVideoRuntimeCapabilities().catch(error => ({ ok: false, runtime_online: false, error: error.message })) : Promise.resolve(null),
-      window.DesktopApi.getVideoSupervisorStatus ? window.DesktopApi.getVideoSupervisorStatus(true).catch(error => ({ ok: false, online: false, checked: true, error: error.message })) : Promise.resolve(null)
+      window.DesktopApi.getComfyWorkflows ? window.DesktopApi.getComfyWorkflows(true).catch(error => ({ ok: false, error: error.message })) : Promise.resolve(null)
     ]);
     lastDiagnostics = data;
     lastSystemSettings = systemSettings?.ok ? systemSettings : null;
     lastPromptConfig = promptConfig?.ok ? promptConfig : null;
     lastGptModelCatalog = gptModels?.ok ? gptModels : lastGptModelCatalog;
     lastComfyWorkflows = comfyWorkflows?.ok ? comfyWorkflows : lastComfyWorkflows;
-    lastVideoRuntimeStatus = videoRuntimeStatus || lastVideoRuntimeStatus;
-    lastVideoRuntimeCapabilities = videoRuntimeCapabilities?.capabilities ? videoRuntimeCapabilities : lastVideoRuntimeCapabilities;
-    lastVideoSupervisorStatus = videoSupervisorStatus || lastVideoSupervisorStatus;
     if (lastGptModelCatalog) window.DesktopCanvas?.applyGptModelCatalog?.(lastGptModelCatalog);
     if (comfyWorkflows?.ok) {
       window.dispatchEvent(new CustomEvent('desktop:comfy-workflows-updated', { detail: comfyWorkflows }));
     }
-    if (videoRuntimeStatus) window.DesktopVideoConfig?.setRuntimeStatus?.(videoRuntimeStatus);
-    if (videoRuntimeCapabilities?.capabilities) window.DesktopVideoConfig?.setCapabilities?.(videoRuntimeCapabilities);
     renderDiagnostics(data);
     return data;
   }
@@ -2331,61 +2197,6 @@
     if (lastDiagnostics) renderDiagnostics(lastDiagnostics);
     window.DesktopResults?.showTransientMessage?.(`ComfyUI 已连接，延迟 ${Number(lastComfyHealth.latency_ms || 0)}ms。`, 'success');
     return lastComfyHealth;
-  }
-
-  async function testVideoRuntimeConnection() {
-    if (!window.DesktopApi?.testVideoRuntime) throw new Error('H3 Runtime 连接测试 API 未加载');
-    const card = els.deskSettingsBody?.querySelector('[data-system-settings-card="video-inference"]');
-    const payload = collectSystemSettingsForm(card)?.video_inference || {};
-    lastVideoRuntimeStatus = await window.DesktopApi.testVideoRuntime(payload);
-    window.DesktopVideoConfig?.setRuntimeStatus?.(lastVideoRuntimeStatus);
-    if (lastVideoRuntimeStatus?.online && window.DesktopApi.getVideoRuntimeCapabilities) {
-      lastVideoRuntimeCapabilities = await window.DesktopApi.getVideoRuntimeCapabilities();
-      window.DesktopVideoConfig?.setCapabilities?.(lastVideoRuntimeCapabilities);
-    }
-    updateVideoRuntimeStatusView(lastVideoRuntimeStatus);
-    if (!lastVideoRuntimeStatus?.online) {
-      throw new Error(lastVideoRuntimeStatus?.error || lastVideoRuntimeStatus?.message || 'H3 Runtime 离线');
-    }
-    window.DesktopResults?.showTransientMessage?.(`H3 Runtime 已连接，延迟 ${Number(lastVideoRuntimeStatus.latency_ms || 0)}ms。`, 'success');
-    return lastVideoRuntimeStatus;
-  }
-
-  async function testVideoSupervisorConnection() {
-    if (!window.DesktopApi?.testVideoSupervisor) throw new Error('H3 Supervisor 检测 API 未加载');
-    const card = els.deskSettingsBody?.querySelector('[data-system-settings-card="video-inference"]');
-    const managerBaseUrl = card?.querySelector('[data-system-setting-field="video_inference.manager_base_url"]')?.value || '';
-    lastVideoSupervisorStatus = await window.DesktopApi.testVideoSupervisor({ manager_base_url: managerBaseUrl });
-    updateVideoSupervisorStatusView(lastVideoSupervisorStatus);
-    if (!lastVideoSupervisorStatus?.online) {
-      throw new Error(lastVideoSupervisorStatus?.error || lastVideoSupervisorStatus?.message || 'H3 Supervisor 离线');
-    }
-    const adminText = lastVideoSupervisorStatus.admin_initialized ? '管理员已初始化' : '管理员待初始化';
-    window.DesktopResults?.showTransientMessage?.(
-      `H3 Supervisor 已连接，${adminText}。`,
-      lastVideoSupervisorStatus.admin_initialized ? 'success' : 'warning'
-    );
-    return lastVideoSupervisorStatus;
-  }
-
-  function openVideoSupervisorManager(button) {
-    const managerUrl = String(button?.dataset?.videoSupervisorUrl || '').trim();
-    if (!managerUrl) throw new Error('请先保存并检测有效的管理台地址');
-    window.open(managerUrl, '_blank', 'noopener,noreferrer');
-  }
-
-  async function startVideoRuntimeService() {
-    if (!window.DesktopApi?.startVideoRuntime || !window.DesktopApi?.saveSystemSettings) {
-      throw new Error('H3 Runtime 启动 API 未加载');
-    }
-    const card = els.deskSettingsBody?.querySelector('[data-system-settings-card="video-inference"]');
-    const payload = collectSystemSettingsForm(card);
-    await window.DesktopApi.saveSystemSettings(payload);
-    settingsDrafts.forget(card);
-    const result = await window.DesktopApi.startVideoRuntime();
-    window.DesktopResults?.showTransientMessage?.(result.message || 'H3 Runtime 启动命令已发送。', 'success');
-    window.setTimeout(() => refresh().catch(() => {}), 1800);
-    return result;
   }
 
   function readFileAsDataUrl(file) {
@@ -2897,7 +2708,7 @@
       } else {
         renderDiagnostics(lastDiagnostics);
       }
-      if (activeTab === 'model-tools') await Promise.all([krea2Tools?.activate?.(),qwen21Tools?.activate?.(),loraSettings?.activate?.()]);
+      if (activeTab === 'model-tools') await Promise.all([krea2Tools?.activate?.(),qwen21Tools?.activate?.(),mossTools?.activate?.(),loraSettings?.activate?.()]);
     } catch (error) {
       if (els.deskSettingsSummary) {
         els.deskSettingsSummary.innerHTML = '<span class="desk-settings__status is-warn">诊断读取失败</span>';
@@ -2925,6 +2736,7 @@
     progressPreview?.release();
     krea2Tools?.deactivate?.();
     qwen21Tools?.deactivate?.();
+    mossTools?.deactivate?.();
     loraSettings?.deactivate?.();
     closeSettingsInfoTip();
   }
@@ -2950,11 +2762,12 @@
     }
     updateTabs();
     if (lastDiagnostics) renderDiagnostics(lastDiagnostics);
-    if (previousTab === 'model-tools' && activeTab !== 'model-tools') {krea2Tools?.deactivate?.();qwen21Tools?.deactivate?.();loraSettings?.deactivate?.();}
+    if (previousTab === 'model-tools' && activeTab !== 'model-tools') {krea2Tools?.deactivate?.();qwen21Tools?.deactivate?.();mossTools?.deactivate?.();loraSettings?.deactivate?.();}
     if (activeTab === 'model-tools') {
       loraSettings?.activate?.().catch(error => showSettingsFeedback(error, 'LoRA 连接设置读取失败'));
       krea2Tools?.activate?.().catch(error => showSettingsFeedback(error, '模型工具状态读取失败'));
       qwen21Tools?.activate?.().catch(error => showSettingsFeedback(error, 'Qwen 模型工具状态读取失败'));
+      mossTools?.activate?.().catch(error => showSettingsFeedback(error, 'MOSS 状态读取失败'));
     }
     if (activeTab === 'chatgpt-pool' && googlePoolSettings.isGoogle()) {
       void googlePoolSettings.refresh();
@@ -3044,29 +2857,20 @@
     els.deskSettingsBody?.addEventListener('input', event => {
       settingsDrafts.track(event);
       if (updateProgressPreference(event) || updateControlMaterialPreference(event)) return;
-      if (loraSettings?.handleInput?.(event) || qwen21Tools?.handleInput?.(event) || krea2Tools?.handleInput?.(event)) return;
-      const managerField = event.target.closest('[data-system-setting-field="video_inference.manager_base_url"]');
-      if (!managerField) return;
-      const managerBaseUrl = String(managerField.value || '').trim();
-      lastVideoSupervisorStatus = {
-        ok: true,
-        online: false,
-        checked: false,
-        configured: Boolean(managerBaseUrl),
-        base_url: managerBaseUrl,
-        manager_url: '',
-        message: '管理台地址已修改，等待检测'
-      };
-      updateVideoSupervisorStatusView(lastVideoSupervisorStatus);
+      if (loraSettings?.handleInput?.(event) || mossTools?.handleInput?.(event) || qwen21Tools?.handleInput?.(event) || krea2Tools?.handleInput?.(event)) return;
     });
     els.deskSettingsBody?.addEventListener('change', event => {
       settingsDrafts.track(event);
       if (googlePoolSettings.handleChange(event)) return;
       if (updateProgressPreference(event) || updateControlMaterialPreference(event)) return;
-      if (loraSettings?.handleInput?.(event) || qwen21Tools?.handleInput?.(event) || krea2Tools?.handleInput?.(event)) return;
+      if (loraSettings?.handleInput?.(event) || mossTools?.handleInput?.(event) || qwen21Tools?.handleInput?.(event) || krea2Tools?.handleInput?.(event)) return;
       const systemField = event.target.closest('[data-system-setting-field]');
       if (systemField?.dataset.systemSettingField === 'gpt_provider.image_main_model') {
         syncProviderReasoningField(systemField);
+      }
+      const gptProviderField = event.target.closest('[data-gpt-provider-field]');
+      if (gptProviderField?.dataset.gptProviderField === 'request_endpoint') {
+        syncGptTransportField(gptProviderField);
       }
       const field = event.target.closest('[data-prompt-config-field]');
       if (!field) return;
@@ -3090,64 +2894,18 @@
         syncProgressSettings(progressColorReset.closest('[data-progress-settings]'));
         return;
       }
-      if (loraSettings?.handleClick?.(event) || qwen21Tools?.handleClick?.(event) || krea2Tools?.handleClick?.(event)) return;
+      if (loraSettings?.handleClick?.(event) || mossTools?.handleClick?.(event) || qwen21Tools?.handleClick?.(event) || krea2Tools?.handleClick?.(event)) return;
       if (googlePoolSettings.handleClick(event)) return;
-      const videoRuntimeMode = event.target.closest('[data-video-runtime-mode]');
-      if (videoRuntimeMode) {
+      const themeStyleButton = event.target.closest('button[data-theme-style]');
+      if (themeStyleButton) {
         event.preventDefault();
-        const card = videoRuntimeMode.closest('[data-system-settings-card="video-inference"]');
-        const mode = videoRuntimeMode.dataset.videoRuntimeMode || 'auto';
-        const hiddenInput = card?.querySelector('[data-system-setting-field="video_inference.runtime_mode"]');
-        if (hiddenInput) hiddenInput.value = mode;
-        card?.querySelectorAll('[data-video-runtime-mode]').forEach(button => {
-          const active = button.dataset.videoRuntimeMode === mode;
+        const style = window.DesktopPreferences?.normalizeThemeStyle?.(themeStyleButton.dataset.themeStyle) || 'liquid';
+        window.DesktopPreferences?.setThemeStyle?.(style);
+        themeStyleButton.parentElement?.querySelectorAll('[data-theme-style]').forEach(button => {
+          const active = button.dataset.themeStyle === style;
           button.classList.toggle('is-active', active);
           button.setAttribute('aria-pressed', active ? 'true' : 'false');
         });
-        card?.querySelectorAll('[data-video-runtime-mode-panel]').forEach(panel => {
-          const panelMode = panel.dataset.videoRuntimeModePanel;
-          panel.hidden = mode === 'local' ? panelMode !== 'local' : (mode === 'lan' ? panelMode !== 'lan' : false);
-        });
-        return;
-      }
-      const videoRuntimeTest = event.target.closest('[data-video-runtime-test]');
-      if (videoRuntimeTest) {
-        event.preventDefault();
-        runButtonAction(videoRuntimeTest, testVideoRuntimeConnection, {
-          loadingText: '检测中...',
-          doneText: '已连接',
-          errorMessage: 'H3 Runtime 连接失败'
-        });
-        return;
-      }
-      const videoRuntimeStart = event.target.closest('[data-video-runtime-start]');
-      if (videoRuntimeStart) {
-        event.preventDefault();
-        runButtonAction(videoRuntimeStart, startVideoRuntimeService, {
-          loadingText: '启动中...',
-          doneText: '已启动',
-          errorMessage: 'H3 Runtime 启动失败'
-        });
-        return;
-      }
-      const videoSupervisorRefresh = event.target.closest('[data-video-supervisor-refresh]');
-      if (videoSupervisorRefresh) {
-        event.preventDefault();
-        runButtonAction(videoSupervisorRefresh, testVideoSupervisorConnection, {
-          loadingText: '检测中...',
-          doneText: '已连接',
-          errorMessage: 'H3 Supervisor 连接失败'
-        });
-        return;
-      }
-      const videoSupervisorOpen = event.target.closest('[data-video-supervisor-open]');
-      if (videoSupervisorOpen) {
-        event.preventDefault();
-        try {
-          openVideoSupervisorManager(videoSupervisorOpen);
-        } catch (error) {
-          showSettingsFeedback(error, '管理台打开失败');
-        }
         return;
       }
       const swellStyleButton = event.target.closest('button[data-connection-swell-style]');
@@ -3580,6 +3338,11 @@
       rerender: () => { if (activeTab === 'model-tools' && lastDiagnostics) renderDiagnostics(lastDiagnostics); },
       notify: (message, tone) => window.DesktopResults?.showTransientMessage?.(message, tone)
     }) || null;
+    mossTools = window.DesktopMossTools?.create?.({
+      api: window.DesktopMossAPI, escapeHtml,
+      rerender: () => { if (activeTab === 'model-tools' && lastDiagnostics) renderDiagnostics(lastDiagnostics); },
+      notify: (message, tone) => window.DesktopResults?.showTransientMessage?.(message, tone)
+    }) || null;
     settingsSearch = window.DesktopSettingsSearch?.create({
       input: els.deskSettingsSearchInput,
       results: els.deskSettingsSearchResults,
@@ -3592,6 +3355,7 @@
   window.DesktopSettings = {
     init,
     open,
+    openTab: tab => open().then(() => selectTab(tab)),
     close,
     refresh
   };

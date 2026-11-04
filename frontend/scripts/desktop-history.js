@@ -443,6 +443,8 @@
         ? asset.derivedAssets
         : (Array.isArray(asset?.lineage?.derivedAssets) ? asset.lineage.derivedAssets : (Array.isArray(asset?.lineage?.derived_assets) ? asset.lineage.derived_assets : [])),
       derivedCount: Number(asset?.derivedCount || asset?.lineage?.derivedCount || asset?.lineage?.derived_count || 0),
+      assetRole: String(asset?.assetRole || ''),
+      panelIndex: Number.isInteger(asset?.panelIndex) ? asset.panelIndex : null,
       relatedAssets: Array.isArray(asset?.relatedAssets)
         ? asset.relatedAssets
         : (Array.isArray(asset?.lineage?.relatedAssets) ? asset.lineage.relatedAssets : (Array.isArray(asset?.lineage?.related_assets) ? asset.lineage.related_assets : [])),
@@ -538,6 +540,8 @@
       referenceAssetIds: asset.referenceAssetIds || [],
       derivedAssets: asset.derivedAssets || [],
       derivedCount: Number(asset.derivedCount || 0),
+      assetRole: asset.assetRole || '',
+      panelIndex: asset.panelIndex ?? null,
       relatedAssets: asset.relatedAssets || [],
       relatedCount: Number(asset.relatedCount || 0)
     };
@@ -1133,6 +1137,7 @@
     )).toLowerCase();
     if (type.includes('krea2') || provider.includes('krea2')) return 'krea2';
     if (type.includes('qwen21') || provider.includes('qwen-image-2.1')) return 'qwen21';
+    if (type.startsWith('moss') || provider.startsWith('moss')) return 'moss';
     if (type.includes('pinterest') || itemOrType?.provider === 'pinterest') return 'pinterest';
     if (type === 'topaz' || itemOrType?.provider === 'topaz') return 'topaz';
     if (type.startsWith('gpt')) return 'gpt';
@@ -1145,6 +1150,7 @@
     return {
       krea2: 'Krea2',
       qwen21: 'Qwen 2.1',
+      moss: 'MOSS',
       topaz: 'Topaz',
       gpt: 'GPT',
       google: 'Google',
@@ -1876,7 +1882,15 @@
         .filter(Boolean)
         .join(' → ')
       : '';
-    const model = galleryAssetModelLabel(asset, params);
+    // Local Codex records the endpoint it used. The Images API calls gpt-image-2
+    // directly, so the configured main model and reasoning effort took no part.
+    const viaImagesApi = params.request_endpoint === 'images';
+    const endpointLabel = { images: 'Images API', responses: 'Responses API' }[params.request_endpoint] || '';
+    const isLocalCodex = ['codex', 'managed_codex_oauth'].includes(params.gpt_provider_route);
+    const routeLabel = params.gpt_provider_route === 'chatgpt_pool'
+      ? '账号池 API'
+      : (isLocalCodex ? ['本地 Codex', endpointLabel].filter(Boolean).join(' · ') : '');
+    const model = viaImagesApi ? 'gpt-image-2' : galleryAssetModelLabel(asset, params);
     const ratio = params.ratio || params.aspect_ratio || params.aspectRatio || asset?.aspectRatio || '';
     const resolution = galleryAssetResolutionLabel(asset, params);
     const source = isRemoteLibraryAsset(asset)
@@ -1897,10 +1911,10 @@
       : [];
     const rows = [
       ['Model', model],
-      ['线路', params.gpt_provider_route === 'chatgpt_pool' ? '账号池 API' : (['codex', 'managed_codex_oauth'].includes(params.gpt_provider_route) ? '本地 Codex' : '')],
+      ['线路', routeLabel],
       ['路由轨迹', routeTrace],
-      ['主模型', params.main_model || asset?.mainModel || ''],
-      ['推理强度', params.reasoning_effort || asset?.reasoningEffort || ''],
+      ['主模型', viaImagesApi ? '' : (params.main_model || asset?.mainModel || '')],
+      ['推理强度', viaImagesApi ? '' : (params.reasoning_effort || asset?.reasoningEffort || '')],
       ['提示词模式', params.prompt_mode || ''],
       ['类型', asset?.providerLabel || providerLabel(asset)],
       ['来源', source],
@@ -2248,6 +2262,7 @@
     const focused = previewAsset?.id === asset.id;
     const refCount = getLineageReferences(asset).length;
     const derivedCount = Number(asset.derivedCount || 0);
+    const panelNumber = asset.assetRole === 'panel' && asset.panelIndex !== null ? asset.panelIndex + 1 : 0;
     const isRemote = isRemoteLibraryAsset(asset);
     const isPinterest = asset.sourceKind === 'pinterest';
     const remoteImages = getRemoteImageUrls(asset);
@@ -2311,8 +2326,9 @@
             <em title="${escapeHtml(detailLine)}">${escapeHtml(detailLine)}</em>
           </div>
           <div class="desk-gallery-card__meta-actions${isPinterest ? ' is-pinterest' : ''}" aria-label="图片操作">
-            ${refCount || derivedCount ? `
+            ${refCount || derivedCount || panelNumber ? `
               <div class="desk-gallery-card__lineage" aria-label="图片溯源">
+                ${panelNumber ? `<em title="整图切出的第 ${panelNumber} 格" aria-label="切图第 ${panelNumber} 格">切 ${panelNumber}</em>` : ''}
                 ${refCount ? `<em title="生成时参考了 ${refCount} 张来源图" aria-label="来源图 ${refCount} 张">源 ${refCount}</em>` : ''}
                 ${derivedCount ? `<em title="以此图为参考衍生出 ${derivedCount} 张图" aria-label="衍生图 ${derivedCount} 张">派 ${derivedCount}</em>` : ''}
               </div>

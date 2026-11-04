@@ -10,23 +10,24 @@
     __proto__: null,
     input: Object.freeze(['image', 'file_output', 'upscale', 'output']),
     comfy: Object.freeze(['image', 'upscale']),
-    video_inference: Object.freeze(['video']),
-    video: Object.freeze(['video_inference', 'pose']),
+    video: Object.freeze(['pose']),
     // The independent music domain extends audio targets; image/video accept none.
     audio: Object.freeze([]),
     image_group: Object.freeze(['input', 'comfy']),
     output: Object.freeze(['image']),
-    image: Object.freeze(['input', 'comfy', 'video_inference', 'layout', 'pose', 'upscale']),
+    image: Object.freeze(['input', 'comfy', 'layout', 'pose', 'upscale']),
     upscale: Object.freeze(['image']),
-    layout: Object.freeze(['input', 'comfy', 'video_inference', 'upscale']),
-    pose: Object.freeze(['input', 'comfy', 'video_inference', 'upscale', 'video']),
-    text: Object.freeze(['input', 'comfy', 'video_inference'])
+    layout: Object.freeze(['input', 'comfy', 'upscale']),
+    pose: Object.freeze(['input', 'comfy', 'upscale', 'video']),
+    text: Object.freeze(['input', 'comfy'])
   });
 
   function create({
+    IMAGE_GROUP_LIQUID_VISIBLE_OUTSET_PX,
     LINK_VIEWBOX,
     NODE_MENU_ITEMS,
     domainConnections,
+    imageGroupContentBounds,
     ORDINARY_MENU_CLOSE_FALLBACK_MS,
     activeInteractionRef,
     addNodeFromMenu,
@@ -54,6 +55,7 @@
     hoveredEdgeIdRef,
     makeClassicCurvePath,
     makeSmoothStepPath,
+    portPlates,
     nodeMenuButtonHtml,
     normalizePortSide,
     oppositePortSide,
@@ -62,7 +64,6 @@
     refreshImageReferenceTokens,
     refreshPoseNode,
     refreshUpscaleNodeMode,
-    refreshVideoInferenceNode,
     refreshVideoNode,
     releaseFloatingSwell,
     renderMiniMap,
@@ -74,7 +75,6 @@
     updateLayoutInputCount,
     updateConnectionProximity,
     updateUpscaleInputCount,
-    videoInputRoleForSource,
   }) {
     let contextMenuPoint = null;
     let contextMenuCloseTimer = 0;
@@ -388,6 +388,18 @@
     const height = el?.offsetHeight || Number(node.height) || 0;
     const offset = getNodeVisualOffset?.(nodeId);
     const x = node.x + (offset?.x || 0), y = node.y + (offset?.y || 0);
+    // An image group's visible edge is the frame line around its thumbnails, inside the node box.
+    const body = node.type === 'image_group' ? imageGroupContentBounds?.(node) : null;
+    if (body) {
+      const outset = IMAGE_GROUP_LIQUID_VISIBLE_OUTSET_PX;
+      const frame = {
+        x: x + body.x - outset,
+        y: y + body.y - outset,
+        width: body.width + outset * 2,
+        height: body.height + outset * 2
+      };
+      return { ...frame, centerX: frame.x + frame.width / 2, centerY: frame.y + frame.height / 2 };
+    }
     return { x, y, width, height, centerX: x + width / 2, centerY: y + height / 2 };
   }
 
@@ -465,6 +477,30 @@
     path.setAttribute('d', d);
   }
 
+    // Graphite style: links leave each node from merged port plates on the facing sides.
+    const isGraphite = () => document.body?.dataset.deskStyle === 'graphite' && Boolean(portPlates);
+    const graphiteNotch = nodeId => (getNodeElement(nodeId)?.classList.contains('desk-node--input') ? portPlates.INPUT_NOTCH : null);
+    function graphitePortLayout(edges) {
+    if (!isGraphite()) return null;
+    return portPlates.layout(edges, getNodeGeometry, graphiteNotch);
+  }
+
+    // While dragging a link onto a target, its facing side grows a plate and the
+    // pipe ends on the plate face instead of the bare card edge.
+    function graphiteSnapPlate(snap, side, from) {
+    if (!isGraphite()) return null;
+    const g = getNodeGeometry(snap.nodeId);
+    const along = side === 'left' || side === 'right' ? from.y : from.x;
+    return portPlates.edgePlate({ x: g.x, y: g.y, w: g.width, h: g.height }, side, along, 1, graphiteNotch(snap.nodeId));
+  }
+
+    function graphiteEdgePath(route, edge) {
+    return makeConnectionPath(route.from, route.to, route.fromSide, route.toSide, {
+      fromGeometry: getNodeGeometry(edge.from),
+      toGeometry: getNodeGeometry(edge.to)
+    });
+  }
+
     function updateLinkPath() {
     const svg = document.querySelector('.desk-link-layer');
     if (!svg) return;
@@ -477,21 +513,25 @@
     if (hoveredEdgeIdRef.current && !edges.some(edge => edge.id === hoveredEdgeIdRef.current)) hoveredEdgeIdRef.current = '';
     updateSettledConnectionPorts(edges);
     const selectedNodeId = DesktopState.state.canvas.selectedNodeId || '';
+    const graphite = graphitePortLayout(edges);
     const edgeMarkup = edges.map(edge => {
-      const sides = resolveConnectionSides(edge.from, edge.to);
-      const from = getAnchor(edge.from, sides.fromSide);
-      const to = getAnchor(edge.to, sides.toSide);
-      const d = makeConnectionPath(from, to, sides.fromSide, sides.toSide, {
-        fromGeometry: getNodeGeometry(edge.from),
-        toGeometry: getNodeGeometry(edge.to)
-      });
+      const route = graphite?.routes.get(edge.id);
+      const sides = route || resolveConnectionSides(edge.from, edge.to);
+      const d = route ? graphiteEdgePath(route, edge) : makeConnectionPath(
+        getAnchor(edge.from, sides.fromSide),
+        getAnchor(edge.to, sides.toSide),
+        sides.fromSide,
+        sides.toSide,
+        { fromGeometry: getNodeGeometry(edge.from), toGeometry: getNodeGeometry(edge.to) }
+      );
       const isRelated = selectedNodeId && (edge.from === selectedNodeId || edge.to === selectedNodeId);
       const relatedClass = isRelated ? ' is-related' : '';
+      const negativeClass = DesktopState.state.canvas.nodes[edge.from]?.promptRole === 'negative' ? ' is-negative-prompt' : '';
       const selectedClass = selectedEdgeIdRef.current === edge.id ? ' is-selected' : '';
       const hoveredClass = hoveredEdgeIdRef.current === edge.id ? ' is-hovered' : '';
       const safeEdgeId = escapeHtml(edge.id);
       return `
-        <path class="desk-link-path${relatedClass}${selectedClass}${hoveredClass}" data-edge-id="${safeEdgeId}" d="${d}"></path>
+        <path class="desk-link-path${relatedClass}${negativeClass}${selectedClass}${hoveredClass}" data-edge-id="${safeEdgeId}" d="${d}"></path>
         <path class="desk-link-hit desk-link-interaction${selectedClass}" data-edge-id="${safeEdgeId}" data-edge-interaction d="${d}"></path>
       `;
     }).join('');
@@ -499,7 +539,8 @@
     const pendingMarkup = pendingPath
       ? `<path class="desk-link-path is-preview is-pending" data-context-connection-preview="true" d="${pendingPath}"></path>`
       : '';
-    svg.innerHTML = `${edgeMarkup}${pendingMarkup}`;
+    const platesMarkup = graphite?.plates ? `<path class="desk-port-plates" data-port-plates d="${graphite.plates}"></path>` : '';
+    svg.innerHTML = `${platesMarkup}${edgeMarkup}${pendingMarkup}`;
     indexEdgeVisuals(svg, edges);
     if (activeInteractionRef.current?.type === 'connect' && activeInteractionRef.current.pointer) {
       renderConnectionPreview(
@@ -539,6 +580,21 @@
   }
 
     function refreshNodeConnectionGeometry(nodeId) {
+    // Graphite ports slide and switch sides with the partner node, so the plates of
+    // every node change together: re-layout once, then write only changed paths.
+    const graphite = (nodeEdgeVisuals.get(nodeId) || []).length
+      ? graphitePortLayout(DesktopState.state.canvas.edges || [])
+      : null;
+    if (graphite) {
+      edgeVisuals.forEach(({ edge, paths }) => {
+        const route = graphite.routes.get(edge.id);
+        if (!route || !paths.some(path => path.isConnected)) return;
+        const d = graphiteEdgePath(route, edge);
+        paths.forEach(path => { if (path.getAttribute('d') !== d) path.setAttribute('d', d); });
+      });
+      document.querySelector('.desk-link-layer [data-port-plates]')?.setAttribute('d', graphite.plates);
+      return;
+    }
     const geometries = new Map();
     const geometry = id => {
       if (!geometries.has(id)) geometries.set(id, getNodeGeometry(id));
@@ -641,14 +697,31 @@
         { x: sourceGeometry.centerX, y: sourceGeometry.centerY },
         preview.pointer
       ));
-      const destination = snap ? getAnchor(snap.nodeId, toSide) : preview.pointer;
       const from = preview.fromAnchor || getAnchor(preview.fromNodeId, normalizedFromSide);
+      const snapPlate = snap ? graphiteSnapPlate(snap, toSide, from) : null;
+      const destination = snapPlate?.face || (snap ? getAnchor(snap.nodeId, toSide) : preview.pointer);
       const d = makeConnectionPath(from, destination, normalizedFromSide, toSide, {
         fromGeometry: sourceGeometry,
         ...(snap ? { toGeometry: getNodeGeometry(snap.nodeId) } : {})
       });
       ensureLiveConnectionPreviewPath(svg)?.setAttribute('d', d);
+      syncLiveConnectionPlate(svg, snapPlate?.path || '');
     }
+  }
+
+    function syncLiveConnectionPlate(svg, d) {
+    let plate = svg.querySelector('[data-live-connection-plate]');
+    if (!d) {
+      plate?.remove();
+      return;
+    }
+    if (!plate) {
+      plate = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      plate.classList.add('desk-port-plates');
+      plate.dataset.liveConnectionPlate = 'true';
+      svg.insertBefore(plate, svg.firstChild);
+    }
+    plate.setAttribute('d', d);
   }
 
     function scheduleConnectionPreviewFrame() {
@@ -664,7 +737,7 @@
     connectionApproachPoint = null;
     connectionSnapTarget = null;
     clearConnectionProximity?.();
-    document.querySelector('.desk-link-layer [data-live-connection-preview]')?.remove();
+    document.querySelectorAll('.desk-link-layer :is([data-live-connection-preview], [data-live-connection-plate])').forEach(path => path.remove());
   }
 
     function renderConnectionPreview(fromNodeId, pointer, fromSide = 'right', fromAnchor = null) {
@@ -701,32 +774,19 @@
     const poseToUpscale = from?.type === 'pose' && to?.type === 'upscale';
     const textToInput = from?.type === 'text' && to?.type === 'input';
     const textToComfy = from?.type === 'text' && to?.type === 'comfy';
-    const textToVideoInference = from?.type === 'text' && to?.type === 'video_inference';
-    const imageToVideoInference = from?.type === 'image' && to?.type === 'video_inference';
-    const layoutToVideoInference = from?.type === 'layout' && to?.type === 'video_inference';
-    const poseToVideoInference = from?.type === 'pose' && to?.type === 'video_inference';
-    const videoToVideoInference = from?.type === 'video' && to?.type === 'video_inference';
-    const videoInferenceToVideo = from?.type === 'video_inference' && to?.type === 'video';
     const outputToImage = from?.type === 'output' && to?.type === 'image';
     const upscaleToImage = from?.type === 'upscale' && to?.type === 'image';
-    const videoInputConnection = textToVideoInference || imageToVideoInference || layoutToVideoInference || poseToVideoInference || videoToVideoInference;
     if (!canConnectNodes(fromNodeId, toNodeId)) {
-      if (!options.quiet) DesktopResults.showTransientMessage('当前节点类型不能这样连接。视频生成可接入文本、图片、姿态、排版或视频节点。');
+      if (!options.quiet) DesktopResults.showTransientMessage('当前节点类型不能这样连接。');
       return '';
     }
     const domainPolicy = domainConnections?.policy(from, to, options, DesktopState.state.canvas.edges || []);
-    const inputRole = String(domainPolicy?.inputRole || options.inputRole || (videoInputConnection ? videoInputRoleForSource(from.type) : '')).trim();
+    const inputRole = String(domainPolicy?.inputRole || options.inputRole || '').trim();
     DesktopState.state.canvas.edges = (DesktopState.state.canvas.edges || []).filter(edge => {
       if (domainPolicy?.replaceAllInputs && edge.to === toNodeId) return false;
       if (domainPolicy?.single && edge.to === toNodeId && edge.inputRole === inputRole) return false;
       if (modelToResult) return edge.to !== toNodeId;
       if (modelToImage || comfyToImage) return edge.to !== toNodeId;
-      if (videoInferenceToVideo) return edge.to !== toNodeId;
-      if (videoInputConnection && inputRole) {
-        const edgeSource = DesktopState.state.canvas.nodes[edge.from];
-        const edgeRole = edge.inputRole || videoInputRoleForSource(edgeSource?.type);
-        return !(edge.to === toNodeId && edgeRole === inputRole);
-      }
       if (outputToImage) return edge.to !== toNodeId;
       if (upscaleToImage) return edge.to !== toNodeId;
       return !(edge.from === fromNodeId && edge.to === toNodeId);
@@ -737,7 +797,7 @@
       from: fromNodeId,
       to: toNodeId,
       inputRole: inputRole || undefined,
-      outputRole: domainPolicy?.outputRole || (videoInferenceToVideo ? 'video' : undefined),
+      outputRole: domainPolicy?.outputRole,
       outputSlot: Number.isFinite(Number(options.outputSlot)) ? Number(options.outputSlot) : undefined
     });
     if (textToInput || textToComfy) ensureTextNodeImageReferenceConnections(fromNodeId, toNodeId);
@@ -771,20 +831,6 @@
     } else if (imageToUpscale || layoutToUpscale || poseToUpscale) {
       updateUpscaleInputCount(toNodeId);
       DesktopResults.showTransientMessage('图片已接入高清放大节点。');
-      DesktopState.saveSettings();
-      return edgeId;
-    } else if (videoInputConnection) {
-      refreshVideoInferenceNode(toNodeId);
-      if (!options.quiet) {
-        const label = inputRole === 'prompt' ? '提示词' : (inputRole === 'first_frame' ? '首帧' : '参考视频');
-        DesktopResults.showTransientMessage(`${label}已接入 MiniMax H3 节点。`);
-      }
-      DesktopState.saveSettings();
-      return edgeId;
-    } else if (videoInferenceToVideo) {
-      refreshVideoInferenceNode(fromNodeId);
-      refreshVideoNode(toNodeId);
-      if (!options.quiet) DesktopResults.showTransientMessage('视频结果节点已接入 MiniMax H3 输出。');
       DesktopState.saveSettings();
       return edgeId;
     } else if (imageToComfy || imageGroupToComfy || layoutToComfy || poseToComfy || textToComfy) {
@@ -850,7 +896,6 @@
     const upscaleIds = new Set();
     const modelOutputIds = new Set();
     const comfyIds = new Set();
-    const videoInferenceIds = new Set();
     const videoIds = new Set();
     removedEdges.forEach(edge => {
       const from = DesktopState.state.canvas.nodes[edge.from];
@@ -861,8 +906,6 @@
       if (from?.type === 'upscale') upscaleIds.add(edge.from);
       if ((from?.type === 'input' || from?.type === 'comfy') && to?.type === 'image') modelOutputIds.add(edge.from);
       if (to?.type === 'comfy') comfyIds.add(edge.to);
-      if (to?.type === 'video_inference') videoInferenceIds.add(edge.to);
-      if (from?.type === 'video_inference') videoInferenceIds.add(edge.from);
       if (to?.type === 'video') videoIds.add(edge.to);
     });
     modelOutputIds.forEach(assignImageOutputSlots);
@@ -870,7 +913,6 @@
     poseIds.forEach(refreshPoseNode);
     upscaleIds.forEach(updateUpscaleInputCount);
     comfyIds.forEach(refreshComfyNode);
-    videoInferenceIds.forEach(refreshVideoInferenceNode);
     videoIds.forEach(refreshVideoNode);
     refreshImageReferenceTokens();
   }

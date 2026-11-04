@@ -4,9 +4,12 @@
   const SUPPORTED_THEMES = new Set(['light', 'dark']);
   const SUPPORTED_CONNECTION_SWELL_STYLES = new Set(['liquid', 'droplet']);
   const SUPPORTED_CONNECTION_LINE_STYLES = new Set(['straight', 'curve']);
+  // Visual style family, orthogonal to the light/dark theme: liquid (default) or graphite.
+  const SUPPORTED_THEME_STYLES = new Set(['liquid', 'graphite']);
 
   const state = {
     theme: 'light',
+    themeStyle: 'liquid',
     language: 'zh',
     connectionSwellStyle: 'liquid',
     connectionLineStyle: 'straight',
@@ -22,6 +25,11 @@
   function normalizeTheme(value) {
     const theme = String(value || '').trim().toLowerCase();
     return SUPPORTED_THEMES.has(theme) ? theme : 'light';
+  }
+
+  function normalizeThemeStyle(value) {
+    const style = String(value || '').trim().toLowerCase();
+    return SUPPORTED_THEME_STYLES.has(style) ? style : 'liquid';
   }
 
   function normalizeLanguage(value) {
@@ -44,6 +52,7 @@
     try {
       const parsed = JSON.parse(localStorage.getItem(PREF_KEY) || '{}');
       state.theme = normalizeTheme(parsed.theme);
+      state.themeStyle = normalizeThemeStyle(parsed.themeStyle);
       state.language = normalizeLanguage(parsed.language);
       state.connectionSwellStyle = normalizeConnectionSwellStyle(parsed.connectionSwellStyle);
       state.connectionLineStyle = normalizeConnectionLineStyle(parsed.connectionLineStyle);
@@ -52,6 +61,7 @@
       state.controlMaterial = normalizeControlMaterial(parsed.controlMaterial);
     } catch (e) {
       state.theme = 'light';
+      state.themeStyle = 'liquid';
       state.language = 'zh';
       state.connectionSwellStyle = 'liquid';
       state.connectionLineStyle = 'straight';
@@ -65,6 +75,7 @@
     try {
       localStorage.setItem(PREF_KEY, JSON.stringify({
         theme: state.theme,
+        themeStyle: state.themeStyle,
         language: state.language,
         connectionSwellStyle: state.connectionSwellStyle,
         connectionLineStyle: state.connectionLineStyle,
@@ -93,6 +104,16 @@
     document.body?.setAttribute('data-theme', state.theme);
     document.documentElement.setAttribute('data-theme', state.theme);
     updateThemeButton();
+  }
+
+  // Liquid is the stylesheet default, so only graphite projects an attribute.
+  function applyThemeStyle(style = state.themeStyle) {
+    state.themeStyle = normalizeThemeStyle(style);
+    [document.body, document.documentElement].forEach(element => {
+      if (!element) return;
+      if (state.themeStyle === 'liquid') element.removeAttribute('data-desk-style');
+      else element.setAttribute('data-desk-style', state.themeStyle);
+    });
   }
 
   function applyConnectionSwellStyle(style = state.connectionSwellStyle) {
@@ -297,6 +318,16 @@
     }));
   }
 
+  function setThemeStyle(style) {
+    const nextStyle = normalizeThemeStyle(style);
+    if (nextStyle !== state.themeStyle) startThemeTransition();
+    applyThemeStyle(nextStyle);
+    savePreferences();
+    window.dispatchEvent(new CustomEvent('desktop:theme-style-change', {
+      detail: { style: state.themeStyle },
+    }));
+  }
+
   function setConnectionSwellStyle(style) {
     applyConnectionSwellStyle(style);
     savePreferences();
@@ -381,6 +412,7 @@
     applyProgressPreferences();
     window.DesktopControlMaterial?.apply(state.controlMaterial, document.body);
     applyTheme(state.theme);
+    applyThemeStyle(state.themeStyle);
     applyLanguage(state.language);
     applyConnectionSwellStyle(state.connectionSwellStyle);
     applyConnectionLineStyle(state.connectionLineStyle);
@@ -392,6 +424,7 @@
     t,
     init,
     setTheme,
+    setThemeStyle,
     setLanguage,
     setConnectionSwellStyle,
     setConnectionLineStyle,
@@ -399,6 +432,7 @@
     setProgressPreferences,
     setControlMaterialPreferences,
     toggleTheme,
+    normalizeThemeStyle,
     normalizeConnectionSwellStyle,
     normalizeConnectionLineStyle,
   };

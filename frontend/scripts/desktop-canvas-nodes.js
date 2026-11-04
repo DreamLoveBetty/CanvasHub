@@ -4,8 +4,8 @@
 (function () {
   // Sidebar presentation only: the shared catalog and connection picker stay flat.
   const NODE_PALETTE_GROUPS = [
-    { id: 'image', title: '图像节点', types: ['image', 'input', 'krea2', 'krea2_control', 'qwen21', 'cyimg_image', 'pose'] },
-    { id: 'video', title: '视频节点', types: ['video', 'video_inference', 'cyimg_video', 'video_control'] },
+    { id: 'image', title: '图像节点', types: ['image', 'input', 'krea2', 'krea2_control', 'qwen21', 'moss', 'cyimg_image', 'pose'] },
+    { id: 'video', title: '视频节点', types: ['video', 'cyimg_video', 'video_control'] },
     { id: 'audio', title: '音频节点', types: ['audio', 'music_generate', 'music_transcribe', 'music_abc', 'music_score', 'music_compare'] },
     { id: 'enhance', title: '增强放大节点', types: ['upscale', 'topaz', 'topaz_video'] },
     { id: 'general', title: '通用节点', types: ['text', 'comfy', 'file_output', 'layout'] }
@@ -28,8 +28,6 @@
     DEFAULT_TEXT_NODE_WIDTH,
     DEFAULT_UPSCALE_NODE_HEIGHT,
     DEFAULT_UPSCALE_NODE_WIDTH,
-    DEFAULT_VIDEO_INFERENCE_NODE_HEIGHT,
-    DEFAULT_VIDEO_INFERENCE_NODE_WIDTH,
     DEFAULT_VIDEO_NODE_HEIGHT,
     DEFAULT_VIDEO_NODE_WIDTH,
     IMAGE_GROUP_LAYOUT_VERSION,
@@ -53,6 +51,8 @@
     krea2ControlDefinition,
     qwen21Node,
     qwen21Definition,
+    mossNode,
+    mossDefinition,
     videoControlNode,
     videoControlDefinition,
     topazVideoNode,
@@ -89,10 +89,8 @@
     normalizeImageSourceFromNode,
     normalizeNodeGroupId,
     normalizeNodeGroups,
-    normalizeVideoInferenceNodeState,
     notifyTextNodeListChange,
     refreshImageReferenceTokens,
-    refreshVideoInferenceNode,
     refreshVideoNode,
     renderMiniMap,
     revokeReferenceUrl,
@@ -101,7 +99,6 @@
     setPromptTextForInputNode,
     setSelectedNodes,
     setTextStyleMenuOpen,
-    stopVideoTaskPolling,
     syncOutputControlsToNodes,
     textNodeHtml,
     triggerImageNodePopIn,
@@ -110,7 +107,6 @@
     updateSelectionToolbar,
     updateUpscaleInputCount,
     upscaleNodeHtml,
-    videoInferenceNodeHtml,
     videoNodeHtml,
   }) {
 
@@ -132,6 +128,7 @@
     if (nodeState.type === krea2Definition?.TYPE) krea2Definition.normalize(nodeState);
     if (nodeState.type === krea2ControlDefinition?.TYPE) krea2ControlDefinition.normalize(nodeState);
     if (nodeState.type === qwen21Definition?.TYPE) qwen21Definition.normalize(nodeState);
+    if (nodeState.type === mossDefinition?.TYPE) mossDefinition.normalize(nodeState);
     if (nodeState.type === videoControlDefinition?.TYPE) videoControlDefinition.normalize(nodeState);
     if (nodeState.type === topazVideoDefinition?.TYPE) topazVideoDefinition.normalize(nodeState);
     if (nodeState.type === poseDefinition?.TYPE) poseDefinition.normalize(nodeState);
@@ -361,17 +358,15 @@
   }
 
     function nextNodeId(type) {
-    const prefix = type === topazDefinition?.TYPE ? type : type === krea2Definition?.TYPE ? type : type === krea2ControlDefinition?.TYPE ? type : type === qwen21Definition?.TYPE ? type : cyimgDefinition?.TYPES.includes(type) ? type : type === videoControlDefinition?.TYPE ? type : type === topazVideoDefinition?.TYPE ? type : musicNodeDefinition?.TYPES.includes(type) ? type : type === 'audio' ? 'audio' : type === 'file_output'
+    const prefix = type === topazDefinition?.TYPE ? type : type === krea2Definition?.TYPE ? type : type === krea2ControlDefinition?.TYPE ? type : type === qwen21Definition?.TYPE ? type : type === mossDefinition?.TYPE ? type : cyimgDefinition?.TYPES.includes(type) ? type : type === videoControlDefinition?.TYPE ? type : type === topazVideoDefinition?.TYPE ? type : musicNodeDefinition?.TYPES.includes(type) ? type : type === 'audio' ? 'audio' : type === 'file_output'
       ? 'file_output'
       : (type === 'image_group'
         ? 'image_group'
       : (type === 'comfy'
         ? 'comfy'
-        : (type === 'video_inference'
-          ? 'video_inference'
-          : (type === 'video'
-            ? 'video'
-            : (type === 'image' ? 'image' : (type === 'upscale' ? 'upscale' : (type === 'pose' ? 'pose' : (type === 'layout' ? 'layout' : (type === 'text' ? 'text' : 'input')))))))));
+        : (type === 'video'
+          ? 'video'
+          : (type === 'image' ? 'image' : (type === 'upscale' ? 'upscale' : (type === 'pose' ? 'pose' : (type === 'layout' ? 'layout' : (type === 'text' ? 'text' : 'input'))))))));
     let id = '';
     do {
       const unique = globalThis.crypto?.randomUUID?.()?.replaceAll('-', '')
@@ -391,22 +386,18 @@
         ? DEFAULT_IMAGE_GROUP_NODE_WIDTH
       : (type === 'comfy'
         ? DEFAULT_COMFY_NODE_WIDTH
-        : (type === 'video_inference'
-          ? DEFAULT_VIDEO_INFERENCE_NODE_WIDTH
-          : (type === 'video'
-            ? DEFAULT_VIDEO_NODE_WIDTH
-            : (type === 'upscale' ? DEFAULT_UPSCALE_NODE_WIDTH : (type === 'layout' ? 320 : (type === 'text' ? DEFAULT_TEXT_NODE_WIDTH : DEFAULT_INPUT_NODE_WIDTH)))))));
+        : (type === 'video'
+          ? DEFAULT_VIDEO_NODE_WIDTH
+          : (type === 'upscale' ? DEFAULT_UPSCALE_NODE_WIDTH : (type === 'layout' ? 320 : (type === 'text' ? DEFAULT_TEXT_NODE_WIDTH : DEFAULT_INPUT_NODE_WIDTH))))));
     const defaultHeight = type === 'file_output'
       ? DEFAULT_FILE_OUTPUT_NODE_HEIGHT
       : (type === 'image_group'
         ? DEFAULT_IMAGE_GROUP_NODE_HEIGHT
       : (type === 'comfy'
         ? DEFAULT_COMFY_NODE_HEIGHT
-        : (type === 'video_inference'
-          ? DEFAULT_VIDEO_INFERENCE_NODE_HEIGHT
-          : (type === 'video'
-            ? DEFAULT_VIDEO_NODE_HEIGHT
-            : (type === 'upscale' ? DEFAULT_UPSCALE_NODE_HEIGHT : (type === 'layout' ? 300 : (type === 'text' ? DEFAULT_TEXT_NODE_HEIGHT : DEFAULT_INPUT_NODE_HEIGHT)))))));
+        : (type === 'video'
+          ? DEFAULT_VIDEO_NODE_HEIGHT
+          : (type === 'upscale' ? DEFAULT_UPSCALE_NODE_HEIGHT : (type === 'layout' ? 300 : (type === 'text' ? DEFAULT_TEXT_NODE_HEIGHT : DEFAULT_INPUT_NODE_HEIGHT))))));
     const node = {
       id,
       type,
@@ -420,6 +411,7 @@
     if (type === krea2Definition?.TYPE) krea2Definition.normalize(node);
     if (type === krea2ControlDefinition?.TYPE) krea2ControlDefinition.normalize(node);
     if (type === qwen21Definition?.TYPE) qwen21Definition.normalize(node);
+    if (type === mossDefinition?.TYPE) mossDefinition.normalize(node);
     if (type === videoControlDefinition?.TYPE) videoControlDefinition.normalize(node);
     if (type === topazVideoDefinition?.TYPE) topazVideoDefinition.normalize(node);
     if (type === poseDefinition?.TYPE) Object.assign(node, poseDefinition.createState());
@@ -439,12 +431,6 @@
       node.resolution = '1k';
       node.workflowParameters = {};
       node.output = { archiveEnabled: true, telegramEnabled: true };
-    }
-    if (type === 'video_inference') {
-      normalizeVideoInferenceNodeState(node);
-      node.width = DEFAULT_VIDEO_INFERENCE_NODE_WIDTH;
-      node.height = DEFAULT_VIDEO_INFERENCE_NODE_HEIGHT;
-      node.output = { archiveEnabled: true, telegramEnabled: false };
     }
     if (type === 'text') {
       node.text = '';
@@ -499,7 +485,7 @@
       node.output = { archiveEnabled: true, telegramEnabled: false };
     }
     DesktopState.state.canvas.nodes[id] = node;
-    if (type === topazDefinition?.TYPE || type === 'input' || type === 'comfy' || type === 'file_output' || type === 'upscale' || type === 'video_inference') {
+    if (type === topazDefinition?.TYPE || type === 'input' || type === 'comfy' || type === 'file_output' || type === 'upscale') {
       DesktopState.state.outputs[id] = {
         status: 'idle',
         stage: '',
@@ -509,7 +495,7 @@
         imagePaths: [],
         primaryFile: '',
         primaryImagePath: '',
-        type: type === topazDefinition?.TYPE ? 'topaz' : type === 'upscale' ? 'upscale' : (type === 'comfy' ? 'comfy' : (type === 'video_inference' ? 'video' : 'gpt')),
+        type: type === topazDefinition?.TYPE ? 'topaz' : type === 'upscale' ? 'upscale' : (type === 'comfy' ? 'comfy' : 'gpt'),
         error: '',
         taskId: '',
         fileManifest: null,
@@ -602,6 +588,7 @@
     if (node.type === krea2Definition?.TYPE) return krea2Node.nodeHtml(node);
     if (node.type === krea2ControlDefinition?.TYPE) return krea2ControlNode.nodeHtml(node);
     if (node.type === qwen21Definition?.TYPE) return qwen21Node.nodeHtml(node);
+    if (node.type === mossDefinition?.TYPE) return mossNode.nodeHtml(node);
     if (cyimgDefinition?.TYPES.includes(node.type)) return cyimgNode.nodeHtml(node);
     if (node.type === videoControlDefinition?.TYPE) return videoControlNode.nodeHtml(node);
     if (node.type === topazVideoDefinition?.TYPE) return topazVideoNode.nodeHtml(node);
@@ -611,7 +598,6 @@
     if (node.type === 'image_group') return imageGroupNodeHtml(node);
     if (node.type === 'image') return imageNodeHtml(node);
     if (node.type === 'video') return videoNodeHtml(node);
-    if (node.type === 'video_inference') return videoInferenceNodeHtml(node);
     if (node.type === 'comfy') return comfyNodeHtml(node);
     if (node.type === 'upscale') return upscaleNodeHtml(node);
     if (node.type === poseDefinition?.TYPE) return poseNode.nodeHtml(poseDefinition.normalize(node));
@@ -648,6 +634,7 @@
     krea2Node?.reconcile();
     krea2ControlNode?.reconcile();
     qwen21Node?.reconcile();
+    mossNode?.reconcile();
   }
 
     function resetNodeLayout() {
@@ -660,6 +647,7 @@
     krea2Node?.disposeAll();
     krea2ControlNode?.disposeAll();
     qwen21Node?.disposeAll();
+    mossNode?.disposeAll();
     audioNode.disposeAll();
     DesktopState.state.canvas.nodes = {
       input: { id: 'input', type: 'input', x: 56, y: 72, width: DEFAULT_INPUT_NODE_WIDTH, height: DEFAULT_INPUT_NODE_HEIGHT }
@@ -740,9 +728,10 @@
     if (type === krea2Definition?.TYPE) return type;
     if (type === krea2ControlDefinition?.TYPE) return type;
     if (type === qwen21Definition?.TYPE) return type;
+    if (type === mossDefinition?.TYPE) return type;
     if (cyimgDefinition?.TYPES.includes(type)) return type;
     if (musicNodeDefinition?.TYPES.includes(type)) return type;
-    return ['input', 'comfy', 'video_inference', 'video', 'audio', 'file_output', 'layout', 'text', 'image', 'image_group', 'pose', 'upscale'].includes(type) ? type : 'input';
+    return ['input', 'comfy', 'video', 'audio', 'file_output', 'layout', 'text', 'image', 'image_group', 'pose', 'upscale'].includes(type) ? type : 'input';
   }
 
     function addNodeFromMenu(type, worldPoint) {
@@ -785,9 +774,9 @@
     if (node.type === krea2Definition?.TYPE) krea2Node.dispose(nodeId);
     if (node.type === krea2ControlDefinition?.TYPE) krea2ControlNode.dispose(nodeId);
     if (node.type === qwen21Definition?.TYPE) qwen21Node.dispose(nodeId);
+    if (node.type === mossDefinition?.TYPE) mossNode.dispose(nodeId);
     if (node.type === 'audio') audioNode.dispose(nodeId);
     if (musicNodeDefinition?.TYPES.includes(node.type)) musicNode.dispose(nodeId);
-    if (node.type === 'video_inference') stopVideoTaskPolling(nodeId);
     if (node.type === 'image_group') freezeImageReferenceTokens(nodeId);
     if (node.type === 'image') freezeImageReferenceTokensForSourceNode(nodeId);
     const nodeEl = getNodeElement(nodeId);
@@ -818,10 +807,6 @@
       .filter(edge => edge.from === nodeId || edge.to === nodeId)
       .flatMap(edge => [edge.from, edge.to])
       .filter(id => DesktopState.state.canvas.nodes[id]?.type === 'upscale');
-    const affectedVideoInferenceIds = (DesktopState.state.canvas.edges || [])
-      .filter(edge => edge.from === nodeId || edge.to === nodeId)
-      .flatMap(edge => [edge.from, edge.to])
-      .filter(id => DesktopState.state.canvas.nodes[id]?.type === 'video_inference');
     const affectedVideoIds = (DesktopState.state.canvas.edges || [])
       .filter(edge => edge.from === nodeId || edge.to === nodeId)
       .flatMap(edge => [edge.from, edge.to])
@@ -833,7 +818,6 @@
     affectedLayoutIds.forEach(updateLayoutInputCount);
     affectedPoseIds.forEach(id => poseNode?.refresh(id));
     affectedUpscaleIds.forEach(updateUpscaleInputCount);
-    affectedVideoInferenceIds.forEach(refreshVideoInferenceNode);
     affectedVideoIds.forEach(refreshVideoNode);
     updateLinkPath();
     DesktopState.saveSettings(node.type === 'image_group' ? { criticalCanvas: true } : undefined);

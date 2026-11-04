@@ -43,7 +43,7 @@
     + IMAGE_GROUP_THUMB_PX
     + IMAGE_GROUP_THUMB_STEP_PX;
   const DEFAULT_IMAGE_GROUP_NODE_HEIGHT = IMAGE_GROUP_MOTHER_HEIGHT_PX + IMAGE_GROUP_MOTHER_TOP_PX * 2;
-  const MIN_IMAGE_GROUP_NODE_WIDTH = DEFAULT_IMAGE_GROUP_NODE_WIDTH;
+  const MIN_IMAGE_GROUP_NODE_WIDTH = IMAGE_GROUP_PADDING_PX * 2 + IMAGE_GROUP_THUMB_PX;
   const MAX_IMAGE_GROUP_NODE_WIDTH = IMAGE_GROUP_PADDING_PX * 2
     + IMAGE_GROUP_THUMB_PX
     + (IMAGE_GROUP_MAX_COLUMNS - 1) * IMAGE_GROUP_THUMB_STEP_PX;
@@ -64,13 +64,6 @@
   const MIN_COMFY_NODE_HEIGHT = 480;
   const MAX_COMFY_NODE_WIDTH = 900;
   const MAX_COMFY_NODE_HEIGHT = 960;
-  const DEFAULT_VIDEO_INFERENCE_NODE_WIDTH = 720;
-  const DEFAULT_VIDEO_INFERENCE_NODE_HEIGHT = 380;
-  const MIN_VIDEO_INFERENCE_NODE_WIDTH = 660;
-  const MIN_VIDEO_INFERENCE_NODE_HEIGHT = 320;
-  const MAX_VIDEO_INFERENCE_NODE_WIDTH = 960;
-  const MAX_VIDEO_INFERENCE_NODE_HEIGHT = 720;
-  const VIDEO_INFERENCE_LAYOUT_VERSION = 2;
   const DEFAULT_VIDEO_NODE_WIDTH = 320;
   const DEFAULT_VIDEO_NODE_HEIGHT = 470;
   const MIN_VIDEO_NODE_WIDTH = 220;
@@ -319,6 +312,7 @@
     window.DesktopKrea2Model.MENU_ITEM,
     window.DesktopKrea2Control.MENU_ITEM,
     window.DesktopQwen21Model.MENU_ITEM,
+    window.DesktopMossModel.MENU_ITEM,
     ...window.DesktopCyimgModel.MENU_ITEMS,
     {
       type: 'input',
@@ -331,12 +325,6 @@
       title: 'Comfy 工作流',
       subtitle: '本地工作流执行',
       icon: '<svg class="desk-node-icon desk-node-icon--comfy" viewBox="0 0 24 24"><path d="M7 4h10a3 3 0 0 1 3 3v10a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3V7a3 3 0 0 1 3-3Z"></path><path d="M8 9h8M8 13h5M8 17h7"></path><circle cx="17" cy="13" r="1.5"></circle></svg>'
-    },
-    {
-      type: 'video_inference',
-      title: '视频生成',
-      subtitle: 'MiniMax H3 推理',
-      icon: '<svg class="desk-node-icon desk-node-icon--video-inference" viewBox="0 0 24 24"><rect x="3" y="5" width="14" height="14" rx="3"></rect><path d="m17 10 4-2v8l-4-2"></path><path d="m9 9 4 3-4 3z"></path></svg>'
     },
     {
       type: 'file_output',
@@ -406,6 +394,7 @@
     updateInputProgressOverlay,
     focusCanvasViewport,
     saveSettings: () => DesktopState.saveSettings(),
+    isSelectToolActive,
     constants: {
       WORLD_WIDTH, WORLD_HEIGHT, MIN_SCALE, MAX_SCALE, ZOOM_PRESETS,
       DEFAULT_CANVAS_SCALE, CANVAS_WHEEL_GESTURE_END_MS,
@@ -468,7 +457,6 @@
   // imageGroupSortCleanupTimers is owned by DesktopCanvasImageGroupInteraction.
   const promptDocumentHistories = new Map();
   const promptDocumentVersions = new Map();
-  const videoTaskPollTimers = new Map();
 
   function $(id) {
     return document.getElementById(id);
@@ -1119,10 +1107,6 @@
     return getActiveTool() === 'select';
   }
 
-  function updateCanvasToolCursor(useSelectCursor = false) {
-    els.deskCanvasViewport?.classList.toggle('is-select-tool', useSelectCursor && isSelectToolActive());
-  }
-
   function applyCanvasTransform(options = {}) {
     return canvasViewport.applyCanvasTransform(options);
   }
@@ -1194,9 +1178,6 @@
     Object.values(DesktopState.state.canvas.nodes)
       .filter(node => node.type === 'comfy')
       .forEach(node => refreshComfyNode(node.id));
-    Object.values(DesktopState.state.canvas.nodes)
-      .filter(node => node.type === 'video_inference')
-      .forEach(node => refreshVideoInferenceNode(node.id));
     Object.values(DesktopState.state.canvas.nodes)
       .filter(node => node.type === 'video')
       .forEach(node => refreshVideoNode(node.id));
@@ -1504,6 +1485,10 @@
 
   function freezeImageReferenceTokens(groupId) {
     return canvasTextEditor.freezeImageReferenceTokens(groupId);
+  }
+
+  function freezeImageReferenceTokensForGroupItem(groupId, item) {
+    return canvasTextEditor.freezeImageReferenceTokensForGroupItem(groupId, item);
   }
 
   function freezeImageReferenceTokensForSourceNode(sourceNodeId) {
@@ -1818,18 +1803,6 @@
     return canvasConnections.renderConnectionPreview(fromNodeId, pointer, fromSide, fromAnchor);
   }
 
-  function videoConfigApi() {
-    return canvasModelNodes.videoConfigApi();
-  }
-
-  function migrateVideoInferenceNodeLayout(node = {}) {
-    return canvasModelNodes.migrateVideoInferenceNodeLayout(node);
-  }
-
-  function normalizeVideoInferenceNodeState(node = {}) {
-    return canvasModelNodes.normalizeVideoInferenceNodeState(node);
-  }
-
   function nextNodeId(type) {
     return canvasNodes.nextNodeId(type);
   }
@@ -1882,42 +1855,6 @@
     return canvasModelNodes.loadComfyWorkflowCatalog(...arguments);
   }
 
-  function videoInputRoleForSource(sourceType) {
-    return canvasModelNodes.videoInputRoleForSource(sourceType);
-  }
-
-  function videoInferenceInputSummary(nodeId) {
-    return canvasModelNodes.videoInferenceInputSummary(nodeId);
-  }
-
-  function videoRuntimePresentation() {
-    return canvasModelNodes.videoRuntimePresentation();
-  }
-
-  function videoTaskTimerLabel(output = {}) {
-    return canvasModelNodes.videoTaskTimerLabel(output);
-  }
-
-  function videoDurationOptions(node) {
-    return canvasModelNodes.videoDurationOptions(node);
-  }
-
-  function videoAspectOptions() {
-    return canvasModelNodes.videoAspectOptions();
-  }
-
-  function videoQualityOptions(node) {
-    return canvasModelNodes.videoQualityOptions(node);
-  }
-
-  function videoAccelerationOptions() {
-    return canvasModelNodes.videoAccelerationOptions();
-  }
-
-  function videoInferenceNodeHtml(rawNode) {
-    return canvasModelNodes.videoInferenceNodeHtml(rawNode);
-  }
-
   function videoNodeSource(node) {
     return canvasModelNodes.videoNodeSource(node);
   }
@@ -1938,72 +1875,8 @@
     return canvasModelNodes.videoNodeHtml(node);
   }
 
-  function refreshVideoInferenceNode(nodeId) {
-    return canvasModelNodes.refreshVideoInferenceNode(nodeId);
-  }
-
   function refreshVideoNode(nodeId) {
     return canvasModelNodes.refreshVideoNode(nodeId);
-  }
-
-  function syncVideoInferenceNodeStateFromDom(element) {
-    return canvasModelNodes.syncVideoInferenceNodeStateFromDom(element);
-  }
-
-  function connectedVideoFirstFrame(nodeId) {
-    return canvasGenerationConfig.connectedVideoFirstFrame(nodeId);
-  }
-
-  function readVideoInferenceNodeConfig(nodeId) {
-    return canvasGenerationConfig.readVideoInferenceNodeConfig(nodeId);
-  }
-
-  function ensureVideoResultForInference(nodeId) {
-    return canvasGeneration.ensureVideoResultForInference(nodeId);
-  }
-
-  function videoTaskOutputState(nodeId) {
-    return canvasGeneration.videoTaskOutputState(nodeId);
-  }
-
-  function connectedVideoResultNodeId(nodeId) {
-    return canvasGeneration.connectedVideoResultNodeId(nodeId);
-  }
-
-  function isVideoTaskTerminal(status) {
-    return canvasGeneration.isVideoTaskTerminal(status);
-  }
-
-  function stopVideoTaskPolling(nodeId) {
-    return canvasGeneration.stopVideoTaskPolling(nodeId);
-  }
-
-  function applyVideoTaskState(nodeId, task = {}, explicitResultId = '') {
-    return canvasGeneration.applyVideoTaskState(nodeId, task, explicitResultId);
-  }
-
-  function scheduleVideoTaskPoll(nodeId, taskId, delay = 2000) {
-    return canvasGeneration.scheduleVideoTaskPoll(nodeId, taskId, delay);
-  }
-
-  function pollVideoTask(nodeId, taskId) {
-    return canvasGeneration.pollVideoTask(...arguments);
-  }
-
-  function cancelVideoInferenceTask(nodeId) {
-    return canvasGeneration.cancelVideoInferenceTask(...arguments);
-  }
-
-  function runVideoInferenceNode(nodeId) {
-    return canvasGeneration.runVideoInferenceNode(...arguments);
-  }
-
-  function restoreVideoTaskPolling() {
-    return canvasGeneration.restoreVideoTaskPolling();
-  }
-
-  function loadVideoRuntimeContext() {
-    return canvasGeneration.loadVideoRuntimeContext(...arguments);
   }
 
   function fileOutputNodeHtml(nodeId) {
@@ -2390,7 +2263,7 @@
     setZoomPresetMenuOpen(false);
     setWorkflowDockOpen(false);
     clearSelectedEdge();
-    if (isLeftButton && isSelectToolActive() && !event.altKey && !event.metaKey && !event.ctrlKey && !event.shiftKey) {
+    if (canvasViewport.isMarqueeDrag(event)) {
       const pointer = screenToWorld(event.clientX, event.clientY);
       activeInteraction = {
         type: 'marquee',
@@ -2567,8 +2440,9 @@
       const canvas = DesktopState.state.canvas;
       const dx = event.clientX - activeInteraction.startX;
       const dy = event.clientY - activeInteraction.startY;
-      if (Math.hypot(dx, dy) > CANVAS_PAN_DRAG_THRESHOLD_PX) {
+      if (!activeInteraction.moved && Math.hypot(dx, dy) > CANVAS_PAN_DRAG_THRESHOLD_PX) {
         activeInteraction.moved = true;
+        els.deskCanvasViewport?.classList.add('is-pan-dragging');
       }
       canvas.x = activeInteraction.canvasX + dx;
       canvas.y = activeInteraction.canvasY + dy;
@@ -2652,9 +2526,6 @@
       } else if (nodeState.type === 'comfy') {
         nodeState.width = clamp(activeInteraction.width + pointer.x - activeInteraction.startWorldX, MIN_COMFY_NODE_WIDTH, MAX_COMFY_NODE_WIDTH);
         nodeState.height = clamp(activeInteraction.height + pointer.y - activeInteraction.startWorldY, MIN_COMFY_NODE_HEIGHT, MAX_COMFY_NODE_HEIGHT);
-      } else if (nodeState.type === 'video_inference') {
-        nodeState.width = clamp(activeInteraction.width + pointer.x - activeInteraction.startWorldX, MIN_VIDEO_INFERENCE_NODE_WIDTH, MAX_VIDEO_INFERENCE_NODE_WIDTH);
-        nodeState.height = clamp(activeInteraction.height + pointer.y - activeInteraction.startWorldY, MIN_VIDEO_INFERENCE_NODE_HEIGHT, MAX_VIDEO_INFERENCE_NODE_HEIGHT);
       } else if (nodeState.type === 'video') {
         const dx = pointer.x - activeInteraction.startWorldX;
         const dy = pointer.y - activeInteraction.startWorldY;
@@ -2712,7 +2583,7 @@
     }
     if (interaction.type === 'node-drag' || interaction.type === 'node-resize') flushCanvasGraphRender();
     getNodeElement(interaction.nodeId)?.classList.remove('is-dragging', 'is-resizing');
-    els.deskCanvasViewport?.classList.remove('is-panning');
+    els.deskCanvasViewport?.classList.remove('is-panning', 'is-pan-dragging');
     try {
       if (interaction.pointerId != null) {
         els.deskCanvasViewport?.releasePointerCapture?.(interaction.pointerId);
@@ -3017,6 +2888,10 @@
     return canvasPromptDocument.getConnectedTextNodes(inputNodeId);
   }
 
+  function getConnectedNegativeTextNodes(inputNodeId) {
+    return canvasPromptDocument.getConnectedNegativeTextNodes(inputNodeId);
+  }
+
   function splitBatchPromptItems(prompt) {
     return canvasPromptDocument.splitBatchPromptItems(prompt);
   }
@@ -3156,6 +3031,18 @@
 
   function addNodeFromMenu(type, worldPoint) {
     return canvasNodes.addNodeFromMenu(type, worldPoint);
+  }
+
+  function notifyDomainGraphChanged() {
+    canvasMusic.graphChanged();
+    canvasVideoControl.graphChanged();
+    canvasTopazVideo.graphChanged();
+    canvasPose.graphChanged();
+    canvasCyimg.graphChanged();
+    canvasKrea2.graphChanged();
+    canvasKrea2Control.graphChanged();
+    canvasQwen21.graphChanged();
+    canvasMoss.graphChanged();
   }
 
   function removeNode(nodeId, options = {}) {
@@ -3563,7 +3450,7 @@
     canvasTopazVideo.disposeAll(true);
     canvasPose.disposeAll();
     canvasCyimg.disposeAll();
-    canvasKrea2.disposeAll(); canvasKrea2Control.disposeAll(); canvasQwen21.disposeAll();
+    canvasKrea2.disposeAll(); canvasKrea2Control.disposeAll(); canvasQwen21.disposeAll(); canvasMoss.disposeAll();
     revokeCurrentWorkflowObjectUrls();
     promptDocumentHistories.clear();
     promptDocumentVersions.clear();
@@ -4108,7 +3995,11 @@
     }, true);
     els.deskCanvasViewport?.addEventListener('pointermove', event => {
       lastCanvasPointer = { x: event.clientX, y: event.clientY };
+      canvasViewport.syncMarqueeCursor(event);
     });
+    document.addEventListener('keydown', canvasViewport.syncMarqueeCursor);
+    document.addEventListener('keyup', canvasViewport.syncMarqueeCursor);
+    window.addEventListener('blur', () => canvasViewport.syncMarqueeCursor(null));
     els.deskCanvasWorld?.addEventListener('pointerover', event => {
       const item = event.target.closest?.('.desk-node--image-group [data-image-group-item]');
       if (!item || (event.relatedTarget && item.contains(event.relatedTarget))) return;
@@ -4120,7 +4011,7 @@
         clearSelectedEdge();
         document.querySelectorAll('.desk-rail__item[data-tool]').forEach(item => item.classList.toggle('is-active', item === button));
         const tool = button.dataset.tool;
-        updateCanvasToolCursor(tool === 'select');
+        canvasViewport.syncMarqueeCursor(null);
         if (tool === 'select') {
           setNodePaletteOpen(false);
           selectNode('');
@@ -4215,6 +4106,21 @@
         canvasImageGroupRolePicker.handleClick(event);
         return;
       }
+      const imageGroupItemDeleteButton = event.target.closest('[data-image-group-item-delete]');
+      if (imageGroupItemDeleteButton) {
+        const groupElement = imageGroupItemDeleteButton.closest('.desk-node--image-group[data-node-id]');
+        const itemElement = imageGroupItemDeleteButton.closest('[data-image-group-item]');
+        if (!groupElement || !itemElement) return;
+        event.preventDefault();
+        event.stopPropagation();
+        // The next thumbnail slides under the pointer: a double click must not delete it too.
+        if (event.detail > 1 || draggedImageGroupItem) return;
+        canvasImageGroupRolePicker.close({ immediate: true });
+        canvasImageGroupModel.removeImageGroupItem(groupElement.dataset.nodeId, itemElement.dataset.imageGroupItem, {
+          focusNextItem: event.detail === 0
+        });
+        return;
+      }
       const imageReferenceButton = event.target.closest('[data-image-group-insert-reference]');
       if (imageReferenceButton) {
         const groupElement = imageReferenceButton.closest('.desk-node--image-group[data-node-id]');
@@ -4223,29 +4129,6 @@
         event.preventDefault();
         event.stopPropagation();
         insertImageReferenceToken(groupElement.dataset.nodeId, itemElement.dataset.imageGroupItem);
-        return;
-      }
-      const videoRunButton = event.target.closest('[data-video-run]');
-      if (videoRunButton) {
-        const nodeElement = videoRunButton.closest('.desk-node--video-inference[data-node-id]');
-        if (!nodeElement) return;
-        event.preventDefault();
-        event.stopPropagation();
-        selectNode(nodeElement.dataset.nodeId);
-        const originalTitle = videoRunButton.getAttribute('title') || '';
-        videoRunButton.disabled = true;
-        videoRunButton.classList.add('is-pending');
-        videoRunButton.setAttribute('aria-busy', 'true');
-        videoRunButton.setAttribute('title', videoRunButton.dataset.videoCancel === 'true' ? '正在取消视频任务…' : '正在检测视频服务…');
-        runVideoInferenceNode(nodeElement.dataset.nodeId)
-          .catch(error => DesktopResults.showError(error, nodeElement.dataset.nodeId))
-          .finally(() => {
-            if (!videoRunButton.isConnected) return;
-            videoRunButton.disabled = false;
-            videoRunButton.classList.remove('is-pending');
-            videoRunButton.removeAttribute('aria-busy');
-            videoRunButton.setAttribute('title', originalTitle);
-          });
         return;
       }
       const comfyParamsReset = event.target.closest('[data-comfy-params-reset]');
@@ -4257,6 +4140,9 @@
         event.stopPropagation();
         if (nodeState.workflowParameters && typeof nodeState.workflowParameters === 'object') {
           delete nodeState.workflowParameters[nodeState.workflow];
+        }
+        if (nodeState.comfyInputSlots && typeof nodeState.comfyInputSlots === 'object') {
+          delete nodeState.comfyInputSlots[nodeState.workflow];
         }
         const workflowMeta = (comfyWorkflowCatalog.items || []).find(item => item.id === nodeState.workflow);
         const defaultSize = comfyWorkflowDefaultSize(workflowMeta);
@@ -4357,6 +4243,21 @@
           const nextOpen = !node.classList.contains('is-style-menu-open');
           closeAllTextStyleMenus(node);
           setTextStyleMenuOpen(node, nextOpen);
+          return;
+        }
+        if (textAction.dataset.textAction === 'negative') {
+          const negative = nodeState.promptRole !== 'negative';
+          canvasTextEditor.setTextNodePromptRole(node, nodeState, negative);
+          setTextStyleMenuOpen(node, false);
+          updateLinkPath();
+          (DesktopState.state.canvas.edges || [])
+            .filter(edge => edge.from === nodeState.id && DesktopState.state.canvas.nodes[edge.to]?.type === 'comfy')
+            .forEach(edge => refreshComfyNode(edge.to));
+          notifyDomainGraphChanged();
+          DesktopState.saveSettings();
+          DesktopResults.showTransientMessage(negative
+            ? '已设为负面提示词：Comfy 写入 [负面] 节点，Qwen 标准预设（CFG > 1）与 MOSS 走负向分支，GPT / Google 作为负面约束附加，其他本地模型会忽略。'
+            : '已恢复为正向提示词。');
           return;
         }
         if (textAction.dataset.textAction === 'clear') {
@@ -4506,12 +4407,6 @@
     });
 
     els.deskCanvasWorld?.addEventListener('input', event => {
-      const videoField = event.target.closest('.desk-node--video-inference[data-node-id] [data-video-field]');
-      if (videoField) {
-        syncVideoInferenceNodeStateFromDom(videoField.closest('.desk-node--video-inference[data-node-id]'));
-        DesktopState.saveSettings();
-        return;
-      }
       const taskTypeSelect = event.target.closest('select[data-field="gptTaskType"]');
       if (taskTypeSelect) {
         const inputNode = taskTypeSelect.closest('.desk-node--input[data-node-id]');
@@ -4618,14 +4513,6 @@
     });
 
     els.deskCanvasWorld?.addEventListener('change', event => {
-      const videoField = event.target.closest('.desk-node--video-inference[data-node-id] [data-video-field]');
-      if (videoField) {
-        const nodeElement = videoField.closest('.desk-node--video-inference[data-node-id]');
-        const nodeState = syncVideoInferenceNodeStateFromDom(nodeElement);
-        if (nodeState) refreshVideoInferenceNode(nodeState.id);
-        DesktopState.saveSettings();
-        return;
-      }
       const outputToggle = event.target.closest('[data-output-archive], [data-output-telegram]');
       if (outputToggle) {
         syncOutputControlsFromNode(outputToggle.closest('.desk-node[data-node-id]'));
@@ -4679,6 +4566,16 @@
           comfyField.value = String(value);
           DesktopState.saveSettings();
         }
+        return;
+      }
+      const comfyInputSlot = event.target.closest('.desk-node--comfy[data-node-id] [data-comfy-input-slot]');
+      if (comfyInputSlot) {
+        const nodeElement = comfyInputSlot.closest('.desk-node--comfy[data-node-id]');
+        const nodeState = DesktopState.state.canvas.nodes[nodeElement?.dataset.nodeId || ''];
+        if (!nodeState?.workflow) return;
+        canvasComfyInputs.assign(nodeState.id, nodeState.workflow, comfyInputSlot.dataset.comfyInputSlot, comfyInputSlot.value);
+        refreshComfyNode(nodeState.id);
+        DesktopState.saveSettings();
         return;
       }
       const comfyParameterPicker = event.target.closest('.desk-node--comfy[data-node-id] [data-comfy-param-picker]');
@@ -4832,7 +4729,7 @@
           els.deskFileInput?.click();
           return;
         }
-        const type = [window.DesktopTopazModel.TYPE, window.DesktopKrea2Model.TYPE, window.DesktopKrea2Control.TYPE, window.DesktopQwen21Model.TYPE, ...window.DesktopCyimgModel.TYPES, window.DesktopVideoControlModel.TYPE, window.DesktopTopazVideoModel.TYPE, ...window.DesktopMusicModel.TYPES, 'file_output', 'video_inference', 'video', 'audio', 'layout', 'text', 'pose', 'upscale'].includes(addNodePayload.type) ? addNodePayload.type : 'input';
+        const type = [window.DesktopTopazModel.TYPE, window.DesktopKrea2Model.TYPE, window.DesktopKrea2Control.TYPE, window.DesktopQwen21Model.TYPE, window.DesktopMossModel.TYPE, ...window.DesktopCyimgModel.TYPES, window.DesktopVideoControlModel.TYPE, window.DesktopTopazVideoModel.TYPE, ...window.DesktopMusicModel.TYPES, 'file_output', 'video', 'audio', 'layout', 'text', 'pose', 'upscale'].includes(addNodePayload.type) ? addNodePayload.type : 'input';
         const pointer = screenToWorld(event.clientX, event.clientY);
         selectNode(addNode(type, pointer));
         setNodePaletteOpen(false);
@@ -4985,9 +4882,9 @@
       }
     });
     window.addEventListener('pointermove', moveInteraction);
-    window.addEventListener('pagehide', event => { if (!event.persisted) canvasProgress.destroy(); canvasAudio.disposeAll(); canvasMusic.disposeAll(); canvasVideoControl.disposeAll(); canvasTopazVideo.disposeAll(); canvasPose.disposeAll(); canvasCyimg.disposeAll(); canvasKrea2.disposeAll(); canvasKrea2Control.disposeAll(); canvasQwen21.disposeAll(); });
+    window.addEventListener('pagehide', event => { if (!event.persisted) canvasProgress.destroy(); canvasAudio.disposeAll(); canvasMusic.disposeAll(); canvasVideoControl.disposeAll(); canvasTopazVideo.disposeAll(); canvasPose.disposeAll(); canvasCyimg.disposeAll(); canvasKrea2.disposeAll(); canvasKrea2Control.disposeAll(); canvasQwen21.disposeAll(); canvasMoss.disposeAll(); });
     window.addEventListener('desktop:progress-preferences-change', canvasProgress.refreshPreferences);
-    window.addEventListener('pageshow', () => { canvasAudio.reconcile(); canvasMusic.reconcile(); canvasVideoControl.reconcile(); canvasTopazVideo.reconcile(); canvasPose.reconcile(); canvasCyimg.reconcile(); canvasKrea2.reconcile(); canvasKrea2Control.reconcile(); canvasQwen21.reconcile(); });
+    window.addEventListener('pageshow', () => { canvasAudio.reconcile(); canvasMusic.reconcile(); canvasVideoControl.reconcile(); canvasTopazVideo.reconcile(); canvasPose.reconcile(); canvasCyimg.reconcile(); canvasKrea2.reconcile(); canvasKrea2Control.reconcile(); canvasQwen21.reconcile(); canvasMoss.reconcile(); });
     window.addEventListener('pointerup', endInteraction);
     window.addEventListener('pointercancel', endInteraction);
     window.addEventListener('blur', () => {
@@ -5167,12 +5064,14 @@
   function init() {
     collectElements();
     if (canvasPose.purgeLegacy()) DesktopState.saveSettings({ criticalCanvas: true });
+    const retiredVideoNodes = canvasWorkflow.purgeRetiredVideoNodes();
+    if (retiredVideoNodes) {
+      DesktopState.saveSettings({ criticalCanvas: true });
+      DesktopResults.showTransientMessage(`已移除 ${retiredVideoNodes} 个 MiniMax H3 节点，视频结果节点已保留。`);
+    }
     canvasProgress.refreshPreferences();
     renderNodePaletteItems();
     const comfyMigrated = migrateLegacyComfyProviders();
-    const videoLayoutMigrated = Object.values(DesktopState.state.canvas.nodes || {}).reduce((changed, node) => (
-      node?.type === 'video_inference' ? migrateVideoInferenceNodeLayout(node) || changed : changed
-    ), false);
     migrateResultNodesToModelOutputs();
     const promptDocumentsChanged = ensureTextNodePromptDocuments();
     migrateLegacyPromptDraftToTextNode();
@@ -5180,7 +5079,6 @@
     const groupsChanged = normalizeCanvasGroupsAndSelection();
     syncFormFromState();
     renderReferenceThumbs();
-    updateCanvasToolCursor(false);
     bindEvents();
     if (DesktopState.state.runtimeConfig.resetCanvasViewOnLoad) {
       DesktopState.state.runtimeConfig.resetCanvasViewOnLoad = false;
@@ -5189,38 +5087,24 @@
       applyCanvasTransform();
     }
     loadComfyWorkflowCatalog().catch(() => {});
-    loadVideoRuntimeContext().catch(() => {});
-    restoreVideoTaskPolling();
     window.addEventListener('desktop:comfy-workflows-updated', event => {
       if (event.detail) comfyWorkflowCatalog = event.detail;
       Object.values(DesktopState.state.canvas.nodes || {}).filter(node => node.type === 'comfy').forEach(node => refreshComfyNode(node.id));
     });
     window.addEventListener('desktop:connection-swell-style-change', refreshFloatingSwellStyle);
     window.addEventListener('desktop:connection-line-style-change', updateLinkPath);
+  window.addEventListener('desktop:theme-style-change', updateLinkPath);
+  window.addEventListener('desktop:theme-style-change', refreshFloatingSwellStyle);
     window.addEventListener('desktop:canvas-collision-change', () => canvasCollision.settle());
-    window.addEventListener('desktop:canvas-text-nodes-change', () => { canvasMusic.graphChanged(); canvasVideoControl.graphChanged(); canvasTopazVideo.graphChanged(); canvasPose.graphChanged(); canvasCyimg.graphChanged(); canvasKrea2.graphChanged(); canvasKrea2Control.graphChanged(); canvasQwen21.graphChanged(); });
+    window.addEventListener('desktop:canvas-text-nodes-change', notifyDomainGraphChanged);
     window.addEventListener('desktop:canvas-selection-change', event => { taskRegistry.showStatus(event.detail?.selectedNodeId); });
-    window.addEventListener('desktop:canvas-node-removed', () => { canvasMusic.graphChanged(); canvasVideoControl.graphChanged(); canvasTopazVideo.graphChanged(); canvasPose.graphChanged(); canvasCyimg.graphChanged(); canvasKrea2.graphChanged(); canvasKrea2Control.graphChanged(); canvasQwen21.graphChanged(); });
-    window.addEventListener('desktop:video-runtime-status-updated', () => {
-      Object.values(DesktopState.state.canvas.nodes || {})
-        .filter(node => node.type === 'video_inference')
-        .forEach(node => refreshVideoInferenceNode(node.id));
-    });
-    window.addEventListener('desktop:video-capabilities-updated', () => {
-      Object.values(DesktopState.state.canvas.nodes || {})
-        .filter(node => node.type === 'video_inference')
-        .forEach(node => {
-          normalizeVideoInferenceNodeState(node);
-          refreshVideoInferenceNode(node.id);
-        });
-    });
+    window.addEventListener('desktop:canvas-node-removed', notifyDomainGraphChanged);
     window.addEventListener('miniapp:auth-state-change', event => {
       if (event.detail?.authenticated) {
         loadComfyWorkflowCatalog().catch(() => {});
-        loadVideoRuntimeContext().catch(() => {});
       }
     });
-    if (groupsChanged || promptDocumentsChanged || comfyMigrated || videoLayoutMigrated) DesktopState.saveSettings();
+    if (groupsChanged || promptDocumentsChanged || comfyMigrated) DesktopState.saveSettings();
   }
 
   // Domain controllers are assembled after shared state, before the public compatibility API.
@@ -5285,7 +5169,7 @@
     getTextNodes: getConnectedTextNodes, materializeText: materializeTextNode,
     cloneDocument: clonePromptDocument, setDocument: setTextNodePromptDocument,
     addNode, removeNode, connectNodes, getSelectedIds: getSelectedNodeIds,
-    getController: type => type === 'krea2' ? canvasKrea2 : canvasQwen21
+    getController: type => ({ krea2: canvasKrea2, moss: canvasMoss })[type] || canvasQwen21
   });
   const loraView = window.DesktopLoRAView.create({
     library: DesktopApi.lora, assets: options => DesktopApi.getAssets(options),
@@ -5316,11 +5200,31 @@
     loraLibrary: DesktopApi.lora, loraView,
     getCanvas:()=>DesktopState.state.canvas, getNodeState,getNodeElement,
     getImageReferences:getConnectedImageReferences, getTextNodes:getConnectedTextNodes,
-    getPrompt:getVisibleInputPrompt,
+    getPrompt:getVisibleInputPrompt, getNegativePrompt:nodeId=>canvasPromptDocument.getConnectedNegativePrompt(nodeId),
     materializeText:materializeTextNode, addNode,connectNodes,
     setImageFromResult:setImageNodeFromResult,applyNodeLayout,updateLinkPath,
     saveState:()=>DesktopState.saveSettings({criticalCanvas:true}),
     reportStatus:feedback=>taskRegistry.report('qwen21',feedback),
+  });
+  const canvasMoss = window.DesktopCanvasMoss.create({
+    progressView: canvasProgress,
+    model:window.DesktopMossModel, api:window.DesktopMossAPI,
+    loraLibrary: DesktopApi.lora, loraView,
+    getCanvas:()=>DesktopState.state.canvas, getNodeState,getNodeElement,
+    materializeText:materializeTextNode, addNode,connectNodes,
+    removeEdges:removeEdgesById,
+    setImageFromResult:setImageNodeFromResult,applyNodeLayout,updateLinkPath,
+    saveState:()=>DesktopState.saveSettings({criticalCanvas:true}),
+    reportStatus:feedback=>taskRegistry.report('moss',feedback),
+    confirmAction:message=>window.confirm(message),
+    notify:message=>DesktopResults.showTransientMessage(message),
+    focusTextNode:selectNode, selectNode,
+    createImage:item=>createImageNodeFromHistoryItem(item),
+    groupImages:ids=>createImageGroupFromNodes(ids.map(getNodeState)),
+    getNegativeTextNodes:getConnectedNegativeTextNodes,
+    layoutFactory:window.DesktopMossLayout.create, gridFactory:window.DesktopMossGrid.create,
+    layoutModes:[...window.DesktopMossLayout.MODES,...window.DesktopMossGrid.MODES],
+    openModelTools:()=>window.DesktopSettings.openTab('model-tools'),
   });
   const canvasVideoControl = window.DesktopCanvasVideoControl.create({
     model: window.DesktopVideoControlModel, api: window.DesktopVideoControlAPI,
@@ -5341,6 +5245,16 @@
     getCanvas: () => DesktopState.state.canvas, getNodeState, getNodeElement, addNode, connectNodes, refreshVideoNode,
     saveState: () => DesktopState.saveSettings({ criticalCanvas: true }),
     reportStatus: feedback => taskRegistry.report('topaz_video', feedback),
+  });
+  const canvasComfyVideo = window.DesktopCanvasComfyVideo.create({
+    getCanvas: () => DesktopState.state.canvas, getNodeState, addNode, connectNodes, refreshVideoNode, refreshComfyNode,
+    getOutput: nodeId => DesktopState.state.outputs?.[nodeId],
+    saveState: () => DesktopState.saveSettings({ criticalCanvas: true }),
+    showMessage: message => DesktopResults.showTransientMessage(message),
+  });
+  const canvasComfyInputs = window.DesktopCanvasComfyInputs.create({
+    getNodeState, getConnectedImageReferences, escapeHtml,
+    getConnectedVideoReferences: nodeId => canvasComfyVideo.connectedVideoReferences(nodeId),
   });
   const canvasPose = window.DesktopCanvasPose.create({
     model: window.DesktopPoseModel, api: window.DesktopPoseAPI,
@@ -5374,6 +5288,8 @@
     listCancelable: canvasKrea2.getCancelableTasks, showStatus: canvasKrea2.showStatus});
   taskRegistry.register('qwen21', {client: () => window.DesktopQwen21API.tasks,
     listCancelable: canvasQwen21.getCancelableTasks, showStatus: canvasQwen21.showStatus});
+  taskRegistry.register('moss', {client: () => window.DesktopMossAPI.tasks,
+    listCancelable: canvasMoss.getCancelableTasks, showStatus: canvasMoss.showStatus});
   const canvasWorkflow = window.DesktopCanvasWorkflow.create({
     DEFAULT_COMFY_NODE_HEIGHT,
     DEFAULT_COMFY_NODE_WIDTH,
@@ -5388,21 +5304,15 @@
     DEFAULT_INPUT_NODE_WIDTH,
     DEFAULT_UPSCALE_NODE_HEIGHT,
     DEFAULT_UPSCALE_NODE_WIDTH,
-    DEFAULT_VIDEO_INFERENCE_NODE_HEIGHT,
-    DEFAULT_VIDEO_INFERENCE_NODE_WIDTH,
     DEFAULT_VIDEO_NODE_HEIGHT,
     DEFAULT_VIDEO_NODE_WIDTH,
     MAX_COMFY_NODE_HEIGHT,
     MAX_COMFY_NODE_WIDTH,
     MAX_SCALE,
-    MAX_VIDEO_INFERENCE_NODE_HEIGHT,
-    MAX_VIDEO_INFERENCE_NODE_WIDTH,
     MAX_VIDEO_NODE_WIDTH,
     MIN_COMFY_NODE_HEIGHT,
     MIN_COMFY_NODE_WIDTH,
     MIN_SCALE,
-    MIN_VIDEO_INFERENCE_NODE_HEIGHT,
-    MIN_VIDEO_INFERENCE_NODE_WIDTH,
     MIN_VIDEO_NODE_WIDTH,
     UPSCALE_MODEL_OPTIONS,
     WORKFLOW_SCHEMA,
@@ -5415,6 +5325,7 @@
     krea2Definition: window.DesktopKrea2Model,
     krea2ControlDefinition: window.DesktopKrea2Control,
     qwen21Definition: window.DesktopQwen21Model,
+    mossDefinition: window.DesktopMossModel,
     videoControlDefinition: window.DesktopVideoControlModel,
     topazVideoDefinition: window.DesktopTopazVideoModel,
     poseDefinition: window.DesktopPoseModel,
@@ -5435,7 +5346,6 @@
     normalizeNodeGroups,
     normalizeNodeMenuType,
     normalizePromptDocument,
-    normalizeVideoInferenceNodeState,
     revokeReferenceUrl,
     sanitizeImageEditFilename,
     sanitizeTextNodeAlias,
@@ -5547,6 +5457,7 @@
     ensureNodeEdgeHandles,
     escapeHtml,
     freezeImageReferenceTokens,
+    freezeImageReferenceTokensForGroupItem,
     getBoundsForNodeIds,
     getConnectedImageReferences,
     getNodeElement,
@@ -5556,8 +5467,19 @@
     migrateImageReferenceTokensToGroup,
     nextNodeId,
     normalizeNodeGroups,
+    onImageGroupItemsChanged: groupId => {
+      (DesktopState.state.canvas.edges || [])
+        .filter(edge => edge.from === groupId && DesktopState.state.canvas.nodes[edge.to]?.type === 'comfy')
+        .forEach(edge => refreshComfyNode(edge.to));
+      notifyDomainGraphChanged();
+    },
     orderTransitionSourcesForNodes,
     refreshImageReferenceTokens,
+    removeImageGroupNode: groupId => {
+      if (!canvasNodes.confirmNodeRemoval([groupId])) return false;
+      removeNode(groupId, { clearSelection: true, focusCanvas: true });
+      return true;
+    },
     setSelectedNodes,
     updateLinkPath,
   });
@@ -5728,8 +5650,6 @@
     DEFAULT_TEXT_NODE_WIDTH,
     DEFAULT_UPSCALE_NODE_HEIGHT,
     DEFAULT_UPSCALE_NODE_WIDTH,
-    DEFAULT_VIDEO_INFERENCE_NODE_HEIGHT,
-    DEFAULT_VIDEO_INFERENCE_NODE_WIDTH,
     DEFAULT_VIDEO_NODE_HEIGHT,
     DEFAULT_VIDEO_NODE_WIDTH,
     IMAGE_GROUP_LAYOUT_VERSION,
@@ -5745,6 +5665,7 @@
     krea2Node: canvasKrea2,
     krea2ControlNode: canvasKrea2Control,
     qwen21Node: canvasQwen21,
+    mossNode: canvasMoss,
     videoControlNode: canvasVideoControl,
     topazVideoNode: canvasTopazVideo,
     poseNode: canvasPose,
@@ -5755,6 +5676,7 @@
     krea2Definition: window.DesktopKrea2Model,
     krea2ControlDefinition: window.DesktopKrea2Control,
     qwen21Definition: window.DesktopQwen21Model,
+    mossDefinition: window.DesktopMossModel,
     videoControlDefinition: window.DesktopVideoControlModel,
     topazVideoDefinition: window.DesktopTopazVideoModel,
     poseDefinition: window.DesktopPoseModel,
@@ -5788,10 +5710,8 @@
     normalizeImageSourceFromNode,
     normalizeNodeGroupId,
     normalizeNodeGroups,
-    normalizeVideoInferenceNodeState,
     notifyTextNodeListChange,
     refreshImageReferenceTokens,
-    refreshVideoInferenceNode,
     refreshVideoNode,
     renderMiniMap,
     revokeReferenceUrl,
@@ -5800,7 +5720,6 @@
     setPromptTextForInputNode,
     setSelectedNodes,
     setTextStyleMenuOpen,
-    stopVideoTaskPolling,
     syncOutputControlsToNodes,
     textNodeHtml,
     triggerImageNodePopIn,
@@ -5809,7 +5728,6 @@
     updateSelectionToolbar,
     updateUpscaleInputCount,
     upscaleNodeHtml,
-    videoInferenceNodeHtml,
     videoNodeHtml,
   });
 
@@ -5820,8 +5738,6 @@
     DEFAULT_COMFY_PIXEL_HEIGHT,
     DEFAULT_COMFY_PIXEL_WIDTH,
     DEFAULT_GOOGLE_MODEL,
-    DEFAULT_VIDEO_INFERENCE_NODE_HEIGHT,
-    DEFAULT_VIDEO_INFERENCE_NODE_WIDTH,
     DEFAULT_VIDEO_NODE_HEIGHT,
     DEFAULT_VIDEO_NODE_WIDTH,
     GOOGLE_MODEL_OPTIONS,
@@ -5832,30 +5748,28 @@
     GPT_ROUTE_PRESENTATION,
     GPT_TASK_TYPE_OPTIONS,
     MAX_COMFY_PIXEL_SIZE,
-    MAX_VIDEO_INFERENCE_NODE_HEIGHT,
-    MAX_VIDEO_INFERENCE_NODE_WIDTH,
     MAX_VIDEO_NODE_HEIGHT,
     MAX_VIDEO_NODE_WIDTH,
     MIN_COMFY_PIXEL_SIZE,
-    MIN_VIDEO_INFERENCE_NODE_HEIGHT,
-    MIN_VIDEO_INFERENCE_NODE_WIDTH,
     MIN_VIDEO_NODE_HEIGHT,
     MIN_VIDEO_NODE_WIDTH,
     UPSCALE_MODEL_OPTIONS,
-    VIDEO_INFERENCE_LAYOUT_VERSION,
     VIDEO_NODE_LAYOUT_VERSION,
     applyAllNodeLayouts,
     applyCanvasTransform,
     applyNodeLayout,
     applyNodeSelection,
     clamp,
+    comfyInputSlotsHtml: (nodeId, workflowMeta) => canvasComfyInputs.html(nodeId, workflowMeta),
     comfyWorkflowCatalogRef: { get current() { return comfyWorkflowCatalog; }, set current(value) { comfyWorkflowCatalog = value; } },
     discardFloatingSwellState,
     els,
     ensureNodeEdgeHandles,
     escapeHtml,
     getConnectedImageReferences,
+    getConnectedNegativeTextNodes,
     getConnectedTextNodes,
+    getConnectedVideoCount: nodeId => canvasComfyVideo.connectedVideoCount(nodeId),
     getNodeElement,
     gptModelCatalogRef: { get current() { return gptModelCatalog; }, set current(value) { gptModelCatalog = value; } },
     selectNode,
@@ -5864,7 +5778,9 @@
   });
 
   const canvasConnections = window.DesktopCanvasConnections.create({
-    domainConnections: window.DesktopCanvasConnections.combineDomains(canvasMusic.connections, canvasVideoControl.connections, canvasTopazVideo.connections, canvasTopaz.connections, canvasCyimg.connections, canvasKrea2.connections, canvasKrea2Control.connections, canvasQwen21.connections),
+    imageGroupContentBounds: node => canvasImageGroupModel.imageGroupContentBounds(node),
+    domainConnections: window.DesktopCanvasConnections.combineDomains(canvasMusic.connections, canvasVideoControl.connections, canvasTopazVideo.connections, canvasTopaz.connections, canvasCyimg.connections, canvasKrea2.connections, canvasKrea2Control.connections, canvasQwen21.connections, canvasMoss.connections, canvasComfyVideo.connections),
+    IMAGE_GROUP_LIQUID_VISIBLE_OUTSET_PX,
     LINK_VIEWBOX,
     NODE_MENU_ITEMS,
     ORDINARY_MENU_CLOSE_FALLBACK_MS,
@@ -5894,6 +5810,7 @@
     hoveredEdgeIdRef: { get current() { return hoveredEdgeId; }, set current(value) { hoveredEdgeId = value; } },
     makeClassicCurvePath,
     makeSmoothStepPath,
+    portPlates: window.DesktopCanvasPortPlates,
     nodeMenuButtonHtml,
     normalizePortSide,
     oppositePortSide,
@@ -5902,7 +5819,6 @@
     refreshImageReferenceTokens,
     refreshPoseNode,
     refreshUpscaleNodeMode,
-    refreshVideoInferenceNode,
     refreshVideoNode,
     releaseFloatingSwell,
     renderMiniMap,
@@ -5914,7 +5830,6 @@
     updateLayoutInputCount,
     updateConnectionProximity: target => canvasConnectionFeedback.updateProximity(target),
     updateUpscaleInputCount,
-    videoInputRoleForSource,
   });
 
   const canvasConnectionFeedback = window.DesktopCanvasConnectionFeedback.create({
@@ -5960,6 +5875,7 @@
     imageGroupContentBounds: node => canvasImageGroupModel.imageGroupContentBounds(node),
     normalizePortSide,
     portOutwardVector,
+    portPlates: window.DesktopCanvasPortPlates,
     prefersReducedMotion,
     refreshContextMenuConnectionPreview,
     renderConnectionPreview,
@@ -5971,9 +5887,12 @@
     comfyWorkflowCatalogRef: { get current() { return comfyWorkflowCatalog; }, set current(value) { comfyWorkflowCatalog = value; } },
     comfyWorkflowDefaultSize,
     comfyWorkflowParameterOverrides,
-    findConnectedTextNodeId,
+    foldNegativeConstraint: (prompt, negativePrompt) => canvasPromptDocument.foldNegativeConstraint(prompt, negativePrompt),
     getBatchPromptItems,
+    getComfyInputSlots: (nodeId, workflowMeta) => canvasComfyInputs.readConfig(nodeId, workflowMeta),
     getConnectedImageReferences,
+    getConnectedNegativePrompt: nodeId => canvasPromptDocument.getConnectedNegativePrompt(nodeId),
+    getConnectedVideoReferences: nodeId => canvasComfyVideo.connectedVideoReferences(nodeId),
     getNodeElement,
     getNodeReferenceImages,
     getOutgoingUpscaleImageEdges,
@@ -5982,23 +5901,15 @@
     getVisibleInputPrompt,
     mergeNodeReferenceImages,
     normalizeComfyPixelSize,
-    normalizePromptGenerationMeta,
-    promptTextFingerprint,
     readFormToState,
     readOutputControlsForTask,
     readOutputControlsFromNode,
     splitBatchPromptItems,
     syncUpscaleNodeStateFromDom,
-    syncVideoInferenceNodeStateFromDom,
-    videoInferenceInputSummary,
   });
 
   const canvasGeneration = window.DesktopCanvasGeneration.create({
-    DEFAULT_VIDEO_INFERENCE_NODE_HEIGHT,
-    DEFAULT_VIDEO_INFERENCE_NODE_WIDTH,
     activeImageEditRef: { get current() { return activeImageEdit; }, set current(value) { activeImageEdit = value; } },
-    addNode,
-    applyNodeLayout,
     buildImageEditPrompt,
     clonePromptDocument,
     closeImageEditor,
@@ -6007,7 +5918,6 @@
     expectedImageOutputCount,
     exportImageEditAnnotatedDataUrl,
     findInputForResult,
-    fitVideoNodeToMedia,
     getAnchor,
     getConnectedOutputImageNodeIds,
     getImageNodeSize,
@@ -6019,23 +5929,17 @@
     insertImageNode,
     isEmptyAutoOutputImageNode,
     materializePromptDocument,
-    normalizeVideoInferenceNodeState,
     openTextPolishModal,
     outputImageReference,
     promptDocumentFingerprint,
     ratioFromAspect,
     ratioToMeta,
     readUpscaleNodeConfigForReference,
-    readVideoInferenceNodeConfig,
     refreshUpscaleNodeMode,
-    refreshVideoInferenceNode,
-    refreshVideoNode,
     sanitizeImageEditFilename,
     saveImageEditState,
     setImageNodeFromResult,
     updateLinkPath,
-    videoConfigApi,
-    videoTaskPollTimers,
   });
 
   window.DesktopCanvas = {
@@ -6058,11 +5962,7 @@
     loadWorkflowFile,
     resolveResultNodeIdForRun,
     readConfigForResult,
-    readVideoInferenceNodeConfig,
-    runVideoInferenceNode,
-    cancelVideoInferenceTask,
     getTaskRegistry: () => taskRegistry,
-    refreshVideoInferenceNode,
     refreshVideoNode,
     updateInputProgressOverlay,
     connectNodes,
@@ -6106,6 +6006,7 @@
     attachHistoryImagesToLayout,
     ensureImageOutputsForConfig,
     populateResultImageNodes,
+    populateResultVideoNodes: (resultNodeId, output) => canvasComfyVideo.publish(resultNodeId, output),
     runUpscaleChainsForOutput,
     refreshUpscaleNodeMode,
     createImageNodeFromResult

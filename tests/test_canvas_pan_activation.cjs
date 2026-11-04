@@ -13,13 +13,16 @@ function fixture() {
   const dismissed = [];
   const oldControl = { id: 'previous-control' };
   const document = { activeElement: oldControl };
-  const viewport = { classList: { add() {}, remove() {} }, setPointerCapture() {}, releasePointerCapture() {},
+  const classes = new Set();
+  const viewport = { classList: { add(name) { classes.add(name); }, remove(...names) { names.forEach(name => classes.delete(name)); },
+    toggle(name, on) { if (on) classes.add(name); else classes.delete(name); } }, setPointerCapture() {}, releasePointerCapture() {},
     focus(options) { assert.equal(options.preventScroll, true); focuses++; document.activeElement = viewport; } };
   const canvas = { x: 30, y: 50, scale: 1 };
   const context = vm.createContext({ window: {}, document, Date: { now: () => now } });
   vm.runInContext(read('scripts/desktop-canvas-viewport.js'), context);
   const api = context.window.DesktopCanvasViewport.create({ getCanvas: () => canvas,
-    els: { deskCanvasViewport: viewport }, constants: {}, focusCanvasViewport: () => viewport.focus({ preventScroll: true }) });
+    els: { deskCanvasViewport: viewport }, constants: {}, focusCanvasViewport: () => viewport.focus({ preventScroll: true }),
+    isSelectToolActive: () => context.isSelectToolActive() });
   Object.assign(context, { els: { deskCanvasViewport: viewport }, canvasViewport: api,
     DesktopState: { state: { canvas }, saveSettings() { saves++; } }, activeInteraction: null,
     CANVAS_INTERACTION_BLOCK_SELECTOR: 'left-block', CANVAS_RIGHT_PAN_BLOCK_SELECTOR: 'right-block',
@@ -41,7 +44,7 @@ function fixture() {
     preventDefault() { this.prevented = true; }, stopImmediatePropagation() { this.stopped = true; }, ...extra });
   const start = extra => context.startPan(pointer(extra));
   const end = extra => context.endInteraction(pointer({ type: 'pointerup', ...extra }));
-  return { api, context, viewport, document, oldControl, pointer, click, start, end, dismissed,
+  return { api, context, viewport, classes, document, oldControl, pointer, click, start, end, dismissed,
     advance: ms => { now += ms; }, get focuses() { return focuses; }, get saves() { return saves; } };
 }
 
@@ -55,8 +58,39 @@ test('accepted left/trackpad and right pans transfer focus before movement', () 
   }
 });
 
-test('marquee takes focus too; mouse fallback preserves right pan focus ownership', () => {
+test('a plain primary drag (mouse or macOS three-finger drag) pans even with the select tool', () => {
   const h = fixture(); h.context.isSelectToolActive = () => true; h.start();
+  assert.equal(h.context.activeInteraction.type, 'pan');
+  assert.equal(h.context.activeInteraction.pointerButton, 'left');
+  assert.ok(h.classes.has('is-panning'));
+  h.classes.add('is-pan-dragging'); h.context.activeInteraction.moved = true; h.end();
+  assert.ok(!h.classes.has('is-panning') && !h.classes.has('is-pan-dragging'), 'release restores the arrow');
+});
+
+test('only Shift with the select tool turns a primary drag into a marquee', () => {
+  const marquee = fixture(); marquee.context.isSelectToolActive = () => true; marquee.start({ shiftKey: true });
+  assert.equal(marquee.context.activeInteraction.type, 'marquee');
+  assert.ok(!marquee.classes.has('is-panning'));
+  for (const extra of [{ shiftKey: true, altKey: true }, { shiftKey: true, metaKey: true }, { shiftKey: true, ctrlKey: true },
+    { shiftKey: true, button: 2 }]) {
+    const h = fixture(); h.context.isSelectToolActive = () => true; h.start(extra);
+    assert.equal(h.context.activeInteraction.type, 'pan', JSON.stringify(extra));
+  }
+  const otherTool = fixture(); otherTool.start({ shiftKey: true });
+  assert.equal(otherTool.context.activeInteraction.type, 'pan');
+});
+
+test('holding Shift arms the marquee cursor only for the select tool and clears on release or blur', () => {
+  const h = fixture(); let select = true; h.context.isSelectToolActive = () => select;
+  h.api.syncMarqueeCursor({ shiftKey: true }); assert.ok(h.classes.has('is-marquee-armed'));
+  h.api.syncMarqueeCursor({ shiftKey: false }); assert.ok(!h.classes.has('is-marquee-armed'));
+  h.api.syncMarqueeCursor({ shiftKey: true }); h.api.syncMarqueeCursor(null);
+  assert.ok(!h.classes.has('is-marquee-armed'));
+  select = false; h.api.syncMarqueeCursor({ shiftKey: true }); assert.ok(!h.classes.has('is-marquee-armed'));
+});
+
+test('marquee takes focus too; mouse fallback preserves right pan focus ownership', () => {
+  const h = fixture(); h.context.isSelectToolActive = () => true; h.start({ shiftKey: true });
   assert.equal(h.context.activeInteraction.type, 'marquee');
   assert.equal(h.document.activeElement, h.viewport);
   const fallback = fixture(); fallback.context.startRightMousePanFallback(fallback.pointer({ button: 2, type: 'mousedown' }));
@@ -120,4 +154,24 @@ test('host binds release-click handling in capture phase, clears on a fresh pres
   for (const name of ['desktop-canvas', 'desktop-canvas-viewport']) {
     assert.ok(hasCacheKey(html, `${name}.js`), name);
   }
+  assert.ok(hasCacheKey(html, 'desktop-shell-geometry.css'));
+});
+
+test('empty canvas: arrow at rest, hand once pressed, grabbing once the pan moves, crosshair with Shift', () => {
+  assert.match(host, /if \(canvasViewport\.isMarqueeDrag\(event\)\) \{/);
+  assert.match(host, /addEventListener\('keydown', canvasViewport\.syncMarqueeCursor\)/);
+  assert.match(host, /addEventListener\('keyup', canvasViewport\.syncMarqueeCursor\)/);
+  assert.match(host, /addEventListener\('blur', \(\) => canvasViewport\.syncMarqueeCursor\(null\)\)/);
+  assert.doesNotMatch(host, /is-select-tool|updateCanvasToolCursor/);
+  const css = read('styles/desktop-shell-geometry.css');
+  const rule = selector => css.match(new RegExp(`${selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} \\{([^}]*)\\}`))?.[1] || '';
+  assert.match(rule(':where(body.desk-app[data-theme]) .desk-canvas'), /cursor: default;/);
+  // The world box hit-tests over empty canvas too, so only its content (and the overlays) reset the cursor.
+  assert.match(rule(':where(body.desk-app[data-theme] .desk-canvas > :not(.desk-canvas-world), body.desk-app[data-theme] .desk-canvas-world > *)'), /cursor: default;/);
+  assert.match(rule(':where(body.desk-app[data-theme]) .desk-canvas.is-marquee-armed'), /cursor: crosshair;/);
+  assert.match(rule(':where(body.desk-app[data-theme]) .desk-canvas.is-panning'), /cursor: grab;/);
+  assert.match(rule(':where(body.desk-app[data-theme]) .desk-canvas.is-pan-dragging'), /cursor: grabbing;/);
+  assert.match(host, /activeInteraction\.moved = true;\n        els\.deskCanvasViewport\?\.classList\.add\('is-pan-dragging'\);/);
+  assert.match(host, /classList\.remove\('is-panning', 'is-pan-dragging'\)/);
+  assert.doesNotMatch(css, /is-select-tool/);
 });

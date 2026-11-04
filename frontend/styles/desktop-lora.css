@@ -77,15 +77,15 @@
   flex-wrap: wrap;
   align-items: center;
   gap: var(--desk-space-3);
-  margin-bottom: var(--desk-space-3);
+  margin-bottom: var(--desk-space-4);
 }
 .desk-app .desk-lora-toolbar > input { flex: 1 1 220px; min-width: 140px; }
 .desk-app .desk-lora-toolbar > :is(select, .desk-select-shell) { flex: 0 0 116px; width: 116px; }
 .desk-app .desk-lora-toolbar > .desk-button { flex: 0 0 auto; }
 .desk-app .desk-lora-status {
+  flex: 1 1 auto;
+  min-width: 0;
   color: var(--desk-muted);
-  padding-bottom: var(--desk-space-4);
-  font-size: var(--desk-font-size-caption);
   overflow-wrap: anywhere;
 }
 
@@ -102,7 +102,9 @@
   border-radius: var(--desk-radius-card);
   overflow: hidden;
   background: var(--desk-color-control-bg);
+  transition: var(--desk-motion-control-transition);
 }
+.desk-app .desk-lora-card:hover { border-color: var(--desk-color-control-border-hover); }
 .desk-app .desk-lora-card__open {
   display: block;
   width: 100%;
@@ -119,20 +121,19 @@
   align-items: center;
   justify-content: center;
   aspect-ratio: 4/3;
-  background: var(--desk-color-accent-soft);
+  background: var(--desk-color-border-subtle);
   overflow: hidden;
 }
 .desk-app .desk-lora-card__image img { width: 100%; height: 100%; object-fit: cover; }
 .desk-app .desk-lora-card__image > span {
   display: grid;
   text-align: center;
-  gap: var(--desk-space-2);
   color: var(--desk-muted);
-  font-size: var(--desk-font-size-panel-title);
-  font-weight: var(--desk-font-weight-bold);
+  font-size: var(--desk-font-size-caption);
+  font-weight: var(--desk-font-weight-semibold);
+  letter-spacing: .04em;
 }
-.desk-app .desk-lora-card__image small { font-size: var(--desk-font-size-caption); font-weight: var(--desk-font-weight-regular); }
-.desk-app .desk-lora-card__text { padding: var(--desk-space-4) var(--desk-space-5) 0; }
+.desk-app .desk-lora-card__text { display: grid; gap: var(--desk-space-1); padding: var(--desk-space-4) var(--desk-space-5) 0; }
 .desk-app .desk-lora-card__text strong {
   display: block;
   overflow: hidden;
@@ -140,22 +141,24 @@
   white-space: nowrap;
   font-size: var(--desk-font-size-label);
 }
-.desk-app .desk-lora-card__text :is(p, small) { color: var(--desk-muted); font-size: var(--desk-font-size-caption); overflow: hidden; text-overflow: ellipsis; }
-.desk-app .desk-lora-card__text p { white-space: nowrap; margin: var(--desk-space-3) 0; }
+.desk-app .desk-lora-card__text small { color: var(--desk-muted); font-size: var(--desk-font-size-caption); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .desk-app .desk-lora-card footer {
   display: flex;
   flex: 0 0 auto;
   margin-top: auto;
   justify-content: space-between;
   align-items: center;
-  padding: 0 var(--desk-space-5) var(--desk-space-4);
+  padding: var(--desk-space-2) var(--desk-space-5) var(--desk-space-4);
   gap: var(--desk-space-3);
   font-size: var(--desk-font-size-caption);
   color: var(--desk-muted);
 }
+.desk-app .desk-lora-card footer > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .desk-app .desk-lora-card footer .desk-button { flex: 0 0 auto; height: var(--desk-control-height-xs); min-height: var(--desk-control-height-xs); }
 .desk-app .desk-lora-empty { grid-column: 1/-1; padding: 40px 16px; text-align: center; color: var(--desk-muted); }
-.desk-app .desk-lora-pagination { display: flex; justify-content: center; align-items: center; gap: var(--desk-space-6); padding: var(--desk-space-6); font-size: var(--desk-font-size-caption); }
+.desk-app .desk-lora-pagination { display: flex; align-items: center; gap: var(--desk-space-6); min-height: var(--desk-control-height-sm); padding-top: var(--desk-space-4); font-size: var(--desk-font-size-caption); }
+.desk-app .desk-lora-pagination > [data-lora-pager] { display: flex; flex: 0 0 auto; align-items: center; gap: var(--desk-space-4); }
+.desk-app .desk-lora-pagination > [hidden] { display: none; }
 
 /* Header and save actions stay visible; only the content area scrolls. */
 .desk-app .desk-lora-dialog {
@@ -175,21 +178,22 @@
 .desk-app .desk-lora-dialog [hidden] { display: none !important; }
 .desk-app .desk-lora-dialog--large { width: min(1000px, calc(100vw - 32px)); }
 .desk-app .desk-lora-dialog--detail { width: min(960px, calc(100vw - 32px)); }
+.desk-app .desk-lora-dialog--picker .desk-lora-dialog__body { display: flex; flex: 1 1 auto; flex-direction: column; overflow: hidden; }
+.desk-app .desk-lora-dialog--picker .desk-lora-grid { flex: 1 1 auto; grid-auto-rows: max-content; min-height: 0; overflow: auto; }
 .desk-app .desk-lora-dialog::backdrop { background: var(--desk-gallery-pinterest-modal-backdrop); backdrop-filter: blur(4px); }
 .desk-app .desk-lora-dialog > header {
   display: flex;
   flex: 0 0 auto;
   align-items: center;
   justify-content: space-between;
-  padding: var(--desk-space-5) var(--desk-space-8);
+  padding: var(--desk-space-3) var(--desk-space-8);
   gap: var(--desk-space-6);
   border-bottom: 1px solid var(--desk-color-border-subtle);
 }
-.desk-app .desk-lora-dialog > header > div { min-width: 0; }
-.desk-app .desk-lora-dialog h2 { font-size: var(--desk-font-size-section-title); line-height: var(--desk-line-height-tight); margin: var(--desk-space-1) 0 0; overflow-wrap: anywhere; }
+.desk-app .desk-lora-dialog > header > div { display: flex; align-items: baseline; gap: var(--desk-space-4); min-width: 0; }
+.desk-app .desk-lora-dialog h2 { font-size: var(--desk-font-size-body-strong); line-height: var(--desk-line-height-tight); margin: 0; overflow-wrap: anywhere; }
 .desk-app .desk-lora-dialog h3 { font-size: var(--desk-font-size-label); margin: 0; }
 .desk-app .desk-lora-dialog small { color: var(--desk-muted); font-size: var(--desk-font-size-caption); }
-.desk-app .desk-lora-dialog > header small { font-size: var(--desk-font-size-micro); }
 .desk-app .desk-lora-dialog > header .desk-button { flex: 0 0 auto; width: var(--desk-control-height-xs); height: var(--desk-control-height-xs); min-height: var(--desk-control-height-xs); padding: 0; }
 .desk-app .desk-lora-dialog > header svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
 .desk-app .desk-lora-feedback { flex: 0 0 auto; padding: var(--desk-space-3) var(--desk-space-8); margin: 0; background: var(--desk-color-accent-soft); font-size: var(--desk-font-size-caption); overflow-wrap: anywhere; }
@@ -198,47 +202,46 @@
 .desk-app .desk-lora-dialog__body { flex: 0 1 auto; min-height: 0; padding: var(--desk-space-6) var(--desk-space-8); overflow: auto; box-sizing: border-box; }
 .desk-app .desk-lora-dialog__footer { display: flex; flex: 0 0 auto; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--desk-space-4); padding: var(--desk-space-4) var(--desk-space-8); border-top: 1px solid var(--desk-color-border-subtle); }
 
-.desk-app .desk-lora-detail { display: grid; grid-template-columns: 268px minmax(0, 1fr); align-items: start; gap: var(--desk-space-8); }
-.desk-app .desk-lora-detail__visual { min-width: 0; }
-.desk-app .desk-lora-detail__info { display: grid; align-content: start; gap: var(--desk-space-5); min-width: 0; }
-.desk-app .desk-lora-hero { display: flex; align-items: center; justify-content: center; height: 246px; background: var(--desk-color-accent-soft); border-radius: var(--desk-radius-surface); overflow: hidden; color: var(--desk-muted); font-size: var(--desk-font-size-caption); }
+/* The right column keeps one 2:1:1 track set so fields, status and actions share edges. */
+.desk-app .desk-lora-detail { --desk-lora-form-tracks: minmax(0, 2fr) repeat(2, minmax(0, 1fr)); display: grid; grid-template-columns: 268px minmax(0, 1fr); align-items: start; gap: var(--desk-space-8); }
+.desk-app .desk-lora-detail__visual { display: grid; gap: var(--desk-space-4); min-width: 0; }
+.desk-app .desk-lora-detail__info { display: grid; align-content: start; gap: var(--desk-space-6); min-width: 0; }
+.desk-app .desk-lora-hero { display: flex; align-items: center; justify-content: center; height: 246px; background: var(--desk-color-border-subtle); border-radius: var(--desk-radius-card); overflow: hidden; color: var(--desk-muted); font-size: var(--desk-font-size-caption); }
 .desk-app .desk-lora-hero img { width: 100%; height: 100%; object-fit: contain; cursor: zoom-in; }
-.desk-app .desk-lora-thumbs { display: flex; overflow: auto; gap: var(--desk-space-3); padding: var(--desk-space-3) 0; }
+.desk-app .desk-lora-thumbs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--desk-space-2); max-height: 128px; overflow: auto; }
 .desk-app .desk-lora-thumbs:empty { display: none; }
-.desk-app .desk-lora-thumbs > div { flex: 0 0 82px; }
-.desk-app .desk-lora-thumbs button[data-lora-preview] { display: block; width: 82px; height: 60px; border: 0; padding: 0; background: none; cursor: pointer; }
-.desk-app .desk-lora-thumbs img { width: 100%; height: 100%; object-fit: cover; border-radius: var(--desk-radius-control); }
-.desk-app .desk-lora-thumbs > div > div { display: flex; justify-content: space-between; gap: var(--desk-space-1); padding-top: var(--desk-space-2); }
-.desk-app .desk-lora-thumbs .desk-button { height: var(--desk-control-height-xs); min-height: var(--desk-control-height-xs); padding: 0 var(--desk-space-2); font-size: var(--desk-font-size-micro); }
+.desk-app .desk-lora-thumbs > div { position: relative; aspect-ratio: 1; min-width: 0; overflow: hidden; border-radius: var(--desk-radius-control); }
+.desk-app .desk-lora-thumbs button[data-lora-preview] { display: block; width: 100%; height: 100%; border: 0; padding: 0; background: none; cursor: pointer; }
+.desk-app .desk-lora-thumbs img { width: 100%; height: 100%; object-fit: cover; }
+.desk-app .desk-lora-thumbs > div > div { position: absolute; right: 0; bottom: 0; left: 0; display: flex; justify-content: space-between; padding: var(--desk-space-1); opacity: 0; transition: var(--desk-motion-control-transition); }
+.desk-app .desk-lora-thumbs > div:is(:hover, :focus-within) > div { opacity: 1; }
+.desk-app .desk-lora-thumbs .desk-button { width: 18px; height: 18px; min-height: 18px; padding: 0; font-size: var(--desk-font-size-micro); }
 .desk-app .desk-lora-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--desk-space-3); }
-.desk-app .desk-lora-detail__visual > .desk-lora-actions { margin: var(--desk-space-3) 0; }
+.desk-app .desk-lora-detail__visual > .desk-lora-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .desk-app .desk-lora-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: var(--desk-space-4); }
 /* Only single-line controls share columns; multiline editors span the form. */
-.desk-app .desk-lora-fields--identity { grid-template-columns: minmax(0, 2fr) repeat(2, minmax(0, 1fr)); align-items: end; }
+.desk-app .desk-lora-fields--identity { grid-template-columns: var(--desk-lora-form-tracks); align-items: end; }
 .desk-app .desk-lora-detail__info label { display: grid; min-width: 0; gap: var(--desk-space-2); color: var(--desk-muted); font-size: var(--desk-font-size-caption); }
 .desk-app .desk-lora-actions label { display: inline-flex; align-items: center; gap: var(--desk-space-2); color: var(--desk-muted); font-size: var(--desk-font-size-caption); }
 .desk-app .desk-lora-dialog input[type="checkbox"] { width: 13px; height: 13px; margin: 0; flex: 0 0 auto; }
 .desk-app .desk-lora-detail :is(select, .desk-select-shell) { width: 100%; }
-.desk-app .desk-lora-section-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: var(--desk-space-3); margin-bottom: var(--desk-space-3); }
-.desk-app .desk-lora-detail__info label.desk-lora-trigger-status { display: flex; align-items: center; gap: var(--desk-space-3); }
-.desk-app .desk-lora-trigger-status > :is(select, .desk-select-shell) { width: 156px; flex: 0 0 156px; }
-.desk-app .desk-lora-trigger-tools { display: flex; flex-wrap: wrap; align-items: center; gap: var(--desk-space-3); }
-.desk-app .desk-lora-trigger-tools > .desk-lora-chips { flex: 1 1 180px; min-width: 0; }
-.desk-app .desk-lora-trigger-tools > .desk-lora-actions { margin-left: auto; }
+.desk-app .desk-lora-section-head { display: grid; grid-template-columns: var(--desk-lora-form-tracks); align-items: center; gap: var(--desk-space-4); margin-bottom: var(--desk-space-3); }
+.desk-app .desk-lora-detail__info label.desk-lora-trigger-status { display: grid; grid-column: 2 / -1; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: center; gap: var(--desk-space-4); }
+.desk-app .desk-lora-trigger-status > span { text-align: right; }
+.desk-app .desk-lora-trigger-tools { display: grid; grid-template-columns: var(--desk-lora-form-tracks); align-items: center; gap: var(--desk-space-4); }
+.desk-app .desk-lora-trigger-tools > .desk-lora-actions { display: grid; grid-column: 2 / -1; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--desk-space-4); }
 .desk-app .desk-lora-chips { display: flex; flex-wrap: wrap; gap: var(--desk-space-3); max-height: 96px; overflow: auto; }
 .desk-app .desk-lora-chip { display: flex; align-items: center; gap: var(--desk-space-3); padding: var(--desk-space-1) var(--desk-space-2); min-width: 0; max-width: 100%; background: var(--desk-color-accent-soft); border-radius: var(--desk-radius-control); }
 .desk-app .desk-lora-chip label { display: flex; align-items: center; gap: var(--desk-space-2); }
 .desk-app .desk-lora-chip span { overflow-wrap: anywhere; }
 .desk-app .desk-lora-chip .desk-button { height: var(--desk-control-height-xs); min-height: var(--desk-control-height-xs); padding: 0 var(--desk-space-2); font-size: var(--desk-font-size-micro); }
-.desk-app .desk-lora-disclosure { min-width: 0; border-top: 1px solid var(--desk-color-border-subtle); margin-top: var(--desk-space-3); }
+.desk-app .desk-lora-disclosure { min-width: 0; border-top: 1px solid var(--desk-color-border-subtle); }
 .desk-app .desk-lora-disclosure > summary { padding: var(--desk-space-3) 0; cursor: pointer; color: var(--desk-muted); font-size: var(--desk-font-size-caption); font-weight: var(--desk-font-weight-semibold); }
 .desk-app .desk-lora-disclosure__body { display: grid; gap: var(--desk-space-4); padding: var(--desk-space-2) 0 var(--desk-space-3); min-width: 0; overflow-wrap: anywhere; }
 .desk-app .desk-lora-disclosure__body p { margin: 0; font-size: var(--desk-font-size-caption); }
-.desk-app .desk-lora-trigger-editor { border: 0; }
-.desk-app .desk-lora-trigger-editor > summary { color: var(--desk-color-accent); }
-.desk-app .desk-lora-apply { display: flex; gap: var(--desk-space-3); align-items: end; }
-.desk-app .desk-lora-apply > label { flex: 1; min-width: 0; }
-.desk-app .desk-lora-apply > button { flex: 0 0 auto; }
+.desk-app .desk-lora-trigger-editor { border: 0; margin-top: var(--desk-space-2); }
+.desk-app .desk-lora-apply { display: grid; grid-template-columns: var(--desk-lora-form-tracks); align-items: end; gap: var(--desk-space-4); }
+.desk-app .desk-lora-apply > label { grid-column: span 2; }
 .desk-app .desk-lora-file-info { margin: 0; font-size: var(--desk-font-size-caption); color: var(--desk-muted); }
 .desk-app .desk-lora-file-info dt { margin-top: var(--desk-space-3); font-weight: var(--desk-font-weight-semibold); }
 .desk-app .desk-lora-file-info dt:first-child { margin-top: 0; }

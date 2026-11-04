@@ -207,11 +207,11 @@ test('segmented controls opt in through .desk-key-bank (nodes, settings, library
       /<div class="desk-gallery-video-source desk-key-bank" id="deskGalleryVideoSource"/,
       /<nav class="desk-prompt-library__tabs desk-key-bank" id="deskPromptLibraryTabs" role="tablist"/],
     'frontend/scripts/desktop-music-view.js': [/<nav class="desk-music__tabs desk-key-bank"/],
-    'frontend/scripts/desktop-settings.js': [/desk-settings-canvas-interaction__segment desk-key-bank/g, /<div class="desk-video-runtime-mode desk-key-bank"/],
+    'frontend/scripts/desktop-settings.js': [/desk-settings-canvas-interaction__segment desk-key-bank/g],
     'frontend/scripts/desktop-google-pool.js': [/<div class="desk-segment desk-key-bank desk-google-pool-tabs/],
   };
   for (const [file, patterns] of Object.entries(banks)) for (const pattern of patterns) assert.match(read(file), pattern, file);
-  assert.equal(read('frontend/scripts/desktop-settings.js').match(/desk-settings-canvas-interaction__segment desk-key-bank/g).length, 3);
+  assert.equal(read('frontend/scripts/desktop-settings.js').match(/desk-settings-canvas-interaction__segment desk-key-bank/g).length, 4);
   // The hook carries no style of its own outside the opt-in Ambient layers.
   for (const css of fs.readdirSync(path.join(root, 'frontend/styles')).filter(f => f.endsWith('.css') && !['desktop-ambient-controls.css', 'desktop-control-material.css'].includes(f)))
     assert.doesNotMatch(read(`frontend/styles/${css}`), /\.desk-key-bank\b/, css);

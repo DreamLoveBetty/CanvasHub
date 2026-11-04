@@ -2,6 +2,8 @@
 // Explicit host callbacks preserve ordering; shared state ports always resolve the live value.
 // No API/schema changes. Load before desktop-canvas.js; create() has no I/O or event binding.
 (function () {
+  const RETIRED_VIDEO_NODE_TYPE = 'video_inference';
+
   function create({
     DEFAULT_COMFY_NODE_HEIGHT,
     DEFAULT_COMFY_NODE_WIDTH,
@@ -16,21 +18,15 @@
     DEFAULT_INPUT_NODE_WIDTH,
     DEFAULT_UPSCALE_NODE_HEIGHT,
     DEFAULT_UPSCALE_NODE_WIDTH,
-    DEFAULT_VIDEO_INFERENCE_NODE_HEIGHT,
-    DEFAULT_VIDEO_INFERENCE_NODE_WIDTH,
     DEFAULT_VIDEO_NODE_HEIGHT,
     DEFAULT_VIDEO_NODE_WIDTH,
     MAX_COMFY_NODE_HEIGHT,
     MAX_COMFY_NODE_WIDTH,
     MAX_SCALE,
-    MAX_VIDEO_INFERENCE_NODE_HEIGHT,
-    MAX_VIDEO_INFERENCE_NODE_WIDTH,
     MAX_VIDEO_NODE_WIDTH,
     MIN_COMFY_NODE_HEIGHT,
     MIN_COMFY_NODE_WIDTH,
     MIN_SCALE,
-    MIN_VIDEO_INFERENCE_NODE_HEIGHT,
-    MIN_VIDEO_INFERENCE_NODE_WIDTH,
     MIN_VIDEO_NODE_WIDTH,
     UPSCALE_MODEL_OPTIONS,
     WORKFLOW_SCHEMA,
@@ -43,6 +39,7 @@
     krea2Definition,
     krea2ControlDefinition,
     qwen21Definition,
+    mossDefinition,
     videoControlDefinition,
     topazVideoDefinition,
     poseDefinition,
@@ -63,7 +60,6 @@
     normalizeNodeGroups,
     normalizeNodeMenuType,
     normalizePromptDocument,
-    normalizeVideoInferenceNodeState,
     revokeReferenceUrl,
     sanitizeImageEditFilename,
     sanitizeTextNodeAlias,
@@ -129,6 +125,29 @@
     };
   }
 
+    // Saved canvases may still hold H3 nodes. Their video results stay; in-flight ones no longer have a poller.
+    function purgeRetiredVideoNodes(canvas = DesktopState.state.canvas) {
+    const nodes = canvas?.nodes || {};
+    const ids = Object.keys(nodes).filter(id => nodes[id]?.type === RETIRED_VIDEO_NODE_TYPE);
+    if (!ids.length) return 0;
+    const retired = new Set(ids);
+    (canvas.edges || []).forEach(edge => {
+      const result = retired.has(edge.from) ? nodes[edge.to] : null;
+      if (result?.type !== 'video' || !DesktopState.isInFlight?.(result.status)) return;
+      result.status = 'idle';
+      result.progress = 0;
+      result.progressText = '';
+    });
+    ids.forEach(id => {
+      delete nodes[id];
+      if (DesktopState.state.outputs) delete DesktopState.state.outputs[id];
+    });
+    canvas.edges = (canvas.edges || []).filter(edge => !retired.has(edge.from) && !retired.has(edge.to));
+    if (Array.isArray(canvas.selectedNodeIds)) canvas.selectedNodeIds = canvas.selectedNodeIds.filter(id => !retired.has(id));
+    if (retired.has(canvas.selectedNodeId)) canvas.selectedNodeId = '';
+    return ids.length;
+  }
+
     function normalizeWorkflowNode(node, nodeId) {
     const clean = jsonClone(node, {});
     if (!clean || typeof clean !== 'object') return null;
@@ -136,6 +155,8 @@
     if (!id) return null;
     clean.id = id;
     topazDefinition?.migrate(clean);
+    // MiniMax H3 left the canvas; without this the unknown type would become an image model node.
+    if (clean.type === RETIRED_VIDEO_NODE_TYPE) return null;
     clean.type = normalizeNodeMenuType(clean.type || (id === 'input' ? 'input' : 'image'));
     // Old Mixamo/Director pose nodes are dropped, not migrated; their edges go with them.
     if (poseDefinition?.isLegacy(clean)) return null;
@@ -149,26 +170,22 @@
         ? DEFAULT_INPUT_NODE_WIDTH
         : (clean.type === 'comfy'
           ? DEFAULT_COMFY_NODE_WIDTH
-          : (clean.type === 'video_inference'
-            ? DEFAULT_VIDEO_INFERENCE_NODE_WIDTH
-            : (clean.type === 'video'
-              ? DEFAULT_VIDEO_NODE_WIDTH
-              : (clean.type === 'image_group'
-                ? DEFAULT_IMAGE_GROUP_NODE_WIDTH
-                : (clean.type === 'upscale' ? DEFAULT_UPSCALE_NODE_WIDTH : DEFAULT_IMAGE_NODE_WIDTH))))));
+          : (clean.type === 'video'
+            ? DEFAULT_VIDEO_NODE_WIDTH
+            : (clean.type === 'image_group'
+              ? DEFAULT_IMAGE_GROUP_NODE_WIDTH
+              : (clean.type === 'upscale' ? DEFAULT_UPSCALE_NODE_WIDTH : DEFAULT_IMAGE_NODE_WIDTH)))));
     clean.height = Number.isFinite(Number(clean.height))
       ? Number(clean.height)
       : (clean.type === 'input'
         ? DEFAULT_INPUT_NODE_HEIGHT
         : (clean.type === 'comfy'
           ? DEFAULT_COMFY_NODE_HEIGHT
-          : (clean.type === 'video_inference'
-            ? DEFAULT_VIDEO_INFERENCE_NODE_HEIGHT
-            : (clean.type === 'video'
-              ? DEFAULT_VIDEO_NODE_HEIGHT
-              : (clean.type === 'image_group'
-                ? DEFAULT_IMAGE_GROUP_NODE_HEIGHT
-                : (clean.type === 'upscale' ? DEFAULT_UPSCALE_NODE_HEIGHT : DEFAULT_IMAGE_NODE_HEIGHT))))));
+          : (clean.type === 'video'
+            ? DEFAULT_VIDEO_NODE_HEIGHT
+            : (clean.type === 'image_group'
+              ? DEFAULT_IMAGE_GROUP_NODE_HEIGHT
+              : (clean.type === 'upscale' ? DEFAULT_UPSCALE_NODE_HEIGHT : DEFAULT_IMAGE_NODE_HEIGHT)))));
     if (clean.type === 'input') {
       clean.width = DEFAULT_INPUT_NODE_WIDTH;
       clean.height = DEFAULT_INPUT_NODE_HEIGHT;
@@ -198,18 +215,10 @@
       clean.workflowParameters = clean.workflowParameters && typeof clean.workflowParameters === 'object' && !Array.isArray(clean.workflowParameters)
         ? clean.workflowParameters
         : {};
+      if (!clean.comfyInputSlots || typeof clean.comfyInputSlots !== 'object' || Array.isArray(clean.comfyInputSlots)) delete clean.comfyInputSlots;
       clean.output = {
         archiveEnabled: true,
         telegramEnabled: clean.output?.telegramEnabled !== false
-      };
-    }
-    if (clean.type === 'video_inference') {
-      clean.width = clamp(clean.width, MIN_VIDEO_INFERENCE_NODE_WIDTH, MAX_VIDEO_INFERENCE_NODE_WIDTH);
-      clean.height = clamp(clean.height, MIN_VIDEO_INFERENCE_NODE_HEIGHT, MAX_VIDEO_INFERENCE_NODE_HEIGHT);
-      normalizeVideoInferenceNodeState(clean);
-      clean.output = {
-        archiveEnabled: true,
-        telegramEnabled: clean.output?.telegramEnabled === true
       };
     }
     if (clean.type === 'text') {
@@ -217,6 +226,7 @@
       clean.text = materializePromptDocument(clean.promptDocument);
       clean.alias = sanitizeTextNodeAlias(clean.alias) || nextTextNodeAlias(clean.id);
       clean.stylePresetId = String(clean.stylePresetId || '');
+      if (clean.promptRole !== 'negative') delete clean.promptRole;
     }
     if (clean.type === 'image') {
       const dataUrl = dataUrlValue(clean.imageData) || dataUrlValue(clean.base64) || dataUrlValue(clean.imageUrl);
@@ -238,6 +248,7 @@
     if (clean.type === krea2Definition?.TYPE) krea2Definition.normalize(clean);
     if (clean.type === krea2ControlDefinition?.TYPE) krea2ControlDefinition.normalize(clean);
     if (clean.type === qwen21Definition?.TYPE) qwen21Definition.normalize(clean);
+    if (clean.type === mossDefinition?.TYPE) mossDefinition.normalize(clean);
     if (clean.type === videoControlDefinition?.TYPE) videoControlDefinition.normalize(clean);
     if (clean.type === topazVideoDefinition?.TYPE) topazVideoDefinition.normalize(clean);
     if (clean.type === poseDefinition?.TYPE) poseDefinition.normalize(clean);
@@ -528,6 +539,7 @@
       normalizeWorkflowReferenceMap,
       normalizeWorkflowParams,
       normalizeWorkflowNode,
+      purgeRetiredVideoNodes,
       normalizeWorkflowCanvas,
       normalizeWorkflowOutput,
       normalizeWorkflowOutputs,

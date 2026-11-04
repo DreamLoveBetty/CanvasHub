@@ -220,6 +220,14 @@
     }
 
     if (provider === 'comfy') {
+      const uploaded = [];
+      for (const reference of config.referenceVideos || []) uploaded.push(await uploadComfyVideo(client, reference));
+      // Tagged workflows send one entry per slot; '' leaves that slot to the workflow's own value.
+      const bySlot = (order, values) => order.map(index => (index >= 0 ? values[index] || '' : ''));
+      const slotImages = Array.isArray(config.imageSlotOrder)
+        ? bySlot(config.imageSlotOrder, await Promise.all((config.referenceImages || []).map(item => imageUrlToDataUri(item?.base64 || item?.url || ''))))
+        : null;
+      const videos = Array.isArray(config.videoSlotOrder) ? bySlot(config.videoSlotOrder, uploaded) : uploaded;
       return client.json('/api/comfy/run', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -229,8 +237,10 @@
           height: DesktopState.clamp(Math.round(Number(params.height || 1024) / 8) * 8, 64, 8192, 1024),
           workflow: params.workflow || '',
           workflow_parameters: params.workflowParameters || params.workflow_parameters || {},
-          image: images[0] || undefined,
-          images: images.slice(0, 8),
+          image: slotImages ? undefined : (images[0] || undefined),
+          images: slotImages || images.slice(0, 8),
+          videos,
+          negative_prompt: config.negativePrompt || '',
           archive_enabled: true,
           telegram_enabled: telegramEnabled
         })
@@ -238,6 +248,29 @@
     }
 
     throw new Error(`暂不支持的模型：${provider}`);
+  }
+
+  // Video nodes hold same-origin archive/API URLs or local blob:/data: URLs. Never send the
+  // auth header to another origin; the server forwards the bytes to ComfyUI's input folder.
+  async function uploadComfyVideo(client, reference) {
+    const raw = String(reference?.url || '').trim();
+    let blob;
+    if (/^(blob|data):/i.test(raw)) {
+      blob = await (await fetch(raw)).blob();
+    } else {
+      const url = new URL(raw, window.location.href);
+      if (!raw || url.origin !== window.location.origin) throw new Error('请连接本地视频节点');
+      blob = await client.blob(url.pathname + url.search);
+    }
+    if (!blob.size || blob.size > 200 * 1024 * 1024) throw new Error('视频须小于 200 MB');
+    const response = await client.request(`/api/comfy/upload_video?name=${encodeURIComponent(reference?.name || 'source.mp4')}`, {
+      method: 'POST',
+      body: blob
+    });
+    let result = {};
+    try { result = await response.json(); } catch (_error) { /* Non-JSON error body. */ }
+    if (!response.ok || !result.name) throw new Error(result.error || `视频上传失败：HTTP ${response.status}`);
+    return result.name;
   }
 
   async function submitCurrentTask() {
@@ -588,71 +621,6 @@
     if (String(config.timeout_seconds || '').trim()) query.set('timeout_seconds', String(config.timeout_seconds).trim());
     const suffix = query.toString();
     return requireApi().json(`/api/comfy/health${suffix ? `?${suffix}` : ''}`);
-  }
-
-  function getVideoRuntimeStatus(probe = false) {
-    return requireApi().json(`/api/video/runtime/status${probe ? '?probe=1' : ''}`);
-  }
-
-  function getVideoSupervisorStatus(probe = false) {
-    return requireApi().json(`/api/video/supervisor/status${probe ? '?probe=1' : ''}`);
-  }
-
-  function getVideoRuntimeCapabilities() {
-    return requireApi().json('/api/video/capabilities');
-  }
-
-  function testVideoRuntime(config = {}) {
-    return requireApi().json('/api/video/runtime/test', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(config)
-    });
-  }
-
-  function testVideoSupervisor(config = {}) {
-    return requireApi().json('/api/video/supervisor/test', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(config)
-    });
-  }
-
-  function startVideoRuntime() {
-    return requireApi().json('/api/video/runtime/start', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({})
-    });
-  }
-
-  async function submitVideoTask(config = {}) {
-    const prompt = String(config.prompt || '').trim();
-    if (!prompt) throw new Error('请连接一个包含提示词的文本节点');
-    const firstFrame = config.firstFrame || config.first_frame;
-    const images = firstFrame ? await normalizeImages([firstFrame]) : [];
-    if (!images.length) throw new Error('请连接一张可读取的首帧图片');
-    const params = config.params && typeof config.params === 'object' ? config.params : {};
-    return requireApi().json('/api/video/generate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        prompt,
-        prompt_metadata: config.promptMeta || config.prompt_meta || {},
-        first_frame: images[0],
-        mode: params.mode || 'image_to_video',
-        aspect_ratio: params.aspectRatio || params.aspect_ratio || '3:4',
-        pixel_budget_mp: Number(params.pixelBudgetMp ?? params.pixel_budget_mp ?? 0.8),
-        width: Number(params.width || 768),
-        height: Number(params.height || 1024),
-        duration_seconds: Number(params.durationSeconds ?? params.duration_seconds ?? 15),
-        acceleration_mode: params.accelerationMode || params.acceleration_mode || 'first_block_cache',
-        first_block_cache_threshold: Number(params.firstBlockCacheThreshold ?? params.first_block_cache_threshold ?? 0.08),
-        steps: Number(params.steps || 20),
-        crf: Number(params.crf ?? 23),
-        telegram_enabled: params.telegramEnabled === true || params.telegram_enabled === true
-      })
-    });
   }
 
   function saveComfyWorkflowConfig(config = {}) {
@@ -1426,11 +1394,11 @@
   }
   const taskClients = {};
   const taskClient = domain => taskClients[domain] ||= window.DesktopTasks.createClient({
-    domain, submit: domain === 'batch' ? submitBatchConfig : domain === 'video' ? submitVideoTask : submitTaskConfig,
+    domain, submit: domain === 'batch' ? submitBatchConfig : submitTaskConfig,
     progress: domain === 'batch' ? getBatch : getStatus,
     cancel: domain === 'batch' ? id => controlBatch(id, 'cancel') : cancelTask, artifacts: taskArtifacts,
   });
-  const tasks = Object.freeze(Object.fromEntries(['generation', 'video', 'batch'].map(domain => [domain, Object.freeze({
+  const tasks = Object.freeze(Object.fromEntries(['generation', 'batch'].map(domain => [domain, Object.freeze({
     submit: (...args) => taskClient(domain).submit(...args), progress: (...args) => taskClient(domain).progress(...args),
     cancel: (...args) => taskClient(domain).cancel(...args), result: (...args) => taskClient(domain).result(...args),
   })])));
@@ -1491,13 +1459,6 @@
     getComfyWorkflows,
     testComfyConnection,
     saveComfyWorkflowConfig,
-    getVideoRuntimeStatus,
-    getVideoSupervisorStatus,
-    getVideoRuntimeCapabilities,
-    testVideoRuntime,
-    testVideoSupervisor,
-    startVideoRuntime,
-    submitVideoTask: originalReceipt(tasks.video.submit),
     getGptConfig,
     getGptModels,
     saveGptConfig,

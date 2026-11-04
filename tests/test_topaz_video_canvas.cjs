@@ -49,7 +49,7 @@ test('catalog availability, verified labels and model-specific snake_case reques
 test('only video inputs and outputs, not image Topaz or ReShot domains', () => {
   assert.ok(model.policy({type:'video'},{type:'topaz_video'}));
   assert.ok(model.policy({type:'topaz_video'},{type:'video'}));
-  for (const type of ['audio','image','topaz','video_control','video_inference'])
+  for (const type of ['audio','image','topaz','video_control'])
     assert.equal(model.policy({type},{type:'topaz_video'}),null);
 });
 test('compact view shows presets and workbench entry but keeps detailed parameters out of the node', () => {

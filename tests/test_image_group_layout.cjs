@@ -136,3 +136,161 @@ test('the stylesheet mirrors the model geometry', () => {
   const percent = `${(C.IMAGE_GROUP_THUMB_RADIUS_PX / C.IMAGE_GROUP_THUMB_PX * 100).toFixed(4)}%`;
   assert.equal(css.split(`border-radius: ${percent};`).length - 1, 2, percent);
 });
+
+// Runs removeImageGroupItem against a fake host and records what it asked the host to do.
+function deletionHarness(C, itemIds, { removeGroup = () => true } = {}) {
+  const calls = [];
+  const items = itemIds.map(itemId => ({ itemId, sourceNodeId: `node_${itemId}`, role: 'reference', imageUrl: `/${itemId}.png` }));
+  const group = {
+    id: 'g1', type: 'image_group', x: 40, y: 60, items,
+    memberEdges: [{ id: 'e1', from: 'node_b', to: 'text1' }, { id: 'e2', from: 'node_a', to: 'text1' }],
+  };
+  const edges = [{ id: 'out', from: 'g1', to: 'model1' }];
+  const sandbox = {
+    window: {}, globalThis: {}, requestAnimationFrame: run => { calls.push('flip'); run(); },
+    DesktopState: {
+      state: { canvas: { nodes: { g1: group }, edges } },
+      saveSettings: options => calls.push(['save', options.criticalCanvas]),
+    },
+    DesktopResults: { showTransientMessage: message => calls.push(['message', message]) },
+  };
+  vm.runInNewContext(read('frontend/scripts/desktop-canvas-image-group-model.js'), sandbox);
+  const M = sandbox.window.DesktopCanvasImageGroupModel.create({
+    ...C,
+    IMAGE_GROUP_ROLES: [{ value: 'reference', label: '参考' }],
+    IMAGE_GROUP_ROLE_INSTRUCTIONS: {},
+    animateImageGroupItemFlip: () => calls.push('animate'),
+    applyNodeLayout: id => calls.push(['layout', id, group.width, group.height]),
+    captureImageGroupItemRects: () => new Map(),
+    clamp: (value, min, max) => Math.min(max, Math.max(min, value)),
+    dataUrlValue: value => String(value || ''),
+    ensureNodeEdgeHandles: () => {},
+    escapeHtml: value => String(value ?? ''),
+    freezeImageReferenceTokensForGroupItem: (groupId, item) => { calls.push(['freeze', groupId, item.itemId]); return item.itemId === 'b' ? 2 : 0; },
+    getNodeElement: () => ({ querySelector: () => ({}), querySelectorAll: () => [], setAttribute: () => {}, style: { setProperty: () => {} } }),
+    jsonClone: value => JSON.parse(JSON.stringify(value)),
+    imageNodeSource: node => node?.imageUrl || '',
+    onImageGroupItemsChanged: id => calls.push(['graph', id]),
+    refreshImageReferenceTokens: id => calls.push(['tokens', id]),
+    removeImageGroupNode: id => { calls.push(['remove-group', id]); return removeGroup(); },
+    updateLinkPath: () => calls.push('links'),
+  });
+  return { M, group, edges, calls };
+}
+
+test('a one-image group hugs its thumbnail and links leave from the frame line', () => {
+  const C = constants();
+  const M = model(C);
+  near(C.MIN_IMAGE_GROUP_NODE_WIDTH, C.IMAGE_GROUP_PADDING_PX * 2 + C.IMAGE_GROUP_THUMB_PX, 'minimum width');
+  assert.equal(M.imageGroupColumnCount(1), 1);
+  near(M.compactImageGroupNodeWidth(1), C.MIN_IMAGE_GROUP_NODE_WIDTH, 'one-image width');
+  near(M.compactImageGroupNodeWidth(2), C.DEFAULT_IMAGE_GROUP_NODE_WIDTH, 'two-image width unchanged');
+  const body = M.imageGroupContentBounds({ items: [{ itemId: 'a' }] });
+  near(body.width, C.IMAGE_GROUP_THUMB_PX, 'frame body hugs the thumbnail');
+  const geometry = read('frontend/styles/desktop-canvas-nodes-geometry.css');
+  const scale = geometry.match(/--desk-image-group-ui-scale: ([.\d]+);/)[1];
+  near(Number(scale), C.IMAGE_GROUP_UI_SCALE, 'css scale');
+  assert.ok(geometry.includes('min-width: calc(288px * var(--desk-image-group-ui-scale));'));
+  assert.match(geometry, /\.desk-node--image-group\.desk-node--edge-handles > \.desk-port\[data-semantic-port\]\[data-port-side="right"\] \{\n  right: calc\(var\(--desk-image-group-frame-inset\) - 8px\);/);
+
+  const nodes = { g1: { id: 'g1', type: 'image_group', x: 100, y: 50, width: 400, height: 200, items: [{ itemId: 'a' }] } };
+  const sandbox = { window: {}, globalThis: {}, DesktopState: { state: { canvas: { nodes } } } };
+  vm.runInNewContext(read('frontend/scripts/desktop-canvas-connections.js'), sandbox);
+  const connections = sandbox.window.DesktopCanvasConnections.create({
+    IMAGE_GROUP_LIQUID_VISIBLE_OUTSET_PX: C.IMAGE_GROUP_LIQUID_VISIBLE_OUTSET_PX,
+    getNodeElement: () => null,
+    getNodeState: id => nodes[id],
+    imageGroupContentBounds: node => M.imageGroupContentBounds(node),
+    normalizePortSide: side => side,
+  });
+  const anchor = connections.getAnchor('g1', 'right');
+  near(anchor.x, 100 + body.x + body.width + C.IMAGE_GROUP_LIQUID_VISIBLE_OUTSET_PX, 'anchor on the frame line');
+  near(anchor.y, 50 + body.y + body.height / 2, 'anchor at the frame middle');
+});
+
+test('the settled bulge sits on the frame line and the number badge stays inside it', () => {
+  const nodes = read('frontend/styles/desktop-canvas-nodes-geometry.css');
+  assert.ok(nodes.includes('--desk-node-settled-port-inset: var(--desk-image-group-frame-inset);'));
+  assert.ok(nodes.includes('right: calc(var(--desk-node-settled-port-inset, 0px) - 7px);'), 'pill bulge');
+  assert.ok(nodes.includes('right: calc(var(--desk-node-settled-port-inset, 0px) - 9px);'), 'droplet bulge');
+  const css = read('frontend/styles/desktop-image-group-geometry.css');
+  const badge = css.slice(css.indexOf('.desk-image-group__thumb strong {'));
+  assert.match(badge, /right: calc\(12px \* var\(--desk-image-group-ui-scale\)\);\s+bottom: calc\(12px \* var\(--desk-image-group-ui-scale\)\);/);
+  const chip = css.slice(css.indexOf('.desk-image-group-transition__chip strong {'));
+  assert.match(chip, /right: calc\(var\(--desk-image-group-chip-unit\) \* 12\);\s+bottom: calc\(var\(--desk-image-group-chip-unit\) \* 12\);/);
+});
+
+test('deleting one image renumbers the rest and keeps the downstream edge', () => {
+  const C = constants();
+  const { M, group, edges, calls } = deletionHarness(C, ['a', 'b', 'c']);
+  const threeWide = M.compactImageGroupNodeWidth(3);
+  assert.equal(M.removeImageGroupItem('g1', 'b'), true);
+  assert.deepEqual(group.items.map(item => item.itemId), ['a', 'c']);
+  assert.deepEqual(edges.map(edge => edge.id), ['out']);
+  // Ungrouping must not rebuild edges of the deleted image.
+  assert.deepEqual(group.memberEdges.map(edge => edge.id), ['e2']);
+  const html = M.imageGroupItemsHtml(group);
+  assert.match(html, /data-image-group-item="a" data-image-group-label="图片1"/);
+  assert.match(html, /data-image-group-item="c" data-image-group-label="图片2"/);
+  assert.ok(group.width < threeWide, 'the node narrows');
+  assert.equal(group.width, M.compactImageGroupNodeWidth(2));
+  // The deleted image's tokens freeze before the survivors' tokens renumber.
+  const names = calls.map(call => Array.isArray(call) ? call[0] : call);
+  assert.ok(names.indexOf('freeze') < names.indexOf('tokens'));
+  for (const step of ['layout', 'graph', 'links', 'save', 'animate']) assert.ok(names.includes(step), step);
+  assert.ok(calls.some(call => call[0] === 'save' && call[1] === true), 'critical canvas save');
+  assert.match(calls.find(call => call[0] === 'message')[1], /已从图片组删除图片2，当前共 2 张。提示词中 2 处引用/);
+});
+
+test('crossing a row boundary shrinks the node height', () => {
+  const C = constants();
+  const { M, group } = deletionHarness(C, ['a', 'b', 'c', 'd', 'e']);
+  const twoRows = M.imageGroupNodeHeight(5);
+  M.removeImageGroupItem('g1', 'e');
+  assert.equal(group.height, M.imageGroupNodeHeight(4));
+  assert.ok(group.height < twoRows);
+});
+
+test('one image stays a group; deleting it asks the host to remove the group', () => {
+  const C = constants();
+  const { M, group, calls } = deletionHarness(C, ['a', 'b']);
+  assert.equal(M.removeImageGroupItem('g1', 'a'), true);
+  assert.deepEqual(group.items.map(item => item.itemId), ['b']);
+  assert.ok(!calls.some(call => call[0] === 'remove-group'));
+  assert.equal(M.removeImageGroupItem('g1', 'b'), true);
+  assert.deepEqual(calls.filter(call => call[0] === 'remove-group'), [['remove-group', 'g1']]);
+  // The host owns the group: a declined confirmation leaves the image in place.
+  const declined = deletionHarness(C, ['a'], { removeGroup: () => false });
+  assert.equal(declined.M.removeImageGroupItem('g1', 'a'), false);
+  assert.equal(declined.group.items.length, 1);
+});
+
+test('an unknown item changes nothing', () => {
+  const C = constants();
+  const { M, group, calls } = deletionHarness(C, ['a', 'b']);
+  assert.equal(M.removeImageGroupItem('g1', 'missing'), false);
+  assert.equal(M.removeImageGroupItem('nope', 'a'), false);
+  assert.equal(group.items.length, 2);
+  assert.deepEqual(calls, []);
+});
+
+test('the host refreshes comfy image counts when a group shrinks', () => {
+  assert.match(read('frontend/scripts/desktop-canvas.js'), /onImageGroupItemsChanged: groupId => \{[\s\S]*?refreshComfyNode\(edge\.to\)[\s\S]*?notifyDomainGraphChanged\(\);/);
+});
+
+test('the delete button is a labelled sibling of the sort handle, clear of the tag and badge', () => {
+  const C = constants();
+  const M = model(C);
+  const html = M.imageGroupItemHtml({ id: 'g1' }, { itemId: 'a', imageUrl: '/a.png', role: 'reference' }, 1);
+  assert.match(html, /<button type="button" class="desk-image-group__delete" data-image-group-item-delete title="从图片组删除" aria-label="从图片组删除图片2">/);
+  // Outside the thumbnail, so a press never starts the sort gesture or the role picker.
+  assert.doesNotMatch(html.slice(html.indexOf('data-image-group-sort-handle'), html.indexOf('</div>')), /item-delete/);
+  const css = read('frontend/styles/desktop-image-group-geometry.css');
+  const rule = css.slice(css.indexOf('body.desk-app[data-theme] .desk-image-group__delete {'));
+  assert.match(rule.slice(0, rule.indexOf('}')), /bottom: [^;]+;\s+left: /);
+  assert.match(css, /:not\(\.is-picking\) :is\(\.desk-image-group__insert, \.desk-image-group__delete\) \{\n  opacity: 1;/);
+  assert.match(read('frontend/styles/desktop-image-group-interaction.css'), /\.is-sorting :is\([^)]*\.desk-image-group__delete\)/);
+  const canvas = read('frontend/scripts/desktop-canvas.js');
+  assert.match(canvas, /event\.detail > 1 \|\| draggedImageGroupItem/, 'double clicks and live sorts delete nothing');
+  assert.match(read('frontend/scripts/desktop-canvas-text-editor.js'), /IMAGE_REFERENCE_DELETED_TEXT = '（已删除图片）'/);
+});

@@ -8,9 +8,12 @@
     comfyWorkflowCatalogRef,
     comfyWorkflowDefaultSize,
     comfyWorkflowParameterOverrides,
-    findConnectedTextNodeId,
+    foldNegativeConstraint,
     getBatchPromptItems,
+    getComfyInputSlots,
     getConnectedImageReferences,
+    getConnectedNegativePrompt,
+    getConnectedVideoReferences,
     getNodeElement,
     getNodeReferenceImages,
     getOutgoingUpscaleImageEdges,
@@ -19,76 +22,24 @@
     getVisibleInputPrompt,
     mergeNodeReferenceImages,
     normalizeComfyPixelSize,
-    normalizePromptGenerationMeta,
-    promptTextFingerprint,
     readFormToState,
     readOutputControlsForTask,
     readOutputControlsFromNode,
     splitBatchPromptItems,
     syncUpscaleNodeStateFromDom,
-    syncVideoInferenceNodeStateFromDom,
-    videoInferenceInputSummary,
   }) {
 
-
-    function connectedVideoFirstFrame(nodeId) {
-    const input = videoInferenceInputSummary(nodeId).firstFrame?.node;
-    if (!input) return null;
-    return getConnectedImageReferences(nodeId)
-      .find(reference => reference?.sourceNodeId === input.id)
-      || null;
-  }
-
-    function readVideoInferenceNodeConfig(nodeId) {
-    const element = getNodeElement(nodeId);
-    const node = syncVideoInferenceNodeStateFromDom(element);
-    if (!node) throw new Error('MiniMax H3 视频生成节点不存在');
-    const prompt = String(getVisibleInputPrompt(nodeId) || '').trim();
-    if (!prompt) throw new Error('请连接一个包含提示词的文本节点');
-    if (videoInferenceInputSummary(nodeId).referenceVideo?.node?.controlMetadata) {
-      throw new Error('ReShot 控制视频已就绪；H3 参考视频链路尚未开放，请先完成 Runtime 联调');
-    }
-    const firstFrame = connectedVideoFirstFrame(nodeId);
-    if (!firstFrame) {
-      throw new Error(node.mode === 'reference_to_video'
-        ? '参考驱动模式当前至少需要连接一张参考图片'
-        : '图生视频模式需要连接一张首帧图片');
-    }
-    const promptTextNodeId = findConnectedTextNodeId(nodeId);
-    const promptTextNode = DesktopState.state.canvas.nodes[promptTextNodeId];
-    const promptMeta = promptTextNode?.promptMetaFingerprint === promptTextFingerprint(prompt)
-      ? normalizePromptGenerationMeta(promptTextNode.promptMeta)
-      : {};
-    return {
-      nodeId,
-      provider: 'minimax_h3',
-      prompt,
-      firstFrame,
-      promptMeta,
-      params: {
-        mode: node.mode,
-        durationSeconds: node.durationSeconds,
-        aspectRatio: node.aspectRatio,
-        pixelBudgetMp: node.pixelBudgetMp,
-        width: node.pixelWidth,
-        height: node.pixelHeight,
-        accelerationMode: node.accelerationMode,
-        firstBlockCacheThreshold: node.firstBlockCacheThreshold,
-        steps: node.steps,
-        crf: node.crf
-      }
-    };
-  }
 
     function readInputNodeConfig(nodeId) {
     const node = getNodeElement(nodeId);
     if (!node) throw new Error('模型节点不存在');
     if (nodeId === 'input') {
       readFormToState();
-      const batchPrompts = getBatchPromptItems(nodeId);
+      const negativePrompt = getConnectedNegativePrompt(nodeId);
+      const batchPrompts = getBatchPromptItems(nodeId).map(item => foldNegativeConstraint(item, negativePrompt));
       return {
         nodeId,
-        prompt: getVisibleInputPrompt(nodeId),
+        prompt: foldNegativeConstraint(getVisibleInputPrompt(nodeId), negativePrompt),
         batchPrompts,
         provider: DesktopState.state.provider,
         params: { ...DesktopState.state.params },
@@ -97,10 +48,12 @@
       };
     }
 
-    const batchPrompts = getBatchPromptItems(nodeId);
+    // GPT / Google have no negative-prompt parameter: negative text nodes become a trailing constraint.
+    const negativePrompt = getConnectedNegativePrompt(nodeId);
+    const batchPrompts = getBatchPromptItems(nodeId).map(item => foldNegativeConstraint(item, negativePrompt));
     return {
       nodeId,
-      prompt: getVisibleInputPrompt(nodeId),
+      prompt: foldNegativeConstraint(getVisibleInputPrompt(nodeId), negativePrompt),
       batchPrompts,
       provider: getProviderFromNode(node),
       batchMode: !!node.querySelector('[data-field="batchMode"]')?.checked,
@@ -134,14 +87,22 @@
     const selected = (comfyWorkflowCatalogRef.current.items || []).find(item => item.id === node.workflow);
     if (!node.workflow) throw new Error('请先在 Comfy 节点中选择工作流');
     if (selected && !selected.enabled) throw new Error('当前 Comfy 工作流已停用，请在设置中心重新启用或选择其他工作流');
+    // Title-tagged workflows map sources onto ordered slots; an empty slot keeps the workflow's own value.
+    const slotted = selected?.tag_mode === 'tags';
+    const slots = slotted ? getComfyInputSlots(nodeId, selected) : null;
     const connectedReferences = getConnectedImageReferences(nodeId);
-    const references = selected
+    const references = slotted ? slots.referenceImages : (selected
       ? (selected.accepts_image
         ? connectedReferences.slice(0, Math.max(1, Number(selected.max_images || 1)))
         : [])
-      : connectedReferences.slice(0, 1);
-    if (selected?.accepts_image && !references.length) throw new Error('当前 Comfy 工作流需要连接一张参考图');
-    const connectedPrompt = String(getVisibleInputPrompt(nodeId) || '').trim();
+      : connectedReferences.slice(0, 1));
+    if (!slotted && selected?.accepts_image && !references.length) throw new Error('当前 Comfy 工作流需要连接一张参考图');
+    const videoReferences = slotted ? slots.referenceVideos : (selected?.accepts_video
+      ? getConnectedVideoReferences(nodeId).slice(0, Math.max(1, Number(selected.max_videos || 1)))
+      : []);
+    if (!slotted && selected?.accepts_video && !videoReferences.length) throw new Error('当前 Comfy 工作流需要连接一个视频节点');
+    const outputKind = selected?.output_kind === 'video' ? 'video' : 'image';
+    const connectedPrompt = String(getVisibleInputPrompt(nodeId) || '').trim() || String(selected?.default_prompt || '').trim();
     if (selected?.accepts_text !== false && !connectedPrompt) throw new Error('请连接一个包含提示词的文本节点');
     const prompt = selected?.accepts_text === false ? (selected?.label || 'ComfyUI 工作流') : connectedPrompt;
     const defaultSize = comfyWorkflowDefaultSize(selected);
@@ -154,7 +115,8 @@
       prompt,
       provider: 'comfy',
       batchMode: false,
-      expectedImageOutputCount: Math.max(1, Number(selected?.output_count || 1)),
+      outputKind,
+      expectedImageOutputCount: outputKind === 'video' ? 0 : Math.max(1, Number(selected?.output_count || 1)),
       params: {
         workflow: node.workflow,
         workflowParameters: { ...comfyWorkflowParameterOverrides(node, node.workflow) },
@@ -163,7 +125,11 @@
         archiveEnabled: true,
         telegramEnabled: node.output.telegramEnabled !== false
       },
-      referenceImages: references
+      negativePrompt: selected?.accepts_negative ? getConnectedNegativePrompt(nodeId) : '',
+      referenceImages: references,
+      referenceVideos: videoReferences,
+      imageSlotOrder: slotted ? slots.imageSlotOrder : null,
+      videoSlotOrder: slotted ? slots.videoSlotOrder : null
     };
   }
 
@@ -283,6 +249,7 @@
   }
 
     function expectedImageOutputCount(config) {
+    if (config?.outputKind === 'video') return 0;
     const explicit = Number(config?.expectedImageOutputCount || config?.requestedImageCount || 0);
     if (explicit > 0) return Math.max(1, Math.floor(explicit));
     const taskType = DesktopState.normalizeGptTaskType(config?.params?.gptTaskType, 'image');
@@ -364,8 +331,6 @@
   }
 
     return Object.freeze({
-      connectedVideoFirstFrame,
-      readVideoInferenceNodeConfig,
       readInputNodeConfig,
       readComfyNodeConfig,
       readUpscaleNodeConfigForReference,

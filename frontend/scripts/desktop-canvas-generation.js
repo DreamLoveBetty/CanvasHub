@@ -3,11 +3,7 @@
 // No API/schema changes. Load before desktop-canvas.js; create() has no I/O or event binding.
 (function () {
   function create({
-    DEFAULT_VIDEO_INFERENCE_NODE_HEIGHT,
-    DEFAULT_VIDEO_INFERENCE_NODE_WIDTH,
     activeImageEditRef,
-    addNode,
-    applyNodeLayout,
     buildImageEditPrompt,
     clonePromptDocument,
     closeImageEditor,
@@ -16,7 +12,6 @@
     expectedImageOutputCount,
     exportImageEditAnnotatedDataUrl,
     findInputForResult,
-    fitVideoNodeToMedia,
     getAnchor,
     getConnectedOutputImageNodeIds,
     getImageNodeSize,
@@ -28,260 +23,19 @@
     insertImageNode,
     isEmptyAutoOutputImageNode,
     materializePromptDocument,
-    normalizeVideoInferenceNodeState,
     openTextPolishModal,
     outputImageReference,
     promptDocumentFingerprint,
     ratioFromAspect,
     ratioToMeta,
     readUpscaleNodeConfigForReference,
-    readVideoInferenceNodeConfig,
     refreshUpscaleNodeMode,
-    refreshVideoInferenceNode,
-    refreshVideoNode,
     sanitizeImageEditFilename,
     saveImageEditState,
     setImageNodeFromResult,
     updateLinkPath,
-    videoConfigApi,
-    videoTaskPollTimers,
   }) {
     let upscaleComponentInstallPromise = null;
-
-    function ensureVideoResultForInference(nodeId) {
-    const existing = (DesktopState.state.canvas.edges || [])
-      .find(edge => edge.from === nodeId && DesktopState.state.canvas.nodes[edge.to]?.type === 'video');
-    if (existing) return existing.to;
-    const source = DesktopState.state.canvas.nodes[nodeId];
-    const targetId = addNode('video', {
-      x: Number(source?.x || 0) + Number(source?.width || DEFAULT_VIDEO_INFERENCE_NODE_WIDTH) + 220,
-      y: Number(source?.y || 0) + Number(source?.height || DEFAULT_VIDEO_INFERENCE_NODE_HEIGHT) / 2
-    });
-    const target = DesktopState.state.canvas.nodes[targetId];
-    if (source && target) {
-      target.x = source.x + source.width + 80;
-      target.y = source.y + 32;
-      applyNodeLayout(targetId);
-    }
-    connectNodes(nodeId, targetId, { quiet: true });
-    return targetId;
-  }
-
-    function videoTaskOutputState(nodeId) {
-    if (!DesktopState.state.outputs || typeof DesktopState.state.outputs !== 'object') {
-      DesktopState.state.outputs = {};
-    }
-    if (!DesktopState.state.outputs[nodeId] || typeof DesktopState.state.outputs[nodeId] !== 'object') {
-      DesktopState.state.outputs[nodeId] = {
-        status: 'idle',
-        stage: '',
-        progressText: '',
-        progress: 0,
-        error: '',
-        taskId: '',
-        type: 'video'
-      };
-    }
-    return DesktopState.state.outputs[nodeId];
-  }
-
-    function connectedVideoResultNodeId(nodeId) {
-    return (DesktopState.state.canvas.edges || [])
-      .find(edge => edge.from === nodeId && DesktopState.state.canvas.nodes[edge.to]?.type === 'video')?.to || '';
-  }
-
-    function isVideoTaskTerminal(status) {
-    return ['succeeded', 'succeeded_no_telegram', 'failed', 'canceled', 'cancelled'].includes(String(status || '').toLowerCase());
-  }
-
-    function stopVideoTaskPolling(nodeId) {
-    const timer = videoTaskPollTimers.get(nodeId);
-    if (timer) window.clearTimeout(timer);
-    videoTaskPollTimers.delete(nodeId);
-  }
-
-    function applyVideoTaskState(nodeId, task = {}, explicitResultId = '') {
-    const output = videoTaskOutputState(nodeId);
-    const status = String(task.status || output.status || 'idle');
-    const params = task.params && typeof task.params === 'object' ? task.params : (output.params || {});
-    output.taskId = String(task.task_id || output.taskId || '');
-    output.status = status;
-    output.stage = String(task.stage || output.stage || '');
-    output.progressText = String(task.progress_text || task.message || output.progressText || '');
-    output.progress = Math.max(0, Math.min(100, Number(task.progress ?? output.progress ?? 0)));
-    output.error = String(task.display_error || task.error || (status === 'failed' ? output.progressText : '') || '');
-    output.params = params;
-    output.startedAt = Number(task.started_at || output.startedAt || 0);
-    output.finishedAt = Number(task.finished_at || output.finishedAt || 0);
-
-    const resultNodeId = explicitResultId || connectedVideoResultNodeId(nodeId);
-    const resultNode = resultNodeId ? DesktopState.state.canvas.nodes[resultNodeId] : null;
-    if (resultNode?.type === 'video') {
-      resultNode.sourceTaskId = output.taskId;
-      resultNode.status = ['succeeded', 'succeeded_no_telegram'].includes(status) ? 'succeeded' : status;
-      resultNode.progress = output.progress;
-      resultNode.progressText = output.progressText;
-      resultNode.error = output.error;
-      const metadata = task.video_metadata && typeof task.video_metadata === 'object' ? task.video_metadata : params;
-      const resultFile = String(task.result_file || task.output_file || params.video_filename || '').trim();
-      const videoPath = String(task.video_path || params.video_url || '').trim();
-      if (videoPath || (resultFile && ['succeeded', 'succeeded_no_telegram'].includes(status))) {
-        resultNode.mediaUrl = videoPath || `/video/${encodeURIComponent(resultFile)}`;
-        resultNode.mediaName = resultFile || 'MiniMax H3 视频';
-        resultNode.mimeType = 'video/mp4';
-        resultNode.durationSeconds = Number(metadata.duration_seconds || resultNode.durationSeconds || 0);
-        resultNode.mediaWidth = Number(metadata.width || resultNode.mediaWidth || 0);
-        resultNode.mediaHeight = Number(metadata.height || resultNode.mediaHeight || 0);
-        resultNode.fps = Number(metadata.fps || resultNode.fps || 24);
-        resultNode.fileSize = Number(metadata.video_size_bytes || resultNode.fileSize || 0);
-        fitVideoNodeToMedia(resultNode);
-      }
-      refreshVideoNode(resultNodeId);
-    }
-    refreshVideoInferenceNode(nodeId);
-    DesktopState.saveSettings();
-    return { output, resultNodeId, status };
-  }
-
-    function scheduleVideoTaskPoll(nodeId, taskId, delay = 2000) {
-    stopVideoTaskPolling(nodeId);
-    videoTaskPollTimers.set(nodeId, window.setTimeout(() => {
-      pollVideoTask(nodeId, taskId).catch(() => {});
-    }, delay));
-  }
-
-    async function pollVideoTask(nodeId, taskId) {
-    if (!nodeId || !taskId || !DesktopState.state.canvas.nodes[nodeId]) return null;
-    try {
-      const task = await window.DesktopApi.getStatus(taskId);
-      const applied = applyVideoTaskState(nodeId, task);
-      if (DesktopState.isInFlight?.(applied.status)) {
-        scheduleVideoTaskPoll(nodeId, taskId, applied.status === 'queued' ? 2500 : 1800);
-      } else {
-        stopVideoTaskPolling(nodeId);
-        if (['succeeded', 'succeeded_no_telegram'].includes(applied.status)) {
-          DesktopResults.showTransientMessage('MiniMax H3 视频已生成并归档。', 'success');
-          window.DesktopHistory?.loadHistory?.().catch(() => {});
-        } else if (applied.status === 'failed') {
-          DesktopResults.showTransientMessage(task.display_error || task.error || 'H3 视频生成失败', 'error');
-        }
-      }
-      return task;
-    } catch (error) {
-      const output = videoTaskOutputState(nodeId);
-      if (DesktopState.isInFlight?.(output.status)) {
-        output.progressText = '任务状态同步失败，正在重试...';
-        refreshVideoInferenceNode(nodeId);
-        scheduleVideoTaskPoll(nodeId, taskId, 5000);
-      }
-      throw error;
-    }
-  }
-
-    async function cancelVideoInferenceTask(nodeId) {
-    const output = videoTaskOutputState(nodeId);
-    const taskId = String(output.taskId || '').trim();
-    if (!taskId || !DesktopState.isInFlight?.(output.status)) return null;
-    output.progressText = '正在取消 H3 视频任务...';
-    refreshVideoInferenceNode(nodeId);
-    const outputs = DesktopState.state.outputs;
-    const task = await window.DesktopApi.cancelTask(taskId);
-    if (DesktopState.state.outputs !== outputs || outputs[nodeId] !== output || output.taskId !== taskId) return task;
-    stopVideoTaskPolling(nodeId);
-    applyVideoTaskState(nodeId, { ...task, status: task.status || 'canceled', task_id: taskId });
-    DesktopResults.showTransientMessage('H3 视频任务已取消。', 'warning');
-    return task;
-  }
-
-    async function runVideoInferenceNode(nodeId) {
-    const currentOutput = videoTaskOutputState(nodeId);
-    if (DesktopState.isInFlight?.(currentOutput.status)) {
-      return cancelVideoInferenceTask(nodeId);
-    }
-    const config = readVideoInferenceNodeConfig(nodeId);
-    if (!window.DesktopApi?.getVideoRuntimeStatus) throw new Error('视频 Runtime API 尚未加载');
-    const status = await window.DesktopApi.getVideoRuntimeStatus(true);
-    videoConfigApi()?.setRuntimeStatus?.(status);
-    Object.values(DesktopState.state.canvas.nodes || {})
-      .filter(node => node.type === 'video_inference')
-      .forEach(node => refreshVideoInferenceNode(node.id));
-    if (!status?.online) {
-      throw new Error(status?.message || status?.error || 'H3 Runtime 离线，请在设置中心配置本机或局域网服务');
-    }
-    const resultNodeId = ensureVideoResultForInference(nodeId);
-    const output = videoTaskOutputState(nodeId);
-    output.taskId = '';
-    output.status = 'queued';
-    output.stage = 'submitting';
-    output.progressText = '正在上传首帧并提交 H3 任务...';
-    output.progress = 1;
-    output.error = '';
-    output.startedAt = Date.now();
-    output.finishedAt = 0;
-    output.params = { ...(config.params || {}) };
-    const resultNode = DesktopState.state.canvas.nodes[resultNodeId];
-    if (resultNode) {
-      resultNode.status = 'queued';
-      resultNode.progress = 1;
-      resultNode.progressText = output.progressText;
-      resultNode.error = '';
-    }
-    refreshVideoInferenceNode(nodeId);
-    refreshVideoNode(resultNodeId);
-    DesktopState.saveSettings();
-    try {
-      const response = await window.DesktopApi.submitVideoTask(config);
-      const taskId = String(response?.task_id || '').trim();
-      if (!taskId) throw new Error('后端没有返回 H3 task_id');
-      output.taskId = taskId;
-      output.status = response.status || 'queued';
-      output.progressText = response.message || 'H3 视频任务已提交';
-      if (resultNode) resultNode.sourceTaskId = taskId;
-      applyVideoTaskState(nodeId, { ...response, task_id: taskId }, resultNodeId);
-      scheduleVideoTaskPoll(nodeId, taskId, 900);
-      DesktopResults.showTransientMessage('MiniMax H3 视频任务已提交，节点会持续显示进度。', 'success');
-      return response;
-    } catch (error) {
-      applyVideoTaskState(nodeId, {
-        status: 'failed',
-        stage: 'submit_failed',
-        progress: 100,
-        progress_text: error?.message || 'H3 视频任务提交失败',
-        error: error?.message || String(error || '')
-      }, resultNodeId);
-      throw error;
-    }
-  }
-
-    function restoreVideoTaskPolling() {
-    Object.values(DesktopState.state.canvas.nodes || {})
-      .filter(node => node?.type === 'video_inference')
-      .forEach(node => {
-        const output = videoTaskOutputState(node.id);
-        const taskId = String(output.taskId || '').trim();
-        if (taskId && DesktopState.isInFlight?.(output.status)) {
-          scheduleVideoTaskPoll(node.id, taskId, 250);
-        }
-      });
-  }
-
-    async function loadVideoRuntimeContext() {
-    if (!window.DesktopApi) return null;
-    const [capabilities, status] = await Promise.all([
-      window.DesktopApi.getVideoRuntimeCapabilities?.().catch(() => null),
-      window.DesktopApi.getVideoRuntimeStatus?.(true).catch(() => null)
-    ]);
-    if (capabilities) videoConfigApi()?.setCapabilities?.(capabilities);
-    if (status) videoConfigApi()?.setRuntimeStatus?.(status);
-    Object.values(DesktopState.state.canvas.nodes || {})
-      .filter(node => node.type === 'video_inference')
-      .forEach(node => {
-        normalizeVideoInferenceNodeState(node);
-        refreshVideoInferenceNode(node.id);
-      });
-    DesktopState.saveSettings();
-    return { capabilities, status };
-  }
 
     async function runTextNodeGptPolish(node, nodeState, triggerButton) {
     const originalDocument = clonePromptDocument(ensureTextNodePromptDocument(nodeState), nodeState.text || '');
@@ -577,18 +331,6 @@
   }
 
     return Object.freeze({
-      ensureVideoResultForInference,
-      videoTaskOutputState,
-      connectedVideoResultNodeId,
-      isVideoTaskTerminal,
-      stopVideoTaskPolling,
-      applyVideoTaskState,
-      scheduleVideoTaskPoll,
-      pollVideoTask,
-      cancelVideoInferenceTask,
-      runVideoInferenceNode,
-      restoreVideoTaskPolling,
-      loadVideoRuntimeContext,
       runTextNodeGptPolish,
       pruneExtraEmptyOutputImages,
       assignImageOutputSlots,

@@ -41,7 +41,7 @@ function outputFixture(){
  let state={canvas:{nodes:{a:{type:'input'},b:{type:'input'}}},outputs:{a:{taskId:'same',status:'processing'},b:{taskId:'same',status:'processing'}}};
  const adapter=ctx.window.DesktopTaskOutputAdapter.create({getState:()=>state,isInFlight:s=>s==='processing',
  api:()=>({cancelTask:async()=>{calls++;return gate.promise;},controlBatch:async()=>gate.promise}),
- applyTask:(...args)=>applied.push(args),applyBatch:(...args)=>applied.push(args),stopTaskPolling:id=>stopped.push(id),stopBatchPolling:id=>stopped.push(id),cancelVideo:async()=>applied.push('video')});
+ applyTask:(...args)=>applied.push(args),applyBatch:(...args)=>applied.push(args),stopTaskPolling:id=>stopped.push(id),stopBatchPolling:id=>stopped.push(id)});
  return {adapter,gate,applied,stopped,get calls(){return calls;},get state(){return state;},replace(){state={canvas:{nodes:{}},outputs:{}};}};
 }
 test('shared legacy task cancels once and applies receipt to each live result',async()=>{
@@ -57,9 +57,10 @@ test('failed cancellation leaves pollers intact and task retryable',async()=>{
  const h=outputFixture(),p=h.adapter.listCancelable()[0].cancel();h.gate.reject(Error('network'));await assert.rejects(p,/network/);
  assert.equal(h.stopped.length,0);assert.equal(h.adapter.listCancelable().length,1);
 });
-test('H3 cancellation dispatches to owning controller; completed jobs excluded',async()=>{
- const h=outputFixture();h.state.canvas.nodes.a.type='video_inference';h.state.outputs.b.status='succeeded';
- await h.adapter.listCancelable()[0].cancel();assert.deepEqual(h.applied,['video']);assert.equal(h.calls,0);
+test('completed jobs are excluded from a shared cancellation',async()=>{
+ const h=outputFixture();h.state.outputs.b.status='succeeded';
+ const cancelling=h.adapter.listCancelable()[0].cancel();h.gate.resolve({status:'cancelled'});await cancelling;
+ assert.equal(h.calls,1);assert.equal(h.applied.length,1);
 });
 test('legacy selected output uses the input result alias and ignores a replaced selection',async()=>{
  for(const replace of [false,true]){
@@ -94,7 +95,7 @@ test('legacy generation adapters preserve endpoints and original receipts',async
  const ctx=base({api:{json:async(...args)=>{calls.push(args);return raw;}}});load(ctx,['desktop-api']);const api=ctx.window.DesktopApi;
  assert.equal(await api.getStatus('fixture'),raw);assert.equal(calls.at(-1)[0],'/api/status/fixture');
  assert.equal(await api.cancelTask('fixture'),raw);assert.equal(calls.at(-1)[0],'/api/tasks/fixture/cancel');
- const receipt=await api.tasks.video.result(raw);assert.equal(receipt.status,'succeeded');assert.equal(receipt.artifacts[0].kind,'video');assert.equal(calls.length,2);
+ const receipt=await api.tasks.generation.result(raw);assert.equal(receipt.status,'succeeded');assert.equal(receipt.artifacts[0].kind,'video');assert.equal(calls.length,2);
 });
 test('status UI is domain-agnostic and task scripts load before consumers',()=>{
  const source=fs.readFileSync(path.join(root,'desktop-results.js'),'utf8');

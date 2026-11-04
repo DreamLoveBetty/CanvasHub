@@ -123,7 +123,6 @@ body.desk-app .desk-pose-editor__footer button.is-export {
   color:var(--desk-action-primary-ink);box-shadow:inset 0 1px 0 var(--desk-action-primary-highlight),0 1px 3px var(--desk-action-primary-shadow);
 }
 body.desk-app .desk-pose-editor__footer button:disabled {opacity:.46;cursor:not-allowed;}
-body.desk-app > .desk-select-menu[data-select-variant="pose-editor"] {border-radius:var(--desk-radius-popover);}
-body.desk-app[data-theme] > .desk-select-menu[data-select-variant="pose-editor"] .desk-select-option {min-height:24px;padding:0 8px;border-radius:var(--desk-radius-control);font-size:var(--desk-font-size-caption);line-height:24px;font-weight:400;}
+body.desk-app[data-theme] > .desk-select-menu[data-select-variant="pose-editor"] .desk-select-option {font-weight:400;}
 body.desk-app[data-theme] > .desk-select-menu[data-select-variant="pose-editor"] .desk-select-option.is-selected:not(:disabled) {background:var(--desk-color-accent-soft);color:var(--desk-color-accent);font-weight:600;}
 @media (prefers-reduced-motion:reduce) {body.desk-app .desk-pose-editor__row-tools {transition:none;}}

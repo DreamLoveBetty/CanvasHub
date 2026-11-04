@@ -1,7 +1,7 @@
 // Adapter for existing image/Comfy/upscale/batch outputs. Receipts and pollers stay owned
 // by their controllers. Capture identity before awaiting; never write into a new workflow.
 (function () {
-  function create({ defaultResultNodeId = 'input', getState, isInFlight, api, applyTask, applyBatch, stopTaskPolling, stopBatchPolling, cancelVideo }) {
+  function create({ defaultResultNodeId = 'input', getState, isInFlight, api, applyTask, applyBatch, stopTaskPolling, stopBatchPolling }) {
     function listCancelable() {
       const state = getState(), outputs = state.outputs || {}, nodes = state.canvas?.nodes || {};
       const entries = [], groups = new Map();
@@ -25,8 +25,6 @@
         };
         entries.push({key, cancel: async () => {
           const active = targets.filter(current); if (!active.length) return;
-          const video = kind === 'task' && active.find(t => t.node?.type === 'video_inference');
-          if (video) return cancelVideo(video.nodeId);
           const receipt = kind === 'batch' ? await api().controlBatch(id, 'cancel') : await api().cancelTask(id);
           for (const target of targets.filter(current)) {
             if (kind === 'batch') { applyBatch(receipt, target.nodeId); stopBatchPolling(target.nodeId); }

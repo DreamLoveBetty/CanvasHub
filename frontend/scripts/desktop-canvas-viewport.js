@@ -5,7 +5,7 @@
   function create({
     getCanvas, els, clamp, getSelectedNodeIds, getNodeBounds, getNodeBoundsById,
     getBoundsFromRects, updateSelectionToolbar, positionEdgeMenu,
-    updateInputProgressOverlay, focusCanvasViewport, saveSettings,
+    updateInputProgressOverlay, focusCanvasViewport, saveSettings, isSelectToolActive,
     constants: {
       WORLD_WIDTH, WORLD_HEIGHT, MIN_SCALE, MAX_SCALE, ZOOM_PRESETS,
       DEFAULT_CANVAS_SCALE, CANVAS_WHEEL_GESTURE_END_MS,
@@ -45,6 +45,17 @@
       event.preventDefault();
       event.stopImmediatePropagation();
       return true;
+    }
+
+    // A primary empty-canvas drag pans; macOS three-finger drag arrives as the same
+    // primary drag, so Shift is the only way to ask for a marquee instead.
+    function isMarqueeDrag(event) {
+      return event.button === 0 && event.shiftKey && !event.altKey && !event.metaKey && !event.ctrlKey
+        && isSelectToolActive();
+    }
+
+    function syncMarqueeCursor(event) {
+      els.deskCanvasViewport?.classList.toggle('is-marquee-armed', !!event?.shiftKey && isSelectToolActive());
     }
 
     function applyCanvasTransform(options = {}) {
@@ -192,9 +203,7 @@
             ? 'is-output'
             : (node.type === 'video'
               ? 'is-video'
-              : (node.type === 'video_inference'
-                ? 'is-video-inference'
-                : ((node.type === 'image' || node.type === 'image_group') ? 'is-image' : (node.type === 'pose' ? 'is-pose' : (node.type === 'text' ? 'is-text' : 'is-input'))))));
+              : ((node.type === 'image' || node.type === 'image_group') ? 'is-image' : (node.type === 'pose' ? 'is-pose' : (node.type === 'text' ? 'is-text' : 'is-input')))));
         return `<span class="desk-minimap__node ${typeClass}" style="left:${rect.left}px;top:${rect.top}px;width:${rect.width}px;height:${rect.height}px"></span>`;
       }).join('');
 
@@ -523,6 +532,8 @@
       resetPanClickGuard,
       suppressClickAfterPan,
       handlePostPanClick,
+      isMarqueeDrag,
+      syncMarqueeCursor,
       applyCanvasTransform,
       scheduleCanvasPanTransform,
       flushCanvasPanTransform,

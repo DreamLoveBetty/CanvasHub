@@ -108,7 +108,12 @@ test('workbench geometry: the asset library place, light glass, two light column
     assert.ok(block.includes(declaration), declaration);
   assert.match(geometry, /\.desk-settings--workbench \{\n  -webkit-backdrop-filter: blur\(4px\) saturate\(1\.06\);\n  backdrop-filter: blur\(4px\) saturate\(1\.06\);/);
   assert.match(geometry, /@container desk-settings-content \(min-width: 760px\)/);
-  assert.match(geometry, /\.desk-settings__body:has\(> \.desk-settings-card \+ \.desk-settings-card\) \{\n    columns: 2;/);
+  assert.match(geometry, /\.desk-settings__body:has\(> \.desk-settings-card \+ \.desk-settings-card\) \{\n    display: grid;\n    grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);/);
+  // 限高滚动容器里用多栏会横向溢出；账号添加方式全部平铺，不再折叠。
+  assert.doesNotMatch(geometry, /\.desk-settings__body[^{]*\{[^}]*columns: 2;/);
+  for (const script of ['desktop-settings.js', 'desktop-google-pool.js', 'desktop-google-web.js'])
+    assert.doesNotMatch(read(`frontend/scripts/${script}`), /<details/, script);
+  assert.match(geometry, /\.desk-settings__body > \.desk-google-pool-tabs \{\n  grid-column: 1 \/ -1;\n  margin-bottom: 16px;/);
   const tokens = read('frontend/styles/desktop-tokens.css');
   for (const token of ['--desk-settings-panel-background: var(--desk-gallery-panel-background);', '--desk-settings-column-background: var(--desk-gallery-inspector-background);'])
     assert.equal(tokens.split(token).length - 1, 2, token);
@@ -134,7 +139,7 @@ test('searching before settings load says so, then re-runs once they arrive', ()
 test('English UI swaps nav glyphs for abbreviations; a lone grouped card takes the row', () => {
   const html = read('frontend/desktop.html');
   const glyphs = html.match(/<i class="desk-settings-tabs__glyph"[^>]*>/g);
-  assert.equal(glyphs.length, 13);
+  assert.equal(glyphs.length, 12);
   for (const glyph of glyphs) assert.match(glyph, /data-i18n-skip data-glyph-en="[\w]{2}"/);
   const geometry = read('frontend/styles/desktop-geometry.css');
   assert.match(geometry, /\[data-lang="en"\] \.desk-settings-tabs__glyph::after \{[^}]*content: attr\(data-glyph-en\);/);

@@ -37,7 +37,7 @@ test('unsaved settings edits come back after the body re-renders', () => {
   const timeout = field('data-gpt-provider-field', 'total_timeout_seconds', { value: '600' });
   const model = field('data-system-setting-field', 'gpt_provider.image_main_model', { value: 'a', tagName: 'SELECT', type: 'select-one' });
   const enabled = field('data-system-setting-field', 'chatgpt_pool.enabled', { type: 'checkbox', value: true });
-  const session = field('data-system-setting-field', 'video_inference.runtime_mode', { type: 'hidden', value: 'lan' });
+  const session = field('data-system-setting-field', 'comfy.mode', { type: 'hidden', value: 'lan' });
   type(drafts, url, 'http://new');
   type(drafts, timeout, '900');
   type(drafts, model, 'b');
@@ -79,7 +79,7 @@ test('the settings host tracks, restores after every render and forgets saved ca
   assert.match(settings, /els\.deskSettingsBody\.innerHTML = html;\n      els\.deskSettingsBody\.dataset\.settingsPage = activeTab;\n      settingsDrafts\.restore\(els\.deskSettingsBody\);/);
   assert.match(settings, /addEventListener\('input', event => \{\n      settingsDrafts\.track\(event\);/);
   assert.match(settings, /addEventListener\('change', event => \{\n      settingsDrafts\.track\(event\);/);
-  assert.equal(settings.match(/settingsDrafts\.forget\(card\);/g).length, 4);
+  assert.equal(settings.match(/settingsDrafts\.forget\(card\);/g).length, 3);
   assert.match(settings, /saveGptConfig\(collectGptProviderForm\(\)\);\n    settingsDrafts\.forget\(els\.deskSettingsBody, '\[data-gpt-provider-field\]'\);/);
   const html = read('frontend/desktop.html');
   const at = name => html.indexOf(`scripts/${name}?`);
@@ -117,7 +117,7 @@ test('settings status and help read correctly', () => {
   const settings = read('frontend/scripts/desktop-settings.js');
   assert.ok(settings.includes("renderKv('访问模式', server.public_mode ? '公网' : '本机'),"));
   assert.ok(!settings.includes("renderKv('公网模式'"));
-  assert.match(read('frontend/desktop.html'), /id="deskSettingsInfoBtn"[^>]*>\n\s*<span aria-hidden="true">\?<\/span>/);
+  assert.match(read('frontend/desktop.html'), /id="deskSettingsInfoBtn"[^>]*>\n\s*<svg viewBox="0 0 24 24" aria-hidden="true"><circle/);
 });
 
 test('assistant mode controls are at least 24px tall', () => {

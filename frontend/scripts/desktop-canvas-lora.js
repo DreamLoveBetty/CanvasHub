@@ -1,16 +1,17 @@
 // Canvas port adapter. Preserve structured prompt segments and existing undo/save semantics.
 (function () {
+  const ENGINES=Object.freeze({krea2:'Krea 2',qwen21:'Qwen 2.1',moss:'MOSS'});
   function create({getCanvas,getNodeState,getNodeElement,getTextNodes,materializeText,cloneDocument,
     setDocument,addNode,removeNode,connectNodes,getController,getSelectedIds}) {
     function listTargets() {
       const selected=new Set(getSelectedIds());
-      return Object.values(getCanvas().nodes||{}).filter(node=>['krea2','qwen21'].includes(node.type))
+      return Object.values(getCanvas().nodes||{}).filter(node=>ENGINES[node.type])
         .sort((a,b)=>Number(selected.has(b.id))-Number(selected.has(a.id)))
-        .map(node=>({id:node.id,engine:node.type,label:`${selected.has(node.id)?'当前选择 · ':''}${node.type==='krea2'?'Krea 2':'Qwen 2.1'} · ${node.id.slice(-6)}`}));
+        .map(node=>({id:node.id,engine:node.type,label:`${selected.has(node.id)?'当前选择 · ':''}${ENGINES[node.type]} · ${node.id.slice(-6)}`}));
     }
     function target(id) {
       const node=getNodeState(id);
-      if(!node||!['krea2','qwen21'].includes(node.type))throw new Error('目标节点已不存在或不兼容');
+      if(!node||!ENGINES[node?.type])throw new Error('目标节点已不存在或不兼容');
       return node;
     }
     function listTextTargets(id) {target(id);return (getTextNodes(id)||[]).map(node=>({id:node.id,label:node.alias||node.title||materializeText(node).slice(0,60)||`文本 ${node.id.slice(-6)}`}));}

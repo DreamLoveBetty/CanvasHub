@@ -1715,8 +1715,6 @@ class DesktopResultStatusUiTest(unittest.TestCase):
             "--desk-settings-summary-ok-background: var(--desk-status-success-soft-background);",
             "--desk-settings-summary-warn-background: var(--desk-status-warning-silk-background);",
             "--desk-settings-pool-error-background: var(--desk-status-error-soft-background);",
-            "--desk-video-online-background: var(--desk-status-success-silk-background);",
-            "--desk-video-offline-background: var(--desk-status-warning-silk-background);",
         ):
             self.assertEqual(tokens_css.count(alias), 2, alias)
 
@@ -2045,7 +2043,7 @@ class DesktopResultStatusUiTest(unittest.TestCase):
 
         self.assertIn("body.desk-app[data-theme] .desk-node--image-group", image_group_css)
         self.assertIn("body.desk-app[data-theme] .desk-image-group__thumb img", image_group_css)
-        self.assertIn("body.desk-app[data-theme] :is(.desk-image-group__role, .desk-image-group__insert)", image_group_css)
+        self.assertIn("body.desk-app[data-theme] :is(.desk-image-group__role, .desk-image-group__insert, .desk-image-group__delete)", image_group_css)
         self.assertIn("body.desk-app[data-theme] .desk-image-group-picker__goo", image_group_css)
         self.assertNotIn("desk-image-group__silhouette", image_group_css)
         self.assertIn("body.desk-app[data-theme] .desk-image-group__node-actions", image_group_css)
@@ -2286,8 +2284,6 @@ class DesktopResultStatusUiTest(unittest.TestCase):
             "body.desk-app[data-theme] .desk-file-node-heading__icon {",
             "body.desk-app[data-theme] .desk-file-preview-modal {",
             "body.desk-app[data-theme] .desk-file-preview-modal__layer-visibility {",
-            "body.desk-app[data-theme] .desk-video-node__icon {",
-            "body.desk-app[data-theme] .desk-video-runtime-mode button.is-active {",
             "body.desk-app[data-theme] .desk-video-result__preview {",
             "body.desk-app[data-theme] .desk-layout-editor {",
             "body.desk-app[data-theme] .desk-layout-stage {",
@@ -2301,8 +2297,8 @@ class DesktopResultStatusUiTest(unittest.TestCase):
         )
         declared_tokens = set(re.findall(r"(--desk-[\w-]+)\s*:", tokens_css))
         self.assertFalse(referenced_tokens - declared_tokens, sorted(referenced_tokens - declared_tokens))
-        # The old pose studio's 63 tokens left with it; only the minimap token remains here.
-        self.assertGreaterEqual(len(referenced_tokens), 240)
+        # The old pose studio's 63 tokens and the H3 node's 36 left with them; only the minimap token remains here.
+        self.assertGreaterEqual(len(referenced_tokens), 200)
         for token in sorted(referenced_tokens):
             self.assertTrue(
                 token.startswith(("--desk-file-", "--desk-video-", "--desk-pose-", "--desk-layout-")),

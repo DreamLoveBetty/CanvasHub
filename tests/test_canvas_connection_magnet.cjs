@@ -97,7 +97,7 @@ function fixture({fromType = 'text', toType = 'input', scale = 1, secondTarget =
   const geometry=context.DesktopCanvasGeometry;
   const noop=()=>{};
   const args={
-    ...geometry, LINK_VIEWBOX:'0 0 1600 1000', NODE_MENU_ITEMS:['input','comfy','image','file_output','upscale','video_inference','video','text'].map(type=>({type})),
+    ...geometry, LINK_VIEWBOX:'0 0 1600 1000', NODE_MENU_ITEMS:['input','comfy','image','file_output','upscale','video','text'].map(type=>({type})),
     activeInteractionRef:{current:null},pendingConnectionDropPointRef:{current:null},
     contextMenuConnectionSourceAnchorRef:{current:null},contextMenuConnectionSourceIdRef:{current:''},
     contextMenuConnectionSourceSideRef:{current:'right'},contextMenuElRef:{current:menu},
@@ -244,9 +244,9 @@ test('self, missing and unknown source types are rejected',()=>{
   for(const type of ['unknown','toString','constructor']){h.canvas.nodes.from.type=type;assert.equal(h.api.canConnectNodes('from','to'),false);assert.equal(h.api.getConnectableNodeMenuItems('from').length,0);}
 });
 const contracts={
-  input:['image','file_output','upscale','output'],comfy:['image','upscale'],video_inference:['video'],video:['video_inference','pose'],
-  image_group:['input','comfy'],output:['image'],image:['input','comfy','video_inference','layout','pose','upscale'],
-  upscale:['image'],layout:['input','comfy','video_inference','upscale'],pose:['input','comfy','video_inference','upscale','video'],text:['input','comfy','video_inference'],file_output:[]
+  input:['image','file_output','upscale','output'],comfy:['image','upscale'],video:['pose'],
+  image_group:['input','comfy'],output:['image'],image:['input','comfy','layout','pose','upscale'],
+  upscale:['image'],layout:['input','comfy','upscale'],pose:['input','comfy','upscale','video'],text:['input','comfy'],file_output:[]
 };
 test('all source/target type pairs share one policy with highlight and magnetic capture',()=>{
   for(const [fromType,targets] of Object.entries(contracts)) for(const toType of Object.keys(contracts)) {
@@ -256,11 +256,10 @@ test('all source/target type pairs share one policy with highlight and magnetic 
     assert.equal(Boolean(h.api.findConnectionSnapTarget('from',p.x,p.y)),valid);
   }
 });
-test('video prompt role still replaces only the same role on commit',()=>{
-  const h=fixture({fromType:'text',toType:'video_inference'});h.canvas.edges=[{id:'old',from:'from',to:'to',inputRole:'prompt'},{id:'frame',from:'source-image',to:'to',inputRole:'first_frame'}];
-  h.begin();const p=h.near(8);h.api.finishConnectionDrag({type:'pointerup',clientX:p.x,clientY:p.y});
-  assert.equal(h.canvas.edges.length,2);assert.equal(h.canvas.edges.filter(e=>e.inputRole==='prompt').length,1);
-  assert.ok(h.canvas.edges.some(e=>e.id==='frame'));
+test('the retired H3 node type neither sends nor receives connections',()=>{
+  for(const [fromType,toType] of [['video_inference','video'],['text','video_inference'],['image','video_inference'],['video','video_inference']]){
+    const h=fixture({fromType,toType});assert.equal(h.api.canConnectNodes('from','to'),false,`${fromType} -> ${toType}`);
+  }
 });
 
 

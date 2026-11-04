@@ -1440,12 +1440,17 @@ body.desk-app[data-theme] .desk-settings__status {
 body.desk-app[data-theme] .desk-settings__body {
   display: block;
   padding: 14px 15px 20px;
+  /* Closed colour popovers still count as scrollable overflow; they align inward when open. */
+  overflow-x: hidden;
 }
 
-/* Ungrouped pages with several cards flow as two masonry columns once there is room. */
+/* Ungrouped pages with several cards sit in two columns once there is room. Multicol is out:
+   the body has a bounded height, so its columns would overflow sideways past the scrollport. */
 @container desk-settings-content (min-width: 760px) {
   body.desk-app[data-theme] .desk-settings__body:has(> .desk-settings-card + .desk-settings-card) {
-    columns: 2;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
     column-gap: 12px;
   }
 
@@ -1464,7 +1469,6 @@ body.desk-app[data-theme] .desk-settings__body {
 }
 
 body.desk-app[data-theme] .desk-settings__body > :not(.desk-settings-group) {
-  break-inside: avoid;
   margin-bottom: 12px;
 }
 
@@ -1631,6 +1635,12 @@ body.desk-app[data-theme] .desk-settings .desk-segment {
   margin-bottom: 0;
 }
 
+/* Provider switch: a full row on every provider, clear of the raised buttons' shadow. */
+body.desk-app[data-theme] .desk-settings__body > .desk-google-pool-tabs {
+  grid-column: 1 / -1;
+  margin-bottom: 16px;
+}
+
 /* Vertical category navigation, the prompt library's nav column: every category
    visible and grouped, each with a glyph and a state lamp. Scoped under .desk-settings
    to outrank the shared tabs/segment track rule above. */
@@ -1703,7 +1713,6 @@ body.desk-app[data-theme] .desk-settings :is(
   .desk-settings-form__actions button,
   .desk-settings-account__actions button,
   .desk-button,
-  .desk-video-runtime-mode button,
   .desk-krea2-tools__inspection > button,
   .desk-qwen21-tools__inspection > button,
   .desk-krea2-tools__progress > button,
@@ -1748,9 +1757,7 @@ body.desk-app[data-theme] .desk-settings-tabs button.is-active {
    the whole segment at the 24px scale, without clipping wrapped labels. */
 body.desk-app[data-theme] .desk-settings :is(
   .desk-segment,
-  .desk-settings-canvas-interaction__segment,
-  .desk-video-runtime-mode
-) {
+  .desk-settings-canvas-interaction__segment) {
   box-sizing: border-box;
   gap: var(--desk-space-1);
   padding: 0;
@@ -1794,7 +1801,7 @@ body.desk-app[data-theme] .desk-settings .desk-settings-form {
   gap: var(--desk-space-2) var(--desk-space-3);
 }
 
-/* Include fields in nested runtime/supervisor sections, not just direct form
+/* Include fields in nested sections, not just direct form
    children. Textareas and file pickers keep their full-width stacked layout. */
 body.desk-app[data-theme] .desk-settings .desk-settings-form :is(
   label:has(> input:not([type="file"]):not([type="hidden"]), > select, > .desk-select-shell, > .desk-stepper),
@@ -1804,37 +1811,6 @@ body.desk-app[data-theme] .desk-settings .desk-settings-form :is(
   align-items: center;
   column-gap: var(--desk-space-3);
   min-height: var(--desk-settings-control-height);
-}
-
-/* A separate trailing command keeps clear actions out of narrow label columns.
-   The existing DOM, keyboard order and secret-clear confirmation are intact. */
-body.desk-app[data-theme] .desk-settings .desk-settings-secret-field:has(> input) {
-  position: relative;
-  padding-inline-end: 0;
-}
-
-body.desk-app[data-theme] .desk-settings .desk-settings-secret-field:has(> input):has(.desk-settings-secret-clear) {
-  padding-inline-end: 42px;
-}
-
-body.desk-app[data-theme] .desk-settings .desk-settings-secret-field:has(> input) .desk-settings-secret-clear {
-  position: absolute;
-  inset-block: 0;
-  inset-inline-end: 0;
-  width: 36px;
-  height: var(--desk-settings-control-height);
-  margin-block: auto;
-}
-
-/* Async feedback text is longer than “清除”; reserve its space as well. */
-body.desk-app[data-theme] .desk-settings .desk-settings-secret-field:has(> input):has(
-  .desk-settings-secret-clear:is(.is-loading, .is-done)
-) {
-  padding-inline-end: 70px;
-}
-
-body.desk-app[data-theme] .desk-settings .desk-settings-secret-field:has(> input) .desk-settings-secret-clear:is(.is-loading, .is-done) {
-  width: 64px;
 }
 
 /* Colour rows (petal picker): label | swatch + HEX (+ preset select or reset) on one
@@ -1889,12 +1865,7 @@ body.desk-app[data-theme] .desk-settings .desk-settings-color-field .desk-color-
   height: calc(var(--desk-settings-control-height) - 10px);
 }
 
-body.desk-app[data-theme] .desk-settings-secret-field__label {
-  gap: 4px;
-  flex-wrap: wrap;
-}
-
-body.desk-app[data-theme] .desk-settings .desk-settings-form :is(label > span, .desk-settings-secret-field__label > span) {
+body.desk-app[data-theme] .desk-settings .desk-settings-form :is(label > span, .desk-settings-secret-field > span) {
   font-weight: 500;
   white-space: normal;
   overflow-wrap: anywhere;
@@ -2072,38 +2043,9 @@ body.desk-app[data-theme] .desk-settings .desk-settings-canvas-interaction__segm
   width: 112px;
 }
 
-body.desk-app[data-theme] .desk-settings :is(.desk-video-runtime-panel, .desk-video-supervisor) {
-  gap: var(--desk-space-2);
-  padding: var(--desk-space-3) 0 0;
-  border-width: 1px 0 0;
-  border-style: solid;
-  border-radius: 0;
-}
-
 body.desk-app[data-theme] .desk-settings .desk-settings-form__section-title {
   gap: var(--desk-space-1);
   padding-top: 0;
-}
-
-body.desk-app[data-theme] .desk-settings :is(.desk-video-runtime-status, .desk-video-supervisor-status) {
-  gap: var(--desk-space-3);
-  padding: var(--desk-space-2) var(--desk-space-3);
-  border-width: 0;
-  border-radius: var(--desk-radius-control);
-}
-
-body.desk-app[data-theme] .desk-settings .desk-video-supervisor-status {
-  grid-template-columns: 6px minmax(0, 1fr) auto;
-}
-
-body.desk-app[data-theme] .desk-settings .desk-video-supervisor-status__actions {
-  grid-column: 3;
-  grid-row: 1;
-}
-
-body.desk-app[data-theme] .desk-settings :is(.desk-video-runtime-status > span, .desk-video-supervisor-status__dot) {
-  width: 6px;
-  height: 6px;
 }
 
 body.desk-app[data-theme] .desk-settings .desk-settings__body strong {
@@ -2164,17 +2106,14 @@ body.desk-app[data-theme] .desk-settings :is(.desk-krea2-tools__inspection, .des
   border-width: 0;
 }
 
-body.desk-app[data-theme] .desk-settings .desk-settings-details {
-  border-width: 1px 0 0;
-  border-radius: 0;
-}
-
-body.desk-app[data-theme] .desk-settings .desk-settings-details + .desk-settings-details {
-  margin-top: var(--desk-space-1);
-}
-
 body.desk-app[data-theme] .desk-settings .desk-settings-form--compact {
   padding: var(--desk-space-1) 0 var(--desk-space-3);
+}
+
+body.desk-app[data-theme] .desk-settings .desk-settings-form--compact + .desk-settings-form--compact {
+  padding-top: var(--desk-space-3);
+  border-top-width: 1px;
+  border-top-style: solid;
 }
 
 body.desk-app[data-theme] .desk-settings .desk-settings-pool-toolbar {
@@ -2241,17 +2180,7 @@ body.desk-app[data-theme] .desk-settings-info-tip__section li {
 }
 
 @media (max-width: 560px) {
-  body.desk-app[data-theme] .desk-settings .desk-video-supervisor-status {
-    grid-template-columns: 6px minmax(0, 1fr);
-  }
-
-  body.desk-app[data-theme] .desk-settings .desk-video-supervisor-status__actions {
-    grid-column: 2;
-    grid-row: auto;
-    flex-wrap: wrap;
-  }
-
-  body.desk-app[data-theme] .desk-settings-account {
+      body.desk-app[data-theme] .desk-settings-account {
     grid-template-columns: minmax(0, 1fr);
   }
 
@@ -2275,16 +2204,6 @@ body.desk-app[data-theme] .desk-settings-pool-summary span {
   padding: 1px 6px;
   font-size: 10px;
   font-weight: var(--desk-font-weight-medium);
-}
-
-body.desk-app[data-theme] .desk-settings-details summary {
-  min-height: var(--desk-settings-control-height);
-  gap: 6px;
-  padding: var(--desk-space-1) 0;
-}
-
-body.desk-app[data-theme] .desk-settings-details summary em {
-  font-size: 10px;
 }
 
 body.desk-app[data-theme] .desk-settings-account__error {

@@ -203,12 +203,40 @@
   grid-column: 1 / -1;
 }
 
-:where(body.desk-app[data-theme]) .desk-settings-secret-field__label {
+:where(body.desk-app[data-theme]) .desk-settings :is(input, textarea)[data-secret-masked]::placeholder {
+  opacity: 1;
+  letter-spacing: 0.08em;
+}
+
+:where(body.desk-app[data-theme]) .desk-settings-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 4px;
+  min-width: 0;
+  margin-left: auto;
+}
+
+:where(body.desk-app[data-theme]) .desk-settings-switch-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 8px;
   min-width: 0;
+}
+
+:where(body.desk-app[data-theme]) .desk-settings-switch-row > label {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+:where(body.desk-app[data-theme]) .desk-settings-form__section-title:has(> .desk-settings-secret-clear) {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+:where(body.desk-app[data-theme]) .desk-settings-form__section-title > .desk-settings-secret-clear {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: center;
 }
 
 :where(body.desk-app[data-theme]) .desk-settings-secret-clear {
@@ -350,26 +378,6 @@
 
 :where(body.desk-app[data-theme]) .desk-settings-pool-activity[hidden] {
   display: none;
-}
-
-:where(body.desk-app[data-theme]) .desk-settings-details {
-  grid-column: 1 / -1;
-  overflow: hidden;
-  min-width: 0;
-  border: 1px solid rgba(255, 255, 255, 0.54);
-  border-radius: 8px;
-}
-
-:where(body.desk-app[data-theme]) .desk-settings-details + .desk-settings-details {
-  margin-top: 8px;
-}
-
-:where(body.desk-app[data-theme]) .desk-settings-details[open] summary::after {
-  transform: rotate(-90deg);
-}
-
-:where(body.desk-app[data-theme]) .desk-settings-form--compact {
-  padding: 0 8px 8px;
 }
 
 :where(body.desk-app[data-theme]) .desk-settings-form--compact .desk-settings-textarea {

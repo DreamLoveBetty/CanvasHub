@@ -295,9 +295,9 @@ body.desk-app .desk-topaz-video-workbench__filter-stack {
   margin:0 -14px;
 }
 body.desk-app .desk-topaz-video-workbench__panel :disabled {cursor:not-allowed;}
-body.desk-app > .desk-select-menu[data-select-variant="topaz-video-workbench"] {z-index:2602;padding:4px;gap:2px;border-radius:var(--desk-radius-popover);}
+body.desk-app > .desk-select-menu[data-select-variant="topaz-video-workbench"] {z-index:2602;}
 body.desk-app[data-theme] > .desk-select-menu[data-select-variant="topaz-video-workbench"] .desk-select-option {
-  min-height:24px;padding:0 8px;border-radius:var(--desk-radius-control);font-size:var(--desk-font-size-caption);line-height:24px;font-weight:400;
+  font-weight:400;
 }
 body.desk-app[data-theme] > .desk-select-menu[data-select-variant="topaz-video-workbench"] .desk-select-option.is-selected:not(:disabled) {
   background:var(--desk-color-accent-soft);color:var(--desk-color-accent);font-weight:600;

@@ -723,9 +723,7 @@ body.desk-app[data-theme] :where(
   .desk-settings-textarea,
   .desk-prompt-field input,
   .desk-prompt-field select,
-  .desk-prompt-field textarea,
-  .desk-video-node__advanced .desk-input
-) {
+  .desk-prompt-field textarea) {
   transition: var(--desk-motion-field-transition);
 }
 
@@ -739,9 +737,7 @@ body.desk-app[data-theme] :where(
   .desk-settings-textarea,
   .desk-prompt-field input,
   .desk-prompt-field select,
-  .desk-prompt-field textarea,
-  .desk-video-node__advanced .desk-input
-):focus {
+  .desk-prompt-field textarea):focus {
   border-color: var(--desk-color-focus-border);
   box-shadow: var(--desk-shadow-focus);
   outline: none;
@@ -814,9 +810,7 @@ body.desk-app[data-theme] :where(
   .desk-prompt-source-taxonomy button,
   .desk-prompt-mode-switch button,
   .desk-prompt-library__tabs button,
-  .desk-agent-provider button,
-  .desk-video-runtime-mode button
-) {
+  .desk-agent-provider button) {
   transition: var(--desk-motion-control-transition);
 }
 
@@ -832,9 +826,7 @@ body.desk-app[data-theme] :where(
   .desk-prompt-source-taxonomy button,
   .desk-prompt-mode-switch button,
   .desk-prompt-library__tabs button,
-  .desk-agent-provider button,
-  .desk-video-runtime-mode button
-):active:not(:disabled) {
+  .desk-agent-provider button):active:not(:disabled) {
   transform: translateY(var(--desk-motion-distance-xs));
 }
 
@@ -850,9 +842,7 @@ body.desk-app[data-theme] :where(
   .desk-prompt-source-taxonomy button,
   .desk-prompt-mode-switch button,
   .desk-prompt-library__tabs button,
-  .desk-agent-provider button,
-  .desk-video-runtime-mode button
-):disabled {
+  .desk-agent-provider button):disabled {
   color: var(--desk-color-text-disabled);
   opacity: 1;
 }
@@ -880,8 +870,7 @@ body.desk-app[data-theme] .desk-segment button:hover:not(.is-active):not(:disabl
 body.desk-app[data-theme] .desk-settings-canvas-interaction__segment button:hover:not(.is-active):not(:disabled),
 body.desk-app[data-theme] .desk-prompt-source-actions button:hover:not(:disabled),
 body.desk-app[data-theme] .desk-prompt-source-tabs button:hover:not(.is-active):not(:disabled),
-body.desk-app[data-theme] .desk-prompt-source-taxonomy button:hover:not(.is-active):not(:disabled),
-body.desk-app[data-theme] .desk-video-runtime-mode button:hover:not(.is-active):not(:disabled) {
+body.desk-app[data-theme] .desk-prompt-source-taxonomy button:hover:not(.is-active):not(:disabled) {
   color: var(--desk-color-accent);
   background: var(--desk-color-accent-soft);
   border-color: var(--desk-color-control-border-hover);
@@ -895,8 +884,7 @@ body.desk-app[data-theme] .desk-gallery-facets__options button.is-active:not(:di
 body.desk-app[data-theme] .desk-segment button.is-active:not(:disabled),
 body.desk-app[data-theme] .desk-settings-canvas-interaction__segment button.is-active:not(:disabled),
 body.desk-app[data-theme] .desk-prompt-source-tabs button.is-active:not(:disabled),
-body.desk-app[data-theme] .desk-prompt-source-taxonomy button.is-active:not(:disabled),
-body.desk-app[data-theme] .desk-video-runtime-mode button.is-active:not(:disabled) {
+body.desk-app[data-theme] .desk-prompt-source-taxonomy button.is-active:not(:disabled) {
   color: var(--desk-action-primary-ink);
   background: var(--desk-action-primary-gloss);
   background-position: var(--desk-action-primary-silk-position);
@@ -919,8 +907,7 @@ body.desk-app[data-theme] .desk-gallery-facets__options button.is-active:hover:n
 body.desk-app[data-theme] .desk-segment button.is-active:hover:not(:disabled),
 body.desk-app[data-theme] .desk-settings-canvas-interaction__segment button.is-active:hover:not(:disabled),
 body.desk-app[data-theme] .desk-prompt-source-tabs button.is-active:hover:not(:disabled),
-body.desk-app[data-theme] .desk-prompt-source-taxonomy button.is-active:hover:not(:disabled),
-body.desk-app[data-theme] .desk-video-runtime-mode button.is-active:hover:not(:disabled) {
+body.desk-app[data-theme] .desk-prompt-source-taxonomy button.is-active:hover:not(:disabled) {
   color: var(--desk-action-primary-ink);
   background-image: var(--desk-action-primary-gloss-hover);
   background-position: var(--desk-action-primary-silk-position-hover);
@@ -938,9 +925,7 @@ body.desk-app[data-theme] :is(
   .desk-segment,
   .desk-settings-canvas-interaction__segment,
   .desk-prompt-source-tabs,
-  .desk-prompt-source-taxonomy,
-  .desk-video-runtime-mode
-) button.is-active:disabled {
+  .desk-prompt-source-taxonomy) button.is-active:disabled {
   color: var(--desk-action-primary-disabled-ink);
   background: var(--desk-action-primary-gradient-disabled);
   background-position: 0 0;
@@ -1039,7 +1024,7 @@ body.desk-app[data-theme] .desk-pinterest-split-modal__footer button.is-primary:
    button (图像输入, Qwen, Krea, 绘栾, Topaz Gigapixel, 音乐, ReShot, Topaz Video); its box
    lives in desktop-canvas-nodes-geometry.css. Controllers own state only: `disabled` while
    unavailable and `aria-busy="true"` while a job runs; a busy button keeps the primary
-   finish even when disabled. Comfy / upscale / video-inference runs are a separate compact
+   finish even when disabled. Comfy / upscale runs are a separate compact
    variant (.desk-button--generate) and do not use this class. */
 body.desk-app[data-theme] .desk-node .desk-generation-action {
   transition:var(--desk-motion-control-transition),var(--desk-motion-material-transition);
@@ -1203,15 +1188,13 @@ body.desk-app[data-theme] .desk-settings .desk-settings__body button:is(
 /* Category/mode selection is context, not a primary command. All four Settings
    segment families use a soft accent instead of a glossy raised action skin. */
 body.desk-app[data-theme] .desk-settings :is(
-  .desk-segment, .desk-settings-canvas-interaction__segment, .desk-video-runtime-mode
-) {
+  .desk-segment, .desk-settings-canvas-interaction__segment) {
   background: var(--desk-settings-segment-background);
   box-shadow: inset 0 0 0 1px var(--desk-settings-segment-border);
 }
 
 body.desk-app[data-theme] .desk-settings :is(
-  .desk-settings-tabs, .desk-segment, .desk-settings-canvas-interaction__segment, .desk-video-runtime-mode
-) button:not(.is-active):not(.desk-settings-tabs__toggle):not(:disabled) {
+  .desk-settings-tabs, .desk-segment, .desk-settings-canvas-interaction__segment) button:not(.is-active):not(.desk-settings-tabs__toggle):not(:disabled) {
   color: var(--desk-settings-muted-ink);
   background: transparent;
   border-color: transparent;
@@ -1220,15 +1203,13 @@ body.desk-app[data-theme] .desk-settings :is(
 }
 
 body.desk-app[data-theme] .desk-settings :is(
-  .desk-segment, .desk-settings-canvas-interaction__segment, .desk-video-runtime-mode
-) button:hover:not(.is-active):not(:disabled) {
+  .desk-segment, .desk-settings-canvas-interaction__segment) button:hover:not(.is-active):not(:disabled) {
   color: var(--desk-settings-accent-ink);
   background: var(--desk-color-accent-soft);
 }
 
 body.desk-app[data-theme] .desk-settings :is(
-  .desk-segment, .desk-settings-canvas-interaction__segment, .desk-video-runtime-mode
-) button.is-active:not(:disabled) {
+  .desk-segment, .desk-settings-canvas-interaction__segment) button.is-active:not(:disabled) {
   color: var(--desk-settings-accent-ink);
   background: var(--desk-color-accent-soft);
   border-color: transparent;
@@ -1253,19 +1234,16 @@ body.desk-app[data-theme] .desk-settings .desk-settings-tabs button.is-active:no
 }
 
 body.desk-app[data-theme] .desk-settings :is(
-  .desk-segment, .desk-settings-canvas-interaction__segment, .desk-video-runtime-mode
-) button.is-active:hover:not(:disabled) {
+  .desk-segment, .desk-settings-canvas-interaction__segment) button.is-active:hover:not(:disabled) {
   background: color-mix(in srgb, var(--desk-color-accent-soft) 80%, var(--desk-color-control-bg-hover));
   border-color: transparent;
   box-shadow: none;
 }
 
 body.desk-app[data-theme] .desk-settings :is(
-  .desk-segment, .desk-settings-canvas-interaction__segment, .desk-video-runtime-mode
-) button:active:not(:disabled),
+  .desk-segment, .desk-settings-canvas-interaction__segment) button:active:not(:disabled),
 body.desk-app[data-theme] .desk-settings :is(
-  .desk-segment, .desk-settings-canvas-interaction__segment, .desk-video-runtime-mode
-) button.is-active:active:not(:disabled) {
+  .desk-segment, .desk-settings-canvas-interaction__segment) button.is-active:active:not(:disabled) {
   color: var(--desk-settings-accent-ink);
   background: var(--desk-color-control-bg-active);
   border-color: var(--desk-color-control-border-active);
@@ -1274,8 +1252,7 @@ body.desk-app[data-theme] .desk-settings :is(
 }
 
 body.desk-app[data-theme] .desk-settings :is(
-  .desk-settings-tabs, .desk-segment, .desk-settings-canvas-interaction__segment, .desk-video-runtime-mode
-) button:disabled:not(.desk-settings-tabs__toggle) {
+  .desk-settings-tabs, .desk-segment, .desk-settings-canvas-interaction__segment) button:disabled:not(.desk-settings-tabs__toggle) {
   color: var(--desk-color-text-disabled);
   background: var(--desk-color-control-bg-disabled);
   border-color: transparent;
@@ -1285,8 +1262,7 @@ body.desk-app[data-theme] .desk-settings :is(
 }
 
 body.desk-app[data-theme] .desk-settings :is(
-  .desk-settings-tabs, .desk-segment, .desk-settings-canvas-interaction__segment, .desk-video-runtime-mode
-) button:focus-visible:not(.desk-settings-tabs__toggle):not(:disabled) {
+  .desk-settings-tabs, .desk-segment, .desk-settings-canvas-interaction__segment) button:focus-visible:not(.desk-settings-tabs__toggle):not(:disabled) {
   outline: 2px solid var(--desk-color-accent);
   outline-offset: -2px;
 }

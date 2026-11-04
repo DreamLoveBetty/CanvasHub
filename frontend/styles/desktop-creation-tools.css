@@ -21,11 +21,7 @@ body.desk-app[data-theme] :where(
 }
 
 body.desk-app[data-theme] :where(
-  .desk-node--video,
-  .desk-node--video-inference,
-  .desk-video-runtime-panel,
-  .desk-video-supervisor-status
-) {
+  .desk-node--video) {
   --desk-ink: var(--desk-video-ink);
   --desk-muted: var(--desk-video-muted-ink);
   --desk-blue: var(--desk-video-accent-ink);
@@ -371,103 +367,7 @@ body.desk-app[data-theme] .desk-file-preview-modal__close svg {
 }
 
 /* Video inference and result nodes. */
-body.desk-app[data-theme] .desk-video-node__icon {
-  color: var(--desk-video-accent-ink);
-  background: var(--desk-video-icon-background);
-  border-color: var(--desk-video-icon-border);
-}
 
-body.desk-app[data-theme] .desk-video-node__icon svg {
-  fill: none;
-  stroke: currentColor;
-}
-
-body.desk-app[data-theme] .desk-video-runtime-pill {
-  color: var(--desk-video-muted-ink);
-  background: var(--desk-video-pill-background);
-  border-color: var(--desk-video-pill-border);
-}
-
-body.desk-app[data-theme] .desk-video-runtime-pill.is-online {
-  color: var(--desk-video-online-ink);
-  background: var(--desk-video-online-background);
-  border-color: var(--desk-video-online-border);
-}
-
-body.desk-app[data-theme] .desk-video-runtime-pill.is-offline {
-  color: var(--desk-video-offline-ink);
-  background: var(--desk-video-offline-background);
-  border-color: var(--desk-video-offline-border);
-}
-
-body.desk-app[data-theme] :where(
-  .desk-video-node__inputs,
-  .desk-video-runtime-mode,
-  .desk-video-runtime-status,
-  .desk-video-runtime-panel,
-  .desk-video-supervisor-status
-) {
-  background: var(--desk-video-inline-background);
-  border-color: var(--desk-video-inline-border);
-}
-
-body.desk-app[data-theme] :where(
-  .desk-video-node__inputs > div,
-  .desk-video-node__fields > label,
-  .desk-video-node__advanced > label,
-  .desk-video-node__footer > span,
-  .desk-video-runtime-status,
-  .desk-video-runtime-status small,
-  .desk-video-supervisor-status,
-  .desk-video-supervisor-status__copy small
-) {
-  color: var(--desk-video-muted-ink);
-}
-
-body.desk-app[data-theme] .desk-video-node__inputs i {
-  background: var(--desk-video-input-dot);
-}
-
-body.desk-app[data-theme] .desk-video-node__inputs .is-connected i {
-  background: var(--desk-video-online-dot);
-  box-shadow: var(--desk-video-online-dot-shadow);
-}
-
-body.desk-app[data-theme] :where(
-  .desk-video-node__inputs strong,
-  .desk-video-runtime-status strong,
-  .desk-video-supervisor-status__copy strong
-) {
-  color: var(--desk-video-ink);
-}
-
-body.desk-app[data-theme] .desk-video-node__advanced .desk-input {
-  color: var(--desk-video-field-ink);
-  background: var(--desk-video-field-background);
-  border-color: var(--desk-video-field-border);
-  box-shadow: var(--desk-video-field-shadow);
-}
-
-body.desk-app[data-theme] .desk-video-node__advanced .desk-input:focus {
-  border-color: var(--desk-video-field-focus-border);
-  box-shadow: var(--desk-video-field-focus-shadow);
-}
-
-body.desk-app[data-theme] .desk-video-node__advanced .desk-input::placeholder {
-  color: var(--desk-video-field-placeholder-ink);
-}
-
-body.desk-app[data-theme] .desk-video-node__advanced .desk-input:disabled {
-  color: var(--desk-video-field-disabled-ink);
-}
-
-body.desk-app[data-theme] .desk-video-node__quality small {
-  color: var(--desk-video-accent-ink);
-  background: var(--desk-video-quality-background);
-  border-color: var(--desk-video-quality-border);
-}
-
-body.desk-app[data-theme] .desk-video-node__progress,
 body.desk-app[data-theme] .desk-node--video,
 body.desk-app[data-theme] .desk-node--video .desk-resize-handle {
   background: transparent;
@@ -476,10 +376,6 @@ body.desk-app[data-theme] .desk-node--video .desk-resize-handle {
 
 body.desk-app[data-theme] .desk-node--video {
   border-color: transparent;
-}
-
-body.desk-app[data-theme] .desk-video-node__run--generate {
-  box-shadow: var(--desk-video-run-shadow);
 }
 
 body.desk-app[data-theme] .desk-video-result__preview {
@@ -529,61 +425,14 @@ body.desk-app[data-theme] .desk-video-result__meta i {
 }
 
 body.desk-app[data-theme] :where(
-  .desk-node--video .desk-port,
-  .desk-node--video-inference .desk-port
-) {
+  .desk-node--video .desk-port) {
   border-color: var(--desk-video-port-border);
   box-shadow: var(--desk-video-port-shadow);
 }
 
 body.desk-app[data-theme] :where(
-  .desk-minimap__node.is-video,
-  .desk-minimap__node.is-video-inference
-) {
+  .desk-minimap__node.is-video) {
   background: var(--desk-video-minimap-background);
-}
-
-body.desk-app[data-theme] .desk-video-runtime-mode button {
-  color: var(--desk-video-muted-ink);
-  background: transparent;
-  border-color: transparent;
-  box-shadow: none;
-}
-
-body.desk-app[data-theme] .desk-video-runtime-mode button:hover {
-  color: var(--desk-video-mode-hover-ink);
-  background: var(--desk-video-mode-hover-background);
-}
-
-body.desk-app[data-theme] .desk-video-runtime-mode button.is-active {
-  color: var(--desk-video-mode-active-ink);
-  background: var(--desk-video-mode-active-background);
-  border-color: var(--desk-video-mode-active-border);
-  box-shadow: var(--desk-video-mode-active-shadow);
-}
-
-body.desk-app[data-theme] :where(
-  .desk-video-runtime-status > span,
-  .desk-video-supervisor-status__dot
-) {
-  background: var(--desk-video-warn-dot);
-  box-shadow: var(--desk-video-warn-dot-shadow);
-}
-
-body.desk-app[data-theme] :where(
-  .desk-video-runtime-status.is-online > span,
-  .desk-video-supervisor-status.is-online .desk-video-supervisor-status__dot
-) {
-  background: var(--desk-video-online-dot);
-  box-shadow: var(--desk-video-online-dot-shadow);
-}
-
-body.desk-app[data-theme] :where(
-  .desk-video-runtime-status.is-offline > span,
-  .desk-video-supervisor-status.is-offline .desk-video-supervisor-status__dot
-) {
-  background: var(--desk-video-error-dot);
-  box-shadow: var(--desk-video-error-dot-shadow);
 }
 
 /* Pose reference nodes in the minimap. */

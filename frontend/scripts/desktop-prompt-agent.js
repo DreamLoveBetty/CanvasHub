@@ -29,12 +29,11 @@
     'apply_prompt_to_input',
     'connect_nodes',
     'submit_generation',
-    'submit_video_generation',
     'rollback_canvas'
   ]);
   const TERMINAL_STATUSES = new Set(['succeeded', 'failed', 'canceled', 'rolled_back']);
-  const RESULT_NODE_TYPES = new Set(['input', 'output', 'file_output', 'comfy', 'upscale', 'video_inference']);
-  const GENERATION_NODE_TYPES = new Set(['input', 'comfy', 'upscale', 'video_inference']);
+  const RESULT_NODE_TYPES = new Set(['input', 'output', 'file_output', 'comfy', 'upscale']);
+  const GENERATION_NODE_TYPES = new Set(['input', 'comfy', 'upscale']);
   const STATUS_LABELS = {
     idle: '待命',
     awaiting_approval: '等待确认',
@@ -1612,8 +1611,6 @@
       ? (Array.isArray(task.run?.context?.selected_node_ids) ? task.run.context.selected_node_ids : selectedNodeIds(canvas))
       : selectedNodeIds(canvas);
     const textNodes = nodes.filter(node => node.type === 'text');
-    const hasVideoContext = selected.some(nodeId => ['video_inference', 'video'].includes(canvas.nodes?.[nodeId]?.type))
-      || (canvas.edges || []).some(edge => selected.includes(edge.from) && canvas.nodes?.[edge.to]?.type === 'video_inference');
     if (els.deskAgentContextMeta) {
       const identity = taskIdentity(task);
       els.deskAgentContextMeta.textContent = [identity, `${nodes.length} 节点`, `${selected.length} 已选`].filter(Boolean).join(' · ');
@@ -1621,7 +1618,6 @@
     if (els.deskAgentContext) {
       els.deskAgentContext.innerHTML = [
         `<span>${selected.length ? `已选 ${selected.length}` : '未选择节点'}</span>`,
-        ...(hasVideoContext ? ['<span>MiniMax H3 · I2VA</span>'] : []),
         ...(state.imageReferences.length ? [`<span>媒体引用 ${state.imageReferences.length}</span>`] : []),
         `<span>图片 ${images.length}</span>`,
         `<span>视频 ${videos.length}</span>`,
@@ -1686,11 +1682,6 @@
     const selectedResultId = selectedIds.find(nodeId => RESULT_NODE_TYPES.has(nodes[nodeId]?.type));
     if (selectedResultId) return selectedResultId;
 
-    const selectedVideoSourceId = selectedIds
-      .map(nodeId => edges.find(edge => edge.to === nodeId && nodes[nodeId]?.type === 'video' && nodes[edge.from]?.type === 'video_inference')?.from)
-      .find(Boolean);
-    if (selectedVideoSourceId) return selectedVideoSourceId;
-
     const selectedTargetId = selectedIds
       .map(nodeId => edges.find(edge => edge.from === nodeId && GENERATION_NODE_TYPES.has(nodes[edge.to]?.type))?.to)
       .find(Boolean);
@@ -1715,32 +1706,10 @@
     const snapshot = window.DesktopCanvas?.exportWorkflowSnapshot?.();
     if (!snapshot?.state?.canvas) throw new Error('无法读取当前画布');
     const resultNodeId = resolveResultNodeId(snapshot);
-    const resultNode = snapshot.state.canvas.nodes?.[resultNodeId] || null;
-    const isVideoTask = resultNode?.type === 'video_inference';
     let config = null;
     try {
-      config = isVideoTask
-        ? (window.DesktopCanvas?.readVideoInferenceNodeConfig?.(resultNodeId) || null)
-        : (window.DesktopCanvas?.readConfigForResult?.(resultNodeId) || null);
+      config = window.DesktopCanvas?.readConfigForResult?.(resultNodeId) || null;
     } catch (error) {}
-    if (isVideoTask && !config) {
-      config = {
-        provider: 'minimax_h3',
-        prompt: '',
-        params: {
-          mode: resultNode.mode || 'image_to_video',
-          durationSeconds: Number(resultNode.durationSeconds || 15),
-          aspectRatio: resultNode.aspectRatio || '3:4',
-          pixelBudgetMp: Number(resultNode.pixelBudgetMp || 0.8),
-          width: Number(resultNode.pixelWidth || 768),
-          height: Number(resultNode.pixelHeight || 1024),
-          accelerationMode: resultNode.accelerationMode || 'first_block_cache',
-          firstBlockCacheThreshold: Number(resultNode.firstBlockCacheThreshold || 0.08),
-          steps: Number(resultNode.steps || 20),
-          crf: Number(resultNode.crf || 23)
-        }
-      };
-    }
     const target = window.DesktopCanvas?.getPromptTargetInfo?.() || {};
     const params = { ...(config?.params || snapshot.state.params || {}) };
     const output = snapshot.state.output || {};
@@ -1783,10 +1752,8 @@
         label: target.label || ''
       },
       current_prompt: currentPrompt,
-      task_domain: isVideoTask ? 'video' : 'image',
-      model_family: isVideoTask ? 'minimax_h3' : '',
+      task_domain: 'image',
       generation_node_id: resultNodeId,
-      video_node_id: isVideoTask ? resultNodeId : '',
       provider: config?.provider || snapshot.state.provider || 'gpt',
       params,
       output: {
@@ -2184,39 +2151,6 @@
     };
   }
 
-  async function executeCompileH3Prompt(action) {
-    const firstFrameNodeId = String(action.first_frame_node_id || '');
-    const firstFrameNode = (window.DesktopCanvas?.listPromptImageNodes?.() || [])
-      .find(node => String(node.nodeId || node.sourceNodeId || '') === firstFrameNodeId);
-    if (!firstFrameNode) throw new Error('H3 I2VA 需要连接一张可读取的首帧图片');
-    const firstFrame = await imagePayloadForNode(firstFrameNode, 0);
-    const analysis = action.analysis && typeof action.analysis === 'object' ? action.analysis : {};
-    const analysisText = Object.keys(analysis).length
-      ? `首帧与参考视频分析：\n${JSON.stringify(analysis, null, 2)}`
-      : '';
-    const result = await window.DesktopApi?.compileVideoPrompt?.({
-      prompt: String(action.current_prompt || ''),
-      instruction: [String(action.goal || ''), analysisText].filter(Boolean).join('\n\n'),
-      mode: action.mode || 'image_to_video',
-      duration_seconds: Number(action.duration_seconds || 15),
-      aspect_ratio: action.aspect_ratio || '3:4',
-      first_frame: {
-        data_url: firstFrame.dataUrl,
-        source_node_id: firstFrame.sourceNodeId,
-        label: firstFrame.label,
-        role: 'first_frame'
-      }
-    });
-    const prompt = String(result?.prompt || result?.candidate?.text || '').trim();
-    if (!prompt) throw new Error('H3 提示词编译没有返回可用内容');
-    return {
-      prompt,
-      validation: result.validation || {},
-      provenance: result.provenance || {},
-      mode: result.mode || 'I2VA'
-    };
-  }
-
   function executeUpdateTextNode(action) {
     const target = window.DesktopCanvas?.fillPromptTarget?.(action.text || '', {
       nodeId: action.node_id || '',
@@ -2245,7 +2179,7 @@
     const snapshot = window.DesktopCanvas?.exportWorkflowSnapshot?.();
     const inputId = String(target?.nodeId || requestedInputId || 'input');
     const nodes = snapshot?.state?.canvas?.nodes || {};
-    const edge = (snapshot?.state?.canvas?.edges || []).find(item => item.to === inputId && nodes[item.from]?.type === 'text');
+    const edge = (snapshot?.state?.canvas?.edges || []).find(item => item.to === inputId && nodes[item.from]?.type === 'text' && nodes[item.from].promptRole !== 'negative');
     const textNodeId = String(target?.textNodeId || edge?.from || '');
     if (!textNodeId) throw new Error('提示词已写入，但没有找到对应文本节点');
     for (const nodeId of referenceIds) {
@@ -2307,15 +2241,6 @@
     return { task_id: taskId, result_node_id: resultNodeId };
   }
 
-  async function executeSubmitVideoGeneration(action) {
-    const videoNodeId = String(action.video_node_id || action.generation_node_id || action.result_node_id || '');
-    if (!videoNodeId) throw new Error('Agent 没有找到 MiniMax H3 视频节点');
-    const response = await window.DesktopCanvas?.runVideoInferenceNode?.(videoNodeId);
-    const taskId = String(response?.task_id || response?.taskId || '');
-    if (!taskId) throw new Error('视频生成任务没有返回 task_id');
-    return { task_id: taskId, video_node_id: videoNodeId, result_node_id: videoNodeId, artifact_type: 'video' };
-  }
-
   async function executeRollback(action, fallbackRunId = '', task = null) {
     const runId = String(action.run_id || action.snapshot_key || fallbackRunId || state.runId || '');
     const currentFingerprint = workflowFingerprint();
@@ -2338,8 +2263,6 @@
         return executeAnalyzeImages(action);
       case 'analyze_videos':
         return executeAnalyzeVideos(action);
-      case 'compile_h3_prompt':
-        return executeCompileH3Prompt(action);
       case 'update_text_node':
         return executeUpdateTextNode(action);
       case 'apply_prompt_to_input':
@@ -2348,8 +2271,6 @@
         return executeConnectNodes(action);
       case 'submit_generation':
         return executeSubmitGeneration(action);
-      case 'submit_video_generation':
-        return executeSubmitVideoGeneration(action);
       case 'rollback_canvas':
         return executeRollback(action, options.runId, options.task);
       default:
@@ -2548,13 +2469,6 @@
     return ![false, 0, '0', 'false', 'off'].includes(value);
   }
 
-  function isVideoRun(run = state.run) {
-    const confirmation = run?.plan?.confirmation || {};
-    return run?.plan?.task_domain === 'video'
-      || confirmation.task_domain === 'video'
-      || confirmation.provider === 'minimax_h3';
-  }
-
   function approvalDraftFromRun(run) {
     const confirmation = run?.plan?.confirmation || {};
     const approval = run?.request?.approval || {};
@@ -2597,7 +2511,6 @@
   }
 
   function decisionAttention(draft = approvalDraftFromControls()) {
-    if (isVideoRun()) return [];
     const attention = [];
     if (draft.resolution === '4k') attention.push('4K');
     if (draft.imageCount > 1) attention.push(`${draft.imageCount} 张`);
@@ -2606,21 +2519,6 @@
   }
 
   function formatDecision(draft = approvalDraftFromControls()) {
-    if (isVideoRun()) {
-      const confirmation = state.run?.plan?.confirmation || {};
-      const mode = String(confirmation.h3_mode || confirmation.mode || 'I2VA').toUpperCase();
-      const duration = Number(confirmation.duration_seconds || 15);
-      const aspectRatio = String(confirmation.aspect_ratio || confirmation.ratio || '3:4');
-      const pixelBudget = Number(confirmation.pixel_budget_mp || 0.8);
-      const durationLabel = Number.isInteger(duration) ? String(duration) : String(Number(duration.toFixed(2)));
-      const acceleration = {
-        off: '标准模式',
-        first_block_cache: 'FirstBlockCache',
-        sol_attn: 'Sol-Attn',
-        combined: '组合加速'
-      }[String(confirmation.acceleration_mode || '')] || '沿用节点设置';
-      return ['MiniMax H3', mode, `${durationLabel} 秒`, aspectRatio, `${pixelBudget} MP`, acceleration].join(' · ');
-    }
     const qualityLabels = { auto: '自动质量', low: '低质量', medium: '中等质量', high: '高质量' };
     const parts = [
       draft.provider === 'google' ? 'Google' : 'GPT',
@@ -2684,7 +2582,6 @@
     state.approvalParamsExpanded = false;
     state.approvalManual = false;
     if (!runId) return;
-    if (isVideoRun(run)) return;
     const draft = approvalDraftFromRun(run);
     setSelectValue(els.deskAgentRatio, draft.ratio, '1:1');
     setSelectValue(els.deskAgentResolution, String(draft.resolution).toLowerCase(), '2k');
@@ -2698,9 +2595,7 @@
 
   function updateApprovalControlState() {
     const generationRequested = state.run?.plan?.generation_requested === true;
-    const videoRun = isVideoRun();
     const editable = generationRequested
-      && !videoRun
       && !state.controlling
       && !state.revising
       && state.run?.capabilities?.can_approve === true;
@@ -2718,7 +2613,6 @@
       field.classList.toggle('is-disabled', !isGpt);
     });
     if (els.deskAgentParamsToggle) {
-      els.deskAgentParamsToggle.hidden = videoRun;
       els.deskAgentParamsToggle.disabled = !editable;
       els.deskAgentParamsToggle.setAttribute('aria-expanded', String(state.approvalParamsExpanded));
     }
@@ -2737,11 +2631,6 @@
     if (!els.deskAgentApprovalHint) return;
     if (state.run?.plan?.generation_requested !== true) {
       els.deskAgentApprovalHint.textContent = '本轮不提交生成任务';
-      return;
-    }
-    if (isVideoRun()) {
-      els.deskAgentApprovalHint.textContent = '确认后将编译提示词并提交视频任务';
-      updateDecisionView();
       return;
     }
     const attention = decisionAttention();
@@ -2786,10 +2675,6 @@
 
   function approveRun() {
     const generationRequested = state.run?.plan?.generation_requested === true;
-    if (isVideoRun()) {
-      state.approvalParamsExpanded = false;
-      return controlRun('approve', { approval: {} });
-    }
     const draft = approvalDraftFromControls();
     const approval = generationRequested ? {
       provider: draft.provider,
@@ -2894,9 +2779,8 @@
     const hasDecision = !!steps.length && plan.generation_requested === true;
     syncApprovalControls(run);
     if (els.deskAgentPlanMeta) {
-      const taskLabel = isVideoRun(run) ? '视频生成' : '图片生成';
       const summary = steps.length
-        ? `${steps.length} 步${plan.generation_requested ? ` · 含${taskLabel}` : ''}`
+        ? `${steps.length} 步${plan.generation_requested ? ' · 含图片生成' : ''}`
         : '尚未创建';
       els.deskAgentPlanMeta.textContent = [taskIdentity(), summary].filter(Boolean).join(' · ');
     }
@@ -2907,11 +2791,10 @@
     }
     if (els.deskAgentDecision) els.deskAgentDecision.hidden = !hasDecision;
     if (els.deskAgentRevisionForm) {
-      els.deskAgentRevisionForm.hidden = isVideoRun(run) || !hasDecision || run?.status !== 'awaiting_approval';
+      els.deskAgentRevisionForm.hidden = !hasDecision || run?.status !== 'awaiting_approval';
     }
     if (els.deskAgentParams) {
-      els.deskAgentParams.hidden = isVideoRun(run)
-        || !hasDecision
+      els.deskAgentParams.hidden = !hasDecision
         || !state.approvalParamsExpanded
         || run?.capabilities?.can_approve !== true;
     }
@@ -2933,7 +2816,7 @@
       title = statusLabel(run.status);
       text = String(run.error);
     } else if (taskId) {
-      title = `${isVideoRun(run) ? '视频任务' : '图片任务'} · ${taskId.slice(-12)}`;
+      title = `图片任务 · ${taskId.slice(-12)}`;
       text = prompt || '任务已提交到现有生成队列。';
     } else if (prompt) {
       title = '提示词已整理';

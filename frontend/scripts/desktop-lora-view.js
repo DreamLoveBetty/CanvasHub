@@ -1,8 +1,8 @@
 // Reusable library/picker/details presentation. Host supplies all graph and asset ports.
 (function () {
   const {esc, parseWords} = window.DesktopLoRAData;
-  const engines = {krea2:'Krea 2', qwen21:'Qwen 2.1'};
-  const button = (action, text, extra = '') => `<button type="button" class="desk-button${['add','add-card','confirm-add','save','confirm-insert','confirm-reset'].includes(action) ? ' desk-button--primary' : action === 'delete-weight' ? ' desk-button--danger' : ''}" data-lora-action="${action}" ${extra}>${text}</button>`;
+  const engines = {krea2:'Krea 2', qwen21:'Qwen 2.1', moss:'MOSS'};
+  const button = (action, text, extra = '') => `<button type="button" class="desk-button${action === 'delete-weight' ? ' desk-button--danger' : ''}" data-lora-action="${action}" ${extra}>${text}</button>`;
   const wordsLabel = item => item.trigger_status === 'none' ? '已确认不需要触发词' : item.trigger_words?.length ? item.trigger_words.join(' · ') : '触发词未填写';
   const formatLabel = item => item.members?.some(m=>m.adapter_format==='lokr-direct-v1') ? ' · 区域控制 LoKr' : '';
   function create({library, assets, listTargets = () => [], addToNode, triggerTargets, insertTriggers, notify: onNotify = () => {}}) {
@@ -20,11 +20,11 @@
     }
     const tell = error => notify(error?.message || String(error));
     const active = () => Boolean(root?.isConnected || detailDialog?.isConnected);
-    function dialog(title, large = false) {
+    function dialog(title, large = false, tag = '') {
       const element = document.createElement('dialog');
       element.className = 'desk-lora-dialog' + (large ? ' desk-lora-dialog--large' : '');
       element.setAttribute('aria-label', title);
-      element.innerHTML = `<header><div><small>本地模型资料</small><h2>${esc(title)}</h2></div>${button('close', '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 7 10 10M17 7 7 17"></path></svg>', 'aria-label="关闭 LoRA 面板" title="关闭"')}</header><p class="desk-lora-feedback" data-lora-feedback role="status" aria-live="polite"></p><div class="desk-lora-dialog__body"></div><footer class="desk-lora-dialog__footer" hidden></footer>`;
+      element.innerHTML = `<header><div><h2>${esc(title)}</h2>${tag ? `<small>${esc(tag)}</small>` : ''}</div>${button('close', '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 7 10 10M17 7 7 17"></path></svg>', 'aria-label="关闭 LoRA 面板" title="关闭"')}</header><p class="desk-lora-feedback" data-lora-feedback role="status" aria-live="polite"></p><div class="desk-lora-dialog__body"></div><footer class="desk-lora-dialog__footer" hidden></footer>`;
       document.querySelector('.desk-app').append(element);
       element.querySelector('[data-lora-action="close"]').onclick = () => element.close();
       element.addEventListener('click', event => { if (event.target === element) { const r=element.getBoundingClientRect(); if(event.clientX<r.left||event.clientX>r.right||event.clientY<r.top||event.clientY>r.bottom)element.querySelector('[data-lora-action="close"]').click(); } });
@@ -36,27 +36,29 @@
       if (!items.length) return '<div class="desk-lora-empty">没有匹配的本地 LoRA。将权重放入对应模型的 LoRA 目录后刷新；没有线上资料也可以手动设置。</div>';
       return items.map(item => `<article class="desk-lora-card">
         <button type="button" class="desk-lora-card__open" data-lora-id="${item.asset_id}" aria-label="查看 ${esc(item.name)}">
-          <div class="desk-lora-card__image">${item.cover ? `<img src="${media(item.cover.thumb_url)}" alt="${esc(item.name)} 示例" loading="lazy" decoding="async">` : '<span>LoRA<small>添加效果示例</small></span>'}</div>
-          <div class="desk-lora-card__text"><strong title="${esc(item.name)}">${esc(item.name)}</strong><small>${esc(item.version || '本地模型')} · ${esc(item.engines.map(e => engines[e] || e).join(' / ') || '文件缺失')}${formatLabel(item)}</small><p>${esc(wordsLabel(item))}</p></div>
-        </button><footer><span>${item.favorite ? '★ 已收藏' : item.sync?.status === 'ready' ? '资料已同步' : '本地资料'}</span>${button('add-card', pendingAdds.has(item.asset_id) ? '添加中…' : '添加', `data-id="${item.asset_id}" title="添加到节点" aria-label="添加 ${esc(item.name)} 到节点" ${!item.available || pendingAdds.has(item.asset_id) ? 'disabled' : ''}`)}</footer>
+          <div class="desk-lora-card__image">${item.cover ? `<img src="${media(item.cover.thumb_url)}" alt="${esc(item.name)} 示例" loading="lazy" decoding="async">` : '<span>LoRA</span>'}</div>
+          <div class="desk-lora-card__text"><strong title="${esc(item.name)}">${item.favorite ? '★ ' : ''}${esc(item.name)}</strong>${fixedEngine ? '' : `<small>${esc(item.version || '本地模型')} · ${esc(item.engines.map(e => engines[e] || e).join(' / ') || '文件缺失')}${formatLabel(item)}${item.sync?.status === 'ready' ? ' · 资料已同步' : ''}</small>`}</div>
+        </button><footer><span title="${esc(wordsLabel(item))}">${esc(wordsLabel(item))}</span>${button('add-card', pendingAdds.has(item.asset_id) ? '添加中…' : '添加', `data-id="${item.asset_id}" title="添加到节点" aria-label="添加 ${esc(item.name)} 到节点" ${!item.available || pendingAdds.has(item.asset_id) ? 'disabled' : ''}`)}</footer>
       </article>`).join('');
     }
     function renderShell() {
       if (!root) return;
       root.classList.add('desk-lora-library');
       root.innerHTML = `<div class="desk-lora-toolbar"><input class="desk-input" type="search" data-lora-query placeholder="搜索名称 / 触发词 / 标签" value="${esc(query)}" aria-label="搜索 LoRA">
-        <select class="desk-select" data-lora-engine aria-label="LoRA 推理框架" ${fixedEngine ? 'disabled' : ''}><option value="">全部框架</option>${Object.entries(engines).map(([key,label])=>`<option value="${key}"${engine===key?' selected':''}>${label}</option>`).join('')}</select>
+        ${fixedEngine ? '' : `<select class="desk-select" data-lora-engine aria-label="LoRA 推理框架"><option value="">全部框架</option>${Object.entries(engines).map(([key,label])=>`<option value="${key}"${engine===key?' selected':''}>${label}</option>`).join('')}</select>`}
         <select class="desk-select" data-lora-filter aria-label="LoRA 筛选">${[['all','全部模型'],['favorite','收藏'],['incomplete','资料待补全'],['missing','文件缺失'],['hidden','已隐藏']].map(([key,label])=>`<option value="${key}"${filter===key?' selected':''}>${label}</option>`).join('')}</select>
         ${button('refresh','刷新目录')}${button('sync-page','补全本页资料')}</div>
-        <div class="desk-lora-status" role="status" aria-live="polite">正在读取本地资料…</div><div class="desk-lora-grid"></div>
-        <footer class="desk-lora-pagination">${button('prev','上一页')}<span data-lora-page></span>${button('next','下一页')}</footer>`;
+        <div class="desk-lora-grid"></div>
+        <footer class="desk-lora-pagination"><div class="desk-lora-status" role="status" aria-live="polite">正在读取本地资料…</div><div data-lora-pager>${button('prev','上一页')}<span data-lora-page></span>${button('next','下一页')}</div></footer>`;
       window.DesktopSelect?.refreshAll?.();
     }
     function paintList(message = '') {
       if (!root?.isConnected) return;
       root.querySelector('.desk-lora-grid').innerHTML = cards();
-      root.querySelector('.desk-lora-status').textContent = message || `共 ${total} 个 LoRA · 资料本地保存，在线补全不影响推理`;
-      root.querySelector('[data-lora-page]').textContent = `${page + 1} / ${Math.max(1,Math.ceil(total / 40))}`;
+      root.querySelector('.desk-lora-status').textContent = message || `共 ${total} 个 LoRA`;
+      const pages = Math.max(1, Math.ceil(total / 40));
+      root.querySelector('[data-lora-pager]').hidden = pages < 2;
+      root.querySelector('[data-lora-page]').textContent = `${page + 1} / ${pages}`;
       root.querySelector('[data-lora-action="prev"]').disabled = page === 0;
       root.querySelector('[data-lora-action="next"]').disabled = (page + 1) * 40 >= total;
     }
@@ -98,7 +100,7 @@
     function openPicker(nodeId, modelEngine) {
       if (!closeDetail()) return;
       closePicker();fixedNode=nodeId;fixedEngine=modelEngine;engine=modelEngine;query='';filter='all';
-      picker=dialog('选择 LoRA',true);
+      picker=dialog('选择 LoRA',true,engines[modelEngine]||'');picker.classList.add('desk-lora-dialog--picker');
       const current=picker;
       current.addEventListener('close',()=>{current.remove();if(picker===current){unmount();picker=null;fixedNode='';fixedEngine='';}},{once:true});
       mount(current.querySelector('.desk-lora-dialog__body'));
@@ -135,7 +137,7 @@
       const item=items.find(value=>value.asset_id===id);
       if(!item?.available)throw new Error('LoRA 文件已不存在，请刷新目录');
       const choices=targets(item);
-      if(!choices.length)throw new Error(fixedNode?'目标节点已不存在或不兼容':'请先创建兼容的 Krea 2 或 Qwen 2.1 节点');
+      if(!choices.length)throw new Error(fixedNode?'目标节点已不存在或不兼容':'请先创建兼容的 Krea 2、Qwen 2.1 或 MOSS 节点');
       if(choices.length===1){await addCardToNode(choices[0].id,item);return;}
       closeAddDialog();
       const modal=addDialog=dialog('添加 LoRA 到节点');
@@ -213,7 +215,7 @@
       detailDialog.setAttribute('aria-label', item.name);
       host.innerHTML=`<div class="desk-lora-detail"><section class="desk-lora-detail__visual" aria-label="效果示例与文件">
         <div class="desk-lora-hero">${item.cover?`<img src="${media(item.cover.url)}" alt="LoRA 效果示例" data-lora-hero>`:'<span>尚无示例图</span>'}</div>
-        <div class="desk-lora-thumbs">${pictures.map((p,index)=>`<div><button type="button" data-lora-preview="${p.id}" title="${esc(p.caption||'查看示例')}"><img src="${media(p.thumb_url)}" alt="示例 ${index+1}"></button><div>${button('cover','封面',`data-id="${p.id}"`)}${button('move-preview','←',`data-id="${p.id}" ${index===0?'disabled':''} aria-label="前移示例 ${index+1}"`)}${button('remove-preview','×',`data-id="${p.id}" aria-label="删除示例 ${index+1}"`)}</div></div>`).join('')}</div>
+        <div class="desk-lora-thumbs">${pictures.map((p,index)=>`<div><button type="button" data-lora-preview="${p.id}" title="${esc(p.caption||'查看示例')}"><img src="${media(p.thumb_url)}" alt="示例 ${index+1}"></button><div>${button('cover','★',`data-id="${p.id}" aria-label="将示例 ${index+1} 设为封面" title="设为封面"`)}${button('move-preview','←',`data-id="${p.id}" ${index===0?'disabled':''} aria-label="前移示例 ${index+1}" title="前移"`)}${button('remove-preview','×',`data-id="${p.id}" aria-label="删除示例 ${index+1}" title="删除"`)}</div></div>`).join('')}</div>
         <div class="desk-lora-actions">${button('upload','上传示例')}${button('asset-image','从资产库选择')}</div><input type="file" accept="image/png,image/jpeg,image/webp,image/gif" data-lora-upload hidden>
         <small>示例独立保存，不修改权重；远端示例可能包含其他模型。</small>
         <details class="desk-lora-disclosure desk-lora-source"><summary>Civitai 资料</summary><div class="desk-lora-disclosure__body">

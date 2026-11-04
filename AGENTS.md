@@ -43,6 +43,7 @@ Before changing code here:
 - Backend request/response JSON fields should be `snake_case`; frontend state may use `camelCase`, but adapter code must translate at the boundary.
 - Protected endpoints must use the existing auth path and frontend requests should go through `auth-api.js` / `desktop-api.js`, not scattered raw `fetch` calls.
 - Never return secrets to the frontend: API keys, Telegram bot token, access password, Codex tokens, account-pool auth key, and full local config stay server-side.
+- Exception (maintainer decision, 2026-11-01): settings responses may include a configured secret's character count as `*_length` so the UI can show a same-length `*` mask. Only the length, never the value, a prefix/suffix, or a reveal endpoint. The mask stays display-only (a placeholder) and must never be submittable.
 
 ## Frontend Design Rules
 

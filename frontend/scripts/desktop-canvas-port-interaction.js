@@ -36,6 +36,7 @@
     imageGroupContentBounds,
     normalizePortSide,
     portOutwardVector,
+    portPlates,
     prefersReducedMotion,
     refreshContextMenuConnectionPreview,
     renderConnectionPreview,
@@ -235,24 +236,40 @@
     }
   }
 
+    // Graphite style: the travelling swell is a low port plate that slides along the
+    // side under the pointer (clear of corners and the input node's notch).
+    function graphiteSwellPlate(state, located, amplitude) {
+    if (!portPlates || document.body?.dataset.deskStyle !== 'graphite') return null;
+    const side = floatingSwellSide(located);
+    const rect = { x: state.geometryX, y: state.geometryY, w: state.geometryWidth, h: state.geometryHeight };
+    const along = side === 'left' || side === 'right' ? located.y : located.x;
+    const notch = state.nodeElement.classList.contains('desk-node--input') ? portPlates.INPUT_NOTCH : null;
+    return {
+      path: portPlates.edgePlate(rect, side, along, amplitude, notch).path,
+      face: portPlates.edgePlate(rect, side, along, 1, notch).face,
+      peak: amplitude * portPlates.PLATE.depth,
+    };
+  }
+
     function renderFloatingSwellState(state) {
     updateFloatingSwellGeometry(state);
     const geometry = state.geometry;
     if (!geometry?.samples?.length) return;
     const style = connectionSwellStyle();
     const amplitude = Math.max(0, Math.min(1, state.amplitude.value));
-    const peak = amplitude * (style === 'droplet' ? FLOATING_DROPLET_PEAK_PX : FLOATING_SWELL_PEAK_PX);
     const located = floatingSwellPointAt(geometry, state.position.value).point;
-    const droplet = style === 'droplet'
+    const plate = graphiteSwellPlate(state, located, amplitude);
+    const peak = plate?.peak ?? amplitude * (style === 'droplet' ? FLOATING_DROPLET_PEAK_PX : FLOATING_SWELL_PEAK_PX);
+    const droplet = !plate && style === 'droplet'
       ? buildFloatingDropletPath(geometry, state.position.value, peak, state.position.velocity)
       : null;
-    const path = droplet?.path || buildFloatingSwellPath(geometry, state.position.value, peak);
+    const path = plate?.path ?? (droplet?.path || buildFloatingSwellPath(geometry, state.position.value, peak));
     state.maskPath.setAttribute('d', path);
     const visible = state.amplitude.target > 0 || peak >= FLOATING_SWELL_VISIBLE_THRESHOLD_PX;
     state.nodeElement.classList.toggle('is-swell-visible', visible);
     state.nodeElement.dataset.connectionSwellStyle = style;
-    const anchorX = droplet?.anchor?.x ?? (located.x + located.nx * FLOATING_SWELL_PEAK_PX);
-    const anchorY = droplet?.anchor?.y ?? (located.y + located.ny * FLOATING_SWELL_PEAK_PX);
+    const anchorX = plate?.face.x ?? droplet?.anchor?.x ?? (located.x + located.nx * FLOATING_SWELL_PEAK_PX);
+    const anchorY = plate?.face.y ?? droplet?.anchor?.y ?? (located.y + located.ny * FLOATING_SWELL_PEAK_PX);
     const side = floatingSwellSide(located);
     state.floatingPort.dataset.portSide = side;
     state.floatingPort.dataset.anchorX = String(anchorX);
@@ -262,7 +279,8 @@
     const sideLabel = { left: '左侧', right: '右侧', top: '上方', bottom: '下方' }[side];
     state.floatingPort.title = `从节点${sideLabel}创建连接`;
     state.floatingPort.setAttribute('aria-label', state.floatingPort.title);
-    if (style === 'droplet') {
+    // Droplet and graphite anchors move with the swell, so a drag in progress follows them.
+    if (style === 'droplet' || plate) {
       syncFloatingDropletConnectionAnchor(state, side, anchorX, anchorY);
     }
   }

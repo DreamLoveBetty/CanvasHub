@@ -2,6 +2,8 @@
 // Explicit host callbacks preserve ordering; shared state ports always resolve the live value.
 // No API/schema changes. Load before desktop-canvas.js; create() has no I/O or event binding.
 (function () {
+  const IMAGE_REFERENCE_DELETED_TEXT = '（已删除图片）';
+
   function create({
     CUSTOM_TEXT_STYLE_KEY,
     DEFAULT_IMAGE_GROUP_NODE_WIDTH,
@@ -536,7 +538,7 @@
     const next = String(text || '');
     const nodes = DesktopState.state.canvas.nodes || {};
     const requestedId = String(options.inputNodeId || options.nodeId || '');
-    const acceptsPrompt = node => ['input', 'comfy', 'video_inference'].includes(node?.type);
+    const acceptsPrompt = node => ['input', 'comfy'].includes(node?.type);
     const selectedInput = getSelectedNodeIds()
       .map(nodeId => nodes[nodeId])
       .find(acceptsPrompt);
@@ -578,14 +580,15 @@
   }
 
     function findConnectedTextNodeId(inputNodeId) {
+    const nodes = DesktopState.state.canvas.nodes;
     return (DesktopState.state.canvas.edges || [])
-      .find(edge => edge.to === inputNodeId && DesktopState.state.canvas.nodes[edge.from]?.type === 'text')
+      .find(edge => edge.to === inputNodeId && nodes[edge.from]?.type === 'text' && nodes[edge.from].promptRole !== 'negative')
       ?.from || '';
   }
 
     function setPromptTextForInputNode(inputNodeId, text, options = {}) {
     const inputNode = DesktopState.state.canvas.nodes[inputNodeId];
-    if (!inputNode || !['input', 'comfy', 'video_inference'].includes(inputNode.type)) {
+    if (!inputNode || !['input', 'comfy'].includes(inputNode.type)) {
       throw new Error('模型节点不存在');
     }
     const next = String(text || '');
@@ -703,7 +706,8 @@
     return migrated;
   }
 
-    function freezeImageReferenceTokensMatching(predicate) {
+    function freezeImageReferenceTokensMatching(predicate, frozenText = imageReferenceDisplay) {
+    let frozen = 0;
     Object.values(DesktopState.state.canvas.nodes || {}).forEach(nodeState => {
       if (nodeState?.type !== 'text') return;
       const documentState = clonePromptDocument(ensureTextNodePromptDocument(nodeState), nodeState.text || '');
@@ -711,7 +715,8 @@
       const segments = documentState.segments.map(segment => {
         if (segment.type !== 'image_reference' || !predicate(segment)) return segment;
         changed = true;
-        return { type: 'text', text: imageReferenceDisplay(segment) };
+        frozen += 1;
+        return { type: 'text', text: frozenText(segment) };
       });
       if (!changed) return;
       nodeState.promptDocument = normalizePromptDocument({ ...documentState, segments }, nodeState.text || '');
@@ -720,10 +725,19 @@
       bumpPromptDocumentVersion(nodeState);
       notifyTextNodeListChange(nodeState.id);
     });
+    return frozen;
   }
 
     function freezeImageReferenceTokens(groupId) {
     freezeImageReferenceTokensMatching(segment => segment.group_id === groupId);
+  }
+
+    // The remaining images renumber, so a frozen "@图片2" would now name a different image.
+    function freezeImageReferenceTokensForGroupItem(groupId, item) {
+    return freezeImageReferenceTokensMatching(segment => (
+      segment.group_id === groupId
+      && (segment.item_id ? segment.item_id === item.itemId : segment.source_node_id === item.sourceNodeId)
+    ), () => IMAGE_REFERENCE_DELETED_TEXT);
   }
 
     function freezeImageReferenceTokensForSourceNode(sourceNodeId) {
@@ -821,11 +835,24 @@
     return segment;
   }
 
+    // Negative text nodes feed negative prompts and are excluded from positive prompt merging.
+    function setTextNodePromptRole(element, nodeState, negative) {
+    if (!nodeState) return;
+    if (negative) nodeState.promptRole = 'negative';
+    else delete nodeState.promptRole;
+    element?.classList.toggle('is-negative-prompt', !!negative);
+    const badge = element?.querySelector('[data-text-node-role]');
+    if (badge) badge.hidden = !negative;
+    element?.querySelector('[data-text-action="negative"]')?.setAttribute('aria-pressed', negative ? 'true' : 'false');
+  }
+
     function textNodeHtml(node) {
     const alias = getTextNodeAlias(node);
     const promptDocument = ensureTextNodePromptDocument(node);
+    const negative = node.promptRole === 'negative';
     return `
-      <section class="desk-node desk-node--text" data-node-id="${node.id}" data-node-drag-handle aria-label="文本节点">
+      <section class="desk-node desk-node--text${negative ? ' is-negative-prompt' : ''}" data-node-id="${node.id}" data-node-drag-handle aria-label="文本节点">
+        <span class="desk-text-node__role" data-text-node-role${negative ? '' : ' hidden'}>负面</span>
         <div class="desk-text-node__alias" data-text-node-alias-shell style="${textNodeAliasStyle(alias)}">
           <input type="text" data-text-node-alias value="${escapeHtml(alias)}" maxlength="${TEXT_NODE_ALIAS_MAX_LENGTH}" pattern="[A-Za-z0-9\u3400-\u9FFF,_-]{1,${TEXT_NODE_ALIAS_MAX_LENGTH}}" aria-label="文本节点别名" title="支持汉字、英文、数字、-、_、," readonly tabindex="-1">
           <button type="button" data-text-node-alias-edit data-alias-mode="edit" aria-label="编辑文本节点别名" title="编辑别名">
@@ -848,6 +875,7 @@
           <button type="button" class="desk-key" data-text-action="preset">预设风格</button>
           <button type="button" class="desk-key" data-text-action="gpt-polish">GPT 润色</button>
           <button type="button" class="desk-key" data-text-action="safe-rewrite">安全审核版</button>
+          <button type="button" class="desk-key" data-text-action="negative" aria-pressed="${negative ? 'true' : 'false'}" title="设为负面提示词">负面</button>
           <button type="button" class="desk-key" data-text-action="clear" aria-label="清空文本节点" title="清空"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg></button>
         </div>
         <div class="desk-text-style-menu" data-text-style-menu hidden aria-label="选择预设风格">
@@ -1812,6 +1840,7 @@
   }
 
     return Object.freeze({
+      setTextNodePromptRole,
       updatePromptEditorEmptyState,
       shortPromptBlockLabel,
       promptBlockModuleLabel,
@@ -1860,6 +1889,7 @@
       migrateImageReferenceTokensToGroup,
       freezeImageReferenceTokensMatching,
       freezeImageReferenceTokens,
+      freezeImageReferenceTokensForGroupItem,
       freezeImageReferenceTokensForSourceNode,
       refreshImageReferenceTokens,
       resolveImageReferenceTextNode,

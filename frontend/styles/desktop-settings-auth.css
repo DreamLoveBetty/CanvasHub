@@ -31,7 +31,6 @@ body.desk-app[data-theme] :is(
   .desk-settings-path strong,
   .desk-settings-form__section-title strong,
   .desk-settings-account__main strong,
-  .desk-settings-details summary span,
   .desk-comfy-workflow-editor__heading strong
 ) {
   color: var(--desk-settings-ink);
@@ -219,7 +218,6 @@ body.desk-app[data-theme] :is(
   .desk-settings-secret-field,
   .desk-settings-color-field,
   .desk-settings-form__section-title span,
-  .desk-settings-details summary em,
   .desk-settings-account__meta,
   .desk-comfy-settings-library__meta,
   .desk-comfy-workflow-editor__heading small,
@@ -266,6 +264,10 @@ body.desk-app[data-theme] :where(
 
 body.desk-app[data-theme] .desk-settings-form input[type="checkbox"] {
   accent-color: var(--desk-settings-checkbox-accent);
+}
+
+body.desk-app[data-theme] .desk-settings :is(input, textarea)[data-secret-masked]::placeholder {
+  color: var(--desk-settings-field-ink);
 }
 
 body.desk-app[data-theme] .desk-settings-secret-clear {
@@ -406,29 +408,12 @@ body.desk-app[data-theme] .desk-settings-pool-activity.is-error {
   border-color: var(--desk-settings-pool-error-border);
 }
 
-body.desk-app[data-theme] .desk-settings-details {
-  background: transparent;
-  border-color: var(--desk-settings-field-border);
-  box-shadow: none;
+body.desk-app[data-theme] .desk-settings-form--compact + .desk-settings-form--compact {
+  border-top-color: var(--desk-settings-field-border);
 }
 
 /* Runtime sections follow the same quiet Settings material. Keep the domain's
    online/offline/warning dot colors and real inspection/error frames intact. */
-body.desk-app[data-theme] .desk-settings :is(.desk-video-runtime-panel, .desk-video-supervisor) {
-  background: transparent;
-  border-color: var(--desk-settings-field-border);
-  box-shadow: none;
-}
-
-body.desk-app[data-theme] .desk-settings :is(.desk-video-runtime-status, .desk-video-supervisor-status) {
-  background: var(--desk-settings-segment-background);
-  border-color: transparent;
-  box-shadow: none;
-}
-
-body.desk-app[data-theme] .desk-settings :is(.desk-video-runtime-status > span, .desk-video-supervisor-status__dot) {
-  box-shadow: none;
-}
 
 body.desk-app[data-theme] .desk-settings :is(
   .desk-krea2-tools__paths > div,
@@ -438,14 +423,6 @@ body.desk-app[data-theme] .desk-settings :is(
 ) {
   background: transparent;
   box-shadow: none;
-}
-
-body.desk-app[data-theme] .desk-settings-details summary::after {
-  color: var(--desk-settings-muted-ink);
-}
-
-body.desk-app[data-theme] .desk-settings-details summary span {
-  color: var(--desk-settings-details-summary-ink);
 }
 
 body.desk-app[data-theme] .desk-settings-account {

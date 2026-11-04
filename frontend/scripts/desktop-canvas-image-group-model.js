@@ -1,4 +1,4 @@
-// 图片组 item/角色及尺寸规范化、组建/添加/解组及边迁移、持久排序、节点 HTML/刷新、实际模型图片角色约束；转场及 token DOM 由宿主回调接入。
+// 图片组 item/角色及尺寸规范化、组建/添加/解组及边迁移、持久排序、组内单张删除、节点 HTML/刷新、实际模型图片角色约束；转场及 token DOM 由宿主回调接入。
 // Explicit host callbacks preserve ordering; shared state ports always resolve the live value.
 // No API/schema changes. Load before desktop-canvas.js; create() has no I/O or event binding.
 (function () {
@@ -33,6 +33,7 @@
     ensureNodeEdgeHandles,
     escapeHtml,
     freezeImageReferenceTokens,
+    freezeImageReferenceTokensForGroupItem,
     getBoundsForNodeIds,
     getConnectedImageReferences,
     getNodeElement,
@@ -42,8 +43,10 @@
     migrateImageReferenceTokensToGroup,
     nextNodeId,
     normalizeNodeGroups,
+    onImageGroupItemsChanged,
     orderTransitionSourcesForNodes,
     refreshImageReferenceTokens,
+    removeImageGroupNode,
     setSelectedNodes,
     updateLinkPath,
   }) {
@@ -87,7 +90,7 @@
   }
 
     function imageGroupColumnCount(itemCount = 0) {
-    return clamp(Math.max(2, Number(itemCount) || 0), 2, IMAGE_GROUP_MAX_COLUMNS);
+    return clamp(Number(itemCount) || 0, 1, IMAGE_GROUP_MAX_COLUMNS);
   }
 
     function imageGroupRowCount(itemCount = 0) {
@@ -103,7 +106,7 @@
 
     function compactImageGroupNodeWidth(itemCount = 0) {
     return clamp(
-      naturalImageGroupNodeWidth(Math.max(2, Number(itemCount) || 0)),
+      naturalImageGroupNodeWidth(itemCount),
       MIN_IMAGE_GROUP_NODE_WIDTH,
       MAX_IMAGE_GROUP_NODE_WIDTH
     );
@@ -446,6 +449,38 @@
     return reorderImageGroupItemToIndex(groupId, itemId, targetIndex);
   }
 
+    // Takes one image off the canvas: the archived original is untouched and the group's
+    // edges stay, so downstream nodes simply receive the renumbered list. An empty group has
+    // nothing to show, so removing the last image removes the group through the host.
+    function removeImageGroupItem(groupId, itemId, options = {}) {
+    const groupNode = DesktopState.state.canvas.nodes[groupId];
+    if (!groupNode || groupNode.type !== 'image_group') return false;
+    const index = groupNode.items.findIndex(item => item.itemId === itemId);
+    if (index < 0) return false;
+    if (groupNode.items.length === 1) return removeImageGroupNode(groupId);
+    const previousRects = captureImageGroupItemRects(groupId);
+    const label = `图片${index + 1}`;
+    const [item] = groupNode.items.splice(index, 1);
+    const frozenReferences = freezeImageReferenceTokensForGroupItem(groupId, item);
+    if (item.sourceNodeId) {
+      groupNode.memberEdges = groupNode.memberEdges.filter(edge => edge.from !== item.sourceNodeId && edge.to !== item.sourceNodeId);
+    }
+    refreshImageGroupNode(groupId);
+    applyNodeLayout(groupId);
+    refreshImageReferenceTokens(groupId);
+    onImageGroupItemsChanged(groupId);
+    updateLinkPath();
+    DesktopState.saveSettings({ criticalCanvas: true });
+    requestAnimationFrame(() => animateImageGroupItemFlip(groupId, previousRects));
+    if (options.focusNextItem) {
+      const items = getNodeElement(groupId)?.querySelectorAll('[data-image-group-item]');
+      items?.[Math.min(index, items.length - 1)]?.focus({ preventScroll: true });
+    }
+    const referenceNote = frozenReferences ? `提示词中 ${frozenReferences} 处引用已标为“已删除图片”。` : '';
+    DesktopResults.showTransientMessage(`已从图片组删除${label}，当前共 ${groupNode.items.length} 张。${referenceNote}`);
+    return true;
+  }
+
     function imageGroupGooeyFilterPrimitivesHtml() {
     return `
       <feGaussianBlur in="SourceGraphic" stdDeviation="6" result="blur"></feGaussianBlur>
@@ -579,6 +614,9 @@
         <button type="button" class="desk-image-group__insert" data-image-group-insert-reference title="插入提示词引用" aria-label="将${label}插入提示词">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.1.1l2-2a5 5 0 0 0-7.1-7.1l-1.1 1.1"></path><path d="M14 11a5 5 0 0 0-7.1-.1l-2 2A5 5 0 0 0 12 20l1.1-1.1"></path></svg>
         </button>
+        <button type="button" class="desk-image-group__delete" data-image-group-item-delete title="从图片组删除" aria-label="从图片组删除${label}">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg>
+        </button>
       </article>`;
   }
 
@@ -687,6 +725,7 @@
       ungroupImageGroup,
       reorderImageGroupItemToIndex,
       reorderImageGroupItem,
+      removeImageGroupItem,
       imageGroupGooeyFilterPrimitivesHtml,
       imageGroupItemSource,
       normalizeImageGroupItem,

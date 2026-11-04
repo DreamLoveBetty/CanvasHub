@@ -391,6 +391,10 @@ body.desk-app[data-theme] .desk-link-path:is(.is-related, .is-preview, .is-pendi
   stroke: var(--desk-canvas-selection-stroke);
 }
 
+body.desk-app[data-theme] .desk-link-path.is-negative-prompt {
+  stroke: var(--desk-node-text-negative-border);
+}
+
 body.desk-app[data-theme] .desk-link-path.is-hovered {
   stroke: var(--desk-canvas-flow-solid);
   filter: drop-shadow(0 0 4px var(--desk-canvas-flow-soft));
@@ -539,6 +543,21 @@ body.desk-app[data-theme] .desk-node--text {
   background: var(--desk-node-text-background);
   border-color: var(--desk-node-text-border);
   box-shadow: var(--desk-node-text-shadow);
+}
+
+body.desk-app[data-theme] .desk-node--text.is-negative-prompt {
+  border-color: var(--desk-node-text-negative-border);
+}
+
+body.desk-app[data-theme] .desk-text-node__drawer [data-text-action="negative"][aria-pressed="true"] {
+  color: var(--desk-node-text-negative-ink);
+  background: var(--desk-node-text-negative-fill);
+}
+
+body.desk-app[data-theme] .desk-text-node__role {
+  color: var(--desk-node-text-negative-ink);
+  background: var(--desk-node-text-negative-fill);
+  border-color: var(--desk-node-text-negative-border);
 }
 
 body.desk-app[data-theme] .desk-text-node__input {
@@ -728,9 +747,7 @@ body.desk-app .desk-connection-commit-wire {
    Scope the paint here: saturated shell service badges and warnings stay intact. */
 body.desk-app[data-theme] .desk-node :is(
   .desk-status-pill.is-success,
-  .desk-pill-row span.is-success,
-  .desk-video-runtime-pill.is-online
-) {
+  .desk-pill-row span.is-success) {
   color: var(--desk-status-success-soft-ink);
   background: var(--desk-status-success-soft-background);
   background-position: var(--desk-status-material-position);

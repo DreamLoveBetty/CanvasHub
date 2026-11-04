@@ -8,8 +8,6 @@
     DEFAULT_COMFY_PIXEL_HEIGHT,
     DEFAULT_COMFY_PIXEL_WIDTH,
     DEFAULT_GOOGLE_MODEL,
-    DEFAULT_VIDEO_INFERENCE_NODE_HEIGHT,
-    DEFAULT_VIDEO_INFERENCE_NODE_WIDTH,
     DEFAULT_VIDEO_NODE_HEIGHT,
     DEFAULT_VIDEO_NODE_WIDTH,
     GOOGLE_MODEL_OPTIONS,
@@ -20,33 +18,30 @@
     GPT_ROUTE_PRESENTATION,
     GPT_TASK_TYPE_OPTIONS,
     MAX_COMFY_PIXEL_SIZE,
-    MAX_VIDEO_INFERENCE_NODE_HEIGHT,
-    MAX_VIDEO_INFERENCE_NODE_WIDTH,
     MAX_VIDEO_NODE_HEIGHT,
     MAX_VIDEO_NODE_WIDTH,
     MIN_COMFY_PIXEL_SIZE,
-    MIN_VIDEO_INFERENCE_NODE_HEIGHT,
-    MIN_VIDEO_INFERENCE_NODE_WIDTH,
     MIN_VIDEO_NODE_HEIGHT,
     MIN_VIDEO_NODE_WIDTH,
     UPSCALE_MODEL_OPTIONS,
-    VIDEO_INFERENCE_LAYOUT_VERSION,
     VIDEO_NODE_LAYOUT_VERSION,
     applyAllNodeLayouts,
     applyCanvasTransform,
     applyNodeLayout,
     applyNodeSelection,
     clamp,
+    comfyInputSlotsHtml,
     comfyWorkflowCatalogRef,
     discardFloatingSwellState,
     els,
     ensureNodeEdgeHandles,
     escapeHtml,
     getConnectedImageReferences,
+    getConnectedNegativeTextNodes,
     getConnectedTextNodes,
+    getConnectedVideoCount,
     getNodeElement,
     gptModelCatalogRef,
-    progressView,
     selectNode,
     updateInputProgressOverlay,
     updateLinkPath,
@@ -123,7 +118,14 @@
     return known || (normalized ? { value: normalized, label: normalized } : null);
   }
 
-    function gptReasoningOptionsForModel(route, model) {
+    // The Images API calls gpt-image-2 directly: no reasoning effort is sent and the
+    // main model only matters if the task falls back to the account pool.
+    function codexUsesImagesApi(route) {
+    return DesktopState.normalizeGptProviderRoute(route, 'codex') === 'codex'
+      && gptRouteCatalog('codex')?.request_endpoint === 'images';
+  }
+
+    function modelReasoningOptions(route, model) {
     const normalizedRoute = DesktopState.normalizeGptProviderRoute(route, 'codex');
     const catalog = gptRouteCatalog(normalizedRoute);
     if (!catalog) return normalizedRoute === 'codex' ? GPT_REASONING_OPTIONS : [];
@@ -131,6 +133,19 @@
     return (Array.isArray(entry?.reasoning_efforts) ? entry.reasoning_efforts : [])
       .map(reasoningOption)
       .filter(Boolean);
+  }
+
+    function gptReasoningOptionsForModel(route, model) {
+    return codexUsesImagesApi(route) ? [] : modelReasoningOptions(route, model);
+  }
+
+    // A locked field still submits a value. Under the Images API it keeps an effort the
+    // model accepts, so the request is not flagged as adapted and the choice survives a
+    // switch back to the Responses API.
+    function lockedReasoningValue(params, route, model) {
+    return codexUsesImagesApi(route)
+      ? selectedReasoningForModel(params, route, model, modelReasoningOptions(route, model))
+      : 'none';
   }
 
     function selectedReasoningForModel(params, route, model, options) {
@@ -148,13 +163,17 @@
     const normalizedRoute = DesktopState.normalizeGptProviderRoute(route, 'codex');
     const catalog = gptRouteCatalog(normalizedRoute);
     const fallback = GPT_ROUTE_PRESENTATION[normalizedRoute] || GPT_ROUTE_PRESENTATION.codex;
+    const imagesApi = codexUsesImagesApi(normalizedRoute);
     const modelLabel = normalizedRoute === 'third_party_image_api'
       ? String(catalog?.model_field_label || fallback.modelLabel)
-      : fallback.modelLabel;
+      : (imagesApi ? '托底模型' : fallback.modelLabel);
     const engineLabel = String(catalog?.image_engine?.label || catalog?.image_engine?.id || fallback.engineLabel);
     const label = node.querySelector('[data-gpt-model-field-label]');
     const engine = node.querySelector('[data-gpt-image-engine]');
-    if (label) label.textContent = modelLabel;
+    if (label) {
+      label.textContent = modelLabel;
+      label.title = imagesApi ? 'Images API 直连 gpt-image-2，不使用主模型；仅在账号池托底时使用' : '';
+    }
     if (engine) {
       engine.textContent = engineLabel;
       engine.title = `生图引擎：${engineLabel}`;
@@ -167,13 +186,15 @@
     const params = inputParamsForNode(node);
     if (!select || !params) return 'none';
     const options = gptReasoningOptionsForModel(route, model);
-    const selected = selectedReasoningForModel(params, route, model, options);
+    const selected = options.length
+      ? selectedReasoningForModel(params, route, model, options)
+      : lockedReasoningValue(params, route, model);
     select.innerHTML = options.length
       ? optionListHtml(options, selected)
-      : '<option value="none">不适用</option>';
+      : `<option value="${escapeHtml(selected)}">不适用</option>`;
     select.value = selected;
     select.disabled = !options.length;
-    select.title = options.length ? '' : '当前线路不使用推理强度';
+    select.title = options.length ? '' : (codexUsesImagesApi(route) ? 'Images API 直连 gpt-image-2，不使用推理强度' : '当前线路不使用推理强度');
     params.reasoningEffort = selected;
     window.DesktopSelect?.refresh?.(select);
     return selected;
@@ -276,55 +297,6 @@
     });
   }
 
-    function videoConfigApi() {
-    return window.DesktopVideoConfig || null;
-  }
-
-    function migrateVideoInferenceNodeLayout(node = {}) {
-    let changed = false;
-    if (Number(node.videoLayoutVersion || 0) < VIDEO_INFERENCE_LAYOUT_VERSION) {
-      const width = Number(node.width);
-      const height = Number(node.height);
-      const usesLegacyLayout = !Number.isFinite(width)
-        || !Number.isFinite(height)
-        || (width <= 620 && height >= 540);
-      if (usesLegacyLayout) {
-        node.width = DEFAULT_VIDEO_INFERENCE_NODE_WIDTH;
-        node.height = DEFAULT_VIDEO_INFERENCE_NODE_HEIGHT;
-      }
-      node.videoLayoutVersion = VIDEO_INFERENCE_LAYOUT_VERSION;
-      changed = true;
-    }
-    const normalizedWidth = clamp(Number(node.width) || DEFAULT_VIDEO_INFERENCE_NODE_WIDTH, MIN_VIDEO_INFERENCE_NODE_WIDTH, MAX_VIDEO_INFERENCE_NODE_WIDTH);
-    const normalizedHeight = clamp(Number(node.height) || DEFAULT_VIDEO_INFERENCE_NODE_HEIGHT, MIN_VIDEO_INFERENCE_NODE_HEIGHT, MAX_VIDEO_INFERENCE_NODE_HEIGHT);
-    if (node.width !== normalizedWidth || node.height !== normalizedHeight) changed = true;
-    node.width = normalizedWidth;
-    node.height = normalizedHeight;
-    return changed;
-  }
-
-    function normalizeVideoInferenceNodeState(node = {}) {
-    if (videoConfigApi()?.normalizeNode) {
-      videoConfigApi().normalizeNode(node);
-    } else {
-      node.provider = 'minimax_h3';
-      node.mode = node.mode === 'reference_to_video' ? 'reference_to_video' : 'image_to_video';
-      node.durationSeconds = Number(node.durationSeconds || 15);
-      node.aspectRatio = node.aspectRatio || '3:4';
-      node.pixelBudgetMp = Number(node.pixelBudgetMp || 0.8);
-      node.pixelWidth = Number(node.pixelWidth || 768);
-      node.pixelHeight = Number(node.pixelHeight || 1024);
-      node.accelerationMode = node.accelerationMode || 'first_block_cache';
-      node.firstBlockCacheThreshold = Number(node.firstBlockCacheThreshold || 0.08);
-      node.steps = Number(node.steps || 20);
-      node.crf = Number(node.crf || 23);
-      delete node.denoise;
-      delete node.seed;
-    }
-    migrateVideoInferenceNodeLayout(node);
-    return node;
-  }
-
     function inputNodeHtml(nodeId) {
     const nodeState = DesktopState.state.canvas.nodes[nodeId] || {};
     const defaults = nodeId === 'input'
@@ -344,12 +316,15 @@
     const selectedGptModel = selectedGptModelForRoute(defaults, gptRoute, gptModelOptions);
     const routeCatalog = gptRouteCatalog(gptRoute);
     const routePresentation = GPT_ROUTE_PRESENTATION[gptRoute] || GPT_ROUTE_PRESENTATION.codex;
+    const imagesApi = codexUsesImagesApi(gptRoute);
     const modelFieldLabel = gptRoute === 'third_party_image_api'
       ? String(routeCatalog?.model_field_label || routePresentation.modelLabel)
-      : routePresentation.modelLabel;
+      : (imagesApi ? '托底模型' : routePresentation.modelLabel);
     const imageEngineLabel = String(routeCatalog?.image_engine?.label || routeCatalog?.image_engine?.id || routePresentation.engineLabel);
     const reasoningOptions = gptReasoningOptionsForModel(gptRoute, selectedGptModel);
-    const selectedReasoning = selectedReasoningForModel(defaults, gptRoute, selectedGptModel, reasoningOptions);
+    const selectedReasoning = reasoningOptions.length
+      ? selectedReasoningForModel(defaults, gptRoute, selectedGptModel, reasoningOptions)
+      : lockedReasoningValue(defaults, gptRoute, selectedGptModel);
     return `
       <section class="desk-node desk-node--input desk-glass" data-node-id="${nodeId}" aria-label="模型输入节点">
         <div class="desk-node__header" data-node-drag-handle>
@@ -392,7 +367,7 @@
           </label>
           <label>
             <span>推理强度</span>
-            <select class="desk-select" data-field="reasoningEffort"${reasoningOptions.length ? '' : ' disabled'}>${reasoningOptions.length ? optionListHtml(reasoningOptions, selectedReasoning) : '<option value="none">不适用</option>'}</select>
+            <select class="desk-select" data-field="reasoningEffort"${reasoningOptions.length ? '' : ' disabled'}>${reasoningOptions.length ? optionListHtml(reasoningOptions, selectedReasoning) : `<option value="${escapeHtml(selectedReasoning)}">不适用</option>`}</select>
           </label>
           <label>
             <span>理解方式</span>
@@ -514,15 +489,16 @@
     </select>`;
   }
 
-    function comfyWorkflowParametersHtml(node, workflowMeta) {
-    const parameters = Array.isArray(workflowMeta?.parameters) ? workflowMeta.parameters : [];
-    const overrides = comfyWorkflowParameterOverrides(node, workflowMeta?.id || node?.workflow || '');
-    const activeParameters = parameters.filter(parameter => Object.prototype.hasOwnProperty.call(overrides, parameter.id));
-    const defaultSize = comfyWorkflowDefaultSize(workflowMeta);
-    node.pixelWidth = normalizeComfyPixelSize(node?.pixelWidth, defaultSize.width);
-    node.pixelHeight = normalizeComfyPixelSize(node?.pixelHeight, defaultSize.height);
+    function comfySizeGridHtml(node) {
+    return `<div class="desk-comfy-parameter-grid">
+              <label class="desk-comfy-parameter-field"><span>宽度（像素）</span><input class="desk-input" type="number" min="${MIN_COMFY_PIXEL_SIZE}" max="${MAX_COMFY_PIXEL_SIZE}" step="${COMFY_PIXEL_STEP}" value="${escapeHtml(node.pixelWidth)}" data-comfy-field="pixelWidth"></label>
+              <label class="desk-comfy-parameter-field"><span>高度（像素）</span><input class="desk-input" type="number" min="${MIN_COMFY_PIXEL_SIZE}" max="${MAX_COMFY_PIXEL_SIZE}" step="${COMFY_PIXEL_STEP}" value="${escapeHtml(node.pixelHeight)}" data-comfy-field="pixelHeight"></label>
+            </div>`;
+  }
+
+    function comfyParameterGroupsHtml(parameters, valueOf, removable) {
     const groups = [];
-    activeParameters.forEach(parameter => {
+    parameters.forEach(parameter => {
       let group = groups.find(item => item.nodeId === parameter.node_id);
       if (!group) {
         group = { nodeId: parameter.node_id, title: parameter.node_title || parameter.class_type || `节点 ${parameter.node_id}`, parameters: [] };
@@ -530,6 +506,60 @@
       }
       group.parameters.push(parameter);
     });
+    return groups.map(group => `
+            <section class="desk-comfy-parameter-group">
+              <header><strong>${escapeHtml(group.title)}</strong><small>#${escapeHtml(group.nodeId)}</small></header>
+              <div class="desk-comfy-parameter-grid desk-comfy-parameter-grid--optional">
+                ${group.parameters.map(parameter => {
+                  const parameterLabel = parameter.label || parameter.input_name || parameter.id;
+                  const remove = removable ? `<button type="button" data-comfy-param-remove="${escapeHtml(parameter.id)}" title="移除参数" aria-label="移除${escapeHtml(parameterLabel)}"><span aria-hidden="true">−</span></button>` : '';
+                  return `<div class="desk-comfy-parameter-field" title="${escapeHtml(parameter.input_name || parameter.id)}"><span>${escapeHtml(parameterLabel)}</span><div class="desk-comfy-parameter-field__control">${comfyParameterValueHtml(parameter, valueOf(parameter))}${remove}</div></div>`;
+                }).join('')}
+              </div>
+            </section>
+          `).join('');
+  }
+
+    // Title-tagged workflows declare their inputs: slot mapping, optional size and every [参数] field, no picker.
+    function comfyTaggedInputsHtml(node, workflowMeta) {
+    const parameters = Array.isArray(workflowMeta?.parameters) ? workflowMeta.parameters : [];
+    const overrides = comfyWorkflowParameterOverrides(node, workflowMeta?.id || node?.workflow || '');
+    const defaultPrompt = String(workflowMeta?.default_prompt || '');
+    const tagWarnings = Array.isArray(workflowMeta?.tag_warnings) ? workflowMeta.tag_warnings : [];
+    const promptBinding = workflowMeta?.accepts_text === false
+      ? '工作流不接收提示词'
+      : (defaultPrompt ? '正向提示词来自文本节点，未接入时使用工作流默认' : '正向提示词来自文本节点');
+    const bindings = [promptBinding, workflowMeta?.accepts_negative ? '负面提示词来自标为负面的文本节点' : ''].filter(Boolean);
+    const sizeEditable = workflowMeta?.size_editable !== false;
+    const valueOf = parameter => (Object.prototype.hasOwnProperty.call(overrides, parameter.id) ? overrides[parameter.id] : parameter.default);
+    return `
+      <div class="desk-comfy-parameter-panel" data-comfy-parameter-panel>
+        <div class="desk-comfy-parameter-panel__head">
+          <span>工作流输入</span>
+          <small>由节点标题标记 <button type="button" data-comfy-params-reset>恢复默认</button></small>
+        </div>
+        <div class="desk-comfy-parameter-scroll">
+          <section class="desk-comfy-parameter-group desk-comfy-parameter-group--size">
+            <header><strong>输入对应</strong><small>${sizeEditable ? '像素值需被 8 整除' : '尺寸由工作流决定'}</small></header>
+            <div class="desk-comfy-parameter-bindings">${bindings.map(text => `<span>${escapeHtml(text)}</span>`).join('')}</div>
+            ${defaultPrompt ? `<p class="desk-comfy-default-prompt" title="${escapeHtml(defaultPrompt)}">${escapeHtml(defaultPrompt)}</p>` : ''}
+            ${comfyInputSlotsHtml(node.id, workflowMeta)}
+            ${sizeEditable ? comfySizeGridHtml(node) : ''}
+            ${tagWarnings.length ? `<ul class="desk-comfy-tag-warnings">${tagWarnings.map(text => `<li>${escapeHtml(text)}</li>`).join('')}</ul>` : ''}
+          </section>
+          ${comfyParameterGroupsHtml(parameters, valueOf, false)}
+        </div>
+      </div>`;
+  }
+
+    function comfyWorkflowParametersHtml(node, workflowMeta) {
+    const defaultSize = comfyWorkflowDefaultSize(workflowMeta);
+    node.pixelWidth = normalizeComfyPixelSize(node?.pixelWidth, defaultSize.width);
+    node.pixelHeight = normalizeComfyPixelSize(node?.pixelHeight, defaultSize.height);
+    if (workflowMeta?.tag_mode === 'tags') return comfyTaggedInputsHtml(node, workflowMeta);
+    const parameters = Array.isArray(workflowMeta?.parameters) ? workflowMeta.parameters : [];
+    const overrides = comfyWorkflowParameterOverrides(node, workflowMeta?.id || node?.workflow || '');
+    const activeParameters = parameters.filter(parameter => Object.prototype.hasOwnProperty.call(overrides, parameter.id));
     return `
       <div class="desk-comfy-parameter-panel" data-comfy-parameter-panel>
         <div class="desk-comfy-parameter-panel__head">
@@ -539,28 +569,14 @@
         <div class="desk-comfy-parameter-scroll">
           <section class="desk-comfy-parameter-group desk-comfy-parameter-group--size">
             <header><strong>基础输入</strong><small>像素值需被 8 整除</small></header>
-            <div class="desk-comfy-parameter-grid">
-              <label class="desk-comfy-parameter-field"><span>宽度（像素）</span><input class="desk-input" type="number" min="${MIN_COMFY_PIXEL_SIZE}" max="${MAX_COMFY_PIXEL_SIZE}" step="${COMFY_PIXEL_STEP}" value="${escapeHtml(node.pixelWidth)}" data-comfy-field="pixelWidth"></label>
-              <label class="desk-comfy-parameter-field"><span>高度（像素）</span><input class="desk-input" type="number" min="${MIN_COMFY_PIXEL_SIZE}" max="${MAX_COMFY_PIXEL_SIZE}" step="${COMFY_PIXEL_STEP}" value="${escapeHtml(node.pixelHeight)}" data-comfy-field="pixelHeight"></label>
-            </div>
-            <div class="desk-comfy-parameter-bindings"><span>提示词来自接入的文本节点</span>${workflowMeta?.accepts_image ? '<span>图像来自接入的图像节点</span>' : ''}</div>
+            ${comfySizeGridHtml(node)}
+            <div class="desk-comfy-parameter-bindings"><span>${workflowMeta?.accepts_text === false ? '工作流不接收提示词' : '提示词来自接入的文本节点'}</span>${workflowMeta?.accepts_image ? '<span>图像来自接入的图像节点</span>' : ''}${workflowMeta?.accepts_video ? '<span>视频来自接入的视频节点</span>' : ''}</div>
           </section>
           <section class="desk-comfy-parameter-group desk-comfy-parameter-group--picker">
             <header><strong>添加参数</strong><small>仅添加需要调整的项目</small></header>
             ${comfyParameterPickerHtml(parameters, overrides)}
           </section>
-          ${groups.map(group => `
-            <section class="desk-comfy-parameter-group">
-              <header><strong>${escapeHtml(group.title)}</strong><small>#${escapeHtml(group.nodeId)}</small></header>
-              <div class="desk-comfy-parameter-grid desk-comfy-parameter-grid--optional">
-                ${group.parameters.map(parameter => {
-                  const value = overrides[parameter.id];
-                  const parameterLabel = parameter.label || parameter.input_name || parameter.id;
-                  return `<div class="desk-comfy-parameter-field" title="${escapeHtml(parameter.input_name || parameter.id)}"><span>${escapeHtml(parameterLabel)}</span><div class="desk-comfy-parameter-field__control">${comfyParameterValueHtml(parameter, value)}<button type="button" data-comfy-param-remove="${escapeHtml(parameter.id)}" title="移除参数" aria-label="移除${escapeHtml(parameterLabel)}"><span aria-hidden="true">−</span></button></div></div>`;
-                }).join('')}
-              </div>
-            </section>
-          `).join('') || '<div class="desk-comfy-parameter-panel__empty">当前仅使用基础输入。可从“添加参数”中选择需要调整的高级参数。</div>'}
+          ${comfyParameterGroupsHtml(activeParameters, parameter => overrides[parameter.id], true) || '<div class="desk-comfy-parameter-panel__empty">当前仅使用基础输入。可从“添加参数”中选择需要调整的高级参数。</div>'}
         </div>
       </div>`;
   }
@@ -620,9 +636,11 @@
     const count = element.querySelector('[data-comfy-workflow-count]');
     if (count) count.textContent = `${(comfyWorkflowCatalogRef.current.items || []).filter(item => item.enabled).length} 个`;
     const textCount = getConnectedTextNodes(nodeId).length;
+    const negativeCount = getConnectedNegativeTextNodes(nodeId).length;
     const imageCount = getConnectedImageReferences(nodeId).length;
+    const videoCount = getConnectedVideoCount(nodeId);
     const summary = element.querySelector('[data-comfy-input-summary]');
-    if (summary) summary.textContent = `文本 ${textCount} · 图片 ${imageCount}`;
+    if (summary) summary.textContent = `文本 ${textCount}${negativeCount ? ` · 负面 ${negativeCount}` : ''} · 图片 ${imageCount}${videoCount ? ` · 视频 ${videoCount}` : ''}`;
     const parameterPanel = element.querySelector('[data-comfy-parameter-panel]');
     const workflowMeta = (comfyWorkflowCatalogRef.current.items || []).find(item => item.id === state.workflow);
     if (parameterPanel) parameterPanel.outerHTML = comfyWorkflowParametersHtml(state, workflowMeta);
@@ -634,157 +652,6 @@
     if (payload?.ok !== false) comfyWorkflowCatalogRef.current = payload || comfyWorkflowCatalogRef.current;
     Object.values(DesktopState.state.canvas.nodes || {}).filter(node => node.type === 'comfy').forEach(node => refreshComfyNode(node.id));
     return comfyWorkflowCatalogRef.current;
-  }
-
-    function videoInputRoleForSource(sourceType) {
-    if (sourceType === 'text') return 'prompt';
-    if (sourceType === 'video') return 'reference_video';
-    if (['image', 'layout', 'pose'].includes(sourceType)) return 'first_frame';
-    return '';
-  }
-
-    function videoInferenceInputSummary(nodeId) {
-    const incoming = (DesktopState.state.canvas.edges || [])
-      .filter(edge => edge.to === nodeId)
-      .map(edge => ({ edge, node: DesktopState.state.canvas.nodes[edge.from] }))
-      .filter(item => item.node);
-    const byRole = role => incoming.find(item => (item.edge.inputRole || videoInputRoleForSource(item.node.type)) === role);
-    return {
-      prompt: byRole('prompt') || null,
-      firstFrame: byRole('first_frame') || null,
-      referenceVideo: byRole('reference_video') || null,
-      incoming
-    };
-  }
-
-    function videoRuntimePresentation() {
-    const status = videoConfigApi()?.getRuntimeStatus?.() || null;
-    if (!status || status.checked === false) return { tone: 'unknown', label: '服务未检测' };
-    if (status.online) return { tone: 'online', label: `服务在线${status.version ? ` · ${status.version}` : ''}` };
-    return { tone: 'offline', label: '服务离线' };
-  }
-
-    function videoTaskTimerLabel(output = {}) {
-    const startedAt = Number(output.startedAt || 0);
-    if (!startedAt) return '00:00';
-    const startedMs = startedAt < 10_000_000_000 ? startedAt * 1000 : startedAt;
-    const finishedAt = Number(output.finishedAt || 0);
-    const finishedMs = finishedAt ? (finishedAt < 10_000_000_000 ? finishedAt * 1000 : finishedAt) : Date.now();
-    const totalSeconds = Math.max(0, Math.floor((finishedMs - startedMs) / 1000));
-    const hours = Math.floor(totalSeconds / 3600);
-    const minutes = Math.floor((totalSeconds % 3600) / 60);
-    const seconds = totalSeconds % 60;
-    return hours > 0
-      ? `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
-      : `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-  }
-
-    function videoDurationOptions(node) {
-    const range = videoConfigApi()?.getDurationRange?.() || { minimum: 1, maximum: 15 };
-    const candidates = [5, 10, 15].filter(value => value >= range.minimum && value <= range.maximum);
-    const current = Number(node.durationSeconds || 15);
-    if (!candidates.includes(current) && current >= range.minimum && current <= range.maximum) candidates.push(current);
-    return candidates.sort((a, b) => a - b).map(value => ({ value, label: `${value} 秒` }));
-  }
-
-    function videoAspectOptions() {
-    const ratios = videoConfigApi()?.ASPECT_RATIOS || ['16:9', '9:16', '3:4', '4:3', '2:3', '3:2', '1:1', '21:9', '9:21'];
-    return ratios.map(value => ({ value, label: value }));
-  }
-
-    function videoQualityOptions(node) {
-    const presets = videoConfigApi()?.availablePresets?.(node.aspectRatio) || [{ megapixels: 0.8, width: 768, height: 1024 }];
-    return presets.map(item => ({
-      value: String(item.megapixels),
-      label: `${Number(item.megapixels).toFixed(1)} MP · ${item.width}×${item.height}`
-    }));
-  }
-
-    function videoAccelerationOptions() {
-    return [
-      { value: 'off', label: '标准模式 · 不加速' },
-      { value: 'first_block_cache', label: '快速模式 · FirstBlockCache' },
-      { value: 'sol_attn', label: '实验模式 · Sol-Attn' },
-      { value: 'combined', label: '实验模式 · 组合加速' }
-    ];
-  }
-
-    function videoInferenceNodeHtml(rawNode) {
-    const node = normalizeVideoInferenceNodeState(rawNode);
-    const inputs = videoInferenceInputSummary(node.id);
-    const runtime = videoRuntimePresentation();
-    const output = DesktopState.state.outputs?.[node.id] || {};
-    const taskStatus = String(output.status || 'idle');
-    const isBusy = DesktopState.isInFlight?.(taskStatus) === true;
-    const statusLabel = DesktopState.getStatusLabel?.(taskStatus) || '空闲';
-    const progress = Math.max(0, Math.min(100, Number(output.progress || 0)));
-    const progressStage = String(output.progressText || output.stage || (isBusy ? 'H3 视频生成中...' : '等待 H3 Runtime'));
-    const promptLabel = inputs.prompt?.node?.alias || (inputs.prompt ? '已连接文本节点' : '等待文本节点');
-    const frameLabel = inputs.firstFrame ? '已连接' : '等待图片节点';
-    const dimensionMultiple = videoConfigApi()?.getDimensionMultiple?.() || 32;
-    const accelerationLabel = videoConfigApi()?.accelerationLabel?.(node) || '快速模式 · FBC 0.08';
-    return `
-      <section class="desk-node desk-node--video-inference desk-glass" data-node-id="${node.id}" aria-label="MiniMax H3 视频生成节点">
-        <div class="desk-node__header" data-node-drag-handle>
-          <div class="desk-video-node__heading">
-            <span class="desk-video-node__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="14" height="14" rx="3"></rect><path d="m17 10 4-2v8l-4-2"></path><path d="m9 9 4 3-4 3z"></path></svg></span>
-            <div><p class="desk-node__eyebrow">视频生成</p><h2>MiniMax H3</h2></div>
-          </div>
-          <div class="desk-node-tools">
-            <span class="desk-video-runtime-pill is-${runtime.tone}" data-video-runtime-status>${escapeHtml(runtime.label)}</span>
-            <span class="desk-status-pill" data-output-status>${escapeHtml(statusLabel)}</span>
-            <button type="button" class="desk-node-delete" data-node-delete title="删除节点" aria-label="删除节点"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16"></path><path d="M9 7V4h6v3"></path><path d="m7 7 1 13h8l1-13"></path><path d="M10 11v5M14 11v5"></path></svg></button>
-          </div>
-        </div>
-        <button type="button" class="desk-port desk-port--in desk-port--video-in" data-port="in" data-node-id="${node.id}" title="连接提示词、首帧或参考视频" aria-label="连接视频生成输入"></button>
-        <button type="button" class="desk-port desk-port--out desk-port--video-out" data-port="out" data-node-id="${node.id}" title="连接到视频结果节点" aria-label="连接视频输出"></button>
-        <div class="desk-video-node__inputs" aria-label="视频生成输入">
-          <div class="${inputs.prompt ? 'is-connected' : ''}"><i></i><span>提示词</span><strong>${escapeHtml(promptLabel)}</strong></div>
-          <div class="${inputs.firstFrame ? 'is-connected' : ''}"><i></i><span>首帧</span><strong>${escapeHtml(frameLabel)}</strong></div>
-        </div>
-        <div class="desk-video-node__fields">
-          <label><span>模式</span><select class="desk-select" data-video-field="mode">${optionListHtml([
-            { value: 'image_to_video', label: '图生视频' },
-            { value: 'reference_to_video', label: '参考驱动' }
-          ], node.mode)}</select></label>
-          <label><span>时长</span><select class="desk-select" data-video-field="durationSeconds">${optionListHtml(videoDurationOptions(node), node.durationSeconds)}</select></label>
-          <label><span>画幅</span><select class="desk-select" data-video-field="aspectRatio">${optionListHtml(videoAspectOptions(), node.aspectRatio)}</select></label>
-          <label class="desk-video-node__quality"><span>质量（像素量）<small data-video-actual-size title="宽高均为 ${dimensionMultiple} 倍数">${node.pixelWidth}×${node.pixelHeight}</small></span><select class="desk-select" data-video-field="pixelBudgetMp">${optionListHtml(videoQualityOptions(node), node.pixelBudgetMp)}</select></label>
-        </div>
-        <div class="desk-video-node__advanced" data-video-advanced aria-label="高级参数">
-          <label><span>采样步数</span><input class="desk-input" type="number" min="1" max="100" step="1" value="${node.steps}" data-video-field="steps"></label>
-          <label><span>视频 CRF</span><input class="desk-input" type="number" min="0" max="51" step="1" value="${node.crf}" data-video-field="crf"></label>
-          <label class="desk-video-node__threshold"><span>FBC 阈值</span><input class="desk-input" type="number" min="0.001" max="1" step="0.01" value="${node.firstBlockCacheThreshold}" data-video-field="firstBlockCacheThreshold"${node.accelerationMode === 'first_block_cache' || node.accelerationMode === 'combined' ? '' : ' disabled'}></label>
-          <label><span>加速模式</span><select class="desk-select" data-video-field="accelerationMode" title="${escapeHtml(accelerationLabel)}">${optionListHtml(videoAccelerationOptions(), node.accelerationMode)}</select></label>
-        </div>
-        <div class="desk-progress-float desk-video-node__progress${isBusy ? ' is-visible' : ''}" aria-label="视频生成进度" aria-hidden="${isBusy ? 'false' : 'true'}">
-          <div class="desk-progress-float__panel">
-            <div class="desk-progress-float__bar" style="--progress-percent:${progress}%">
-              <span data-progress-bar style="width:${progress}%"></span>
-              <strong class="desk-progress-float__percent" data-progress-percent>
-                <span data-progress-percent-value>${Math.round(progress)}%</span>
-                <span class="desk-progress-float__timer" data-progress-timer>${videoTaskTimerLabel(output)}</span>
-              </strong>
-            </div>
-            <span class="desk-progress-float__stage" data-progress-stage>${escapeHtml(progressStage)}</span>
-          </div>
-        </div>
-        <div class="desk-video-node__footer">
-          <span data-video-node-hint>${escapeHtml(isBusy ? progressStage : (output.error || (inputs.prompt && inputs.firstFrame ? '输入已就绪' : '连接提示词与首帧后生成')))}</span>
-          <div class="desk-video-node__action">
-            ${isBusy
-              ? `<button type="button" class="desk-status-stop desk-video-node__run desk-video-node__run--cancel" data-video-run data-video-cancel="true" title="取消正在生成的视频任务" aria-label="取消正在生成的视频任务">
-                  <span class="desk-status-stop__icon" aria-hidden="true"></span>
-                  <span class="desk-status-stop__text">取消任务</span>
-                </button>`
-              : `<button type="button" class="desk-button desk-button--generate desk-video-node__run desk-video-node__run--generate" data-video-run title="生成视频" aria-label="生成视频">
-                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 3 5 14h6l-1 7 8-11h-6l1-7Z"></path></svg>
-                </button>`}
-          </div>
-        </div>
-        <span class="desk-resize-handle" data-node-resize-handle title="缩放视频生成节点" aria-hidden="true"></span>
-      </section>
-    `;
   }
 
     function videoNodeSource(node) {
@@ -848,7 +715,7 @@
     const dimensions = node.mediaWidth && node.mediaHeight ? `${node.mediaWidth}×${node.mediaHeight}` : '尺寸待定';
     const nodeStatus = String(node.status || 'idle');
     const busy = DesktopState.isInFlight?.(nodeStatus) === true;
-    const emptyTitle = nodeStatus === 'failed' ? '视频生成失败' : (busy ? 'MiniMax H3 正在生成' : '视频会出现在这里');
+    const emptyTitle = nodeStatus === 'failed' ? '视频生成失败' : (busy ? '视频正在生成' : '视频会出现在这里');
     const emptyHint = nodeStatus === 'failed'
       ? (node.error || '请返回生成节点查看错误')
       : (busy ? (node.progressText || '任务进度会自动同步') : '连接结果或上传视频');
@@ -870,27 +737,6 @@
         <span class="desk-resize-handle" data-node-resize-handle title="缩放视频节点" aria-hidden="true"></span>
       </section>
     `;
-  }
-
-    function refreshVideoInferenceNode(nodeId) {
-    const state = DesktopState.state.canvas.nodes[nodeId];
-    const element = getNodeElement(nodeId);
-    if (!state || state.type !== 'video_inference' || !element) return;
-    const wasSelected = element.classList.contains('is-selected');
-    discardFloatingSwellState(element);
-    element.outerHTML = videoInferenceNodeHtml(state);
-    const replacement = getNodeElement(nodeId);
-    const progressRoot = replacement?.querySelector('.desk-video-node__progress');
-    progressView?.replaceRoot(element.querySelector('.desk-video-node__progress'), progressRoot, replacement);
-    const output = DesktopState.state.outputs?.[nodeId] || {};
-    const running = DesktopState.isInFlight(output.status);
-    progressView?.update(progressRoot, { visible: running, running, taskId: output.taskId,
-      percent: output.stage === 'submitting' ? null : output.progress, title: output.progressText || '视频生成中',
-      detail: 'MiniMax H3', startedAt: output.startedAt, finishedAt: output.finishedAt }, replacement);
-    if (wasSelected) replacement?.classList.add('is-selected');
-    ensureNodeEdgeHandles(replacement);
-    applyNodeLayout(nodeId);
-    updateLinkPath();
   }
 
     function refreshVideoNode(nodeId) {
@@ -932,28 +778,6 @@
     };
     if (video.readyState >= 1) syncMetadata();
     else video.addEventListener('loadedmetadata', syncMetadata, { once: true });
-  }
-
-    function syncVideoInferenceNodeStateFromDom(element) {
-    const nodeId = element?.dataset?.nodeId || '';
-    const node = nodeId ? DesktopState.state.canvas.nodes[nodeId] : null;
-    if (!element || !node || node.type !== 'video_inference') return null;
-    node.mode = element.querySelector('[data-video-field="mode"]')?.value || node.mode || 'image_to_video';
-    node.durationSeconds = Number(element.querySelector('[data-video-field="durationSeconds"]')?.value || node.durationSeconds || 15);
-    node.aspectRatio = element.querySelector('[data-video-field="aspectRatio"]')?.value || node.aspectRatio || '3:4';
-    node.pixelBudgetMp = Number(element.querySelector('[data-video-field="pixelBudgetMp"]')?.value || node.pixelBudgetMp || 0.8);
-    node.accelerationMode = element.querySelector('[data-video-field="accelerationMode"]')?.value || node.accelerationMode || 'first_block_cache';
-    node.steps = Number(element.querySelector('[data-video-field="steps"]')?.value || node.steps || 20);
-    node.crf = Number(element.querySelector('[data-video-field="crf"]')?.value || node.crf || 23);
-    node.firstBlockCacheThreshold = Number(
-      element.querySelector('[data-video-field="firstBlockCacheThreshold"]')?.value
-      || node.firstBlockCacheThreshold
-      || 0.08
-    );
-    normalizeVideoInferenceNodeState(node);
-    const actualSize = element.querySelector('[data-video-actual-size]');
-    if (actualSize) actualSize.textContent = `${node.pixelWidth}×${node.pixelHeight}`;
-    return node;
   }
 
     function fileOutputNodeHtml(nodeId) {
@@ -1033,7 +857,7 @@
         <button type="button" class="desk-port desk-port--in desk-port--upscale-in" data-port="in" data-node-id="${node.id}" title="连接图片到这里" aria-label="连接图片输入" data-i18n-title="upscaleInputTitle" data-i18n-aria="upscaleInputAria"></button>
         <button type="button" class="desk-port desk-port--out desk-port--upscale-out" data-port="out" data-node-id="${node.id}" title="连接到图片节点" aria-label="连接高清输出" data-i18n-title="upscaleOutputTitle" data-i18n-aria="upscaleOutputAria"></button>
         <div class="desk-upscale-controls">
-          <label><span data-i18n="upscaleModelLabel">模型</span><select class="desk-select" data-upscale-field="model">${optionListHtml(UPSCALE_MODEL_OPTIONS, model)}</select></label>
+          <label><span data-i18n="upscaleModelLabel">模型</span><select class="desk-select" data-desk-select-width="content" data-upscale-field="model">${optionListHtml(UPSCALE_MODEL_OPTIONS, model)}</select></label>
           <label><span data-i18n="upscaleTileLabel">分块</span><select class="desk-select" data-upscale-field="tileSize">${optionListHtml([{ value: '192', label: '192' }, { value: '256', label: '256' }, { value: '384', label: '384' }, { value: '512', label: '512' }], tileSize)}</select></label>
           <label><span data-i18n="upscaleOverlapLabel">重叠</span><select class="desk-select" data-upscale-field="tileOverlap">${optionListHtml([{ value: '16', label: '16' }, { value: '32', label: '32' }, { value: '64', label: '64' }, { value: '96', label: '96' }], tileOverlap)}</select></label>
         </div>
@@ -1447,9 +1271,6 @@
       ratioFromAspect,
       updateProviderParamVisibility,
       updateAllProviderParamVisibility,
-      videoConfigApi,
-      migrateVideoInferenceNodeLayout,
-      normalizeVideoInferenceNodeState,
       inputNodeHtml,
       comfyWorkflowCardsHtml,
       comfyWorkflowParameterOverrides,
@@ -1461,23 +1282,12 @@
       comfyNodeHtml,
       refreshComfyNode,
       loadComfyWorkflowCatalog,
-      videoInputRoleForSource,
-      videoInferenceInputSummary,
-      videoRuntimePresentation,
-      videoTaskTimerLabel,
-      videoDurationOptions,
-      videoAspectOptions,
-      videoQualityOptions,
-      videoAccelerationOptions,
-      videoInferenceNodeHtml,
       videoNodeSource,
       videoMediaAspectRatio,
       fitVideoNodeToMedia,
       formatVideoDuration,
       videoNodeHtml,
-      refreshVideoInferenceNode,
       refreshVideoNode,
-      syncVideoInferenceNodeStateFromDom,
       fileOutputNodeHtml,
       upscaleNodeHtml,
       syncFormFromState,

@@ -110,7 +110,7 @@ body.desk-app .desk-pose-editor__pass canvas {width:100%;aspect-ratio:1;}
 body.desk-app .desk-pose-editor__footer {display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:12px 14px;flex-shrink:0;}
 body.desk-app .desk-pose-editor__footer button {min-height:32px;padding:6px 8px;}
 body.desk-app .desk-pose-editor__footer small {grid-column:1/-1;}
-body.desk-app > .desk-select-menu[data-select-variant="pose-editor"] {z-index:2602;padding:4px;gap:2px;}
+body.desk-app > .desk-select-menu[data-select-variant="pose-editor"] {z-index:2602;}
 
 /* Narrow windows keep the viewport usable: side columns narrow and secondary labels drop. */
 @media (max-width:1280px) {

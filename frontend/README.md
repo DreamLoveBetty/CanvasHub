@@ -48,7 +48,7 @@ Violet/Amber/Teal + 自定义 HEX）；强调色（悬停/焦点，默认上游 
 打上的 `.desk-key`（无任何自身样式的挂钩类，只有 Ambient 层引用；2026-10-10 覆盖文本节点操作栏、
 图片工具条、排版/姿态、图片组、音频导入/下载、音乐操作、Topaz Video 与 ReShot 导入）。
 分段选择（2026-10-10 起；2026-10-18 起键随材质）：容器打 `.desk-key-bank` 挂钩（输入节点 GPT/Google、
-音乐节点页签，设置中心的连接端点/连线/碰撞、H3 运行方式、账号池页签，资产库视图页签与视频来源，提示词库工作区页签）。
+音乐节点页签，设置中心的连接端点/连线/碰撞、账号池页签，资产库视图页签与视频来源，提示词库工作区页签）。
 每个按钮就是独立的普通键帽（在键帽目标内），各自坐在面板上的井里，随哑光/微光泽/磨砂玻璃与表面形状变化；容器不再是凹槽
 （2026-10-18 去掉：凹槽在磨砂玻璃下只剩一圈阴影框），只负责排布（半格内边距容纳井环、1.5 格间距），并去掉生产样式的整块分段底板。选中（`.is-active`、`aria-pressed="true"`、
 `aria-selected="true"`）：键保持按下，灯色（`--amb-led-color`，否则强调色）从键四周缝隙透出（井环点亮），文字取灯色加深
@@ -104,8 +104,7 @@ Threads、Diamond、Grain 与 Classic；新轨道默认 36px，可选 48/56px，
 
 Qwen/Krea/绘栾、Topaz Video、ReShot、YuE 由原领域控制器/视图传入任务快照；
 GPT/Google/Comfy/Topaz 图像/高清放大/文件结果由 DesktopResults 适配；输入节点的新材质
-按节点挂载，不再共享经典样式的单一浮动层，因此并发图像任务不会互相覆盖。H3 在原模型节点
-刷新入口接入并迁移原材质 DOM，避免轮询换壳重置波形。未知时间显示 `—`，收到服务端
+按节点挂载，不再共享经典样式的单一浮动层，因此并发图像任务不会互相覆盖。未知时间显示 `—`，收到服务端
 started_at/created_at 后基于真实时戳推进，不随主题、样式或百分比重置。音乐保留原领域
 的“当前阶段百分比”及显示时钟。节点删除、工作流替换、页面离开明确释放资源；不依赖
 扫描全画布的 MutationObserver。任务提交/轮询/取消、Telegram 与存储协议保持不变。
@@ -122,6 +121,26 @@ BF16 仅改变 Transformer，不替换共享编码器/所选 VAE；说明归原�
 不增加节点高度或第二份全局状态。完成事件仍刷新节点目录，节点按稳定模型 ID 加载，
 显示目录返回的名称/精度标签；Krea 工作流规范化保留 BF16，但新节点仍默认内置 8-bit。
 未增加脚本或改变装配顺序，现有设置工具/model/controller 的缓存版本同步更新。
+
+## MOSS · 本地生成 / Layout（2026-11-01）
+
+节点 `type=moss`，普通文生图、自由 Layout、分镜网格三种模式，都走 `/api/moss/*`，不新增桌面专用生成接口。
+
+| 模块 | 职责 |
+|---|---|
+| `desktop-moss-model.js` | 规范化、连接策略、来源解析、输入指纹、草稿导入导出；不读 DOM |
+| `desktop-moss-api.js` | 鉴权请求与 camelCase/snake_case 转换 |
+| `desktop-moss-layout.js` | 自由 Layout 板内编辑器，每节点一份，只持有选中、拖动和撤销 |
+| `desktop-moss-grid.js` | 分镜板内编辑器，每节点一份；几何与 `backend/moss/layout.py` 的分区规则一致 |
+| `desktop-moss-tools.js` | 设置页的环境准备、官方权重绑定与社区 Base 转换 |
+| `desktop-canvas-moss.js` | 节点控制器：会话、编译回执、任务轮询、结果发布、分格展开 |
+
+加载顺序：model → api → layout → grid → tools → controller。
+
+- 字段引用是文本绑定的唯一事实，依赖边只是投影。解绑保留当时的可读文字。
+- 编译回执必须同时匹配输入指纹、草稿修订号和模型指纹，晚到响应丢弃。
+- 画板用隐藏只读输入框接键盘，否则 `Delete` 会落到外层画布删掉节点。按下时的重绘会移除被按元素，所以放开鼠标时还要收回一次焦点。
+- 整图进输出图片节点。切图是没有连线的普通图片节点，每个任务自动展开并归组一次（`panelJobId`），所以重跑不会覆盖，删除后也不会复活；手动再展开要确认。
 
 ## Qwen 2.1 · MLX（2026-10-01）
 
@@ -251,6 +270,24 @@ The build preserves that order and generates content-hashed URLs for both script
 
 The original canvas helper signatures remain as thin forwarding functions.
 Geometry helpers must not access DOM, application state, timers, storage or APIs.
+
+`scripts/desktop-canvas-port-plates.js` is the pure graphite-style port layout
+(`DesktopCanvasPortPlates.layout(edges, geometryOf, notchOf)`): facing sides per
+link, one merged plate per node side with evenly spaced ports that lean toward
+their partners, and the plate/neck SVG path. The host injects it into
+`desktop-canvas-connections.js` as `portPlates`; connections only call it while
+`<body data-desk-style="graphite">` and own every DOM write.
+
+Theme style (Settings › Appearance › 主题风格) is a second axis next to light/dark:
+`desktop-preferences.js` stores `themeStyle` (`liquid` default, `graphite`), projects
+`data-desk-style="graphite"` onto `<html>`/`<body>` (also applied early by the inline
+bootstrap in `desktop.html`) and emits `desktop:theme-style-change`.
+`styles/desktop-graphite.css` loads last; it overrides tokens with one block per theme
+(light `(0,2,1)`, dark `(0,3,1)`, same token set), paints the 8px pipes and
+`.desk-port-plates`, and cuts the model-input node's notch with a mask on `::before`
+(`::after` is the notch-shaped selection ring). Phase 1 restyles canvas, node shells,
+links and the generate key; inner controls and domain node backgrounds keep the
+liquid look.
 Connection rendering passes optional endpoint rectangles through the host to both
 path styles. Classic curves deliberately ignore endpoint rectangles and always
 use a single cubic Bezier based only on endpoint positions and port normals,
@@ -403,7 +440,7 @@ suffix:
 | `workflow` | Workflow schema/version normalization, portable snapshots, file naming and save/load adapters. | Applying a snapshot and replacing shared application state remains a host operation. |
 | `prompt-document` | Prompt segments/schema, image-reference semantics, materialization/fidelity, document versions/history model, generation metadata and connected-text prompt composition. | Editable DOM, selection/caret handling and Provider requests. |
 | `text-editor` | Text-node presentation/aliases/styles, contenteditable documents, tokens/mentions/caret, editing undo/redo, token migration/freezing, prompt-target adapters and polish-result presentation/application. | The polish API request belongs to `generation`; document model rules belong to `prompt-document`. |
-| `image-group-model` | Image-group items/roles/sizes, grouping/ungrouping, edge migration, persisted item ordering, node presentation and image-role prompt constraints. | Gesture timing, FLIP/proximity effects and prompt-token DOM updates. |
+| `image-group-model` | Image-group items/roles/sizes, grouping/ungrouping, edge migration, persisted item ordering, single-item deletion, node presentation and image-role prompt constraints. | Gesture timing, FLIP/proximity effects and prompt-token DOM updates. |
 | `image-group-melt` | Pairwise image melt of the incoming photo and its nearest target thumbnail (goo on colour, marble pass, seam-erase masks) in one SVG sized to the pair's bounding box; a vanilla port of liquid-gooey's image melt, explicitly injected into interaction. | No graph state, pointer/RAF lifecycle, timers, partner choice or model mutation; the controller passes geometry and the eased proximity. |
 | `image-group-interaction` | Group sorting gestures, FLIP/merge/split effects, proximity dwell/preview/release/drop and item focus interactions. | Actual group mutations are submitted through model callbacks. |
 | `image-group-role-picker` | The per-thumbnail morph role picker, opened by a tap on the thumbnail (or Enter/Space on the image): options spring out of the thumbnail centre onto a ring over a goo-filtered blob layer (a vanilla port of liquid-gooey's morph merge), with keyboard, Escape and outside-press closing. | No event binding, persistence or prompt-token updates: the sort gesture reports taps, the host forwards clicks/keys/pointers and commits the role through `onSelect`. The role tag on the thumbnail is display-only model markup. |
@@ -1013,8 +1050,8 @@ Every canvas "开始生成" button (input node incl. the static default one, Qwe
 source — node-radius 72px square, lightning/label layout, theme tokens, hover/pressed,
 `:disabled` (muted) and `[aria-busy="true"]` (keeps the primary finish while a job
 runs, even when disabled) — without naming domains. Controllers only set `disabled` /
-`aria-busy`; footer placement (`margin-left`) stays in each node's stylesheet. Comfy,
-upscale and video-inference runs keep the compact `.desk-button--generate` variant. Music button state is derived by
+`aria-busy`; footer placement (`margin-left`) stays in each node's stylesheet. Comfy
+and upscale runs keep the compact `.desk-button--generate` variant. Music button state is derived by
 `desktop-music-model.js` from the controller's actual job plus transient submit,
 upstream-wait and cancellation state. `desktop-music-view.js` paints labels,
 accessible busy state and icons without replacing the spinner on every poll.
@@ -1105,7 +1142,6 @@ video-control connection policies without either domain reading the other's priv
 `desktop-canvas-nodes` and workflow normalisation register `video_control`; results reuse `video`
 with typed `controlMetadata`. Status is reported through `DesktopResults.reportTaskStatus`;
 its global stop includes video-control tasks. No new music/image state or external Provider UI.
-H3 control-video input stays explicitly gated pending online backend integration.
 
 ## Pose reference node (SOMA mannequins, photo / video recognition)
 
@@ -1149,6 +1185,35 @@ no uploads or tasks. `desktop-canvas-topaz-video.js` owns uploads, preview/expor
 polling, cancellation and publication of full exports to the existing `video` result
 node. Preview artifacts remain inside the workbench and never replace a downstream
 result. These modules do not read image Topaz or ReShot private state.
+
+`desktop-canvas-comfy-video.js` owns ComfyUI video I/O on the canvas (load it before
+`desktop-canvas.js`): the `video → comfy` and `comfy → video` connection domain, the
+connected-video inputs read by `readComfyNodeConfig`, and publication of finished Comfy
+video tasks (`video_paths`) into downstream `video` nodes, creating one when none is
+connected. Submission and polling stay in the shared generation flow; `desktop-api.js`
+uploads each connected same-origin, `blob:` or `data:` video to `/api/comfy/upload_video`
+and sends only the returned ComfyUI input names. Video workflows allocate no image output
+nodes.
+
+`desktop-canvas-comfy-inputs.js` (load it after `desktop-canvas-comfy-video.js`, before
+`desktop-canvas.js`) maps connected images/videos onto the ordered `input_slots` of
+title-tagged ComfyUI workflows. Picks are stored per workflow on the Comfy node
+(`comfyInputSlots[workflow][slot]`: a source key, `none` to keep the workflow's own value,
+or absent for auto-fill in connection order); stale picks fall back to auto-fill. Tagged
+workflows replace the basic-input/parameter picker panel with a single “工作流输入” panel
+(slots, size only when the workflow takes it, every `[参数]` field). `desktop-api.js` sends
+one `images`/`videos` entry per slot (`''` for a gap) plus `negative_prompt`.
+
+Text nodes carry an optional `promptRole: 'negative'` (toggled from the text drawer). Prompt
+merging in `desktop-canvas-prompt-document.js` excludes negative nodes from every model's
+positive prompt; Comfy sends them as `negative_prompt` when the workflow has a `[负面]` tag,
+GPT / Google input nodes append them as `负面约束：…`. Qwen 2.1 sends `negative_prompt` only for
+the standard preset with CFG > 1 (true CFG; the footer pill says when it is ignored). MOSS takes
+negative nodes as plain edges — never field bindings — folds them into the compile fingerprint and
+sends `negative_prompt` with compile and generate (both presets; no extra pass). A bound MOSS source
+switched to negative blocks the run. Other local models ignore them.
+The prompt agent (frontend target lookup and backend `summarize_context`) never treats a
+negative node as the prompt to rewrite.
 
 The expanded workbench mirrors the information architecture of a dedicated video
 enhancement application without importing a second visual system into the canvas:
@@ -1219,7 +1284,7 @@ Unknown progress is `null`; unknown states stay `unknown`, never success. `resul
 queries once; `result(receipt)` reuses the receipt, without polling or resubmission.
 Submission payloads and artifact types remain domain-specific.
 
-`DesktopApi.tasks` adapts generation (including image/edit/Comfy/upscale), H3 video,
+`DesktopApi.tasks` adapts generation (including image/edit/Comfy/upscale)
 and batch; `DesktopMusicAPI.tasks` and `DesktopVideoControlAPI.tasks` adapt music and
 ReShot. Legacy methods forward and unwrap the original receipt to preserve callers.
 Existing HTTP routes, auth, provider fallback, archive and Telegram contracts are unchanged.
@@ -1235,7 +1300,7 @@ Domain controllers still own polling, current-job state, restore, publication an
 The registry stores only adapters and pending cancellation commands, not mirrored jobs.
 
 `desktop-task-output-adapter.js` bridges legacy output state and batch cancellation.
-Shared task IDs are deduplicated; H3 cancellation delegates to its controller. Async
+Shared task IDs are deduplicated. Async
 receipts are applied only to the same workflow/output/task identity. Failed cancellation
 does not stop unrelated polling and remains retryable. The registry namespaces domain keys
 and deduplicates overlapping stop requests. Agent plans and provider-specific internals

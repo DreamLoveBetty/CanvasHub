@@ -92,7 +92,7 @@ body.desk-app[data-theme] .desk-image-group-transition__chip strong {
     var(--desk-image-group-transition-badge-shadow-color);
 }
 
-body.desk-app[data-theme] :is(.desk-image-group__role, .desk-image-group__insert) {
+body.desk-app[data-theme] :is(.desk-image-group__role, .desk-image-group__insert, .desk-image-group__delete) {
   color: var(--desk-image-group-thumb-control-ink);
   background: var(--desk-image-group-thumb-control-background);
   box-shadow: var(--desk-image-group-thumb-control-shadow);
@@ -100,6 +100,10 @@ body.desk-app[data-theme] :is(.desk-image-group__role, .desk-image-group__insert
 
 body.desk-app[data-theme] .desk-image-group__insert:is(:hover, :focus-visible) {
   color: var(--desk-image-group-thumb-control-hover-ink);
+}
+
+body.desk-app[data-theme] .desk-image-group__delete:is(:hover, :focus-visible) {
+  color: var(--desk-image-group-thumb-control-danger-ink);
 }
 
 /* Frosted glass. The goo blobs stay opaque (a translucent blob falls below the goo

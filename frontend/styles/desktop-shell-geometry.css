@@ -151,11 +151,21 @@
   user-select: none;
 }
 
-:where(body.desk-app[data-theme]) .desk-canvas.is-select-tool {
+/* Empty canvas (the viewport and the world box it hit-tests through) shows the
+   pan/marquee cursors; overlays and world content keep theirs (zero specificity). */
+:where(body.desk-app[data-theme] .desk-canvas > :not(.desk-canvas-world), body.desk-app[data-theme] .desk-canvas-world > *) {
   cursor: default;
 }
 
+:where(body.desk-app[data-theme]) .desk-canvas.is-marquee-armed {
+  cursor: crosshair;
+}
+
 :where(body.desk-app[data-theme]) .desk-canvas.is-panning {
+  cursor: grab;
+}
+
+:where(body.desk-app[data-theme]) .desk-canvas.is-pan-dragging {
   cursor: grabbing;
 }
 

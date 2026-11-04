@@ -95,9 +95,9 @@ test('settings split appearance and Pinterest out of system and status cards jum
   const settings = read('frontend/scripts/desktop-settings.js');
   assert.ok(settings.includes("html: activeTab === 'system' ? renderSystemRuntimeSettings(editableServer, setting('auth', auth)) : ''"));
   assert.ok(settings.includes("html: activeTab === 'pinterest' ? renderPinterestSettings(pinterest) : ''"));
-  assert.ok(settings.includes("html: activeTab === 'appearance' ? renderCanvasInteractionSettings() : ''"));
+  assert.ok(settings.includes("html: activeTab === 'appearance' ? renderThemeStyleSettings() + renderCanvasInteractionSettings() : ''"));
   assert.ok(settings.includes('? renderProgressSettings() + renderControlMaterialSettings() + renderFieldStyleSettings()\n'));
-  for (const tab of ['system', 'telegram', 'provider', 'third-party', 'paths', 'comfy', 'video-inference', 'prompt', 'chatgpt-pool']) {
+  for (const tab of ['system', 'telegram', 'provider', 'third-party', 'paths', 'comfy', 'prompt', 'chatgpt-pool']) {
     assert.ok(settings.includes(`{ goto: '${tab}' }`), tab);
   }
   assert.ok(settings.includes("const goto = event.target.closest('[data-settings-goto]');"));

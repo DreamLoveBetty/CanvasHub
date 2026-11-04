@@ -30,7 +30,7 @@ test('video transport still refuses external origins and unrelated local endpoin
 });
 test('video-only typed connections, no image/audio/generation control claim',()=> {
   assert.ok(model.policy({type:'video'},{type:'video_control'})); assert.ok(model.policy({type:'video_control'},{type:'video'}));
-  for(const type of ['audio','image','video_inference','music_generate']) assert.equal(model.policy({type},{type:'video_control'}),null);
+  for(const type of ['audio','image','music_generate']) assert.equal(model.policy({type},{type:'video_control'}),null);
 });
 test('state normalisation and snake_case request',()=> {
   const node=model.normalize({type:'video_control',maxSeconds:Infinity,cannyLow:NaN,control:'invalid'});
@@ -113,11 +113,4 @@ test('source-read failure has a failed summary and can reopen details before any
  assert.equal(detail.message,'synthetic source rejection');assert.equal(detail.stage,task.stage);
  const count=h.reports.length;h.controller.showStatus('control');assert.equal(h.reports.length,count+1);
  assert.equal(h.reports.at(-1).task.progress_text,task.progress_text);h.controller.disposeAll();
-});
-test('H3 refuses control-video inputs until reference-video integration is verified',()=> {
- vm.runInNewContext(fs.readFileSync(path.join(root,'desktop-canvas-generation-config.js'),'utf8'),sandbox);
- const controller=sandbox.window.DesktopCanvasGenerationConfig.create({getNodeElement:()=>({}),
-  syncVideoInferenceNodeStateFromDom:()=>({mode:'reference_to_video'}),getVisibleInputPrompt:()=> 'synthetic prompt',
-  videoInferenceInputSummary:()=>({referenceVideo:{node:{controlMetadata:{kind:'depth'}}}})});
- assert.throws(()=>controller.readVideoInferenceNodeConfig('h3'),/尚未开放/);
 });

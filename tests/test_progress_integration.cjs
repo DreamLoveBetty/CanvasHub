@@ -83,7 +83,6 @@ test('common results and MLX/Cyimg adapters use task receipts, not the legacy es
  assert.match(results,/stagePercent\?\.\(stageIndex, stageCount,\s*task\?\.progress_stage_kind === 'generating' \? task\?\.estimated_duration_seconds : null/);
  assert.match(results,/`约 \$\{Math\.round\(estimated\)\}%`/);
  assert.match(results,/materialRoot = resultNode\.querySelector\('\[data-input-material-progress\]'\)/);
- assert.match(read('desktop-canvas-model-nodes'),/progressView\?\.replaceRoot/);
 });
 
 test('progress settings update only their controls and retain unsaved System fields',()=>{

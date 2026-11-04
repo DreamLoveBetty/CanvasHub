@@ -16,7 +16,6 @@ class NodeStatusMaterialTests(unittest.TestCase):
         selectors, body = block.groups()
         self.assertEqual({s.strip() for s in selectors.split(',')}, {
             '.desk-status-pill.is-success', '.desk-pill-row span.is-success',
-            '.desk-video-runtime-pill.is-online',
         })
         self.assertEqual(dict(re.findall(r'([\w-]+):\s*([^;]+);', body)), {
             'color': 'var(--desk-status-success-soft-ink)',
