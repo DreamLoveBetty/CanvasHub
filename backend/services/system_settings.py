@@ -17,7 +17,6 @@ def _collect_system_diagnostics(
     _collect_comfy_workflows,
     _path_diagnostics,
     archive_scan_roots,
-    collect_video_runtime_component_status,
     get_comfy_config,
     get_cyimg_config,
     get_database_path,
@@ -31,7 +30,6 @@ def _collect_system_diagnostics(
     get_storage_config,
     get_telegram_config,
     get_third_party_image_config,
-    get_video_inference_public_config,
     get_yunwu_api_base_url,
     get_yunwu_api_key,
     source_image_roots,
@@ -45,7 +43,6 @@ def _collect_system_diagnostics(
     cyimg_cfg = get_cyimg_config()
     managed_codex_cfg = get_managed_codex_oauth_status()
     comfy_cfg = get_comfy_config()
-    video_inference_cfg = get_video_inference_public_config()
 
     return {
         "ok": True,
@@ -101,15 +98,6 @@ def _collect_system_diagnostics(
             "environment_managed": bool(comfy_cfg.get("environment_managed")),
             "workflow_count": len(_collect_comfy_workflows().get("items") or []),
         },
-        "video_inference": {
-            "runtime_mode": video_inference_cfg.get("runtime_mode", "auto"),
-            "local_base_url": (video_inference_cfg.get("local") or {}).get("base_url", ""),
-            "lan_base_url": (video_inference_cfg.get("lan") or {}).get("base_url", ""),
-            "manager_base_url": video_inference_cfg.get("manager_base_url", ""),
-            "lan_api_key_configured": bool((video_inference_cfg.get("lan") or {}).get("api_key_configured")),
-            "environment_managed": bool(video_inference_cfg.get("environment_managed")),
-            "component": collect_video_runtime_component_status(),
-        },
         "storage": {
             "image_archive_dir": _path_diagnostics(storage_cfg["image_archive_dir"], expect_dir=True),
             "source_image_dir": _path_diagnostics(storage_cfg["source_image_dir"], expect_dir=True),
@@ -137,9 +125,11 @@ def _collect_gpt_runtime_config(
     DEFAULT_GPT_IMAGE_MAIN_MODEL,
     DEFAULT_GPT_PROVIDER_TOTAL_TIMEOUT_SECONDS,
     DEFAULT_GPT_REASONING_EFFORT,
+    DEFAULT_GPT_REQUEST_ENDPOINT,
     DEFAULT_GPT_TRANSPORT_MODE,
     VALID_GPT_MAIN_MODELS,
     VALID_GPT_REASONING_EFFORTS,
+    VALID_GPT_REQUEST_ENDPOINTS,
     VALID_GPT_TRANSPORT_MODES,
     get_gpt_provider_config,
 ):
@@ -150,10 +140,12 @@ def _collect_gpt_runtime_config(
             "image_main_model": provider_cfg.get("image_main_model") or DEFAULT_GPT_IMAGE_MAIN_MODEL,
             "reasoning_effort": provider_cfg.get("reasoning_effort") or DEFAULT_GPT_REASONING_EFFORT,
             "transport_mode": provider_cfg.get("transport_mode") or DEFAULT_GPT_TRANSPORT_MODE,
+            "request_endpoint": provider_cfg.get("request_endpoint") or DEFAULT_GPT_REQUEST_ENDPOINT,
             "total_timeout_seconds": provider_cfg.get("total_timeout_seconds") or DEFAULT_GPT_PROVIDER_TOTAL_TIMEOUT_SECONDS,
             "allowed_image_main_models": provider_cfg.get("allowed_image_main_models") or sorted(VALID_GPT_MAIN_MODELS),
             "allowed_reasoning_efforts": provider_cfg.get("allowed_reasoning_efforts") or sorted(VALID_GPT_REASONING_EFFORTS),
             "allowed_transport_modes": provider_cfg.get("allowed_transport_modes") or sorted(VALID_GPT_TRANSPORT_MODES),
+            "allowed_request_endpoints": provider_cfg.get("allowed_request_endpoints") or sorted(VALID_GPT_REQUEST_ENDPOINTS),
         },
     }
 
@@ -182,7 +174,6 @@ def _collect_system_settings(
     get_storage_config,
     get_telegram_config,
     get_third_party_image_config,
-    get_video_inference_public_config,
     get_yunwu_api_base_url,
     get_yunwu_api_key,
     source_image_roots,
@@ -201,7 +192,6 @@ def _collect_system_settings(
     proxy_cfg = get_proxy_config()
     prompt_source_proxy_cfg = get_proxy_config("prompt_source")
     comfy_cfg = get_comfy_config()
-    video_inference_cfg = get_video_inference_public_config()
     pinterest_cfg = get_pinterest_config()
     pinterest_browser = get_pinterest_browser_login_capability()
     return {
@@ -209,6 +199,7 @@ def _collect_system_settings(
         "settings": {
             "auth": {
                 "miniapp_access_password_configured": bool(get_miniapp_access_password()),
+                "miniapp_access_password_length": len(get_miniapp_access_password()),
             },
             "server": {
                 "host": server_cfg.get("host", SERVER_HOST),
@@ -223,6 +214,7 @@ def _collect_system_settings(
             },
             "telegram": {
                 "bot_token_configured": bool(telegram_cfg.get("bot_token")),
+                "bot_token_length": len(telegram_cfg.get("bot_token") or ""),
                 "chat_id": telegram_cfg.get("chat_id", ""),
                 "allowed_user_ids": sorted(TELEGRAM_AUTH_ALLOWED_IDS),
                 "proxy_url": telegram_cfg.get("proxy_url", ""),
@@ -233,10 +225,12 @@ def _collect_system_settings(
             },
             "nano_banana_api": {
                 "api_key_configured": bool(get_nano_banana_api_key()),
+                "api_key_length": len(get_nano_banana_api_key()),
                 "base_url": get_nano_banana_api_base_url(),
             },
             "third_party_image_api": {
                 "api_key_configured": bool(third_party_cfg.get("api_key_configured")),
+                "api_key_length": third_party_cfg.get("api_key_length", 0),
                 "base_url": third_party_cfg.get("base_url", ""),
                 "model": third_party_cfg.get("model", ""),
                 "generate_path": third_party_cfg.get("generate_path", ""),
@@ -246,6 +240,7 @@ def _collect_system_settings(
             },
             "cyimg": {
                 "api_key_configured": bool(cyimg_cfg.get("api_key_configured")),
+                "api_key_length": cyimg_cfg.get("api_key_length", 0),
                 "task_timeout_seconds": cyimg_cfg.get("task_timeout_seconds", 3600),
             },
             "comfy": {
@@ -256,12 +251,12 @@ def _collect_system_settings(
                 "environment_managed": bool(comfy_cfg.get("environment_managed")),
                 "environment_fields": comfy_cfg.get("environment_fields") or [],
             },
-            "video_inference": video_inference_cfg,
             "pinterest": {
                 "enabled": bool(pinterest_cfg.get("enabled")),
                 "profile_url": pinterest_cfg.get("profile_url", ""),
                 "sync_profile_url": pinterest_cfg.get("sync_profile_url", ""),
                 "auth_configured": bool(pinterest_cfg.get("auth_configured")),
+                "auth_cookie_length": len(pinterest_cfg.get("legacy_auth_cookie") or ""),
                 "auth_status": pinterest_cfg.get("auth_status", "not_configured"),
                 "auth_updated_at": pinterest_cfg.get("auth_updated_at", ""),
                 "last_verified_at": pinterest_cfg.get("last_verified_at", ""),
@@ -367,8 +362,6 @@ def _sanitize_system_settings_patch(
     _settings_dict,
     _validate_public_mode_password,
     load_app_settings,
-    normalize_runtime_base_url,
-    normalize_supervisor_base_url,
 ):
     if not isinstance(payload, dict):
         return None
@@ -485,68 +478,6 @@ def _sanitize_system_settings_patch(
     if comfy_data:
         settings["comfy"] = comfy
 
-    video_inference = _settings_dict(settings.get("video_inference")).copy()
-    video_inference_data = _settings_dict(data.get("video_inference"))
-    runtime_mode = _clean_text(video_inference_data.get("runtime_mode"), max_len=16).lower()
-    if runtime_mode in {"auto", "local", "lan"}:
-        video_inference["runtime_mode"] = runtime_mode
-    if "manager_base_url" in video_inference_data:
-        raw_manager_url = _clean_text(video_inference_data.get("manager_base_url"), max_len=2048)
-        video_inference["manager_base_url"] = normalize_supervisor_base_url(raw_manager_url, allow_empty=True)
-
-    video_local = _settings_dict(video_inference.get("local")).copy()
-    video_local_data = _settings_dict(video_inference_data.get("local"))
-    if "base_url" in video_local_data:
-        raw_url = _clean_text(video_local_data.get("base_url"), max_len=2048)
-        video_local["base_url"] = normalize_runtime_base_url(raw_url) if raw_url else ""
-    _patch_text(video_local, video_local_data, "component_dir", max_len=2048)
-    start_mode = _clean_text(video_local_data.get("start_mode"), max_len=24).lower()
-    if start_mode in {"manual", "on_demand", "always"}:
-        video_local["start_mode"] = start_mode
-    if video_local_data:
-        video_inference["local"] = video_local
-
-    video_lan = _settings_dict(video_inference.get("lan")).copy()
-    video_lan_data = _settings_dict(video_inference_data.get("lan"))
-    if "base_url" in video_lan_data:
-        raw_url = _clean_text(video_lan_data.get("base_url"), max_len=2048)
-        video_lan["base_url"] = normalize_runtime_base_url(raw_url, allow_empty=True)
-    _patch_secret(video_lan, video_lan_data, "api_key")
-    if "connect_timeout_seconds" in video_lan_data:
-        try:
-            video_lan["connect_timeout_seconds"] = max(0.5, min(30.0, float(video_lan_data.get("connect_timeout_seconds"))))
-        except (TypeError, ValueError):
-            pass
-    if video_lan_data:
-        video_inference["lan"] = video_lan
-
-    video_defaults = _settings_dict(video_inference.get("defaults")).copy()
-    video_defaults_data = _settings_dict(video_inference_data.get("defaults"))
-    aspect_ratio = _clean_text(video_defaults_data.get("aspect_ratio"), max_len=16)
-    if aspect_ratio in {"16:9", "9:16", "3:4", "4:3", "2:3", "3:2", "1:1", "21:9", "9:21"}:
-        video_defaults["aspect_ratio"] = aspect_ratio
-    acceleration_mode = _clean_text(video_defaults_data.get("acceleration_mode"), max_len=32).lower()
-    if acceleration_mode in {"off", "first_block_cache", "sol_attn", "combined"}:
-        video_defaults["acceleration_mode"] = acceleration_mode
-    for key, minimum, maximum in (
-        ("pixel_budget_mp", 0.1, 8.0),
-        ("first_block_cache_threshold", 0.001, 1.0),
-    ):
-        if key in video_defaults_data:
-            try:
-                video_defaults[key] = max(minimum, min(maximum, float(video_defaults_data.get(key))))
-            except (TypeError, ValueError):
-                pass
-    if "duration_seconds" in video_defaults_data:
-        try:
-            video_defaults["duration_seconds"] = max(1, min(120, int(video_defaults_data.get("duration_seconds"))))
-        except (TypeError, ValueError):
-            pass
-    if video_defaults_data:
-        video_inference["defaults"] = video_defaults
-    if video_inference_data:
-        settings["video_inference"] = video_inference
-
     pinterest = _settings_dict(settings.get("pinterest")).copy()
     pinterest_data = _settings_dict(data.get("pinterest"))
     had_legacy_auth_file = "auth_file" in pinterest
@@ -624,11 +555,14 @@ def _sanitize_system_settings_patch(
     return settings
 
 
-def _sanitize_gpt_provider_patch(data, *, GPT_TRANSPORT_MODES, _coerce_gpt_provider_total_timeout):
+def _sanitize_gpt_provider_patch(data, *, GPT_TRANSPORT_MODES, GPT_REQUEST_ENDPOINTS, _coerce_gpt_provider_total_timeout):
     allowed = {}
     transport_mode = str(data.get("transport_mode") or data.get("transportMode") or "").strip().lower()
     if transport_mode in GPT_TRANSPORT_MODES:
         allowed["transport_mode"] = transport_mode
+    request_endpoint = str(data.get("request_endpoint") or "").strip().lower()
+    if request_endpoint in GPT_REQUEST_ENDPOINTS:
+        allowed["request_endpoint"] = request_endpoint
     timeout_value = data.get("total_timeout_seconds", data.get("totalTimeoutSeconds"))
     if timeout_value not in (None, ""):
         allowed["total_timeout_seconds"] = _coerce_gpt_provider_total_timeout(timeout_value)

@@ -5,6 +5,8 @@ Preserve existing operation order, payloads and failure semantics.
 """
 from __future__ import annotations
 
+from .comfy_video import VIDEO_SUFFIXES
+
 
 def _comfy_archive_date(params, *, datetime):
     manifest = params.get('comfy_archive_manifest') if isinstance(params.get('comfy_archive_manifest'), dict) else {}
@@ -33,7 +35,7 @@ def _comfy_archive_source_key(task_id, item, *, hashlib, json):
 def _comfy_archive_filename(task_id, item, source_key, *, Path, hashlib, re):
     filename = str(item.get('filename') or '').strip()
     suffix = Path(filename).suffix or '.png'
-    if suffix.lower() not in ('.png', '.jpg', '.jpeg', '.webp'):
+    if suffix.lower() not in ('.png', '.jpg', '.jpeg', '.webp', *VIDEO_SUFFIXES):
         suffix = '.png'
     else:
         suffix = suffix.lower()
@@ -141,10 +143,13 @@ def _send_comfy_result(
     update_task,
     update_task_status,
     write_obsidian_prompt_sidecar,
+    _probe_video_metadata=None,
 ):
     if _is_task_canceled(task_id):
         return
     params = dict(params or {})
+    is_video = params.get('comfy_output_kind') == 'video'
+    media_label = '视频' if is_video else '图片'
     width = _normalize_comfy_dimension(params.get('width'), 1024)
     height = _normalize_comfy_dimension(params.get('height'), 1024)
     size_label = f'{width}×{height}'
@@ -160,7 +165,7 @@ def _send_comfy_result(
         if isinstance(item, dict) and str(item.get('filename') or '').strip()
     ][:expected_count]
     if not comfy_images:
-        raise RuntimeError('ComfyUI 输出缺少图片')
+        raise RuntimeError(f'ComfyUI 输出缺少{media_label}')
 
     archive_date = _comfy_archive_date(params)
     output_dir = daily_output_dir(datetime.strptime(archive_date, '%Y-%m-%d'))
@@ -202,7 +207,7 @@ def _send_comfy_result(
                 continue
             image_bytes, _ = _fetch_comfy_binary(item['filename'], item['subfolder'], item['type'])
             if not isinstance(image_bytes, (bytes, bytearray)) or not image_bytes:
-                raise RuntimeError(f"ComfyUI 输出图片为空：{item['filename']}")
+                raise RuntimeError(f"ComfyUI 输出{media_label}为空：{item['filename']}")
             stage_path = stage_dir / f"{item['archive_file']}.tmp"
             stage_path.write_bytes(image_bytes)
             staged_files[item['source_key']] = stage_path
@@ -233,6 +238,7 @@ def _send_comfy_result(
         sidecar_lines = [
             str(prompt or '').strip(),
             '',
+            *([f"negative_prompt: {params['negative_prompt']}"] if params.get('negative_prompt') else []),
             f'workflow: {workflow}',
             f'ratio: {ratio}',
             f'size: {width}x{height}',
@@ -248,16 +254,23 @@ def _send_comfy_result(
             write_obsidian_prompt_sidecar(archive_path, sidecar_text, txt_path=sidecar)
         except Exception as exc:
             print(f"⚠️ 写入 ComfyUI sidecar 失败: {exc}")
-        try:
-            save_thumbnail(str(archive_path), archive_name)
-        except Exception as exc:
-            print(f"⚠️ 保存 ComfyUI 缩略图失败: {exc}")
+        if not is_video:
+            try:
+                save_thumbnail(str(archive_path), archive_name)
+            except Exception as exc:
+                print(f"⚠️ 保存 ComfyUI 缩略图失败: {exc}")
         item['archived'] = True
         item.setdefault('archived_at', int(time.time()))
         persist_manifest()
 
     if not archive_paths:
-        raise RuntimeError('ComfyUI 输出没有可归档的图片')
+        raise RuntimeError(f'ComfyUI 输出没有可归档的{media_label}')
+    if is_video and _probe_video_metadata is not None:
+        # The status API reports video_metadata from these params; keep the real output size.
+        metadata = _probe_video_metadata(archive_paths[0]) or {}
+        for key in ('width', 'height', 'fps', 'duration_seconds'):
+            if metadata.get(key):
+                params[key] = metadata[key]
 
     telegram_enabled = _coerce_bool(params.get('telegram_enabled', params.get('telegramEnabled')), True)
     has_pending_telegram = telegram_enabled and any(
@@ -268,7 +281,7 @@ def _send_comfy_result(
         return
     if has_pending_telegram:
         update_task_status(task_id, 'processing', 'ComfyUI 已归档，正在发送到 Telegram...', stage='sending_telegram')
-        send_status_notification(task_id, 'ComfyUI 已完成，正在发送图片...', '📤')
+        send_status_notification(task_id, f'ComfyUI 已完成，正在发送{media_label}...', '📤')
     for index, (item, archive_path) in enumerate(zip(manifest_items, archive_paths), start=1):
         caption_parts = [part for part in (f'ComfyUI {workflow}'.strip(), size_label, f'{index}/{len(archive_paths)}' if len(archive_paths) > 1 else '') if part]
         caption = ' | '.join(caption_parts)
@@ -321,7 +334,7 @@ def _send_comfy_result(
         params=json.dumps(params, ensure_ascii=False),
     )
     if telegram_enabled and telegram_success:
-        send_status_notification(task_id, '✅ ComfyUI 图片生成成功！', '🎉')
+        send_status_notification(task_id, f'✅ ComfyUI {media_label}生成成功！', '🎉')
     elif telegram_enabled:
         send_status_notification(task_id, '❌ ComfyUI 已生成，但 Telegram 发送未全部成功', '⚠️')
 

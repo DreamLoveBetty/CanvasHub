@@ -13,7 +13,7 @@
 - `install.py` / `requirements-py314.txt`：显式安装、固定依赖及模型校验。不在服务器启动时自动安装或下载。
 - `routes/video_control_routes.py`：受保护 HTTP 适配。`routes/artifact_response.py` 提供中立的文件 Range 响应，音频也使用这一 HTTP 工具，不反向依赖视频领域。
 - `server.py` 仅装配 `APP_DATA_DIR`、runtime、service、router。
-- `runtime_resources.py` 是协作式本机资源租约，音频和 ReShot runtime 在启动 worker 前获取它；排队可取消。它不声称接管远程 H3 或已有 Upscale 的调度。
+- `runtime_resources.py` 是协作式本机资源租约，音频和 ReShot runtime 在启动 worker 前获取它；排队可取消。它不声称接管已有 Upscale 的调度。
 
 ## 安装与持久化
 
@@ -61,9 +61,8 @@
 节点不显示堆栈/产物列表。阶段来自真实 reporter，没有伪造百分比/ETA。
 换工作流或删除节点取消所属任务；普通页面刷新保留后端任务并恢复轮询。
 
-H3 Runtime 本轮离线，**尚未接通下游参考视频/专用 ControlNet 推理**。连接了控制结果的 H3
-生成请求会明确拒绝，避免现有首帧接口静默忽略控制输入。普通图生视频行为不变。
-后续需在线验证实际接口、补齐参考视频上传与依赖执行链，再开放该能力。
+本机 H3 Runtime 已移除，控制视频目前**没有下游视频推理节点**，结果可保存或接入姿态节点。
+视频推理之后统一走 ComfyUI 模块，接入时再补参考视频上传与依赖执行链。
 
 可移植回归：`tests/test_video_control.py`、`tests/test_video_control.cjs`。
 本机验收探针/报告在 `tests/local/reshot_*` 与 `tests/output/reshot-ui/`。

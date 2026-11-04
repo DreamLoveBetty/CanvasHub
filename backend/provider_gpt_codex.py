@@ -28,9 +28,11 @@ from .app_config import (
     DEFAULT_GPT_IMAGE_MAIN_MODEL,
     DEFAULT_GPT_PROVIDER_TOTAL_TIMEOUT_SECONDS,
     DEFAULT_GPT_REASONING_EFFORT,
+    DEFAULT_GPT_REQUEST_ENDPOINT,
     DEFAULT_GPT_TRANSPORT_MODE,
     GPT_IMAGE_MAIN_MODELS,
     GPT_REASONING_EFFORTS,
+    GPT_REQUEST_ENDPOINTS,
     GPT_TRANSPORT_MODES,
     get_gpt_provider_config,
 )
@@ -52,6 +54,7 @@ from codex_api import inspect_auth_status, resolve_size  # noqa: E402
 SUPPORTED_IMAGE_MAIN_MODELS = set(GPT_IMAGE_MAIN_MODELS)
 SUPPORTED_REASONING_EFFORTS = set(GPT_REASONING_EFFORTS)
 SUPPORTED_TRANSPORT_MODES = set(GPT_TRANSPORT_MODES)
+SUPPORTED_REQUEST_ENDPOINTS = set(GPT_REQUEST_ENDPOINTS)
 
 TRANSIENT_ERROR_MARKERS = (
     "response.failed",
@@ -80,14 +83,6 @@ UNSUPPORTED_CHATGPT_CODEX_MODEL_MARKERS = (
 )
 
 LOCAL_PROVIDER_TOTAL_TIMEOUT_SECONDS = DEFAULT_GPT_PROVIDER_TOTAL_TIMEOUT_SECONDS
-
-
-def _set_env_value(key: str, value: str | None, *, force: bool = False) -> None:
-    if value in (None, ""):
-        os.environ.pop(key, None)
-        return
-    if force or not os.environ.get(key):
-        os.environ[key] = str(value)
 
 
 def _managed_codex_provider_env() -> dict | None:
@@ -193,38 +188,48 @@ def _render_contract_warnings(image_path: Path, ratio: str, resolution: str) -> 
     return warnings
 
 
-def _apply_gpt_provider_env() -> dict:
-    cfg = get_gpt_provider_config()
-    auth_file = cfg.get("auth_file")
-    auth_dir = cfg.get("auth_dir")
-    api_base = cfg.get("api_base")
-    image_main_model = cfg.get("image_main_model")
-    reasoning_effort = cfg.get("reasoning_effort")
-    transport_mode = cfg.get("transport_mode")
-    if auth_file and not os.environ.get("CODEX_API_AUTH_FILE"):
-        os.environ["CODEX_API_AUTH_FILE"] = str(auth_file)
-    if auth_dir and not os.environ.get("CODEX_API_AUTH_DIR"):
-        os.environ["CODEX_API_AUTH_DIR"] = str(auth_dir)
-    if api_base and not os.environ.get("CODEX_API_BASE"):
-        os.environ["CODEX_API_BASE"] = str(api_base)
-    if image_main_model and not os.environ.get("GPT_IMAGE_MAIN_MODEL"):
-        os.environ["GPT_IMAGE_MAIN_MODEL"] = str(image_main_model)
-    if reasoning_effort and not os.environ.get("GPT_REASONING_EFFORT"):
-        os.environ["GPT_REASONING_EFFORT"] = str(reasoning_effort)
-    if transport_mode and not os.environ.get("GPT_TRANSPORT_MODE"):
-        os.environ["GPT_TRANSPORT_MODE"] = str(transport_mode)
+def _gpt_provider_env() -> tuple[dict, dict]:
+    """Resolve the env one local Codex call needs, without touching this process.
 
+    Settings are re-read on every call, so changes apply to the next request.
+    Variables already present in this process (deploy-time overrides) are left
+    for the child to inherit; managed Codex OAuth overrides everything else.
+    """
+    cfg = get_gpt_provider_config()
+    settings_env = {
+        "CODEX_API_AUTH_FILE": cfg.get("auth_file"),
+        "CODEX_API_AUTH_DIR": cfg.get("auth_dir"),
+        "CODEX_API_BASE": cfg.get("api_base"),
+        "GPT_IMAGE_MAIN_MODEL": cfg.get("image_main_model"),
+        "GPT_REASONING_EFFORT": cfg.get("reasoning_effort"),
+        "GPT_TRANSPORT_MODE": cfg.get("transport_mode"),
+    }
+    env = {
+        key: str(value)
+        for key, value in settings_env.items()
+        if value and not os.environ.get(key)
+    }
     managed_env = _managed_codex_provider_env()
     if managed_env:
-        for key, value in managed_env.items():
-            _set_env_value(str(key), value, force=True)
-    return cfg
+        env.update({str(key): value for key, value in managed_env.items()})
+    return cfg, env
+
+
+def _env_with_overrides(overrides: dict) -> dict:
+    """Return this process's env with overrides applied; empty values unset a key."""
+    env = dict(os.environ)
+    for key, value in overrides.items():
+        if value in (None, ""):
+            env.pop(str(key), None)
+        else:
+            env[str(key)] = str(value)
+    return env
 
 
 def get_gpt_provider_auth_status() -> dict:
     """Return safe local Codex auth status for diagnostics."""
-    cfg = _apply_gpt_provider_env()
-    status = inspect_auth_status()
+    cfg, provider_env = _gpt_provider_env()
+    status = inspect_auth_status(env=_env_with_overrides(provider_env))
     auth_file = cfg.get("auth_file")
     auth_dir = cfg.get("auth_dir")
     status.update(
@@ -237,6 +242,8 @@ def get_gpt_provider_auth_status() -> dict:
             "transport_mode": str(cfg.get("transport_mode") or DEFAULT_GPT_TRANSPORT_MODE),
             "total_timeout_seconds": int(cfg.get("total_timeout_seconds") or DEFAULT_GPT_PROVIDER_TOTAL_TIMEOUT_SECONDS),
             "allowed_transport_modes": sorted(SUPPORTED_TRANSPORT_MODES),
+            "request_endpoint": str(cfg.get("request_endpoint") or DEFAULT_GPT_REQUEST_ENDPOINT),
+            "allowed_request_endpoints": sorted(SUPPORTED_REQUEST_ENDPOINTS),
         }
     )
     return status
@@ -285,6 +292,7 @@ def _write_prompt_sidecar(
     reasoning_effort: str = DEFAULT_GPT_REASONING_EFFORT,
     actual_size: tuple[int, int] | None = None,
     render_warnings: list[str] | None = None,
+    request_endpoint: str = "",
 ) -> Path:
     prompt_mode = _normalize_prompt_mode(prompt_mode)
     revised_prompt = str(revised_prompt or "").strip()
@@ -298,6 +306,7 @@ def _write_prompt_sidecar(
         f"image_count: {image_count}",
         f"actual_size: {actual_size[0]}x{actual_size[1]}" if actual_size else "actual_size: unknown",
         f"render_contract_warnings: {len(render_warnings)}",
+        *([f"request_endpoint: {request_endpoint}"] if request_endpoint else []),
         f"main_model: {main_model}",
         f"reasoning_effort: {reasoning_effort}",
         f"prompt_mode: {prompt_mode}",
@@ -367,6 +376,13 @@ def _normalize_transport_mode(mode: str | None) -> str:
     fallback = str(cfg.get("transport_mode") or DEFAULT_GPT_TRANSPORT_MODE).strip().lower()
     selected = str(mode or fallback).strip().lower()
     return selected if selected in SUPPORTED_TRANSPORT_MODES else fallback
+
+
+def _normalize_request_endpoint(endpoint: str | None) -> str:
+    cfg = get_gpt_provider_config()
+    fallback = str(cfg.get("request_endpoint") or DEFAULT_GPT_REQUEST_ENDPOINT).strip().lower()
+    selected = str(endpoint or fallback).strip().lower()
+    return selected if selected in SUPPORTED_REQUEST_ENDPOINTS else fallback
 
 
 def _normalize_total_timeout_seconds(timeout_seconds: int | None) -> int:
@@ -443,6 +459,14 @@ def _call_with_model_compatibility_fallback(label: str, main_model: str, fn):
     raise last_error or RuntimeError(f"{label} has no compatible model")
 
 
+def _call_for_request_endpoint(label: str, request_endpoint: str, main_model: str, fn):
+    if request_endpoint == "images":
+        # The Images API runs gpt-image-2 directly; the main model takes no part,
+        # so main-model compatibility fallback does not apply.
+        return fn(main_model), main_model
+    return _call_with_model_compatibility_fallback(label, main_model, fn)
+
+
 def _provider_subprocess_context():
     requested = os.environ.get("GPT_PROVIDER_START_METHOD", "").strip()
     if requested:
@@ -498,10 +522,11 @@ def _run_provider_with_total_timeout(
     on_wait: Optional[Callable[[str, int, int], None]] = None,
     provider_env: dict | None = None,
 ):
-    _apply_gpt_provider_env()
+    _, child_env = _gpt_provider_env()
+    child_env.update(provider_env or {})
     ctx = _provider_subprocess_context()
     queue = ctx.Queue(maxsize=1)
-    proc = ctx.Process(target=_provider_worker, args=(queue, mode, payload, provider_env or {}), daemon=True)
+    proc = ctx.Process(target=_provider_worker, args=(queue, mode, payload, child_env), daemon=True)
     proc.start()
 
     deadline = time.monotonic() + timeout_seconds
@@ -596,11 +621,13 @@ def _save_gpt_outputs(
     prompt_mode: str = "smart",
     main_model: str = DEFAULT_GPT_IMAGE_MAIN_MODEL,
     reasoning_effort: str = DEFAULT_GPT_REASONING_EFFORT,
+    request_endpoint: str = "",
 ) -> dict:
     batch = _new_gpt_output_batch(file_prefix)
     batch["prompt_mode"] = _normalize_prompt_mode(prompt_mode)
     batch["main_model"] = main_model
     batch["reasoning_effort"] = reasoning_effort
+    batch["request_endpoint"] = request_endpoint
     for image_item in images:
         image_bytes = _image_item_bytes(image_item)
         if not image_bytes:
@@ -637,6 +664,7 @@ def _new_gpt_output_batch(file_prefix: str = "gpt") -> dict:
         "prompt_mode": "smart",
         "main_model": DEFAULT_GPT_IMAGE_MAIN_MODEL,
         "reasoning_effort": DEFAULT_GPT_REASONING_EFFORT,
+        "request_endpoint": "",
         "revised_prompts": [],
     }
 
@@ -685,6 +713,7 @@ def _append_gpt_output(
             reasoning_effort=reasoning_effort,
             actual_size=actual_size,
             render_warnings=render_warnings,
+            request_endpoint=batch.get("request_endpoint") or "",
         )
     )
     if idx == 1:
@@ -724,6 +753,7 @@ def _build_gpt_output_result(batch: dict) -> dict:
         "prompt_mode": batch.get("prompt_mode") or "smart",
         "main_model": batch.get("main_model") or DEFAULT_GPT_IMAGE_MAIN_MODEL,
         "reasoning_effort": batch.get("reasoning_effort") or DEFAULT_GPT_REASONING_EFFORT,
+        "request_endpoint": batch.get("request_endpoint") or "",
         "revised_prompt": (batch.get("revised_prompts") or [""])[0] if batch.get("revised_prompts") else "",
         "revised_prompts": batch.get("revised_prompts") or [],
         "actual_sizes": actual_sizes,
@@ -750,6 +780,7 @@ def generate_image_gpt_codex(
     main_model: str | None = None,
     reasoning_effort: str | None = None,
     transport_mode: str | None = None,
+    request_endpoint: str | None = None,
     total_timeout_seconds: int | None = None,
     on_image_saved: Optional[Callable[[dict, int, int], None]] = None,
     on_provider_wait: Optional[Callable[[str, int, int], None]] = None,
@@ -774,6 +805,7 @@ def generate_image_gpt_codex(
         requested_reasoning_effort_key = _normalize_reasoning_effort(reasoning_effort)
         reasoning_effort_key = _reasoning_effort_for_model(main_model_key, requested_reasoning_effort_key)
         transport_mode_key = _normalize_transport_mode(transport_mode)
+        request_endpoint_key = _normalize_request_endpoint(request_endpoint)
         total_timeout_key = _normalize_total_timeout_seconds(total_timeout_seconds)
 
         try:
@@ -786,6 +818,7 @@ def generate_image_gpt_codex(
         batch_result["prompt_mode"] = prompt_mode_key
         batch_result["main_model"] = main_model_key
         batch_result["reasoning_effort"] = reasoning_effort_key
+        batch_result["request_endpoint"] = request_endpoint_key
         provider_prompt = _render_contract_prompt(prompt, ratio or "1:1", resolution or "1k")
         for index in range(count):
             if should_cancel and should_cancel():
@@ -822,6 +855,8 @@ def generate_image_gpt_codex(
                                 "main_model": selected_model,
                                 "reasoning_effort": selected_effort,
                                 "transport_mode": transport_mode_key,
+                                "request_endpoint": request_endpoint_key,
+                                "timeout": total_timeout_key,
                             },
                             timeout_seconds=total_timeout_key,
                             on_wait=on_provider_wait,
@@ -829,8 +864,9 @@ def generate_image_gpt_codex(
                         ),
                     )
 
-                batch, main_model_key = _call_with_model_compatibility_fallback(
+                batch, main_model_key = _call_for_request_endpoint(
                     label,
+                    request_endpoint_key,
                     main_model_key,
                     call_model,
                 )
@@ -903,6 +939,7 @@ def edit_image_gpt_codex(
     main_model: str | None = None,
     reasoning_effort: str | None = None,
     transport_mode: str | None = None,
+    request_endpoint: str | None = None,
     total_timeout_seconds: int | None = None,
     on_provider_wait: Optional[Callable[[str, int, int], None]] = None,
     provider_env: dict | None = None,
@@ -932,6 +969,7 @@ def edit_image_gpt_codex(
         requested_reasoning_effort_key = _normalize_reasoning_effort(reasoning_effort)
         reasoning_effort_key = _reasoning_effort_for_model(main_model_key, requested_reasoning_effort_key)
         transport_mode_key = _normalize_transport_mode(transport_mode)
+        request_endpoint_key = _normalize_request_endpoint(request_endpoint)
         total_timeout_key = _normalize_total_timeout_seconds(total_timeout_seconds)
         tmp_sources, source_paths = _write_temp_source_images(images)
         provider_prompt = _render_contract_prompt(prompt, ratio or "1:1", resolution or "1k")
@@ -966,6 +1004,8 @@ def edit_image_gpt_codex(
                         "main_model": selected_model,
                         "reasoning_effort": selected_effort,
                         "transport_mode": transport_mode_key,
+                        "request_endpoint": request_endpoint_key,
+                        "timeout": total_timeout_key,
                     },
                     timeout_seconds=total_timeout_key,
                     on_wait=on_provider_wait,
@@ -973,8 +1013,9 @@ def edit_image_gpt_codex(
                 ),
             )
 
-        edited_images, main_model_key = _call_with_model_compatibility_fallback(
+        edited_images, main_model_key = _call_for_request_endpoint(
             "gpt-image-2 edit",
+            request_endpoint_key,
             main_model_key,
             call_model,
         )
@@ -991,6 +1032,7 @@ def edit_image_gpt_codex(
                 prompt_mode=prompt_mode_key,
                 main_model=main_model_key,
                 reasoning_effort=reasoning_effort_key,
+                request_endpoint=request_endpoint_key,
             )
         )
         if main_model_key != requested_main_model_key:

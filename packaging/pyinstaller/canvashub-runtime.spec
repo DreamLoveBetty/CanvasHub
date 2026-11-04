@@ -54,7 +54,7 @@ datas += [(str(PROJECT_ROOT / "backend" / "krea2" / "requirements-py314.txt"), "
 datas += collect_data_files("backend", include_py_files=True, includes=[
     "__init__.py", "app_config.py", "runtime_resources.py", "services/__init__.py",
     "services/generation_timing.py", "local_image/*.py", "krea2/*.py", "qwen21/*.py",
-    "qwen21/*.json", "qwen21/vendor/*",
+    "qwen21/*.json", "qwen21/vendor/*", "moss/*.py", "moss/*.json", "moss/requirements.lock",
 ])
 binaries = collect_dynamic_libs("curl_cffi")
 

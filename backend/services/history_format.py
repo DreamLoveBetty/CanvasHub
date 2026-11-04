@@ -12,8 +12,9 @@ from .generation_timing import task_total_seconds
 
 def format_history_task(task, *, task_result_files, h3_task_type, public_h3_params, safe_basename):
     result_files, primary_output = task_result_files(task)
-    is_video = task.get('type') in {h3_task_type, 'cyimg-video'}
     params = task.get('params') if isinstance(task.get('params'), dict) else {}
+    is_video = task.get('type') in {h3_task_type, 'cyimg-video'} or (
+        task.get('type') == 'comfy' and params.get('comfy_output_kind') == 'video')
     if task.get('type') == h3_task_type:
         params = public_h3_params(params)
     duration_seconds = task_total_seconds(task, params)

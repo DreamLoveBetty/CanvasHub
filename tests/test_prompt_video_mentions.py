@@ -175,7 +175,7 @@ class AgentVideoReferenceTests(unittest.TestCase):
         self.assertNotIn("analyze_images", kinds)
         self.assertNotIn("connect_nodes", kinds)
 
-    def test_video_reference_never_substitutes_for_h3_first_frame(self):
+    def test_retired_h3_node_no_longer_routes_the_agent_to_video(self):
         context = self.image_task_context()
         context["workflow"]["state"]["canvas"]["nodes"]["h3"] = {
             "id": "h3",
@@ -185,11 +185,12 @@ class AgentVideoReferenceTests(unittest.TestCase):
         context["result_node_id"] = "h3"
         summary = agent_runtime.summarize_context(context)
 
-        self.assertEqual(summary["task_domain"], "video")
+        self.assertEqual(summary["task_domain"], "image")
         self.assertEqual(summary["referenced_video_count"], 1)
-        self.assertEqual(summary["first_frame_node_id"], "")
-        with self.assertRaisesRegex(ValueError, "首帧"):
-            agent_runtime.build_plan("参考视频生成 H3 视频", context, {"auto_generate": True})
+        self.assertNotIn("video_node_id", summary)
+        kinds = [step["kind"] for step in agent_runtime.build_plan("参考视频生成", context, {"auto_generate": True})["steps"]]
+        self.assertNotIn("compile_h3_prompt", kinds)
+        self.assertNotIn("submit_video_generation", kinds)
 
 
 if __name__ == "__main__":

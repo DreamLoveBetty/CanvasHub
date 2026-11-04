@@ -31,6 +31,7 @@ def run_server(
     recover_krea2_tasks,
     socketserver,
     recover_qwen21_tasks=lambda: None,
+    recover_moss_tasks=lambda: None,
 ):
     """启动服务器"""
     _validate_public_mode_password(server_config=SERVER_CONFIG)
@@ -44,6 +45,7 @@ def run_server(
     recover_cyimg_tasks()
     recover_krea2_tasks()
     recover_qwen21_tasks()
+    recover_moss_tasks()
     init_layout_draft_store()
     print("✅ 排版草稿库初始化完成")
     init_asset_store()

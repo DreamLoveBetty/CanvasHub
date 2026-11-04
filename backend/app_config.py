@@ -28,6 +28,7 @@ DEFAULT_SERVER_PORT = 18463
 DEFAULT_GPT_IMAGE_MAIN_MODEL = "gpt-5.5"
 DEFAULT_GPT_REASONING_EFFORT = "medium"
 DEFAULT_GPT_TRANSPORT_MODE = "stream_then_nonstream"
+DEFAULT_GPT_REQUEST_ENDPOINT = "images"
 DEFAULT_GPT_PROVIDER_TOTAL_TIMEOUT_SECONDS = 600
 DEFAULT_PROMPT_SKILL_PROVIDER = "gpt_oauth"
 DEFAULT_PROMPT_SKILL_ID = "image_prompt_v7"
@@ -56,12 +57,6 @@ DEFAULT_COMFY_BASE_URL = "http://192.168.179.111:28188"
 DEFAULT_COMFY_TIMEOUT_SECONDS = 120
 DEFAULT_COMFY_TASK_TIMEOUT_SECONDS = 1800
 DEFAULT_COMFY_POLL_INTERVAL_SECONDS = 2.0
-DEFAULT_VIDEO_RUNTIME_MODE = "auto"
-DEFAULT_VIDEO_RUNTIME_LOCAL_BASE_URL = "http://127.0.0.1:8190"
-DEFAULT_VIDEO_RUNTIME_MANAGER_PORT = 8191
-DEFAULT_VIDEO_RUNTIME_COMPONENT_DIR = r"D:\Program\H3_Runtime_Server" if os.name == "nt" else ""
-DEFAULT_VIDEO_RUNTIME_START_MODE = "on_demand"
-DEFAULT_VIDEO_RUNTIME_CONNECT_TIMEOUT_SECONDS = 5.0
 DEFAULT_VIDEO_ASPECT_RATIO = "3:4"
 DEFAULT_VIDEO_PIXEL_BUDGET_MP = 0.8
 DEFAULT_VIDEO_DURATION_SECONDS = 15
@@ -97,6 +92,12 @@ GPT_TRANSPORT_MODES = {
     "stream",
     "nonstream",
     "stream_then_nonstream",
+}
+# Local Codex image endpoint: "images" calls /images/* with gpt-image-2 directly;
+# "responses" calls /responses with the main model and the image_generation tool.
+GPT_REQUEST_ENDPOINTS = {
+    "images",
+    "responses",
 }
 
 
@@ -344,6 +345,7 @@ def get_third_party_image_config() -> dict[str, Any]:
     return {
         "api_key": api_key,
         "api_key_configured": bool(api_key),
+        "api_key_length": len(api_key),
         "base_url": base_url or DEFAULT_THIRD_PARTY_IMAGE_API_BASE_URL,
         "model": model,
         "generate_path": generate_path if generate_path.startswith("/") else f"/{generate_path}",
@@ -363,6 +365,7 @@ def get_cyimg_config() -> dict[str, Any]:
     return {
         "api_key": api_key,
         "api_key_configured": bool(api_key),
+        "api_key_length": len(api_key),
         "task_timeout_seconds": min(timeout, 7200),
     }
 
@@ -417,129 +420,6 @@ def get_comfy_config() -> dict[str, Any]:
             )
             if value
         ],
-    }
-
-
-def _derive_video_runtime_manager_base_url(base_url: str) -> str:
-    parsed = urllib.parse.urlparse(_as_str(base_url))
-    if parsed.scheme not in {"http", "https"} or not parsed.hostname:
-        return ""
-    hostname = parsed.hostname
-    if ":" in hostname and not hostname.startswith("["):
-        hostname = f"[{hostname}]"
-    return urllib.parse.urlunparse(
-        (parsed.scheme, f"{hostname}:{DEFAULT_VIDEO_RUNTIME_MANAGER_PORT}", "", "", "", "")
-    )
-
-
-def get_video_inference_config() -> dict[str, Any]:
-    """Return private MiniMax H3 Runtime routing settings."""
-    settings = load_app_settings()
-    section = settings.get("video_inference") or {}
-    if not isinstance(section, dict):
-        section = {}
-    local = section.get("local") if isinstance(section.get("local"), dict) else {}
-    lan = section.get("lan") if isinstance(section.get("lan"), dict) else {}
-    defaults = section.get("defaults") if isinstance(section.get("defaults"), dict) else {}
-
-    env_mode = _as_str(os.environ.get("H3_RUNTIME_MODE"))
-    env_local_url = _as_str(os.environ.get("H3_RUNTIME_LOCAL_URL"))
-    env_component_dir = _as_str(os.environ.get("H3_RUNTIME_COMPONENT_DIR"))
-    env_start_mode = _as_str(os.environ.get("H3_RUNTIME_LOCAL_START_MODE"))
-    env_lan_url = _as_str(os.environ.get("H3_RUNTIME_LAN_URL"))
-    env_api_key = _as_str(os.environ.get("H3_RUNTIME_API_KEY"))
-    env_timeout = _as_str(os.environ.get("H3_RUNTIME_CONNECT_TIMEOUT_SECONDS"))
-    env_manager_url = _as_str(os.environ.get("H3_RUNTIME_MANAGER_URL"))
-
-    runtime_mode = _as_str(env_mode or section.get("runtime_mode") or DEFAULT_VIDEO_RUNTIME_MODE).lower()
-    if runtime_mode not in {"auto", "local", "lan"}:
-        runtime_mode = DEFAULT_VIDEO_RUNTIME_MODE
-    start_mode = _as_str(env_start_mode or local.get("start_mode") or DEFAULT_VIDEO_RUNTIME_START_MODE).lower()
-    if start_mode not in {"manual", "on_demand", "always"}:
-        start_mode = DEFAULT_VIDEO_RUNTIME_START_MODE
-    try:
-        connect_timeout = float(env_timeout or lan.get("connect_timeout_seconds") or DEFAULT_VIDEO_RUNTIME_CONNECT_TIMEOUT_SECONDS)
-    except (TypeError, ValueError):
-        connect_timeout = DEFAULT_VIDEO_RUNTIME_CONNECT_TIMEOUT_SECONDS
-
-    local_base_url = _as_str(env_local_url or local.get("base_url") or DEFAULT_VIDEO_RUNTIME_LOCAL_BASE_URL).rstrip("/")
-    lan_base_url = _as_str(env_lan_url or lan.get("base_url")).rstrip("/")
-    if env_manager_url:
-        manager_base_url = env_manager_url.rstrip("/")
-    elif "manager_base_url" in section:
-        manager_base_url = _as_str(section.get("manager_base_url")).rstrip("/")
-    else:
-        manager_source_url = lan_base_url if runtime_mode != "local" and lan_base_url else local_base_url
-        manager_base_url = _derive_video_runtime_manager_base_url(manager_source_url)
-
-    aspect_ratio = _as_str(defaults.get("aspect_ratio") or DEFAULT_VIDEO_ASPECT_RATIO)
-    if aspect_ratio not in {"16:9", "9:16", "3:4", "4:3", "2:3", "3:2", "1:1", "21:9", "9:21"}:
-        aspect_ratio = DEFAULT_VIDEO_ASPECT_RATIO
-    acceleration_mode = _as_str(defaults.get("acceleration_mode") or DEFAULT_VIDEO_ACCELERATION_MODE).lower()
-    if acceleration_mode not in {"off", "first_block_cache", "sol_attn", "combined"}:
-        acceleration_mode = DEFAULT_VIDEO_ACCELERATION_MODE
-    try:
-        pixel_budget_mp = max(0.1, min(8.0, float(defaults.get("pixel_budget_mp", DEFAULT_VIDEO_PIXEL_BUDGET_MP))))
-    except (TypeError, ValueError):
-        pixel_budget_mp = DEFAULT_VIDEO_PIXEL_BUDGET_MP
-    try:
-        duration_seconds = max(1, min(120, int(defaults.get("duration_seconds", DEFAULT_VIDEO_DURATION_SECONDS))))
-    except (TypeError, ValueError):
-        duration_seconds = DEFAULT_VIDEO_DURATION_SECONDS
-    try:
-        fbc_threshold = max(0.001, min(1.0, float(defaults.get("first_block_cache_threshold", DEFAULT_VIDEO_FIRST_BLOCK_CACHE_THRESHOLD))))
-    except (TypeError, ValueError):
-        fbc_threshold = DEFAULT_VIDEO_FIRST_BLOCK_CACHE_THRESHOLD
-
-    environment_fields = [
-        name
-        for name, value in (
-            ("runtime_mode", env_mode),
-            ("local.base_url", env_local_url),
-            ("local.component_dir", env_component_dir),
-            ("local.start_mode", env_start_mode),
-            ("lan.base_url", env_lan_url),
-            ("lan.api_key", env_api_key),
-            ("lan.connect_timeout_seconds", env_timeout),
-            ("manager_base_url", env_manager_url),
-        )
-        if value
-    ]
-    return {
-        "runtime_mode": runtime_mode,
-        "manager_base_url": manager_base_url,
-        "local": {
-            "base_url": local_base_url,
-            "component_dir": _as_str(env_component_dir or local.get("component_dir") or DEFAULT_VIDEO_RUNTIME_COMPONENT_DIR),
-            "start_mode": start_mode,
-        },
-        "lan": {
-            "base_url": lan_base_url,
-            "api_key": _as_str(env_api_key or lan.get("api_key")),
-            "connect_timeout_seconds": max(0.5, min(30.0, connect_timeout)),
-        },
-        "defaults": {
-            "aspect_ratio": aspect_ratio,
-            "pixel_budget_mp": pixel_budget_mp,
-            "duration_seconds": duration_seconds,
-            "acceleration_mode": acceleration_mode,
-            "first_block_cache_threshold": fbc_threshold,
-        },
-        "environment_managed": bool(environment_fields),
-        "environment_fields": environment_fields,
-    }
-
-
-def get_video_inference_public_config() -> dict[str, Any]:
-    """Return H3 Runtime settings without exposing the LAN API key."""
-    config = get_video_inference_config()
-    lan = dict(config.get("lan") or {})
-    api_key = _as_str(lan.pop("api_key", ""))
-    lan["api_key_configured"] = bool(api_key)
-    return {
-        **config,
-        "local": dict(config.get("local") or {}),
-        "lan": lan,
     }
 
 
@@ -796,6 +676,7 @@ def get_chatgpt_pool_public_config() -> dict[str, Any]:
         "enabled": bool(cfg.get("enabled")),
         "base_url": cfg.get("base_url", ""),
         "auth_key_configured": bool(cfg.get("auth_key_configured")),
+        "auth_key_length": len(_as_str(cfg.get("auth_key"))),
         "generation_model": cfg.get("generation_model", DEFAULT_CHATGPT_POOL_MODEL),
         "timeout_seconds": cfg.get("timeout_seconds", DEFAULT_CHATGPT_POOL_TIMEOUT_SECONDS),
         "db_path": str(cfg.get("db_path") or ""),
@@ -898,6 +779,14 @@ def get_gpt_provider_config() -> dict[str, Any]:
     if transport_mode not in GPT_TRANSPORT_MODES:
         transport_mode = DEFAULT_GPT_TRANSPORT_MODE
 
+    request_endpoint = _as_str(
+        os.environ.get("GPT_PROVIDER_REQUEST_ENDPOINT")
+        or settings.get("request_endpoint")
+        or DEFAULT_GPT_REQUEST_ENDPOINT
+    ).lower()
+    if request_endpoint not in GPT_REQUEST_ENDPOINTS:
+        request_endpoint = DEFAULT_GPT_REQUEST_ENDPOINT
+
     total_timeout_seconds = _as_int(
         os.environ.get("GPT_PROVIDER_TOTAL_TIMEOUT")
         or settings.get("total_timeout_seconds")
@@ -914,10 +803,12 @@ def get_gpt_provider_config() -> dict[str, Any]:
         "image_main_model": image_main_model,
         "reasoning_effort": reasoning_effort,
         "transport_mode": transport_mode,
+        "request_endpoint": request_endpoint,
         "total_timeout_seconds": total_timeout_seconds,
         "allowed_image_main_models": sorted(GPT_IMAGE_MAIN_MODELS),
         "allowed_reasoning_efforts": sorted(GPT_REASONING_EFFORTS),
         "allowed_transport_modes": sorted(GPT_TRANSPORT_MODES),
+        "allowed_request_endpoints": sorted(GPT_REQUEST_ENDPOINTS),
     }
 
 

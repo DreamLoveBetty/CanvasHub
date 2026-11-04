@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Edit images with gpt-image-2 directly through Codex Responses."""
+"""Edit images with gpt-image-2 through the Codex Images or Responses endpoint."""
 
 from __future__ import annotations
 
@@ -12,11 +12,13 @@ from codex_api import (
     DEFAULT_IMAGE_MAIN_MODEL,
     DEFAULT_IMAGE_TOOL_MODEL,
     DEFAULT_REASONING_EFFORT,
+    DEFAULT_TIMEOUT,
     CodexAPIError,
     build_image_request,
     decode_image_items_with_metadata,
     extract_images,
     image_file_to_data_url,
+    normalize_request_endpoint,
     post_codex_images,
     post_responses,
     prepare_image_prompt,
@@ -39,6 +41,8 @@ def edit_image_with_metadata(
     main_model: str = DEFAULT_IMAGE_MAIN_MODEL,
     reasoning_effort: str = DEFAULT_REASONING_EFFORT,
     transport_mode: str = "stream_then_nonstream",
+    request_endpoint: str = "images",
+    timeout: int = DEFAULT_TIMEOUT,
 ) -> list[dict[str, object]]:
     resolved_size = resolve_size(size, ratio)
     request_prompt, _ = prepare_image_prompt(prompt, prompt_mode)
@@ -58,7 +62,8 @@ def edit_image_with_metadata(
     if mask_path:
         tool["input_image_mask"] = {"image_url": image_file_to_data_url(mask_path)}
 
-    print(f"Editing {len(image_paths)} image(s) @ {resolved_size}, quality={quality}, bg={background}")
+    endpoint = normalize_request_endpoint(request_endpoint)
+    print(f"Editing {len(image_paths)} image(s) @ {resolved_size}, quality={quality}, bg={background}, endpoint={endpoint}")
     print(f"Prompt: {prompt[:160]}{'...' if len(prompt) > 160 else ''}")
     started = time.time()
     image_payload: dict[str, object] = {
@@ -77,10 +82,9 @@ def edit_image_with_metadata(
         image_payload["output_compression"] = output_compression
     if mask_path:
         image_payload["mask"] = {"image_url": image_file_to_data_url(mask_path)}
-    try:
-        image_response = post_codex_images("edits", image_payload)
-    except Exception as images_exc:
-        print(f"⚠️ Codex images/edits failed; falling back to responses: {images_exc}", file=sys.stderr)
+    if endpoint == "images":
+        image_response = post_codex_images("edits", image_payload, timeout=timeout)
+    else:
         event = post_responses(
             build_image_request(
                 prompt,
@@ -90,6 +94,7 @@ def edit_image_with_metadata(
                 main_model=main_model,
                 reasoning_effort=reasoning_effort,
             ),
+            timeout=timeout,
             transport_mode=transport_mode,
         )
         image_response = extract_images(event, response_format="b64_json")
@@ -113,6 +118,7 @@ def edit_image(
     main_model: str = DEFAULT_IMAGE_MAIN_MODEL,
     reasoning_effort: str = DEFAULT_REASONING_EFFORT,
     transport_mode: str = "stream_then_nonstream",
+    request_endpoint: str = "images",
 ) -> list[bytes]:
     image_items = edit_image_with_metadata(
         prompt=prompt,
@@ -129,6 +135,7 @@ def edit_image(
         main_model=main_model,
         reasoning_effort=reasoning_effort,
         transport_mode=transport_mode,
+        request_endpoint=request_endpoint,
     )
     return [item["image_bytes"] for item in image_items if item.get("image_bytes")]
 
@@ -148,6 +155,7 @@ def main() -> None:
     parser.add_argument("--prompt-mode", default="smart", choices=["smart", "faithful"], help="prompt interpretation mode")
     parser.add_argument("--main-model", default=DEFAULT_IMAGE_MAIN_MODEL, help="Responses main model")
     parser.add_argument("--reasoning-effort", default=DEFAULT_REASONING_EFFORT, choices=["none", "low", "medium", "high", "xhigh"])
+    parser.add_argument("--endpoint", default="images", choices=["images", "responses"], help="Codex request endpoint")
     parser.add_argument("--output", "-o", default=None, help="output file path")
     parser.add_argument("--output-dir", default=None, help="output directory for multiple results")
     args = parser.parse_args()
@@ -175,6 +183,7 @@ def main() -> None:
             prompt_mode=args.prompt_mode,
             main_model=args.main_model,
             reasoning_effort=args.reasoning_effort,
+            request_endpoint=args.endpoint,
         )
     except (CodexAPIError, ValueError) as exc:
         print(f"Error: {exc}", file=sys.stderr)

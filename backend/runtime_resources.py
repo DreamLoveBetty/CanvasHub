@@ -25,8 +25,7 @@ class IdleWorkerCoordinator:
 
 @contextmanager
 def local_accelerator(path, cancelled, progress):
-    # MLX audio and ReShot are Mac-local. The remote Windows H3 service owns its
-    # own GPU scheduler; this lease is not a claim of a global cross-host lock.
+    # MLX audio and ReShot are Mac-local; this lease is not a cross-host lock.
     if os.name != 'posix':
         raise RuntimeError('此本地推理环境要求 POSIX 系统')
     import fcntl

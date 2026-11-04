@@ -14,7 +14,7 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any, Iterable, Mapping
 
 try:
     import requests
@@ -142,8 +142,9 @@ def _read_json(path: Path) -> dict[str, Any]:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def _strict_auth_candidates_enabled() -> bool:
-    return str(os.environ.get("CODEX_API_AUTH_STRICT") or "").strip().lower() in {
+def _strict_auth_candidates_enabled(env: Mapping[str, str] | None = None) -> bool:
+    env = os.environ if env is None else env
+    return str(env.get("CODEX_API_AUTH_STRICT") or "").strip().lower() in {
         "1",
         "true",
         "yes",
@@ -152,18 +153,19 @@ def _strict_auth_candidates_enabled() -> bool:
     }
 
 
-def _auth_candidate_paths(existing_only: bool = True) -> list[Path]:
+def _auth_candidate_paths(existing_only: bool = True, env: Mapping[str, str] | None = None) -> list[Path]:
+    env = os.environ if env is None else env
     candidates: list[Path] = []
     explicit = (
-        os.environ.get("CODEX_API_AUTH_FILE", "").strip()
-        or os.environ.get("GPT_PROVIDER_AUTH_FILE", "").strip()
+        env.get("CODEX_API_AUTH_FILE", "").strip()
+        or env.get("GPT_PROVIDER_AUTH_FILE", "").strip()
     )
     if explicit:
         candidates.append(Path(explicit).expanduser())
 
     explicit_dir = (
-        os.environ.get("CODEX_API_AUTH_DIR", "").strip()
-        or os.environ.get("GPT_PROVIDER_AUTH_DIR", "").strip()
+        env.get("CODEX_API_AUTH_DIR", "").strip()
+        or env.get("GPT_PROVIDER_AUTH_DIR", "").strip()
     )
     if explicit_dir:
         auth_dir = Path(explicit_dir).expanduser()
@@ -177,7 +179,7 @@ def _auth_candidate_paths(existing_only: bool = True) -> list[Path]:
                 )
             )
 
-    strict_explicit = _strict_auth_candidates_enabled() and bool(explicit or explicit_dir)
+    strict_explicit = _strict_auth_candidates_enabled(env) and bool(explicit or explicit_dir)
     if not strict_explicit:
         # Prefer the active Codex auth. Browser account switches generally refresh
         # ~/.codex/auth.json, while older cli-proxy files can belong to stale accounts.
@@ -230,8 +232,12 @@ def load_auth() -> AuthBundle:
     raise CodexAPIError(f"Cannot load Codex auth: {detail}")
 
 
-def inspect_auth_status() -> dict[str, Any]:
-    """Inspect auth files without returning token values or refreshing tokens."""
+def inspect_auth_status(env: Mapping[str, str] | None = None) -> dict[str, Any]:
+    """Inspect auth files without returning token values or refreshing tokens.
+
+    ``env`` lets a caller describe the auth env of a request without mutating
+    this process; it defaults to ``os.environ``.
+    """
     result: dict[str, Any] = {
         "configured": False,
         "selected_path": "",
@@ -239,7 +245,7 @@ def inspect_auth_status() -> dict[str, Any]:
         "candidates": [],
         "error": "",
     }
-    for path in _auth_candidate_paths(existing_only=False):
+    for path in _auth_candidate_paths(existing_only=False, env=env):
         item: dict[str, Any] = {
             "path": str(path),
             "exists": path.exists(),
@@ -705,6 +711,11 @@ def _is_stream_transport_disconnect(error: Exception | str) -> bool:
 def normalize_transport_mode(value: str | None) -> str:
     mode = str(value or "stream_then_nonstream").strip().lower()
     return mode if mode in {"stream", "nonstream", "stream_then_nonstream"} else "stream_then_nonstream"
+
+
+def normalize_request_endpoint(value: str | None) -> str:
+    endpoint = str(value or "images").strip().lower()
+    return endpoint if endpoint in {"images", "responses"} else "images"
 
 
 def post_responses(payload: dict[str, Any], timeout: int = DEFAULT_TIMEOUT, transport_mode: str | None = "stream_then_nonstream") -> dict[str, Any]:

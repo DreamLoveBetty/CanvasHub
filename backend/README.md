@@ -47,14 +47,16 @@ flowchart TD
 | GPT 图片、编辑、PPT/PSD | `gpt_generation_routes` | `gpt_generation`、`editable_generation` |
 | Google 生成与编辑 | `google_generation_routes` | `google_generation`、`telegram_notifications` |
 | 路由容灾、参数和进度 | 经已有生成入口 | `provider_routing`、`provider_errors`、`generation_policy`、`generation_progress` |
-| 放大、H3 视频、ComfyUI | `runtime_generation_routes` | `upscale_generation`、`video_generation`、`comfy_workflows`、`comfy_gateway`、`comfy_transport`、`comfy_generation` |
+| 放大、H3 提示词编译、ComfyUI | `runtime_generation_routes` | `upscale_generation`、`comfy_workflows`、`comfy_gateway`、`comfy_transport`、`comfy_generation`、`comfy_video`、`comfy_workflow_tags` |
+| ComfyUI 视频源上传 | `routes/comfy_video_routes.py`（`POST /api/comfy/upload_video`） | `services/comfy_video.py`：文件头识别 MP4/MOV/WebM（≤ 200 MiB）后转存到 ComfyUI 输入目录（`/upload/image`），只回传输入名；`/api/comfy/run` 的 `videos` 只接受这种输入名 |
 | Topaz 独立增强节点 | `topaz/routes.py` / 既有任务查询与取消 | `topaz/` 独立参数、服务适配、版本门禁与子进程；`services/image_enhancement` 仅共享归档/任务生命周期，Spandrel 不依赖 Topaz；见 `topaz/README.md` |
 | Topaz Video 独立节点 | `routes/topaz_video_routes.py` | `topaz_video/` 独立模型目录、视频素材、串行任务、进度/取消/结果和本地子进程；不依赖 Gigapixel 图片域、ReShot 视频控制或音频域；见 `topaz_video/README.md` |
 | 姿态识别（GEM-X 精简版） | `routes/pose_capture_routes.py` | `pose_capture/` 固定 GEM-X 源码与模型、常驻 CPU worker（照片识别）、场景转换（重力、机位、地面）、视频识别（`video.py`，CoreML 加速在 `accel.py`）、识别体型 GLB（`bodies.py`）、任务队列；HTTP 进程不导入推理依赖；见 `pose_capture/README.md` |
 | 姿态参考（SOMA 人偶） | `routes/pose_routes.py` | `pose_scene/` 固定 SOMA 与 Anny 资产、安装时子进程生成中性 / 女性 / 男性人偶 GLB、姿态视频 ffmpeg 编码（`video_export.py`，成品进图片归档）、导出图与场景快照存放；不依赖识别、图像 Provider 或其他本地模型；见 `pose_scene/README.md` |
 | 绘栾图像/视频 | `routes/cyimg_routes.py` | `provider_cyimg.py` 对接官方 API 与动态目录；`services/cyimg_generation.py` 校验、任务恢复、轮询、原件归档和 Telegram 投递 |
 | Krea 2 本地图像 | `routes/krea2_routes.py` | `krea2/` 固定源码/模型准备、内容寻址 LoRA、Base 模型目录与离线量化转换、串行队列、共享 `.venv` 子进程与归档；见 `krea2/README.md` |
-| Qwen 2.1 本地图像 | `routes/qwen21_routes.py` | `qwen21/` 独立固定源码/模型、文生图与有序多参考编辑、按版本/秩选择 Viggle 且步数可调、普通 LoRA、Base 转换/发布；共享 `.venv` 与本地加速器租约；见 `qwen21/README.md` |
+| Qwen 2.1 本地图像 | `routes/qwen21_routes.py` | `qwen21/` 独立固定源码/模型、文生图与有序多参考编辑、按版本/秩选择 Viggle 且步数可调、普通 LoRA、Base 转换/发布；共享 `.venv` 与本地加速器租约；`negative_prompt` 仅标准预设且 CFG > 1 生效；见 `qwen21/README.md` |
+| MOSS 本地图像 | `routes/moss_routes.py` | `moss/` 独立 venv、只读权重绑定、Layout/分镜编译、第三方 LoRA 规范化、整图与切图归档；可选 `negative_prompt`（两种预设都经 CFG 分支读取，计入 token 预算，写入 sidecar）；MLX 只在 worker 内 |
 | 本地图像公共设施 | `routes/local_image_routes.py` | `local_image/` 无架构依赖的进程监督、FP8 解码、原子权重保存、LoRA 文件库、任务队列、原件归档；不反向依赖 Krea/Qwen |
 | 共享 LoRA 资料库 | `routes/lora_library_routes.py` | `lora_library/` 内容寻址资料、人工覆盖、示例图与独立 Civitai 补全；只通过注入端口访问模型目录，不依赖推理环境；见 `lora_library/README.md` |
 | HTTP 公共响应、启动 | `http_responses` | `server_lifecycle` |
@@ -97,6 +99,8 @@ flowchart TD
 - `comfy_transport` 只维护 `ws(s)://<comfy>/ws?clientId=...` 事件通道，过滤其他任务事件、忽略二进制预览帧，并把执行/节点进度投影到已有任务状态。
 - `comfy_gateway` 的 `/history/{prompt_id}` 仍是最终结果与错误事实来源，`/view` 仍负责结果字节下载；WebSocket 握手后会立即对账以关闭提交竞态，运行中仅保留 15 秒稀疏 history 看门狗，终态仍须对账再归档。
 - WebSocket 组件缺失、握手失败或中途断开时，`comfy_generation` 自动回退到原 history 轮询，不更改前端 API、任务 ID、归档、sidecar 或 Telegram 原文件发送语义。
+- 视频工作流由 `comfy_video` 按节点类型自动识别：含 SaveVideo / SaveWEBM / VHS_VideoCombine 为视频输出（`output_kind=video`），含 LoadVideo / VHS_LoadVideo 或 `{{VIDEO}}`、`{{VIDEO_n}}` 为接受视频（`accepts_video`、`max_videos`）；目录设置可覆盖。视频任务仍是 `comfy` 类型，以 `params.comfy_output_kind=video` 区分：只收集 `images`/`gifs`/`videos` 中的 MP4/WebM/MOV/M4V，归档、sidecar、`sendDocument` 原文件发送不变，跳过缩略图并以 ffprobe 写回尺寸/帧率/时长；状态与历史接口按视频任务返回 `video_paths`（`/video/<归档名>`）与 `video_metadata`。图片工作流路径不变。
+- 工作流作者可在节点标题写标记声明画布输入（`comfy_workflow_tags`，API 格式导出保留 `_meta.title`，ComfyUI 组会丢失故不用组）：`[提示词]`、`[负面]`、`[尺寸]`、`[参考图]`/`[参考图N]`、`[视频]`、`[参数]`，繁体、英文（prompt/negative/size/image/video/param）与全角 `【】` 同样有效。任一节点带标记即进入严格模式：只写入被标记节点（`{{...}}` token 仍照常替换），未标记的宽高、`prompt` 字段、LoadImage、视频加载器一律不动；参数只列 `[参数]` 节点与 `[负面]` 文本。目录据此返回 `tag_mode`、`default_prompt`（提示词节点原文，前端显示并在未接文本时作为提示词）、`size_editable`（无 `[尺寸]` 节点且无宽高 token 时前端锁定尺寸）与 `tag_warnings`；`accepts_*`、`max_images`/`max_videos` 默认按标记推导，目录设置仍可覆盖。无标记的工作流维持原自动识别。图片/视频标记按序成为 `input_slots`（`image:N`、`video:N`）；带标记的工作流在 `/api/comfy/run` 中 `images`/`videos` 按槽位传入，空字符串表示该槽沿用工作流原值（不再强制至少一张图或一段视频，也不再重复填充最后一张）。`negative_prompt` 仅在目录 `accepts_negative`（有 `[负面]` 标记）时写入 `[负面]` 节点并优先于参数覆盖，同时记录到任务 `params.negative_prompt` 与归档 sidecar。
 
 ## 验收与回退
 

@@ -90,7 +90,7 @@ _INDEX_TTL_SECONDS = 60
 # 候选集快照、套用参数等**同步**流程所需字段必须保留（prompt / params / 基础元信息）；
 # 只砍真正的大头：revised_prompt 三份拷贝 + 血缘装饰快照数组（预览打开时走 detail 接口补全）。
 CARD_PROJECTION_FIELDS = (
-    "id", "asset_id", "taskId", "task_id", "file",
+    "id", "asset_id", "taskId", "task_id", "file", "assetRole", "panelIndex",
     "archiveRelPath", "archive_rel_path",
     "imageUrl", "imagePath", "thumbUrl", "title",
     "prompt", "note", "stale",
@@ -525,6 +525,8 @@ def _provider_group(item: dict[str, Any]) -> str:
         return "krea2"
     if "qwen21" in raw or "qwen-image-2.1" in raw or "qwen-image-2.1" in provider_hint or "qwen21" in provider_hint:
         return "qwen21"
+    if raw.startswith("moss"):
+        return "moss"
     if raw == "topaz":
         return "topaz"
     if raw.startswith("gpt") or "gpt" in raw:
@@ -540,6 +542,7 @@ def _provider_label(provider: str) -> str:
     return {
         "krea2": "Krea2",
         "qwen21": "Qwen 2.1",
+        "moss": "MOSS",
         "topaz": "Topaz",
         "gpt": "GPT",
         "google": "Google",
@@ -555,6 +558,8 @@ def _main_model_label(params: dict[str, Any], provider: str) -> str:
     if provider == "qwen21":
         base = str(params.get("base_model_name") or "").strip()
         return f"Qwen 2.1 · {base}" if base else "Qwen 2.1"
+    if provider == "moss":
+        return "MOSS"
     if provider != "krea2":
         return ""
     base = str(params.get("base_model_name") or "").strip()
@@ -641,7 +646,7 @@ def _archive_image_files() -> list[tuple[Path, str, str]]:
                 continue
             # Exact generation inputs are recoverable sidecar artifacts, not
             # output assets. pathlib.rglob includes dot-directories as well.
-            if ".krea2-controls" in relative.parts[:-1]:
+            if {".krea2-controls", ".moss-overlays"} & set(relative.parts[:-1]):
                 continue
             rel_path = relative.as_posix()
             files.append((path, root_key, rel_path))
@@ -679,6 +684,8 @@ def _infer_archive_provider(path: Path, template: dict[str, Any] | None = None) 
         return "krea2"
     if name.startswith("qwen21_"):
         return "qwen21"
+    if name.startswith("moss_"):
+        return "moss"
     if name.startswith(("gpt_", "gpt-edit", "gpt_edit", "gpt-image")):
         return "gpt"
     return "google"
@@ -816,6 +823,31 @@ def _lineage_from_params(params: dict[str, Any]) -> dict[str, Any]:
         "source_task_ids": task_ids,
         "sourceTaskIds": task_ids,
     }
+
+
+def _output_artifacts(params: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    """Per-file output roles a task recorded; absent for every other provider."""
+    raw = params.get("artifacts") if isinstance(params, dict) else None
+    if not isinstance(raw, list):
+        return {}
+    return {str(item.get("file")): item for item in raw if isinstance(item, dict) and item.get("file")}
+
+
+def _artifact_lineage(lineage: dict[str, Any], task_id: str, artifact: dict[str, Any]) -> dict[str, Any]:
+    """A panel derives from its own task's original, which task-level lineage cannot say."""
+    if artifact.get("role") != "panel" or not artifact.get("original_ref"):
+        return lineage
+    source = {"task_id": task_id, "file": str(artifact["original_ref"]), "title": "整图", "source": "panel"}
+    return _lineage_from_params({"lineage": {"reference_assets": [source, *lineage["reference_assets"]]}})
+
+
+def _artifact_fields(artifact: dict[str, Any]) -> dict[str, Any]:
+    if not artifact:
+        return {}
+    fields = {"assetRole": str(artifact.get("role") or "")}
+    if isinstance(artifact.get("panel_index"), int):
+        fields["panelIndex"] = artifact["panel_index"]
+    return fields
 
 
 def _asset_lineage_snapshot(asset: dict[str, Any]) -> dict[str, Any]:
@@ -1139,6 +1171,7 @@ def _task_assets(item: dict[str, Any], meta_map: dict[str, dict[str, Any]]) -> l
     created_at = int(item.get("created_at") or item.get("timestamp") or 0)
     total = max(len(files), len(paths))
     assets: list[dict[str, Any]] = []
+    artifacts = _output_artifacts(params)
     for index in range(total):
         file_name = files[index] if index < len(files) else (files[0] if files else "")
         image_url = paths[index] if index < len(paths) else _image_url(provider, file_name)
@@ -1154,7 +1187,10 @@ def _task_assets(item: dict[str, Any], meta_map: dict[str, dict[str, Any]]) -> l
         title = _prompt_title(prompt)
         if total > 1:
             title = f"{title} · {index + 1}/{total}"
+        artifact = artifacts.get(file_name, {})
+        asset_lineage = _artifact_lineage(lineage, task_id, artifact)
         assets.append({
+            **_artifact_fields(artifact),
             "id": asset_id,
             "asset_id": asset_id,
             "taskId": task_id,
@@ -1190,10 +1226,10 @@ def _task_assets(item: dict[str, Any], meta_map: dict[str, dict[str, Any]]) -> l
             "generationTiming": generation_timing,
             "generation_timing": generation_timing,
             "params": params,
-            "lineage": lineage,
-            "referenceAssets": lineage.get("referenceAssets") or [],
-            "referenceAssetIds": lineage.get("referenceAssetIds") or [],
-            "sourceTaskIds": lineage.get("sourceTaskIds") or [],
+            "lineage": asset_lineage,
+            "referenceAssets": asset_lineage.get("referenceAssets") or [],
+            "referenceAssetIds": asset_lineage.get("referenceAssetIds") or [],
+            "sourceTaskIds": asset_lineage.get("sourceTaskIds") or [],
             "derivedAssets": [],
             "derivedCount": 0,
             "relatedAssets": [],
@@ -1331,6 +1367,7 @@ def _archive_asset_from_path(
         "note": meta.get("note") or "",
     }
     asset.update(image_meta)
+    asset.update({key: template[key] for key in ("assetRole", "panelIndex") if key in (template or {})})
     if asset.get("actualResolution"):
         asset["resolution"] = asset.get("actualResolution")
     elif image_meta.get("resolution"):

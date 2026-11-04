@@ -39,12 +39,10 @@ TERMINAL_TASK_STATUSES = {
 CLIENT_ACTION_KINDS = {
     "analyze_images",
     "analyze_videos",
-    "compile_h3_prompt",
     "update_text_node",
     "apply_prompt_to_input",
     "connect_nodes",
     "submit_generation",
-    "submit_video_generation",
     "rollback_canvas",
 }
 
@@ -157,44 +155,6 @@ def summarize_context(context: dict[str, Any]) -> dict[str, Any]:
     requested_result = nodes.get(requested_result_id) if requested_result_id else None
     if not isinstance(requested_result, dict):
         requested_result = None
-    video_node = requested_result if requested_result and requested_result.get("type") == "video_inference" else None
-    if not video_node and requested_result and requested_result.get("type") == "video":
-        upstream_video_id = next((
-            _text(edge.get("from"), 160)
-            for edge in edges
-            if isinstance(edge, dict)
-            and _text(edge.get("to"), 160) == requested_result_id
-            and isinstance(nodes.get(_text(edge.get("from"), 160)), dict)
-            and nodes[_text(edge.get("from"), 160)].get("type") == "video_inference"
-        ), "")
-        video_node = nodes.get(upstream_video_id)
-    if not video_node and selected_node and selected_node.get("type") == "video_inference":
-        video_node = selected_node
-    if not video_node and selected_node and selected_node.get("type") == "video":
-        upstream_video_id = next((
-            _text(edge.get("from"), 160)
-            for edge in edges
-            if isinstance(edge, dict)
-            and _text(edge.get("to"), 160) == selected_id
-            and isinstance(nodes.get(_text(edge.get("from"), 160)), dict)
-            and nodes[_text(edge.get("from"), 160)].get("type") == "video_inference"
-        ), "")
-        video_node = nodes.get(upstream_video_id)
-    if not video_node and selected_id:
-        connected_video_id = next((
-            _text(edge.get("to"), 160)
-            for edge in edges
-            if isinstance(edge, dict)
-            and _text(edge.get("from"), 160) == selected_id
-            and isinstance(nodes.get(_text(edge.get("to"), 160)), dict)
-            and nodes[_text(edge.get("to"), 160)].get("type") == "video_inference"
-        ), "")
-        video_node = nodes.get(connected_video_id)
-    if not isinstance(video_node, dict):
-        video_node = None
-    video_node_id = _text((video_node or {}).get("id"), 160)
-    task_domain = "video" if video_node else "image"
-
     requested_input_has_context = any(
         isinstance(edge, dict)
         and _text(edge.get("to"), 160) == requested_result_id
@@ -255,7 +215,8 @@ def summarize_context(context: dict[str, Any]) -> dict[str, Any]:
         and _text(requested_result.get("id"), 160) != input_node_id
     ):
         resolved_result_id = input_node_id
-    prompt_target_id = video_node_id or input_node_id
+    prompt_target_id = input_node_id
+    # Negative text nodes (promptRole "negative") are never the prompt the agent rewrites.
     connected_text_ids = [
         _text(edge.get("from"), 160)
         for edge in edges
@@ -263,6 +224,7 @@ def summarize_context(context: dict[str, Any]) -> dict[str, Any]:
         and _text(edge.get("to"), 160) == prompt_target_id
         and isinstance(nodes.get(_text(edge.get("from"), 160)), dict)
         and nodes[_text(edge.get("from"), 160)].get("type") == "text"
+        and nodes[_text(edge.get("from"), 160)].get("promptRole") != "negative"
     ]
     current_prompt = _text(
         context.get("current_prompt")
@@ -316,19 +278,6 @@ def summarize_context(context: dict[str, Any]) -> dict[str, Any]:
         if node_id:
             reference_ids.append(node_id)
     reference_ids = list(dict.fromkeys(reference_ids))[:8]
-    video_first_frame_id = ""
-    if video_node_id:
-        video_first_frame_id = next((
-            _text(edge.get("from"), 160)
-            for edge in edges
-            if isinstance(edge, dict)
-            and _text(edge.get("to"), 160) == video_node_id
-            and isinstance(nodes.get(_text(edge.get("from"), 160)), dict)
-            and nodes[_text(edge.get("from"), 160)].get("type") in {"image", "layout", "pose"}
-            and _text(edge.get("inputRole") or edge.get("input_role") or "first_frame", 80) == "first_frame"
-        ), "")
-        if video_first_frame_id and not reference_ids:
-            reference_ids.append(video_first_frame_id)
     referenced_image_nodes = [
         node for node in canvas_image_nodes
         if _text(node.get("id"), 160) in reference_ids
@@ -403,21 +352,13 @@ def summarize_context(context: dict[str, Any]) -> dict[str, Any]:
         "selected_node_id": selected_id,
         "selected_text_node_id": selected_text_id,
         "connected_text_node_id": connected_text_ids[0] if connected_text_ids else "",
-        "task_domain": task_domain,
-        "model_family": "minimax_h3" if task_domain == "video" else "",
-        "generation_node_id": video_node_id or input_node_id or "input",
-        "video_node_id": video_node_id,
-        "first_frame_node_id": video_first_frame_id or (reference_ids[0] if task_domain == "video" and reference_ids else ""),
-        "first_frame_connected": bool(video_first_frame_id),
-        "video_mode": _text((video_node or {}).get("mode") or params.get("mode") or "image_to_video", 80),
-        "input_node_id": video_node_id or input_node_id or "input",
-        "result_node_id": video_node_id or resolved_result_id or input_node_id or "input",
+        "task_domain": "image",
+        "model_family": "",
+        "generation_node_id": input_node_id or "input",
+        "input_node_id": input_node_id or "input",
+        "result_node_id": resolved_result_id or input_node_id or "input",
         "current_prompt": current_prompt,
-        "provider": (
-            "minimax_h3"
-            if task_domain == "video"
-            else (provider if provider in {"gpt", "google", "comfy", "upscale"} else "gpt")
-        ),
+        "provider": provider if provider in {"gpt", "google", "comfy", "upscale"} else "gpt",
         "params": copy.deepcopy(params),
         "archive_enabled": _bool(
             output.get("archive_enabled", output.get("archiveEnabled")),
@@ -720,73 +661,6 @@ def _generation_step_description(decision: dict[str, Any]) -> str:
     )
 
 
-def _video_generation_decision(summary: dict[str, Any]) -> dict[str, Any]:
-    params = summary.get("params") if isinstance(summary.get("params"), dict) else {}
-
-    def value(*keys: str, fallback: Any = None) -> Any:
-        for key in keys:
-            if params.get(key) not in {None, ""}:
-                return params.get(key)
-        return fallback
-
-    try:
-        duration_seconds = float(value("duration_seconds", "durationSeconds", fallback=15))
-    except (TypeError, ValueError):
-        duration_seconds = 15.0
-    duration_seconds = max(4.0, min(15.0, duration_seconds))
-    try:
-        pixel_budget_mp = float(value("pixel_budget_mp", "pixelBudgetMp", fallback=0.8))
-    except (TypeError, ValueError):
-        pixel_budget_mp = 0.8
-    aspect_ratio = _text(value("aspect_ratio", "aspectRatio", fallback="3:4"), 24).replace("：", ":")
-    if aspect_ratio not in {"16:9", "9:16", "3:4", "4:3", "2:3", "3:2", "1:1", "21:9", "9:21"}:
-        aspect_ratio = "3:4"
-    acceleration_mode = _text(
-        value("acceleration_mode", "accelerationMode", fallback="first_block_cache"),
-        40,
-    ).lower()
-    if acceleration_mode not in {"off", "first_block_cache", "sol_attn", "combined"}:
-        acceleration_mode = "first_block_cache"
-    source_mode = _text(summary.get("video_mode") or value("mode", fallback="image_to_video"), 80).lower()
-    h3_mode = "I2VA" if source_mode == "image_to_video" else "Ref2VA"
-    width = _int(value("width", fallback=0), 0, 0, 8192)
-    height = _int(value("height", fallback=0), 0, 0, 8192)
-    decision = {
-        "task_domain": "video",
-        "provider": "minimax_h3",
-        "mode": source_mode,
-        "h3_mode": h3_mode,
-        "duration_seconds": duration_seconds,
-        "aspect_ratio": aspect_ratio,
-        "pixel_budget_mp": round(max(0.1, min(8.0, pixel_budget_mp)), 3),
-        "width": width,
-        "height": height,
-        "acceleration_mode": acceleration_mode,
-        "archive_enabled": True,
-        "telegram_enabled": bool(summary.get("telegram_enabled", False)),
-        "decision_basis": ["读取 MiniMax H3 视频节点设置"],
-        "decision_notes": [],
-        "decision_attention": [],
-        "requires_attention": False,
-    }
-    duration_label = f"{duration_seconds:g}"
-    size_label = f" · {width}x{height}" if width and height else ""
-    decision["decision_summary"] = (
-        f"MiniMax H3 · {h3_mode} · {duration_label} 秒 · {aspect_ratio} · "
-        f"{decision['pixel_budget_mp']:g} MP{size_label}"
-    )
-    return decision
-
-
-def _video_generation_step_description(decision: dict[str, Any]) -> str:
-    return (
-        f"使用 MiniMax H3 {decision.get('h3_mode') or 'I2VA'}，按 "
-        f"{decision.get('aspect_ratio') or '3:4'}、{float(decision.get('duration_seconds') or 15):g} 秒、"
-        f"{float(decision.get('pixel_budget_mp') or 0.8):g} MP 提交；"
-        "其余推理参数沿用视频节点设置。"
-    )
-
-
 def _step(step_id: str, kind: str, title: str, description: str, *, tool: str, approval: bool = False) -> dict[str, Any]:
     return {
         "step_id": step_id,
@@ -807,8 +681,7 @@ def build_plan(goal: str, context: dict[str, Any], options: dict[str, Any] | Non
     options = options if isinstance(options, dict) else {}
     summary = summarize_context(context)
     wants_generation = _wants_generation(goal, options)
-    is_video = summary.get("task_domain") == "video"
-    decision = _video_generation_decision(summary) if is_video else infer_generation_decision(goal, summary, options=options)[0]
+    decision = infer_generation_decision(goal, summary, options=options)[0]
     wants_analysis = bool(
         summary["image_node_count"]
         and (
@@ -820,98 +693,6 @@ def build_plan(goal: str, context: dict[str, Any], options: dict[str, Any] | Non
     scope = _text(options.get("scope") or "selection", 32).lower()
     if scope not in {"selection", "canvas"}:
         scope = "selection"
-
-    if is_video:
-        if not summary.get("first_frame_node_id"):
-            raise ValueError("H3 I2VA Agent 需要视频节点已连接首帧，或在目标中用 @ 引用一张画布图片")
-        steps: list[dict[str, Any]] = [
-            _step(
-                "inspect_canvas",
-                "inspect_canvas",
-                "读取 H3 视频上下文",
-                f"检查 MiniMax H3 节点、首帧连接和 {decision.get('duration_seconds'):g} 秒输出设置。",
-                tool="read_canvas",
-            )
-        ]
-        if not summary.get("first_frame_connected"):
-            steps.append(_step(
-                "connect_first_frame",
-                "connect_nodes",
-                "连接 H3 首帧",
-                "把 @ 引用的图片连接为 MiniMax H3 视频节点首帧。",
-                tool="connect_nodes",
-            ))
-        if summary.get("first_frame_node_id"):
-            steps.append(_step(
-                "analyze_images",
-                "analyze_images",
-                "分析 H3 首帧",
-                "分析已连接的首帧，提取人物、场景、构图和可连续运动的视觉锚点。",
-                tool="analyze_image",
-            ))
-        if wants_video_analysis:
-            steps.append(_step(
-                "analyze_videos",
-                "analyze_videos",
-                "分析参考视频",
-                f"对 {summary['referenced_video_count']} 个 @ 视频引用均匀抽取 12--24 帧，提取动作、镜头与节奏锚点。",
-                tool="analyze_video_frames",
-            ))
-        if not _bool(options.get("skip_prompt_rewrite"), False):
-            steps.append(_step(
-                "compile_h3_prompt",
-                "compile_h3_prompt",
-                "编译 H3 I2VA 提示词",
-                "按照 MiniMax H3 官方 I2VA 结构生成时间线、声景和配乐字段，并完成格式校验。",
-                tool="compile_h3_prompt",
-            ))
-        steps.append(_step(
-            "apply_prompt",
-            "apply_prompt_to_input",
-            "写入 H3 提示词",
-            "更新视频节点已连接的文本节点；没有文本节点时自动创建并连接。",
-            tool="create_or_update_text_node",
-        ))
-        if wants_generation:
-            steps.extend([
-                _step(
-                    "submit_video_generation",
-                    "submit_video_generation",
-                    "提交视频生成",
-                    _video_generation_step_description(decision),
-                    tool="submit_video_generation",
-                    approval=True,
-                ),
-                _step(
-                    "monitor_generation",
-                    "monitor_generation",
-                    "跟踪视频结果",
-                    "持续读取现有 H3 任务状态，直到视频完成归档或任务失败。",
-                    tool="get_generation_status",
-                ),
-            ])
-        steps = steps[:MAX_PLAN_STEPS]
-        return {
-            "schema_version": AGENT_SCHEMA_VERSION,
-            "plan_id": f"plan_{uuid.uuid4().hex[:12]}",
-            "summary": "将按 MiniMax H3 官方 I2VA 规范整理提示词、更新画布" + ("并提交视频。" if wants_generation else "。"),
-            "goal": goal,
-            "scope": scope,
-            "task_domain": "video",
-            "artifact_type": "video",
-            "steps": steps,
-            "approval_required": True,
-            "generation_requested": wants_generation,
-            "execution_policy": {
-                "supervised": True,
-                "max_steps": MAX_PLAN_STEPS,
-                "max_generation_rounds": MAX_GENERATION_ROUNDS,
-                "destructive_tools_enabled": False,
-                "settings_write_enabled": False,
-                "direct_telegram_enabled": False,
-            },
-            "confirmation": decision,
-        }
 
     steps: list[dict[str, Any]] = [
         _step(
@@ -1130,7 +911,6 @@ class AgentRuntime:
                 "can_revise": (
                     run.get("status") == "awaiting_approval"
                     and bool((run.get("plan") or {}).get("generation_requested"))
-                    and (run.get("plan") or {}).get("task_domain") != "video"
                 ),
                 "can_pause": run.get("status") in {"running", "waiting_for_action"},
                 "can_resume": run.get("status") == "paused",
@@ -1303,7 +1083,6 @@ class AgentRuntime:
             "task_id": _text(result.get("task_id") or run.get("task_id"), 160),
             "analysis": copy.deepcopy(result.get("analysis") if isinstance(result.get("analysis"), dict) else {}),
             "artifact_type": _text(result.get("artifact_type") or (run.get("plan") or {}).get("artifact_type") or "image", 40),
-            "video_node_id": _text(result.get("video_node_id") or summary.get("video_node_id"), 160),
         }
 
     def _save_working(self, run_id: str, working: dict[str, Any], **extra: Any) -> None:
@@ -1315,7 +1094,6 @@ class AgentRuntime:
             "task_id": _text(working.get("task_id"), 160),
             "analysis": copy.deepcopy(working.get("analysis") or {}),
             "artifact_type": _text(working.get("artifact_type") or "image", 40),
-            "video_node_id": _text(working.get("video_node_id"), 160),
             **extra,
         }
         agent_store.update_run(run_id, result=result, task_id=result.get("task_id") or "")
@@ -1372,7 +1150,6 @@ class AgentRuntime:
                 "task_id": working.get("task_id") or "",
                 "analysis": working.get("analysis") or {},
                 "artifact_type": working.get("artifact_type") or plan.get("artifact_type") or "image",
-                "video_node_id": working.get("video_node_id") or "",
                 "steps_completed": len(steps),
             }
             agent_store.update_run(
@@ -1448,8 +1225,6 @@ class AgentRuntime:
                 "referenced_video_count": summary.get("referenced_video_count") or 0,
                 "selected_node_id": summary["selected_node_id"],
                 "input_node_id": summary["input_node_id"],
-                "video_node_id": summary.get("video_node_id") or "",
-                "first_frame_node_id": summary.get("first_frame_node_id") or "",
             }
         if kind == "rewrite_prompt":
             refined, meta = self._refine_prompt(run, working, options)
@@ -1477,7 +1252,7 @@ class AgentRuntime:
                 candidates = payload.get("candidates") if isinstance(payload.get("candidates"), list) else []
                 selected = next((item for item in candidates if isinstance(item, dict) and _text(item.get("text"))), None)
                 working["analysis"] = analysis
-                if selected and summary.get("task_domain") != "video":
+                if selected:
                     working["prompt"] = _text(selected.get("text"))
             elif kind == "analyze_videos":
                 analysis = payload.get("analysis") if isinstance(payload.get("analysis"), dict) else {}
@@ -1486,24 +1261,15 @@ class AgentRuntime:
                 working["video_analysis"] = analysis
                 if selected:
                     working["video_prompt_candidate"] = _text(selected.get("text"))
-            elif kind == "compile_h3_prompt":
-                compiled_prompt = _text(payload.get("prompt") or payload.get("compiled_prompt"))
-                if not compiled_prompt:
-                    raise AgentRuntimeError("H3 提示词编译动作没有返回可用内容")
-                working["prompt"] = compiled_prompt
-                working["prompt_meta"] = copy.deepcopy(payload.get("provenance") or payload.get("meta") or {})
             elif kind in {"update_text_node", "apply_prompt_to_input"}:
                 working["text_node_id"] = _text(payload.get("node_id") or payload.get("nodeId") or working.get("text_node_id"), 160)
                 if kind == "apply_prompt_to_input":
                     working["input_node_id"] = _text(payload.get("input_node_id") or working.get("input_node_id"), 160)
-            elif kind in {"submit_generation", "submit_video_generation"}:
+            elif kind == "submit_generation":
                 task_id = _text(payload.get("task_id") or payload.get("taskId"), 160)
                 if not task_id:
                     raise AgentRuntimeError("生成动作没有返回 task_id")
                 working["task_id"] = task_id
-                if kind == "submit_video_generation":
-                    working["artifact_type"] = "video"
-                    working["video_node_id"] = _text(payload.get("video_node_id") or summary.get("video_node_id"), 160)
                 agent_store.update_run(run_id, task_id=task_id)
             return payload
         raise AgentRuntimeError(f"不支持的 Agent 步骤：{kind}")
@@ -1589,23 +1355,6 @@ class AgentRuntime:
                 "video_node_ids": summary.get("referenced_video_node_ids") or [],
                 "message": run.get("goal") or "分析画布参考视频",
             }
-        if kind == "compile_h3_prompt":
-            plan = run.get("plan") if isinstance(run.get("plan"), dict) else {}
-            confirmation = plan.get("confirmation") if isinstance(plan.get("confirmation"), dict) else {}
-            return {
-                **base,
-                "video_node_id": summary.get("video_node_id") or summary.get("generation_node_id") or "",
-                "first_frame_node_id": summary.get("first_frame_node_id") or "",
-                "current_prompt": working.get("prompt") or summary.get("current_prompt") or "",
-                "analysis": {
-                    "first_frame": copy.deepcopy(working.get("analysis") or {}),
-                    "reference_video": copy.deepcopy(working.get("video_analysis") or {}),
-                },
-                "mode": confirmation.get("mode") or "image_to_video",
-                "h3_mode": confirmation.get("h3_mode") or "I2VA",
-                "duration_seconds": confirmation.get("duration_seconds") or 15,
-                "aspect_ratio": confirmation.get("aspect_ratio") or "3:4",
-            }
         if kind == "update_text_node":
             return {
                 **base,
@@ -1617,22 +1366,12 @@ class AgentRuntime:
             return {
                 **base,
                 "input_node_id": working.get("input_node_id") or summary.get("input_node_id") or "input",
-                "create_input_if_missing": summary.get("task_domain") != "video",
-                "referenced_image_node_ids": (
-                    copy.deepcopy(summary.get("referenced_image_node_ids") or [])
-                    if summary.get("task_domain") != "video" else []
-                ),
+                "create_input_if_missing": True,
+                "referenced_image_node_ids": copy.deepcopy(summary.get("referenced_image_node_ids") or []),
                 "text": working.get("prompt") or run.get("goal") or "",
                 "prompt_meta": copy.deepcopy(working.get("prompt_meta") or {}),
             }
         if kind == "connect_nodes":
-            if summary.get("task_domain") == "video":
-                return {
-                    **base,
-                    "from_node_id": summary.get("first_frame_node_id") or "",
-                    "to_node_id": summary.get("video_node_id") or summary.get("generation_node_id") or "",
-                    "input_role": "first_frame",
-                }
             return {
                 **base,
                 "from_node_id": options.get("from_node_id") or "",
@@ -1701,14 +1440,6 @@ class AgentRuntime:
                 "provider": provider,
                 "prompt": working.get("prompt") or run.get("goal") or "",
                 "params": params,
-            }
-        if kind == "submit_video_generation":
-            return {
-                **base,
-                "video_node_id": summary.get("video_node_id") or summary.get("generation_node_id") or "",
-                "generation_node_id": summary.get("generation_node_id") or summary.get("video_node_id") or "",
-                "prompt": working.get("prompt") or run.get("goal") or "",
-                "artifact_type": "video",
             }
         if kind == "rollback_canvas":
             return {**base, "snapshot_key": run.get("run_id")}
@@ -1787,13 +1518,7 @@ class AgentRuntime:
         options: dict[str, Any],
     ) -> dict[str, Any]:
         run = self._require_run(run_id)
-        is_video = (run.get("plan") or {}).get("task_domain") == "video"
-        timeout_seconds = _int(
-            options.get("task_timeout_seconds"),
-            7_200 if is_video else 1_800,
-            30,
-            14_400 if is_video else 3_600,
-        )
+        timeout_seconds = _int(options.get("task_timeout_seconds"), 1_800, 30, 3_600)
         poll_interval = max(0.4, min(float(options.get("poll_interval_seconds") or 1.4), 10.0))
         deadline = time.monotonic() + timeout_seconds
         last_signature: tuple[Any, ...] | None = None
@@ -1836,7 +1561,7 @@ class AgentRuntime:
                     raise AgentRuntimeError(_text(task.get("display_error") or task.get("error") or f"生成任务{status}", 2_000))
                 return task
             time.sleep(poll_interval)
-        raise AgentRuntimeError(f"等待{'视频' if is_video else '图片'}生成完成超时")
+        raise AgentRuntimeError("等待图片生成完成超时")
 
     def pause_run(self, run_id: str) -> dict[str, Any]:
         run = self._require_run(run_id)

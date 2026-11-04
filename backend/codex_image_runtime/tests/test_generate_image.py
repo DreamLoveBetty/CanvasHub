@@ -71,7 +71,26 @@ class GenerateImageTest(unittest.TestCase):
         self.assertEqual(payload["prompt"], "test prompt")
         self.assertEqual(payload["n"], 8)
 
-    def test_images_api_failure_falls_back_to_responses_loop(self) -> None:
+    def test_images_endpoint_failure_does_not_fall_back_to_responses(self) -> None:
+        with patch.object(generate_image, "post_codex_images", side_effect=RuntimeError("images api failed")), patch.object(
+            generate_image, "post_responses"
+        ) as post_responses:
+            with self.assertRaises(RuntimeError):
+                generate_image.generate(
+                    "test prompt",
+                    size="2k",
+                    ratio="16:9",
+                    quality="auto",
+                    background="auto",
+                    moderation="low",
+                    output_format="png",
+                    output_compression=100,
+                    n=8,
+                )
+
+        post_responses.assert_not_called()
+
+    def test_responses_endpoint_loop_returns_partial_result(self) -> None:
         captured_responses_payloads = []
 
         def fake_response_post(payload, **kwargs):
@@ -80,7 +99,7 @@ class GenerateImageTest(unittest.TestCase):
                 raise RuntimeError("temporary provider failure")
             return self._fake_image_event()
 
-        with patch.object(generate_image, "post_codex_images", side_effect=RuntimeError("images api failed")), patch.object(
+        with patch.object(generate_image, "post_codex_images") as post_images, patch.object(
             generate_image, "post_responses", side_effect=fake_response_post
         ):
             images = generate_image.generate(
@@ -93,15 +112,15 @@ class GenerateImageTest(unittest.TestCase):
                 output_format="png",
                 output_compression=100,
                 n=8,
+                request_endpoint="responses",
             )
 
+        post_images.assert_not_called()
         self.assertEqual(images, [b"fake-image"] * 3)
         self.assertEqual(len(captured_responses_payloads), 4)
 
-    def test_multi_image_first_failure_still_raises(self) -> None:
-        with patch.object(generate_image, "post_codex_images", side_effect=RuntimeError("images api failed")), patch.object(
-            generate_image, "post_responses", side_effect=RuntimeError("provider failed")
-        ):
+    def test_responses_endpoint_first_failure_still_raises(self) -> None:
+        with patch.object(generate_image, "post_responses", side_effect=RuntimeError("provider failed")):
             with self.assertRaises(RuntimeError):
                 generate_image.generate(
                     "test prompt",
@@ -113,6 +132,7 @@ class GenerateImageTest(unittest.TestCase):
                     output_format="png",
                     output_compression=100,
                     n=8,
+                    request_endpoint="responses",
                 )
 
 

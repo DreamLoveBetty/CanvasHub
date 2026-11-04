@@ -21,7 +21,8 @@ def archive_pngs(task_id, task, result, *, directory, write_prompt_sidecar, meta
         shutil.copyfile(source, pending)
         os.replace(pending, destination)
         text = destination.with_suffix(".txt")
-        text.write_text(task["prompt"].strip() + "\n", encoding="utf-8")
+        negative = str((task.get("params") or {}).get("negative_prompt") or "").strip()
+        text.write_text(task["prompt"].strip() + (f"\n\nnegative_prompt: {negative}" if negative else "") + "\n", encoding="utf-8")
         write_prompt_sidecar(destination, task["prompt"], txt_path=text)
         archived.append(destination)
     if not archived:

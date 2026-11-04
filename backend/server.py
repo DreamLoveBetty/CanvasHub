@@ -62,9 +62,11 @@ from .app_config import (
     DEFAULT_GPT_IMAGE_MAIN_MODEL,
     DEFAULT_GPT_PROVIDER_TOTAL_TIMEOUT_SECONDS,
     DEFAULT_GPT_REASONING_EFFORT,
+    DEFAULT_GPT_REQUEST_ENDPOINT,
     DEFAULT_GPT_TRANSPORT_MODE,
     GPT_IMAGE_MAIN_MODELS,
     GPT_REASONING_EFFORTS,
+    GPT_REQUEST_ENDPOINTS,
     GPT_TRANSPORT_MODES,
     get_chatgpt_pool_config,
     get_chatgpt_pool_public_config,
@@ -86,8 +88,6 @@ from .app_config import (
     get_telegram_auth_config,
     get_telegram_config,
     get_third_party_image_config,
-    get_video_inference_config,
-    get_video_inference_public_config,
     get_yunwu_api_base_url,
     get_yunwu_api_key,
     load_app_settings,
@@ -126,6 +126,10 @@ from .qwen21.runtime import Runtime as Qwen21Runtime
 from .qwen21.service import Service as Qwen21Service
 from .routes.qwen21_routes import create_router as create_qwen21_router
 from .qwen21.profiles import ADAPTERS as QWEN21_MANAGED_ADAPTERS
+from .moss.assets import managed_sha256 as moss_managed_sha256
+from .moss.runtime import Runtime as MossRuntime
+from .moss.service import Service as MossService
+from .routes.moss_routes import create_router as create_moss_router
 from .lora_library.service import Service as LoRALibraryService
 from .lora_library.civitai import Civitai as CivitaiMetadataProvider
 from .routes.lora_library_routes import create_router as create_lora_library_router
@@ -134,6 +138,7 @@ from .topaz_video.service import TopazVideoService
 from .topaz_video.runtime import TopazVideoRuntime
 from .routes.topaz_video_routes import create_router as create_topaz_video_router
 from .routes.video_upload_routes import create_router as create_video_upload_router
+from .routes.comfy_video_routes import create_router as create_comfy_video_router
 from .services.video_upload import VideoUploads
 from .audio.service import AudioService
 from .routes.audio_routes import create_router as create_audio_router
@@ -327,19 +332,6 @@ from .agent_runtime import (
     AgentRuntimeError,
     get_agent_runtime,
 )
-from .video_runtime import (
-    cancel_runtime_job as cancel_video_runtime_job,
-    collect_component_status as collect_video_runtime_component_status,
-    collect_runtime_capabilities as collect_video_runtime_capabilities,
-    collect_runtime_status as collect_video_runtime_status,
-    collect_supervisor_status as collect_video_supervisor_status,
-    download_runtime_result as download_video_runtime_result,
-    get_runtime_job as get_video_runtime_job,
-    normalize_runtime_base_url,
-    normalize_supervisor_base_url,
-    start_local_runtime as start_local_video_runtime,
-    submit_runtime_job as submit_video_runtime_job,
-)
 
 from .services import asset_files as _domain_services_asset_files
 from .services.task_duration_estimate import TaskDurationEstimator
@@ -388,11 +380,12 @@ from .services import telegram_notifications as _domain_services_telegram_notifi
 from .routes import google_generation_routes as _domain_routes_google_generation_routes
 
 from .services import upscale_generation as _domain_services_upscale_generation
-from .services import video_generation as _domain_services_video_generation
+from .services import h3_history as _domain_services_h3_history
 from .services import comfy_workflows as _domain_services_comfy_workflows
 from .services import comfy_gateway as _domain_services_comfy_gateway
 from .services import comfy_generation as _domain_services_comfy_generation
 from .services import comfy_transport as _domain_services_comfy_transport
+from .services import comfy_video as _domain_services_comfy_video
 from .routes import runtime_generation_routes as _domain_routes_runtime_generation_routes
 
 from .routes import http_responses as _domain_routes_http_responses
@@ -1486,11 +1479,13 @@ def _prepare_comfy_workflow(
     resolution='1k',
     width=None,
     height=None,
+    uploaded_video_names=None,
+    negative_prompt='',
 ):
     return _domain_services_comfy_gateway._prepare_comfy_workflow(
         workflow, prompt, ratio,
         uploaded_image_name, uploaded_image_names, resolution,
-        width, height, _normalize_comfy_dimension=_normalize_comfy_dimension,
+        width, height, uploaded_video_names, negative_prompt, _normalize_comfy_dimension=_normalize_comfy_dimension,
         _replace_comfy_tokens=_replace_comfy_tokens, _resolve_comfy_size=_resolve_comfy_size, json=json,
         random=random,
     )
@@ -1529,8 +1524,8 @@ def _extract_comfy_error(entry):
 def _sync_comfy_task(prompt_id, entry):
     return _domain_services_comfy_gateway._sync_comfy_task(
         prompt_id, entry, _extract_comfy_error=_extract_comfy_error,
-        _find_comfy_images=_find_comfy_images, get_task=get_task, json=json,
-        update_task=update_task, update_task_status=update_task_status,
+        _find_comfy_images=_find_comfy_images, _find_comfy_videos=_domain_services_comfy_video.find_comfy_videos,
+        get_task=get_task, json=json, update_task=update_task, update_task_status=update_task_status,
     )
 
 
@@ -1610,12 +1605,6 @@ def process_topaz_task(task_id, prompt, image_data, params):
 
 
 H3_VIDEO_TASK_TYPE = 'minimax-h3-video'
-
-
-def _sanitize_h3_prompt_metadata(value):
-    return _domain_services_video_generation._sanitize_h3_prompt_metadata(value)
-H3_VIDEO_MAX_REFERENCE_BYTES = 64 * 1024 * 1024
-H3_VIDEO_DEFAULT_TASK_TIMEOUT_SECONDS = 6 * 60 * 60
 _H3_PUBLIC_TASK_PARAM_KEYS = frozenset({
     'provider',
     'mode',
@@ -1650,15 +1639,6 @@ _H3_PUBLIC_TASK_PARAM_KEYS = frozenset({
     'sidecar_files',
     'reference_image_filename',
 })
-_H3_PUBLIC_RUNTIME_OUTPUT_KEYS = (
-    'width',
-    'height',
-    'fps',
-    'frame_count',
-    'duration_seconds',
-    'seed',
-    'elapsed_seconds',
-)
 _H3_PUBLIC_ACCELERATION_KEYS = frozenset({
     'mode',
     'first_block_cache',
@@ -1674,68 +1654,13 @@ _H3_PUBLIC_ACCELERATION_KEYS = frozenset({
 
 
 def _public_h3_acceleration(value):
-    return _domain_services_video_generation._public_h3_acceleration(value, _H3_PUBLIC_ACCELERATION_KEYS=_H3_PUBLIC_ACCELERATION_KEYS)
-
-
-def _public_h3_runtime_output(runtime_job):
-    return _domain_services_video_generation._public_h3_runtime_output(
-        runtime_job, _H3_PUBLIC_RUNTIME_OUTPUT_KEYS=_H3_PUBLIC_RUNTIME_OUTPUT_KEYS, _public_h3_acceleration=_public_h3_acceleration,
-    )
+    return _domain_services_h3_history._public_h3_acceleration(value, _H3_PUBLIC_ACCELERATION_KEYS=_H3_PUBLIC_ACCELERATION_KEYS)
 
 
 def _public_h3_task_params(params):
-    return _domain_services_video_generation._public_h3_task_params(
+    return _domain_services_h3_history._public_h3_task_params(
         params, _H3_PUBLIC_TASK_PARAM_KEYS=_H3_PUBLIC_TASK_PARAM_KEYS, _public_h3_acceleration=_public_h3_acceleration,
         safe_basename=safe_basename,
-    )
-
-
-def _write_text_atomic(path, content):
-    return _domain_services_video_generation._write_text_atomic(path, content, Path=Path, os=os, uuid=uuid)
-
-
-def _decode_h3_reference_image(data):
-    return _domain_services_video_generation._decode_h3_reference_image(
-        data, H3_VIDEO_MAX_REFERENCE_BYTES=H3_VIDEO_MAX_REFERENCE_BYTES, Image=Image,
-        _decode_data_uri_image=_decode_data_uri_image, io=io,
-    )
-
-
-def _h3_phase_label(phase, fallback=''):
-    return _domain_services_video_generation._h3_phase_label(phase, fallback)
-
-
-def _archive_h3_reference_image(output_path, upload):
-    """Persist the verified H3 input image beside a new output when available."""
-    return _domain_services_video_generation._archive_h3_reference_image(
-        output_path, upload, Path=Path,
-        _ARCHIVE_IMAGE_EXTENSIONS=_ARCHIVE_IMAGE_EXTENSIONS, os=os, uuid=uuid,
-    )
-
-
-def _write_h3_video_sidecars(output_path, prompt, params, runtime_job, task_id='', reference_image_name=''):
-    return _domain_services_video_generation._write_h3_video_sidecars(
-        output_path, prompt, params,
-        runtime_job, task_id, reference_image_name,
-        H3_VIDEO_TASK_TYPE=H3_VIDEO_TASK_TYPE, Path=Path, _public_h3_runtime_output=_public_h3_runtime_output,
-        _sanitize_h3_prompt_metadata=_sanitize_h3_prompt_metadata, _write_text_atomic=_write_text_atomic, json=json,
-        re=re,
-    )
-
-
-def process_h3_video_task(task_id, prompt, upload, params):
-    """Background bridge from the main task system to H3_Runtime_Server."""
-    return _domain_services_video_generation.process_h3_video_task(
-        task_id, prompt, upload,
-        params, H3_VIDEO_DEFAULT_TASK_TIMEOUT_SECONDS=H3_VIDEO_DEFAULT_TASK_TIMEOUT_SECONDS, H3_VIDEO_TASK_TYPE=H3_VIDEO_TASK_TYPE,
-        Path=Path, _archive_h3_reference_image=_archive_h3_reference_image, _coerce_bool=_coerce_bool,
-        _finalize_generation_task=_finalize_generation_task, _h3_phase_label=_h3_phase_label, _is_task_canceled=_is_task_canceled,
-        _merge_task_params=_merge_task_params, _public_h3_runtime_output=_public_h3_runtime_output, _record_generation_event=_record_generation_event,
-        _start_generation_audit=_start_generation_audit, _translate_generation_failure=_translate_generation_failure, _write_h3_video_sidecars=_write_h3_video_sidecars,
-        cancel_video_runtime_job=cancel_video_runtime_job, daily_output_dir=daily_output_dir, datetime=datetime,
-        download_video_runtime_result=download_video_runtime_result, get_video_runtime_job=get_video_runtime_job, random=random,
-        re=re, send_tg_document=send_tg_document, submit_video_runtime_job=submit_video_runtime_job,
-        time=time, update_task_status=update_task_status, urllib=urllib,
     )
 
 
@@ -1782,7 +1707,7 @@ def _send_comfy_result(task_id, prompt, workflow, ratio, comfy_image, params):
         json=json, os=os, save_thumbnail=save_thumbnail,
         send_status_notification=send_status_notification, send_telegram=send_telegram, tempfile=tempfile,
         time=time, update_task=update_task, update_task_status=update_task_status,
-        write_obsidian_prompt_sidecar=write_obsidian_prompt_sidecar,
+        write_obsidian_prompt_sidecar=write_obsidian_prompt_sidecar, _probe_video_metadata=_probe_archive_video_metadata,
     )
 
 
@@ -2108,11 +2033,11 @@ def _collect_system_diagnostics():
         PORT=PORT, SERVER_HOST=SERVER_HOST, TELEGRAM_AUTH_ALLOWED_IDS=TELEGRAM_AUTH_ALLOWED_IDS,
         TELEGRAM_AUTH_BOT_TOKEN=TELEGRAM_AUTH_BOT_TOKEN, _auth_enabled=_auth_enabled, _collect_chatgpt_pool_status=_collect_chatgpt_pool_status,
         _collect_comfy_workflows=_collect_comfy_workflows, _path_diagnostics=_path_diagnostics, archive_scan_roots=archive_scan_roots,
-        collect_video_runtime_component_status=collect_video_runtime_component_status, get_comfy_config=get_comfy_config, get_cyimg_config=get_cyimg_config, get_database_path=get_database_path,
+        get_comfy_config=get_comfy_config, get_cyimg_config=get_cyimg_config, get_database_path=get_database_path,
         get_gpt_provider_auth_status=get_gpt_provider_auth_status, get_managed_codex_oauth_status=get_managed_codex_oauth_status, get_miniapp_access_password=get_miniapp_access_password,
         get_nano_banana_api_base_url=get_nano_banana_api_base_url, get_nano_banana_api_key=get_nano_banana_api_key, get_prompt_skill_config=get_prompt_skill_config,
         get_server_config=get_server_config, get_storage_config=get_storage_config, get_telegram_config=get_telegram_config,
-        get_third_party_image_config=get_third_party_image_config, get_video_inference_public_config=get_video_inference_public_config, get_yunwu_api_base_url=get_yunwu_api_base_url,
+        get_third_party_image_config=get_third_party_image_config, get_yunwu_api_base_url=get_yunwu_api_base_url,
         get_yunwu_api_key=get_yunwu_api_key, source_image_roots=source_image_roots,
     )
 
@@ -2120,8 +2045,9 @@ def _collect_system_diagnostics():
 def _collect_gpt_runtime_config():
     return _domain_services_system_settings._collect_gpt_runtime_config(
         DEFAULT_GPT_IMAGE_MAIN_MODEL=DEFAULT_GPT_IMAGE_MAIN_MODEL, DEFAULT_GPT_PROVIDER_TOTAL_TIMEOUT_SECONDS=DEFAULT_GPT_PROVIDER_TOTAL_TIMEOUT_SECONDS, DEFAULT_GPT_REASONING_EFFORT=DEFAULT_GPT_REASONING_EFFORT,
-        DEFAULT_GPT_TRANSPORT_MODE=DEFAULT_GPT_TRANSPORT_MODE, VALID_GPT_MAIN_MODELS=VALID_GPT_MAIN_MODELS, VALID_GPT_REASONING_EFFORTS=VALID_GPT_REASONING_EFFORTS,
-        VALID_GPT_TRANSPORT_MODES=VALID_GPT_TRANSPORT_MODES, get_gpt_provider_config=get_gpt_provider_config,
+        DEFAULT_GPT_REQUEST_ENDPOINT=DEFAULT_GPT_REQUEST_ENDPOINT, DEFAULT_GPT_TRANSPORT_MODE=DEFAULT_GPT_TRANSPORT_MODE, VALID_GPT_MAIN_MODELS=VALID_GPT_MAIN_MODELS,
+        VALID_GPT_REASONING_EFFORTS=VALID_GPT_REASONING_EFFORTS, VALID_GPT_REQUEST_ENDPOINTS=set(GPT_REQUEST_ENDPOINTS), VALID_GPT_TRANSPORT_MODES=VALID_GPT_TRANSPORT_MODES,
+        get_gpt_provider_config=get_gpt_provider_config,
     )
 
 
@@ -2135,7 +2061,7 @@ def _collect_system_settings():
         get_nano_banana_api_key=get_nano_banana_api_key, get_pinterest_browser_login_capability=get_pinterest_browser_login_capability, get_pinterest_config=get_pinterest_config,
         get_prompt_skill_config=get_prompt_skill_config, get_proxy_config=get_proxy_config, get_server_config=get_server_config,
         get_storage_config=get_storage_config, get_telegram_config=get_telegram_config, get_third_party_image_config=get_third_party_image_config,
-        get_video_inference_public_config=get_video_inference_public_config, get_yunwu_api_base_url=get_yunwu_api_base_url, get_yunwu_api_key=get_yunwu_api_key,
+        get_yunwu_api_base_url=get_yunwu_api_base_url, get_yunwu_api_key=get_yunwu_api_key,
         source_image_roots=source_image_roots,
     )
 
@@ -2175,13 +2101,14 @@ def _sanitize_system_settings_patch(payload):
         _coerce_gpt_reasoning_effort=_coerce_gpt_reasoning_effort, _coerce_gpt_transport_mode=_coerce_gpt_transport_mode, _normalize_comfy_base_url=_normalize_comfy_base_url,
         _normalize_pinterest_profile_url=_normalize_pinterest_profile_url, _patch_secret=_patch_secret, _patch_text=_patch_text,
         _server_config_from_settings_snapshot=_server_config_from_settings_snapshot, _settings_dict=_settings_dict, _validate_public_mode_password=_validate_public_mode_password,
-        load_app_settings=load_app_settings, normalize_runtime_base_url=normalize_runtime_base_url, normalize_supervisor_base_url=normalize_supervisor_base_url,
+        load_app_settings=load_app_settings,
     )
 
 
 def _sanitize_gpt_provider_patch(data):
     return _domain_services_system_settings._sanitize_gpt_provider_patch(
-        data, GPT_TRANSPORT_MODES=GPT_TRANSPORT_MODES, _coerce_gpt_provider_total_timeout=_coerce_gpt_provider_total_timeout,
+        data, GPT_TRANSPORT_MODES=GPT_TRANSPORT_MODES, GPT_REQUEST_ENDPOINTS=GPT_REQUEST_ENDPOINTS,
+        _coerce_gpt_provider_total_timeout=_coerce_gpt_provider_total_timeout,
     )
 
 
@@ -2434,13 +2361,24 @@ _QWEN21_SERVICE = Qwen21Service(
     update_task_fields=update_task_fields, daily_output_dir=daily_output_dir,
     write_prompt_sidecar=write_obsidian_prompt_sidecar, send_document=send_tg_document)
 _QWEN21_ROUTES = create_qwen21_router(_QWEN21_SERVICE)
+_MOSS_SERVICE = MossService(
+    APP_DATA_DIR / 'data' / 'moss', APP_DATA_DIR / 'components' / 'moss',
+    MossRuntime(APP_DATA_DIR / 'components' / 'moss'),
+    create_task=create_task, get_task=get_task, get_all_tasks=get_all_tasks,
+    update_task=update_task, update_task_status=update_task_status,
+    update_task_fields=update_task_fields, daily_output_dir=daily_output_dir,
+    write_prompt_sidecar=write_obsidian_prompt_sidecar, send_document=send_tg_document)
+_MOSS_ROUTES = create_moss_router(_MOSS_SERVICE)
 _LORA_LIBRARY = LoRALibraryService(
     APP_DATA_DIR / 'data' / 'lora_library',
     catalogs={'krea2': _KREA2_SERVICE.loras.library_snapshot,
-              'qwen21': _QWEN21_SERVICE.loras.library_snapshot},
-    resolvers={'krea2': _KREA2_SERVICE.loras.resolve, 'qwen21': _QWEN21_SERVICE.loras.resolve},
-    deleters={'krea2': _KREA2_SERVICE.delete_lora, 'qwen21': _QWEN21_SERVICE.delete_lora},
-    excluded_ids=[item['sha256'] for item in QWEN21_MANAGED_ADAPTERS.values()],
+              'qwen21': _QWEN21_SERVICE.loras.library_snapshot,
+              'moss': _MOSS_SERVICE.loras.library_snapshot},
+    resolvers={'krea2': _KREA2_SERVICE.loras.resolve, 'qwen21': _QWEN21_SERVICE.loras.resolve,
+               'moss': _MOSS_SERVICE.loras.resolve},
+    deleters={'krea2': _KREA2_SERVICE.delete_lora, 'qwen21': _QWEN21_SERVICE.delete_lora,
+              'moss': _MOSS_SERVICE.delete_lora},
+    excluded_ids=[*(item['sha256'] for item in QWEN21_MANAGED_ADAPTERS.values()), *moss_managed_sha256()],
     provider=CivitaiMetadataProvider(APP_DATA_DIR / 'data' / 'lora_library'))
 _LORA_LIBRARY_ROUTES = create_lora_library_router(_LORA_LIBRARY)
 _POSE_SCENE_SERVICE = PoseSceneService(APP_DATA_DIR / 'components' / 'pose-soma', APP_DATA_DIR / 'data' / 'pose',
@@ -2450,15 +2388,17 @@ _POSE_CAPTURE_SERVICE = PoseCaptureService(
     body_assets=_POSE_SCENE_SERVICE.assets_dir)
 _LOCAL_IMAGE_MEMORY = IdleWorkerCoordinator({
     'krea2': _KREA2_SERVICE.runtime.close, 'qwen21': _QWEN21_SERVICE.runtime.close,
-    'pose_capture': _POSE_CAPTURE_SERVICE.runtime.close})
+    'moss': _MOSS_SERVICE.runtime.close, 'pose_capture': _POSE_CAPTURE_SERVICE.runtime.close})
 _KREA2_SERVICE.runtime.before_load = lambda: _LOCAL_IMAGE_MEMORY.release_other('krea2')
 _QWEN21_SERVICE.runtime.before_load = lambda: _LOCAL_IMAGE_MEMORY.release_other('qwen21')
+_MOSS_SERVICE.runtime.before_load = lambda: _LOCAL_IMAGE_MEMORY.release_other('moss')
 _topaz_runtime.before_load = _LOCAL_IMAGE_MEMORY.release_all
 _VIDEO_CONTROL_ROUTES = create_video_control_router(VideoControlService(
     APP_DATA_DIR / 'data' / 'video-control', VideoControlRuntime(
         APP_DATA_DIR / 'components' / 'reshot', before_load=_LOCAL_IMAGE_MEMORY.release_all)))
 _POSE_ROUTES = create_pose_router(_POSE_SCENE_SERVICE)
 _VIDEO_UPLOAD_ROUTES = create_video_upload_router(VideoUploads(daily_output_dir, _probe_archive_video_metadata))
+_COMFY_VIDEO_ROUTES = create_comfy_video_router(_domain_services_comfy_video.ComfyVideoUploads(_new_comfy_session, get_comfy_config))
 _POSE_CAPTURE_ROUTES = create_pose_capture_router(_POSE_CAPTURE_SERVICE)
 _TOPAZ_VIDEO_ROUTES = create_topaz_video_router(TopazVideoService(
     APP_DATA_DIR / 'data' / 'topaz-video', TopazVideoRuntime(
@@ -2594,6 +2534,8 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
             return
         if _QWEN21_ROUTES.dispatch(self, 'GET', path):
             return
+        if _MOSS_ROUTES.dispatch(self, 'GET', path):
+            return
         if _LORA_LIBRARY_ROUTES.dispatch(self, 'GET', path):
             return
         if _TOPAZ_VIDEO_ROUTES.dispatch(self, 'GET', path):
@@ -2636,18 +2578,6 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
             if not self.require_auth():
                 return
             self.handle_system_settings()
-        elif path == '/api/video/runtime/status':
-            if not self.require_auth():
-                return
-            self.handle_video_runtime_status(parsed)
-        elif path == '/api/video/supervisor/status':
-            if not self.require_auth():
-                return
-            self.handle_video_supervisor_status(parsed)
-        elif path == '/api/video/capabilities':
-            if not self.require_auth():
-                return
-            self.handle_video_runtime_capabilities()
         elif path == '/api/pinterest/library':
             if not self.require_auth():
                 return
@@ -2882,6 +2812,8 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
             return
         if _VIDEO_UPLOAD_ROUTES.dispatch(self, 'POST', path):
             return
+        if _COMFY_VIDEO_ROUTES.dispatch(self, 'POST', path):
+            return
         if _POSE_CAPTURE_ROUTES.dispatch(self, 'POST', path):
             return
         if _CYIMG_ROUTES.dispatch(self, 'POST', path):
@@ -2889,6 +2821,8 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
         if _KREA2_ROUTES.dispatch(self, 'POST', path):
             return
         if _QWEN21_ROUTES.dispatch(self, 'POST', path):
+            return
+        if _MOSS_ROUTES.dispatch(self, 'POST', path):
             return
         if _LORA_LIBRARY_ROUTES.dispatch(self, 'POST', path):
             return
@@ -2956,26 +2890,10 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
             if not self.require_auth():
                 return
             self.handle_system_settings_save()
-        elif path == '/api/video/runtime/test':
-            if not self.require_auth():
-                return
-            self.handle_video_runtime_test()
-        elif path == '/api/video/supervisor/test':
-            if not self.require_auth():
-                return
-            self.handle_video_supervisor_test()
-        elif path == '/api/video/runtime/start':
-            if not self.require_auth():
-                return
-            self.handle_video_runtime_start()
         elif path == '/api/video/prompt-compile':
             if not self.require_auth():
                 return
             self.handle_video_prompt_compile()
-        elif path == '/api/video/generate':
-            if not self.require_auth():
-                return
-            self.handle_video_generate()
         elif path == '/api/pinterest/auth/start':
             if not self.require_auth():
                 return
@@ -3555,48 +3473,9 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
             save_app_settings=save_app_settings,
         )
 
-    def handle_video_runtime_status(self, parsed=None):
-        """Return H3 Runtime routing and optionally perform a live probe."""
-        return _domain_routes_runtime_generation_routes.handle_video_runtime_status(
-            self, parsed, _coerce_bool=_coerce_bool,
-            collect_video_runtime_status=collect_video_runtime_status, urllib=urllib,
-        )
-
-    def handle_video_supervisor_status(self, parsed=None):
-        """Return the configured H3 Supervisor address and optional health probe."""
-        return _domain_routes_runtime_generation_routes.handle_video_supervisor_status(
-            self, parsed, _coerce_bool=_coerce_bool,
-            collect_video_supervisor_status=collect_video_supervisor_status, urllib=urllib,
-        )
-
-    def handle_video_runtime_capabilities(self):
-        """Return live H3 capabilities, or a bounded offline fallback."""
-        return _domain_routes_runtime_generation_routes.handle_video_runtime_capabilities(self, collect_video_runtime_capabilities=collect_video_runtime_capabilities)
-
-    def handle_video_runtime_test(self):
-        """Probe unsaved local/LAN fields from the settings panel."""
-        return _domain_routes_runtime_generation_routes.handle_video_runtime_test(self, collect_video_runtime_status=collect_video_runtime_status)
-
-    def handle_video_supervisor_test(self):
-        """Probe an unsaved Supervisor URL from the settings panel."""
-        return _domain_routes_runtime_generation_routes.handle_video_supervisor_test(self, collect_video_supervisor_status=collect_video_supervisor_status)
-
-    def handle_video_runtime_start(self):
-        """Start a separately installed local H3 Runtime component on Windows."""
-        return _domain_routes_runtime_generation_routes.handle_video_runtime_start(self, start_local_video_runtime=start_local_video_runtime)
-
     def handle_video_prompt_compile(self):
         """Compile an I2VA request with the pinned official MiniMax H3 skill."""
         return _domain_routes_runtime_generation_routes.handle_video_prompt_compile(self, H3PromptCompileError=H3PromptCompileError, compile_h3_prompt=compile_h3_prompt)
-
-    def handle_video_generate(self):
-        """Create a tracked MiniMax H3 video task without exposing Runtime secrets."""
-        return _domain_routes_runtime_generation_routes.handle_video_generate(
-            self, H3_VIDEO_TASK_TYPE=H3_VIDEO_TASK_TYPE, _coerce_bool=_coerce_bool,
-            _decode_h3_reference_image=_decode_h3_reference_image, _sanitize_h3_prompt_metadata=_sanitize_h3_prompt_metadata, collect_video_runtime_capabilities=collect_video_runtime_capabilities,
-            create_task=create_task, process_h3_video_task=process_h3_video_task, random=random,
-            time=time,
-        )
 
     def handle_pinterest_auth_start(self):
         """Open an isolated local browser for Pinterest login."""
@@ -4267,6 +4146,7 @@ def run_server():
         recover_cyimg_tasks=_CYIMG_SERVICE.recover,
         recover_krea2_tasks=_KREA2_SERVICE.recover,
         recover_qwen21_tasks=_QWEN21_SERVICE.recover,
+        recover_moss_tasks=_MOSS_SERVICE.recover,
         init_prompt_source_store=init_prompt_source_store, socketserver=socketserver,
     )
 

@@ -221,7 +221,11 @@ class Service:
                 self.repository.preferences({"auto_sync": changes["auto_sync"]})
             if "api_key" in changes and self.provider:
                 self.provider.set_key(changes["api_key"])
-        return {**self.repository.preferences(), "api_key_configured": bool(self.provider and self.provider.has_key())}
+        return {
+            **self.repository.preferences(),
+            "api_key_configured": bool(self.provider and self.provider.has_key()),
+            "api_key_length": self.provider.key_length() if self.provider else 0,
+        }
 
     def bind(self, identity, url):
         identity = normalize_asset_id(identity)

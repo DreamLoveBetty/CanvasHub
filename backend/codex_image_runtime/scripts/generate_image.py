@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate images with gpt-image-2 directly through Codex Responses."""
+"""Generate images with gpt-image-2 through the Codex Images or Responses endpoint."""
 
 from __future__ import annotations
 
@@ -12,10 +12,12 @@ from codex_api import (
     DEFAULT_IMAGE_MAIN_MODEL,
     DEFAULT_IMAGE_TOOL_MODEL,
     DEFAULT_REASONING_EFFORT,
+    DEFAULT_TIMEOUT,
     CodexAPIError,
     build_image_request,
     decode_image_items_with_metadata,
     extract_images,
+    normalize_request_endpoint,
     post_codex_images,
     post_responses,
     prepare_image_prompt,
@@ -37,6 +39,8 @@ def generate_with_metadata(
     main_model: str = DEFAULT_IMAGE_MAIN_MODEL,
     reasoning_effort: str = DEFAULT_REASONING_EFFORT,
     transport_mode: str = "stream_then_nonstream",
+    request_endpoint: str = "images",
+    timeout: int = DEFAULT_TIMEOUT,
 ) -> list[dict[str, object]]:
     try:
         count = int(n or 1)
@@ -60,36 +64,29 @@ def generate_with_metadata(
     if count > 1:
         tool["partial_images"] = 0
 
-    print(f"Generating {count} image(s) @ {resolved_size}, quality={quality}, bg={background}, format={output_format}")
+    endpoint = normalize_request_endpoint(request_endpoint)
+    print(
+        f"Generating {count} image(s) @ {resolved_size}, quality={quality}, bg={background}, "
+        f"format={output_format}, endpoint={endpoint}"
+    )
     print(f"Prompt: {prompt[:160]}{'...' if len(prompt) > 160 else ''}")
     started = time.time()
 
-    images: list[dict[str, object]] = []
-    image_payload: dict[str, object] = {
-        "model": DEFAULT_IMAGE_TOOL_MODEL,
-        "prompt": request_prompt,
-        "size": resolved_size,
-        "quality": quality,
-        "output_format": output_format,
-    }
-    if count > 1:
-        image_payload["n"] = count
-    if background and background != "auto":
-        image_payload["background"] = background
-    if moderation and moderation != "auto":
-        image_payload["moderation"] = moderation
-    if output_format in {"jpeg", "webp"}:
-        image_payload["output_compression"] = output_compression
-    try:
-        image_response = post_codex_images("generations", image_payload)
-        images.extend(decode_image_items_with_metadata(image_response))
-        if images:
-            print(f"Generated {len(images)} image(s) in {time.time() - started:.1f}s")
-            return images
-        raise CodexAPIError("images/generations response did not decode any images", 502)
-    except Exception as images_exc:
-        print(f"⚠️ Codex images/generations failed; falling back to responses: {images_exc}", file=sys.stderr)
+    if endpoint == "images":
+        return _generate_via_images_api(
+            request_prompt,
+            resolved_size,
+            quality,
+            background,
+            moderation,
+            output_format,
+            output_compression,
+            count,
+            started,
+            timeout,
+        )
 
+    images: list[dict[str, object]] = []
     for index in range(count):
         try:
             event = post_responses(
@@ -100,6 +97,7 @@ def generate_with_metadata(
                     main_model=main_model,
                     reasoning_effort=reasoning_effort,
                 ),
+                timeout=timeout,
                 transport_mode=transport_mode,
             )
             image_response = extract_images(event, response_format="b64_json")
@@ -118,6 +116,41 @@ def generate_with_metadata(
     return images
 
 
+def _generate_via_images_api(
+    request_prompt: str,
+    resolved_size: str,
+    quality: str,
+    background: str,
+    moderation: str,
+    output_format: str,
+    output_compression: int,
+    count: int,
+    started: float,
+    timeout: int,
+) -> list[dict[str, object]]:
+    image_payload: dict[str, object] = {
+        "model": DEFAULT_IMAGE_TOOL_MODEL,
+        "prompt": request_prompt,
+        "size": resolved_size,
+        "quality": quality,
+        "output_format": output_format,
+    }
+    if count > 1:
+        image_payload["n"] = count
+    if background and background != "auto":
+        image_payload["background"] = background
+    if moderation and moderation != "auto":
+        image_payload["moderation"] = moderation
+    if output_format in {"jpeg", "webp"}:
+        image_payload["output_compression"] = output_compression
+    image_response = post_codex_images("generations", image_payload, timeout=timeout)
+    images = decode_image_items_with_metadata(image_response)
+    if not images:
+        raise CodexAPIError("images/generations response did not decode any images", 502)
+    print(f"Generated {len(images)} image(s) in {time.time() - started:.1f}s")
+    return images
+
+
 def generate(
     prompt: str,
     size: str,
@@ -132,6 +165,7 @@ def generate(
     main_model: str = DEFAULT_IMAGE_MAIN_MODEL,
     reasoning_effort: str = DEFAULT_REASONING_EFFORT,
     transport_mode: str = "stream_then_nonstream",
+    request_endpoint: str = "images",
 ) -> list[bytes]:
     image_items = generate_with_metadata(
         prompt=prompt,
@@ -147,6 +181,7 @@ def generate(
         main_model=main_model,
         reasoning_effort=reasoning_effort,
         transport_mode=transport_mode,
+        request_endpoint=request_endpoint,
     )
     return [item["image_bytes"] for item in image_items if item.get("image_bytes")]
 
@@ -164,6 +199,7 @@ def main() -> None:
     parser.add_argument("--prompt-mode", default="smart", choices=["smart", "faithful"], help="prompt interpretation mode")
     parser.add_argument("--main-model", default=DEFAULT_IMAGE_MAIN_MODEL, help="Responses main model")
     parser.add_argument("--reasoning-effort", default=DEFAULT_REASONING_EFFORT, choices=["none", "low", "medium", "high", "xhigh"])
+    parser.add_argument("--endpoint", default="images", choices=["images", "responses"], help="Codex request endpoint")
     parser.add_argument("-n", type=int, default=1, help="number of images")
     parser.add_argument("--output", "-o", default=None, help="output file path for one image")
     parser.add_argument("--output-dir", default=None, help="output directory for multiple images")
@@ -183,6 +219,7 @@ def main() -> None:
             prompt_mode=args.prompt_mode,
             main_model=args.main_model,
             reasoning_effort=args.reasoning_effort,
+            request_endpoint=args.endpoint,
         )
     except (CodexAPIError, ValueError) as exc:
         print(f"Error: {exc}", file=sys.stderr)

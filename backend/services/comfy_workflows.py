@@ -5,6 +5,9 @@ Preserve existing operation order, payloads and failure semantics.
 """
 from __future__ import annotations
 
+from .comfy_video import is_uploaded_video_input
+from .comfy_workflow_tags import collect_workflow_tags, strip_title_tags, tagged_default_size
+
 
 def _new_comfy_session(*, requests):
     session = requests.Session()
@@ -69,6 +72,12 @@ def _extract_comfy_workflow_default_size(workflow, fallback=(1024, 1024), *, _no
     fallback_height = _normalize_comfy_dimension(fallback[1] if fallback else 1024, 1024)
     if not isinstance(workflow, dict):
         return fallback_width, fallback_height
+    tags = collect_workflow_tags(workflow)
+    if tags['tagged']:
+        size = tagged_default_size(workflow, tags)
+        if not size:
+            return fallback_width, fallback_height
+        return _normalize_comfy_dimension(size[0], fallback_width), _normalize_comfy_dimension(size[1], fallback_height)
     candidates = []
     for node in workflow.values():
         if not isinstance(node, dict):
@@ -148,6 +157,10 @@ def _extract_comfy_workflow_parameters(
 ):
     if not isinstance(workflow, dict):
         return []
+    # Tagged workflows offer only [参数] nodes plus the [负面] text; untagged ones keep auto detection.
+    tags = collect_workflow_tags(workflow)
+    tagged_params = set(tags['params'])
+    negative_fields = {(item['node_id'], item['field']) for item in tags['negative']}
     parameters = []
     for raw_node_id, node in workflow.items():
         if not isinstance(node, dict):
@@ -155,13 +168,21 @@ def _extract_comfy_workflow_parameters(
         node_id = str(raw_node_id)
         class_type = str(node.get('class_type') or 'Node').strip()
         class_key = class_type.lower()
-        if class_type in ('SaveImage', 'PreviewImage') or class_key.endswith('loader') or 'loadmodel' in class_key:
+        if tags['tagged']:
+            if node_id not in tagged_params and not any(item[0] == node_id for item in negative_fields):
+                continue
+        elif class_type in ('SaveImage', 'PreviewImage') or class_key.endswith('loader') or 'loadmodel' in class_key:
             continue
         inputs = node.get('inputs') if isinstance(node.get('inputs'), dict) else {}
-        node_title = str((node.get('_meta') or {}).get('title') or class_type).strip()[:100]
+        node_title = (strip_title_tags((node.get('_meta') or {}).get('title')) or class_type)[:100]
         for raw_name, raw_value in inputs.items():
             name = str(raw_name)
-            if name in COMFY_PARAMETER_EXCLUDED_INPUTS or (name.startswith('text_') and name[5:].isdigit()):
+            is_negative = (node_id, name) in negative_fields
+            if tags['tagged'] and not is_negative and node_id not in tagged_params:
+                continue
+            if not is_negative and (name in COMFY_PARAMETER_EXCLUDED_INPUTS or (name.startswith('text_') and name[5:].isdigit())):
+                continue
+            if is_uploaded_video_input(class_type, name):
                 continue
             if isinstance(raw_value, (dict, list)) or raw_value is None:
                 continue
@@ -179,7 +200,7 @@ def _extract_comfy_workflow_parameters(
                 'input_name': name,
                 'node_title': node_title,
                 'class_type': class_type,
-                'label': _comfy_parameter_label(name),
+                'label': '负面提示词' if is_negative else _comfy_parameter_label(name),
                 'default': value,
             }
             if isinstance(value, bool):

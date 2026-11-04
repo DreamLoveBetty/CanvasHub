@@ -320,8 +320,9 @@ def _status_response_task(
     urllib,
 ):
     task = dict(task or {})
-    is_video = task.get('type') in {H3_VIDEO_TASK_TYPE, 'cyimg-video'}
     params = task.get('params') if isinstance(task.get('params'), dict) else {}
+    is_video = task.get('type') in {H3_VIDEO_TASK_TYPE, 'cyimg-video'} or (
+        task.get('type') == 'comfy' and params.get('comfy_output_kind') == 'video')
     if task.get('type') == H3_VIDEO_TASK_TYPE:
         params = _public_h3_task_params(params)
         task['params'] = params
@@ -356,7 +357,7 @@ def _status_response_task(
             task['image_paths'] = [f"/gpt_outputs/{name}" for name in result_files] if task.get('type') in ('gpt', 'gpt-edit') else [image_url(name) for name in result_files]
         # Keep the legacy H3 status count contract; Cyimg video is a new task
         # type and should not report its video result as an image.
-        task['image_count'] = 0 if task.get('type') == 'cyimg-video' else len(result_files)
+        task['image_count'] = 0 if task.get('type') == 'cyimg-video' or (is_video and task.get('type') == 'comfy') else len(result_files)
     else:
         task.setdefault('result_files', [])
         task.setdefault('output_files', [])

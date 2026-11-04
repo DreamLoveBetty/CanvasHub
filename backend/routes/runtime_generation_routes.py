@@ -1,9 +1,11 @@
-"""Local upscale, video runtime and ComfyUI HTTP adapters.
+"""Local upscale, H3 prompt compile and ComfyUI HTTP adapters.
 
 Dependencies are supplied explicitly by the compatibility entrypoints.
 Preserve existing operation order, payloads and failure semantics.
 """
 from __future__ import annotations
+
+from ..services.comfy_video import normalize_video_input_names
 
 
 def handle_upscale_run(
@@ -78,74 +80,6 @@ def handle_upscale_run(
         handler.send_json({"error": str(e)}, 500)
 
 
-def handle_video_runtime_status(handler, parsed=None, *, _coerce_bool, collect_video_runtime_status, urllib):
-    """Return H3 Runtime routing and optionally perform a live probe."""
-    try:
-        query = urllib.parse.parse_qs(parsed.query) if parsed else {}
-        probe = _coerce_bool((query.get("probe") or ["0"])[0], False)
-        handler.send_json(collect_video_runtime_status(probe=probe))
-    except ValueError as e:
-        handler.send_json({"ok": False, "online": False, "error": str(e)}, 400)
-    except Exception as e:
-        print(f"❌ H3 Runtime 状态读取失败：{e}")
-        handler.send_json({"ok": False, "online": False, "error": str(e)}, 500)
-
-
-def handle_video_supervisor_status(handler, parsed=None, *, _coerce_bool, collect_video_supervisor_status, urllib):
-    """Return the configured H3 Supervisor address and optional health probe."""
-    try:
-        query = urllib.parse.parse_qs(parsed.query) if parsed else {}
-        probe = _coerce_bool((query.get("probe") or ["0"])[0], False)
-        handler.send_json(collect_video_supervisor_status(probe=probe))
-    except Exception as e:
-        print(f"❌ H3 Supervisor 状态读取失败：{e}")
-        handler.send_json({"ok": False, "online": False, "error": str(e)}, 500)
-
-
-def handle_video_runtime_capabilities(handler, *, collect_video_runtime_capabilities):
-    """Return live H3 capabilities, or a bounded offline fallback."""
-    try:
-        handler.send_json(collect_video_runtime_capabilities())
-    except Exception as e:
-        print(f"❌ H3 Runtime 能力读取失败：{e}")
-        handler.send_json({"ok": False, "runtime_online": False, "error": str(e)}, 500)
-
-
-def handle_video_runtime_test(handler, *, collect_video_runtime_status):
-    """Probe unsaved local/LAN fields from the settings panel."""
-    try:
-        payload = handler.read_json_body(max_bytes=64 * 1024)
-        handler.send_json(collect_video_runtime_status(probe=True, overrides=payload))
-    except ValueError as e:
-        handler.send_json({"ok": False, "online": False, "error": str(e)}, 400)
-    except Exception as e:
-        handler.send_json({"ok": False, "online": False, "error": str(e)}, 502)
-
-
-def handle_video_supervisor_test(handler, *, collect_video_supervisor_status):
-    """Probe an unsaved Supervisor URL from the settings panel."""
-    try:
-        payload = handler.read_json_body(max_bytes=16 * 1024)
-        handler.send_json(collect_video_supervisor_status(
-            probe=True,
-            base_url=payload.get("manager_base_url") if isinstance(payload, dict) else None,
-        ))
-    except ValueError as e:
-        handler.send_json({"ok": False, "online": False, "error": str(e)}, 400)
-    except Exception as e:
-        handler.send_json({"ok": False, "online": False, "error": str(e)}, 502)
-
-
-def handle_video_runtime_start(handler, *, start_local_video_runtime):
-    """Start a separately installed local H3 Runtime component on Windows."""
-    try:
-        result = start_local_video_runtime()
-        handler.send_json(result, 202 if result.get("ok") else 409)
-    except Exception as e:
-        print(f"❌ H3 Runtime 启动失败：{e}")
-        handler.send_json({"ok": False, "started": False, "error": str(e)}, 500)
-
-
 def handle_video_prompt_compile(handler, *, H3PromptCompileError, compile_h3_prompt):
     """Compile an I2VA request with the pinned official MiniMax H3 skill."""
     try:
@@ -161,120 +95,6 @@ def handle_video_prompt_compile(handler, *, H3PromptCompileError, compile_h3_pro
     except Exception as e:
         print(f"❌ H3 提示词编译失败：{e}")
         handler.send_json({"ok": False, "error": str(e)}, 500)
-
-
-def handle_video_generate(
-    handler,
-    *,
-    H3_VIDEO_TASK_TYPE,
-    _coerce_bool,
-    _decode_h3_reference_image,
-    _sanitize_h3_prompt_metadata,
-    collect_video_runtime_capabilities,
-    create_task,
-    process_h3_video_task,
-    random,
-    time,
-):
-    """Create a tracked MiniMax H3 video task without exposing Runtime secrets."""
-    try:
-        data = handler.read_json_body(max_bytes=140 * 1024 * 1024)
-        prompt = str(data.get('prompt') or '').strip()
-        if not prompt:
-            raise ValueError('请连接一个包含提示词的文本节点')
-        if len(prompt) > 20_000:
-            raise ValueError('提示词不能超过 20000 字符')
-
-        mode = str(data.get('mode') or 'image_to_video').strip().lower()
-        if mode not in {'image_to_video', 'reference_to_video'}:
-            raise ValueError('mode 必须是 image_to_video 或 reference_to_video')
-        aspect_ratio = str(data.get('aspect_ratio') or '3:4').strip()
-        if aspect_ratio not in {'16:9', '9:16', '3:4', '4:3', '2:3', '3:2', '1:1', '21:9', '9:21'}:
-            raise ValueError('不支持的 H3 画幅比例')
-
-        capabilities_payload = collect_video_runtime_capabilities()
-        capabilities = capabilities_payload.get('capabilities') if isinstance(capabilities_payload, dict) else {}
-        constraints = capabilities.get('constraints') if isinstance(capabilities, dict) and isinstance(capabilities.get('constraints'), dict) else {}
-        dimension_multiple = max(1, int(constraints.get('dimension_multiple') or 32))
-        max_pixels = max(1, int(constraints.get('max_pixels') or 1_032_192))
-        duration_range = constraints.get('duration_seconds') if isinstance(constraints.get('duration_seconds'), dict) else {}
-        min_duration = max(1.0, float(duration_range.get('min') or 1))
-        max_duration = max(min_duration, float(duration_range.get('max') or 15))
-
-        width = int(float(data.get('width') or 0))
-        height = int(float(data.get('height') or 0))
-        if width <= 0 or height <= 0:
-            raise ValueError('视频宽高必须大于 0')
-        if width % dimension_multiple or height % dimension_multiple:
-            raise ValueError(f'视频宽高必须都是 {dimension_multiple} 的倍数')
-        if width * height > max_pixels:
-            raise ValueError(f'当前 H3 Runtime 最大允许 {max_pixels:,} 像素')
-        try:
-            pixel_budget_mp = float(data.get('pixel_budget_mp'))
-        except (TypeError, ValueError):
-            pixel_budget_mp = round(width * height / 1_000_000, 3)
-        if not 0.1 <= pixel_budget_mp <= 8:
-            raise ValueError('质量（像素量）参数无效')
-
-        duration_seconds = float(data.get('duration_seconds') or 15)
-        if not min_duration <= duration_seconds <= max_duration:
-            raise ValueError(f'视频时长必须在 {min_duration:g} 到 {max_duration:g} 秒之间')
-        steps = int(float(data.get('steps') or 20))
-        if not 1 <= steps <= 100:
-            raise ValueError('采样步数必须在 1 到 100 之间')
-        denoise = 1.0
-        crf = int(float(data.get('crf') if data.get('crf') is not None else 23))
-        if not 0 <= crf <= 51:
-            raise ValueError('视频 CRF 必须在 0 到 51 之间')
-        acceleration_mode = str(data.get('acceleration_mode') or 'first_block_cache').strip().lower()
-        if acceleration_mode not in {'off', 'first_block_cache', 'sol_attn', 'combined'}:
-            raise ValueError('不支持的 H3 加速模式')
-        first_block_cache_threshold = float(data.get('first_block_cache_threshold') or 0.08)
-        if not 0 < first_block_cache_threshold <= 1:
-            raise ValueError('FirstBlockCache 阈值必须大于 0 且不超过 1')
-        seed = ''
-        prompt_metadata = _sanitize_h3_prompt_metadata(data.get('prompt_metadata'))
-
-        first_frame = data.get('first_frame') or data.get('reference_image')
-        upload = _decode_h3_reference_image(first_frame)
-        params = {
-            'provider': 'minimax_h3',
-            'mode': mode,
-            'aspect_ratio': aspect_ratio,
-            'pixel_budget_mp': pixel_budget_mp,
-            'actual_megapixels': round(width * height / 1_000_000, 3),
-            'width': width,
-            'height': height,
-            'duration_seconds': duration_seconds,
-            'steps': steps,
-            'denoise': denoise,
-            'crf': crf,
-            'seed': seed,
-            'acceleration_mode': acceleration_mode,
-            'first_block_cache_threshold': first_block_cache_threshold,
-            'archive_enabled': True,
-            'telegram_enabled': _coerce_bool(data.get('telegram_enabled'), False),
-            'runtime_capability_source': capabilities_payload.get('source') if isinstance(capabilities_payload, dict) else 'fallback',
-            'prompt_metadata': prompt_metadata,
-            'dimension_multiple': dimension_multiple,
-            'max_pixels': max_pixels,
-        }
-        task_id = f"h3v_{int(time.time())}_{random.randint(1000, 9999)}"
-        create_task(task_id, prompt, params, status='queued', task_type=H3_VIDEO_TASK_TYPE)
-        if not handler.start_generation_task(task_id, process_h3_video_task, (task_id, prompt, upload, params)):
-            return
-        handler.send_json({
-            'ok': True,
-            'task_id': task_id,
-            'status': 'queued',
-            'progress': 0,
-            'message': 'MiniMax H3 视频任务已提交',
-        }, 202)
-    except ValueError as e:
-        handler.send_json({'ok': False, 'error': str(e)}, 400)
-    except Exception as e:
-        print(f'❌ H3 视频任务提交失败：{e}')
-        handler.send_json({'ok': False, 'error': str(e)}, 500)
 
 
 def handle_comfy_workflows(handler, *, _coerce_bool, _collect_comfy_workflows, urllib):
@@ -383,14 +203,27 @@ def handle_comfy_run(
         raw_images = data.get('images') if isinstance(data.get('images'), list) else []
         if not raw_images and data.get('image'):
             raw_images = [data.get('image')]
+        # Title-tagged workflows map inputs onto ordered slots; '' leaves a slot to the workflow's own value.
+        tagged = bool(catalog_item and catalog_item.get('tag_mode') == 'tags')
         max_images = int(catalog_item.get('max_images') or 0) if catalog_item and catalog_item.get('accepts_image') else 0
-        image_payloads = [item for item in raw_images if isinstance(item, str) and item.strip()][:max_images]
-        if catalog_item and catalog_item.get('accepts_image') and not image_payloads:
-            raise ValueError('当前 ComfyUI 工作流需要至少一张参考图')
+        if tagged:
+            image_payloads = [item.strip() if isinstance(item, str) else '' for item in raw_images][:max_images]
+        else:
+            image_payloads = [item for item in raw_images if isinstance(item, str) and item.strip()][:max_images]
+            if catalog_item and catalog_item.get('accepts_image') and not image_payloads:
+                raise ValueError('当前 ComfyUI 工作流需要至少一张参考图')
+        max_videos = int(catalog_item.get('max_videos') or 0) if catalog_item and catalog_item.get('accepts_video') else 0
+        video_names = normalize_video_input_names(data.get('videos'), max_videos, allow_empty=tagged)
+        if max_videos and not tagged and not video_names:
+            raise ValueError('当前 ComfyUI 工作流需要连接一个视频节点')
+        output_kind = 'video' if catalog_item and catalog_item.get('output_kind') == 'video' else 'image'
         if catalog_item and not catalog_item.get('accepts_text'):
             prompt = ''
-        uploaded_image_names = [_upload_comfy_image(image_data) for image_data in image_payloads]
-        uploaded_image_name = uploaded_image_names[0] if uploaded_image_names else None
+        negative_prompt = str(data.get('negative_prompt') or '').strip()[:20000]
+        if not (catalog_item and catalog_item.get('accepts_negative')):
+            negative_prompt = ''
+        uploaded_image_names = [_upload_comfy_image(image_data) if image_data else '' for image_data in image_payloads]
+        uploaded_image_name = next((name for name in uploaded_image_names if name), None)
         prepared_prompt = _prepare_comfy_workflow(
             workflow,
             prompt,
@@ -400,6 +233,8 @@ def handle_comfy_run(
             resolution=resolution,
             width=width,
             height=height,
+            uploaded_video_names=video_names,
+            negative_prompt=negative_prompt,
         )
 
         client_id = f'{COMFY_CLIENT_ID}-{uuid.uuid4().hex[:12]}'
@@ -426,6 +261,9 @@ def handle_comfy_run(
                 'comfy_transport': 'websocket_history',
                 'comfy_uploaded_image': uploaded_image_name,
                 'comfy_uploaded_images': uploaded_image_names,
+                'comfy_uploaded_videos': video_names,
+                'negative_prompt': negative_prompt,
+                'comfy_output_kind': output_kind,
                 'comfy_expected_output_count': int(catalog_item.get('output_count') or 1) if catalog_item else 1,
                 'workflow_parameters': applied_workflow_parameters,
                 'archive_enabled': archive_enabled,
@@ -447,6 +285,7 @@ def handle_comfy_run(
             'prompt_id': prompt_id,
             'task_id': prompt_id,
             'workflow': normalized_name,
+            'output_kind': output_kind,
         })
     except FileNotFoundError as e:
         handler.send_json({"error": str(e)}, 404)

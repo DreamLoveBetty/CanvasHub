@@ -596,6 +596,8 @@ def get_gpt_model_catalog(force: bool = False) -> dict[str, Any]:
         pool_future = executor.submit(discover_pool_route, force)
         codex = codex_future.result()
         pool = pool_future.result()
+    # The endpoint is a live setting, so it is added outside the route cache.
+    codex = {**codex, "request_endpoint": get_gpt_provider_config().get("request_endpoint")}
     third_party = _third_party_route()
     return {
         "ok": True,

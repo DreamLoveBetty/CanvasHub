@@ -56,6 +56,10 @@ class Civitai:
         with self.lock:
             return bool(self._key())
 
+    def key_length(self):
+        with self.lock:
+            return len(self._key())
+
     def set_key(self, value):
         if not isinstance(value, str) or len(value) > 512 or re.search(r"[\x00-\x20\x7f]", value):
             if value != "":

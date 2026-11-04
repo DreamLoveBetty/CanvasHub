@@ -1,0 +1,105 @@
+{
+  "schema": "canvashub.moss.assets",
+  "schema_version": 1,
+  "base_model": {
+    "id": "moss-image-sft-mflux-bf16",
+    "repo": "mflux-community/moss-image-sft-mflux-bf16",
+    "revision": "3a19e205b04533046611d8e0b23d8be4fa73363e",
+    "license": "Apache-2.0",
+    "files": {
+      "text_encoder/0.safetensors": {
+        "size": 2134967460,
+        "sha256": "bbee01eb63c1ef93b88972b60309e3baf63290831ea20479f92a8d812af607e2"
+      },
+      "text_encoder/1.safetensors": {
+        "size": 2099602996,
+        "sha256": "d5d37356a2cd1e6dba61c418040eb8ac340dc42362bf5f71d0f5b7d76bad1885"
+      },
+      "text_encoder/2.safetensors": {
+        "size": 2133157389,
+        "sha256": "40b192233c075b0e349d63a0697e8dfbc15ae403a07f297a5b4c283f56b98cbf"
+      },
+      "text_encoder/3.safetensors": {
+        "size": 2065965719,
+        "sha256": "deb9e6a6f133025fa964f5d0ad2bd33213aacffc0b648ad58303f145fe9587ec"
+      },
+      "text_encoder/4.safetensors": {
+        "size": 2048681892,
+        "sha256": "deaf64b49ac248a8d3f61cc86c61d97846b16145e2ffff4069b1491acd92bdbb"
+      },
+      "text_encoder/5.safetensors": {
+        "size": 2066048651,
+        "sha256": "5db6ad6e7f498d2e7f36fbc927f12752587f3f8b9631f22a2d538c294b0e6a45"
+      },
+      "text_encoder/6.safetensors": {
+        "size": 2132632984,
+        "sha256": "50cf0400cd7f4ed49c169de5b18849c91c6f8b8bf29dde3003396413d65c6ac0"
+      },
+      "text_encoder/7.safetensors": {
+        "size": 1192358948,
+        "sha256": "1001608968c24431d5dad4df65eeff02d3c0ab1de8ff59c7b50c8b6e766e120b"
+      },
+      "transformer/0.safetensors": {
+        "size": 2047396961,
+        "sha256": "a5a0491787cb3f78022f366ed67094238aed3b8e01cf304dedee7d4cd5e79aff"
+      },
+      "transformer/1.safetensors": {
+        "size": 2139219437,
+        "sha256": "03ce0b815258ba0de5bf8d1530887ac9eab13f65da71d3c480545f8708e8e9c5"
+      },
+      "transformer/2.safetensors": {
+        "size": 2145524407,
+        "sha256": "e07b1ee783c4a28077ff19e4828040c54d565a4a71687c18695dae9bb20927a2"
+      },
+      "transformer/3.safetensors": {
+        "size": 2057430498,
+        "sha256": "6e45f268b217d3ddf4efd8fede117c622a51e0cfbcbf16904dc8cb4018342844"
+      },
+      "transformer/4.safetensors": {
+        "size": 1775092749,
+        "sha256": "ee34a9fdba793874ce2a96c2b83390cde837b17e882bd42a9c7f08f87a6b51f1"
+      },
+      "vae/0.safetensors": {
+        "size": 124774595,
+        "sha256": "fa33c0053a66e5933d73b0b02cdf55a1f6ca2978303af5193c0562ff8c8ed9cf"
+      }
+    }
+  },
+  "configs": {
+    "repo": "OpenMOSS-Team/MOSS-Image-SFT",
+    "revision": "f972bd4b4b9e3852133cc5da954d87bc32cd8fb9",
+    "license": "Apache-2.0",
+    "files": {
+      "transformer/config.json": {
+        "sha256": "3291c3a1c7adc22b8182a0de25ca8ec97474d72715ce84adbab09cc0be24f666",
+        "size": 240
+      },
+      "text_encoder/config.json": {
+        "sha256": "b31ee18a242bcfcccbe740f825f6b1d3ae231b0655eeecb5de3e98d504b7d68c",
+        "size": 2813
+      },
+      "vae/config.json": {
+        "sha256": "cc77f3f0ce0357039c71018dc19edaa4fcceb0c2f7488fdc2b9c0580d6baafa1",
+        "size": 838
+      }
+    }
+  },
+  "managed": {
+    "destripe": {
+      "repo": "nynxz/MOSS-Image",
+      "revision": "7b071d5915362f0101f0aa913315fd10a0772059",
+      "file": "loras/moss_sft_destripe_top64_bf16.safetensors",
+      "size": 1900586,
+      "sha256": "fcd0d025f6a62dfe3171ab11fe9b3119eac735e22b94913c4efe45d8c69c2da9",
+      "license": "Apache-2.0"
+    },
+    "student": {
+      "repo": "VisualInference/MOSS-Image-SFT-Turbo-MLX",
+      "revision": "4dd94eeb06457a12ad5ca8f3b2df5674d06378a7",
+      "file": "turbo_student.safetensors",
+      "size": 594633272,
+      "sha256": "1859687695670d32cd3a2194c7bd931956d260e222d389fba8564f878e7f5a8d",
+      "license": "Apache-2.0"
+    }
+  }
+}

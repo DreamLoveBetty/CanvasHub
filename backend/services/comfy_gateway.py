@@ -5,6 +5,9 @@ Preserve existing operation order, payloads and failure semantics.
 """
 from __future__ import annotations
 
+from .comfy_video import MAX_VIDEOS, fill_video_loaders, video_token_replacements, workflow_video_io
+from .comfy_workflow_tags import apply_tagged_inputs, collect_workflow_tags, workflow_tag_summary
+
 
 def _collect_comfy_workflows(
     include_disabled=False,
@@ -34,9 +37,13 @@ def _collect_comfy_workflows(
         workflow_id = path.name
         meta = catalog.get(workflow_id) if isinstance(catalog.get(workflow_id), dict) else {}
         try:
-            workflow_data = json.loads(path.read_text(encoding='utf-8'))
+            raw_text = path.read_text(encoding='utf-8')
+            workflow_data = json.loads(raw_text)
         except Exception:
-            workflow_data = {}
+            raw_text, workflow_data = '', {}
+        video_io = workflow_video_io(workflow_data, raw_text)
+        tag_info, _tags = workflow_tag_summary(workflow_data, raw_text)
+        tagged = tag_info['tag_mode'] == 'tags'
         parameters = _extract_comfy_workflow_parameters(workflow_data)
         default_ratio = str(meta.get('default_ratio') or '1:1')
         ratio_width, ratio_height = _resolve_comfy_size(default_ratio, '1k')
@@ -46,20 +53,29 @@ def _collect_comfy_workflows(
         )
         default_width = _normalize_comfy_dimension(meta.get('default_width'), detected_width)
         default_height = _normalize_comfy_dimension(meta.get('default_height'), detected_height)
-        auto_accepts_image = (
+        auto_accepts_image = tag_info['accepts_image'] if tagged else (
             _comfy_workflow_uses_token(path, '{{IMAGE}}')
             or _comfy_workflow_uses_token(path, '{{IMAGE_')
             or _comfy_workflow_has_image_input(workflow_data)
         )
         accepts_image = _coerce_bool(meta.get('accepts_image'), auto_accepts_image)
+        accepts_video = _coerce_bool(meta.get('accepts_video'), tag_info['accepts_video'] if tagged else video_io['accepts_video'])
+        output_kind = meta.get('output_kind') if meta.get('output_kind') in ('image', 'video') else video_io['output_kind']
         enabled = _coerce_bool(meta.get('enabled'), True)
         if not include_disabled and not enabled:
             continue
-        max_images = bounded_int(meta.get('max_images'), 1 if accepts_image else 0, 0, 8)
+        image_slots = max(1, tag_info['image_slots']) if tagged else 1
+        video_slots = max(1, tag_info['video_slots']) if tagged else 1
+        max_images = bounded_int(meta.get('max_images'), image_slots if accepts_image else 0, 0, 8)
+        max_videos = bounded_int(meta.get('max_videos'), video_slots if accepts_video else 0, 0, MAX_VIDEOS)
         output_count = bounded_int(meta.get('output_count'), 1, 1, 8)
         preview_path = _comfy_workflow_preview_path(workflow_id)
         label = str(meta.get('label') or _default_comfy_workflow_label(workflow_id)).strip()[:120]
-        summary = str(meta.get('summary') or ('图生图 · 需要参考图' if accepts_image else '文生图 · 单图')).strip()[:180]
+        if output_kind == 'video':
+            default_summary = '视频转视频 · 需要视频' if accepts_video else ('图生视频 · 需要参考图' if accepts_image else '文生视频')
+        else:
+            default_summary = '图生图 · 需要参考图' if accepts_image else '文生图 · 单图'
+        summary = str(meta.get('summary') or default_summary).strip()[:180]
         items.append({
             'id': workflow_id,
             'label': label,
@@ -70,10 +86,19 @@ def _collect_comfy_workflows(
             'default_ratio': default_ratio,
             'default_width': default_width,
             'default_height': default_height,
-            'accepts_text': _coerce_bool(meta.get('accepts_text'), True),
+            'accepts_text': _coerce_bool(meta.get('accepts_text'), tag_info['accepts_text'] if tagged else True),
             'accepts_image': accepts_image,
             'max_images': max_images,
+            'accepts_video': accepts_video,
+            'max_videos': max_videos,
+            'output_kind': output_kind,
             'output_count': output_count,
+            'tag_mode': tag_info['tag_mode'],
+            'default_prompt': tag_info['default_prompt'],
+            'size_editable': tag_info['size_editable'],
+            'tag_warnings': tag_info['tag_warnings'],
+            'accepts_negative': tag_info['accepts_negative'],
+            'input_slots': tag_info['input_slots'],
             'parameter_count': len(parameters),
             'parameters': parameters,
             'thumbnail_url': f'/api/comfy/workflow-thumbnail?id={urllib.parse.quote(workflow_id)}&v={preview_path.stat().st_mtime_ns}' if preview_path.exists() else '',
@@ -130,10 +155,15 @@ def _save_comfy_workflow_config(
     for key, limit in (('label', 120), ('summary', 180), ('default_ratio', 16)):
         if key in data:
             meta[key] = str(data.get(key) or '').strip()[:limit]
-    for key in ('enabled', 'is_default', 'accepts_text', 'accepts_image'):
+    if data.get('output_kind') in ('image', 'video', ''):
+        if data.get('output_kind'):
+            meta['output_kind'] = data.get('output_kind')
+        else:
+            meta.pop('output_kind', None)
+    for key in ('enabled', 'is_default', 'accepts_text', 'accepts_image', 'accepts_video'):
         if key in data:
             meta[key] = _coerce_bool(data.get(key), False)
-    for key, minimum, maximum in (('order', 0, 9999), ('max_images', 0, 8), ('output_count', 1, 8)):
+    for key, minimum, maximum in (('order', 0, 9999), ('max_images', 0, 8), ('max_videos', 0, MAX_VIDEOS), ('output_count', 1, 8)):
         if key in data:
             try:
                 meta[key] = max(minimum, min(maximum, int(data.get(key))))
@@ -297,6 +327,8 @@ def _prepare_comfy_workflow(
     resolution='1k',
     width=None,
     height=None,
+    uploaded_video_names=None,
+    negative_prompt='',
     *,
     _normalize_comfy_dimension,
     _replace_comfy_tokens,
@@ -307,6 +339,8 @@ def _prepare_comfy_workflow(
     fallback_width, fallback_height = _resolve_comfy_size(ratio, resolution)
     width = _normalize_comfy_dimension(width, fallback_width)
     height = _normalize_comfy_dimension(height, fallback_height)
+    # Read tags before token replacement so token-composed prompt fields are recognised.
+    tags = collect_workflow_tags(workflow)
     prepared = json.loads(json.dumps(workflow))
     image_names = [str(name).strip() for name in (uploaded_image_names or []) if str(name).strip()]
     if uploaded_image_name and uploaded_image_name not in image_names:
@@ -320,7 +354,13 @@ def _prepare_comfy_workflow(
     }
     for index, image_name in enumerate(image_names, start=1):
         replacements[f'{{{{IMAGE_{index}}}}}'] = image_name
+    replacements.update(video_token_replacements(uploaded_video_names))
     prepared = _replace_comfy_tokens(prepared, replacements)
+    if tags['tagged']:
+        # Tagged slots are positional: keep empty entries so a skipped slot keeps the workflow's value.
+        return apply_tagged_inputs(prepared, tags, prompt=prompt, negative_prompt=str(negative_prompt or '').strip(),
+                                   width=width, height=height, image_names=list(uploaded_image_names or image_names),
+                                   video_names=list(uploaded_video_names or []))
 
     load_image_index = 0
     for node in prepared.values():
@@ -349,7 +389,7 @@ def _prepare_comfy_workflow(
             inputs['image'] = image_names[min(load_image_index, len(image_names) - 1)]
             load_image_index += 1
 
-    return prepared
+    return fill_video_loaders(prepared, uploaded_video_names)
 
 
 def _proxy_comfy_json(method, path, *, params=None, payload=None, _new_comfy_session, get_comfy_config):
@@ -436,6 +476,7 @@ def _sync_comfy_task(
     *,
     _extract_comfy_error,
     _find_comfy_images,
+    _find_comfy_videos,
     get_task,
     json,
     update_task,
@@ -449,10 +490,11 @@ def _sync_comfy_task(
     outputs = entry.get('outputs') if isinstance(entry, dict) else {}
     completed = bool(status.get('completed')) if isinstance(status, dict) else False
     status_str = str(status.get('status_str', '') if isinstance(status, dict) else '').lower()
-    comfy_images = _find_comfy_images(outputs)
+    params = task.get('params') or {}
+    is_video = params.get('comfy_output_kind') == 'video'
+    comfy_images = (_find_comfy_videos if is_video else _find_comfy_images)(outputs)
     comfy_image = comfy_images[0] if comfy_images else None
 
-    params = task.get('params') or {}
     updated_params = dict(params)
     if comfy_image:
         updated_params['comfy_image'] = comfy_image
@@ -477,6 +519,8 @@ def _sync_comfy_task(
 
     if completed and not comfy_image:
         error_msg = _extract_comfy_error(entry)
+        if is_video and status_str == 'success':
+            error_msg = 'ComfyUI 没有输出视频：请用 SaveVideo 或 Video Combine 保存为 MP4 / WebM / MOV'
         update_task(
             prompt_id,
             'failed',
