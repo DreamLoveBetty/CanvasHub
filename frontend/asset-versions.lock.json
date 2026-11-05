@@ -547,8 +547,8 @@
     "sha256": "72be900aec8cd304718e517c4da85d5cec8d083d4fc3de05c597c17a65417fdb"
    },
    "styles/desktop-graphite.css": {
-    "v": "20261105-graphite19",
-    "sha256": "d7cec1f2024c251beb4d71f17448dd48acd18bd533ae8bd17c148b2407f6e49a"
+    "v": "20261105-graphite29",
+    "sha256": "80656d7179087e0bc3c42fcf8f94f3d70edbc7c1fcb98e487dc3f74de257b0f1"
    },
    "styles/desktop-image-group-geometry.css": {
     "v": "20261101-image-group-item-delete4",

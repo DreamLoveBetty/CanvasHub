@@ -310,3 +310,48 @@ test('graphite swaps the default Ambient coral for its accent but keeps a custom
   const material = read('frontend/scripts/desktop-control-material.js');
   assert.match(material, /if \(prefs\.accent\) body\.style\.setProperty\('--amb-highlight-color', prefs\.accent\);/);
 });
+
+test('asset library, prompt library and prompt assistant share a second graphite token block', () => {
+  const css = read('frontend/styles/desktop-graphite.css');
+  const head = 'body.desk-app[data-desk-style="graphite"][data-theme] {';
+  const first = css.indexOf(head);
+  const second = css.indexOf(head, first + head.length);
+  assert.ok(second > first, 'phase 4 token block follows the chrome block');
+  const block = css.slice(second, css.indexOf('\n}\n', second));
+  [
+    '--desk-gallery-panel-background',
+    '--desk-gallery-card-surface-paint',
+    '--desk-prompt-assistant-panel-background',
+    '--desk-prompt-assistant-field-focus-border',
+    '--desk-agent-switch-background',
+    '--desk-agent-workbench-background',
+    '--desk-agent-task-draft-background',
+    '--desk-agent-task-drawer-background',
+  ].forEach(token => assert.match(block, new RegExp(`${token}:`), `${token} is mapped`));
+  assert.doesNotMatch(block, /rgba?\(|#[0-9a-f]{3,6}\b/i, 'phase 4 tokens only reference the graphite palette');
+  // Semantic status colours and Pinterest brand red keep their upstream values.
+  [
+    '--desk-agent-task-failed-',
+    '--desk-agent-waiting-',
+    '--desk-agent-running-',
+    '--desk-agent-failure-',
+    '--desk-agent-danger-',
+    '--desk-agent-task-draft-dot',
+    '--desk-gallery-pinterest-brand-',
+  ].forEach(prefix => assert.ok(!block.includes(`${prefix}`), `${prefix} is left to upstream`));
+});
+
+test('graphite restates the liquid-painted gallery keys, prompt library and drawer glass', () => {
+  const css = read('frontend/styles/desktop-graphite.css');
+  // Gallery keys sit on #deskApp so they beat liquid's ID selectors; delete uses the model red.
+  assert.match(css, /#deskApp\[data-desk-style="graphite"\] :is\(\n  #deskGalleryDeleteBtn,[^{]*\) \{\n  color: var\(--desk-graphite-model\);/);
+  assert.match(css, /#deskApp\[data-desk-style="graphite"\] :is\(\n  #deskGallerySaveSetBtn,[^{]*\) \{\n  color: var\(--desk-graphite-accent\);/);
+  // Prompt library rules sit one attribute above liquid's (0,3,1) light and dark blocks.
+  const P = 'body\\.desk-app\\[data-desk-style="graphite"\\]\\[data-theme\\]';
+  assert.match(css, new RegExp(`${P} \\.desk-prompt-library__nav button\\.is-active \\{[^}]*background: var\\(--desk-graphite-card\\);`));
+  assert.match(css, new RegExp(`${P} \\.desk-prompt-library \\{[^}]*backdrop-filter: none;`));
+  // Editor fields sit inset on the card editor so they stay visible.
+  assert.match(css, /\.desk-prompt-inspiration-preview pre\n\) \{\n  background: var\(--desk-graphite-inset\);/);
+  assert.match(css, new RegExp(`${P} :is\\(\\n  \\.desk-prompt-drawer__body,\\n  \\.desk-prompt-drawer\\.is-open \\.desk-prompt-drawer__body\\n\\) \\{\\n  -webkit-backdrop-filter: none;\\n  backdrop-filter: none;`));
+  assert.ok(!/!important/.test(css), 'graphite never needs !important');
+});

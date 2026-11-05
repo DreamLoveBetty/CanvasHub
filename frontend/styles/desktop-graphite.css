@@ -239,6 +239,14 @@ body.desk-app[data-desk-style="graphite"][data-theme] {
   --desk-action-primary-silk-position-active: 0 0;
   --desk-action-primary-shadow: transparent;
   --desk-action-primary-shadow-strong: transparent;
+  --desk-action-primary-highlight: transparent;
+  --desk-action-primary-highlight-hover: transparent;
+  --desk-action-primary-edge-lowlight: transparent;
+  --desk-action-primary-edge-lowlight-hover: transparent;
+  --desk-action-primary-disabled: var(--desk-graphite-chip);
+  --desk-action-primary-disabled-ink: var(--desk-graphite-muted);
+  --desk-action-primary-disabled-border: transparent;
+  --desk-action-primary-gradient-disabled: linear-gradient(var(--desk-graphite-chip), var(--desk-graphite-chip));
   --desk-jewel: var(--desk-graphite-primary);
   --desk-jewel-top: var(--desk-graphite-primary);
   --desk-jewel-bottom: var(--desk-graphite-primary);
@@ -598,6 +606,840 @@ body.desk-app[data-desk-style="graphite"][data-theme] {
   --desk-status-tip-raw-background: var(--desk-graphite-inset);
   --desk-status-tip-raw-border: transparent;
 }
+
+/* Asset library, prompt library and prompt assistant (phase 4): same token rules as the
+   chrome above. Media wells, the full-screen preview and Pinterest brand red stay as they are. */
+body.desk-app[data-desk-style="graphite"][data-theme] {
+  --desk-gallery-toolbar-ink: var(--desk-graphite-ink-2);
+  --desk-gallery-tag-ink: var(--desk-graphite-ink-2);
+  --desk-gallery-stat-ink: var(--desk-graphite-muted);
+  --desk-gallery-panel-background: var(--desk-graphite-canvas);
+  --desk-gallery-panel-border: var(--desk-graphite-line);
+  --desk-gallery-panel-shadow: var(--desk-graphite-popover-shadow);
+  --desk-gallery-toolbar-background: var(--desk-graphite-inset);
+  --desk-gallery-toolbar-border: transparent;
+  --desk-gallery-toolbar-shadow: none;
+  --desk-gallery-field-placeholder-ink: var(--desk-graphite-muted);
+  --desk-gallery-native-option-ink: var(--desk-graphite-ink);
+  --desk-gallery-native-option-background: var(--desk-graphite-card);
+  --desk-gallery-asset-background: var(--desk-graphite-card);
+  --desk-gallery-asset-border: transparent;
+  --desk-gallery-asset-shadow: none;
+  --desk-gallery-card-surface-paint: var(--desk-graphite-card);
+  --desk-gallery-card-ink: var(--desk-graphite-ink);
+  --desk-gallery-card-elevation: none;
+  --desk-gallery-card-hover-elevation: var(--desk-graphite-lift);
+  --desk-gallery-card-selected-elevation: inset 0 0 0 1px var(--desk-graphite-accent);
+  --desk-gallery-overlay-ink: var(--desk-graphite-ink);
+  --desk-gallery-overlay-background: var(--desk-graphite-card);
+  --desk-gallery-overlay-border: transparent;
+  --desk-gallery-overlay-shadow: none;
+  --desk-gallery-meta-heading-ink: var(--desk-graphite-ink);
+  --desk-gallery-meta-ink: var(--desk-graphite-muted);
+  --desk-gallery-meta-secondary-ink: var(--desk-graphite-muted);
+  --desk-gallery-description-ink: var(--desk-graphite-ink-2);
+  --desk-gallery-meta-action-ink: var(--desk-graphite-ink-2);
+  --desk-gallery-meta-action-background: var(--desk-graphite-inset);
+  --desk-gallery-meta-action-border: transparent;
+  --desk-gallery-meta-action-shadow: none;
+  --desk-gallery-meta-action-hover-ink: var(--desk-graphite-ink);
+  --desk-gallery-meta-action-hover-background: var(--desk-graphite-inset-hover);
+  --desk-gallery-meta-action-hover-border: transparent;
+  --desk-gallery-lineage-ink: var(--desk-graphite-ink);
+  --desk-gallery-lineage-background: var(--desk-graphite-card);
+  --desk-gallery-lineage-border: transparent;
+  --desk-gallery-lineage-shadow: none;
+  --desk-gallery-favorite-ink: var(--desk-graphite-accent);
+  --desk-gallery-favorite-background: var(--desk-graphite-accent-soft);
+  --desk-gallery-favorite-border: transparent;
+  --desk-gallery-cached-ink: var(--desk-graphite-accent);
+  --desk-gallery-cached-background: var(--desk-graphite-accent-soft);
+  --desk-gallery-cached-border: transparent;
+  --desk-gallery-video-expanded-background: var(--desk-graphite-card);
+  --desk-gallery-video-expanded-border: transparent;
+  --desk-gallery-video-expanded-shadow: none;
+  --desk-gallery-video-folder-background: var(--desk-graphite-card);
+  --desk-gallery-video-folder-border: transparent;
+  --desk-gallery-video-folder-shadow: none;
+  --desk-gallery-video-folder-hover-shadow: var(--desk-graphite-lift);
+  --desk-gallery-video-back-background: var(--desk-graphite-chip);
+  --desk-gallery-video-back-overlay: none;
+  --desk-gallery-video-face-fill-paint: var(--desk-graphite-card);
+  --desk-gallery-video-face-ink: var(--desk-graphite-ink);
+  --desk-gallery-video-face-muted-ink: var(--desk-graphite-muted);
+  --desk-gallery-video-face-meta-ink: var(--desk-graphite-muted);
+  --desk-gallery-video-detail-divider: var(--desk-graphite-line);
+  --desk-gallery-video-section-background: var(--desk-graphite-inset);
+  --desk-gallery-video-section-border: transparent;
+  --desk-gallery-video-prompt-ink: var(--desk-graphite-ink-2);
+  --desk-gallery-video-data-background: var(--desk-graphite-inset);
+  --desk-gallery-video-data-border: transparent;
+  --desk-gallery-video-data-hover-background: var(--desk-graphite-inset-hover);
+  --desk-gallery-video-data-hover-border: transparent;
+  --desk-gallery-video-support-control-ink: var(--desk-graphite-ink-2);
+  --desk-gallery-video-support-control-background: var(--desk-graphite-inset);
+  --desk-gallery-video-support-control-border: transparent;
+  --desk-gallery-video-text-resource-ink: var(--desk-graphite-ink-2);
+  --desk-gallery-video-text-resource-background: var(--desk-graphite-chip);
+  --desk-gallery-file-preview-background: var(--desk-graphite-inset);
+  --desk-gallery-file-preview-border: transparent;
+  --desk-gallery-file-missing-ink: var(--desk-graphite-muted);
+  --desk-gallery-set-background: var(--desk-graphite-card);
+  --desk-gallery-set-border: transparent;
+  --desk-gallery-set-shadow: none;
+  --desk-gallery-set-thumb-background: var(--desk-graphite-inset);
+  --desk-gallery-set-tag-ink: var(--desk-graphite-ink-2);
+  --desk-gallery-set-tag-background: var(--desk-graphite-chip);
+  --desk-gallery-set-detail-background: var(--desk-graphite-card);
+  --desk-gallery-set-asset-background: var(--desk-graphite-card);
+  --desk-gallery-set-asset-border: transparent;
+  --desk-gallery-set-asset-shadow: none;
+  --desk-gallery-set-selected-border: var(--desk-graphite-accent);
+  --desk-gallery-set-selected-shadow: none;
+  --desk-gallery-inspector-background: var(--desk-graphite-card);
+  --desk-gallery-inspector-border: transparent;
+  --desk-gallery-inspector-shadow: none;
+  --desk-gallery-selection-background: var(--desk-graphite-inset);
+  --desk-gallery-selection-border: transparent;
+  --desk-gallery-selection-shadow: none;
+  --desk-gallery-selected-item-background: var(--desk-graphite-card);
+  --desk-gallery-selected-item-border: transparent;
+  --desk-gallery-empty-background: var(--desk-graphite-inset);
+  --desk-gallery-empty-border: transparent;
+  --desk-gallery-empty-ink: var(--desk-graphite-muted);
+  --desk-gallery-selected-empty-background: var(--desk-graphite-inset);
+  --desk-gallery-selected-empty-border: transparent;
+  --desk-gallery-selected-empty-ink: var(--desk-graphite-muted);
+  --desk-gallery-source-shell-background: var(--desk-graphite-card);
+  --desk-gallery-source-shell-border: transparent;
+  --desk-gallery-source-shell-shadow: none;
+  --desk-gallery-source-section-border: var(--desk-graphite-line);
+  --desk-gallery-source-chip-ink: var(--desk-graphite-ink);
+  --desk-gallery-source-control-ink: var(--desk-graphite-ink-2);
+  --desk-gallery-source-control-background: var(--desk-graphite-inset);
+  --desk-gallery-source-control-border: transparent;
+  --desk-gallery-source-muted-ink: var(--desk-graphite-muted);
+  --desk-gallery-source-progress-background: var(--desk-graphite-inset);
+  --desk-gallery-source-progress-fill: var(--desk-graphite-accent);
+  --desk-gallery-source-progress-done-fill: var(--desk-graphite-accent);
+  --desk-gallery-pinterest-soft-ink: var(--desk-graphite-ink-2);
+  --desk-gallery-pinterest-soft-background: var(--desk-graphite-inset);
+  --desk-gallery-pinterest-soft-border: transparent;
+  --desk-gallery-pinterest-soft-shadow: none;
+  --desk-gallery-pinterest-modal-ink: var(--desk-graphite-ink);
+  --desk-gallery-pinterest-modal-background: var(--desk-graphite-card);
+  --desk-gallery-pinterest-modal-border: transparent;
+  --desk-gallery-pinterest-modal-shadow: var(--desk-graphite-popover-shadow);
+  --desk-gallery-pinterest-modal-band-background: var(--desk-graphite-inset);
+  --desk-gallery-pinterest-modal-band-border: transparent;
+  --desk-gallery-pinterest-modal-heading-ink: var(--desk-graphite-ink);
+  --desk-gallery-pinterest-modal-muted-ink: var(--desk-graphite-ink-2);
+  --desk-gallery-pinterest-modal-control-ink: var(--desk-graphite-ink-2);
+  --desk-gallery-pinterest-modal-control-background: var(--desk-graphite-inset);
+  --desk-gallery-pinterest-modal-control-border: transparent;
+  --desk-gallery-pinterest-modal-control-shadow: none;
+  --desk-gallery-pinterest-modal-control-hover-ink: var(--desk-graphite-ink);
+  --desk-gallery-pinterest-modal-control-hover-background: var(--desk-graphite-inset-hover);
+  --desk-gallery-pinterest-source-background: var(--desk-graphite-inset);
+  --desk-gallery-pinterest-source-border: transparent;
+  --desk-gallery-pinterest-source-shadow: none;
+  --desk-gallery-pinterest-field-ink: var(--desk-graphite-ink);
+  --desk-gallery-pinterest-field-background: var(--desk-graphite-card);
+  --desk-gallery-pinterest-field-border: transparent;
+  --desk-gallery-pinterest-field-shadow: none;
+  --desk-gallery-pinterest-field-focus-border: var(--desk-graphite-accent);
+  --desk-gallery-pinterest-field-focus-shadow: none;
+  --desk-gallery-pinterest-candidate-background: var(--desk-graphite-inset);
+  --desk-gallery-pinterest-candidate-hover-background: var(--desk-graphite-inset-hover);
+  --desk-gallery-pinterest-candidate-copy-ink: var(--desk-graphite-ink-2);
+
+  --desk-prompt-assistant-ink: var(--desk-graphite-ink);
+  --desk-prompt-assistant-muted-ink: var(--desk-graphite-ink-2);
+  --desk-prompt-assistant-accent-ink: var(--desk-graphite-ink);
+  --desk-prompt-assistant-accent-soft: var(--desk-graphite-inset-hover);
+  --desk-prompt-assistant-accent-emphasis-ink: var(--desk-graphite-ink);
+  --desk-prompt-assistant-on-accent-ink: var(--desk-graphite-primary-ink);
+  --desk-prompt-assistant-jewel: var(--desk-graphite-primary);
+  --desk-prompt-assistant-jewel-top: var(--desk-graphite-primary);
+  --desk-prompt-assistant-jewel-bottom: var(--desk-graphite-primary);
+  --desk-prompt-assistant-jewel-hover-top: var(--desk-graphite-primary-hover);
+  --desk-prompt-assistant-jewel-hover-bottom: var(--desk-graphite-primary-hover);
+  --desk-prompt-assistant-jewel-border: transparent;
+  --desk-prompt-assistant-jewel-hover-border: transparent;
+  --desk-prompt-assistant-jewel-shadow: transparent;
+  --desk-prompt-assistant-jewel-shadow-strong: transparent;
+  --desk-prompt-assistant-jewel-disabled: var(--desk-graphite-chip);
+  --desk-prompt-assistant-handle-background: var(--desk-graphite-primary);
+  --desk-prompt-assistant-handle-open-background: var(--desk-graphite-primary);
+  --desk-prompt-assistant-handle-hover-background: var(--desk-graphite-primary-hover);
+  --desk-prompt-assistant-handle-border: transparent;
+  --desk-prompt-assistant-panel-background: var(--desk-graphite-card);
+  --desk-prompt-assistant-panel-border: transparent;
+  --desk-prompt-assistant-panel-shadow: var(--desk-graphite-popover-shadow);
+  --desk-prompt-assistant-panel-sheen: none;
+  --desk-prompt-assistant-section-background: var(--desk-graphite-inset);
+  --desk-prompt-assistant-section-border: transparent;
+  --desk-prompt-assistant-section-shadow: none;
+  --desk-prompt-assistant-card-background: var(--desk-graphite-card);
+  --desk-prompt-assistant-card-border: transparent;
+  --desk-prompt-assistant-subcard-background: var(--desk-graphite-inset);
+  --desk-prompt-assistant-subcard-border: transparent;
+  --desk-prompt-assistant-field-background: var(--desk-graphite-card);
+  --desk-prompt-assistant-field-border: transparent;
+  --desk-prompt-assistant-field-shadow: none;
+  --desk-prompt-assistant-field-focus-background: var(--desk-graphite-card);
+  --desk-prompt-assistant-field-focus-border: var(--desk-graphite-accent);
+  --desk-prompt-assistant-field-focus-shadow: 0 0 0 2px var(--desk-graphite-accent-soft);
+  --desk-prompt-assistant-select-background: var(--desk-graphite-card);
+  --desk-prompt-assistant-select-border: transparent;
+  --desk-prompt-assistant-select-focus-border: var(--desk-graphite-accent);
+  --desk-prompt-assistant-popover-background: var(--desk-graphite-card);
+  --desk-prompt-assistant-popover-border: transparent;
+  --desk-prompt-assistant-popover-shadow: var(--desk-graphite-popover-shadow);
+  --desk-prompt-assistant-mention-background: var(--desk-graphite-inset);
+  --desk-prompt-assistant-mention-border: transparent;
+  --desk-prompt-assistant-mention-shadow: none;
+  --desk-prompt-assistant-mention-hover-background: var(--desk-graphite-inset-hover);
+  --desk-prompt-assistant-mention-hover-border: var(--desk-graphite-accent);
+  --desk-prompt-assistant-mention-hover-shadow: none;
+  --desk-prompt-assistant-mention-remove-ink: var(--desk-graphite-primary-ink);
+  --desk-prompt-assistant-mention-remove-background: var(--desk-graphite-primary);
+  --desk-prompt-assistant-toggle-background: var(--desk-graphite-chip);
+  --desk-prompt-assistant-toggle-border: transparent;
+  --desk-prompt-assistant-toggle-checked-background: var(--desk-graphite-accent);
+  --desk-prompt-assistant-toggle-checked-border: transparent;
+  --desk-prompt-assistant-toggle-thumb-shadow: none;
+  --desk-prompt-assistant-button-ink: var(--desk-graphite-primary-ink);
+  --desk-prompt-assistant-button-background: var(--desk-graphite-primary);
+  --desk-prompt-assistant-button-border: transparent;
+  --desk-prompt-assistant-button-shadow: none;
+  --desk-prompt-assistant-button-hover-background: var(--desk-graphite-primary-hover);
+  --desk-prompt-assistant-button-hover-border: transparent;
+  --desk-prompt-assistant-button-hover-shadow: none;
+  --desk-prompt-assistant-button-active-background: var(--desk-graphite-primary);
+  --desk-prompt-assistant-button-active-border: transparent;
+  --desk-prompt-assistant-button-active-shadow: none;
+  --desk-prompt-assistant-button-disabled-background: var(--desk-graphite-chip);
+  --desk-prompt-assistant-button-disabled-border: transparent;
+  --desk-prompt-assistant-modal-background: var(--desk-graphite-card);
+  --desk-prompt-assistant-modal-border: transparent;
+  --desk-prompt-assistant-modal-shadow: var(--desk-graphite-popover-shadow);
+  --desk-prompt-assistant-modal-header-background: var(--desk-graphite-card);
+  --desk-prompt-assistant-modal-header-border: var(--desk-graphite-line);
+  --desk-prompt-assistant-modal-header-shadow: none;
+  --desk-prompt-assistant-modal-content-background: transparent;
+  --desk-prompt-assistant-modal-content-scrollbar: auto;
+  --desk-prompt-assistant-modal-card-background: var(--desk-graphite-inset);
+  --desk-prompt-assistant-modal-card-border: transparent;
+  --desk-prompt-assistant-modal-field-background: var(--desk-graphite-card);
+
+  --desk-agent-switch-background: var(--desk-graphite-inset);
+  --desk-agent-switch-border: transparent;
+  --desk-agent-task-switch-background: var(--desk-graphite-inset);
+  --desk-agent-task-switch-border: transparent;
+  --desk-agent-task-switch-shadow: none;
+  --desk-agent-task-idle-ink: var(--desk-graphite-ink-2);
+  --desk-agent-task-hover-background: var(--desk-graphite-inset-hover);
+  --desk-agent-task-hover-border: transparent;
+  --desk-agent-task-active-background: var(--desk-graphite-card);
+  --desk-agent-task-active-shadow: none;
+  --desk-agent-task-label-ink: var(--desk-graphite-primary-ink);
+  --desk-agent-task-label-shadow: none;
+  --desk-agent-task-rail-background: var(--desk-graphite-inset);
+  --desk-agent-task-rail-border: transparent;
+  --desk-agent-task-rail-shadow: none;
+  --desk-agent-task-card-ink: var(--desk-graphite-ink);
+  --desk-agent-task-card-muted-ink: var(--desk-graphite-ink-2);
+  --desk-agent-task-card-selected-border: var(--desk-graphite-accent);
+  --desk-agent-task-card-selected-shadow: none;
+  --desk-agent-task-running-background: var(--desk-graphite-card);
+  --desk-agent-task-running-border: transparent;
+  --desk-agent-task-running-shadow: none;
+  --desk-agent-task-draft-background: var(--desk-graphite-card);
+  --desk-agent-task-draft-border: transparent;
+  --desk-agent-task-draft-shadow: none;
+  --desk-agent-task-waiting-background: var(--desk-graphite-card);
+  --desk-agent-task-waiting-border: transparent;
+  --desk-agent-task-waiting-shadow: none;
+  --desk-agent-task-neutral-background: var(--desk-graphite-card);
+  --desk-agent-task-neutral-border: transparent;
+  --desk-agent-task-neutral-dot: var(--desk-graphite-muted);
+  --desk-agent-task-neutral-shadow: none;
+  --desk-agent-task-control-ink: var(--desk-graphite-ink-2);
+  --desk-agent-task-control-background: var(--desk-graphite-inset);
+  --desk-agent-task-control-border: transparent;
+  --desk-agent-task-control-hover-background: var(--desk-graphite-inset-hover);
+  --desk-agent-task-control-hover-border: transparent;
+  --desk-agent-task-control-active-background: var(--desk-graphite-card);
+  --desk-agent-task-control-active-ink: var(--desk-graphite-ink);
+  --desk-agent-task-count-background: var(--desk-graphite-primary);
+  --desk-agent-task-count-ink: var(--desk-graphite-primary-ink);
+  --desk-agent-task-drawer-background: var(--desk-graphite-card);
+  --desk-agent-task-drawer-border: var(--desk-graphite-line);
+  --desk-agent-task-drawer-shadow: var(--desk-graphite-popover-shadow);
+  --desk-agent-task-drawer-backdrop: transparent;
+  --desk-agent-task-drawer-divider: var(--desk-graphite-line);
+  --desk-agent-task-drawer-row-hover-background: var(--desk-graphite-inset);
+  --desk-agent-task-drawer-row-selected-background: var(--desk-graphite-inset-hover);
+  --desk-agent-task-drawer-row-selected-border: transparent;
+  --desk-agent-task-drawer-badge-background: var(--desk-graphite-chip);
+  --desk-agent-task-drawer-badge-ink: var(--desk-graphite-ink-2);
+  --desk-agent-task-drawer-scrollbar: var(--desk-graphite-chip) transparent;
+  --desk-agent-neutral-surface: var(--desk-graphite-inset);
+  --desk-agent-neutral-surface-strong: var(--desk-graphite-inset-hover);
+  --desk-agent-neutral-border: transparent;
+  --desk-agent-neutral-border-strong: var(--desk-graphite-line);
+  --desk-agent-workbench-background: var(--desk-graphite-card);
+  --desk-agent-workbench-border: transparent;
+  --desk-agent-pane-background: var(--desk-graphite-inset);
+  --desk-agent-divider: var(--desk-graphite-line);
+  --desk-agent-pane-divider: var(--desk-graphite-line);
+  --desk-agent-field-background: var(--desk-graphite-card);
+  --desk-agent-field-background-soft: var(--desk-graphite-card);
+  --desk-agent-field-background-strong: var(--desk-graphite-card);
+  --desk-agent-field-border: transparent;
+  --desk-agent-field-border-soft: transparent;
+  --desk-agent-field-shadow: none;
+  --desk-agent-field-focus-border: var(--desk-graphite-accent);
+  --desk-agent-field-focus-shadow: 0 0 0 2px var(--desk-graphite-accent-soft);
+  --desk-agent-context-background: var(--desk-graphite-inset);
+  --desk-agent-context-border: transparent;
+  --desk-agent-image-menu-thumb-border: var(--desk-graphite-line);
+  --desk-agent-image-menu-thumb-hover-border: var(--desk-graphite-accent);
+  --desk-agent-step-line: var(--desk-graphite-line);
+  --desk-agent-step-dot-background: var(--desk-graphite-card);
+  --desk-agent-step-dot-border: var(--desk-graphite-line);
+  --desk-agent-decision-background: var(--desk-graphite-inset);
+  --desk-agent-decision-border: var(--desk-graphite-accent);
+  --desk-agent-decision-label-ink: var(--desk-graphite-ink-2);
+  --desk-agent-decision-action-ink: var(--desk-graphite-ink);
+  --desk-agent-decision-action-background: var(--desk-graphite-card);
+  --desk-agent-revision-ink: var(--desk-graphite-ink);
+  --desk-agent-revision-background: var(--desk-graphite-inset);
+  --desk-agent-revision-border: transparent;
+  --desk-agent-revision-hover-ink: var(--desk-graphite-primary-ink);
+  --desk-agent-revision-hover-background: var(--desk-graphite-primary);
+  --desk-agent-revision-hover-border: transparent;
+  --desk-agent-params-background: var(--desk-graphite-inset);
+  --desk-agent-params-border: transparent;
+  --desk-agent-provider-background: var(--desk-graphite-inset);
+  --desk-agent-provider-border: transparent;
+  --desk-agent-provider-active-background: var(--desk-graphite-primary);
+  --desk-agent-provider-active-border: transparent;
+  --desk-agent-provider-active-shadow: none;
+  --desk-agent-toggle-background: var(--desk-graphite-chip);
+  --desk-agent-toggle-border: transparent;
+  --desk-agent-toggle-checked-background: var(--desk-graphite-accent);
+  --desk-agent-toggle-checked-border: transparent;
+  --desk-agent-toggle-thumb: var(--desk-graphite-card);
+  --desk-agent-toggle-thumb-shadow: none;
+  --desk-agent-event-divider: var(--desk-graphite-line);
+  --desk-agent-event-dot: var(--desk-graphite-muted);
+}
+
+/* Asset library action keys. Liquid paints them per theme, up to ID selectors
+   (#deskGalleryDeleteBtn, #deskGallerySaveSetBtn). Graphite scopes every group on #deskApp
+   so it stays above all of them, and the groups are ordered: plain keys, then primary keys
+   (ID-level through :is), then delete and keep/save, and the disabled state last. */
+#deskApp[data-desk-style="graphite"] :is(
+  .desk-gallery__actions button,
+  .desk-gallery-inspector__actions .desk-button,
+  .desk-gallery-file__actions a,
+  .desk-gallery-file__actions button,
+  .desk-gallery-set__actions button,
+  .desk-gallery-set-detail__back,
+  .desk-gallery-set-detail__actions button,
+  .desk-gallery-set-asset__actions button,
+  .desk-gallery-video__actions a,
+  .desk-gallery-video__actions button
+) {
+  color: var(--desk-graphite-ink-2);
+  background: var(--desk-graphite-inset);
+  border-color: transparent;
+  box-shadow: none;
+}
+
+#deskApp[data-desk-style="graphite"] :is(
+  .desk-gallery__actions button,
+  .desk-gallery-inspector__actions .desk-button,
+  .desk-gallery-file__actions a,
+  .desk-gallery-file__actions button,
+  .desk-gallery-set__actions button,
+  .desk-gallery-set-detail__back,
+  .desk-gallery-set-detail__actions button,
+  .desk-gallery-set-asset__actions button,
+  .desk-gallery-video__actions a,
+  .desk-gallery-video__actions button
+):hover:not(:disabled) {
+  color: var(--desk-graphite-ink);
+  background: var(--desk-graphite-inset-hover);
+  border-color: transparent;
+  box-shadow: none;
+}
+
+#deskApp[data-desk-style="graphite"] :is(
+  .desk-gallery-card__image button[aria-pressed="true"]:not(.desk-gallery-card__favorite),
+  .desk-gallery-card__select[aria-pressed="true"],
+  .desk-gallery-inspector__actions .desk-button--primary,
+  #deskGalleryCanvasBtn,
+  .desk-gallery-file__actions button[data-gallery-file-send],
+  .desk-gallery-set__actions button:is([data-asset-set-open], [data-asset-set-compare], [data-asset-set-layout]),
+  .desk-gallery-set-detail__actions button:is([data-set-detail-apply], [data-set-detail-compare], [data-set-detail-layout]),
+  .desk-gallery-set-asset__actions button[data-set-select][aria-pressed="true"],
+  .desk-gallery-video__actions button[data-gallery-video-canvas]
+) {
+  color: var(--desk-graphite-primary-ink);
+  background: var(--desk-graphite-primary);
+  border-color: transparent;
+  box-shadow: none;
+}
+
+#deskApp[data-desk-style="graphite"] :is(
+  .desk-gallery-card__image button[aria-pressed="true"]:not(.desk-gallery-card__favorite),
+  .desk-gallery-card__select[aria-pressed="true"],
+  .desk-gallery-inspector__actions .desk-button--primary,
+  #deskGalleryCanvasBtn,
+  .desk-gallery-file__actions button[data-gallery-file-send],
+  .desk-gallery-set__actions button:is([data-asset-set-open], [data-asset-set-compare], [data-asset-set-layout]),
+  .desk-gallery-set-detail__actions button:is([data-set-detail-apply], [data-set-detail-compare], [data-set-detail-layout]),
+  .desk-gallery-set-asset__actions button[data-set-select][aria-pressed="true"],
+  .desk-gallery-video__actions button[data-gallery-video-canvas]
+):hover:not(:disabled) {
+  color: var(--desk-graphite-primary-ink);
+  background: var(--desk-graphite-primary-hover);
+  border-color: transparent;
+  box-shadow: none;
+}
+
+#deskApp[data-desk-style="graphite"] :is(
+  #deskGalleryDeleteBtn,
+  .desk-gallery-file__actions button[data-gallery-file-delete],
+  .desk-gallery-set__actions button[data-asset-set-delete],
+  .desk-gallery-set-asset__actions button[data-set-remove]
+) {
+  color: var(--desk-graphite-model);
+  background: var(--desk-graphite-inset);
+  border-color: transparent;
+  box-shadow: none;
+}
+
+#deskApp[data-desk-style="graphite"] :is(
+  #deskGalleryDeleteBtn,
+  .desk-gallery-file__actions button[data-gallery-file-delete],
+  .desk-gallery-set__actions button[data-asset-set-delete],
+  .desk-gallery-set-asset__actions button[data-set-remove]
+):hover:not(:disabled) {
+  color: var(--desk-graphite-model);
+  background: var(--desk-graphite-inset-hover);
+}
+
+#deskApp[data-desk-style="graphite"] :is(
+  #deskGallerySaveSetBtn,
+  .desk-gallery-set-detail__actions button[data-set-add-selected],
+  .desk-gallery-card__favorite[aria-pressed="true"],
+  .desk-gallery-card__download.is-cached
+) {
+  color: var(--desk-graphite-accent);
+  background: var(--desk-graphite-accent-soft);
+  border-color: transparent;
+  box-shadow: none;
+}
+
+#deskApp[data-desk-style="graphite"] :is(
+  #deskGallerySaveSetBtn,
+  .desk-gallery-set-detail__actions button[data-set-add-selected],
+  .desk-gallery-card__favorite[aria-pressed="true"],
+  .desk-gallery-card__download.is-cached
+):hover:not(:disabled) {
+  color: var(--desk-graphite-accent);
+  background: var(--desk-graphite-accent-soft);
+  box-shadow: none;
+}
+
+#deskApp[data-desk-style="graphite"] :is(
+  .desk-gallery__actions button,
+  .desk-gallery-inspector__actions .desk-button,
+  .desk-gallery-file__actions a,
+  .desk-gallery-file__actions button,
+  .desk-gallery-set__actions button,
+  .desk-gallery-set-detail__back,
+  .desk-gallery-set-detail__actions button,
+  .desk-gallery-set-asset__actions button,
+  .desk-gallery-video__actions a,
+  .desk-gallery-video__actions button,
+  .desk-gallery-card__image button[aria-pressed="true"]:not(.desk-gallery-card__favorite),
+  .desk-gallery-card__select[aria-pressed="true"],
+  .desk-gallery-inspector__actions .desk-button--primary,
+  #deskGalleryCanvasBtn,
+  .desk-gallery-file__actions button[data-gallery-file-send],
+  .desk-gallery-set__actions button:is([data-asset-set-open], [data-asset-set-compare], [data-asset-set-layout]),
+  .desk-gallery-set-detail__actions button:is([data-set-detail-apply], [data-set-detail-compare], [data-set-detail-layout]),
+  .desk-gallery-set-asset__actions button[data-set-select][aria-pressed="true"],
+  .desk-gallery-video__actions button[data-gallery-video-canvas],
+  #deskGalleryDeleteBtn,
+  .desk-gallery-file__actions button[data-gallery-file-delete],
+  .desk-gallery-set__actions button[data-asset-set-delete],
+  .desk-gallery-set-asset__actions button[data-set-remove],
+  #deskGallerySaveSetBtn,
+  .desk-gallery-set-detail__actions button[data-set-add-selected],
+  .desk-gallery-card__favorite[aria-pressed="true"],
+  .desk-gallery-card__download.is-cached
+):disabled {
+  color: var(--desk-graphite-muted);
+  background: var(--desk-graphite-inset);
+  border-color: transparent;
+  box-shadow: none;
+  opacity: 1;
+}
+
+/* Chips over card images, the source-tab slider and the video folder: opaque, no frost. The folder label sat in
+   white on liquid's tinted back; graphite's back is a chip, so it takes ink. */
+body.desk-app[data-desk-style="graphite"][data-theme] :is(.desk-gallery-card__meta-actions button, .desk-gallery-card__lineage em, .desk-prompt-source-tabs__slider) {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+body.desk-app[data-desk-style="graphite"][data-theme] .desk-gallery-video-folder__back em {
+  color: var(--desk-graphite-ink-2);
+  background: var(--desk-graphite-card);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+/* Count badge on the active video-source key (liquid dark tints it brown). */
+body.desk-app[data-desk-style="graphite"][data-theme] .desk-gallery-video-source button.is-active em {
+  color: var(--desk-graphite-ink);
+  background: var(--desk-graphite-inset);
+}
+
+/* Pinterest header and boards (liquid paints both per theme). The active board keeps
+   the brand underline. */
+body.desk-app[data-desk-style="graphite"][data-theme] .desk-pinterest-head {
+  background: var(--desk-graphite-card);
+  box-shadow: none;
+}
+
+body.desk-app[data-desk-style="graphite"][data-theme] .desk-pinterest-boards > button {
+  color: var(--desk-graphite-ink-2);
+  background: var(--desk-graphite-inset);
+  box-shadow: none;
+}
+
+body.desk-app[data-desk-style="graphite"][data-theme] .desk-pinterest-boards > button.is-active {
+  color: var(--desk-graphite-ink);
+  background: var(--desk-graphite-card);
+  box-shadow: inset 0 -2px 0 var(--desk-gallery-pinterest-brand-background);
+}
+
+/* The prompt library's local palette: liquid sets it per theme on the panel and slash menu. */
+/* Frost behind the two workbenches: graphite surfaces are opaque. */
+body.desk-app[data-desk-style="graphite"][data-theme] .desk-gallery {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+body.desk-app[data-desk-style="graphite"][data-theme] .desk-prompt-library {
+  --prompt-accent: var(--desk-graphite-ink);
+  --prompt-accent-soft: var(--desk-graphite-inset-hover);
+  --prompt-line: var(--desk-graphite-line);
+  --prompt-surface: var(--desk-graphite-inset);
+  --prompt-surface-strong: var(--desk-graphite-card);
+  --desk-ink: var(--desk-graphite-ink);
+  --desk-muted: var(--desk-graphite-ink-2);
+  color: var(--desk-graphite-ink);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+body.desk-app[data-desk-style="graphite"][data-theme] .desk-prompt-slash-menu {
+  --prompt-accent: var(--desk-graphite-ink);
+  --prompt-accent-soft: var(--desk-graphite-inset-hover);
+  --prompt-line: var(--desk-graphite-line);
+  --prompt-menu-ink: var(--desk-graphite-ink);
+  --prompt-menu-muted: var(--desk-graphite-ink-2);
+  --prompt-menu-surface: var(--desk-graphite-card);
+  --prompt-menu-icon-surface: var(--desk-graphite-inset);
+}
+
+/* Prompt library. Liquid paints it twice, daylight glass under :not([data-theme="dark"])
+   and dark tiles under [data-theme="dark"], both at (0,3,1) plus the element; these rules
+   sit one attribute above. Columns are inset and selected rows are cards; fields sit
+   inset on the card editor, as they do inside graphite nodes. */
+
+body.desk-app[data-desk-style="graphite"][data-theme] .desk-prompt-library__header-actions button:not(.desk-prompt-library__new) {
+  color: var(--desk-graphite-ink-2);
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+body.desk-app[data-desk-style="graphite"][data-theme] .desk-prompt-library__header-actions button:not(.desk-prompt-library__new):hover {
+  color: var(--desk-graphite-ink);
+  background: var(--desk-graphite-inset-hover);
+  border-color: transparent;
+  box-shadow: none;
+}
+
+body.desk-app[data-desk-style="graphite"][data-theme] :is(
+  .desk-prompt-library__search,
+  .desk-prompt-library__favorite-filter,
+  .desk-prompt-editor-pane__head-actions button,
+  .desk-prompt-editor-actions button,
+  .desk-prompt-template__create,
+  .desk-prompt-extractor__footer button,
+  .desk-prompt-rule-builder > header button,
+  .desk-prompt-extractor__rule,
+  .desk-prompt-library__load-more
+) {
+  color: var(--desk-graphite-ink-2);
+  background: var(--desk-graphite-inset);
+  border-color: transparent;
+  box-shadow: none;
+}
+
+body.desk-app[data-desk-style="graphite"][data-theme] :is(
+  .desk-prompt-library__search:focus-within,
+  .desk-prompt-library__favorite-filter:focus-visible,
+  .desk-prompt-editor-pane__head-actions button:focus-visible,
+  .desk-prompt-editor-actions button:focus-visible
+) {
+  border-color: var(--desk-graphite-accent);
+  outline: 0;
+  box-shadow: 0 0 0 2px var(--desk-graphite-accent-soft);
+}
+
+body.desk-app[data-desk-style="graphite"][data-theme] .desk-prompt-editor-pane__head-actions button[aria-pressed="true"] {
+  color: var(--desk-graphite-accent);
+  background: var(--desk-graphite-accent-soft);
+}
+
+body.desk-app[data-desk-style="graphite"][data-theme] :is(
+  .desk-prompt-library__header-actions .desk-prompt-library__new,
+  .desk-prompt-editor-actions button.is-primary,
+  .desk-prompt-template__create.is-primary,
+  .desk-prompt-extractor__footer button.is-primary
+) {
+  color: var(--desk-graphite-primary-ink);
+  background: var(--desk-graphite-primary);
+  border-color: transparent;
+  box-shadow: none;
+}
+
+body.desk-app[data-desk-style="graphite"][data-theme] :is(
+  .desk-prompt-library__header-actions .desk-prompt-library__new:hover,
+  .desk-prompt-editor-actions button.is-primary:hover,
+  .desk-prompt-template__create.is-primary:hover,
+  .desk-prompt-extractor__footer button.is-primary:hover
+) {
+  color: var(--desk-graphite-primary-ink);
+  background: var(--desk-graphite-primary-hover);
+  border-color: transparent;
+  box-shadow: none;
+}
+
+body.desk-app[data-desk-style="graphite"][data-theme] .desk-prompt-library__nav button:hover {
+  color: var(--desk-graphite-ink);
+  background: var(--desk-graphite-inset-hover);
+  box-shadow: none;
+}
+
+body.desk-app[data-desk-style="graphite"][data-theme] .desk-prompt-library__nav button.is-active {
+  color: var(--desk-graphite-ink);
+  background: var(--desk-graphite-card);
+  border-color: transparent;
+  box-shadow: none;
+}
+
+body.desk-app[data-desk-style="graphite"][data-theme] .desk-prompt-library-row:hover {
+  background: var(--desk-graphite-inset);
+  border-color: transparent;
+}
+
+body.desk-app[data-desk-style="graphite"][data-theme] .desk-prompt-library-row.is-selected {
+  color: var(--desk-graphite-ink);
+  background: var(--desk-graphite-card);
+  border-color: transparent;
+  box-shadow: none;
+}
+
+body.desk-app[data-desk-style="graphite"][data-theme] .desk-prompt-library-row__meta span {
+  background: var(--desk-graphite-inset);
+}
+
+body.desk-app[data-desk-style="graphite"][data-theme] :is(
+  .desk-prompt-library__search input,
+  .desk-prompt-field input,
+  .desk-prompt-field select,
+  .desk-prompt-field textarea,
+  .desk-prompt-library .desk-select-trigger,
+  .desk-prompt-color-draft__colors > div > input,
+  .desk-prompt-inspiration-preview pre
+) {
+  color: var(--desk-graphite-ink);
+}
+
+body.desk-app[data-desk-style="graphite"][data-theme] :is(
+  .desk-prompt-field input,
+  .desk-prompt-field select,
+  .desk-prompt-field textarea,
+  .desk-prompt-library .desk-select-trigger,
+  .desk-prompt-color-draft__colors > div > input,
+  .desk-prompt-inspiration-preview pre
+) {
+  background: var(--desk-graphite-inset);
+  border-color: transparent;
+  box-shadow: none;
+}
+
+body.desk-app[data-desk-style="graphite"][data-theme] :is(
+  .desk-prompt-field input:focus,
+  .desk-prompt-field select:focus,
+  .desk-prompt-field textarea:focus
+) {
+  border-color: var(--desk-graphite-accent);
+  box-shadow: 0 0 0 2px var(--desk-graphite-accent-soft);
+}
+
+body.desk-app[data-desk-style="graphite"][data-theme] .desk-prompt-field select option {
+  color: var(--desk-graphite-ink);
+  background: var(--desk-graphite-card);
+}
+
+body.desk-app[data-desk-style="graphite"][data-theme] :is(
+  .desk-prompt-template__stats div,
+  .desk-prompt-template__module-list span,
+  .desk-prompt-rule-module,
+  .desk-prompt-rule-module__order button,
+  .desk-prompt-rule-module__delete,
+  .desk-prompt-color__scenes span,
+  .desk-prompt-color__prompt,
+  .desk-prompt-color-formula-grid label > span,
+  .desk-prompt-color-draft__rules label,
+  .desk-prompt-extractor-block,
+  .desk-prompt-extractor__drop
+) {
+  color: var(--desk-graphite-ink);
+  background: var(--desk-graphite-inset);
+  border-color: transparent;
+  box-shadow: none;
+}
+
+body.desk-app[data-desk-style="graphite"][data-theme] :is(
+  .desk-prompt-rule-module:hover,
+  .desk-prompt-color-formula-grid label:hover > span
+) {
+  background: var(--desk-graphite-inset-hover);
+  border-color: transparent;
+}
+
+body.desk-app[data-desk-style="graphite"][data-theme] .desk-prompt-rule-module.is-disabled {
+  background: transparent;
+}
+
+body.desk-app[data-desk-style="graphite"][data-theme] :is(
+  .desk-prompt-color-formula-grid label:has(input:checked) > span,
+  .desk-prompt-extractor-block.is-selected
+) {
+  color: var(--desk-graphite-ink);
+  background: var(--desk-graphite-card);
+  border-color: var(--desk-graphite-accent);
+  box-shadow: none;
+}
+
+body.desk-app[data-desk-style="graphite"][data-theme] :is(
+  .desk-prompt-color-analysis__modes,
+  .desk-prompt-create__modes
+) {
+  background: var(--desk-graphite-inset);
+  border-color: transparent;
+}
+
+body.desk-app[data-desk-style="graphite"][data-theme] :is(
+  .desk-prompt-color-analysis__modes button:hover,
+  .desk-prompt-create__modes button:hover
+) {
+  color: var(--desk-graphite-ink);
+  background: transparent;
+}
+
+body.desk-app[data-desk-style="graphite"][data-theme] :is(
+  .desk-prompt-color-analysis__modes button[aria-pressed="true"],
+  .desk-prompt-create__modes button[aria-selected="true"]
+) {
+  color: var(--desk-graphite-ink);
+  background: var(--desk-graphite-card);
+  box-shadow: none;
+}
+
+body.desk-app[data-desk-style="graphite"][data-theme] :is(
+  .desk-prompt-color-analysis,
+  .desk-prompt-extractor
+) {
+  background: var(--desk-graphite-inset);
+  border-color: transparent;
+  box-shadow: none;
+}
+
+body.desk-app[data-desk-style="graphite"][data-theme] .desk-prompt-color-analysis__drop {
+  background: var(--desk-graphite-card);
+  border-color: var(--desk-graphite-line);
+}
+
+body.desk-app[data-desk-style="graphite"][data-theme] :is(
+  .desk-prompt-color-analysis__drop:hover,
+  .desk-prompt-color-analysis__drop:focus-visible,
+  .desk-prompt-color-analysis__drop.is-dragging
+) {
+  background: var(--desk-graphite-inset-hover);
+  border-color: var(--desk-graphite-accent);
+}
+
+body.desk-app[data-desk-style="graphite"][data-theme] :is(
+  .desk-prompt-color-analysis__intro > button,
+  .desk-prompt-color-analysis__status button,
+  .desk-prompt-color-analysis__status:not(.is-success, .is-error),
+  .desk-prompt-color-analysis__empty
+) {
+  color: var(--desk-graphite-ink-2);
+  background: var(--desk-graphite-card);
+  border-color: transparent;
+}
+
+body.desk-app[data-desk-style="graphite"][data-theme] .desk-prompt-color-analysis__status > svg {
+  color: var(--desk-graphite-accent);
+}
+
+body.desk-app[data-desk-style="graphite"][data-theme] :is(
+  .desk-prompt-editor-actions,
+  .desk-prompt-extractor__footer
+) {
+  background: var(--desk-graphite-card);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+body.desk-app[data-desk-style="graphite"][data-theme] :is(
+  .desk-prompt-inspiration-preview__media button,
+  .desk-prompt-inspiration-preview__counter
+) {
+  color: var(--desk-graphite-ink);
+  background: var(--desk-graphite-card);
+}
+
+body.desk-app[data-desk-style="graphite"][data-theme] .desk-prompt-library__syntax kbd {
+  border-color: var(--prompt-line);
+}
+
+/* Prompt assistant drawer. Its colours come from the --desk-prompt-assistant-* and
+   --desk-agent-* tokens above; liquid still frosts the body in both themes. */
+body.desk-app[data-desk-style="graphite"][data-theme] :is(
+  .desk-prompt-drawer__body,
+  .desk-prompt-drawer.is-open .desk-prompt-drawer__body
+) {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
 
 /* Side panels: liquid dark paints these four directly at (0,3,1) and re-tints their
    ink/accent/jewel variables, so graphite restates both here. */

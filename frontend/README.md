@@ -298,6 +298,14 @@ one shared token block at `body.desk-app[data-desk-style="graphite"][data-theme]
 paints directly at `(0,3,1)` (side panels, history cards, canvas menus) get
 explicit graphite rules one level above. Decorative pieces (theme toggle
 illustration, windchime bell, alert dots) keep their liquid look on purpose.
+The asset library, prompt library and prompt assistant (including Agent mode
+and its task drawer) take a second token block with the same selector and rule
+(`--desk-gallery-*`, `--desk-prompt-assistant-*`, `--desk-agent-*`). Liquid's
+directly painted gallery keys use ID selectors, so graphite scopes them on
+`#deskApp`; the prompt library's light/dark rules are restated one attribute
+above `(0,3,1)`. Media wells, the full-screen preview, Pinterest brand red,
+status colours (failed/waiting/running, danger) and the task-tone dots stay
+upstream; Agent task cards become neutral cards that keep only their tone dot.
 Connection rendering passes optional endpoint rectangles through the host to both
 path styles. Classic curves deliberately ignore endpoint rectangles and always
 use a single cubic Bezier based only on endpoint positions and port normals,
