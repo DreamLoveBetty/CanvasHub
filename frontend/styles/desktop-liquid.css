@@ -12484,17 +12484,17 @@ body.desk-app .desk-node--edge-handles > .desk-port--floating:is(:hover, :focus-
 
 
 
-/* Sim action-menu profile: 28px rise, 36px two-stage Bezier shoulders and a fixed 56px taper. */
+/* Sim action-menu profile at 1x: 15px rise, ~19px two-stage Bezier shoulders and a 29px taper. */
 .desk-node-context-menu__cap::before {
   position: absolute;
-  inset: 0 -8px;
+  inset: 0 -4px;
   z-index: 0;
-  width: 164px;
-  height: 28px;
+  width: 85px;
+  height: 15px;
   content: "";
   background: var(--desk-flow-solid);
-  -webkit-clip-path: path("M0 28 C2.675 27.908 6.995 26.897 12.953 19.586 C28.879 0 28.807 0 36 0 L128 0 C135.193 0 135.121 0 151.047 19.586 C157.005 26.897 161.325 27.908 164 28 L0 28 Z");
-  clip-path: path("M0 28 C2.675 27.908 6.995 26.897 12.953 19.586 C28.879 0 28.807 0 36 0 L128 0 C135.193 0 135.121 0 151.047 19.586 C157.005 26.897 161.325 27.908 164 28 L0 28 Z");
+  -webkit-clip-path: path("M0 15 C1.386 14.951 3.625 14.409 6.713 10.492 C14.968 0 14.93 0 18.659 0 L66.341 0 C70.07 0 70.032 0 78.287 10.492 C81.375 14.409 83.614 14.951 85 15 L0 15 Z");
+  clip-path: path("M0 15 C1.386 14.951 3.625 14.409 6.713 10.492 C14.968 0 14.93 0 18.659 0 L66.341 0 C70.07 0 70.032 0 78.287 10.492 C81.375 14.409 83.614 14.951 85 15 L0 15 Z");
 }
 
 .desk-node-context-menu__cap::after {
@@ -12509,32 +12509,32 @@ body.desk-app .desk-node--edge-handles > .desk-port--floating:is(:hover, :focus-
 
 .desk-node-context-menu__cap strong {
   color: inherit;
-  font-size: 14px;
+  font-size: 7px;
   font-weight: 820;
 }
 
 .desk-node-context-menu__cap span {
   color: rgba(255, 255, 255, 0.62);
-  font-size: 12px;
+  font-size: 6px;
   font-weight: 700;
 }
 
 
 
 .desk-node-context-menu__search > svg {
-  width: 15px;
-  height: 15px;
+  width: 12px;
+  height: 12px;
   stroke-width: 1.6;
 }
 
 .desk-node-context-menu__search input {
   width: 100%;
   min-width: 0;
-  height: 30px;
+  height: 24px;
   padding: 0;
   color: var(--desk-ink);
   font: inherit;
-  font-size: 11px;
+  font-size: 9px;
   font-weight: 650;
   background: transparent;
   border: 0;
@@ -12545,13 +12545,13 @@ body.desk-app .desk-node--edge-handles > .desk-port--floating:is(:hover, :focus-
 
 
 .desk-node-context-menu button[data-add-node] {
-  grid-template-columns: 27px minmax(0, 1fr);
-  gap: 7px;
-  min-height: 38px;
-  padding: 5px 7px;
+  grid-template-columns: 22px minmax(0, 1fr);
+  gap: 6px;
+  min-height: 30px;
+  padding: 4px 6px;
   background: transparent;
   border: 0;
-  border-radius: 6px;
+  border-radius: 5px;
 }
 
 
@@ -12564,8 +12564,8 @@ body.desk-app .desk-node--edge-handles > .desk-port--floating:is(:hover, :focus-
 
 
 .desk-node-context-menu .desk-node-palette__icon svg {
-  width: 14px;
-  height: 14px;
+  width: 11px;
+  height: 11px;
 }
 
 

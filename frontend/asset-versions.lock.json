@@ -43,8 +43,8 @@
     "sha256": "cf4e726aab65091d8df1f23dc648a477f3c46f3c04b284789807216e13be2761"
    },
    "scripts/desktop-canvas-connections.js": {
-    "v": "20261105-graphite7",
-    "sha256": "19adc712efc6c96b2884e8b9641efb1d8d7a965cffad838e46403ee24958417f"
+    "v": "20261105-menu-scale1",
+    "sha256": "e1dac96f53caaf6bc821857335404f743463c81e6d806631ce8d6b939dc52e2e"
    },
    "scripts/desktop-canvas-cyimg.js": {
     "v": "20261030-ui-polish1",
@@ -491,8 +491,8 @@
     "sha256": "b20ea9c6dcb130109a4fd40af8095059a025a931dc4e71afb2a0e6ef408de7e2"
    },
    "styles/desktop-canvas-nodes-geometry.css": {
-    "v": "20261104-prompt-roles1",
-    "sha256": "784a62d2466edc7260b8de3e9eea00f219652c87f86a04b406ca8bf371837a35"
+    "v": "20261105-menu-scale1",
+    "sha256": "9bba0082a6f65e290a92ba6820a2e3b6ce30cd12351b1e476f1dd048457b7f72"
    },
    "styles/desktop-canvas-nodes.css": {
     "v": "20261104-prompt-roles1",
@@ -579,8 +579,8 @@
     "sha256": "e60efb4504339324c42bcf212ad2e978040b6032b1a3b895300c867eecc61312"
    },
    "styles/desktop-liquid.css": {
-    "v": "20261104-comfy-tags1",
-    "sha256": "02a4a2a251c8c05d7ff1c4d62dc431c4d9f5f2c35c93d6291a34b6c3df54a068"
+    "v": "20261105-menu-scale1",
+    "sha256": "8d02fcae38ed8781e38987f7d34786f7223945056dc44d2d6fa18b5ab22c13e5"
    },
    "styles/desktop-lora.css": {
     "v": "20261101-lora-detail1",

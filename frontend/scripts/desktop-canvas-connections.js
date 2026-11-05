@@ -237,7 +237,7 @@
     }
     menu.classList.remove('is-open');
     menu.classList.add('is-closing');
-    const menuWidth = menu.offsetWidth || 224;
+    const menuWidth = menu.offsetWidth || 179;
     const menuHeight = menu.offsetHeight || 320;
     const x = Math.min(window.innerWidth - menuWidth - 10, Math.max(10, event.clientX - 12));
     const y = Math.min(window.innerHeight - menuHeight - 10, Math.max(34, event.clientY - 12));
