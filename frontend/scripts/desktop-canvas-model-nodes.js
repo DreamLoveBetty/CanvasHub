@@ -31,6 +31,7 @@
     applyNodeSelection,
     clamp,
     comfyInputSlotsHtml,
+    comfyLayout,
     comfyWorkflowCatalogRef,
     discardFloatingSwellState,
     els,
@@ -40,6 +41,7 @@
     getConnectedNegativeTextNodes,
     getConnectedTextNodes,
     getConnectedVideoCount,
+    getConnectedAudioCount = () => 0,
     getNodeElement,
     gptModelCatalogRef,
     selectNode,
@@ -508,7 +510,7 @@
     });
     return groups.map(group => `
             <section class="desk-comfy-parameter-group">
-              <header><strong>${escapeHtml(group.title)}</strong><small>#${escapeHtml(group.nodeId)}</small></header>
+              <header><strong>${escapeHtml(group.title)}</strong>${String(group.nodeId).startsWith('__') ? '' : `<small>#${escapeHtml(group.nodeId)}</small>`}</header>
               <div class="desk-comfy-parameter-grid desk-comfy-parameter-grid--optional">
                 ${group.parameters.map(parameter => {
                   const parameterLabel = parameter.label || parameter.input_name || parameter.id;
@@ -552,10 +554,20 @@
       </div>`;
   }
 
+    // A workflow saved in ComfyUI's UI format cannot run; say how to fix it instead of showing guessed inputs.
+    function comfyFormatErrorHtml(message) {
+    return `
+      <div class="desk-comfy-parameter-panel" data-comfy-parameter-panel>
+        <div class="desk-comfy-parameter-panel__head"><span>工作流格式</span></div>
+        <ul class="desk-comfy-tag-warnings"><li>${escapeHtml(message)}</li></ul>
+      </div>`;
+  }
+
     function comfyWorkflowParametersHtml(node, workflowMeta) {
     const defaultSize = comfyWorkflowDefaultSize(workflowMeta);
     node.pixelWidth = normalizeComfyPixelSize(node?.pixelWidth, defaultSize.width);
     node.pixelHeight = normalizeComfyPixelSize(node?.pixelHeight, defaultSize.height);
+    if (workflowMeta?.format_error) return comfyFormatErrorHtml(workflowMeta.format_error);
     if (workflowMeta?.tag_mode === 'tags') return comfyTaggedInputsHtml(node, workflowMeta);
     const parameters = Array.isArray(workflowMeta?.parameters) ? workflowMeta.parameters : [];
     const overrides = comfyWorkflowParameterOverrides(node, workflowMeta?.id || node?.workflow || '');
@@ -611,7 +623,7 @@
               <label class="desk-switch"><input type="checkbox" ${output.telegramEnabled !== false ? 'checked' : ''} data-output-telegram><span></span><em>Telegram</em></label>
             </div>
           </div>
-          <button type="button" class="desk-button desk-button--generate" data-result-run title="运行 Comfy 工作流" aria-label="运行 Comfy 工作流"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 3 5 14h6l-1 7 8-11h-6l1-7Z"></path></svg></button>
+          <button type="button" class="desk-generation-action" data-result-run title="运行 Comfy 工作流" aria-label="运行 Comfy 工作流"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m13.5 2-9 12h6l-1 8 10-13h-7z"></path></svg><span class="desk-generation-action__label">开始生成</span></button>
         </div>
         <span class="desk-resize-handle" data-node-resize-handle title="缩放 Comfy 节点" aria-hidden="true"></span>
       </section>
@@ -632,15 +644,19 @@
       state.ratio = selectedMeta?.default_ratio || state.ratio || '1:1';
     }
     const list = element.querySelector('[data-comfy-workflow-list]');
-    if (list) list.innerHTML = comfyWorkflowCardsHtml(state.workflow || '');
+    if (list) {
+      list.innerHTML = comfyWorkflowCardsHtml(state.workflow || '');
+      comfyLayout?.sync(list);
+    }
     const count = element.querySelector('[data-comfy-workflow-count]');
     if (count) count.textContent = `${(comfyWorkflowCatalogRef.current.items || []).filter(item => item.enabled).length} 个`;
     const textCount = getConnectedTextNodes(nodeId).length;
     const negativeCount = getConnectedNegativeTextNodes(nodeId).length;
     const imageCount = getConnectedImageReferences(nodeId).length;
     const videoCount = getConnectedVideoCount(nodeId);
+    const audioCount = getConnectedAudioCount(nodeId);
     const summary = element.querySelector('[data-comfy-input-summary]');
-    if (summary) summary.textContent = `文本 ${textCount}${negativeCount ? ` · 负面 ${negativeCount}` : ''} · 图片 ${imageCount}${videoCount ? ` · 视频 ${videoCount}` : ''}`;
+    if (summary) summary.textContent = `文本 ${textCount}${negativeCount ? ` · 负面 ${negativeCount}` : ''} · 图片 ${imageCount}${videoCount ? ` · 视频 ${videoCount}` : ''}${audioCount ? ` · 音频 ${audioCount}` : ''}`;
     const parameterPanel = element.querySelector('[data-comfy-parameter-panel]');
     const workflowMeta = (comfyWorkflowCatalogRef.current.items || []).find(item => item.id === state.workflow);
     if (parameterPanel) parameterPanel.outerHTML = comfyWorkflowParametersHtml(state, workflowMeta);

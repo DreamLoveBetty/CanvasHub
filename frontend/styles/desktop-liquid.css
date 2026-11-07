@@ -1552,7 +1552,7 @@ body.desk-app[data-theme="dark"]::after {
 .desk-comfy-workflow-card.is-selected {
   background: rgba(8, 79, 189, 0.06);
   border-color: rgba(8, 79, 189, 0.3);
-  box-shadow: inset 2px 0 0 rgba(8, 79, 189, 0.76);
+  box-shadow: 0 0 0 1px rgba(8, 79, 189, 0.3);
 }
 
 .desk-comfy-workflow-card.is-disabled {
@@ -1561,8 +1561,10 @@ body.desk-app[data-theme="dark"]::after {
 
 
 .desk-comfy-workflow-card__thumb img {
-  width: calc(100% + 26px);
-  height: calc(100% + 18px);
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
   object-fit: cover;
 }
 
@@ -1577,14 +1579,22 @@ body.desk-app[data-theme="dark"]::after {
 .desk-comfy-workflow-card__thumb i:nth-child(3) { width: 86%; justify-self: start; }
 
 
-.desk-comfy-workflow-card__copy strong,
 .desk-comfy-workflow-card__copy small {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.desk-comfy-workflow-card__copy strong { font-size: 11px; font-weight: 880; }
+/* Card titles wrap to two lines so long workflow names stay readable in the grid. */
+.desk-comfy-workflow-card__copy strong {
+  display: -webkit-box;
+  overflow: hidden;
+  font-size: 11px;
+  font-weight: 880;
+  line-height: 1.3;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
 .desk-comfy-workflow-card__copy small { color: var(--desk-muted); font-size: 9px; font-weight: 720; }
 
 
@@ -6888,6 +6898,24 @@ body.desk-app[data-theme="dark"] .desk-file-preview-modal__actions #deskFilePrev
   border-radius: 999px;
 }
 
+/* A video in a set shows its poster; the badge marks it as playable (over media in both themes). */
+.desk-gallery-set-asset__image .desk-gallery-set-asset__video {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  padding: 2px 6px;
+  color: #fff;
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 850;
+  background: rgba(15, 23, 42, 0.58);
+  border-radius: 999px;
+}
+
+.desk-gallery-set-asset.is-video .desk-gallery-set-asset__image {
+  cursor: pointer;
+}
+
 
 .desk-gallery-set-asset__meta strong,
 .desk-gallery-set-asset__meta span {
@@ -10346,7 +10374,14 @@ body.desk-app[data-theme="dark"] .desk-comfy-settings-workflow.is-selected,
 body.desk-app[data-theme="dark"] .desk-comfy-workflow-card.is-selected {
   background: rgba(255, 106, 34, 0.1);
   border-color: rgba(255, 106, 34, 0.3);
+}
+
+body.desk-app[data-theme="dark"] .desk-comfy-settings-workflow.is-selected {
   box-shadow: inset 2px 0 0 #ff6a22;
+}
+
+body.desk-app[data-theme="dark"] .desk-comfy-workflow-card.is-selected {
+  box-shadow: 0 0 0 1px rgba(255, 106, 34, 0.3);
 }
 
 

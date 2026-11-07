@@ -1220,7 +1220,24 @@ title-tagged ComfyUI workflows. Picks are stored per workflow on the Comfy node
 or absent for auto-fill in connection order); stale picks fall back to auto-fill. Tagged
 workflows replace the basic-input/parameter picker panel with a single “工作流输入” panel
 (slots, size only when the workflow takes it, every `[参数]` field). `desktop-api.js` sends
-one `images`/`videos` entry per slot (`''` for a gap) plus `negative_prompt`.
+one `images`/`videos`/`audios` entry per slot (`''` for a gap) plus `negative_prompt`.
+
+`desktop-canvas-comfy-audio.js` (load it after `desktop-canvas-comfy-video.js`, before
+`desktop-canvas-comfy-inputs.js` / `desktop-canvas.js`) owns the `audio → comfy` connection
+domain and the connected-audio references (`[参考音频N]` slots). `desktop-api.js` reads each
+audio from the audio asset store (local imports) or its same-origin URL, uploads it to
+`/api/comfy/upload_audio` and sends only the returned input names. Switchable workflows
+(`switchable` in the catalog) expose their branch / toggle / option switches as ordinary
+`switch:*` workflow parameters, so the tagged parameter panel renders them unchanged; there a
+`none` slot means “不传入” (the loader is detached) instead of keeping the workflow's value.
+
+`desktop-canvas-comfy-layout.js` (load it before `desktop-canvas-nodes.js` /
+`desktop-canvas.js`) owns only the Comfy node's workflow card list height: one instance from
+`desktop-canvas.js`, `reconcile()` after `ensureGraphDom` observes each list and `sync(list)`
+after the cards are re-rendered. The list stays 1.5 cards tall (first-row card + row gap + half a
+card, written to `--desk-comfy-workflow-list-height`) and is re-measured only when its width
+changes the column flow; the input panel (`flex: 1 1 0`, min 130px) takes every height change.
+On a node too short for both, the list yields down to its 100px minimum.
 
 Text nodes carry an optional `promptRole: 'negative'` (toggled from the text drawer). Prompt
 merging in `desktop-canvas-prompt-document.js` excludes negative nodes from every model's

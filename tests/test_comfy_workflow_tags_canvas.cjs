@@ -33,7 +33,7 @@ function renderParameters(meta) {
     comfyParameterValueHtml: (parameter, value) => `<input data-comfy-param="${parameter.id}" value="${value}">`,
     comfyInputSlotsHtml: () => '<div class="desk-comfy-input-slots">slots</div>',
   });
-  const functions = ['comfySizeGridHtml', 'comfyParameterGroupsHtml', 'comfyTaggedInputsHtml', 'comfyWorkflowParametersHtml']
+  const functions = ['comfySizeGridHtml', 'comfyParameterGroupsHtml', 'comfyTaggedInputsHtml', 'comfyFormatErrorHtml', 'comfyWorkflowParametersHtml']
     .map(name => extractFunction(source, name)).join('\n');
   vm.runInContext(`${functions}; this.render = comfyWorkflowParametersHtml;`, context);
   return context.render({ id: 'c1' }, meta);
@@ -70,6 +70,12 @@ test('auto workflows keep editable size and the plain prompt binding', () => {
   assert.doesNotMatch(html, /desk-comfy-default-prompt|desk-comfy-tag-warnings|desk-comfy-input-slots/);
   assert.match(html, /data-comfy-param-picker/);
   assert.match(renderParameters({ id: 'x', accepts_text: false, parameters: [] }), /工作流不接收提示词/);
+});
+
+test('UI-format workflows show the export hint instead of inputs', () => {
+  const html = renderParameters({ id: 'ui.json', format_error: '请用「导出 (API)」重新导出', tag_mode: 'auto', parameters: [] });
+  assert.match(html, /desk-comfy-tag-warnings"><li>请用「导出 \(API\)」重新导出<\/li>/);
+  assert.doesNotMatch(html, /data-comfy-field="pixelWidth"|data-comfy-param-picker/);
 });
 
 test('run config falls back to the workflow default prompt', () => {

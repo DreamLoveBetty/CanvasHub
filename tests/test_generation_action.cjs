@@ -50,7 +50,9 @@ test('generate actions use only the shared component class; event hooks stay on 
   assert.match(source,/class="desk-generation-action" data-result-run/);
   // The default input node is static markup; it must match the template button.
   assert.match(read('frontend/desktop.html'),/class="desk-generation-action" data-result-run id="deskNodeGenerateBtn" title="开始生成"[\s\S]*?<span class="desk-generation-action__label">开始生成<\/span>/);
-  assert.equal((source.match(/desk-generation-action"/g)||[]).length,1);
+  // The input node template and the Comfy node footer carry the same 72px key.
+  assert.equal((source.match(/desk-generation-action"/g)||[]).length,2);
+  assert.match(source,/class="desk-generation-action" data-result-run title="运行 Comfy 工作流"/);
   assert.match(source,/<span class="desk-generation-action__label">开始生成<\/span>/);
   const html=view.nodeHtml(model.createState('g','music_generate',{}));
   assert.match(html,/desk-music__generate desk-generation-action/);

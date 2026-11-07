@@ -39,6 +39,7 @@
     applyAllNodeLayouts,
     audioNode,
     audioNodeDefinition,
+    comfyLayout,
     musicNode,
     musicNodeDefinition,
     topazNode,
@@ -635,6 +636,7 @@
     krea2ControlNode?.reconcile();
     qwen21Node?.reconcile();
     mossNode?.reconcile();
+    comfyLayout?.reconcile();
   }
 
     function resetNodeLayout() {
@@ -648,6 +650,7 @@
     krea2ControlNode?.disposeAll();
     qwen21Node?.disposeAll();
     mossNode?.disposeAll();
+    comfyLayout?.disposeAll();
     audioNode.disposeAll();
     DesktopState.state.canvas.nodes = {
       input: { id: 'input', type: 'input', x: 56, y: 72, width: DEFAULT_INPUT_NODE_WIDTH, height: DEFAULT_INPUT_NODE_HEIGHT }

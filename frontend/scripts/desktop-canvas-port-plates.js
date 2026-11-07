@@ -19,7 +19,7 @@
   // cuts the same nodes (keep NOTCHED_NODES in step with desktop-graphite.css).
   const NOTCH = Object.freeze({ w: 88, h: 88, r: 12 });
   const NOTCHED_NODES = '.desk-node--input, .desk-node--krea2, .desk-node--moss, .desk-node--qwen21, '
-    + '.desk-node--topaz, .desk-node--pose, .desk-node--topaz-video, .desk-node--video-control';
+    + '.desk-node--topaz, .desk-node--pose, .desk-node--topaz-video, .desk-node--video-control, .desk-node--comfy';
   const notchOf = element => (element?.matches?.(NOTCHED_NODES) ? NOTCH : null);
 
   const isHorizontal = side => side === 'left' || side === 'right';

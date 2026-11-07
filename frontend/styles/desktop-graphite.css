@@ -1735,15 +1735,15 @@ body.desk-app[data-desk-style="graphite"] .desk-node--edge-handles > .desk-port[
    frame can show through the notch. Pieces are fixed px so radii never stretch, and
    the two bands overlap the corner piece by 1px: abutting edges would each lose
    half a pixel to anti-aliasing at fractional zoom and leave hairline seams. */
-body.desk-app[data-desk-style="graphite"] :is(.desk-node--input, .desk-node--krea2, .desk-node--moss, .desk-node--qwen21, .desk-node--topaz, .desk-node--pose, .desk-node--topaz-video, .desk-node--video-control) {
+body.desk-app[data-desk-style="graphite"] :is(.desk-node--input, .desk-node--krea2, .desk-node--moss, .desk-node--qwen21, .desk-node--topaz, .desk-node--pose, .desk-node--topaz-video, .desk-node--video-control, .desk-node--comfy) {
   --desk-node-border-width: 0px;
   --desk-node-glass-background: transparent;
   --desk-node-sheen-background: var(--desk-graphite-card);
   --desk-node-selected-sheen-background: var(--desk-graphite-card);
 }
 
-body.desk-app[data-desk-style="graphite"] :is(.desk-node--input, .desk-node--krea2, .desk-node--moss, .desk-node--qwen21, .desk-node--topaz, .desk-node--pose, .desk-node--topaz-video, .desk-node--video-control)::before,
-body.desk-app[data-desk-style="graphite"] :is(.desk-node--input, .desk-node--krea2, .desk-node--moss, .desk-node--qwen21, .desk-node--topaz, .desk-node--pose, .desk-node--topaz-video, .desk-node--video-control).is-selected::after {
+body.desk-app[data-desk-style="graphite"] :is(.desk-node--input, .desk-node--krea2, .desk-node--moss, .desk-node--qwen21, .desk-node--topaz, .desk-node--pose, .desk-node--topaz-video, .desk-node--video-control, .desk-node--comfy)::before,
+body.desk-app[data-desk-style="graphite"] :is(.desk-node--input, .desk-node--krea2, .desk-node--moss, .desk-node--qwen21, .desk-node--topaz, .desk-node--pose, .desk-node--topaz-video, .desk-node--video-control, .desk-node--comfy).is-selected::after {
   -webkit-mask:
     linear-gradient(#000 0 0) left top / 100% calc(100% - var(--desk-graphite-notch-box) + 1px) no-repeat,
     linear-gradient(#000 0 0) left bottom / calc(100% - var(--desk-graphite-notch-box) + 1px) var(--desk-graphite-notch-box) no-repeat,
@@ -1754,7 +1754,7 @@ body.desk-app[data-desk-style="graphite"] :is(.desk-node--input, .desk-node--kre
     var(--desk-graphite-notch-corner) right bottom / var(--desk-graphite-notch-box) var(--desk-graphite-notch-box) no-repeat;
 }
 
-body.desk-app[data-desk-style="graphite"] :is(.desk-node--input, .desk-node--krea2, .desk-node--moss, .desk-node--qwen21, .desk-node--topaz, .desk-node--pose, .desk-node--topaz-video, .desk-node--video-control)::before {
+body.desk-app[data-desk-style="graphite"] :is(.desk-node--input, .desk-node--krea2, .desk-node--moss, .desk-node--qwen21, .desk-node--topaz, .desk-node--pose, .desk-node--topaz-video, .desk-node--video-control, .desk-node--comfy)::before {
   --desk-graphite-notch-box: 100px;
   --desk-graphite-notch-corner: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M0 0H100A12 12 0 0 1 88 12H24A12 12 0 0 0 12 24V88A12 12 0 0 1 0 100Z'/%3E%3C/svg%3E");
   /* Topaz, pose and the video nodes hide their liquid sheen layer. */
@@ -1762,7 +1762,7 @@ body.desk-app[data-desk-style="graphite"] :is(.desk-node--input, .desk-node--kre
   inset: 0;
 }
 
-body.desk-app[data-desk-style="graphite"] :is(.desk-node--input, .desk-node--krea2, .desk-node--moss, .desk-node--qwen21, .desk-node--topaz, .desk-node--pose, .desk-node--topaz-video, .desk-node--video-control).is-selected::after {
+body.desk-app[data-desk-style="graphite"] :is(.desk-node--input, .desk-node--krea2, .desk-node--moss, .desk-node--qwen21, .desk-node--topaz, .desk-node--pose, .desk-node--topaz-video, .desk-node--video-control, .desk-node--comfy).is-selected::after {
   --desk-graphite-notch-box: 101.5px;
   --desk-graphite-notch-corner: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 101.5 101.5'%3E%3Cpath d='M0 0H101.5A13.5 13.5 0 0 1 88 13.5H24A10.5 10.5 0 0 0 13.5 24V88A13.5 13.5 0 0 1 0 101.5Z'/%3E%3C/svg%3E");
   position: absolute;
@@ -1790,6 +1790,11 @@ body.desk-app[data-desk-style="graphite"] :is(.desk-node--input, .desk-node--kre
 
 body.desk-app[data-desk-style="graphite"] :is(.desk-node--topaz, .desk-node--pose, .desk-node--topaz-video, .desk-node--video-control) .desk-generation-action {
   translate: 8px 8px;
+}
+
+/* Comfy's footer key sits inside the node's 14px padding. */
+body.desk-app[data-desk-style="graphite"] .desk-node--comfy .desk-comfy-node__footer .desk-generation-action {
+  translate: 6px 6px;
 }
 
 /* Domain shells without .desk-glass: flat cards in both themes. */

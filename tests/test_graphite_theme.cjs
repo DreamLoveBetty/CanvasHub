@@ -103,7 +103,7 @@ test('graphite hover swell, drag preview and notch ring are wired through the in
   assert.match(canvas, /'desktop:theme-style-change', refreshFloatingSwellStyle/);
   const css = read('frontend/styles/desktop-graphite.css');
   // Notched nodes are borderless in graphite, so only the notch-shaped ring marks selection.
-  assert.match(css, /\.desk-node--video-control\) \{\n  --desk-node-border-width: 0px;/);
+  assert.match(css, /\.desk-node--comfy\) \{\n  --desk-node-border-width: 0px;/);
   assert.match(css, /\.desk-node-swell-border__paint \{\n  fill: var\(--desk-graphite-card\);/);
   assert.match(css, /\.desk-link-path:is\(\.is-preview, \.is-pending\) \{\n  stroke: var\(--desk-graphite-card\);\n  stroke-width: 8;/);
 });
@@ -193,7 +193,8 @@ test('every generate node with a 72px key is notched, in the stylesheet and the 
   assert.match(css, /::before \{[^}]*display: block;/);
   const element = cls => ({ matches: selector => selector.split(',').map(s => s.trim()).includes(cls) });
   assert.equal(P.notchOf(element('.desk-node--pose')), P.NOTCH);
-  assert.equal(P.notchOf(element('.desk-node--comfy')), null);
+  assert.equal(P.notchOf(element('.desk-node--comfy')), P.NOTCH);
+  assert.equal(P.notchOf(element('.desk-node--upscale')), null);
   assert.equal(P.notchOf(null), null);
 });
 

@@ -101,6 +101,7 @@
       ? getConnectedVideoReferences(nodeId).slice(0, Math.max(1, Number(selected.max_videos || 1)))
       : []);
     if (!slotted && selected?.accepts_video && !videoReferences.length) throw new Error('当前 Comfy 工作流需要连接一个视频节点');
+    const audioReferences = slotted ? slots.referenceAudios : [];
     const outputKind = selected?.output_kind === 'video' ? 'video' : 'image';
     const connectedPrompt = String(getVisibleInputPrompt(nodeId) || '').trim() || String(selected?.default_prompt || '').trim();
     if (selected?.accepts_text !== false && !connectedPrompt) throw new Error('请连接一个包含提示词的文本节点');
@@ -128,8 +129,10 @@
       negativePrompt: selected?.accepts_negative ? getConnectedNegativePrompt(nodeId) : '',
       referenceImages: references,
       referenceVideos: videoReferences,
+      referenceAudios: audioReferences,
       imageSlotOrder: slotted ? slots.imageSlotOrder : null,
-      videoSlotOrder: slotted ? slots.videoSlotOrder : null
+      videoSlotOrder: slotted ? slots.videoSlotOrder : null,
+      audioSlotOrder: slotted ? slots.audioSlotOrder : null
     };
   }
 

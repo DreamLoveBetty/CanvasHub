@@ -161,7 +161,7 @@ test('the module loads before the canvas host with cache keys and is wired in', 
     assert.ok(hasCacheKey(html, `scripts/${file}`), file);
   }
   const host = read('frontend/scripts/desktop-canvas.js');
-  assert.match(host, /canvasMoss\.connections, canvasComfyVideo\.connections\)/);
+  assert.match(host, /canvasMoss\.connections, canvasComfyVideo\.connections[,)]/);
   assert.match(host, /populateResultVideoNodes: \(resultNodeId, output\) => canvasComfyVideo\.publish\(resultNodeId, output\)/);
   const results = read('frontend/scripts/desktop-results.js');
   assert.match(results, /output\.videoPaths = Array\.isArray\(task\?\.video_paths\)/);

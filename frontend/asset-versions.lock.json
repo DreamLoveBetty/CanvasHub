@@ -7,8 +7,8 @@
     "sha256": "1dbff0b5cd3abb375618e330d7afc7ad2df38e6616c9de2b13881af8d1e87956"
    },
    "scripts/desktop-api.js": {
-    "v": "20261104-prompt-roles1",
-    "sha256": "47e73dc2194672123e5af2a7b526a40fa03cb955a95c20f09ab4d7b9a062d288"
+    "v": "20261106-comfy-switches1",
+    "sha256": "ee765451bf5d3214e0ef9798a6dede05c7b4cfd696f2cd7fb0c21a16cd4e113b"
    },
    "scripts/desktop-audio-assets.js": {
     "v": "20260915-audio-node1",
@@ -30,9 +30,17 @@
     "v": "20260913-canvas-collision1",
     "sha256": "1be59012f34283f718c69e91e54715484598bad8dbe8837bc9d48eb25a700efa"
    },
+   "scripts/desktop-canvas-comfy-audio.js": {
+    "v": "20261106-comfy-switches1",
+    "sha256": "3b6380e1dda790c7e8b296cc66b8ab3b3c306a32a9c231ca14e7abb31ffd3f53"
+   },
    "scripts/desktop-canvas-comfy-inputs.js": {
-    "v": "20261104-prompt-roles1",
-    "sha256": "cc31640f141c5c3e41e3cf20dee55dcdc6b9dca886bdea5279faba3c25cbe97b"
+    "v": "20261106-comfy-switches2",
+    "sha256": "9ed3963e621ad3b997f4f2bc70edb8ee89c5c4ef5d2ef602e4d28a4afa1ccc26"
+   },
+   "scripts/desktop-canvas-comfy-layout.js": {
+    "v": "20261107-comfy-list1",
+    "sha256": "85e0e89d8b7d9a3a4aa7da44074e9f480fa18cff70d667dfc4e11724b58c2fd9"
    },
    "scripts/desktop-canvas-comfy-video.js": {
     "v": "20261103-comfy-video1",
@@ -51,8 +59,8 @@
     "sha256": "83e81b41b0189c81bdac5d622b6ee56368e20b717c745292f172b468186d54cc"
    },
    "scripts/desktop-canvas-generation-config.js": {
-    "v": "20261104-prompt-roles1",
-    "sha256": "7bee9a390392343245e78d505e80a200f453897e28cb8ee0874cc398d2d54d4f"
+    "v": "20261106-comfy-switches1",
+    "sha256": "dadb5e79257ea7697dc39295d303db4128abfb301f84e7e2ef9e379218aed4c4"
    },
    "scripts/desktop-canvas-generation.js": {
     "v": "20261102-h3-removal1",
@@ -99,8 +107,8 @@
     "sha256": "24ae72dfe8123cf2b93e7561ffdbe644bf9be784d2891845de8662f855e25ef5"
    },
    "scripts/desktop-canvas-model-nodes.js": {
-    "v": "20261104-prompt-roles1",
-    "sha256": "18049cdf2df71473c1fc9f5fea9327b8383233c44007d48f1d217134b5842d70"
+    "v": "20261107-comfy-list1",
+    "sha256": "1939e90a6c4124a8f09032ac4e0bffea049fedb2dfa6484dcf3a251ab7d29161"
    },
    "scripts/desktop-canvas-moss.js": {
     "v": "20261104-local-negative1",
@@ -111,8 +119,8 @@
     "sha256": "b93826e20d41af49a57ea9a60668e489908347b5b7fce3995ca57d40230a1f3e"
    },
    "scripts/desktop-canvas-nodes.js": {
-    "v": "20261102-h3-removal1",
-    "sha256": "ff7dd29fab2750404d078faf782ee919095de715c4037c5f9c6e24f5c7f6fd48"
+    "v": "20261107-comfy-list1",
+    "sha256": "2949e8bb5e470bf001b1fa2ba7baab861cb670e3bf1c288190c1c443dac30361"
    },
    "scripts/desktop-canvas-port-geometry.js": {
     "v": "20260911-canvas-port-geometry1",
@@ -123,8 +131,8 @@
     "sha256": "aa36419aacac78fd427140ef69ed7afc3a934f61b73f19c7df90126e6d882f16"
    },
    "scripts/desktop-canvas-port-plates.js": {
-    "v": "20261105-graphite6",
-    "sha256": "d36c64a1f7c941367ce055e5557aa28adf69221200f3cd41941768341b925076"
+    "v": "20261105-comfy-cards1",
+    "sha256": "d478bc774ebe7fa79cee3406d102981a33f6ff2c2cf89bad04f52453f8c6c65c"
    },
    "scripts/desktop-canvas-pose.js": {
     "v": "20261022-pose-evidence1",
@@ -171,8 +179,8 @@
     "sha256": "c659a5395927a510eeb0e17e1ae14dcf230d5c3d86fcc4d8e9a8d8e0df96ab7b"
    },
    "scripts/desktop-canvas.js": {
-    "v": "20261105-graphite4",
-    "sha256": "0798cb7d2cecf731d74d56da47c5921d73f3a66c2e1eb3e0143197f87b786f37"
+    "v": "20261107-comfy-list1",
+    "sha256": "89e84a6212292a63b30bd998ea22a7ea3fc4b33038ff9d0da9523de9ef137b22"
    },
    "scripts/desktop-color-bloom.js": {
     "v": "20261019-color-drag1",
@@ -215,8 +223,8 @@
     "sha256": "0b97b89c447ab1040f6bb15b1955c950d0f28e35fe6c55cf4ef0fad4e73fa0ac"
    },
    "scripts/desktop-gallery-videos.js": {
-    "v": "20261016-gallery-videos1",
-    "sha256": "2dcdce1e51c679e55635b2b199173989b4824b76a95729454ecd0550bb764667"
+    "v": "20261105-video-actions1",
+    "sha256": "9a8dd9ec5fc9eb059b1f7261ec8baad92d0b0d05e06158c9a1f38c88c86aafb4"
    },
    "scripts/desktop-genie-fx.js": {
     "v": "20261016-genie-fx1",
@@ -235,8 +243,8 @@
     "sha256": "13ae825f278b6cc4a6ad45364cc4bb9d6492c6e569223ad1c5fd33a934dd9b7f"
    },
    "scripts/desktop-history.js": {
-    "v": "20261103-gpt-endpoint1",
-    "sha256": "a3386c9807a85ae2ae5ca8323b9ebacd58777435a15e4bb6d33cec76cf74c75e"
+    "v": "20261105-video-actions1",
+    "sha256": "d1c4768410cfd2efabe5d39c6cc79114835121d9fac7d7a84f07db990992d4a0"
    },
    "scripts/desktop-i18n.js": {
     "v": "20261103-comfy-video1",
@@ -491,8 +499,8 @@
     "sha256": "b20ea9c6dcb130109a4fd40af8095059a025a931dc4e71afb2a0e6ef408de7e2"
    },
    "styles/desktop-canvas-nodes-geometry.css": {
-    "v": "20261105-menu-scale1",
-    "sha256": "9bba0082a6f65e290a92ba6820a2e3b6ce30cd12351b1e476f1dd048457b7f72"
+    "v": "20261107-comfy-list1",
+    "sha256": "9a84de511db8c63be9f23eb89b618eb99fa97c82239f927d16c5a2c1311f37f1"
    },
    "styles/desktop-canvas-nodes.css": {
     "v": "20261104-prompt-roles1",
@@ -527,8 +535,8 @@
     "sha256": "af308b1bec4d1cc2634a31cdd00d55206a879d958b517081c7e529441f7ac854"
    },
    "styles/desktop-gallery-geometry.css": {
-    "v": "20261030-panels-polish1",
-    "sha256": "384aa4aabbfd3f76b5f7d57b782d4d1dd31d90dee1e4e991aa290f23b01db929"
+    "v": "20261105-video-actions1",
+    "sha256": "de65b4dfe7e69e07fefdc733bcd9e4055e7a0c4cdc52cc2fd26f6d0840081136"
    },
    "styles/desktop-gallery.css": {
     "v": "20261030-panels-polish2",
@@ -547,8 +555,8 @@
     "sha256": "72be900aec8cd304718e517c4da85d5cec8d083d4fc3de05c597c17a65417fdb"
    },
    "styles/desktop-graphite.css": {
-    "v": "20261105-graphite29",
-    "sha256": "80656d7179087e0bc3c42fcf8f94f3d70edbc7c1fcb98e487dc3f74de257b0f1"
+    "v": "20261105-comfy-cards1",
+    "sha256": "923fbc582ba011ef135f95db569b6fdea24a9f96463fbbdd49b42c1a1cbb80bb"
    },
    "styles/desktop-image-group-geometry.css": {
     "v": "20261101-image-group-item-delete4",
@@ -579,12 +587,12 @@
     "sha256": "e60efb4504339324c42bcf212ad2e978040b6032b1a3b895300c867eecc61312"
    },
    "styles/desktop-liquid.css": {
-    "v": "20261105-menu-scale1",
-    "sha256": "8d02fcae38ed8781e38987f7d34786f7223945056dc44d2d6fa18b5ab22c13e5"
+    "v": "20261105-comfy-cards2",
+    "sha256": "eba171b8ad73934447c50e15a4c520304292c2980aa970cb69577600572a18d4"
    },
    "styles/desktop-lora.css": {
-    "v": "20261101-lora-detail1",
-    "sha256": "b565028ff9d07cc4f9348bf4f940c5420327d841f1dfc1609a1f45a818556f4d"
+    "v": "20261105-video-actions1",
+    "sha256": "65145ff2103bf51acf3f35d0ac0af605469d8c40a0d52967fdd8492dcc7ff200"
    },
    "styles/desktop-moss-geometry.css": {
     "v": "20261101-moss-grid1",

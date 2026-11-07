@@ -15,7 +15,7 @@
 }
 
 .desk-app .desk-gallery--loras .desk-gallery__body { grid-template-columns: minmax(0, 1fr); }
-.desk-app .desk-gallery--loras :is(.desk-gallery-inspector, .desk-gallery-search, .desk-gallery-filter, .desk-gallery-tag-filter, .desk-gallery-stats),
+.desk-app .desk-gallery--loras :is(.desk-gallery-inspector, .desk-gallery-search, .desk-gallery-filter, .desk-gallery-tag-filter, .desk-gallery-statsbar),
 .desk-app .desk-gallery--loras .desk-select-shell[data-select-id="deskGalleryFilterSelect"] { display: none; }
 
 /* Match the existing compact gallery controls, including enhanced selects. */

@@ -222,12 +222,15 @@
     if (provider === 'comfy') {
       const uploaded = [];
       for (const reference of config.referenceVideos || []) uploaded.push(await uploadComfyVideo(client, reference));
+      const uploadedAudios = [];
+      for (const reference of config.referenceAudios || []) uploadedAudios.push(await uploadComfyAudio(client, reference));
       // Tagged workflows send one entry per slot; '' leaves that slot to the workflow's own value.
       const bySlot = (order, values) => order.map(index => (index >= 0 ? values[index] || '' : ''));
       const slotImages = Array.isArray(config.imageSlotOrder)
         ? bySlot(config.imageSlotOrder, await Promise.all((config.referenceImages || []).map(item => imageUrlToDataUri(item?.base64 || item?.url || ''))))
         : null;
       const videos = Array.isArray(config.videoSlotOrder) ? bySlot(config.videoSlotOrder, uploaded) : uploaded;
+      const audios = Array.isArray(config.audioSlotOrder) ? bySlot(config.audioSlotOrder, uploadedAudios) : [];
       return client.json('/api/comfy/run', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -240,6 +243,7 @@
           image: slotImages ? undefined : (images[0] || undefined),
           images: slotImages || images.slice(0, 8),
           videos,
+          audios,
           negative_prompt: config.negativePrompt || '',
           archive_enabled: true,
           telegram_enabled: telegramEnabled
@@ -270,6 +274,30 @@
     let result = {};
     try { result = await response.json(); } catch (_error) { /* Non-JSON error body. */ }
     if (!response.ok || !result.name) throw new Error(result.error || `视频上传失败：HTTP ${response.status}`);
+    return result.name;
+  }
+
+  // Audio nodes hold a local asset-store blob (imports) or a same-origin URL (results / archive).
+  async function uploadComfyAudio(client, reference) {
+    let blob = reference?.assetId && window.DesktopAudioAssets ? await window.DesktopAudioAssets.get(reference.assetId) : null;
+    if (!blob) {
+      const raw = String(reference?.url || '').trim();
+      if (/^(blob|data):/i.test(raw)) {
+        blob = await (await fetch(raw)).blob();
+      } else {
+        const url = new URL(raw, window.location.href);
+        if (!raw || url.origin !== window.location.origin) throw new Error('请连接本地音频节点');
+        blob = await client.blob(url.pathname + url.search);
+      }
+    }
+    if (!blob?.size || blob.size > 50 * 1024 * 1024) throw new Error('音频须小于 50 MB');
+    const response = await client.request(`/api/comfy/upload_audio?name=${encodeURIComponent(reference?.name || 'source.mp3')}`, {
+      method: 'POST',
+      body: blob
+    });
+    let result = {};
+    try { result = await response.json(); } catch (_error) { /* Non-JSON error body. */ }
+    if (!response.ok || !result.name) throw new Error(result.error || `音频上传失败：HTTP ${response.status}`);
     return result.name;
   }
 
@@ -572,6 +600,16 @@
     if (options.filter) params.set('filter', options.filter);
     if (options.refresh) params.set('refresh', '1');
     return requireApi().json(`/api/assets/videos?${params.toString()}`);
+  }
+
+  function deleteVideoAssets(paths) {
+    const cleanPaths = (Array.isArray(paths) ? paths : [paths]).map(value => String(value || '').trim()).filter(Boolean);
+    if (!cleanPaths.length) return Promise.reject(new Error('缺少视频路径'));
+    return requireApi().json('/api/assets/videos/delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ paths: cleanPaths })
+    });
   }
 
   function listEditableFiles(options = {}) {
@@ -1437,6 +1475,7 @@
     deleteAssets,
     getAssetHealth,
     listVideoAssets,
+    deleteVideoAssets,
     uploadVideo,
     listEditableFiles,
     sendEditableFile,

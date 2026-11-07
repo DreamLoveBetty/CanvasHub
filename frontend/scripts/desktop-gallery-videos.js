@@ -1,13 +1,13 @@
 // The gallery's video folder: generated and imported video resources, the source switch,
 // folder cards with their expandable detail and playback, sending a video to the canvas,
-// and the video stats line. desktop-history.js owns the gallery view, search and grid;
+// hiding, deleting (with undo) and saving a video to a candidate set, and the video stats line. desktop-history.js owns the gallery view, search and grid;
 // it passes them in explicitly and reads video state only through the returned API.
 (function () {
   function create({
     closeGallery, coercePositiveNumber, copyPinterestSplitText, els, escapeHtml,
     formatFileSize, formatTime, inferOrientation, mediaUrl, normalizeEpochSeconds,
     normalizeImageFormat, orientationLabel, renderGalleryStats, scheduleGalleryRender,
-    getGalleryView, getGalleryQuery
+    getGalleryView, getGalleryQuery, saveVideoToSet, reloadGallerySets
   }) {
     let galleryVideos = [];
     let galleryVideoStats = {};
@@ -16,6 +16,8 @@
     let galleryVideosError = '';
     let galleryVideoRequestId = 0;
     let expandedGalleryVideoId = '';
+    let lastVideoDeleteBatchIds = [];
+    const VIDEO_SOURCES = ['generated', 'imported', 'all', 'hidden'];
 
     function normalizeGalleryVideoResource(item, index = 0) {
       const type = String(item?.type || item?.kind || 'file').trim().toLowerCase();
@@ -62,10 +64,14 @@
       return {
         ...item,
         id: String(item?.video_id || item?.videoId || item?.id || relativePath || mediaName),
+        assetId: String(item?.asset_id || item?.assetId || ''),
+        path: String(item?.path || ''),
+        hidden: item?.hidden === true,
         mediaUrl,
         posterUrl: String(item?.poster_url || item?.posterUrl || ''),
         mediaName,
         mimeType: String(item?.mime_type || item?.mimeType || 'video/mp4'),
+        providerLabel: String(item?.provider_label || item?.providerLabel || ''),
         sourceTaskId: String(item?.source_task_id || item?.sourceTaskId || item?.task_id || item?.taskId || ''),
         createdAt: normalizeEpochSeconds(item?.created_at || item?.createdAt || item?.modified_at || item?.modifiedAt || item?.timestamp),
         durationSeconds,
@@ -122,10 +128,12 @@
       const generated = Number(raw.generated ?? stats.generated_count ?? galleryVideos.filter(item => item.isGenerated).length);
       const imported = Number(raw.imported ?? stats.imported_count ?? galleryVideos.filter(item => !item.isGenerated).length);
       const all = Number(raw.all ?? stats.total_all ?? stats.all_count ?? (generated + imported));
+      const hidden = Number(raw.hidden ?? stats.hidden ?? 0);
       return {
         generated: Number.isFinite(generated) ? generated : 0,
         imported: Number.isFinite(imported) ? imported : 0,
-        all: Number.isFinite(all) ? all : 0
+        all: Number.isFinite(all) ? all : 0,
+        hidden: Number.isFinite(hidden) ? hidden : 0
       };
     }
 
@@ -271,7 +279,7 @@
       const posterUrl = mediaUrl(video.posterUrl);
       const sourceUrl = mediaUrl(video.mediaUrl);
       const folderTitle = galleryVideoSubject(video);
-      const coverLabel = video.isGenerated ? 'MiniMax H3' : 'Video asset';
+      const coverLabel = video.providerLabel || (video.isGenerated ? '生成视频' : 'Video asset');
       const listIndex = galleryVideos.findIndex(item => item.id === video.id);
       const caseNumber = String(listIndex >= 0 ? listIndex + 1 : 1).padStart(2, '0').slice(-2);
       const frame = posterUrl
@@ -315,6 +323,9 @@
             <div class="desk-gallery-video__actions">
               <button type="button" data-gallery-video-canvas="${escapeHtml(video.id)}"${source ? '' : ' disabled'}>到画布</button>
               ${source ? `<a href="${escapeHtml(source)}" target="_blank" rel="noopener">打开视频</a>` : ''}
+              ${video.assetId ? `<button type="button" data-gallery-video-save-set="${escapeHtml(video.id)}">存候选集</button>
+              <button type="button" data-gallery-video-hide="${escapeHtml(video.id)}">${video.hidden ? '取消隐藏' : '隐藏'}</button>` : ''}
+              ${video.path ? `<button type="button" class="is-danger" data-gallery-video-delete="${escapeHtml(video.id)}">删除</button>` : ''}
             </div>
           </div>
           <div class="desk-gallery-video-detail__info">
@@ -394,6 +405,82 @@
       return replaced === uniqueIds.length;
     }
 
+    function galleryVideoSetSnapshot(video) {
+      return {
+        id: video.assetId,
+        asset_id: video.assetId,
+        title: video.mediaName,
+        prompt: video.prompt,
+        providerLabel: video.providerLabel,
+        imageUrl: video.posterUrl,
+        thumbUrl: video.posterUrl,
+        mediaKind: 'video',
+        videoUrl: video.mediaUrl,
+        videoPath: video.path,
+        width: video.mediaWidth,
+        height: video.mediaHeight,
+        createdAt: video.createdAt
+      };
+    }
+
+    async function saveGalleryVideoToSet(video) {
+      if (!video.assetId) throw new Error('视频缺少资产 ID');
+      await saveVideoToSet(galleryVideoSetSnapshot(video));
+    }
+
+    async function toggleGalleryVideoHidden(video) {
+      if (!video.assetId) throw new Error('视频缺少资产 ID');
+      await DesktopApi.updateAssetMeta(video.assetId, { hidden: !video.hidden });
+      expandedGalleryVideoId = '';
+      DesktopResults.showTransientMessage(video.hidden ? '视频已取消隐藏。' : '视频已隐藏，可在「已隐藏」中找回。');
+      await loadGalleryVideos();
+    }
+
+    async function deleteGalleryVideo(video) {
+      if (!video.path) throw new Error('视频缺少归档路径');
+      if (!window.confirm(`将「${video.mediaName}」和它的提示词侧车移入废纸篓？可撤销。`)) return;
+      const result = await DesktopApi.deleteVideoAssets([video.path]);
+      if (!result?.ok) throw new Error(result?.error || '删除失败');
+      lastVideoDeleteBatchIds = [result.delete_batch_id || result.undo_id].filter(Boolean);
+      expandedGalleryVideoId = '';
+      DesktopResults.showTransientMessage(result.message || '视频已移入废纸篓。');
+      await Promise.all([loadGalleryVideos(), result.set_updates ? reloadGallerySets() : null]);
+    }
+
+    async function undoGalleryVideoDelete(button) {
+      if (!lastVideoDeleteBatchIds.length) return;
+      if (button) button.disabled = true;
+      try {
+        const result = await DesktopApi.undoAssetDelete(lastVideoDeleteBatchIds);
+        if (!result?.ok) throw new Error(result?.error || result?.errors?.join('；') || '撤销失败');
+        lastVideoDeleteBatchIds = [];
+        DesktopResults.showTransientMessage(`已撤销删除，恢复 ${result.restored_files || 0} 个文件。`);
+        await Promise.all([loadGalleryVideos(), reloadGallerySets()]);
+      } catch (error) {
+        if (button) button.disabled = false;
+        DesktopResults.showError(error);
+      }
+    }
+
+    function bindGalleryVideoAction(selector, dataKey, action) {
+      els.deskGalleryGrid?.querySelectorAll(selector).forEach(button => {
+        if (button.dataset.videoActionBound === '1') return;
+        button.dataset.videoActionBound = '1';
+        button.addEventListener('click', async () => {
+          const video = findGalleryVideo(button.dataset[dataKey] || '');
+          if (!video) return;
+          button.disabled = true;
+          try {
+            await action(video);
+          } catch (error) {
+            DesktopResults.showError(error);
+          } finally {
+            button.disabled = false;
+          }
+        });
+      });
+    }
+
     function bindGalleryVideoEvents() {
       els.deskGalleryGrid?.querySelectorAll('[data-gallery-video-toggle]').forEach(button => {
         if (button.dataset.videoToggleBound === '1') return;
@@ -426,6 +513,9 @@
           }
         });
       });
+      bindGalleryVideoAction('[data-gallery-video-save-set]', 'galleryVideoSaveSet', saveGalleryVideoToSet);
+      bindGalleryVideoAction('[data-gallery-video-hide]', 'galleryVideoHide', toggleGalleryVideoHidden);
+      bindGalleryVideoAction('[data-gallery-video-delete]', 'galleryVideoDelete', deleteGalleryVideo);
       els.deskGalleryGrid?.querySelectorAll('[data-gallery-video-copy-prompt]').forEach(button => {
         if (button.dataset.videoPromptBound === '1') return;
         button.dataset.videoPromptBound = '1';
@@ -451,9 +541,8 @@
       }
       const videos = getVisibleGalleryVideos();
       if (!videos.length) {
-        const emptyLabel = galleryVideoSource === 'generated'
-          ? '暂无生成视频'
-          : (galleryVideoSource === 'imported' ? '暂无导入素材' : '没有匹配的视频资产');
+        const emptyLabel = ({ generated: '暂无生成视频', imported: '暂无导入素材', hidden: '没有已隐藏的视频' })[galleryVideoSource]
+          || '没有匹配的视频资产';
         grid.innerHTML = `<div class="desk-gallery-empty">${escapeHtml(emptyLabel)}</div>`;
         return;
       }
@@ -506,7 +595,7 @@
         const button = event.target.closest?.('[data-gallery-video-source]');
         if (!button || getGalleryView() !== 'videos') return;
         const nextSource = button.dataset.galleryVideoSource || 'generated';
-        if (!['generated', 'imported', 'all'].includes(nextSource) || nextSource === galleryVideoSource) return;
+        if (!VIDEO_SOURCES.includes(nextSource) || nextSource === galleryVideoSource) return;
         expandedGalleryVideoId = '';
         galleryVideoSource = nextSource;
         renderGalleryVideoSourceSwitch();
@@ -518,23 +607,25 @@
     function renderGalleryVideoStats() {
       const visible = getVisibleGalleryVideos();
       const stats = galleryVideoStats || {};
-      const sourceCounts = galleryVideoSourceCounts();
       const formats = stats.by_format && typeof stats.by_format === 'object' ? stats.by_format : {};
       const totalBytes = Number(stats.total_file_size_bytes || stats.total_size_bytes || stats.totalSizeBytes || galleryVideos.reduce((sum, item) => sum + Number(item.fileSize || 0), 0));
       const total = Number(stats.total ?? galleryVideos.length).toLocaleString('zh-CN');
       const mp4Count = Number(formats.mp4 ?? galleryVideos.filter(item => item.format === 'MP4').length).toLocaleString('zh-CN');
       const landscapeCount = galleryVideos.filter(item => item.orientation === 'landscape').length.toLocaleString('zh-CN');
       const portraitCount = galleryVideos.filter(item => item.orientation === 'portrait').length.toLocaleString('zh-CN');
+      const sourceLabel = ({ generated: '生成视频', imported: '导入素材', hidden: '已隐藏' })[galleryVideoSource] || '全部视频';
+      // Per-source counts are on the switch beside this line, so they are not repeated here.
       els.deskGalleryStats.innerHTML = [
-        `${galleryVideoSource === 'generated' ? '生成视频' : (galleryVideoSource === 'imported' ? '导入素材' : '全部视频')} ${total}`,
+        `${sourceLabel} ${total}`,
         `当前 ${visible.length.toLocaleString('zh-CN')}`,
-        `生成 ${sourceCounts.generated.toLocaleString('zh-CN')}`,
-        `导入 ${sourceCounts.imported.toLocaleString('zh-CN')}`,
         `MP4 ${mp4Count}`,
         `横屏 ${landscapeCount}`,
         `竖屏 ${portraitCount}`,
         totalBytes ? `总计 ${formatFileSize(totalBytes)}` : null
-      ].filter(Boolean).map(item => `<span>${escapeHtml(item)}</span>`).join('');
+      ].filter(Boolean).map(item => `<span>${escapeHtml(item)}</span>`).join('')
+        + (lastVideoDeleteBatchIds.length ? '<button type="button" class="desk-gallery-stats__undo" data-gallery-video-undo>撤销删除</button>' : '');
+      els.deskGalleryStats.querySelector('[data-gallery-video-undo]')
+        ?.addEventListener('click', event => undoGalleryVideoDelete(event.currentTarget));
     }
 
     function collapseExpandedGalleryVideo() {

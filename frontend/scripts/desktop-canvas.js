@@ -5252,9 +5252,14 @@
     saveState: () => DesktopState.saveSettings({ criticalCanvas: true }),
     showMessage: message => DesktopResults.showTransientMessage(message),
   });
+  const canvasComfyAudio = window.DesktopCanvasComfyAudio.create({
+    getCanvas: () => DesktopState.state.canvas, getNodeState, refreshComfyNode,
+    showMessage: message => DesktopResults.showTransientMessage(message),
+  });
   const canvasComfyInputs = window.DesktopCanvasComfyInputs.create({
     getNodeState, getConnectedImageReferences, escapeHtml,
     getConnectedVideoReferences: nodeId => canvasComfyVideo.connectedVideoReferences(nodeId),
+    getConnectedAudioReferences: nodeId => canvasComfyAudio.connectedAudioReferences(nodeId),
   });
   const canvasPose = window.DesktopCanvasPose.create({
     model: window.DesktopPoseModel, api: window.DesktopPoseAPI,
@@ -5632,8 +5637,11 @@
     updateLayoutInputCount,
   });
 
+  const canvasComfyLayout = window.DesktopCanvasComfyLayout.create();
+
   const canvasNodes = window.DesktopCanvasNodes.create({
     progressView: canvasProgress,
+    comfyLayout: canvasComfyLayout,
     DEFAULT_COMFY_NODE_HEIGHT,
     DEFAULT_COMFY_NODE_WIDTH,
     DEFAULT_COMFY_PIXEL_HEIGHT,
@@ -5733,6 +5741,7 @@
 
   const canvasModelNodes = window.DesktopCanvasModelNodes.create({
     progressView: canvasProgress,
+    comfyLayout: canvasComfyLayout,
     ASPECT_RATIO_OPTIONS,
     COMFY_PIXEL_STEP,
     DEFAULT_COMFY_PIXEL_HEIGHT,
@@ -5770,6 +5779,7 @@
     getConnectedNegativeTextNodes,
     getConnectedTextNodes,
     getConnectedVideoCount: nodeId => canvasComfyVideo.connectedVideoCount(nodeId),
+    getConnectedAudioCount: nodeId => canvasComfyAudio.connectedAudioCount(nodeId),
     getNodeElement,
     gptModelCatalogRef: { get current() { return gptModelCatalog; }, set current(value) { gptModelCatalog = value; } },
     selectNode,
@@ -5779,7 +5789,7 @@
 
   const canvasConnections = window.DesktopCanvasConnections.create({
     imageGroupContentBounds: node => canvasImageGroupModel.imageGroupContentBounds(node),
-    domainConnections: window.DesktopCanvasConnections.combineDomains(canvasMusic.connections, canvasVideoControl.connections, canvasTopazVideo.connections, canvasTopaz.connections, canvasCyimg.connections, canvasKrea2.connections, canvasKrea2Control.connections, canvasQwen21.connections, canvasMoss.connections, canvasComfyVideo.connections),
+    domainConnections: window.DesktopCanvasConnections.combineDomains(canvasMusic.connections, canvasVideoControl.connections, canvasTopazVideo.connections, canvasTopaz.connections, canvasCyimg.connections, canvasKrea2.connections, canvasKrea2Control.connections, canvasQwen21.connections, canvasMoss.connections, canvasComfyVideo.connections, canvasComfyAudio.connections),
     IMAGE_GROUP_LIQUID_VISIBLE_OUTSET_PX,
     LINK_VIEWBOX,
     NODE_MENU_ITEMS,

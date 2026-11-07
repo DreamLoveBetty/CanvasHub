@@ -364,17 +364,26 @@ body.desk-app[data-lang="en"] .desk-gallery-tabs button[data-gallery-view="sets"
   min-width: 118px;
 }
 
+:where(body.desk-app[data-theme]) .desk-gallery-statsbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+:where(body.desk-app[data-theme]) .desk-gallery-statsbar[hidden] {
+  display: none;
+}
+
 :where(body.desk-app[data-theme]) .desk-gallery-stats {
+  flex: 1 1 auto;
+  min-width: 0;
   display: flex;
   flex-wrap: wrap;
   gap: 5px;
   min-height: 24px;
   align-items: center;
   padding: 1px 0;
-}
-
-:where(body.desk-app[data-theme]) .desk-gallery-stats[hidden] {
-  display: none;
 }
 
 :where(body.desk-app[data-theme]) .desk-gallery-stats button {
@@ -495,8 +504,13 @@ body.desk-app[data-lang="en"] .desk-gallery-tabs button[data-gallery-view="sets"
   opacity: 0.5;
 }
 
-:where(body.desk-app[data-theme]) .desk-gallery-stats[hidden] + .desk-gallery__body {
+:where(body.desk-app[data-theme]) .desk-gallery-statsbar[hidden] + .desk-gallery__body {
   grid-row: 3 / -1;
+}
+
+/* Video actions sit on each expanded video, so the selection basket is not shown there. */
+:where(body.desk-app[data-theme]) .desk-gallery--videos .desk-gallery-inspector {
+  display: none;
 }
 
 :where(body.desk-app[data-theme]) .desk-gallery-grid {

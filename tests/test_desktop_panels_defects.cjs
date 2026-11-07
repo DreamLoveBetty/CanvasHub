@@ -95,7 +95,8 @@ test('gallery uses one word per concept and explains lineage badges', () => {
   }
   assert.ok(history.includes("recordFilter('仅归档', 'orphan_asset_count', 'orphan')"));
   assert.ok(history.includes("recordFilter('未归档记录', 'history_missing_archive_count', 'missing_history')"));
-  const stats = html.slice(html.indexOf('id="deskGalleryStats"'), html.indexOf('<div class="desk-gallery__body">'));
+  const statsStart = html.indexOf('id="deskGalleryStats"');
+  const stats = html.slice(statsStart, html.indexOf('</div>', statsStart));
   assert.equal(stats.match(/<span>/g).length, 7, 'placeholders match the loaded stats');
   assert.match(history, /<em title="生成时参考了 \$\{refCount\} 张来源图" aria-label="来源图 \$\{refCount\} 张">源 \$\{refCount\}<\/em>/);
   assert.match(history, /<em title="以此图为参考衍生出 \$\{derivedCount\} 张图" aria-label="衍生图 \$\{derivedCount\} 张">派 \$\{derivedCount\}<\/em>/);

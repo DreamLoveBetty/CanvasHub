@@ -73,7 +73,9 @@
     formatFileSize, formatTime, inferOrientation, mediaUrl, normalizeEpochSeconds,
     normalizeImageFormat, orientationLabel, renderGalleryStats, scheduleGalleryRender,
     getGalleryView: () => galleryView,
-    getGalleryQuery: () => galleryQuery
+    getGalleryQuery: () => galleryQuery,
+    saveVideoToSet: snapshot => saveVideoToSet(snapshot),
+    reloadGallerySets: () => loadGallerySets()
   });
   const galleryFacets = window.DesktopGalleryFacets.create({
     root: document.getElementById('deskGalleryFacets'),
@@ -543,8 +545,19 @@
       assetRole: asset.assetRole || '',
       panelIndex: asset.panelIndex ?? null,
       relatedAssets: asset.relatedAssets || [],
-      relatedCount: Number(asset.relatedCount || 0)
+      relatedCount: Number(asset.relatedCount || 0),
+      ...(isVideoSetAsset(asset) ? { mediaKind: 'video', videoUrl: asset.videoUrl || '', videoPath: asset.videoPath || '' } : {})
     };
+  }
+
+  // Candidate sets mix images and archived videos; a video entry carries its poster as imageUrl/thumbUrl
+  // and the clip as videoUrl. Image-only actions (compare, canvas, layout, selection) skip videos.
+  function isVideoSetAsset(asset) {
+    return asset?.mediaKind === 'video';
+  }
+
+  function setImageAssets(assets) {
+    return (assets || []).filter(asset => !isVideoSetAsset(asset));
   }
 
   function normalizeAssetSet(item) {
@@ -576,7 +589,7 @@
 
   function mergeAssetsFromSet(assetSet) {
     const byId = new Map(galleryAssets.map(asset => [asset.id, asset]));
-    (assetSet?.assets || []).forEach(asset => {
+    setImageAssets(assetSet?.assets).forEach(asset => {
       if (!asset?.id) return;
       const current = byId.get(asset.id);
       if (current) {
@@ -679,6 +692,7 @@
       'deskGalleryFilterSelect',
       'deskGalleryTagInput',
       'deskGalleryVideoSource',
+      'deskGalleryStatsBar',
       'deskGalleryStats',
       'deskGallerySelectedCount',
       'deskGallerySelectedList',
@@ -2370,12 +2384,11 @@
 
   function renderGalleryStats() {
     if (!els.deskGalleryStats) return;
+    if (els.deskGalleryStatsBar) els.deskGalleryStatsBar.hidden = galleryView === 'sources';
     if (galleryView === 'sources') {
-      els.deskGalleryStats.hidden = true;
       els.deskGalleryStats.innerHTML = '';
       return;
     }
-    els.deskGalleryStats.hidden = false;
     if (galleryView === 'pinterest') {
       galleryPinterest.renderStats();
       return;
@@ -3053,11 +3066,12 @@
 
   function renderGallerySetCard(assetSet) {
     const assets = assetSet.assets || [];
+    const images = setImageAssets(assets);
     const thumbs = assets.slice(0, 4);
     const tags = parseTags(assetSet.tags);
     const count = Number(assetSet.count || assets.length || 0);
     return `
-      <article class="desk-gallery-set" data-asset-set-id="${escapeHtml(assetSet.id)}" draggable="${assets.length ? 'true' : 'false'}">
+      <article class="desk-gallery-set" data-asset-set-id="${escapeHtml(assetSet.id)}" draggable="${images.length ? 'true' : 'false'}">
         <div class="desk-gallery-set__thumbs">
           ${thumbs.length ? thumbs.map(asset => `<img src="${escapeHtml(mediaUrl(asset.thumbUrl || asset.imageUrl))}" data-fallback="${escapeHtml(mediaUrl(asset.imageUrl))}" alt="" loading="lazy" decoding="async">`).join('') : '<em>空集</em>'}
         </div>
@@ -3068,9 +3082,9 @@
           <div class="desk-gallery-set__actions">
             <button type="button" data-asset-set-detail="${escapeHtml(assetSet.id)}">详情</button>
             <button type="button" data-asset-set-open="${escapeHtml(assetSet.id)}">选择</button>
-            <button type="button" data-asset-set-input="${escapeHtml(assetSet.id)}" ${assets.length ? '' : 'disabled'}>模型</button>
-            <button type="button" data-asset-set-compare="${escapeHtml(assetSet.id)}" ${assets.length < 2 ? 'disabled' : ''}>对比</button>
-            <button type="button" data-asset-set-layout="${escapeHtml(assetSet.id)}" ${assets.length ? '' : 'disabled'}>排版</button>
+            <button type="button" data-asset-set-input="${escapeHtml(assetSet.id)}" ${images.length ? '' : 'disabled'}>模型</button>
+            <button type="button" data-asset-set-compare="${escapeHtml(assetSet.id)}" ${images.length < 2 ? 'disabled' : ''}>对比</button>
+            <button type="button" data-asset-set-layout="${escapeHtml(assetSet.id)}" ${images.length ? '' : 'disabled'}>排版</button>
             <button type="button" data-asset-set-delete="${escapeHtml(assetSet.id)}">删除</button>
           </div>
         </div>
@@ -3079,13 +3093,14 @@
   }
 
   function openAssetSet(assetSet, switchToImages = true) {
-    if (!assetSet?.assets?.length) {
+    const images = setImageAssets(assetSet?.assets);
+    if (!images.length) {
       DesktopResults.showTransientMessage('候选集里还没有可用图片。');
       return;
     }
     mergeAssetsFromSet(assetSet);
     selectedGalleryIds.clear();
-    assetSet.assets.forEach(asset => selectedGalleryIds.add(asset.id));
+    images.forEach(asset => selectedGalleryIds.add(asset.id));
     if (switchToImages) {
       activeGallerySet = null;
       galleryView = 'images';
@@ -3096,7 +3111,7 @@
       renderGallery();
     }
     renderGallerySelection();
-    DesktopResults.showTransientMessage(`${assetSet.assets.length} 张图片已放入选择篮。`);
+    DesktopResults.showTransientMessage(`${images.length} 张图片已放入选择篮。`);
   }
 
   function openAssetSetDetail(assetSet) {
@@ -3109,16 +3124,17 @@
   }
 
   function compareAssetSet(assetSet) {
-    if (!assetSet?.assets || assetSet.assets.length < 2) {
+    const images = setImageAssets(assetSet?.assets);
+    if (images.length < 2) {
       DesktopResults.showTransientMessage('候选集至少需要 2 张图片才能对比。');
       return;
     }
     mergeAssetsFromSet(assetSet);
-    openCompare(assetSet.assets.slice(0, 2));
+    openCompare(images.slice(0, 2));
   }
 
   function attachAssetSetToLayout(assetSet) {
-    const assets = assetSet?.assets || [];
+    const assets = setImageAssets(assetSet?.assets);
     if (!assets.length) {
       DesktopResults.showTransientMessage('候选集里还没有可用图片。');
       return;
@@ -3129,7 +3145,7 @@
   }
 
   function attachAssetSetToInput(assetSet) {
-    const assets = assetSet?.assets || [];
+    const assets = setImageAssets(assetSet?.assets);
     if (!assets.length) {
       DesktopResults.showTransientMessage('候选集里还没有可用图片。');
       return;
@@ -3160,7 +3176,7 @@
       card.dataset.gallerySetBound = '1';
       card.addEventListener('dragstart', event => {
         const assetSet = gallerySets.find(item => item.id === card.dataset.assetSetId);
-        const assets = assetSet?.assets || [];
+        const assets = setImageAssets(assetSet?.assets);
         if (!assets.length) {
           event.preventDefault();
           return;
@@ -3217,21 +3233,24 @@
   }
 
   function renderSetDetailAsset(asset, index, total) {
-    const selected = selectedGalleryIds.has(asset.id);
+    const isVideo = isVideoSetAsset(asset);
+    const selected = !isVideo && selectedGalleryIds.has(asset.id);
+    const previewLabel = isVideo ? '播放视频' : '查看原图';
     return `
-      <article class="desk-gallery-set-asset${selected ? ' is-selected' : ''}" data-set-asset-id="${escapeHtml(asset.id)}">
-        <button type="button" class="desk-gallery-set-asset__image" data-set-preview="${escapeHtml(asset.id)}" title="查看原图" aria-label="查看原图">
+      <article class="desk-gallery-set-asset${selected ? ' is-selected' : ''}${isVideo ? ' is-video' : ''}" data-set-asset-id="${escapeHtml(asset.id)}">
+        <button type="button" class="desk-gallery-set-asset__image" data-set-preview="${escapeHtml(asset.id)}" title="${previewLabel}" aria-label="${previewLabel}">
           <img src="${escapeHtml(mediaUrl(asset.thumbUrl || asset.imageUrl))}" data-fallback="${escapeHtml(mediaUrl(asset.imageUrl))}" alt="" loading="lazy" decoding="async">
           <span>${index + 1}</span>
+          ${isVideo ? '<em class="desk-gallery-set-asset__video" aria-hidden="true">视频</em>' : ''}
         </button>
         <div class="desk-gallery-set-asset__meta">
-          <strong>${escapeHtml(asset.title || '图片资产')}</strong>
+          <strong>${escapeHtml(asset.title || (isVideo ? '视频资产' : '图片资产'))}</strong>
           <span>${escapeHtml(asset.providerLabel || providerLabel(asset))} · ${escapeHtml(formatTime(asset.createdAt))}</span>
         </div>
         <div class="desk-gallery-set-asset__actions">
-          <button type="button" data-set-select="${escapeHtml(asset.id)}" aria-pressed="${selected ? 'true' : 'false'}" title="${selected ? '移出选择篮' : '加入选择篮'}" aria-label="${selected ? '移出选择篮' : '加入选择篮'}">
+          ${isVideo ? '' : `<button type="button" data-set-select="${escapeHtml(asset.id)}" aria-pressed="${selected ? 'true' : 'false'}" title="${selected ? '移出选择篮' : '加入选择篮'}" aria-label="${selected ? '移出选择篮' : '加入选择篮'}">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4 10-10"></path></svg>
-          </button>
+          </button>`}
           <button type="button" data-set-move-left="${escapeHtml(asset.id)}" ${index <= 0 ? 'disabled' : ''} title="前移" aria-label="前移">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"></path></svg>
           </button>
@@ -3263,7 +3282,8 @@
     const assetSet = normalizeAssetSet(activeGallerySet);
     const assets = activeSetAssets(assetSet);
     activeGallerySet = { ...assetSet, assets, count: assets.length };
-    const canCompare = assets.length >= 2;
+    const images = setImageAssets(assets);
+    const canCompare = images.length >= 2;
     grid.innerHTML = `
       <section class="desk-gallery-set-detail" data-active-set-id="${escapeHtml(assetSet.id)}">
         <header class="desk-gallery-set-detail__head">
@@ -3277,12 +3297,12 @@
           </div>
           <div class="desk-gallery-set-detail__actions">
             <button type="button" data-set-edit-meta>编辑</button>
-            <button type="button" data-set-select-all ${assets.length ? '' : 'disabled'}>选择全部</button>
+            <button type="button" data-set-select-all ${images.length ? '' : 'disabled'}>选择全部</button>
             <button type="button" data-set-add-selected ${getSelectedAssets().length ? '' : 'disabled'}>追加选中</button>
-            <button type="button" data-set-detail-input ${assets.length ? '' : 'disabled'}>模型</button>
-            <button type="button" data-set-detail-apply ${assets.some(hasAssetModelConfig) ? '' : 'disabled'}>套用</button>
+            <button type="button" data-set-detail-input ${images.length ? '' : 'disabled'}>模型</button>
+            <button type="button" data-set-detail-apply ${images.some(hasAssetModelConfig) ? '' : 'disabled'}>套用</button>
             <button type="button" data-set-detail-compare ${canCompare ? '' : 'disabled'}>对比</button>
-            <button type="button" data-set-detail-layout ${assets.length ? '' : 'disabled'}>排版</button>
+            <button type="button" data-set-detail-layout ${images.length ? '' : 'disabled'}>排版</button>
           </div>
         </header>
         <div class="desk-gallery-set-detail__grid">
@@ -3370,7 +3390,7 @@
       if (activeGallerySet) attachAssetSetToInput(activeGallerySet);
     });
     els.deskGalleryGrid?.querySelector('[data-set-detail-apply]')?.addEventListener('click', () => {
-      applyAssetToInput(activeSetAssets(activeGallerySet).find(hasAssetModelConfig));
+      applyAssetToInput(setImageAssets(activeSetAssets(activeGallerySet)).find(hasAssetModelConfig));
     });
     els.deskGalleryGrid?.querySelector('[data-set-detail-layout]')?.addEventListener('click', () => {
       if (activeGallerySet) attachAssetSetToLayout(activeGallerySet);
@@ -3378,7 +3398,8 @@
     els.deskGalleryGrid?.querySelectorAll('[data-set-preview]').forEach(button => {
       button.addEventListener('click', () => {
         const asset = activeSetAssets().find(item => item.id === button.dataset.setPreview);
-        if (asset) openPreview(asset);
+        if (isVideoSetAsset(asset)) window.open(mediaUrl(asset.videoUrl), '_blank', 'noopener');
+        else if (asset) openPreview(asset);
       });
     });
     els.deskGalleryGrid?.querySelectorAll('[data-set-select]').forEach(button => {
@@ -3434,6 +3455,8 @@
       if (isActive && button.id) els.deskGalleryGrid.setAttribute('aria-labelledby', button.id);
     });
     els.deskGalleryPanel?.classList.toggle('desk-gallery--loras', galleryView === 'loras');
+    // Video actions live on each expanded video, so the selection basket is not shown there.
+    els.deskGalleryPanel?.classList.toggle('desk-gallery--videos', galleryView === 'videos');
     if (galleryView === 'loras') {
       galleryVideoFolder.renderSourceSwitch();
       if (!els.deskGalleryGrid.classList.contains('desk-lora-library')) {
@@ -4000,6 +4023,37 @@
     renderGallery();
     renderGallerySelection();
     DesktopResults.showTransientMessage(`已保存候选集：${assetSet.name || name}`);
+  }
+
+  // A video goes into a set from its own detail panel: an existing set name appends, a new name creates one.
+  async function saveVideoToSet(snapshot) {
+    if (!snapshot?.id) return false;
+    const data = await DesktopApi.listAssetSets({ limit: 120, offset: 0 });
+    const sets = (Array.isArray(data.sets) ? data.sets : []).map(normalizeAssetSet);
+    const names = sets.slice(0, 8).map(item => item.name).filter(Boolean).join('、');
+    const raw = window.prompt(
+      `存入候选集：输入已有候选集名称会追加，输入新名称会新建（可在名称后添加 #标签）${names ? `\n已有：${names}` : ''}`,
+      `候选集 · ${snapshot.title || '视频'}`
+    );
+    if (raw === null) return false;
+    const { name, tags } = parseSetNameAndTags(raw, [snapshot]);
+    const existing = sets.find(item => item.name === name);
+    if (existing) {
+      const current = activeSetAssets(existing);
+      if (current.some(asset => asset.id === snapshot.id)) {
+        DesktopResults.showTransientMessage(`这个视频已经在候选集「${existing.name}」里。`);
+        return false;
+      }
+      await persistAssetSet(existing, {
+        assets: [...current, normalizeGalleryAsset(snapshot)],
+        ...(tags.length ? { tags: parseTags([...parseTags(existing.tags), ...tags]) } : {})
+      }, `已追加到候选集：${existing.name}`);
+      return true;
+    }
+    const result = await DesktopApi.saveAssetSet({ name, tags, asset_ids: [snapshot.id], assets: [snapshot] });
+    const assetSet = replaceGallerySet(result.set || result);
+    DesktopResults.showTransientMessage(`已保存候选集：${assetSet.name || name}`);
+    return true;
   }
 
   // options.rendered: renderGallery() has just drawn the current view (tab switch).

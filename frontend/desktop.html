@@ -6,12 +6,12 @@
   <meta name="canvashub-version" content="V26.5.0">
   <title>图像画布</title>
   <link rel="stylesheet" href="styles/desktop-tokens.css?v=20261104-prompt-roles1">
-  <link rel="stylesheet" href="styles/desktop-liquid.css?v=20261105-menu-scale1">
+  <link rel="stylesheet" href="styles/desktop-liquid.css?v=20261105-comfy-cards2">
   <link rel="stylesheet" href="styles/desktop-shell-geometry.css?v=20261103-trackpad-pan3">
   <link rel="stylesheet" href="styles/desktop-settings-auth-geometry.css?v=20261102-settings-flat2">
   <link rel="stylesheet" href="styles/desktop-prompt-assistant-geometry.css?v=20261030-panels-polish1">
-  <link rel="stylesheet" href="styles/desktop-canvas-nodes-geometry.css?v=20261105-menu-scale1">
-  <link rel="stylesheet" href="styles/desktop-gallery-geometry.css?v=20261030-panels-polish1">
+  <link rel="stylesheet" href="styles/desktop-canvas-nodes-geometry.css?v=20261107-comfy-list1">
+  <link rel="stylesheet" href="styles/desktop-gallery-geometry.css?v=20261105-video-actions1">
   <link rel="stylesheet" href="styles/desktop-video.css?v=20261102-h3-removal1">
   <link rel="stylesheet" href="styles/desktop-google-web-geometry.css?v=20261023-google-web2">
   <link rel="stylesheet" href="styles/desktop-google-web.css?v=20261023-google-web2">
@@ -45,7 +45,7 @@
   <link rel="stylesheet" href="styles/desktop-krea2-control-geometry.css?v=20261017-area-control1">
   <link rel="stylesheet" href="styles/desktop-krea2-control.css?v=20261017-area-control1">
   <link rel="stylesheet" href="styles/desktop-krea2.css?v=20261018-control-resolution1">
-  <link rel="stylesheet" href="styles/desktop-lora.css?v=20261101-lora-detail1">
+  <link rel="stylesheet" href="styles/desktop-lora.css?v=20261105-video-actions1">
   <link rel="stylesheet" href="styles/desktop-qwen21.css?v=20261030-qwen-align1">
   <link rel="stylesheet" href="styles/desktop-moss-geometry.css?v=20261101-moss-grid1">
   <link rel="stylesheet" href="styles/desktop-moss.css?v=20261101-moss-grid1">
@@ -54,7 +54,7 @@
   <link rel="stylesheet" href="styles/desktop-ambient-controls.css?v=20261018-segment-norail1">
   <link rel="stylesheet" href="styles/desktop-control-material.css?v=20261019-pinterest-body2">
   <link rel="stylesheet" href="styles/desktop-number-stepper.css?v=20261011-stepper-panels1">
-  <link rel="stylesheet" href="styles/desktop-graphite.css?v=20261105-graphite29">
+  <link rel="stylesheet" href="styles/desktop-graphite.css?v=20261105-comfy-cards1">
 </head>
 <body id="deskApp" class="desk-app" data-theme="light" data-app-version="V26.5.0">
   <script>
@@ -706,17 +706,6 @@
             <button type="button" id="deskGalleryTabLoras" role="tab" aria-selected="false" aria-controls="deskGalleryGrid" tabindex="-1" data-gallery-view="loras">LoRA</button>
           </div>
         </div>
-        <div class="desk-gallery-video-source desk-key-bank" id="deskGalleryVideoSource" role="group" aria-label="视频来源" hidden>
-          <button type="button" class="is-active" data-gallery-video-source="generated" aria-pressed="true">
-            <span>生成视频</span><em data-gallery-video-source-count="generated">--</em>
-          </button>
-          <button type="button" data-gallery-video-source="imported" aria-pressed="false">
-            <span>导入素材</span><em data-gallery-video-source-count="imported">--</em>
-          </button>
-          <button type="button" data-gallery-video-source="all" aria-pressed="false">
-            <span>全部</span><em data-gallery-video-source-count="all">--</em>
-          </button>
-        </div>
         <label class="desk-gallery-search">
           <span aria-hidden="true">
             <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6"></circle><path d="m16 16 4 4"></path></svg>
@@ -753,14 +742,30 @@
           <input id="deskGalleryTagInput" type="search" placeholder="标签">
         </label>
       </div>
-      <div class="desk-gallery-stats" id="deskGalleryStats" aria-live="polite">
-        <span>Obsidian --</span>
-        <span>资产库 --</span>
-        <span>有记录 --</span>
-        <span>仅归档 --</span>
-        <span>有尺寸 --</span>
-        <span>未归档记录 --</span>
-        <span>原图缺失 --</span>
+      <div class="desk-gallery-statsbar" id="deskGalleryStatsBar">
+        <div class="desk-gallery-stats" id="deskGalleryStats" aria-live="polite">
+          <span>Obsidian --</span>
+          <span>资产库 --</span>
+          <span>有记录 --</span>
+          <span>仅归档 --</span>
+          <span>有尺寸 --</span>
+          <span>未归档记录 --</span>
+          <span>原图缺失 --</span>
+        </div>
+        <div class="desk-gallery-video-source desk-key-bank" id="deskGalleryVideoSource" role="group" aria-label="视频来源" hidden>
+          <button type="button" class="is-active" data-gallery-video-source="generated" aria-pressed="true">
+            <span>生成视频</span><em data-gallery-video-source-count="generated">--</em>
+          </button>
+          <button type="button" data-gallery-video-source="imported" aria-pressed="false">
+            <span>导入素材</span><em data-gallery-video-source-count="imported">--</em>
+          </button>
+          <button type="button" data-gallery-video-source="all" aria-pressed="false">
+            <span>全部</span><em data-gallery-video-source-count="all">--</em>
+          </button>
+          <button type="button" data-gallery-video-source="hidden" aria-pressed="false">
+            <span>已隐藏</span><em data-gallery-video-source-count="hidden">--</em>
+          </button>
+        </div>
       </div>
       <div class="desk-gallery__body">
         <div class="desk-gallery-grid" id="deskGalleryGrid" role="tabpanel" aria-labelledby="deskGalleryTabImages" aria-label="资产列表">
@@ -1861,7 +1866,7 @@
   <script src="scripts/desktop-lora-data.js?v=20261002-lora-library3"></script>
   <script src="scripts/desktop-lora-settings.js?v=20261101-secret-mask2"></script>
   <script src="scripts/desktop-lora-view.js?v=20261101-lora-detail2"></script>
-  <script src="scripts/desktop-api.js?v=20261104-prompt-roles1"></script>
+  <script src="scripts/desktop-api.js?v=20261106-comfy-switches1"></script>
   <script src="scripts/desktop-krea2-control.js?v=20261030-ui-polish1"></script>
   <script src="scripts/desktop-krea2-model.js?v=20261030-group-input1"></script>
   <script src="scripts/desktop-krea2-api.js?v=20260929-krea2-layout-3"></script>
@@ -1895,7 +1900,8 @@
   <script src="scripts/desktop-topaz-video-workbench.js?v=20261011-stepper-panels1"></script>
   <script src="scripts/desktop-canvas-topaz-video.js?v=20261005-topaz-pipeline1"></script>
   <script src="scripts/desktop-canvas-comfy-video.js?v=20261103-comfy-video1"></script>
-  <script src="scripts/desktop-canvas-comfy-inputs.js?v=20261104-prompt-roles1"></script>
+  <script src="scripts/desktop-canvas-comfy-audio.js?v=20261106-comfy-switches1"></script>
+  <script src="scripts/desktop-canvas-comfy-inputs.js?v=20261106-comfy-switches2"></script>
   <script src="scripts/desktop-pose-model.js?v=20261022-pose-evidence1"></script>
   <script src="scripts/desktop-pose-api.js?v=20261021-pose-video3"></script>
   <script src="scripts/desktop-pose-view.js?v=20261030-ui-polish1"></script>
@@ -1923,18 +1929,19 @@
   <script src="scripts/desktop-canvas-image-editor.js?v=20260912-canvas-business1"></script>
   <script src="scripts/desktop-canvas-media-import.js?v=20261021-video-upload1"></script>
   <script src="scripts/desktop-canvas-references.js?v=20261023-google-web2"></script>
-  <script src="scripts/desktop-canvas-nodes.js?v=20261102-h3-removal1"></script>
+  <script src="scripts/desktop-canvas-comfy-layout.js?v=20261107-comfy-list1"></script>
+  <script src="scripts/desktop-canvas-nodes.js?v=20261107-comfy-list1"></script>
   <script src="scripts/desktop-google-web-controls.js?v=20261024-google-web-2k-prompt1"></script>
-  <script src="scripts/desktop-canvas-model-nodes.js?v=20261104-prompt-roles1"></script>
-  <script src="scripts/desktop-canvas-port-plates.js?v=20261105-graphite6"></script>
+  <script src="scripts/desktop-canvas-model-nodes.js?v=20261107-comfy-list1"></script>
+  <script src="scripts/desktop-canvas-port-plates.js?v=20261105-comfy-cards1"></script>
   <script src="scripts/desktop-canvas-connections.js?v=20261105-menu-scale1"></script>
   <script src="scripts/desktop-canvas-connection-feedback.js?v=20261007-connection-arc1"></script>
   <script src="scripts/desktop-canvas-port-interaction.js?v=20261105-graphite6"></script>
-  <script src="scripts/desktop-canvas-generation-config.js?v=20261104-prompt-roles1"></script>
+  <script src="scripts/desktop-canvas-generation-config.js?v=20261106-comfy-switches1"></script>
   <script src="scripts/desktop-canvas-generation.js?v=20261102-h3-removal1"></script>
   <script src="scripts/desktop-canvas-collision.js?v=20260913-canvas-collision1"></script>
   <script src="scripts/desktop-canvas-lora.js?v=20261031-moss-node1"></script>
-  <script src="scripts/desktop-canvas.js?v=20261105-graphite4"></script>
+  <script src="scripts/desktop-canvas.js?v=20261107-comfy-list1"></script>
   <script type="module" src="scripts/desktop-pose-editor.js?v=20261023-pose-track-visible1"></script>
   <script src="scripts/desktop-layout-editor.js?v=20260908-layout-fonts2"></script>
   <script src="scripts/desktop-file-results.js?v=20260711-file-board-list3"></script>
@@ -1943,9 +1950,9 @@
   <script src="scripts/desktop-genie-fx.js?v=20261016-genie-fx1"></script>
   <script src="scripts/desktop-gallery-pinterest.js?v=20261019-pinterest-switch1"></script>
   <script src="scripts/desktop-gallery-prompt-sources.js?v=20261016-gallery-sources1"></script>
-  <script src="scripts/desktop-gallery-videos.js?v=20261016-gallery-videos1"></script>
+  <script src="scripts/desktop-gallery-videos.js?v=20261105-video-actions1"></script>
   <script src="scripts/desktop-gallery-facets.js?v=20261030-gallery-facets1"></script>
-  <script src="scripts/desktop-history.js?v=20261103-gpt-endpoint1"></script>
+  <script src="scripts/desktop-history.js?v=20261105-video-actions1"></script>
   <script src="scripts/desktop-google-web.js?v=20261102-settings-flat1"></script>
   <script src="scripts/desktop-google-pool.js?v=20261102-pool-tabs1"></script>
   <script src="scripts/desktop-settings-search.js?v=20261101-secret-mask1"></script>
