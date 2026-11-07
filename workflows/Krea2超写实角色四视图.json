@@ -1,0 +1,366 @@
+{
+  "29": {
+    "inputs": {
+      "filename_prefix": "krea2_identity_edit",
+      "images": [
+        "54",
+        0
+      ]
+    },
+    "class_type": "SaveImage",
+    "_meta": {
+      "title": "保存图像",
+      "cnr_id": "comfy-core",
+      "ver": "0.26.0"
+    }
+  },
+  "53": {
+    "inputs": {
+      "seed": 348611257314214,
+      "steps": 10,
+      "cfg": 1,
+      "sampler_name": "euler",
+      "scheduler": "simple",
+      "denoise": 1,
+      "model": [
+        "120",
+        0
+      ],
+      "positive": [
+        "119",
+        0
+      ],
+      "negative": [
+        "85",
+        0
+      ],
+      "latent_image": [
+        "135",
+        0
+      ]
+    },
+    "class_type": "KSampler",
+    "_meta": {
+      "title": "K采样器",
+      "cnr_id": "comfy-core",
+      "ver": "0.26.0"
+    }
+  },
+  "54": {
+    "inputs": {
+      "samples": [
+        "53",
+        0
+      ],
+      "vae": [
+        "57",
+        0
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "VAE解码",
+      "cnr_id": "comfy-core",
+      "ver": "0.26.0"
+    }
+  },
+  "55": {
+    "inputs": {
+      "unet_name": "krea2\\krea2TurboOfficialComfy_krea2TurboFp8.safetensors",
+      "weight_dtype": "default"
+    },
+    "class_type": "UNETLoader",
+    "_meta": {
+      "title": "UNet加载器",
+      "cnr_id": "comfy-core",
+      "ver": "0.26.0"
+    }
+  },
+  "56": {
+    "inputs": {
+      "clip_name": "krea2\\qwen3vl_4b_fp8_scaled.safetensors",
+      "type": "krea2",
+      "device": "default"
+    },
+    "class_type": "CLIPLoader",
+    "_meta": {
+      "title": "加载CLIP",
+      "cnr_id": "comfy-core",
+      "ver": "0.26.0"
+    }
+  },
+  "57": {
+    "inputs": {
+      "vae_name": "qwen_image_vae.safetensors"
+    },
+    "class_type": "VAELoader",
+    "_meta": {
+      "title": "加载VAE",
+      "cnr_id": "comfy-core",
+      "ver": "0.26.0"
+    }
+  },
+  "72": {
+    "inputs": {
+      "image": "krea2_identity_edit_00001_.png"
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "[参考图1]",
+      "cnr_id": "comfy-core",
+      "ver": "0.26.0"
+    }
+  },
+  "73": {
+    "inputs": {
+      "pixels": [
+        "123",
+        0
+      ],
+      "vae": [
+        "57",
+        0
+      ]
+    },
+    "class_type": "VAEEncode",
+    "_meta": {
+      "title": "VAE编码",
+      "cnr_id": "comfy-core",
+      "ver": "0.26.0"
+    }
+  },
+  "85": {
+    "inputs": {
+      "prompt": "",
+      "grounding_px": 768,
+      "system_prompt": "",
+      "clip": [
+        "56",
+        0
+      ],
+      "image": [
+        "123",
+        0
+      ]
+    },
+    "class_type": "Krea2EditGroundedEncode",
+    "_meta": {
+      "title": "negative (leave empty)",
+      "cnr_id": "comfyui-krea2edit",
+      "ver": "1.2.2"
+    }
+  },
+  "117": {
+    "inputs": {
+      "vae": [
+        "57",
+        0
+      ]
+    },
+    "class_type": "VAEEncode",
+    "_meta": {
+      "title": "VAE编码",
+      "cnr_id": "comfy-core",
+      "ver": "0.26.0"
+    }
+  },
+  "119": {
+    "inputs": {
+      "prompt": "Convert the character in the image to a Character Sheet showing a face close-up, front full body, side full body and back full body views",
+      "grounding_px": 0,
+      "system_prompt": "",
+      "clip": [
+        "56",
+        0
+      ],
+      "image": [
+        "123",
+        0
+      ]
+    },
+    "class_type": "Krea2EditGroundedEncode",
+    "_meta": {
+      "title": "Krea2 Edit (grounded encode)",
+      "cnr_id": "comfyui-krea2edit",
+      "ver": "1.2.2"
+    }
+  },
+  "120": {
+    "inputs": {
+      "ref_boost": 1,
+      "ref_boost_a": 1,
+      "fit_mode": "fit",
+      "ref_position": "aligned (trained)",
+      "ref_position_a": "aligned (trained)",
+      "model": [
+        "127",
+        0
+      ],
+      "source_latent": [
+        "73",
+        0
+      ],
+      "vae": [
+        "57",
+        0
+      ],
+      "source_image": [
+        "123",
+        0
+      ]
+    },
+    "class_type": "Krea2EditModelPatch",
+    "_meta": {
+      "title": "Krea2 Edit (source patch)",
+      "cnr_id": "comfyui-krea2edit",
+      "ver": "1.2.2"
+    }
+  },
+  "121": {
+    "inputs": {
+      "image": [
+        "123",
+        0
+      ]
+    },
+    "class_type": "GetImageSize",
+    "_meta": {
+      "title": "获取图像尺寸",
+      "cnr_id": "comfy-core",
+      "ver": "0.28.0"
+    }
+  },
+  "123": {
+    "inputs": {
+      "width": 1024,
+      "height": 1024,
+      "upscale_method": "lanczos",
+      "keep_proportion": "resize",
+      "pad_color": "0, 0, 0",
+      "crop_position": "center",
+      "divisible_by": 2,
+      "device": "cpu",
+      "image": [
+        "72",
+        0
+      ]
+    },
+    "class_type": "ImageResizeKJv2",
+    "_meta": {
+      "title": "Resize Image v2",
+      "cnr_id": "comfyui-kjnodes",
+      "ver": "d0d61754bf7fa57f2abb4714cdf79058f5862a55"
+    }
+  },
+  "125": {
+    "inputs": {
+      "inputcount": 2,
+      "direction": "right",
+      "match_image_size": false,
+      "Update inputs": null,
+      "image_1": [
+        "137",
+        0
+      ],
+      "image_2": [
+        "138",
+        0
+      ]
+    },
+    "class_type": "ImageConcatMulti",
+    "_meta": {
+      "title": "Image Concatenate Multi",
+      "cnr_id": "comfyui-kjnodes",
+      "ver": "d0d61754bf7fa57f2abb4714cdf79058f5862a55"
+    }
+  },
+  "126": {
+    "inputs": {
+      "images": [
+        "125",
+        0
+      ]
+    },
+    "class_type": "PreviewImage",
+    "_meta": {
+      "title": "预览图像",
+      "cnr_id": "comfy-core",
+      "ver": "0.28.0"
+    }
+  },
+  "127": {
+    "inputs": {
+      "lora_name": "krea2\\QuadView_krea2_v1.safetensors",
+      "strength_model": 1,
+      "model": [
+        "55",
+        0
+      ]
+    },
+    "class_type": "LoraLoaderModelOnly",
+    "_meta": {
+      "title": "LoRA加载器（仅模型）",
+      "cnr_id": "comfy-core",
+      "ver": "0.26.0"
+    }
+  },
+  "135": {
+    "inputs": {
+      "width": 1536,
+      "height": 1024,
+      "batch_size": 1
+    },
+    "class_type": "EmptySD3LatentImage",
+    "_meta": {
+      "title": "空Latent图像（SD3）",
+      "cnr_id": "comfy-core",
+      "ver": "0.26.0"
+    }
+  },
+  "137": {
+    "inputs": {
+      "text_x": 10,
+      "text_y": 2,
+      "height": 48,
+      "font_size": 32,
+      "font_color": "white",
+      "label_color": "black",
+      "font": "FreeMono.ttf",
+      "text": "Input",
+      "direction": "up",
+      "image": [
+        "123",
+        0
+      ]
+    },
+    "class_type": "AddLabel",
+    "_meta": {
+      "title": "Add Label",
+      "cnr_id": "comfyui-kjnodes",
+      "ver": "d0d61754bf7fa57f2abb4714cdf79058f5862a55"
+    }
+  },
+  "138": {
+    "inputs": {
+      "text_x": 10,
+      "text_y": 2,
+      "height": 48,
+      "font_size": 32,
+      "font_color": "white",
+      "label_color": "black",
+      "font": "FreeMono.ttf",
+      "text": "Output",
+      "direction": "up",
+      "image": [
+        "54",
+        0
+      ]
+    },
+    "class_type": "AddLabel",
+    "_meta": {
+      "title": "Add Label",
+      "cnr_id": "comfyui-kjnodes",
+      "ver": "d0d61754bf7fa57f2abb4714cdf79058f5862a55"
+    }
+  }
+}

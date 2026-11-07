@@ -1,0 +1,641 @@
+{
+  "1241": {
+    "inputs": {
+      "frame_rate": [
+        "5064",
+        5
+      ],
+      "positive": [
+        "2483",
+        0
+      ],
+      "negative": [
+        "2612",
+        0
+      ]
+    },
+    "class_type": "LTXVConditioning",
+    "_meta": {
+      "title": "LTXV条件",
+      "cnr_id": "comfy-core",
+      "ver": "0.3.28"
+    }
+  },
+  "2483": {
+    "inputs": {
+      "text": "",
+      "clip": [
+        "5128",
+        0
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "CLIP Text Encode (Positive Prompt)",
+      "cnr_id": "comfy-core",
+      "ver": "0.3.28"
+    }
+  },
+  "2612": {
+    "inputs": {
+      "text": "",
+      "clip": [
+        "5128",
+        0
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "CLIP Text Encode (Negative Prompt)",
+      "cnr_id": "comfy-core",
+      "ver": "0.3.28"
+    }
+  },
+  "3059": {
+    "inputs": {
+      "width": [
+        "5029",
+        0
+      ],
+      "height": [
+        "5029",
+        1
+      ],
+      "length": [
+        "5029",
+        2
+      ],
+      "batch_size": 1
+    },
+    "class_type": "EmptyLTXVLatentVideo",
+    "_meta": {
+      "title": "空 LTXV 潜空间视频",
+      "cnr_id": "comfy-core",
+      "ver": "0.3.43"
+    }
+  },
+  "3159": {
+    "inputs": {
+      "strength": 1,
+      "bypass": true,
+      "vae": [
+        "5127",
+        0
+      ],
+      "image": [
+        "5085",
+        0
+      ],
+      "latent": [
+        "3059",
+        0
+      ]
+    },
+    "class_type": "LTXVImgToVideoConditionOnly",
+    "_meta": {
+      "title": "🅛🅣🅧 LTXV Img To Video Condition Only",
+      "cnr_id": "ComfyUI-LTXVideo",
+      "ver": "82bd963cdeb66d023bed8c99324a307020907ef8"
+    }
+  },
+  "4828": {
+    "inputs": {
+      "cfg": 1,
+      "model": [
+        "5120",
+        0
+      ],
+      "positive": [
+        "5012",
+        0
+      ],
+      "negative": [
+        "5012",
+        1
+      ]
+    },
+    "class_type": "CFGGuider",
+    "_meta": {
+      "title": "CFG引导器",
+      "cnr_id": "comfy-core",
+      "ver": "0.14.1"
+    }
+  },
+  "4829": {
+    "inputs": {
+      "noise": [
+        "4832",
+        0
+      ],
+      "guider": [
+        "4828",
+        0
+      ],
+      "sampler": [
+        "4831",
+        0
+      ],
+      "sigmas": [
+        "5025",
+        0
+      ],
+      "latent_image": [
+        "5012",
+        2
+      ]
+    },
+    "class_type": "SamplerCustomAdvanced",
+    "_meta": {
+      "title": "自定义采样器（高级）",
+      "cnr_id": "comfy-core",
+      "ver": "0.14.1"
+    }
+  },
+  "4831": {
+    "inputs": {
+      "sampler_name": "euler_ancestral"
+    },
+    "class_type": "KSamplerSelect",
+    "_meta": {
+      "title": "K采样器选择",
+      "cnr_id": "comfy-core",
+      "ver": "0.14.1"
+    }
+  },
+  "4832": {
+    "inputs": {
+      "noise_seed": 1123584371898876
+    },
+    "class_type": "RandomNoise",
+    "_meta": {
+      "title": "随机噪波",
+      "cnr_id": "comfy-core",
+      "ver": "0.14.1"
+    }
+  },
+  "4922": {
+    "inputs": {
+      "lora_name": "LTX\\ltx-2.5-22b-distilled-lora-450-bf16.safetensors",
+      "strength_model": 0.5,
+      "model": [
+        "5117",
+        0
+      ]
+    },
+    "class_type": "LoraLoaderModelOnly",
+    "_meta": {
+      "title": "LoRA加载器（仅模型）",
+      "cnr_id": "comfy-core",
+      "ver": "0.14.1"
+    }
+  },
+  "5012": {
+    "inputs": {
+      "frame_idx": 0,
+      "strength": 1,
+      "latent_downscale_factor": 1,
+      "crop": "disabled",
+      "use_tiled_encode": false,
+      "tile_size": 256,
+      "tile_overlap": 64,
+      "use_streaming": false,
+      "tile_frames": 97,
+      "positive": [
+        "1241",
+        0
+      ],
+      "negative": [
+        "1241",
+        1
+      ],
+      "vae": [
+        "5127",
+        0
+      ],
+      "latent": [
+        "3159",
+        0
+      ],
+      "image": [
+        "5085",
+        0
+      ]
+    },
+    "class_type": "LTXAddVideoICLoRAGuide",
+    "_meta": {
+      "title": "🅛🅣🅧 Add Video IC-LoRA Guide",
+      "cnr_id": "ComfyUI-LTXVideo",
+      "ver": "82bd963cdeb66d023bed8c99324a307020907ef8"
+    }
+  },
+  "5013": {
+    "inputs": {
+      "positive": [
+        "5012",
+        0
+      ],
+      "negative": [
+        "5012",
+        1
+      ],
+      "latent": [
+        "4829",
+        0
+      ]
+    },
+    "class_type": "LTXVCropGuides",
+    "_meta": {
+      "title": "LTXV裁剪指导",
+      "cnr_id": "comfy-core",
+      "ver": "0.3.75"
+    }
+  },
+  "5025": {
+    "inputs": {
+      "sigmas": "1.0, 0.99375, 0.9875, 0.98125, 0.975, 0.909375, 0.725, 0.421875, 0.0"
+    },
+    "class_type": "ManualSigmas",
+    "_meta": {
+      "title": "自定义Sigmas",
+      "cnr_id": "comfy-core",
+      "ver": "0.14.1"
+    }
+  },
+  "5026": {
+    "inputs": {
+      "resize_type": "scale shorter dimension",
+      "resize_type.shorter_size": 768,
+      "scale_method": "lanczos",
+      "input": [
+        "5060",
+        0
+      ]
+    },
+    "class_type": "ResizeImageMaskNode",
+    "_meta": {
+      "title": "调整图像/掩码大小",
+      "cnr_id": "comfy-core",
+      "ver": "0.16.0"
+    }
+  },
+  "5029": {
+    "inputs": {
+      "image": [
+        "5085",
+        0
+      ]
+    },
+    "class_type": "GetImageSize",
+    "_meta": {
+      "title": "获取图像尺寸",
+      "cnr_id": "comfy-core",
+      "ver": "0.16.0"
+    }
+  },
+  "5060": {
+    "inputs": {
+      "video": "MiniMax_H3_00042_.mp4",
+      "force_rate": [
+        "5151",
+        0
+      ],
+      "custom_width": 0,
+      "custom_height": 0,
+      "frame_load_cap": 0,
+      "skip_first_frames": 0,
+      "select_every_nth": 1,
+      "format": "LTXV"
+    },
+    "class_type": "VHS_LoadVideo",
+    "_meta": {
+      "title": "[参考视频1]",
+      "cnr_id": "comfyui-videohelpersuite",
+      "ver": "1.7.9"
+    }
+  },
+  "5064": {
+    "inputs": {
+      "video_info": [
+        "5060",
+        3
+      ]
+    },
+    "class_type": "VHS_VideoInfo",
+    "_meta": {
+      "title": "Video Info 🎥🅥🅗🅢",
+      "cnr_id": "comfyui-videohelpersuite",
+      "ver": "1.7.9"
+    }
+  },
+  "5085": {
+    "inputs": {
+      "resize_type": "scale to multiple",
+      "resize_type.multiple": 32,
+      "scale_method": "area",
+      "input": [
+        "5026",
+        0
+      ]
+    },
+    "class_type": "ResizeImageMaskNode",
+    "_meta": {
+      "title": "调整图像/掩码大小",
+      "cnr_id": "comfy-core",
+      "ver": "0.18.1"
+    }
+  },
+  "5117": {
+    "inputs": {
+      "sage_attention": "auto",
+      "allow_compile": false,
+      "model": [
+        "5124",
+        0
+      ]
+    },
+    "class_type": "PathchSageAttentionKJ",
+    "_meta": {
+      "title": "Patch Sage Attention KJ",
+      "cnr_id": "comfyui-kjnodes",
+      "ver": "1.3.7"
+    }
+  },
+  "5119": {
+    "inputs": {
+      "samples": [
+        "5013",
+        2
+      ],
+      "vae": [
+        "5127",
+        0
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "VAE解码",
+      "cnr_id": "comfy-core",
+      "ver": "0.25.1"
+    }
+  },
+  "5120": {
+    "inputs": {
+      "lora_name": "LTX\\ltx2.5-CQ-enhancer-lora-V2.safetensors",
+      "strength_model": 1,
+      "model": [
+        "4922",
+        0
+      ]
+    },
+    "class_type": "LoraLoaderModelOnly",
+    "_meta": {
+      "title": "LoRA加载器（仅模型）",
+      "cnr_id": "comfy-core",
+      "ver": "0.14.1"
+    }
+  },
+  "5124": {
+    "inputs": {
+      "unet_name": "LTX\\ltx-2.5-22b-dev-transformer-comfy-int8-convrot.safetensors",
+      "weight_dtype": "default"
+    },
+    "class_type": "UNETLoader",
+    "_meta": {
+      "title": "UNet加载器",
+      "cnr_id": "comfy-core",
+      "ver": "0.29.0"
+    }
+  },
+  "5127": {
+    "inputs": {
+      "vae_name": "LTX\\ltx-2.5-video-vae-conv-bf16.safetensors",
+      "device": "main_device",
+      "weight_dtype": "bf16"
+    },
+    "class_type": "VAELoaderKJ",
+    "_meta": {
+      "title": "VAELoader KJ",
+      "cnr_id": "comfyui-kjnodes",
+      "ver": "9086a8dfb6657937b8fc0501aad6b903244bd2a7"
+    }
+  },
+  "5128": {
+    "inputs": {
+      "clip_name": "LTX\\gemma4-12b-with-proj-ltx-2.5-comfy-int8-convrot.safetensors",
+      "type": "ltxv",
+      "device": "default"
+    },
+    "class_type": "CLIPLoader",
+    "_meta": {
+      "title": "加载CLIP",
+      "cnr_id": "comfy-core",
+      "ver": "0.29.0"
+    }
+  },
+  "5144": {
+    "inputs": {
+      "fps": [
+        "5064",
+        5
+      ],
+      "bit_depth": 8,
+      "color_space": "sRGB",
+      "chroma_subsampling": "auto",
+      "codec": "none",
+      "images": [
+        "5119",
+        0
+      ],
+      "audio": [
+        "5218",
+        0
+      ]
+    },
+    "class_type": "CreateVideo",
+    "_meta": {
+      "title": "创建视频",
+      "cnr_id": "comfy-core",
+      "ver": "0.33.1"
+    }
+  },
+  "5146": {
+    "inputs": {
+      "filename_prefix": "CQ_Enhanced",
+      "format": "auto",
+      "format.codec": "auto",
+      "codec": "auto",
+      "video": [
+        "5156:5154",
+        0
+      ]
+    },
+    "class_type": "SaveVideo",
+    "_meta": {
+      "title": "保存视频",
+      "cnr_id": "comfy-core",
+      "ver": "0.33.1"
+    }
+  },
+  "5151": {
+    "inputs": {
+      "value": 30
+    },
+    "class_type": "PrimitiveFloat",
+    "_meta": {
+      "title": "浮点数",
+      "cnr_id": "comfy-core",
+      "ver": "0.33.1"
+    }
+  },
+  "5218": {
+    "inputs": {
+      "switch": false,
+      "on_false": [
+        "5060",
+        2
+      ],
+      "on_true": [
+        "5221",
+        0
+      ]
+    },
+    "class_type": "ComfySwitchNode",
+    "_meta": {
+      "title": "Video has no audio?",
+      "cnr_id": "comfy-core",
+      "ver": "0.33.1"
+    }
+  },
+  "5221": {
+    "inputs": {
+      "duration": 1,
+      "sample_rate": 44100,
+      "channels": 2
+    },
+    "class_type": "EmptyAudio",
+    "_meta": {
+      "title": "空音频",
+      "cnr_id": "comfy-core",
+      "ver": "0.33.1"
+    }
+  },
+  "5160:5158": {
+    "inputs": {
+      "target_fps": [
+        "5064",
+        0
+      ],
+      "method": "minterpolate",
+      "audio_mode": "copy",
+      "crf": 18,
+      "minterpolate_quality": "high",
+      "input": [
+        "5144",
+        0
+      ]
+    },
+    "class_type": "trope_ConvertFramerate",
+    "_meta": {
+      "title": "Convert Framerate"
+    }
+  },
+  "5160:5159": {
+    "inputs": {
+      "fps": [
+        "5160:5157",
+        2
+      ],
+      "bit_depth": 8,
+      "color_space": "sRGB",
+      "chroma_subsampling": "auto",
+      "codec": "none",
+      "images": [
+        "5160:5157",
+        0
+      ],
+      "audio": [
+        "5160:5157",
+        1
+      ]
+    },
+    "class_type": "CreateVideo",
+    "_meta": {
+      "title": "创建视频",
+      "cnr_id": "comfy-core",
+      "ver": "0.33.1"
+    }
+  },
+  "5160:5157": {
+    "inputs": {
+      "video": [
+        "5160:5158",
+        0
+      ]
+    },
+    "class_type": "GetVideoComponents",
+    "_meta": {
+      "title": "获取视频元素",
+      "cnr_id": "comfy-core",
+      "ver": "0.33.1"
+    }
+  },
+  "5156:5154": {
+    "inputs": {
+      "fps": [
+        "5156:5155",
+        2
+      ],
+      "bit_depth": 8,
+      "color_space": "sRGB",
+      "chroma_subsampling": "auto",
+      "codec": "none",
+      "images": [
+        "5156:5153",
+        0
+      ],
+      "audio": [
+        "5156:5155",
+        1
+      ]
+    },
+    "class_type": "CreateVideo",
+    "_meta": {
+      "title": "创建视频",
+      "cnr_id": "comfy-core",
+      "ver": "0.33.1"
+    }
+  },
+  "5156:5155": {
+    "inputs": {
+      "video": [
+        "5160:5159",
+        0
+      ]
+    },
+    "class_type": "GetVideoComponents",
+    "_meta": {
+      "title": "获取视频元素",
+      "cnr_id": "comfy-core",
+      "ver": "0.33.1"
+    }
+  },
+  "5156:5153": {
+    "inputs": {
+      "resize_type": "scale by multiplier",
+      "resize_type.scale": 2,
+      "quality": "ULTRA",
+      "strength": 1,
+      "image_encoding": "8-bit RGB",
+      "images": [
+        "5156:5155",
+        0
+      ]
+    },
+    "class_type": "RTXVideoSuperResolution",
+    "_meta": {
+      "title": "RTX Video Super Resolution",
+      "cnr_id": "comfyui_nvidia_rtx_nodes",
+      "ver": "0.1.3"
+    }
+  }
+}

@@ -1,0 +1,727 @@
+{
+  "1": {
+    "inputs": {
+      "clip_name": "krea2\\qwen3vl_4b_fp8_scaled.safetensors",
+      "type": "krea2",
+      "device": "default"
+    },
+    "class_type": "CLIPLoader",
+    "_meta": {
+      "title": "加载CLIP",
+      "cnr_id": "comfy-core",
+      "ver": "0.26.0"
+    }
+  },
+  "6": {
+    "inputs": {
+      "vae_name": "qwen_image_vae.safetensors"
+    },
+    "class_type": "VAELoader",
+    "_meta": {
+      "title": "加载VAE",
+      "cnr_id": "comfy-core",
+      "ver": "0.26.0"
+    }
+  },
+  "18": {
+    "inputs": {
+      "upscale_method": "lanczos",
+      "megapixels": [
+        "223",
+        0
+      ],
+      "resolution_steps": 1,
+      "image": [
+        "161",
+        0
+      ]
+    },
+    "class_type": "ImageScaleToTotalPixels",
+    "_meta": {
+      "title": "缩放图像（像素）",
+      "cnr_id": "comfy-core",
+      "ver": "0.26.0"
+    }
+  },
+  "91": {
+    "inputs": {
+      "seed": 866194986787245,
+      "steps": 4,
+      "cfg": 1,
+      "sampler_name": "euler_ancestral",
+      "scheduler": "kl_optimal",
+      "denoise": 0.4000000000000001,
+      "model": [
+        "114",
+        0
+      ],
+      "positive": [
+        "93",
+        0
+      ],
+      "negative": [
+        "148",
+        0
+      ],
+      "latent_image": [
+        "158",
+        0
+      ]
+    },
+    "class_type": "KSampler",
+    "_meta": {
+      "title": "K采样器",
+      "cnr_id": "comfy-core",
+      "ver": "0.26.0"
+    }
+  },
+  "93": {
+    "inputs": {
+      "text": "Asian woman，2.5D风格，饱满的胸部，茂密的阴毛",
+      "clip": [
+        "1",
+        0
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "[提示词]",
+      "cnr_id": "comfy-core",
+      "ver": "0.26.0"
+    }
+  },
+  "114": {
+    "inputs": {
+      "model": [
+        "213",
+        0
+      ]
+    },
+    "class_type": "FluxKVCache",
+    "_meta": {
+      "title": "Flux KV 缓存",
+      "cnr_id": "comfy-core",
+      "ver": "0.26.0"
+    }
+  },
+  "148": {
+    "inputs": {
+      "conditioning": [
+        "93",
+        0
+      ]
+    },
+    "class_type": "ConditioningZeroOut",
+    "_meta": {
+      "title": "条件零化",
+      "cnr_id": "comfy-core",
+      "ver": "0.26.0"
+    }
+  },
+  "156": {
+    "inputs": {
+      "tile_size": 1024,
+      "overlap": 64,
+      "temporal_size": 64,
+      "temporal_overlap": 8,
+      "samples": [
+        "91",
+        0
+      ],
+      "vae": [
+        "6",
+        0
+      ]
+    },
+    "class_type": "VAEDecodeTiled",
+    "_meta": {
+      "title": "VAE解码（分块）",
+      "cnr_id": "comfy-core",
+      "ver": "0.26.0"
+    }
+  },
+  "158": {
+    "inputs": {
+      "tile_size": 1024,
+      "overlap": 64,
+      "temporal_size": 64,
+      "temporal_overlap": 8,
+      "pixels": [
+        "214",
+        0
+      ],
+      "vae": [
+        "6",
+        0
+      ]
+    },
+    "class_type": "VAEEncodeTiled",
+    "_meta": {
+      "title": "VAE编码（分块）",
+      "cnr_id": "comfy-core",
+      "ver": "0.26.0"
+    }
+  },
+  "161": {
+    "inputs": {
+      "upscale_model": [
+        "162",
+        0
+      ],
+      "image": [
+        "259",
+        0
+      ]
+    },
+    "class_type": "ImageUpscaleWithModel",
+    "_meta": {
+      "title": "使用模型放大图像",
+      "cnr_id": "comfy-core",
+      "ver": "0.26.0"
+    }
+  },
+  "162": {
+    "inputs": {
+      "model_name": "new\\2xNomosUni_span_multijpg_ldl.pth"
+    },
+    "class_type": "UpscaleModelLoader",
+    "_meta": {
+      "title": "加载放大模型",
+      "cnr_id": "comfy-core",
+      "ver": "0.26.0"
+    }
+  },
+  "170": {
+    "inputs": {
+      "image": "AnimateDiff_00013.png"
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "[参考图1]",
+      "cnr_id": "comfy-core",
+      "ver": "0.26.0"
+    }
+  },
+  "213": {
+    "inputs": {
+      "lora_name": "krea2\\krea-detail-enhancer-exp.safetensors",
+      "strength_model": 0.6000000000000001,
+      "model": [
+        "218",
+        0
+      ]
+    },
+    "class_type": "LoraLoaderModelOnly",
+    "_meta": {
+      "title": "LoRA加载器（仅模型）"
+    }
+  },
+  "214": {
+    "inputs": {
+      "anything": [
+        "18",
+        0
+      ]
+    },
+    "class_type": "easy cleanGpuUsed",
+    "_meta": {
+      "title": "清理显存占用"
+    }
+  },
+  "215": {
+    "inputs": {
+      "filename_prefix": "ComfyUI",
+      "images": [
+        "275",
+        0
+      ]
+    },
+    "class_type": "SaveImage",
+    "_meta": {
+      "title": "保存图像"
+    }
+  },
+  "218": {
+    "inputs": {
+      "lora_name": "krea2\\jungnago_v3_krea.safetensors",
+      "strength_model": 0.6000000000000001,
+      "model": [
+        "228",
+        0
+      ]
+    },
+    "class_type": "LoraLoaderModelOnly",
+    "_meta": {
+      "title": "LoRA加载器（仅模型）"
+    }
+  },
+  "219": {
+    "inputs": {
+      "aspect_ratio": "original",
+      "proportional_width": 1,
+      "proportional_height": 1,
+      "fit": "letterbox",
+      "method": "lanczos",
+      "round_to_multiple": "8",
+      "scale_to_side": "longest",
+      "scale_to_length": 1536,
+      "background_color": "#000000",
+      "image": [
+        "170",
+        0
+      ]
+    },
+    "class_type": "LayerUtility: ImageScaleByAspectRatio V2",
+    "_meta": {
+      "title": "图层工具：按宽高比缩放 V2"
+    }
+  },
+  "223": {
+    "inputs": {
+      "value": 8
+    },
+    "class_type": "PrimitiveFloat",
+    "_meta": {
+      "title": "浮点数"
+    }
+  },
+  "228": {
+    "inputs": {
+      "unet_name": "krea2\\krea2TurboOfficialComfy_krea2TurboFp8.safetensors",
+      "weight_dtype": "default"
+    },
+    "class_type": "UNETLoader",
+    "_meta": {
+      "title": "UNet加载器",
+      "cnr_id": "comfy-core",
+      "ver": "0.25.0"
+    }
+  },
+  "249": {
+    "inputs": {
+      "sampler_name": "euler"
+    },
+    "class_type": "KSamplerSelect",
+    "_meta": {
+      "title": "K采样器选择",
+      "cnr_id": "comfy-core",
+      "ver": "0.8.2"
+    }
+  },
+  "250": {
+    "inputs": {
+      "conditioning": [
+        "252",
+        0
+      ],
+      "latent": [
+        "251",
+        0
+      ]
+    },
+    "class_type": "ReferenceLatent",
+    "_meta": {
+      "title": "参考Latent",
+      "cnr_id": "comfy-core",
+      "ver": "0.9.2"
+    }
+  },
+  "251": {
+    "inputs": {
+      "pixels": [
+        "219",
+        0
+      ],
+      "vae": [
+        "265",
+        0
+      ]
+    },
+    "class_type": "VAEEncode",
+    "_meta": {
+      "title": "VAE编码",
+      "cnr_id": "comfy-core",
+      "ver": "0.9.2"
+    }
+  },
+  "252": {
+    "inputs": {
+      "conditioning": [
+        "257",
+        0
+      ]
+    },
+    "class_type": "ConditioningZeroOut",
+    "_meta": {
+      "title": "条件零化",
+      "cnr_id": "comfy-core",
+      "ver": "0.9.1"
+    }
+  },
+  "253": {
+    "inputs": {
+      "steps": 4,
+      "width": [
+        "271",
+        0
+      ],
+      "height": [
+        "271",
+        1
+      ]
+    },
+    "class_type": "Flux2Scheduler",
+    "_meta": {
+      "title": "Flux2调度器",
+      "cnr_id": "comfy-core",
+      "ver": "0.8.2"
+    }
+  },
+  "254": {
+    "inputs": {
+      "noise": [
+        "256",
+        0
+      ],
+      "guider": [
+        "255",
+        0
+      ],
+      "sampler": [
+        "249",
+        0
+      ],
+      "sigmas": [
+        "253",
+        0
+      ],
+      "latent_image": [
+        "268",
+        1
+      ]
+    },
+    "class_type": "SamplerCustomAdvanced",
+    "_meta": {
+      "title": "自定义采样器（高级）",
+      "cnr_id": "comfy-core",
+      "ver": "0.8.2"
+    }
+  },
+  "255": {
+    "inputs": {
+      "cfg": 1,
+      "model": [
+        "263",
+        0
+      ],
+      "positive": [
+        "268",
+        0
+      ],
+      "negative": [
+        "270",
+        0
+      ]
+    },
+    "class_type": "CFGGuider",
+    "_meta": {
+      "title": "CFG引导器",
+      "cnr_id": "comfy-core",
+      "ver": "0.8.2"
+    }
+  },
+  "256": {
+    "inputs": {
+      "noise_seed": 1027549041083969
+    },
+    "class_type": "RandomNoise",
+    "_meta": {
+      "title": "随机噪波",
+      "cnr_id": "comfy-core",
+      "ver": "0.8.2"
+    }
+  },
+  "257": {
+    "inputs": {
+      "text": "",
+      "clip": [
+        "264",
+        0
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "CLIP文本编码",
+      "cnr_id": "comfy-core",
+      "ver": "0.8.2"
+    }
+  },
+  "258": {
+    "inputs": {
+      "conditioning": [
+        "257",
+        0
+      ],
+      "latent": [
+        "251",
+        0
+      ]
+    },
+    "class_type": "ReferenceLatent",
+    "_meta": {
+      "title": "参考Latent",
+      "cnr_id": "comfy-core",
+      "ver": "0.9.2"
+    }
+  },
+  "259": {
+    "inputs": {
+      "samples": [
+        "254",
+        0
+      ],
+      "vae": [
+        "265",
+        0
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "VAE解码",
+      "cnr_id": "comfy-core",
+      "ver": "0.8.2"
+    }
+  },
+  "260": {
+    "inputs": {
+      "unet_name": "Flux2_klein\\flux-2-klein-base-9b.safetensors",
+      "weight_dtype": "fp8_e4m3fn"
+    },
+    "class_type": "UNETLoader",
+    "_meta": {
+      "title": "UNet加载器",
+      "cnr_id": "comfy-core",
+      "ver": "0.8.2"
+    }
+  },
+  "261": {
+    "inputs": {
+      "lora_name": "FluxLora\\Klein\\klein_9B_Turbo_r128.safetensors",
+      "strength_model": 0.9900000000000002,
+      "model": [
+        "260",
+        0
+      ]
+    },
+    "class_type": "LoraLoaderModelOnly",
+    "_meta": {
+      "title": "LoRA加载器（仅模型）"
+    }
+  },
+  "262": {
+    "inputs": {
+      "lora_name": "FluxLora\\Klein\\realistic.safetensors",
+      "strength_model": 0.6000000000000001,
+      "model": [
+        "261",
+        0
+      ]
+    },
+    "class_type": "LoraLoaderModelOnly",
+    "_meta": {
+      "title": "LoRA加载器（仅模型）"
+    }
+  },
+  "263": {
+    "inputs": {
+      "lora_name": "FluxLora\\Klein\\f2k_9B_lcs_consist_20260415.safetensors",
+      "strength_model": 1.0000000000000002,
+      "model": [
+        "262",
+        0
+      ]
+    },
+    "class_type": "LoraLoaderModelOnly",
+    "_meta": {
+      "title": "LoRA加载器（仅模型）"
+    }
+  },
+  "264": {
+    "inputs": {
+      "clip_name": "Flux2_klein\\qwen_3_8b_fp8mixed.safetensors",
+      "type": "flux2",
+      "device": "default"
+    },
+    "class_type": "CLIPLoader",
+    "_meta": {
+      "title": "加载CLIP",
+      "cnr_id": "comfy-core",
+      "ver": "0.8.2"
+    }
+  },
+  "265": {
+    "inputs": {
+      "vae_name": "Flux2\\flux2-vae.safetensors"
+    },
+    "class_type": "VAELoader",
+    "_meta": {
+      "title": "加载VAE",
+      "cnr_id": "comfy-core",
+      "ver": "0.8.2"
+    }
+  },
+  "266": {
+    "inputs": {
+      "instruction": ""
+    },
+    "class_type": "Flux2KleinModelConfig_EditUtils",
+    "_meta": {
+      "title": "EditUtils: Flux2Klein Model Config lrzjason"
+    }
+  },
+  "267": {
+    "inputs": {
+      "to_ref": true,
+      "ref_main_image": true,
+      "ref_longest_edge": 1536,
+      "ref_crop": "pad",
+      "ref_upscale": "lanczos",
+      "pad_mode": "color",
+      "pad_color": "custom",
+      "pad_color_rgb": 0,
+      "pad_noise": 0,
+      "ref_resize_mode": "longest_edge",
+      "rope_x_offset": 0,
+      "rope_y_offset": 0,
+      "image": [
+        "219",
+        0
+      ]
+    },
+    "class_type": "Flux2KleinConfigPreparer_EditUtils",
+    "_meta": {
+      "title": "EditUtils: Flux2Klein Config Preparer lrzjason"
+    }
+  },
+  "268": {
+    "inputs": {
+      "prompt": "Maintain the image style, add detailed elements, and repair high-frequency details in damaged images.",
+      "clip": [
+        "264",
+        0
+      ],
+      "vae": [
+        "265",
+        0
+      ],
+      "model_config": [
+        "266",
+        0
+      ],
+      "configs": [
+        "267",
+        0
+      ]
+    },
+    "class_type": "EditTextEncode_EditUtils",
+    "_meta": {
+      "title": "EditUtils: EditTextEncode lrzjason"
+    }
+  },
+  "269": {
+    "inputs": {
+      "custom_output": [
+        "268",
+        2
+      ]
+    },
+    "class_type": "Flux2KleinOutputExtractor_EditUtils",
+    "_meta": {
+      "title": "EditUtils: Flux2Klein Output Extractor lrzjason"
+    }
+  },
+  "270": {
+    "inputs": {
+      "conditioning": [
+        "268",
+        0
+      ]
+    },
+    "class_type": "ConditioningZeroOut",
+    "_meta": {
+      "title": "条件零化"
+    }
+  },
+  "271": {
+    "inputs": {
+      "image": [
+        "268",
+        3
+      ]
+    },
+    "class_type": "GetImageSize",
+    "_meta": {
+      "title": "获取图像尺寸"
+    }
+  },
+  "274": {
+    "inputs": {
+      "method": "wavelet",
+      "image_output": "Preview",
+      "save_prefix": "ComfyUI",
+      "image_ref": [
+        "219",
+        0
+      ],
+      "image_target": [
+        "259",
+        0
+      ]
+    },
+    "class_type": "easy imageColorMatch",
+    "_meta": {
+      "title": "图像颜色匹配"
+    }
+  },
+  "275": {
+    "inputs": {
+      "method": "wavelet",
+      "image_output": "Hide",
+      "save_prefix": "ComfyUI",
+      "image_ref": [
+        "274",
+        0
+      ],
+      "image_target": [
+        "156",
+        0
+      ]
+    },
+    "class_type": "easy imageColorMatch",
+    "_meta": {
+      "title": "图像颜色匹配"
+    }
+  },
+  "280": {
+    "inputs": {
+      "compare_view": {
+        "__value__": [
+          "",
+          ""
+        ]
+      },
+      "image_a": [
+        "170",
+        0
+      ],
+      "image_b": [
+        "275",
+        0
+      ]
+    },
+    "class_type": "ImageCompare",
+    "_meta": {
+      "title": "图像对比"
+    }
+  }
+}

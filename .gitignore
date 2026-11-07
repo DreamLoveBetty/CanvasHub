@@ -56,10 +56,6 @@ prompt_sources.db*
 models/upscale/*.pth
 models/upscale/*.pt
 models/upscale/*.safetensors
-# ComfyUI workflows are local; retain only the tracked smoke fixtures.
-workflows/*.json
-!workflows/Lumina_2_Upscale.json
-!workflows/sd15_text_to_image.json
 sidecars/chatgpt_pool/launchd/*.plist
 launchd/*.plist
 # Regression sources and synthetic fixtures may be tracked. Keep local probes

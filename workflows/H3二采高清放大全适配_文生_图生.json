@@ -1,0 +1,963 @@
+{
+  "115": {
+    "inputs": {
+      "aspect_ratio": "9:16 (Portrait Widescreen)",
+      "megapixels": 0.5,
+      "multiple": 32
+    },
+    "class_type": "ResolutionSelector",
+    "_meta": {
+      "title": "[参数]画幅质量"
+    }
+  },
+  "126": {
+    "inputs": {
+      "vae_name": "H3\\minimax_h3_video_vae_int8_convrot.safetensors"
+    },
+    "class_type": "VAELoader",
+    "_meta": {
+      "title": "加载VAE"
+    }
+  },
+  "127": {
+    "inputs": {
+      "vae_name": "H3\\minimax_h3_audio_vae_fp32.safetensors"
+    },
+    "class_type": "VAELoader",
+    "_meta": {
+      "title": "加载VAE"
+    }
+  },
+  "130": {
+    "inputs": {
+      "noise": [
+        "133",
+        0
+      ],
+      "guider": [
+        "131",
+        0
+      ],
+      "sampler": [
+        "254",
+        0
+      ],
+      "sigmas": [
+        "255",
+        0
+      ],
+      "latent_image": [
+        "253",
+        1
+      ]
+    },
+    "class_type": "SamplerCustomAdvanced",
+    "_meta": {
+      "title": "自定义采样器（高级）"
+    }
+  },
+  "131": {
+    "inputs": {
+      "model": [
+        "374",
+        0
+      ],
+      "conditioning": [
+        "253",
+        0
+      ]
+    },
+    "class_type": "BasicGuider",
+    "_meta": {
+      "title": "基本引导器"
+    }
+  },
+  "132": {
+    "inputs": {
+      "clip_name": "H3\\redcraftMinimaxH3REDMIX_qwen3vl.safetensors",
+      "type": "minimax",
+      "device": "default"
+    },
+    "class_type": "CLIPLoader",
+    "_meta": {
+      "title": "加载CLIP"
+    }
+  },
+  "133": {
+    "inputs": {
+      "noise_seed": 921913786069566
+    },
+    "class_type": "RandomNoise",
+    "_meta": {
+      "title": "随机噪波"
+    }
+  },
+  "136": {
+    "inputs": {
+      "value": 5
+    },
+    "class_type": "PrimitiveFloat",
+    "_meta": {
+      "title": "[参数]生成时长"
+    }
+  },
+  "141": {
+    "inputs": {
+      "expression": "max(5, round(a * 24)) + (5 - (max(5, round(a * 24)) % 17)) % 17",
+      "values.a": [
+        "136",
+        0
+      ]
+    },
+    "class_type": "ComfyMathExpression",
+    "_meta": {
+      "title": "数学表达式"
+    }
+  },
+  "142": {
+    "inputs": {
+      "lora_name": "H3\\加速\\minimax_h3_ref2v_lightx2v_turbo_4step_v0.1_resized_avg_rank_20_bf16.safetensors",
+      "strength_model": 0.75,
+      "model": [
+        "559",
+        0
+      ]
+    },
+    "class_type": "LoraLoaderModelOnly",
+    "_meta": {
+      "title": "LoRA加载器（仅模型）"
+    }
+  },
+  "167": {
+    "inputs": {
+      "value": "对于目标视频，在第 0.00 秒，完全参考 <Picture 1>（来自 [镜头 1]）。\n\nintegrated_multimodal_description: [镜头 1] 实拍，电影质感，全程严格锁定 <Picture 1> 的视觉风格——顶逆光打亮发丝形成柔和光晕，天光漫射均匀包裹肌肤，无强烈阴影；整体色调低饱和、高明度，以云白、浅青、雾灰为主色，远山与江面在薄雾中淡化为朦胧水墨意境；汉服丝质薄透，在逆光下轻微透光；画面景深浅，背景古典楼台与远景江湖虚焦柔化。两位女子保持 <Picture 1> 中的位置与服饰——白衣大乔倚坐持折扇，青衣小乔侧靠栏杆托腮。轻柔江风徐来，发丝、衣袂与折扇流苏同步轻盈飘动，肌肤高光与发丝边缘光随风微颤，光影氛围始终与首帧完全一致。\n\n[镜头 2] 在 00:02.500，镜头切换至两人面部中近景，保持与首帧相同的顶逆光与低饱和青白色调。大乔缓缓低头，小乔微微仰眼，目光深情相汇，柔和漫射光勾勒出两人侧颜轮廓与眼睫细节，发丝在风中细细拂过脸庞，肌肤受光面呈现与 <Picture 1> 一致的温润乳白质感。\n\n[镜头 3] 在 00:05.000，镜头切换至两人面部极近特写，继续保持逆光光晕与雾化背景。两人缓缓靠近，呼吸相触，随后轻轻嘴对嘴相吻，双眼微阖，神情平静深情。镜头极慢速小幅推进，发丝随微风持续轻柔飘动，边缘逆光光晕始终清晰可见，远景江湖与楼台维持与首帧一致的朦胧虚焦层次。\n\noverall_soundscape: 徐缓悠长的江风声贯穿全程，丝质衣袂与发丝随风拂动的细碎声响，远处隐约水波轻漾声，整体环境静谧空灵。\n\nnon_diegetic_music: 古琴单弦以极慢速度轻轻拨响，音符间距宽疏留白，随后一缕低沉箫声缓缓加入，音量渐升后轻柔淡出，整体配乐清淡简远。"
+    },
+    "class_type": "PrimitiveStringMultiline",
+    "_meta": {
+      "title": "[提示词]"
+    }
+  },
+  "202": {
+    "inputs": {
+      "model": [
+        "374",
+        0
+      ],
+      "conditioning": [
+        "259",
+        0
+      ]
+    },
+    "class_type": "BasicGuider",
+    "_meta": {
+      "title": "基本引导器"
+    }
+  },
+  "209": {
+    "inputs": {
+      "noise": [
+        "133",
+        0
+      ],
+      "guider": [
+        "202",
+        0
+      ],
+      "sampler": [
+        "254",
+        0
+      ],
+      "sigmas": [
+        "257",
+        0
+      ],
+      "latent_image": [
+        "259",
+        1
+      ]
+    },
+    "class_type": "SamplerCustomAdvanced",
+    "_meta": {
+      "title": "自定义采样器（高级）"
+    }
+  },
+  "222": {
+    "inputs": {
+      "image": "zimage_00023_.png"
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "[参考图2]"
+    }
+  },
+  "236": {
+    "inputs": {
+      "image": "HRbIsBBaAAA2A_r.jpeg"
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "[参考图1]"
+    }
+  },
+  "253": {
+    "inputs": {
+      "prompt": [
+        "167",
+        0
+      ],
+      "width": [
+        "115",
+        0
+      ],
+      "height": [
+        "115",
+        1
+      ],
+      "length": [
+        "141",
+        1
+      ],
+      "clip": [
+        "132",
+        0
+      ],
+      "vae": [
+        "126",
+        0
+      ]
+    },
+    "class_type": "MiniMaxH3ImageToVideo",
+    "_meta": {
+      "title": "[分支：文生]文生视频"
+    }
+  },
+  "254": {
+    "inputs": {
+      "sampler_name": "res_multistep"
+    },
+    "class_type": "KSamplerSelect",
+    "_meta": {
+      "title": "K采样器选择"
+    }
+  },
+  "255": {
+    "inputs": {
+      "scheduler": "simple",
+      "steps": [
+        "552",
+        0
+      ],
+      "denoise": 1,
+      "model": [
+        "374",
+        0
+      ]
+    },
+    "class_type": "BasicScheduler",
+    "_meta": {
+      "title": "基本调度器"
+    }
+  },
+  "257": {
+    "inputs": {
+      "scheduler": "simple",
+      "steps": [
+        "552",
+        0
+      ],
+      "denoise": 1,
+      "model": [
+        "374",
+        0
+      ]
+    },
+    "class_type": "BasicScheduler",
+    "_meta": {
+      "title": "基本调度器"
+    }
+  },
+  "259": {
+    "inputs": {
+      "prompt": [
+        "167",
+        0
+      ],
+      "width": [
+        "115",
+        0
+      ],
+      "height": [
+        "115",
+        1
+      ],
+      "length": [
+        "141",
+        1
+      ],
+      "ref_image_size": "max",
+      "clip": [
+        "132",
+        0
+      ],
+      "vae": [
+        "126",
+        0
+      ],
+      "audio_vae": [
+        "127",
+        0
+      ],
+      "ref_images.ref_image_0": [
+        "236",
+        0
+      ],
+      "ref_images.ref_image_1": [
+        "222",
+        0
+      ],
+      "ref_images.ref_image_2": [
+        "515",
+        0
+      ],
+      "ref_images.ref_image_3": [
+        "516",
+        0
+      ],
+      "ref_images.ref_image_4": [
+        "517",
+        0
+      ],
+      "ref_videos.ref_video_0": [
+        "523",
+        0
+      ],
+      "ref_audios.ref_audio_0": [
+        "522",
+        0
+      ],
+      "ref_images.ref_image_5": [
+        "518",
+        0
+      ],
+      "ref_images.ref_image_6": [
+        "519",
+        0
+      ],
+      "ref_images.ref_image_7": [
+        "520",
+        0
+      ],
+      "ref_images.ref_image_8": [
+        "521",
+        0
+      ]
+    },
+    "class_type": "MiniMaxH3ReferenceToVideo",
+    "_meta": {
+      "title": "[分支：图生]多参视频"
+    }
+  },
+  "264": {
+    "inputs": {
+      "model": [
+        "476",
+        0
+      ]
+    },
+    "class_type": "MiniMaxH3MemoryEfficientSageAttentionPatch",
+    "_meta": {
+      "title": "MiniMax H3 Mem Eff Sage Attention Patch"
+    }
+  },
+  "272": {
+    "inputs": {
+      "fps": 24,
+      "bit_depth": 8,
+      "color_space": "sRGB",
+      "chroma_subsampling": "auto",
+      "codec": "none",
+      "images": [
+        "557",
+        0
+      ],
+      "audio": [
+        "274",
+        0
+      ]
+    },
+    "class_type": "CreateVideo",
+    "_meta": {
+      "title": "创建视频"
+    }
+  },
+  "274": {
+    "inputs": {
+      "samples": [
+        "392",
+        1
+      ],
+      "vae": [
+        "127",
+        0
+      ]
+    },
+    "class_type": "VAEDecodeAudio",
+    "_meta": {
+      "title": "VAE解码（音频）"
+    }
+  },
+  "343": {
+    "inputs": {
+      "filename_prefix": "video/二采高清放大",
+      "format": "auto",
+      "format.codec": "auto",
+      "codec": "auto",
+      "video": [
+        "272",
+        0
+      ]
+    },
+    "class_type": "SaveVideo",
+    "_meta": {
+      "title": "[开关：二采][输出]保存视频"
+    }
+  },
+  "373": {
+    "inputs": {
+      "shift_video": 12,
+      "shift_audio": 3,
+      "model": [
+        "465",
+        0
+      ]
+    },
+    "class_type": "MiniMaxH3SigmaShift",
+    "_meta": {
+      "title": "MiniMax H3 Sigma Shift"
+    }
+  },
+  "374": {
+    "inputs": {
+      "attention": "comfy kitchen attention",
+      "model": [
+        "373",
+        0
+      ]
+    },
+    "class_type": "ModelAttentionBackend",
+    "_meta": {
+      "title": "模型注意力后端"
+    }
+  },
+  "392": {
+    "inputs": {
+      "av_latent": [
+        "395",
+        0
+      ]
+    },
+    "class_type": "LTXVSeparateAVLatent",
+    "_meta": {
+      "title": "分离 AV 潜空间"
+    }
+  },
+  "393": {
+    "inputs": {
+      "video_latent": [
+        "462",
+        0
+      ],
+      "audio_latent": [
+        "392",
+        1
+      ]
+    },
+    "class_type": "LTXVConcatAVLatent",
+    "_meta": {
+      "title": "拼接 AV 潜空间"
+    }
+  },
+  "395": {
+    "inputs": {
+      "any_01": [
+        "130",
+        1
+      ],
+      "any_02": [
+        "209",
+        1
+      ]
+    },
+    "class_type": "Any Switch (rgthree)",
+    "_meta": {
+      "title": "Any Switch (rgthree)"
+    }
+  },
+  "417": {
+    "inputs": {
+      "value": 2
+    },
+    "class_type": "PrimitiveFloat",
+    "_meta": {
+      "title": "[参数]二采倍数"
+    }
+  },
+  "461": {
+    "inputs": {
+      "unet_name": "H3\\redcraftREDMIXHybridA2A_h3A2AREDMinimax.safetensors",
+      "weight_dtype": "default"
+    },
+    "class_type": "UNETLoader",
+    "_meta": {
+      "title": "UNet加载器"
+    }
+  },
+  "462": {
+    "inputs": {
+      "model_name": "minimax_h3_latent_upscaler_3d_fp16.safetensors",
+      "mode": "scale by multiplier",
+      "mode.scale": [
+        "417",
+        0
+      ],
+      "align": 32,
+      "enable_temporal_chunking": true,
+      "force_unload": true,
+      "device": "cuda",
+      "precision": "fp16",
+      "latent": [
+        "392",
+        0
+      ]
+    },
+    "class_type": "MinimaxH3LatentUpscaler3D",
+    "_meta": {
+      "title": "Minimax H3 Latent Upscaler (3D)"
+    }
+  },
+  "465": {
+    "inputs": {
+      "tau": 1.3,
+      "start_percent": 0.2,
+      "end_percent": 0.9,
+      "min_tokens": 4096,
+      "int8_qk": true,
+      "sink_conditioning": "exact_kv_and_rows",
+      "morton": false,
+      "morton_curve": "2d_frame",
+      "int8_pv": true,
+      "verbose": false,
+      "use_tma": false,
+      "dense_blocks": "",
+      "model": [
+        "478",
+        0
+      ]
+    },
+    "class_type": "SolAttnPatch",
+    "_meta": {
+      "title": "Patch Sol-Attn"
+    }
+  },
+  "476": {
+    "inputs": {
+      "sage_attention": "auto",
+      "allow_compile": false,
+      "model": [
+        "142",
+        0
+      ]
+    },
+    "class_type": "PathchSageAttentionKJ",
+    "_meta": {
+      "title": "SAGE注意力补丁KJ"
+    }
+  },
+  "477": {
+    "inputs": {
+      "head_chunks": 8,
+      "model": [
+        "264",
+        0
+      ]
+    },
+    "class_type": "MiniMaxLowVRAMAttention",
+    "_meta": {
+      "title": "MiniMax H3 Low VRAM Attention"
+    }
+  },
+  "478": {
+    "inputs": {
+      "chunks": 4,
+      "seq_threshold": 4096,
+      "model": [
+        "477",
+        0
+      ]
+    },
+    "class_type": "MiniMaxChunkFeedForward",
+    "_meta": {
+      "title": "MiniMax H3 Chunk FeedForward"
+    }
+  },
+  "491": {
+    "inputs": {
+      "sigmas": "0.9035, 0.6316, 0.3158, 0.0000"
+    },
+    "class_type": "ManualSigmas",
+    "_meta": {
+      "title": "[选项：二采步数]3步"
+    }
+  },
+  "495": {
+    "inputs": {
+      "sigmas": "0.9035, 0.8000, 0.6316, 0.3158, 0.0000"
+    },
+    "class_type": "ManualSigmas",
+    "_meta": {
+      "title": "[选项：二采步数]4步"
+    }
+  },
+  "496": {
+    "inputs": {
+      "sigmas": "0.9231, 0.8780, 0.8000, 0.6316, 0.3158, 0.0000"
+    },
+    "class_type": "ManualSigmas",
+    "_meta": {
+      "title": "[选项：二采步数]5步"
+    }
+  },
+  "503": {
+    "inputs": {
+      "any_01": [
+        "491",
+        0
+      ],
+      "any_02": [
+        "495",
+        0
+      ],
+      "any_03": [
+        "496",
+        0
+      ]
+    },
+    "class_type": "Any Switch (rgthree)",
+    "_meta": {
+      "title": "Any Switch (rgthree)"
+    }
+  },
+  "515": {
+    "inputs": {
+      "image": "zimage_00023_.png"
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "[参考图3]"
+    }
+  },
+  "516": {
+    "inputs": {
+      "image": "zimage_00023_.png"
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "[参考图4]"
+    }
+  },
+  "517": {
+    "inputs": {
+      "image": "zimage_00023_.png"
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "[参考图5]"
+    }
+  },
+  "518": {
+    "inputs": {
+      "image": "zimage_00023_.png"
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "[参考图6]"
+    }
+  },
+  "519": {
+    "inputs": {
+      "image": "zimage_00023_.png"
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "[参考图7]"
+    }
+  },
+  "520": {
+    "inputs": {
+      "image": "zimage_00023_.png"
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "[参考图8]"
+    }
+  },
+  "521": {
+    "inputs": {
+      "image": "zimage_00023_.png"
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "[参考图9]"
+    }
+  },
+  "522": {
+    "inputs": {
+      "audio": "ACE_Step1.5_xl_dualpass_recommended_00020_.mp3"
+    },
+    "class_type": "LoadAudio",
+    "_meta": {
+      "title": "[参考音频1]"
+    }
+  },
+  "523": {
+    "inputs": {
+      "video": "ComfyUI_00025_.mp4",
+      "force_rate": 0,
+      "custom_width": 0,
+      "custom_height": 0,
+      "frame_load_cap": 0,
+      "skip_first_frames": 0,
+      "select_every_nth": 1,
+      "format": "AnimateDiff"
+    },
+    "class_type": "VHS_LoadVideo",
+    "_meta": {
+      "title": "[参考视频1]"
+    }
+  },
+  "525": {
+    "inputs": {
+      "samples": [
+        "130",
+        0
+      ],
+      "vae": [
+        "126",
+        0
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "VAE解码"
+    }
+  },
+  "526": {
+    "inputs": {
+      "samples": [
+        "130",
+        0
+      ],
+      "vae": [
+        "127",
+        0
+      ]
+    },
+    "class_type": "VAEDecodeAudio",
+    "_meta": {
+      "title": "VAE解码（音频）"
+    }
+  },
+  "531": {
+    "inputs": {
+      "any_01": [
+        "525",
+        0
+      ],
+      "any_02": [
+        "535",
+        0
+      ]
+    },
+    "class_type": "Any Switch (rgthree)",
+    "_meta": {
+      "title": "Any Switch (rgthree)"
+    }
+  },
+  "532": {
+    "inputs": {
+      "any_01": [
+        "526",
+        0
+      ],
+      "any_02": [
+        "538",
+        0
+      ]
+    },
+    "class_type": "Any Switch (rgthree)",
+    "_meta": {
+      "title": "Any Switch (rgthree)"
+    }
+  },
+  "535": {
+    "inputs": {
+      "samples": [
+        "209",
+        0
+      ],
+      "vae": [
+        "126",
+        0
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "VAE解码"
+    }
+  },
+  "538": {
+    "inputs": {
+      "samples": [
+        "209",
+        0
+      ],
+      "vae": [
+        "127",
+        0
+      ]
+    },
+    "class_type": "VAEDecodeAudio",
+    "_meta": {
+      "title": "VAE解码（音频）"
+    }
+  },
+  "542": {
+    "inputs": {
+      "any_01": [
+        "253",
+        0
+      ],
+      "any_02": [
+        "259",
+        0
+      ]
+    },
+    "class_type": "Any Switch (rgthree)",
+    "_meta": {
+      "title": "Any Switch (rgthree)"
+    }
+  },
+  "547": {
+    "inputs": {
+      "noise": [
+        "133",
+        0
+      ],
+      "guider": [
+        "548",
+        0
+      ],
+      "sampler": [
+        "254",
+        0
+      ],
+      "sigmas": [
+        "503",
+        0
+      ],
+      "latent_image": [
+        "393",
+        0
+      ]
+    },
+    "class_type": "SamplerCustomAdvanced",
+    "_meta": {
+      "title": "自定义采样器（高级）"
+    }
+  },
+  "548": {
+    "inputs": {
+      "model": [
+        "374",
+        0
+      ],
+      "conditioning": [
+        "542",
+        0
+      ]
+    },
+    "class_type": "BasicGuider",
+    "_meta": {
+      "title": "基本引导器"
+    }
+  },
+  "550": {
+    "inputs": {
+      "frame_rate": 24,
+      "loop_count": 0,
+      "filename_prefix": "AnimateDiff",
+      "format": "video/h264-mp4",
+      "pix_fmt": "yuv420p",
+      "crf": 19,
+      "save_metadata": true,
+      "trim_to_audio": false,
+      "pingpong": false,
+      "save_output": true,
+      "images": [
+        "531",
+        0
+      ],
+      "audio": [
+        "532",
+        0
+      ]
+    },
+    "class_type": "VHS_VideoCombine",
+    "_meta": {
+      "title": "Video Combine 🎥🅥🅗🅢"
+    }
+  },
+  "552": {
+    "inputs": {
+      "value": 8
+    },
+    "class_type": "Int",
+    "_meta": {
+      "title": "[参数]步数"
+    }
+  },
+  "557": {
+    "inputs": {
+      "tile_size": 1024,
+      "overlap": 128,
+      "temporal_size": 64,
+      "temporal_overlap": 8,
+      "samples": [
+        "547",
+        0
+      ],
+      "vae": [
+        "126",
+        0
+      ]
+    },
+    "class_type": "VAEDecodeTiled",
+    "_meta": {
+      "title": "VAE解码（分块）"
+    }
+  },
+  "559": {
+    "inputs": {
+      "lora_name": "H3\\h3-realism-people-t2v-i2v-r2v.safetensors",
+      "strength_model": 0.75,
+      "model": [
+        "461",
+        0
+      ]
+    },
+    "class_type": "LoraLoaderModelOnly",
+    "_meta": {
+      "title": "LoRA加载器（仅模型）"
+    }
+  }
+}
