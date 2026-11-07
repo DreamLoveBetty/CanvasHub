@@ -351,8 +351,8 @@
     "sha256": "458aed2e112bf3517234e4f63cf9498769af57fdab6996a2101c6587194d320c"
    },
    "scripts/desktop-preferences.js": {
-    "v": "20261104-graphite1",
-    "sha256": "b6f8b5f2e6678a5fef7a2514bf4e810e9ecc793f3902e0746ab524dad6e568dc"
+    "v": "20261107-release2660",
+    "sha256": "085515022f0ecbaaf67d8c647ec85ee4b54778636e2d7b4111265166cdabb7fb"
    },
    "scripts/desktop-progress-materials.js": {
     "v": "20261007-node-progress4",
