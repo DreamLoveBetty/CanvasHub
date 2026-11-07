@@ -506,6 +506,11 @@ def _load_meta() -> dict[str, dict[str, Any]]:
     return meta
 
 
+def load_asset_meta() -> dict[str, dict[str, Any]]:
+    """Manual metadata keyed by asset id, including non-image assets such as archived videos."""
+    return _load_meta()
+
+
 def _asset_id(task_id: str, file_name: str, index: int, image_url: str = "") -> str:
     source = f"{task_id}|{index}|{file_name}|{image_url}"
     digest = hashlib.sha1(source.encode("utf-8", errors="ignore")).hexdigest()[:20]
@@ -1060,6 +1065,10 @@ def _clean_asset_snapshot(asset: dict[str, Any]) -> dict[str, Any]:
         "derivedCount",
         "relatedAssets",
         "relatedCount",
+        # Archived videos in mixed sets: imageUrl/thumbUrl carry the poster, these carry the clip.
+        "mediaKind",
+        "videoUrl",
+        "videoPath",
     )
     snapshot = {key: asset.get(key) for key in allowed if key in asset}
     snapshot["id"] = asset_id

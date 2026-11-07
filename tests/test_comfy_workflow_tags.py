@@ -7,12 +7,19 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from backend import agent_runtime, server
 from backend.routes import runtime_generation_routes
 from backend.services import comfy_workflow_tags as tags_module
 from tests.test_comfy_video import FakeHandler
+
+
+def setUpModule():
+    # Parameter extraction asks ComfyUI for dropdown choices; keep these tests off the network.
+    patcher = patch.object(server, '_COMFY_OPTION_LOOKUP', Mock(return_value=None, **{'class_specs.return_value': None}))
+    patcher.start()
+    unittest.addModuleCleanup(patcher.stop)
 
 
 def _node(class_type, inputs, title=''):
@@ -44,6 +51,19 @@ class TitleTagParsingTest(unittest.TestCase):
         self.assertEqual(tags_module.title_tags('[参考图2]'), [('image', 2)])
         self.assertEqual(tags_module.title_tags('KSampler [steps]'), [])
         self.assertEqual(tags_module.strip_title_tags('[參數]  採樣 [尺寸]'), '採樣')
+
+    def test_reference_video_alias_and_index_order(self) -> None:
+        self.assertEqual(tags_module.title_tags('[参考视频1]'), [('video', 1)])
+        self.assertEqual(tags_module.title_tags('【參考視頻2】 側面'), [('video', 2)])
+        workflow = {
+            '7': _node('VHS_LoadVideo', {'video': 'b.mp4', 'frame_load_cap': 0}, '[参考视频2] 背面'),
+            '9': _node('VHS_LoadVideo', {'video': 'a.mp4', 'frame_load_cap': 0}, '[参考视频1]'),
+        }
+        summary, tags = tags_module.workflow_tag_summary(workflow)
+        self.assertEqual(summary['tag_mode'], 'tags')
+        self.assertEqual(tags['videos'], ['9', '7'])
+        self.assertEqual(summary['input_slots'], [{'key': 'video:1', 'kind': 'video', 'label': '视频1'},
+                                                  {'key': 'video:2', 'kind': 'video', 'label': '视频2 · 背面'}])
 
     def test_targets_order_and_warnings(self) -> None:
         tags = tags_module.collect_workflow_tags(TAGGED)
@@ -154,6 +174,19 @@ class TaggedCatalogTest(unittest.TestCase):
         self.assertEqual(set(params), {'2:text', '4:steps', '4:cfg', '4:seed'})
         self.assertEqual(params['2:text']['label'], '负面提示词')
         self.assertEqual(params['4:steps']['node_title'], '採樣')
+
+    def test_ui_format_workflow_is_flagged_and_refused(self) -> None:
+        ui = {'id': 'x', 'nodes': [{'id': 93, 'type': 'CLIPTextEncode', 'title': '[提示词]', 'widgets_values': ['p']}],
+              'links': []}
+        items = self._items({'ui.json': ui, 'tagged.json': TAGGED})
+        self.assertIn('导出 (API)', items['ui.json']['format_error'])
+        self.assertTrue(items['ui.json']['summary'].startswith('UI 格式'))
+        self.assertEqual((items['ui.json']['parameters'], items['ui.json']['input_slots']), ([], []))
+        self.assertEqual(items['tagged.json']['format_error'], '')
+        with tempfile.TemporaryDirectory() as tmp:
+            (Path(tmp) / 'ui.json').write_text(json.dumps(ui), encoding='utf-8')
+            with patch.object(server, 'COMFY_WORKFLOW_DIR', Path(tmp)), self.assertRaisesRegex(ValueError, '导出 \\(API\\)'):
+                server._load_comfy_workflow('ui.json')
 
     def test_negative_override_applies_through_tagged_schema(self) -> None:
         workflow, applied = server._apply_comfy_parameter_overrides(json.loads(json.dumps(TAGGED)),

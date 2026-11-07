@@ -5,6 +5,8 @@ Preserve existing operation order, payloads and failure semantics.
 """
 from __future__ import annotations
 
+from ..services.comfy_gateway import ComfyPromptRejected, describe_comfy_rejection
+from ..services.comfy_audio import normalize_audio_input_names
 from ..services.comfy_video import normalize_video_input_names
 
 
@@ -173,6 +175,7 @@ def handle_comfy_run(
     json,
     process_comfy_task,
     uuid,
+    _repair_comfy_choices=None,
 ):
     """将前端请求转发到远端 ComfyUI /prompt"""
     try:
@@ -214,6 +217,8 @@ def handle_comfy_run(
                 raise ValueError('当前 ComfyUI 工作流需要至少一张参考图')
         max_videos = int(catalog_item.get('max_videos') or 0) if catalog_item and catalog_item.get('accepts_video') else 0
         video_names = normalize_video_input_names(data.get('videos'), max_videos, allow_empty=tagged)
+        max_audios = int(catalog_item.get('max_audios') or 0) if catalog_item and catalog_item.get('accepts_audio') else 0
+        audio_names = normalize_audio_input_names(data.get('audios'), max_audios)
         if max_videos and not tagged and not video_names:
             raise ValueError('当前 ComfyUI 工作流需要连接一个视频节点')
         output_kind = 'video' if catalog_item and catalog_item.get('output_kind') == 'video' else 'image'
@@ -224,6 +229,7 @@ def handle_comfy_run(
             negative_prompt = ''
         uploaded_image_names = [_upload_comfy_image(image_data) if image_data else '' for image_data in image_payloads]
         uploaded_image_name = next((name for name in uploaded_image_names if name), None)
+        prepare_report = {}
         prepared_prompt = _prepare_comfy_workflow(
             workflow,
             prompt,
@@ -235,14 +241,30 @@ def handle_comfy_run(
             height=height,
             uploaded_video_names=video_names,
             negative_prompt=negative_prompt,
+            uploaded_audio_names=audio_names,
+            workflow_parameters=workflow_parameters,
+            report=prepare_report,
         )
+        # Seeds and switch choices are part of what ran: keep them with the parameters (and the sidecar).
+        applied_workflow_parameters = {**applied_workflow_parameters, **prepare_report.get('switches', {}),
+                                       **prepare_report.get('seeds', {})}
+
+        # API exports can carry dropdown values ComfyUI rejects (widgets shifted by dynamic/advanced inputs).
+        input_repairs = _repair_comfy_choices(prepared_prompt) if _repair_comfy_choices else []
+        for repair in input_repairs:
+            print(f"⚠️ ComfyUI 工作流 {normalized_name} #{repair['node_id']} {repair['input']}: "
+                  f"{repair['value']!r} 不是有效选项，已改为默认值 {repair['replacement']!r}")
 
         client_id = f'{COMFY_CLIENT_ID}-{uuid.uuid4().hex[:12]}'
-        result = _proxy_comfy_json(
-            'POST',
-            '/prompt',
-            payload={'prompt': prepared_prompt, 'client_id': client_id},
-        )
+        try:
+            result = _proxy_comfy_json(
+                'POST',
+                '/prompt',
+                payload={'prompt': prepared_prompt, 'client_id': client_id},
+            )
+        except ComfyPromptRejected as rejected:
+            # Name nodes by their workflow titles; a rejected workflow is the caller's to fix, so it is a 400.
+            raise ValueError(describe_comfy_rejection(rejected.body, prepared_prompt)) from rejected
         prompt_id = result.get('prompt_id')
         if not prompt_id:
             raise RuntimeError(f'ComfyUI 未返回 prompt_id: {result}')
@@ -262,6 +284,8 @@ def handle_comfy_run(
                 'comfy_uploaded_image': uploaded_image_name,
                 'comfy_uploaded_images': uploaded_image_names,
                 'comfy_uploaded_videos': video_names,
+                'comfy_uploaded_audios': audio_names,
+                'comfy_input_repairs': input_repairs,
                 'negative_prompt': negative_prompt,
                 'comfy_output_kind': output_kind,
                 'comfy_expected_output_count': int(catalog_item.get('output_count') or 1) if catalog_item else 1,

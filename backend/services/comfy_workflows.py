@@ -6,6 +6,7 @@ Preserve existing operation order, payloads and failure semantics.
 from __future__ import annotations
 
 from .comfy_video import is_uploaded_video_input
+from .comfy_workflow_switches import collect_workflow_switches, switch_parameters
 from .comfy_workflow_tags import collect_workflow_tags, strip_title_tags, tagged_default_size
 
 
@@ -154,7 +155,9 @@ def _extract_comfy_workflow_parameters(
     COMFY_PARAMETER_OPTIONS,
     _comfy_parameter_label,
     _comfy_parameter_number_bounds,
+    combo_options=None,
 ):
+    """combo_options(class_type, input_name) -> choices or None supplies dropdowns the API export lost."""
     if not isinstance(workflow, dict):
         return []
     # Tagged workflows offer only [参数] nodes plus the [负面] text; untagged ones keep auto detection.
@@ -209,9 +212,9 @@ def _extract_comfy_workflow_parameters(
                 parameter_type = 'number'
                 minimum, maximum, step = _comfy_parameter_number_bounds(name, value)
                 parameter.update({'min': minimum, 'max': maximum, 'step': step})
-            elif name in COMFY_PARAMETER_OPTIONS:
+            elif (options := (combo_options(class_type, name) if combo_options and isinstance(value, str) else None)
+                  or (list(COMFY_PARAMETER_OPTIONS[name]) if name in COMFY_PARAMETER_OPTIONS else None)):
                 parameter_type = 'select'
-                options = list(COMFY_PARAMETER_OPTIONS[name])
                 if value not in options:
                     options.insert(0, value)
                 parameter['options'] = options
@@ -219,6 +222,9 @@ def _extract_comfy_workflow_parameters(
             parameters.append(parameter)
             if len(parameters) >= 256:
                 return parameters
+    if tags['tagged']:
+        # Switches lead the panel: they decide which of the other parameters take effect.
+        parameters[:0] = switch_parameters(collect_workflow_switches(workflow))
     return parameters
 
 

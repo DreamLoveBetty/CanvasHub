@@ -33,6 +33,23 @@ def handle_asset_videos(
         handler.send_json({'ok': False, 'error': '视频资产列表读取失败'}, 500)
 
 
+def handle_asset_video_delete(handler, *, delete_videos):
+    """把归档视频移入废纸篓；body: {"paths": ["main/2026-11-05/x.mp4", ...]}。"""
+    try:
+        data = handler.read_json_body(max_bytes=64 * 1024)
+        paths = data.get('paths')
+        if not isinstance(paths, list):
+            raise ValueError('paths 必须是列表')
+        handler.send_json(delete_videos(paths))
+    except FileNotFoundError as e:
+        handler.send_json({'ok': False, 'error': str(e)}, 404)
+    except ValueError as e:
+        handler.send_json({'ok': False, 'error': str(e)}, 400)
+    except Exception as e:
+        print(f'❌ video delete failed: {e}')
+        handler.send_json({'ok': False, 'error': '视频删除失败'}, 500)
+
+
 def handle_image(handler, filename, *, _resolve_download_file, mimetypes, os):
     """处理图片请求（archive directory, with legacy fallback）"""
     filepath = _resolve_download_file(filename)

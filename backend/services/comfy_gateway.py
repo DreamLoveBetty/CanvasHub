@@ -6,7 +6,21 @@ Preserve existing operation order, payloads and failure semantics.
 from __future__ import annotations
 
 from .comfy_video import MAX_VIDEOS, fill_video_loaders, video_token_replacements, workflow_video_io
-from .comfy_workflow_tags import apply_tagged_inputs, collect_workflow_tags, workflow_tag_summary
+from .comfy_audio import MAX_AUDIOS
+from .comfy_workflow_switches import (apply_workflow_switches, collect_workflow_switches, has_switches,
+                                      resolve_switch_choices, strip_switch_tags, unknown_title_tags)
+from .comfy_workflow_tags import (apply_tagged_inputs, collect_workflow_tags, empty_media_slots, media_loader_ids,
+                                  randomize_seeds, workflow_tag_summary)
+
+MAX_TAGGED_IMAGES = 12
+
+# ComfyUI's plain "Save" writes the editor (UI) format: top-level `nodes` / `links` lists. The /prompt API and
+# the title tags only understand the "Export (API)" format, so a UI file is flagged instead of guessed at.
+COMFY_UI_FORMAT_ERROR = '这是 ComfyUI 的 UI 格式（「保存」导出），无法识别节点标题也不能运行。请在 ComfyUI 中用「导出 (API)」重新导出后覆盖此文件。'
+
+
+def is_ui_format_workflow(workflow):
+    return isinstance(workflow, dict) and isinstance(workflow.get('nodes'), list) and isinstance(workflow.get('links'), list)
 
 
 def _collect_comfy_workflows(
@@ -41,9 +55,16 @@ def _collect_comfy_workflows(
             workflow_data = json.loads(raw_text)
         except Exception:
             raw_text, workflow_data = '', {}
+        ui_format = is_ui_format_workflow(workflow_data)
+        if ui_format:
+            workflow_data = {}
         video_io = workflow_video_io(workflow_data, raw_text)
         tag_info, _tags = workflow_tag_summary(workflow_data, raw_text)
         tagged = tag_info['tag_mode'] == 'tags'
+        switches = collect_workflow_switches(workflow_data) if tagged else None
+        switchable = bool(switches and has_switches(switches))
+        tag_warnings = [*tag_info['tag_warnings'], *(switches['warnings'] if switches else []),
+                        *(unknown_title_tags(workflow_data) if tagged else [])][:20]
         parameters = _extract_comfy_workflow_parameters(workflow_data)
         default_ratio = str(meta.get('default_ratio') or '1:1')
         ratio_width, ratio_height = _resolve_comfy_size(default_ratio, '1k')
@@ -60,21 +81,27 @@ def _collect_comfy_workflows(
         )
         accepts_image = _coerce_bool(meta.get('accepts_image'), auto_accepts_image)
         accepts_video = _coerce_bool(meta.get('accepts_video'), tag_info['accepts_video'] if tagged else video_io['accepts_video'])
+        accepts_audio = bool(tagged and tag_info['accepts_audio'])
         output_kind = meta.get('output_kind') if meta.get('output_kind') in ('image', 'video') else video_io['output_kind']
         enabled = _coerce_bool(meta.get('enabled'), True)
         if not include_disabled and not enabled:
             continue
         image_slots = max(1, tag_info['image_slots']) if tagged else 1
         video_slots = max(1, tag_info['video_slots']) if tagged else 1
-        max_images = bounded_int(meta.get('max_images'), image_slots if accepts_image else 0, 0, 8)
+        max_images = bounded_int(meta.get('max_images'), image_slots if accepts_image else 0, 0, MAX_TAGGED_IMAGES if tagged else 8)
         max_videos = bounded_int(meta.get('max_videos'), video_slots if accepts_video else 0, 0, MAX_VIDEOS)
+        max_audios = min(tag_info['audio_slots'], MAX_AUDIOS) if accepts_audio else 0
         output_count = bounded_int(meta.get('output_count'), 1, 1, 8)
         preview_path = _comfy_workflow_preview_path(workflow_id)
         label = str(meta.get('label') or _default_comfy_workflow_label(workflow_id)).strip()[:120]
-        if output_kind == 'video':
+        if output_kind == 'video' and switchable and len(switches['branches']) >= 2:
+            default_summary = ' / '.join(item['name'] for item in switches['branches']) + ' · 可切换'
+        elif output_kind == 'video':
             default_summary = '视频转视频 · 需要视频' if accepts_video else ('图生视频 · 需要参考图' if accepts_image else '文生视频')
         else:
             default_summary = '图生图 · 需要参考图' if accepts_image else '文生图 · 单图'
+        if ui_format:
+            default_summary = 'UI 格式 · 需改用「导出 (API)」'
         summary = str(meta.get('summary') or default_summary).strip()[:180]
         items.append({
             'id': workflow_id,
@@ -91,14 +118,18 @@ def _collect_comfy_workflows(
             'max_images': max_images,
             'accepts_video': accepts_video,
             'max_videos': max_videos,
+            'accepts_audio': accepts_audio,
+            'max_audios': max_audios,
+            'switchable': switchable,
             'output_kind': output_kind,
             'output_count': output_count,
             'tag_mode': tag_info['tag_mode'],
             'default_prompt': tag_info['default_prompt'],
             'size_editable': tag_info['size_editable'],
-            'tag_warnings': tag_info['tag_warnings'],
+            'tag_warnings': tag_warnings,
             'accepts_negative': tag_info['accepts_negative'],
             'input_slots': tag_info['input_slots'],
+            'format_error': COMFY_UI_FORMAT_ERROR if ui_format else '',
             'parameter_count': len(parameters),
             'parameters': parameters,
             'thumbnail_url': f'/api/comfy/workflow-thumbnail?id={urllib.parse.quote(workflow_id)}&v={preview_path.stat().st_mtime_ns}' if preview_path.exists() else '',
@@ -239,7 +270,10 @@ def _load_comfy_workflow(workflow_name, *, COMFY_WORKFLOW_DIR, Path, json):
         raise FileNotFoundError(f'工作流不存在：{workflow_name}')
 
     with open(workflow_path, 'r', encoding='utf-8') as f:
-        return json.load(f), workflow_path.name
+        workflow = json.load(f)
+    if is_ui_format_workflow(workflow):
+        raise ValueError(f'{workflow_path.name}：{COMFY_UI_FORMAT_ERROR}')
+    return workflow, workflow_path.name
 
 
 def _resolve_comfy_size(ratio, resolution='1k', *, COMFY_RATIO_SIZES, COMFY_RESOLUTION_LONG_EDGES):
@@ -329,6 +363,9 @@ def _prepare_comfy_workflow(
     height=None,
     uploaded_video_names=None,
     negative_prompt='',
+    uploaded_audio_names=None,
+    workflow_parameters=None,
+    report=None,
     *,
     _normalize_comfy_dimension,
     _replace_comfy_tokens,
@@ -357,10 +394,23 @@ def _prepare_comfy_workflow(
     replacements.update(video_token_replacements(uploaded_video_names))
     prepared = _replace_comfy_tokens(prepared, replacements)
     if tags['tagged']:
-        # Tagged slots are positional: keep empty entries so a skipped slot keeps the workflow's value.
-        return apply_tagged_inputs(prepared, tags, prompt=prompt, negative_prompt=str(negative_prompt or '').strip(),
-                                   width=width, height=height, image_names=list(uploaded_image_names or image_names),
-                                   video_names=list(uploaded_video_names or []))
+        # Tagged slots are positional: keep empty entries so a skipped slot keeps the workflow's value
+        # (switchable workflows instead detach empty slots, see comfy_workflow_switches).
+        slot_images = list(uploaded_image_names or image_names)
+        slot_videos = list(uploaded_video_names or [])
+        slot_audios = list(uploaded_audio_names or [])
+        prepared = apply_tagged_inputs(prepared, tags, prompt=prompt, negative_prompt=str(negative_prompt or '').strip(),
+                                       width=width, height=height, image_names=slot_images, video_names=slot_videos,
+                                       audio_names=slot_audios)
+        report = report if isinstance(report, dict) else {}
+        report['seeds'] = randomize_seeds(prepared, tags, random)
+        switches = collect_workflow_switches(workflow)
+        if has_switches(switches):
+            choices = resolve_switch_choices(switches, workflow_parameters)
+            empty = empty_media_slots(tags, image_names=slot_images, video_names=slot_videos, audio_names=slot_audios)
+            apply_workflow_switches(prepared, switches, choices, media_ids=media_loader_ids(tags), empty_media_ids=empty)
+            report['switches'] = choices
+        return prepared
 
     load_image_index = 0
     for node in prepared.values():
@@ -392,6 +442,37 @@ def _prepare_comfy_workflow(
     return fill_video_loaders(prepared, uploaded_video_names)
 
 
+class ComfyPromptRejected(RuntimeError):
+    """ComfyUI answered 400 with its validation report ({'error': {...}, 'node_errors': {...}})."""
+
+    def __init__(self, body):
+        self.body = body if isinstance(body, dict) else {}
+        super().__init__(describe_comfy_rejection(self.body))
+
+
+def describe_comfy_rejection(body, workflow=None, limit=6):
+    """One readable line per failed input, naming the node by id and title: '#272 创建视频 · chroma_subsampling：…'."""
+    body = body if isinstance(body, dict) else {}
+    error = body.get('error') if isinstance(body.get('error'), dict) else {}
+    nodes = workflow if isinstance(workflow, dict) else {}
+    lines = []
+    for node_id, entry in (body.get('node_errors') or {}).items() if isinstance(body.get('node_errors'), dict) else ():
+        node = nodes.get(str(node_id)) if isinstance(nodes.get(str(node_id)), dict) else {}
+        title = strip_switch_tags((node.get('_meta') or {}).get('title')) or (entry or {}).get('class_type') or 'Node'
+        for item in (entry or {}).get('errors') or []:
+            if not isinstance(item, dict):
+                continue
+            field = str((item.get('extra_info') or {}).get('input_name') or '').strip()
+            detail = str(item.get('details') or item.get('message') or '').strip()
+            lines.append(f"#{node_id} {title}{f' · {field}' if field else ''}：{detail[:200]}")
+    head = str(error.get('message') or 'ComfyUI 拒绝了这个工作流').strip()
+    if not lines:
+        detail = str(error.get('details') or '').strip()
+        return f'ComfyUI 拒绝了工作流：{head}{f"（{detail[:300]}）" if detail else ""}'
+    more = f'；另有 {len(lines) - limit} 处' if len(lines) > limit else ''
+    return f"ComfyUI 拒绝了工作流（{head}）：{'；'.join(lines[:limit])}{more}"
+
+
 def _proxy_comfy_json(method, path, *, params=None, payload=None, _new_comfy_session, get_comfy_config):
     config = get_comfy_config()
     with _new_comfy_session() as session:
@@ -402,6 +483,14 @@ def _proxy_comfy_json(method, path, *, params=None, payload=None, _new_comfy_ses
             json=payload,
             timeout=config['timeout_seconds'],
         )
+        if response.status_code == 400:
+            # /prompt validation failures carry the per-node reason; keep it instead of a bare "400 Bad Request".
+            try:
+                body = response.json()
+            except ValueError:
+                body = None
+            if isinstance(body, dict) and ('node_errors' in body or 'error' in body):
+                raise ComfyPromptRejected(body)
         response.raise_for_status()
         return response.json()
 

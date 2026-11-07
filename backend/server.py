@@ -255,6 +255,7 @@ from .asset_index import (
     invalidate_asset_index_cache,
     list_asset_sets,
     list_assets as list_gallery_assets,
+    load_asset_meta,
     mark_delete_batch_restored,
     record_delete_batch,
     remove_asset_from_sets,
@@ -341,6 +342,7 @@ from .routes import asset_maintenance_routes as _domain_routes_asset_maintenance
 from .services import media_lookup as _domain_services_media_lookup
 from .services import archive_sidecars as _domain_services_archive_sidecars
 from .services import archive_video as _domain_services_archive_video
+from .services import archive_video_actions as _domain_services_archive_video_actions
 from .services import image_import as _domain_services_image_import
 from .routes import media_routes as _domain_routes_media_routes
 
@@ -386,6 +388,8 @@ from .services import comfy_gateway as _domain_services_comfy_gateway
 from .services import comfy_generation as _domain_services_comfy_generation
 from .services import comfy_transport as _domain_services_comfy_transport
 from .services import comfy_video as _domain_services_comfy_video
+from .services import comfy_audio as _domain_services_comfy_audio
+from .services import comfy_object_info as _domain_services_comfy_object_info
 from .routes import runtime_generation_routes as _domain_routes_runtime_generation_routes
 
 from .routes import http_responses as _domain_routes_http_responses
@@ -1392,6 +1396,13 @@ def _comfy_ratio_from_size(width, height):
     return _domain_services_comfy_workflows._comfy_ratio_from_size(width, height, _normalize_comfy_dimension=_normalize_comfy_dimension, math=math)
 
 
+_COMFY_OPTION_LOOKUP = _domain_services_comfy_object_info.ComfyOptionLookup(lambda: _new_comfy_session(), get_comfy_config)
+
+
+def _repair_comfy_choices(workflow):
+    return _domain_services_comfy_object_info.repair_invalid_choices(workflow, _COMFY_OPTION_LOOKUP.class_specs)
+
+
 def _comfy_parameter_number_bounds(name, value):
     return _domain_services_comfy_workflows._comfy_parameter_number_bounds(name, value)
 
@@ -1400,6 +1411,7 @@ def _extract_comfy_workflow_parameters(workflow):
     return _domain_services_comfy_workflows._extract_comfy_workflow_parameters(
         workflow, COMFY_PARAMETER_EXCLUDED_INPUTS=COMFY_PARAMETER_EXCLUDED_INPUTS, COMFY_PARAMETER_OPTIONS=COMFY_PARAMETER_OPTIONS,
         _comfy_parameter_label=_comfy_parameter_label, _comfy_parameter_number_bounds=_comfy_parameter_number_bounds,
+        combo_options=_COMFY_OPTION_LOOKUP,
     )
 
 
@@ -1481,11 +1493,15 @@ def _prepare_comfy_workflow(
     height=None,
     uploaded_video_names=None,
     negative_prompt='',
+    uploaded_audio_names=None,
+    workflow_parameters=None,
+    report=None,
 ):
     return _domain_services_comfy_gateway._prepare_comfy_workflow(
         workflow, prompt, ratio,
         uploaded_image_name, uploaded_image_names, resolution,
-        width, height, uploaded_video_names, negative_prompt, _normalize_comfy_dimension=_normalize_comfy_dimension,
+        width, height, uploaded_video_names, negative_prompt, uploaded_audio_names, workflow_parameters, report,
+        _normalize_comfy_dimension=_normalize_comfy_dimension,
         _replace_comfy_tokens=_replace_comfy_tokens, _resolve_comfy_size=_resolve_comfy_size, json=json,
         random=random,
     )
@@ -1729,7 +1745,7 @@ def _resolve_download_file(filename):
 _ARCHIVE_IMAGE_EXTENSIONS = frozenset({'.png', '.jpg', '.jpeg', '.webp', '.tif', '.tiff'})
 _ARCHIVE_VIDEO_EXTENSIONS = frozenset({'.mp4', '.webm', '.mov', '.m4v'})
 _ARCHIVE_VIDEO_TEXT_EXTENSIONS = frozenset({'.txt', '.md'})
-_ARCHIVE_VIDEO_SOURCE_TYPES = frozenset({'generated', 'imported', 'all'})
+_ARCHIVE_VIDEO_SOURCE_TYPES = frozenset({'generated', 'imported', 'all', 'hidden'})
 _ARCHIVE_VIDEO_SOURCE_LABELS = {
     'generated': '生成视频',
     'imported': '导入素材',
@@ -1918,8 +1934,11 @@ def _probe_archive_video_metadata(filepath, stat_result=None):
 
 
 def _archive_video_task_map():
-    """Map archived H3 result basenames to an unambiguous persisted task."""
-    return _domain_services_archive_video._archive_video_task_map(H3_VIDEO_TASK_TYPE=H3_VIDEO_TASK_TYPE, Path=Path, get_all_tasks=get_all_tasks)
+    """Map archived video result basenames to an unambiguous persisted task."""
+    return _domain_services_archive_video._archive_video_task_map(
+        H3_VIDEO_TASK_TYPE=H3_VIDEO_TASK_TYPE, Path=Path, get_all_tasks=get_all_tasks,
+        _ARCHIVE_VIDEO_EXTENSIONS=_ARCHIVE_VIDEO_EXTENSIONS,
+    )
 
 
 _ARCHIVE_VIDEO_PUBLIC_PARAMETER_KEYS = (
@@ -1961,6 +1980,19 @@ def _list_archive_videos(limit=200, offset=0, query='', source='generated'):
         _public_archive_video_parameters=_public_archive_video_parameters, archive_scan_roots=archive_scan_roots, datetime=datetime,
         hashlib=hashlib, json=json, mimetypes=mimetypes,
         os=os, thumb_url_for_media_url=thumb_url_for_media_url, urllib=urllib,
+        hidden_video_ids=lambda: _domain_services_archive_video_actions.hidden_video_asset_ids(load_asset_meta()),
+    )
+
+
+def _delete_archive_videos(paths):
+    return _domain_services_archive_video_actions.delete_archive_videos(
+        paths,
+        resolve_video=_resolve_archive_video_file,
+        move_to_trash=_move_asset_file_to_trash,
+        snapshot_sets=snapshot_sets_for_asset,
+        remove_from_sets=remove_asset_from_sets,
+        update_meta=update_asset_meta,
+        record_batch=record_delete_batch,
     )
 
 
@@ -2398,7 +2430,10 @@ _VIDEO_CONTROL_ROUTES = create_video_control_router(VideoControlService(
         APP_DATA_DIR / 'components' / 'reshot', before_load=_LOCAL_IMAGE_MEMORY.release_all)))
 _POSE_ROUTES = create_pose_router(_POSE_SCENE_SERVICE)
 _VIDEO_UPLOAD_ROUTES = create_video_upload_router(VideoUploads(daily_output_dir, _probe_archive_video_metadata))
-_COMFY_VIDEO_ROUTES = create_comfy_video_router(_domain_services_comfy_video.ComfyVideoUploads(_new_comfy_session, get_comfy_config))
+_COMFY_VIDEO_ROUTES = create_comfy_video_router(
+    _domain_services_comfy_video.ComfyVideoUploads(_new_comfy_session, get_comfy_config),
+    _domain_services_comfy_audio.ComfyAudioUploads(_new_comfy_session, get_comfy_config),
+)
 _POSE_CAPTURE_ROUTES = create_pose_capture_router(_POSE_CAPTURE_SERVICE)
 _TOPAZ_VIDEO_ROUTES = create_topaz_video_router(TopazVideoService(
     APP_DATA_DIR / 'data' / 'topaz-video', TopazVideoRuntime(
@@ -3074,6 +3109,10 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
             if not self.require_auth():
                 return
             self.handle_asset_delete_batch()
+        elif path == '/api/assets/videos/delete':
+            if not self.require_auth():
+                return
+            self.handle_asset_video_delete()
         elif path == '/api/assets/sets':
             if not self.require_auth():
                 return
@@ -3373,6 +3412,10 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
             _coerce_archive_video_source=_coerce_archive_video_source, _history_page_int=_history_page_int, _list_archive_videos=_list_archive_videos,
             urllib=urllib,
         )
+
+    def handle_asset_video_delete(self):
+        """把归档视频及其侧车移入废纸篓，可用 /api/assets/undo-delete 撤销。"""
+        return _domain_routes_media_routes.handle_asset_video_delete(self, delete_videos=_delete_archive_videos)
 
     def handle_asset_detail(self, parsed):
         """按 id 返回单个资产的完整字段（瘦身列表的详情补全）。"""
@@ -3808,7 +3851,7 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
             _comfy_ratio_from_size=_comfy_ratio_from_size, _load_comfy_workflow=_load_comfy_workflow, _normalize_comfy_dimension=_normalize_comfy_dimension,
             _prepare_comfy_workflow=_prepare_comfy_workflow, _proxy_comfy_json=_proxy_comfy_json, _resolve_comfy_size=_resolve_comfy_size,
             _upload_comfy_image=_upload_comfy_image, create_task=create_task, json=json,
-            process_comfy_task=process_comfy_task, uuid=uuid,
+            process_comfy_task=process_comfy_task, uuid=uuid, _repair_comfy_choices=_repair_comfy_choices,
         )
 
     def handle_comfy_history(self):

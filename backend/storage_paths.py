@@ -111,25 +111,31 @@ def _generated_date_from_path(path: Path) -> str:
     return ""
 
 
+VIDEO_SIDECAR_SUFFIXES = frozenset({".mp4", ".webm", ".mov", ".m4v"})
+
+
 def write_obsidian_prompt_sidecar(
     image_path: Path,
     prompt_text: str,
     *,
     txt_path: Path | None = None,
 ) -> Path:
-    """Write an Obsidian-readable markdown prompt sidecar next to an image."""
+    """Write an Obsidian-readable markdown prompt sidecar next to an image or video.
+
+    Videos are marked `type: video_prompt` so the archive scan files them as generated videos."""
     image_path = Path(image_path)
     txt_path = Path(txt_path) if txt_path else image_path.with_suffix(".txt")
     prompt_text = str(prompt_text or "").strip()
     md_path = image_path.with_suffix(".md")
+    is_video = image_path.suffix.lower() in VIDEO_SIDECAR_SUFFIXES
     fence = _markdown_fence_for(prompt_text)
     lines = [
         "---",
         "source: tg-mini-app-img-gen",
-        "type: image_prompt",
+        f"type: {'video_prompt' if is_video else 'image_prompt'}",
         f"generated_date: {_yaml_string(_generated_date_from_path(image_path))}",
         f"task_id: {_yaml_string(image_path.stem)}",
-        f"image: {_yaml_string(image_path.name)}",
+        f"{'video' if is_video else 'image'}: {_yaml_string(image_path.name)}",
         f"txt_file: {_yaml_string(txt_path.name)}",
         "---",
         "",

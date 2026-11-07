@@ -8,11 +8,18 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from backend import database, server
 from backend.routes import runtime_generation_routes
 from backend.services import comfy_video
+
+
+def setUpModule():
+    # Parameter extraction asks ComfyUI for dropdown choices; keep these tests off the network.
+    patcher = patch.object(server, '_COMFY_OPTION_LOOKUP', Mock(return_value=None, **{'class_specs.return_value': None}))
+    patcher.start()
+    unittest.addModuleCleanup(patcher.stop)
 
 MP4_BYTES = b'\x00\x00\x00\x18ftypisom' + b'\x00' * 32
 

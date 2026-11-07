@@ -3,6 +3,7 @@
 API-format exports drop ComfyUI groups but keep each node's title (`_meta.title`), so roles
 are declared by a bracket tag in the title, e.g. `[提示词] 正向`, `[尺寸] Latent`, `[参考图2]`.
 Simplified, traditional and English names and full-width brackets 【】 are accepted.
+`[参考音频N]` marks LoadAudio nodes; branch/toggle/option tags live in comfy_workflow_switches.
 
 Once any node carries a tag the workflow is in strict mode: only tagged nodes are written and
 only `[参数]` nodes (plus `[负面]` text) are offered as parameters. Image and video tags become
@@ -20,11 +21,13 @@ _ROLE_ALIASES = {
     'negative': ('负面', '負面', 'negative'),
     'size': ('尺寸', 'size'),
     'image': ('参考图', '參考圖', 'image'),
-    'video': ('视频', '視頻', 'video'),
+    'video': ('视频', '視頻', '参考视频', '參考視頻', 'video'),
+    'audio': ('音频', '音頻', '参考音频', '參考音頻', 'audio'),
     'param': ('参数', '參數', 'param'),
 }
 _ROLE_BY_NAME = {alias.lower(): role for role, aliases in _ROLE_ALIASES.items() for alias in aliases}
-_TAG_RE = re.compile(r'[\[【]\s*(' + '|'.join(re.escape(name) for name in _ROLE_BY_NAME) + r')\s*(\d{0,2})\s*[\]】]',
+# Longest alias first so `参考视频` is not cut short by a shorter alternative.
+_TAG_RE = re.compile(r'[\[【]\s*(' + '|'.join(re.escape(name) for name in sorted(_ROLE_BY_NAME, key=len, reverse=True)) + r')\s*(\d{0,2})\s*[\]】]',
                      re.IGNORECASE)
 _TEXT_FIELDS = ('text', 'prompt', 'positive', 'string', 'value', 'text_g')
 PROMPT_TOKEN = '{{PROMPT}}'
@@ -50,11 +53,11 @@ def _scalar(value):
 
 def collect_workflow_tags(workflow):
     """Tagged targets of an API-format workflow; `tagged` is False when no title has a tag."""
-    result = {'tagged': False, 'prompt': [], 'negative': [], 'size': [], 'images': [], 'videos': [],
-              'image_titles': [], 'video_titles': [], 'params': [], 'warnings': []}
+    result = {'tagged': False, 'prompt': [], 'negative': [], 'size': [], 'images': [], 'videos': [], 'audios': [],
+              'image_titles': [], 'video_titles': [], 'audio_titles': [], 'params': [], 'warnings': []}
     if not isinstance(workflow, dict):
         return result
-    images, untagged_loaders = [], []
+    images, videos, audios, untagged_loaders = [], [], [], []
     for position, (raw_id, node) in enumerate(workflow.items()):
         if not isinstance(node, dict):
             continue
@@ -92,17 +95,32 @@ def collect_workflow_tags(workflow):
             untagged_loaders.append(f'{name} 未标记 [参考图]，不会接收画布图片')
         if 'video' in roles:
             if video_field and _scalar(inputs.get(video_field)):
-                result['videos'].append(node_id)
-                result['video_titles'].append(strip_title_tags(_title(node)))
+                index = next((index for role, index in tags if role == 'video' and index), None)
+                videos.append((index or 1000 + position, node_id))
             else:
                 result['warnings'].append(f'{name} 标记了 [视频]，但不是 LoadVideo / VHS_LoadVideo 节点')
         elif video_field:
             untagged_loaders.append(f'{name} 未标记 [视频]，不会接收画布视频')
+        is_audio_loader = 'loadaudio' in class_key and 'audio' in inputs
+        if 'audio' in roles:
+            if is_audio_loader and _scalar(inputs.get('audio')):
+                index = next((index for role, index in tags if role == 'audio' and index), None)
+                audios.append((index or 1000 + position, node_id))
+            else:
+                result['warnings'].append(f'{name} 标记了 [参考音频]，但不是 LoadAudio 节点')
+        elif is_audio_loader:
+            untagged_loaders.append(f'{name} 未标记 [参考音频]，不会接收画布音频')
         if 'param' in roles:
             result['params'].append(node_id)
     images.sort(key=lambda item: item[0])
     result['images'] = [node_id for _key, node_id, _name in images]
     result['image_titles'] = [strip_title_tags(_title(workflow[node_id])) for node_id in result['images']]
+    videos.sort(key=lambda item: item[0])
+    result['videos'] = [node_id for _key, node_id in videos]
+    result['video_titles'] = [strip_title_tags(_title(workflow[node_id])) for node_id in result['videos']]
+    audios.sort(key=lambda item: item[0])
+    result['audios'] = [node_id for _key, node_id in audios]
+    result['audio_titles'] = [strip_title_tags(_title(workflow[node_id])) for node_id in result['audios']]
     if result['tagged']:
         result['warnings'].extend(untagged_loaders)
     return result
@@ -126,6 +144,8 @@ def workflow_tag_summary(workflow, raw_text=''):
         'image_slots': len(tags['images']),
         'accepts_video': bool(tags['videos']) or '{{VIDEO' in text,
         'video_slots': len(tags['videos']),
+        'accepts_audio': bool(tags['audios']),
+        'audio_slots': len(tags['audios']),
         'accepts_negative': bool(tags['negative']),
         'input_slots': input_slots(tags),
     }, tags
@@ -134,7 +154,8 @@ def workflow_tag_summary(workflow, raw_text=''):
 def input_slots(tags):
     """Ordered image/video slots the canvas maps connected nodes onto."""
     slots = []
-    for kind, prefix, titles in (('image', '参考图', tags['image_titles']), ('video', '视频', tags['video_titles'])):
+    for kind, prefix, titles in (('image', '参考图', tags['image_titles']), ('video', '视频', tags['video_titles']),
+                                 ('audio', '音频', tags['audio_titles'])):
         for index, title in enumerate(titles, start=1):
             label = f'{prefix}{index}' if kind == 'image' or len(titles) > 1 else prefix
             slots.append({'key': f'{kind}:{index}', 'kind': kind, 'label': f'{label} · {title}' if title else label})
@@ -156,7 +177,7 @@ def _slot_value(names, slot):
     return str(names[slot] or '').strip() if slot < len(names or []) else ''
 
 
-def apply_tagged_inputs(workflow, tags, *, prompt, negative_prompt='', width, height, image_names, video_names):
+def apply_tagged_inputs(workflow, tags, *, prompt, negative_prompt='', width, height, image_names, video_names, audio_names=()):
     """Strict-mode writes: only tagged nodes change. Token-composed prompt fields are left as replaced;
     image/video names are positional per slot and an empty slot keeps the workflow's own value."""
     for item in tags['prompt']:
@@ -176,4 +197,43 @@ def apply_tagged_inputs(workflow, tags, *, prompt, negative_prompt='', width, he
             node = workflow[node_id]
             field = next(key for key in ('file', 'video') if is_uploaded_video_input(node.get('class_type'), key) and key in node['inputs'])
             node['inputs'][field] = name
+    for slot, node_id in enumerate(tags['audios']):
+        if name := _slot_value(audio_names, slot):
+            workflow[node_id]['inputs']['audio'] = name
     return workflow
+
+
+def empty_media_slots(tags, *, image_names, video_names, audio_names=()):
+    """Tagged media loaders whose slot received nothing from the canvas."""
+    empty = []
+    for ids, names in ((tags['images'], image_names), (tags['videos'], video_names), (tags['audios'], audio_names)):
+        empty.extend(node_id for slot, node_id in enumerate(ids) if not _slot_value(names, slot))
+    return empty
+
+
+def media_loader_ids(tags):
+    return [*tags['images'], *tags['videos'], *tags['audios']]
+
+
+# Seed inputs a ComfyUI editor re-rolls after every queue ("control after generate"); an API export
+# freezes them, so tagged runs draw a fresh seed unless the node is a [参数] with a value other than -1.
+_SEED_FIELDS = {'randomnoise': 'noise_seed', 'ksampler': 'seed', 'ksampleradvanced': 'noise_seed', 'samplercustom': 'noise_seed'}
+
+
+def randomize_seeds(workflow, tags, rng):
+    """Fresh seeds for tagged runs; returns {'<node>:<field>': seed} for the task record."""
+    applied = {}
+    params = set(tags['params'])
+    for node_id, node in workflow.items():
+        if not isinstance(node, dict):
+            continue
+        field = _SEED_FIELDS.get(str(node.get('class_type') or '').lower().replace('_', ''))
+        inputs = node.get('inputs') if isinstance(node.get('inputs'), dict) else {}
+        value = inputs.get(field) if field else None
+        if not isinstance(value, int) or isinstance(value, bool):
+            continue
+        if str(node_id) in params and value != -1:
+            continue
+        inputs[field] = rng.randint(1, 2**48 - 1)
+        applied[f'{node_id}:{field}'] = inputs[field]
+    return applied

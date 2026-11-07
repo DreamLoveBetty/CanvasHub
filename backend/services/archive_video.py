@@ -5,6 +5,8 @@ Preserve existing operation order, payloads and failure semantics.
 """
 from __future__ import annotations
 
+from .archive_video_actions import video_asset_id
+
 
 def _resolve_ffprobe_executable(*, BASE_DIR, Path, os, shutil, sys):
     executable_name = 'ffprobe.exe' if os.name == 'nt' else 'ffprobe'
@@ -144,16 +146,17 @@ def _probe_archive_video_metadata(
     return metadata
 
 
-def _archive_video_task_map(*, H3_VIDEO_TASK_TYPE, Path, get_all_tasks):
-    """Map archived H3 result basenames to an unambiguous persisted task."""
+def _archive_video_task_map(*, H3_VIDEO_TASK_TYPE, Path, get_all_tasks, _ARCHIVE_VIDEO_EXTENSIONS):
+    """Map archived video result basenames to an unambiguous persisted task.
+
+    Any task whose results include a video file is a generated video (H3, Cyimg, ComfyUI, ...),
+    so the gallery files it under 生成视频 whatever domain produced it."""
     mapping = {}
     try:
         tasks = get_all_tasks(limit=5000, offset=0)
     except Exception:
         return mapping
     for task in tasks or []:
-        if str(task.get('type') or '').strip() != H3_VIDEO_TASK_TYPE:
-            continue
         task_id = str(task.get('task_id') or '').strip()
         if not task_id:
             continue
@@ -164,9 +167,10 @@ def _archive_video_task_map(*, H3_VIDEO_TASK_TYPE, Path, get_all_tasks):
         params = task.get('params') if isinstance(task.get('params'), dict) else {}
         if params.get('video_filename'):
             result_files.append(params.get('video_filename'))
+        is_h3 = str(task.get('type') or '').strip() == H3_VIDEO_TASK_TYPE
         for result_file in result_files:
             name = Path(str(result_file or '')).name
-            if not name:
+            if not name or not (is_h3 or Path(name).suffix.lower() in _ARCHIVE_VIDEO_EXTENSIONS):
                 continue
             previous = mapping.get(name)
             if previous is None or str(previous.get('task_id') or '') == task_id:
@@ -174,6 +178,15 @@ def _archive_video_task_map(*, H3_VIDEO_TASK_TYPE, Path, get_all_tasks):
             else:
                 mapping[name] = {}
     return {name: task for name, task in mapping.items() if task}
+
+
+_VIDEO_PROVIDER_LABELS = {'minimax-h3-video': 'MiniMax H3', 'cyimg-video': 'Cyimg', 'comfy': 'ComfyUI'}
+
+
+def _archive_video_provider_label(task):
+    """Short generator name for the gallery cover; empty for imported videos."""
+    task_type = str(task.get('type') or '').strip() if isinstance(task, dict) else ''
+    return _VIDEO_PROVIDER_LABELS.get(task_type) or task_type[:24]
 
 
 def _public_archive_video_parameters(
@@ -198,8 +211,9 @@ def _public_archive_video_parameters(
             if value is not None and value != '':
                 combined[key] = value
     if isinstance(metadata, dict):
+        # Measured values describe the file itself; requested sizes can differ (ComfyUI workflows pick their own).
         for key in ('width', 'height', 'fps', 'duration_seconds'):
-            if combined.get(key) in (None, '', 0) and metadata.get(key) is not None:
+            if metadata.get(key) not in (None, '', 0):
                 combined[key] = metadata.get(key)
     if (not combined.get('width') or not combined.get('height')) and combined.get('size'):
         match = re.fullmatch(r'\s*(\d+)\s*[x×]\s*(\d+)\s*', str(combined.get('size')))
@@ -243,9 +257,13 @@ def _list_archive_videos(
     os,
     thumb_url_for_media_url,
     urllib,
+    hidden_video_ids=frozenset,
 ):
-    """List archived videos using only public root-relative path information."""
+    """List archived videos using only public root-relative path information.
+
+    Hidden videos only appear under the `hidden` source; every other source and count excludes them."""
     search = str(query or '').strip().casefold()
+    hidden_ids = hidden_video_ids()
     source_filter = _coerce_archive_video_source(source)
     task_map = _archive_video_task_map()
     seen_files = set()
@@ -302,7 +320,9 @@ def _list_archive_videos(
                         source_type, source_label, is_generated = 'generated', _ARCHIVE_VIDEO_SOURCE_LABELS['generated'], True
                     else:
                         source_type, source_label, is_generated = _classify_archive_video_source(resolved, sidecar_data)
+                    asset_id = video_asset_id(public_path)
                     candidates.append((
+                        asset_id in hidden_ids,
                         stat_result.st_mtime,
                         public_path,
                         root_key,
@@ -317,17 +337,22 @@ def _list_archive_videos(
         except OSError:
             continue
 
+    hidden_candidates = [item[1:] for item in candidates if item[0]]
+    candidates = [item[1:] for item in candidates if not item[0]]
     candidates.sort(key=lambda item: (-item[0], item[1].casefold()))
+    hidden_candidates.sort(key=lambda item: (-item[0], item[1].casefold()))
     source_counts = {
         'generated': sum(1 for item in candidates if item[6] == 'generated'),
         'imported': sum(1 for item in candidates if item[6] == 'imported'),
         'all': len(candidates),
+        'hidden': len(hidden_candidates),
     }
-    filtered_candidates = (
-        candidates
-        if source_filter == 'all'
-        else [item for item in candidates if item[6] == source_filter]
-    )
+    if source_filter == 'hidden':
+        filtered_candidates = hidden_candidates
+    elif source_filter == 'all':
+        filtered_candidates = candidates
+    else:
+        filtered_candidates = [item for item in candidates if item[6] == source_filter]
     total = len(filtered_candidates)
     format_counts = {}
     total_file_size_bytes = 0
@@ -374,6 +399,8 @@ def _list_archive_videos(
         reference_images = [resource for resource in resources if resource.get('type') == 'image']
         videos.append({
             'id': hashlib.sha256(public_path.encode('utf-8')).hexdigest()[:24],
+            'asset_id': video_asset_id(public_path),
+            'hidden': source_filter == 'hidden',
             'name': filepath.name,
             'file_name': filepath.name,
             'url': video_url,
@@ -404,6 +431,7 @@ def _list_archive_videos(
             'source_type': source_type,
             'source_label': source_label,
             'is_generated': is_generated,
+            'provider_label': _archive_video_provider_label(task) or ('MiniMax H3' if task_id.startswith('h3v_') else ''),
         })
     return {
         'ok': True,
@@ -415,6 +443,7 @@ def _list_archive_videos(
             'all': source_counts['all'],
             'generated': source_counts['generated'],
             'imported': source_counts['imported'],
+            'hidden': source_counts['hidden'],
             'by_source': dict(source_counts),
             'total_file_size_bytes': total_file_size_bytes,
             'by_format': format_counts,
