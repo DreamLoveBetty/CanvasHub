@@ -10,7 +10,7 @@ import warnings
 from urllib.error import HTTPError, URLError
 from unittest import mock
 
-from PIL import Image
+from PIL import Image, features
 
 from backend.local_image.lora_store import LoRAStore
 from backend.lora_library.service import Service, validate_fields
@@ -27,10 +27,13 @@ def weight(metadata=None):
     return len(encoded).to_bytes(8, "little") + encoded + bytes(4)
 
 
-def picture():
+def picture(fmt="PNG"):
     stream = io.BytesIO()
-    Image.new("RGB", (24, 32), "blue").save(stream, format="PNG")
+    Image.new("RGB", (24, 32), "blue").save(stream, format=fmt)
     return stream.getvalue()
+
+
+AVIF = features.check("avif")
 
 
 class LibraryTests(unittest.TestCase):
@@ -226,6 +229,26 @@ class LibraryTests(unittest.TestCase):
         self.assertEqual(self.service.detail(self.identity)["cover"]["id"], manual["id"])
         with self.assertRaises(ValueError):
             self.service.previews.path(remote["id"])
+
+    @unittest.skipUnless(AVIF, "Pillow built without AVIF")
+    def test_avif_preview_is_stored_as_webp(self):
+        item = self.service.previews.add(self.identity, picture("AVIF"))
+        for thumb in (False, True):
+            with Image.open(self.service.previews.path(item["id"], thumb=thumb)) as stored:
+                self.assertEqual(stored.format, "WEBP")
+                self.assertEqual(stored.size, (24, 32))
+
+    @unittest.skipUnless(AVIF, "Pillow built without AVIF")
+    def test_local_avif_sidecar_preview(self):
+        self.file.with_suffix(".preview.avif").write_bytes(picture("AVIF"))
+        self.service.scan(True)
+        self.assertEqual(self.service.detail(self.identity)["cover"]["kind"], "local")
+
+    def test_avif_without_codec_reports_unsupported(self):
+        header = bytes(4) + b"ftypavif" + bytes(16)
+        with mock.patch("backend.lora_library.previews.features.check", return_value=False):
+            with self.assertRaisesRegex(ValueError, "不支持 AVIF"):
+                self.service.previews.add(self.identity, header)
 
     def test_preview_rejects_traversal_and_non_images(self):
         with self.assertRaises(ValueError):

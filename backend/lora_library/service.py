@@ -9,7 +9,7 @@ import time
 
 from ..local_image.lora_store import normalize_asset_id
 from .repository import Repository
-from .previews import Previews, MAX_BYTES
+from .previews import Previews, MAX_BYTES, LOCAL_SUFFIXES
 
 from .contracts import FIELDS, validate_fields
 
@@ -95,7 +95,7 @@ class Service:
                     for item in items:
                         identity = item["asset_id"]
                         path = paths[identity]
-                        siblings = [path] + [path.with_suffix(suffix) for suffix in (".lora.json", ".civitai.info", ".preview.png", ".preview.jpg", ".preview.webp", ".png", ".jpg", ".webp")]
+                        siblings = [path] + [path.with_suffix(suffix) for suffix in (".lora.json", ".civitai.info", *LOCAL_SUFFIXES)]
                         fingerprint = tuple((str(p), p.stat().st_size, p.stat().st_mtime_ns)
                                             for p in siblings if p.is_file() and not p.is_symlink())
                         if self.local_fingerprints.get((engine, identity)) != fingerprint:
@@ -116,7 +116,7 @@ class Service:
     def _import_local_preview(self, identity, path):
         if any(item["kind"] == "local" for item in self.repository.get(identity)["previews"]):
             return
-        for suffix in (".preview.png", ".preview.jpg", ".preview.webp", ".png", ".jpg", ".webp"):
+        for suffix in LOCAL_SUFFIXES:
             candidate = path.with_suffix(suffix)
             try:
                 if candidate.is_file() and not candidate.is_symlink() and candidate.stat().st_size <= MAX_BYTES:

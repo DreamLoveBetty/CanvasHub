@@ -8,10 +8,13 @@ import re
 import time
 import uuid
 
-from PIL import Image, ImageOps, UnidentifiedImageError
+from PIL import Image, ImageOps, UnidentifiedImageError, features
 
 MAX_BYTES = 16 * 1024 * 1024
 MAX_PIXELS = 32_000_000
+FORMATS = {"PNG", "JPEG", "WEBP", "GIF", "AVIF"}
+# Local sidecar previews next to a LoRA file, in discovery priority order.
+LOCAL_SUFFIXES = (".preview.png", ".preview.jpg", ".preview.webp", ".preview.avif", ".png", ".jpg", ".webp", ".avif")
 
 
 class Previews:
@@ -40,10 +43,13 @@ class Previews:
             raise ValueError("预览来源无效")
         if len(self.repository.get(asset_id)["previews"]) >= 24:
             raise ValueError("每个 LoRA 最多保留 24 张示例图")
+        # Pillow builds without libavif cannot even identify AVIF; say so instead of "unreadable".
+        if content[4:12] in {b"ftypavif", b"ftypavis"} and not features.check("avif"):
+            raise ValueError("当前服务端 Pillow 不支持 AVIF，请升级 Pillow 或改用 PNG/JPEG/WebP")
         try:
             with Image.open(io.BytesIO(content)) as original:
-                if original.format not in {"PNG", "JPEG", "WEBP", "GIF"}:
-                    raise ValueError("示例图支持 PNG、JPEG、WebP、GIF 首帧")
+                if original.format not in FORMATS:
+                    raise ValueError("示例图支持 PNG、JPEG、WebP、AVIF、GIF 首帧")
                 if original.width * original.height > MAX_PIXELS:
                     raise ValueError("示例图像素过大")
                 picture = ImageOps.exif_transpose(original).convert("RGB")
