@@ -279,8 +279,8 @@
     "sha256": "dcad1c60b5d17a2a102d09b2fae2d5c77b7b5eb9b4214328ba48beae0905b887"
    },
    "scripts/desktop-lora-view.js": {
-    "v": "20261101-lora-detail2",
-    "sha256": "02f7955d8f0bd82e92278abee57214a5fd80a8f85acae282b709535f207b1b74"
+    "v": "20261108-lora-avif1",
+    "sha256": "f247991f0d882ae3bf332612d749581707c1972957cea35aee5c080b2a026892"
    },
    "scripts/desktop-moss-api.js": {
     "v": "20261104-local-negative1",

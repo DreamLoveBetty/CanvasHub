@@ -116,3 +116,10 @@ test('LoRA 控件复用已有字号/尺寸 token，没有引入未定义的主�
   const html=read('desktop.html');
   for(const asset of ['styles/desktop-lora.css','scripts/desktop-lora-view.js','scripts/desktop-select.js'])assert.ok(hasCacheKey(html,asset),asset);
 });
+
+test('示例图上传接受 AVIF，与后端白名单一致',async()=>{
+  const f=viewFixture();await f.view.openDetail('a'.repeat(64));
+  const html=f.dialogs[0].querySelector('.desk-lora-dialog__body').innerHTML;
+  const accept=(html.match(/accept="([^"]+)" data-lora-upload/)||[])[1]||'';
+  assert.deepEqual(accept.split(',').sort(),['image/avif','image/gif','image/jpeg','image/png','image/webp']);
+});
