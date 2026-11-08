@@ -285,10 +285,15 @@ every DOM write and move a linked input port (the detach target) over its plate.
 Day/night reveal ripple: `scripts/desktop-theme-ripple.js` (`window.DesktopThemeRipple`)
 and `scripts/desktop-theme-ripple-snapshot.js` (`window.DesktopThemeRippleSnapshot`) load in
 that order just before `desktop-preferences.js`. Preferences owns the reveal run (origin,
-1400ms ease-in-out timing, cancel, reduced motion, the persisted `themeTransition`
-preference — `ripple` or `none`, set from Settings → 外观 → 主题风格 → 切换动画 — theme
-state, the rAF loop) and drives either path through the same `frame()` / `dispose()`; a
-throwing frame ends the run on the target theme instead of leaving the page frozen.
+ease-in-out timing, cancel, reduced motion, theme state, the rAF loop) and two persisted
+preferences set from Settings → 外观 → 主题风格: `themeTransition` (`ripple` or `none`,
+切换动画) and `themeTransitionSpeed` (过渡速度). The speed presets — key, label, duration,
+`standard` = 1400ms recommended — live in `DesktopThemeRipple.SPEEDS`; preferences read a
+run's duration through `durationFor()` once, when the run starts. It drives either path
+through the same `frame()` / `dispose()`; a throwing frame ends the run on the target theme
+instead of leaving the page frozen. The clock starts on the first frame the ripple reports
+`isReady()` (capped at 3s): repainting the page in the new theme can take about a second
+before the snapshot exists, longer than a fast reveal.
 - Snapshot path (preferred, needs View Transitions): the update callback applies the theme
   and mounts the edge canvas (`view-transition-name: desk-theme-ripple-edge`). The new page
   is clipped by a paused Web Animation on `::view-transition-new(root)`, scrubbed per frame
@@ -303,6 +308,19 @@ throwing frame ends the run on the target theme instead of leaving the page froz
 - Shared by both: the outline maths and the shade/glint/rim painter (`createEdge()`), with
   colours from `--desk-theme-ripple-*` in `desktop-liquid.css`. Without
   `clip-path: path()` support the switch is instant.
+
+Runner speed slider: `scripts/desktop-runner-slider.js` (`window.DesktopRunnerSlider`) loads
+after the ripple modules and before `desktop-settings.js`. `create({ stops, getValue,
+onChange, label, labelClass, ends })` returns `html()` / `mount(container)` / `release()` /
+`sync()`; it owns the markup, the stick-figure gait (`gait(s)` / `pose(s, phase)`, stroll at
+0 to sprint with a flight phase at 1), the drawing and its own rAF clock, which runs only
+while the slider intersects the viewport and not at all under reduced motion. A transparent
+native range input carries drag, keyboard and screen readers; a drag commits through
+`onChange` on release, snapped to a stop. `desktop-settings.js` creates one over
+`DesktopThemeRipple.SPEEDS`, renders it inside `[data-theme-speed]` (collapsed while
+切换动画 is 关闭) and mounts/releases it next to the progress preview. Layout lives in
+`desktop-geometry.css`; colours are `--desk-runner-*` tokens in `desktop-liquid.css` built
+from the semantic colour tokens, so day/night and graphite need no rules of their own.
 
 Theme style (Settings › Appearance › 主题风格) is a second axis next to light/dark:
 `desktop-preferences.js` stores `themeStyle` (`liquid` default, `graphite`), projects

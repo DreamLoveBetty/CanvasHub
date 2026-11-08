@@ -351,8 +351,8 @@
     "sha256": "458aed2e112bf3517234e4f63cf9498769af57fdab6996a2101c6587194d320c"
    },
    "scripts/desktop-preferences.js": {
-    "v": "20261108-theme-transition1",
-    "sha256": "158dc844577fc79ae2b287523d8d6b099773668ae1eb20fd479a04b93d430321"
+    "v": "20261108-runner-slider2",
+    "sha256": "f47cc6b8e7f0183db25fca99416f416d41bf1e522ead0c7f2d444cfd2a420e71"
    },
    "scripts/desktop-progress-materials.js": {
     "v": "20261007-node-progress4",
@@ -414,6 +414,10 @@
     "v": "20261103-comfy-video2",
     "sha256": "7c45491eb6346d7ffa58681e5c0e03719df8aaa32279133ee2504b8419daf4e7"
    },
+   "scripts/desktop-runner-slider.js": {
+    "v": "20261108-runner-slider3",
+    "sha256": "e6c3eb65f9eb5eb6fcc4a383d7dc2917a831d8ae8ce73847ce03d622b62fb03f"
+   },
    "scripts/desktop-select.js": {
     "v": "20261102-h3-removal1",
     "sha256": "21747455139ba83903d91a1d57c8503fa3ff011ce0a50bd26918d1e3393344cc"
@@ -427,8 +431,8 @@
     "sha256": "43e81dc5525b3de0c5613d1e35cf12222c76d74610a18f3f9eb899bac8922cf7"
    },
    "scripts/desktop-settings.js": {
-    "v": "20261108-theme-transition2",
-    "sha256": "b7be4fd63837d0bfebb8bab515065377d4982a0c8d2cefbb7c07a840423f7d8f"
+    "v": "20261108-runner-slider1",
+    "sha256": "f5318721a693743ee62da3a7e48a961ccb592fb9a593b6eac09e08701e26cd9e"
    },
    "scripts/desktop-state-icon.js": {
     "v": "20261004-state-icons1",
@@ -447,12 +451,12 @@
     "sha256": "cf0f411f2b31340ba1482de6fd3a8e495a288e9c3741be71a1abbd2b1a8b810c"
    },
    "scripts/desktop-theme-ripple-snapshot.js": {
-    "v": "20261108-theme-ripple7",
-    "sha256": "36dfc9def5d74e3812aabe6e8048e2cdd97b9de46e22a3f1d29543a214ec0826"
+    "v": "20261108-runner-slider2",
+    "sha256": "595673d29eb3b4bc678b2dd8ee834bac7864874f8a43b0e1d2622aea498a27ab"
    },
    "scripts/desktop-theme-ripple.js": {
-    "v": "20261108-theme-ripple4",
-    "sha256": "b2a15498812dba521f9bbb73fa06f079d92aaa577d693f75b2375d3ff273ffe0"
+    "v": "20261108-runner-slider1",
+    "sha256": "ec20bced3d4857f31e77e46ea14a9b01b19a837e9ee792fb05f6c7648adfffac"
    },
    "scripts/desktop-topaz-api.js": {
     "v": "20260924-topaz-wonder-min1",
@@ -551,8 +555,8 @@
     "sha256": "e180daa4604f5034e1abb8d0b3ac7b992d7c61ce9f754b94700b04d9f1a17aa0"
    },
    "styles/desktop-geometry.css": {
-    "v": "20261108-theme-ripple4",
-    "sha256": "5d33dab6bcbc83888761071b71d38e5766e56b0f5f7df81cf6b70be82c497f9e"
+    "v": "20261108-runner-slider1",
+    "sha256": "9e63a684586b1e9d6278bc80dd3ea44b7afdc39aacb5fa952bac5aacbdb71bcf"
    },
    "styles/desktop-google-web-geometry.css": {
     "v": "20261023-google-web2",
@@ -595,8 +599,8 @@
     "sha256": "e60efb4504339324c42bcf212ad2e978040b6032b1a3b895300c867eecc61312"
    },
    "styles/desktop-liquid.css": {
-    "v": "20261108-theme-ripple4",
-    "sha256": "f36465edccc7ce214e506406db5c5817caaa2b0204876d7bf07badbfbba7ef4f"
+    "v": "20261108-runner-slider1",
+    "sha256": "02296ec7ac8ed46df962d6b00d01c9c1959458f5b32a5c5f76be1f54fb571a26"
    },
    "styles/desktop-lora.css": {
     "v": "20261105-video-actions1",

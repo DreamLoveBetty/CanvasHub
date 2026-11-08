@@ -124,7 +124,7 @@ test('preferences drive the ripple and the overlay no longer uses a radial mask'
   assert.ok(at('desktop-theme-ripple.js') > 0 && at('desktop-theme-ripple.js') < at('desktop-preferences.js'));
 });
 
-function loadPreferences(stored = {}) {
+function loadPreferences(stored = {}, extraWindow = {}) {
   const storage = { desktop_ui_preferences_v1: JSON.stringify(stored) };
   const element = () => {
     const attributes = {};
@@ -148,6 +148,7 @@ function loadPreferences(stored = {}) {
     matchMedia: () => ({ matches: false }),
     dispatchEvent() {},
     DesktopThemeRipple: { supported: () => true, create: () => { ripples.push('fallback'); return { frame() {}, dispose() {} }; } },
+    ...extraWindow,
   };
   const document = {
     body: element(),
@@ -194,4 +195,45 @@ test('the switch animation preference turns the day/night ripple off and persist
   const html = read('frontend/desktop.html');
   assert.ok(hasCacheKey(html, 'scripts/desktop-settings.js'));
   assert.ok(hasCacheKey(html, 'scripts/desktop-preferences.js'));
+});
+
+test('the reveal speed preset sets the run duration and the clock waits for the snapshot', () => {
+  const { Ripple } = load();
+  assert.deepEqual(JSON.parse(JSON.stringify(Ripple.SPEEDS.map(speed => [speed.key, speed.ms]))), [['stroll', 2400], ['walk', 1900], ['standard', 1400], ['run', 1000], ['sprint', 700]]);
+  assert.equal(Ripple.SPEEDS.find(speed => speed.recommended).key, 'standard', 'the original timing is the recommended stop');
+  assert.equal(Ripple.normalizeSpeed('SPRINT'), 'sprint');
+  assert.equal(Ripple.durationFor('warp'), 1400, 'unknown speeds fall back to standard');
+
+  const frames = [];
+  const runs = [];
+  let ready = false;
+  const snapshot = {
+    supported: () => true,
+    create: options => {
+      const run = { options, progress: [], frame: (progress) => run.progress.push(progress), dispose() {}, isReady: () => ready };
+      runs.push(run);
+      return run;
+    },
+  };
+  const { Preferences, saved } = loadPreferences({ themeTransitionSpeed: 'sprint' }, {
+    DesktopThemeRipple: { ...Ripple, create: () => assert.fail('the snapshot path is preferred') },
+    DesktopThemeRippleSnapshot: snapshot,
+    requestAnimationFrame: cb => { frames.push(cb); return frames.length; },
+  });
+  assert.equal(Preferences.state.themeTransitionSpeed, 'sprint');
+  Preferences.setTheme('dark');
+  assert.equal(runs[0].options.duration, 700, 'the snapshot animates over the chosen preset');
+  const step = now => frames.splice(0).forEach(cb => cb(now));
+  step(1000);
+  step(1900);
+  assert.deepEqual(runs[0].progress, [], 'no frame while the new theme is still being captured');
+  ready = true;
+  step(2000);
+  step(2350);
+  assert.deepEqual(runs[0].progress, [0, 0.5], 'the clock starts at the first showable frame');
+
+  Preferences.setThemeTransitionSpeed('stroll');
+  assert.equal(saved().themeTransitionSpeed, 'stroll');
+  Preferences.setThemeTransitionSpeed('bogus');
+  assert.equal(Preferences.state.themeTransitionSpeed, 'standard');
 });

@@ -124,8 +124,10 @@
     let hold = null;
     let pending = null;
     let disposed = false;
+    let settled = false;
 
     function cleanup() {
+      settled = true;
       clip?.cancel();
       hold?.cancel();
       edge.dispose();
@@ -181,7 +183,11 @@
       cleanup();
     }
 
-    return Object.freeze({ frame, dispose, canvas: edge.canvas });
+    // False until the new-state snapshot exists: the run's clock must not start before it,
+    // or a slow capture (repainting the page in the new theme) eats the whole reveal.
+    const isReady = () => clip !== null || settled;
+
+    return Object.freeze({ frame, dispose, isReady, canvas: edge.canvas });
   }
 
   window.DesktopThemeRippleSnapshot = Object.freeze({

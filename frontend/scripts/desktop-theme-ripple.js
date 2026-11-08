@@ -17,6 +17,26 @@
   // band that fades over BAND_REACH px; the CSS colour's alpha is roughly its peak.
   const BAND_STEPS = 10;
   const BAND_REACH = 28;
+  // Reveal speed presets, slowest first. The settings slider shows them; preferences store
+  // the key and read the duration back. 'standard' is the original 1400ms reveal.
+  const SPEEDS = Object.freeze([
+    Object.freeze({ key: 'stroll', label: '漫步', ms: 2400 }),
+    Object.freeze({ key: 'walk', label: '慢行', ms: 1900 }),
+    Object.freeze({ key: 'standard', label: '标准', ms: 1400, recommended: true }),
+    Object.freeze({ key: 'run', label: '快跑', ms: 1000 }),
+    Object.freeze({ key: 'sprint', label: '冲刺', ms: 700 }),
+  ]);
+  const DEFAULT_SPEED = 'standard';
+
+  function normalizeSpeed(value) {
+    const key = String(value || '').trim().toLowerCase();
+    return SPEEDS.some(speed => speed.key === key) ? key : DEFAULT_SPEED;
+  }
+
+  function durationFor(value) {
+    const key = normalizeSpeed(value);
+    return SPEEDS.find(speed => speed.key === key).ms;
+  }
 
   function supported() {
     try {
@@ -154,6 +174,10 @@
   }
 
   window.DesktopThemeRipple = Object.freeze({
+    SPEEDS,
+    DEFAULT_SPEED,
+    normalizeSpeed,
+    durationFor,
     create,
     createEdge,
     randomPhases,

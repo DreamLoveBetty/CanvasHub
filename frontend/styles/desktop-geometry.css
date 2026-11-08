@@ -2062,6 +2062,156 @@ body.desk-app[data-theme] .desk-settings .desk-settings-canvas-interaction__segm
   width: 112px;
 }
 
+/* Reveal speed row: spans the label/segment grid and folds away with 切换动画 = 关闭. */
+body.desk-app[data-theme] .desk-settings .desk-settings-theme-speed {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-rows: 1fr;
+  transition: grid-template-rows 0.32s ease, opacity 0.24s ease, visibility 0s;
+}
+
+body.desk-app[data-theme] .desk-settings .desk-settings-theme-speed.is-collapsed {
+  grid-template-rows: 0fr;
+  opacity: 0;
+  visibility: hidden;
+  transition: grid-template-rows 0.32s ease, opacity 0.24s ease, visibility 0s linear 0.32s;
+}
+
+body.desk-app[data-theme] .desk-settings .desk-settings-theme-speed > div {
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Runner speed slider (desktop-runner-slider.js). */
+body.desk-app .desk-runner-slider {
+  padding: 6px 0 2px;
+}
+
+body.desk-app .desk-runner-slider__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--desk-space-2);
+}
+
+body.desk-app .desk-runner-slider__name {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+body.desk-app .desk-runner-slider__value {
+  display: inline-grid;
+  min-width: 3em;
+  font-weight: 650;
+}
+
+body.desk-app .desk-runner-slider__value > span {
+  grid-area: 1 / 1;
+  white-space: nowrap;
+  transition: opacity 0.28s ease, filter 0.28s ease, transform 0.28s ease;
+}
+
+body.desk-app .desk-runner-slider__value > span.is-leaving {
+  opacity: 0;
+  filter: blur(5px);
+  transform: translateY(-3px);
+}
+
+body.desk-app .desk-runner-slider__value > span.is-entering {
+  opacity: 0;
+  filter: blur(5px);
+  transform: translateY(3px);
+}
+
+body.desk-app .desk-runner-slider__ms {
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+body.desk-app .desk-runner-slider__track {
+  position: relative;
+  height: 14px;
+  margin-top: 18px;
+  border-radius: 7px;
+}
+
+body.desk-app .desk-runner-slider__fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  overflow: hidden;
+  border-radius: 7px;
+}
+
+body.desk-app .desk-runner-slider__fill canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+body.desk-app .desk-runner-slider__mark {
+  position: absolute;
+  top: 50%;
+  width: 4px;
+  height: 4px;
+  margin: -2px 0 0 -2px;
+  border-radius: 50%;
+}
+
+body.desk-app .desk-runner-slider__mark.is-recommended {
+  width: 3px;
+  height: 6px;
+  margin: -3px 0 0 -1.5px;
+  border-radius: 2px;
+}
+
+body.desk-app .desk-runner-slider__runner {
+  position: absolute;
+  bottom: -1px;
+  width: 48px;
+  height: 32px;
+  pointer-events: none;
+}
+
+body.desk-app .desk-runner-slider__runner svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+body.desk-app .desk-runner-slider__input {
+  position: absolute;
+  inset: -14px 0 -6px;
+  width: 100%;
+  height: calc(100% + 20px);
+  margin: 0;
+  opacity: 0;
+  cursor: grab;
+}
+
+body.desk-app .desk-runner-slider__input:active {
+  cursor: grabbing;
+}
+
+body.desk-app .desk-runner-slider__below {
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  margin: 5px 2px 0;
+  font-size: 12px;
+}
+
+body.desk-app .desk-runner-slider__recommended {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  font-size: 11.5px;
+}
+
 body.desk-app[data-theme] .desk-settings .desk-settings-form__section-title {
   gap: var(--desk-space-1);
   padding-top: 0;

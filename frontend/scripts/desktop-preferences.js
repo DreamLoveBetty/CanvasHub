@@ -13,6 +13,7 @@
     theme: 'light',
     themeStyle: 'liquid',
     themeTransition: 'ripple',
+    themeTransitionSpeed: 'standard',
     language: 'zh',
     connectionSwellStyle: 'liquid',
     connectionLineStyle: 'straight',
@@ -23,7 +24,10 @@
   let themeTransitionTimer = null;
   let activeThemeReveal = null;
   let themeRevealSequence = 0;
-  const THEME_REVEAL_DURATION_MS = 1400;
+  // Fallback when desktop-theme-ripple.js is missing; the speed presets live there.
+  const THEME_REVEAL_DEFAULT_MS = 1400;
+  // Longest wait for the ripple to become showable before the clock starts regardless.
+  const THEME_REVEAL_READY_TIMEOUT_MS = 3000;
 
   function normalizeTheme(value) {
     const theme = String(value || '').trim().toLowerCase();
@@ -38,6 +42,14 @@
   function normalizeThemeTransition(value) {
     const transition = String(value || '').trim().toLowerCase();
     return SUPPORTED_THEME_TRANSITIONS.has(transition) ? transition : 'ripple';
+  }
+
+  function normalizeThemeTransitionSpeed(value) {
+    return window.DesktopThemeRipple?.normalizeSpeed?.(value) || 'standard';
+  }
+
+  function themeRevealDuration() {
+    return window.DesktopThemeRipple?.durationFor?.(state.themeTransitionSpeed) || THEME_REVEAL_DEFAULT_MS;
   }
 
   function normalizeLanguage(value) {
@@ -62,6 +74,7 @@
       state.theme = normalizeTheme(parsed.theme);
       state.themeStyle = normalizeThemeStyle(parsed.themeStyle);
       state.themeTransition = normalizeThemeTransition(parsed.themeTransition);
+      state.themeTransitionSpeed = normalizeThemeTransitionSpeed(parsed.themeTransitionSpeed);
       state.language = normalizeLanguage(parsed.language);
       state.connectionSwellStyle = normalizeConnectionSwellStyle(parsed.connectionSwellStyle);
       state.connectionLineStyle = normalizeConnectionLineStyle(parsed.connectionLineStyle);
@@ -72,6 +85,7 @@
       state.theme = 'light';
       state.themeStyle = 'liquid';
       state.themeTransition = 'ripple';
+      state.themeTransitionSpeed = 'standard';
       state.language = 'zh';
       state.connectionSwellStyle = 'liquid';
       state.connectionLineStyle = 'straight';
@@ -87,6 +101,7 @@
         theme: state.theme,
         themeStyle: state.themeStyle,
         themeTransition: state.themeTransition,
+        themeTransitionSpeed: state.themeTransitionSpeed,
         language: state.language,
         connectionSwellStyle: state.connectionSwellStyle,
         connectionLineStyle: state.connectionLineStyle,
@@ -217,14 +232,22 @@
   function animateThemeRevealOverlay(run) {
     return new Promise(resolve => {
       run.resolve = resolve;
-      const startedAt = performance.now();
+      // The clock starts on the first frame the ripple can show: the snapshot path waits for
+      // the new theme to be captured, which can take longer than a fast reveal itself.
+      let startedAt = null;
+      const requestedAt = performance.now();
       const frame = now => {
         run.frameId = 0;
         if (activeThemeReveal !== run || run.finished) {
           finishThemeReveal(run, true);
           return;
         }
-        const progress = Math.min(1, (now - startedAt) / THEME_REVEAL_DURATION_MS);
+        if (run.ripple.isReady?.() === false && now - requestedAt < THEME_REVEAL_READY_TIMEOUT_MS) {
+          run.frameId = window.requestAnimationFrame(frame);
+          return;
+        }
+        if (startedAt === null) startedAt = now;
+        const progress = Math.min(1, (now - startedAt) / run.duration);
         try {
           run.ripple.frame(progress, easeThemeReveal(progress), (now - startedAt) / 1000);
         } catch (error) {
@@ -253,6 +276,7 @@
     const maxX = Math.max(origin.x, window.innerWidth - origin.x);
     const maxY = Math.max(origin.y, window.innerHeight - origin.y);
     const endRadius = Math.ceil(Math.hypot(maxX, maxY));
+    const duration = themeRevealDuration();
 
     root?.classList.add('theme-reveal-transitioning');
     body?.classList.add('theme-reveal-transitioning');
@@ -271,7 +295,7 @@
           origin,
           endRadius,
           fromTheme: previousTheme,
-          duration: THEME_REVEAL_DURATION_MS,
+          duration,
           ease: easeThemeReveal,
           apply: () => {
             if (state.theme === targetTheme) applyTheme(targetTheme);
@@ -305,6 +329,7 @@
       finished: false,
       previousTheme,
       targetTheme,
+      duration,
     };
     activeThemeReveal = run;
 
@@ -385,6 +410,14 @@
     savePreferences();
     window.dispatchEvent(new CustomEvent('desktop:theme-transition-change', {
       detail: { transition: state.themeTransition },
+    }));
+  }
+
+  function setThemeTransitionSpeed(speed) {
+    state.themeTransitionSpeed = normalizeThemeTransitionSpeed(speed);
+    savePreferences();
+    window.dispatchEvent(new CustomEvent('desktop:theme-transition-speed-change', {
+      detail: { speed: state.themeTransitionSpeed },
     }));
   }
 
@@ -486,6 +519,7 @@
     setTheme,
     setThemeStyle,
     setThemeTransition,
+    setThemeTransitionSpeed,
     setLanguage,
     setConnectionSwellStyle,
     setConnectionLineStyle,
@@ -495,6 +529,7 @@
     toggleTheme,
     normalizeThemeStyle,
     normalizeThemeTransition,
+    normalizeThemeTransitionSpeed,
     normalizeConnectionSwellStyle,
     normalizeConnectionLineStyle,
   };

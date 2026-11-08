@@ -19,6 +19,16 @@
   let tabStatusCache = null;
   // Progress preview: a sample task drawn by its own presenter (desktop-progress-preview.js).
   const progressPreview = window.DesktopProgressPreview?.create({ getPreferences: () => window.DesktopPreferences?.state?.progress }) || null;
+  // Day/night reveal speed: the stick-figure slider (desktop-runner-slider.js) over the
+  // ripple's speed presets; it is mounted and released alongside the progress preview.
+  const themeSpeedSlider = window.DesktopRunnerSlider?.create({
+    stops: () => window.DesktopThemeRipple?.SPEEDS || [],
+    getValue: () => window.DesktopPreferences?.state?.themeTransitionSpeed,
+    onChange: speed => window.DesktopPreferences?.setThemeTransitionSpeed?.(speed),
+    label: '过渡速度',
+    labelClass: 'desk-settings-canvas-interaction__label',
+    ends: ['从容', '利落'],
+  }) || null;
   // Unsaved field edits survive every re-render below (desktop-settings-drafts.js).
   const settingsDrafts = window.DesktopSettingsDrafts.create();
   let searchIndexCache = null;
@@ -564,6 +574,7 @@
           <button type="button" class="${transition === 'ripple' ? 'is-active' : ''}" data-theme-transition="ripple" aria-pressed="${transition === 'ripple' ? 'true' : 'false'}">水波</button>
           <button type="button" class="${transition === 'none' ? 'is-active' : ''}" data-theme-transition="none" aria-pressed="${transition === 'none' ? 'true' : 'false'}">关闭</button>
         </div>
+        <div class="desk-settings-theme-speed${transition === 'none' ? ' is-collapsed' : ''}" data-theme-speed><div>${themeSpeedSlider?.html() || ''}</div></div>
       </div>`
     ], true);
   }
@@ -1693,6 +1704,7 @@
       settingsDrafts.restore(els.deskSettingsBody);
     }
     progressPreview?.mount(els.deskSettingsBody);
+    themeSpeedSlider?.mount(els.deskSettingsBody);
     settingsSearch?.refresh();
     const statuses = tabStatuses(data);
     els.deskSettingsTabs?.querySelectorAll('[data-settings-tab]').forEach(button => {
@@ -1708,6 +1720,7 @@
       els.deskSettingsSummary.innerHTML = '<span class="desk-settings__status">正在诊断</span>';
     }
     progressPreview?.release();
+    themeSpeedSlider?.release();
     if (els.deskSettingsBody) {
       els.deskSettingsBody.innerHTML = '<div class="desk-settings-empty">正在读取当前服务状态...</div>';
     }
@@ -2723,6 +2736,7 @@
       }
       if (els.deskSettingsBody) {
         progressPreview?.release();
+    themeSpeedSlider?.release();
         els.deskSettingsBody.innerHTML = `<div class="desk-settings-empty">${escapeHtml(error.message || '诊断读取失败')}</div>`;
       }
       throw error;
@@ -2742,6 +2756,7 @@
     document.body.classList.remove('desk-settings-open');
     settingsSearch?.close();
     progressPreview?.release();
+    themeSpeedSlider?.release();
     krea2Tools?.deactivate?.();
     qwen21Tools?.deactivate?.();
     mossTools?.deactivate?.();
@@ -2926,6 +2941,8 @@
           button.classList.toggle('is-active', active);
           button.setAttribute('aria-pressed', active ? 'true' : 'false');
         });
+        themeTransitionButton.closest('.desk-settings-canvas-interaction')
+          ?.querySelector('[data-theme-speed]')?.classList.toggle('is-collapsed', transition === 'none');
         return;
       }
       const swellStyleButton = event.target.closest('button[data-connection-swell-style]');

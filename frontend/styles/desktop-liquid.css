@@ -280,6 +280,73 @@ body.desk-app.theme-reveal-transitioning {
   animation: none;
 }
 
+/* Runner speed slider (desktop-runner-slider.js): every colour follows the semantic tokens,
+   so day/night and graphite need no rules of their own. */
+.desk-runner-slider {
+  --desk-runner-ink: var(--desk-color-text-primary);
+  --desk-runner-halo: var(--desk-color-bg-canvas);
+  --desk-runner-accent: var(--desk-color-accent);
+  --desk-runner-mark: rgba(255, 255, 255, 0.92);
+  color: var(--desk-color-text-secondary);
+}
+
+.desk-runner-slider__value {
+  color: var(--desk-color-text-primary);
+}
+
+.desk-runner-slider__value.is-top > span:not(.is-leaving) {
+  color: var(--desk-runner-accent);
+}
+
+.desk-runner-slider__track {
+  background: color-mix(in srgb, var(--desk-color-text-primary) 9%, transparent);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.12);
+}
+
+.desk-runner-slider__track:has(.desk-runner-slider__input:focus-visible) {
+  outline: 2px solid var(--desk-color-focus-border);
+  outline-offset: 3px;
+}
+
+.desk-runner-slider__fill {
+  background: linear-gradient(90deg,
+    color-mix(in srgb, var(--desk-runner-accent) 18%, transparent),
+    color-mix(in srgb, var(--desk-runner-accent) 62%, transparent));
+}
+
+.desk-runner-slider__mark {
+  background: color-mix(in srgb, var(--desk-color-text-primary) 28%, transparent);
+}
+
+.desk-runner-slider__mark.is-recommended {
+  background: var(--desk-runner-mark);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.08);
+}
+
+.desk-runner-slider__halo {
+  stroke: var(--desk-runner-halo);
+}
+
+.desk-runner-slider__halo-head {
+  fill: var(--desk-runner-halo);
+}
+
+.desk-runner-slider__limb {
+  stroke: var(--desk-runner-ink);
+}
+
+.desk-runner-slider__limb.is-far {
+  opacity: 0.42;
+}
+
+.desk-runner-slider__head {
+  fill: var(--desk-runner-ink);
+}
+
+.desk-runner-slider__streak {
+  stroke: var(--desk-runner-accent);
+}
+
 .desk-glass {
   background: var(--desk-glass);
   border: 1px solid var(--desk-line);

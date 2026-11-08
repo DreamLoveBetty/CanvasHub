@@ -127,6 +127,7 @@ test('a snapshot run applies the theme in the transition, scrubs the clip and cl
   assert.equal(run.canvas.style.viewTransitionName, Snapshot.EDGE_NAME);
   run.frame(0.1, 0.1, 0.14);
   assert.equal(animations.length, 0, 'frames before ready are buffered');
+  assert.equal(run.isReady(), false, 'the run cannot be shown before the new state is captured');
   transitions[0].update();
   assert.equal(applied, 1);
   assert.equal(run.canvas.isConnected, true, 'the edge joins the new state inside the update callback');
@@ -138,6 +139,7 @@ test('a snapshot run applies the theme in the transition, scrubs the clip and cl
   assert.equal(clip.options.pseudoElement, '::view-transition-new(root)');
   assert.equal(clip.playState, 'paused');
   assert.equal(clip.currentTime, 140, 'the buffered frame is replayed once ready');
+  assert.equal(run.isReady(), true);
   assert.equal(feImage.getAttribute('href'), 'data:image/png;base64,MAP');
   run.frame(0.5, 0.5, 0.7);
   assert.equal(clip.currentTime, 700);
@@ -159,6 +161,17 @@ test('a run disposed before its update callback still applies the theme but moun
   transitions[0].update();
   assert.equal(applied, 1);
   assert.equal(run.canvas.isConnected, false);
+  assert.equal(run.isReady(), true, 'a settled run never holds the clock back');
+});
+
+test('a transition skipped before ready still releases the clock', async () => {
+  const { Snapshot, transitions } = load();
+  const run = Snapshot.create({ origin: { x: 0, y: 0 }, endRadius: 500, duration: 700, ease, apply() {} });
+  assert.equal(run.isReady(), false);
+  transitions[0].ready.reject(new Error('skipped'));
+  transitions[0].finished.resolve();
+  await flush();
+  assert.equal(run.isReady(), true);
 });
 
 test('preferences prefer the snapshot path, fall back to the overlay and never freeze', () => {
