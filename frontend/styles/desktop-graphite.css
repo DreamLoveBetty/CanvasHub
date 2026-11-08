@@ -1847,3 +1847,26 @@ body.desk-app[data-desk-style="graphite"][data-theme="dark"] .desk-select-menu:n
 body.desk-app[data-desk-style="graphite"][data-theme="dark"] .desk-select-menu:not([data-select-variant="image-group-role"]) .desk-select-option.is-selected:not(:disabled)::before {
   box-shadow: 0 0 0 2px var(--desk-select-led-glow);
 }
+
+/* Day/night reveal overlay: it freezes the outgoing theme while <body> already carries the
+   incoming one, so it keys off its own data-theme and repeats the canvas colours above
+   instead of reading the body tokens. */
+body.desk-app[data-desk-style="graphite"] .desk-theme-reveal-overlay {
+  background: #e6e6e2;
+}
+
+body.desk-app[data-desk-style="graphite"] .desk-theme-reveal-overlay::before {
+  background: radial-gradient(circle, rgba(38, 38, 36, 0.13) 1px, transparent 1.2px) 0 0 / 20px 20px repeat;
+}
+
+body.desk-app[data-desk-style="graphite"] .desk-theme-reveal-overlay::after {
+  background: none;
+}
+
+body.desk-app[data-desk-style="graphite"] .desk-theme-reveal-overlay[data-theme="dark"] {
+  background: #232323;
+}
+
+body.desk-app[data-desk-style="graphite"] .desk-theme-reveal-overlay[data-theme="dark"]::before {
+  background: radial-gradient(circle, rgba(236, 236, 236, 0.08) 1px, transparent 1.2px) 0 0 / 20px 20px repeat;
+}

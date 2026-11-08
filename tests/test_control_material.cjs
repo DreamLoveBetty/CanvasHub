@@ -211,7 +211,7 @@ test('segmented controls opt in through .desk-key-bank (nodes, settings, library
     'frontend/scripts/desktop-google-pool.js': [/<div class="desk-segment desk-key-bank desk-google-pool-tabs/],
   };
   for (const [file, patterns] of Object.entries(banks)) for (const pattern of patterns) assert.match(read(file), pattern, file);
-  assert.equal(read('frontend/scripts/desktop-settings.js').match(/desk-settings-canvas-interaction__segment desk-key-bank/g).length, 4);
+  assert.equal(read('frontend/scripts/desktop-settings.js').match(/desk-settings-canvas-interaction__segment desk-key-bank/g).length, 5);
   // The hook carries no style of its own outside the opt-in Ambient layers.
   for (const css of fs.readdirSync(path.join(root, 'frontend/styles')).filter(f => f.endsWith('.css') && !['desktop-ambient-controls.css', 'desktop-control-material.css'].includes(f)))
     assert.doesNotMatch(read(`frontend/styles/${css}`), /\.desk-key-bank\b/, css);

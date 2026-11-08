@@ -115,6 +115,25 @@ body.desk-app .desk-theme-reveal-overlay {
   z-index: var(--desk-layer-theme-reveal);
 }
 
+/* Drawn after the overlay in DOM order, so it sits on the same layer above it. */
+body.desk-app .desk-theme-ripple-edge {
+  position: fixed;
+  inset: 0;
+  z-index: var(--desk-layer-theme-reveal);
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+}
+
+/* Holds the snapshot reveal's SVG filter; takes no space in the page. */
+body.desk-app .desk-theme-ripple-filter {
+  position: fixed;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
 /* Shared panel/card geometry. Image-group geometry remains component-owned. */
 body.desk-app[data-theme] :is(.desk-gallery, .desk-settings, .desk-prompt-library) {
   border-radius: var(--desk-radius-panel);

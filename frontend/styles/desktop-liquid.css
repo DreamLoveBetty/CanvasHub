@@ -183,10 +183,8 @@ body.desk-app.theme-reveal-transitioning {
   pointer-events: none;
 }
 
+/* The ripple hole is an evenodd clip-path written per frame by desktop-theme-ripple.js. */
 .desk-theme-reveal-overlay {
-  --theme-reveal-x: 50vw;
-  --theme-reveal-y: 50vh;
-  --theme-reveal-radius: 0px;
   position: fixed;
   inset: 0;
   pointer-events: none;
@@ -196,20 +194,6 @@ body.desk-app.theme-reveal-transitioning {
     radial-gradient(circle at 18% 12%, rgba(8, 79, 189, 0.22), transparent 28%),
     radial-gradient(circle at 84% 24%, rgba(54, 210, 176, 0.18), transparent 24%),
     linear-gradient(135deg, #f5fbff 0%, #e8f0f6 52%, #f8fbfd 100%);
-  -webkit-mask-image: radial-gradient(
-    circle at var(--theme-reveal-x) var(--theme-reveal-y),
-    transparent 0 var(--theme-reveal-radius),
-    #000 calc(var(--theme-reveal-radius) + 1px)
-  );
-  mask-image: radial-gradient(
-    circle at var(--theme-reveal-x) var(--theme-reveal-y),
-    transparent 0 var(--theme-reveal-radius),
-    #000 calc(var(--theme-reveal-radius) + 1px)
-  );
-  -webkit-mask-repeat: no-repeat;
-  mask-repeat: no-repeat;
-  -webkit-mask-size: 100% 100%;
-  mask-size: 100% 100%;
 }
 
 .desk-theme-reveal-overlay::before {
@@ -266,6 +250,34 @@ body.desk-app.theme-reveal-transitioning {
   background:
     linear-gradient(120deg, rgba(255, 255, 255, 0.08), transparent 34%),
     linear-gradient(300deg, rgba(255, 255, 255, 0.04), transparent 50%);
+}
+
+/* Edge band colours, read once per run: shade falls on the old theme outside the ripple,
+   glint on the new theme inside it, and the rim is the water line itself. */
+.desk-theme-ripple-edge {
+  --desk-theme-ripple-shade: rgba(20, 24, 30, 0.28);
+  --desk-theme-ripple-glint: rgba(255, 255, 255, 0.1);
+  --desk-theme-ripple-rim: rgba(255, 255, 255, 0.45);
+}
+
+.desk-theme-ripple-edge[data-from="dark"] {
+  --desk-theme-ripple-shade: rgba(0, 0, 0, 0.5);
+  --desk-theme-ripple-glint: rgba(70, 90, 110, 0.18);
+  --desk-theme-ripple-rim: rgba(255, 255, 255, 0.95);
+}
+
+/* Snapshot reveal (desktop-theme-ripple-snapshot.js): no UA cross-fade. Both page snapshots
+   go through the module's displacement filter; the new one is clipped by its animation. */
+:root[data-theme-ripple="snapshot"]::view-transition-old(root),
+:root[data-theme-ripple="snapshot"]::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+  filter: url(#deskThemeRippleRefraction);
+}
+
+:root[data-theme-ripple="snapshot"]::view-transition-group(desk-theme-ripple-edge),
+:root[data-theme-ripple="snapshot"]::view-transition-new(desk-theme-ripple-edge) {
+  animation: none;
 }
 
 .desk-glass {

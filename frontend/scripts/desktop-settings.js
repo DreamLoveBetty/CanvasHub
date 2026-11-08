@@ -549,12 +549,20 @@
     const style = window.DesktopPreferences?.normalizeThemeStyle?.(
       window.DesktopPreferences?.state?.themeStyle
     ) || 'liquid';
+    const transition = window.DesktopPreferences?.normalizeThemeTransition?.(
+      window.DesktopPreferences?.state?.themeTransition
+    ) || 'ripple';
     return renderCard('主题风格', [
       `<div class="desk-settings-canvas-interaction">
         <span class="desk-settings-canvas-interaction__label" title="与日间/夜间模式独立组合">画布主题</span>
         <div class="desk-settings-canvas-interaction__segment desk-key-bank" role="group" aria-label="画布主题风格">
           <button type="button" class="${style === 'liquid' ? 'is-active' : ''}" data-theme-style="liquid" aria-pressed="${style === 'liquid' ? 'true' : 'false'}">液态</button>
           <button type="button" class="${style === 'graphite' ? 'is-active' : ''}" data-theme-style="graphite" aria-pressed="${style === 'graphite' ? 'true' : 'false'}">石墨</button>
+        </div>
+        <span class="desk-settings-canvas-interaction__label" title="日间/夜间切换时的过渡动画；关闭后直接淡入切换。系统开启“减少动态效果”时始终不播放。">切换动画</span>
+        <div class="desk-settings-canvas-interaction__segment desk-key-bank" role="group" aria-label="日夜切换动画">
+          <button type="button" class="${transition === 'ripple' ? 'is-active' : ''}" data-theme-transition="ripple" aria-pressed="${transition === 'ripple' ? 'true' : 'false'}">水波</button>
+          <button type="button" class="${transition === 'none' ? 'is-active' : ''}" data-theme-transition="none" aria-pressed="${transition === 'none' ? 'true' : 'false'}">关闭</button>
         </div>
       </div>`
     ], true);
@@ -2903,6 +2911,18 @@
         window.DesktopPreferences?.setThemeStyle?.(style);
         themeStyleButton.parentElement?.querySelectorAll('[data-theme-style]').forEach(button => {
           const active = button.dataset.themeStyle === style;
+          button.classList.toggle('is-active', active);
+          button.setAttribute('aria-pressed', active ? 'true' : 'false');
+        });
+        return;
+      }
+      const themeTransitionButton = event.target.closest('button[data-theme-transition]');
+      if (themeTransitionButton) {
+        event.preventDefault();
+        const transition = window.DesktopPreferences?.normalizeThemeTransition?.(themeTransitionButton.dataset.themeTransition) || 'ripple';
+        window.DesktopPreferences?.setThemeTransition?.(transition);
+        themeTransitionButton.parentElement?.querySelectorAll('[data-theme-transition]').forEach(button => {
+          const active = button.dataset.themeTransition === transition;
           button.classList.toggle('is-active', active);
           button.setAttribute('aria-pressed', active ? 'true' : 'false');
         });

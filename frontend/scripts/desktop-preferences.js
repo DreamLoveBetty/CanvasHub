@@ -6,10 +6,13 @@
   const SUPPORTED_CONNECTION_LINE_STYLES = new Set(['straight', 'curve']);
   // Visual style family, orthogonal to the light/dark theme: liquid (default) or graphite.
   const SUPPORTED_THEME_STYLES = new Set(['liquid', 'graphite']);
+  // Day/night switch animation: the ripple reveal, or a plain cross-fade ('none').
+  const SUPPORTED_THEME_TRANSITIONS = new Set(['ripple', 'none']);
 
   const state = {
     theme: 'light',
     themeStyle: 'liquid',
+    themeTransition: 'ripple',
     language: 'zh',
     connectionSwellStyle: 'liquid',
     connectionLineStyle: 'straight',
@@ -20,7 +23,7 @@
   let themeTransitionTimer = null;
   let activeThemeReveal = null;
   let themeRevealSequence = 0;
-  const THEME_REVEAL_DURATION_MS = 960;
+  const THEME_REVEAL_DURATION_MS = 1400;
 
   function normalizeTheme(value) {
     const theme = String(value || '').trim().toLowerCase();
@@ -30,6 +33,11 @@
   function normalizeThemeStyle(value) {
     const style = String(value || '').trim().toLowerCase();
     return SUPPORTED_THEME_STYLES.has(style) ? style : 'liquid';
+  }
+
+  function normalizeThemeTransition(value) {
+    const transition = String(value || '').trim().toLowerCase();
+    return SUPPORTED_THEME_TRANSITIONS.has(transition) ? transition : 'ripple';
   }
 
   function normalizeLanguage(value) {
@@ -53,6 +61,7 @@
       const parsed = JSON.parse(localStorage.getItem(PREF_KEY) || '{}');
       state.theme = normalizeTheme(parsed.theme);
       state.themeStyle = normalizeThemeStyle(parsed.themeStyle);
+      state.themeTransition = normalizeThemeTransition(parsed.themeTransition);
       state.language = normalizeLanguage(parsed.language);
       state.connectionSwellStyle = normalizeConnectionSwellStyle(parsed.connectionSwellStyle);
       state.connectionLineStyle = normalizeConnectionLineStyle(parsed.connectionLineStyle);
@@ -62,6 +71,7 @@
     } catch (e) {
       state.theme = 'light';
       state.themeStyle = 'liquid';
+      state.themeTransition = 'ripple';
       state.language = 'zh';
       state.connectionSwellStyle = 'liquid';
       state.connectionLineStyle = 'straight';
@@ -76,6 +86,7 @@
       localStorage.setItem(PREF_KEY, JSON.stringify({
         theme: state.theme,
         themeStyle: state.themeStyle,
+        themeTransition: state.themeTransition,
         language: state.language,
         connectionSwellStyle: state.connectionSwellStyle,
         connectionLineStyle: state.connectionLineStyle,
@@ -168,7 +179,9 @@
   }
 
   function shouldUseCircularThemeTransition() {
+    if (state.themeTransition === 'none') return false;
     if (!document.body || typeof window.requestAnimationFrame !== 'function') return false;
+    if (!window.DesktopThemeRipple?.supported?.()) return false;
     try {
       return !window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
     } catch (e) {
@@ -176,8 +189,10 @@
     }
   }
 
+  // Ease in and out so the wobbling edge lingers on screen instead of leaving it at once.
   function easeThemeReveal(t) {
-    return 1 - Math.pow(1 - Math.min(1, Math.max(0, t)), 3);
+    const p = Math.min(1, Math.max(0, t));
+    return p < 0.5 ? 4 * p * p * p : 1 - Math.pow(2 - 2 * p, 3) / 2;
   }
 
   function finishThemeReveal(run, cancelled = false) {
@@ -185,6 +200,7 @@
     run.finished = true;
     if (run.frameId) window.cancelAnimationFrame(run.frameId);
     run.frameId = 0;
+    run.ripple?.dispose();
     run.overlay?.remove();
     if (activeThemeReveal === run) {
       document.documentElement?.classList.remove('theme-reveal-transitioning');
@@ -198,7 +214,7 @@
     if (activeThemeReveal) finishThemeReveal(activeThemeReveal, true);
   }
 
-  function animateThemeRevealOverlay(run, endRadius) {
+  function animateThemeRevealOverlay(run) {
     return new Promise(resolve => {
       run.resolve = resolve;
       const startedAt = performance.now();
@@ -209,8 +225,14 @@
           return;
         }
         const progress = Math.min(1, (now - startedAt) / THEME_REVEAL_DURATION_MS);
-        const eased = easeThemeReveal(progress);
-        run.overlay.style.setProperty('--theme-reveal-radius', `${Math.ceil(endRadius * eased)}px`);
+        try {
+          run.ripple.frame(progress, easeThemeReveal(progress), (now - startedAt) / 1000);
+        } catch (error) {
+          // Never leave the page frozen mid-reveal: end it and land on the target theme.
+          finishThemeReveal(run, true);
+          if (state.theme === run.targetTheme) applyTheme(run.targetTheme);
+          return;
+        }
         if (progress < 1) {
           run.frameId = window.requestAnimationFrame(frame);
         } else {
@@ -235,19 +257,49 @@
     root?.classList.add('theme-reveal-transitioning');
     body?.classList.add('theme-reveal-transitioning');
 
-    const overlay = document.createElement('div');
-    overlay.className = 'desk-theme-reveal-overlay';
-    overlay.dataset.theme = previousTheme;
-    overlay.dataset.frozenTheme = previousTheme;
-    overlay.style.colorScheme = previousTheme;
-    overlay.style.setProperty('--theme-reveal-x', `${origin.x}px`);
-    overlay.style.setProperty('--theme-reveal-y', `${origin.y}px`);
-    overlay.style.setProperty('--theme-reveal-radius', '0px');
-    body?.appendChild(overlay);
+    // Snapshot path: a View Transition shows the real outgoing page and refracts the edge;
+    // the new theme is applied inside its update callback. Fallback: a painted overlay.
+    const snapshot = window.DesktopThemeRippleSnapshot;
+    const useSnapshot = Boolean(snapshot?.supported?.());
+    let overlay = null;
+    let ripple = null;
+    try {
+      if (useSnapshot) {
+        // Saved and toggled from now on; a superseded run's late callback must not win.
+        state.theme = targetTheme;
+        ripple = snapshot.create({
+          origin,
+          endRadius,
+          fromTheme: previousTheme,
+          duration: THEME_REVEAL_DURATION_MS,
+          ease: easeThemeReveal,
+          apply: () => {
+            if (state.theme === targetTheme) applyTheme(targetTheme);
+          },
+        });
+      } else {
+        overlay = document.createElement('div');
+        overlay.className = 'desk-theme-reveal-overlay';
+        overlay.dataset.theme = previousTheme;
+        overlay.dataset.frozenTheme = previousTheme;
+        overlay.style.colorScheme = previousTheme;
+        body?.appendChild(overlay);
+        ripple = window.DesktopThemeRipple.create({ overlay, origin, endRadius, fromTheme: previousTheme });
+        ripple.frame(0, 0, 0);
+      }
+    } catch (error) {
+      // setTheme() falls back to an instant switch; leave nothing of the reveal behind.
+      ripple?.dispose();
+      overlay?.remove();
+      root?.classList.remove('theme-reveal-transitioning');
+      body?.classList.remove('theme-reveal-transitioning');
+      throw error;
+    }
 
     const run = {
       id: ++themeRevealSequence,
       overlay,
+      ripple,
       frameId: 0,
       resolve: null,
       finished: false,
@@ -256,8 +308,8 @@
     };
     activeThemeReveal = run;
 
-    applyTheme(targetTheme);
-    return animateThemeRevealOverlay(run, endRadius).catch(() => {
+    if (!useSnapshot) applyTheme(targetTheme);
+    return animateThemeRevealOverlay(run).catch(() => {
       finishThemeReveal(run, true);
       return { cancelled: true };
     });
@@ -325,6 +377,14 @@
     savePreferences();
     window.dispatchEvent(new CustomEvent('desktop:theme-style-change', {
       detail: { style: state.themeStyle },
+    }));
+  }
+
+  function setThemeTransition(transition) {
+    state.themeTransition = normalizeThemeTransition(transition);
+    savePreferences();
+    window.dispatchEvent(new CustomEvent('desktop:theme-transition-change', {
+      detail: { transition: state.themeTransition },
     }));
   }
 
@@ -425,6 +485,7 @@
     init,
     setTheme,
     setThemeStyle,
+    setThemeTransition,
     setLanguage,
     setConnectionSwellStyle,
     setConnectionLineStyle,
@@ -433,6 +494,7 @@
     setControlMaterialPreferences,
     toggleTheme,
     normalizeThemeStyle,
+    normalizeThemeTransition,
     normalizeConnectionSwellStyle,
     normalizeConnectionLineStyle,
   };

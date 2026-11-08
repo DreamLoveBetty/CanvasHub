@@ -282,6 +282,28 @@ when a link switches sides (`settled` says when to stop animating). `NOTCHED_NOD
 `portPlates`; connections only call it while `<body data-desk-style="graphite">`, own
 every DOM write and move a linked input port (the detach target) over its plate.
 
+Day/night reveal ripple: `scripts/desktop-theme-ripple.js` (`window.DesktopThemeRipple`)
+and `scripts/desktop-theme-ripple-snapshot.js` (`window.DesktopThemeRippleSnapshot`) load in
+that order just before `desktop-preferences.js`. Preferences owns the reveal run (origin,
+1400ms ease-in-out timing, cancel, reduced motion, the persisted `themeTransition`
+preference — `ripple` or `none`, set from Settings → 外观 → 主题风格 → 切换动画 — theme
+state, the rAF loop) and drives either path through the same `frame()` / `dispose()`; a
+throwing frame ends the run on the target theme instead of leaving the page frozen.
+- Snapshot path (preferred, needs View Transitions): the update callback applies the theme
+  and mounts the edge canvas (`view-transition-name: desk-theme-ripple-edge`). The new page
+  is clipped by a paused Web Animation on `::view-transition-new(root)`, scrubbed per frame
+  from precomputed outline keyframes (never a per-frame property on `<html>`: that restyles
+  the whole document). Both snapshots go through `#deskThemeRippleRefraction`, an
+  `feDisplacementMap` whose map is a 256px-wide canvas re-encoded per frame; keep the ring's
+  slope near 1 (see the constants) or text smears. A hold animation on the root group keeps
+  the transition alive until `dispose()` skips it. Pseudo-element rules are scoped to
+  `:root[data-theme-ripple="snapshot"]` in `desktop-liquid.css`.
+- Fallback path: a painted stand-in for the outgoing theme, `.desk-theme-reveal-overlay`,
+  with an evenodd `clip-path: path()` hole (graphite repaints it in `desktop-graphite.css`).
+- Shared by both: the outline maths and the shade/glint/rim painter (`createEdge()`), with
+  colours from `--desk-theme-ripple-*` in `desktop-liquid.css`. Without
+  `clip-path: path()` support the switch is instant.
+
 Theme style (Settings › Appearance › 主题风格) is a second axis next to light/dark:
 `desktop-preferences.js` stores `themeStyle` (`liquid` default, `graphite`), projects
 `data-desk-style="graphite"` onto `<html>`/`<body>` (also applied early by the inline

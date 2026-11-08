@@ -351,8 +351,8 @@
     "sha256": "458aed2e112bf3517234e4f63cf9498769af57fdab6996a2101c6587194d320c"
    },
    "scripts/desktop-preferences.js": {
-    "v": "20261107-release2660",
-    "sha256": "085515022f0ecbaaf67d8c647ec85ee4b54778636e2d7b4111265166cdabb7fb"
+    "v": "20261108-theme-transition1",
+    "sha256": "158dc844577fc79ae2b287523d8d6b099773668ae1eb20fd479a04b93d430321"
    },
    "scripts/desktop-progress-materials.js": {
     "v": "20261007-node-progress4",
@@ -427,8 +427,8 @@
     "sha256": "43e81dc5525b3de0c5613d1e35cf12222c76d74610a18f3f9eb899bac8922cf7"
    },
    "scripts/desktop-settings.js": {
-    "v": "20261104-graphite1",
-    "sha256": "915ee4ab3d9af971e9c507a18247203d7d302e2560cda20f4bd8fb5a520d7981"
+    "v": "20261108-theme-transition2",
+    "sha256": "b7be4fd63837d0bfebb8bab515065377d4982a0c8d2cefbb7c07a840423f7d8f"
    },
    "scripts/desktop-state-icon.js": {
     "v": "20261004-state-icons1",
@@ -445,6 +445,14 @@
    "scripts/desktop-tasks.js": {
     "v": "20260921-task-contract1",
     "sha256": "cf0f411f2b31340ba1482de6fd3a8e495a288e9c3741be71a1abbd2b1a8b810c"
+   },
+   "scripts/desktop-theme-ripple-snapshot.js": {
+    "v": "20261108-theme-ripple7",
+    "sha256": "36dfc9def5d74e3812aabe6e8048e2cdd97b9de46e22a3f1d29543a214ec0826"
+   },
+   "scripts/desktop-theme-ripple.js": {
+    "v": "20261108-theme-ripple4",
+    "sha256": "b2a15498812dba521f9bbb73fa06f079d92aaa577d693f75b2375d3ff273ffe0"
    },
    "scripts/desktop-topaz-api.js": {
     "v": "20260924-topaz-wonder-min1",
@@ -543,8 +551,8 @@
     "sha256": "e180daa4604f5034e1abb8d0b3ac7b992d7c61ce9f754b94700b04d9f1a17aa0"
    },
    "styles/desktop-geometry.css": {
-    "v": "20261102-h3-removal1",
-    "sha256": "c4c1eb450160dad9bbf6720c5700d8362059de875821846aa921d9501972c317"
+    "v": "20261108-theme-ripple4",
+    "sha256": "5d33dab6bcbc83888761071b71d38e5766e56b0f5f7df81cf6b70be82c497f9e"
    },
    "styles/desktop-google-web-geometry.css": {
     "v": "20261023-google-web2",
@@ -555,8 +563,8 @@
     "sha256": "72be900aec8cd304718e517c4da85d5cec8d083d4fc3de05c597c17a65417fdb"
    },
    "styles/desktop-graphite.css": {
-    "v": "20261105-comfy-cards1",
-    "sha256": "923fbc582ba011ef135f95db569b6fdea24a9f96463fbbdd49b42c1a1cbb80bb"
+    "v": "20261108-theme-ripple1",
+    "sha256": "89e0310e90b035b96c035433201c14263134558f7a69e61b6e3cba85adacce84"
    },
    "styles/desktop-image-group-geometry.css": {
     "v": "20261101-image-group-item-delete4",
@@ -587,8 +595,8 @@
     "sha256": "e60efb4504339324c42bcf212ad2e978040b6032b1a3b895300c867eecc61312"
    },
    "styles/desktop-liquid.css": {
-    "v": "20261105-comfy-cards2",
-    "sha256": "eba171b8ad73934447c50e15a4c520304292c2980aa970cb69577600572a18d4"
+    "v": "20261108-theme-ripple4",
+    "sha256": "f36465edccc7ce214e506406db5c5817caaa2b0204876d7bf07badbfbba7ef4f"
    },
    "styles/desktop-lora.css": {
     "v": "20261105-video-actions1",
