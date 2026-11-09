@@ -146,6 +146,67 @@ class WebIdentityMediaTest(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(sent['prompt'].startswith('画幅：4:3；分辨率：2K。\n\nedit this reference'))
         self.assertEqual(sent['files'], [('reference.png', self.preview)])
 
+    async def test_reference_images_reach_gemini_upload_as_images_not_text_attachments(self):
+        """Runs the vendored generate_content/upload_file; only HTTP and the stream RPC are faked."""
+        import importlib
+        from sidecars.google_pool.wire import prepare_request
+        from sidecars.google_web.vendor.gemini_webapi import GeminiClient
+        from sidecars.google_web.vendor.gemini_webapi.types import GeneratedImage
+        upload_module = importlib.import_module('sidecars.google_web.vendor.gemini_webapi.utils.upload_file')
+        jpeg = io.BytesIO()
+        Image.new('RGB', (64, 96), 'blue').save(jpeg, 'JPEG')
+        self.upstream.sessions['synthetic-a'] = {'client': self.client, 'revision': 1}
+        self.client.push_id = 'synthetic-push'
+        uploaded_parts, request_files = [], []
+
+        class RecordingMime:
+            def addpart(self, **part):
+                uploaded_parts.append(part)
+
+            def close(self):
+                pass
+
+        async def post(url, **kwargs):
+            return Reply(f'/contrib_service/ttl_1d/synthetic-{len(uploaded_parts)}'.encode())
+
+        async def stream_rpc(_client, **kwargs):
+            request_files.append(kwargs['req_file_data'])
+            yield SimpleNamespace(images=[GeneratedImage(
+                url='https://lh3.googleusercontent.com/gg/preview=s1024-rj', client=self.http,
+                client_ref=self.client, cid='synthetic-c', rid='synthetic-r', rcid='synthetic-rc',
+                image_id='synthetic-image')])
+
+        async def get(url, **_kwargs):
+            return Reply(self.preview)
+
+        self.http.post, self.http.get = post, get
+        request = prepare_request({'contents': [{'parts': [{'text': 'keep this character'},
+            {'inlineData': {'mimeType': 'image/png', 'data': base64.b64encode(self.preview).decode()}},
+            {'inlineData': {'mimeType': 'image/jpeg', 'data': base64.b64encode(jpeg.getvalue()).decode()}}]}],
+            'generationConfig': {'imageConfig': {'aspectRatio': '16:9', 'imageSize': '2K'}}})
+        with patch.object(upload_module, 'CurlMime', RecordingMime), \
+                patch.object(GeminiClient, '_send_bard_activity', new=AsyncMock()), \
+                patch.object(GeminiClient, '_generate', new=stream_rpc), \
+                patch.object(GeminiClient, '_get_full_size_image', new=AsyncMock(return_value=None)):
+            await self.upstream.generate('synthetic-a', request)
+
+        self.assertEqual([(part['filename'], part['content_type']) for part in uploaded_parts],
+                         [('reference.png', 'image/png'), ('reference.jpg', 'image/jpeg')])
+        self.assertEqual(sorted(part['data'] for part in uploaded_parts),
+                         sorted([self.preview, jpeg.getvalue()]))
+        self.assertEqual(len(request_files), 1)
+        self.assertEqual(sorted(name for _url, name in request_files[0]), ['reference.jpg', 'reference.png'])
+        self.assertTrue(all(not name.endswith('.txt') for _url, name in request_files[0]))
+
+    def test_unnamed_streams_and_raw_bytes_keep_the_vendor_random_name(self):
+        import importlib
+        upload_module = importlib.import_module('sidecars.google_web.vendor.gemini_webapi.utils.upload_file')
+        self.assertRegex(upload_module.parse_file_name(io.BytesIO(b'x')), r'^input_\d{7}\.txt$')
+        self.assertRegex(upload_module.parse_file_name(b'x'), r'^input_\d{7}\.txt$')
+        named = io.BytesIO(b'x')
+        named.name = '../../etc/reference.webp'
+        self.assertEqual(upload_module.parse_file_name(named), 'reference.webp')
+
     async def test_original_rpc_may_return_image_bytes_without_two_text_hops(self):
         raw, meta = await self.generate_with('https://lh3.googleusercontent.com/rd-gg/original', {
             'https://lh3.googleusercontent.com/rd-gg/original=d-I?alr=yes': Reply(self.original)})

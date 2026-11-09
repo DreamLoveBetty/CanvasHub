@@ -19,6 +19,19 @@ def _generate_random_name(extension: str = ".txt") -> str:
     return f"input_{random.randint(1000000, 9999999)}{extension}"
 
 
+def _stream_name(file: object) -> str | None:
+    """
+    CanvasHub patch: an in-memory stream may carry a `name` (e.g. "reference.png").
+    Use only its basename so Google receives the real image extension/MIME instead
+    of a random ".txt" text attachment, which the model cannot read as an image.
+    """
+
+    name = getattr(file, "name", None)
+    if isinstance(name, str) and name.strip():
+        return Path(name).name or None
+    return None
+
+
 @validate_call(config=ConfigDict(arbitrary_types_allowed=True))
 async def upload_file(
     file: str | Path | bytes | io.BytesIO,
@@ -66,7 +79,7 @@ async def upload_file(
     elif isinstance(file, io.BytesIO):
         file_content = file.getvalue()
         if not filename:
-            filename = _generate_random_name()
+            filename = _stream_name(file) or _generate_random_name()
     elif isinstance(file, bytes):
         file_content = file
         if not filename:
@@ -130,5 +143,7 @@ def parse_file_name(file: str | Path | bytes | io.BytesIO) -> str:
             raise ValueError(f"{file} is not a valid file.")
         return file.name
 
+    if isinstance(file, io.BytesIO):
+        return _stream_name(file) or _generate_random_name()
     return _generate_random_name()
 

@@ -20,6 +20,11 @@ CanvasHub-local patches:
   (including original-image lookup) and reference upload. The bootstrap callback
   checks pinned identity before initialization RPCs or a retried initialization.
   Group Cookie persistence/refresh belongs to the Web host, not per-client tasks.
+- `upload_file` and `parse_file_name` honour an in-memory stream's `name`
+  (basename only) for both the upload part and the request's file entry. Upstream
+  renamed every `BytesIO` to a random `input_*.txt`, so reference images were sent
+  as `text/plain` attachments that Gemini could not see, and edits silently fell
+  back to text-only generation. Unnamed streams and raw bytes keep the old naming.
 - The host uses `images.py`, not the vendor's `GeneratedImage.save` fallback. The
   latter assumes exactly two text-pointer hops and can silently fall back to a
   size-suffixed preview. Host downloads accept direct binary/variable pointer hops
