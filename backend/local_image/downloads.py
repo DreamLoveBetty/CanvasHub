@@ -8,6 +8,8 @@ import time
 
 import requests
 
+DIRECT = {"http": None, "https": None, "all": None}
+
 
 def sha256(path):
     digest = hashlib.sha256()
@@ -33,7 +35,8 @@ def verify(path, *, size, sha256_value="", blob_id=""):
 
 
 def download(url, path, *, size, sha256_value="", blob_id="", progress=None,
-             headers=None, attempts=6):
+             headers=None, attempts=6, proxies=None):
+    """`proxies` is passed to requests; DIRECT ignores the proxy environment variables (all_proxy included)."""
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     if path.is_file():
@@ -54,7 +57,7 @@ def download(url, path, *, size, sha256_value="", blob_id="", progress=None,
             request_headers["Range"] = f"bytes={position}-"
         try:
             with requests.get(url, headers=request_headers, stream=True,
-                              timeout=(30, 90)) as response:
+                              timeout=(30, 90), proxies=proxies) as response:
                 response.raise_for_status()
                 resumed = bool(position and response.status_code == 206)
                 if resumed and not response.headers.get("Content-Range", "").startswith(f"bytes {position}-"):

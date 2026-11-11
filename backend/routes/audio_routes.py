@@ -33,6 +33,8 @@ def create_router(service):
             elif action == 'job': result = service.store.get(first('id'))
             elif action == 'jobs': result = {'jobs': service.store.list()}
             elif action == 'cancel': result = service.cancel(body.get('id', ''))
+            elif action == 'unarchived': result = service.unarchived()
+            elif action == 'archive': result = service.archive_existing()
             elif action == 'score': result = score_action(body)
             elif action == 'artifact':
                 send_artifact(handler, service.store.artifact(first('id'), first('name')))
@@ -49,7 +51,7 @@ def create_router(service):
         except OSError:
             handler.send_json({'error': '音频存储读写失败，请检查磁盘和目录权限'}, 500)
     routes = {('GET', '/api/audio/' + a): (lambda h, action=a: handle(h, action))
-              for a in ('status', 'job', 'jobs', 'artifact')}
+              for a in ('status', 'job', 'jobs', 'artifact', 'unarchived')}
     routes.update({('POST', '/api/audio/' + a): (lambda h, action=a: handle(h, action, True))
-                   for a in ('upload', 'submit', 'cancel', 'score')})
+                   for a in ('upload', 'submit', 'cancel', 'score', 'archive')})
     return ProtectedRouter(routes)

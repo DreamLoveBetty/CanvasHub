@@ -9,6 +9,8 @@ and process cancellation on Apple Silicon. It does not require an external audio
 - `contracts.py`: bounded snake_case requests and upstream-compatible defaults.
 - `storage.py`: independent SQLite task receipts and immutable per-task artifact directories.
 - `service.py`: serial audio queue, uploaded audio assets, cancellation, recovery and artifact manifests.
+  After a song finishes it calls the injected `archive` port (see *Archive* below); a failed
+  copy is recorded as `archive_error` and never fails the job.
 - `environment.py` / `requirements-py314.txt`: the shared interpreter contract and pinned optional
   audio dependency profile. `install.py` owns explicit installation and its receipt.
 - `runtime.py` → `worker.py`: offline CLI execution in a separate **process**, sharing the
@@ -33,9 +35,10 @@ and process cancellation on Apple Silicon. It does not require an external audio
   HTTP Range support. `server.py` only constructs the runtime/service and dispatches routes.
 
 No imports of image providers, image job database, GPT/Google account pools, Telegram
-senders or image archives. Audio does not automatically send to Telegram. Deleting a canvas
+senders or image archives: archiving goes through the port that `server.py` injects. Audio
+does not automatically send to Telegram. Deleting a canvas
 node does not cancel its independent job; use Stop first. Receipts/artifacts remain persistent;
-history will be managed by the asset library later, not by controls on each inference node.
+history is managed by the asset library's audio page, not by controls on each inference node.
 Concurrent service instances cannot take over the same audio task database. In-flight/queued
 jobs become `interrupted` on service recovery; no automatic duplicate generation.
 
@@ -53,6 +56,20 @@ data/audio/jobs.sqlite3
 data/audio/assets/<sha256>.<ext>    local reference audio (maximum 100 MB)
 data/audio/jobs/<job_id>/           submission, runtime log, resource logs, result/*
 ```
+
+## Archive
+
+Finished `generate` jobs (`succeeded` / `partial`) are **copied** to the configured archive at
+`<image archive>/audio/YYYY-MM-DD/yue_<job id 12>.<flac|wav>` with `.txt` / `.md` / `.json` /
+`.abc` sidecars (owner: `backend/services/archive_audio.py`). The job directory stays the
+immutable receipt and `/api/audio/artifact` URLs on existing canvas nodes keep working; the job
+record gains `archive: {path}`. Uploaded reference audio is not archived. Songs from before
+this existed are copied only on request: `GET /api/audio/unarchived` counts them and
+`POST /api/audio/archive` copies them (the asset library's audio page offers this button).
+The `.json` sidecar also stores a 64-bar loudness envelope (`peaks`, 0–1) for the gallery
+waveform, computed by the system FFmpeg (2 kHz mono PCM, no Python audio library). Songs
+archived before that, or without FFmpeg, get it lazily from `GET /api/assets/audio/peaks`
+(computed once and written back into our sidecar; files without one are cached in memory).
 
 These runtime paths are ignored by Git. Job results keep all upstream artifacts, including
 request/config/result/plan JSON, score, semantic/latent/noise arrays when emitted. There is no
@@ -128,6 +145,8 @@ All endpoints require existing auth; no unauthenticated music port or daemon is 
 | POST | `/api/audio/cancel` | `{ "id": "..." }` |
 | GET | `/api/audio/artifact?id=...&name=...` | Protected streaming / Range / download |
 | POST | `/api/audio/score` | Native ABC `inspect`, `strip-chords`, `compare` |
+| GET | `/api/audio/unarchived` | Finished songs not yet copied into the archive |
+| POST | `/api/audio/archive` | Explicit backfill copy of those songs |
 
 Generation example:
 
@@ -169,8 +188,8 @@ print-to-PDF, native-dialect checks, audio/score/parameter side-by-side comparis
 and generated audio in the original shared audio node. Style/lyrics must come from connected
 text nodes. Inference nodes have no inline creative-text fields, connection diagnostics, or
 history/restore panel. Local HTTP routes are the app-to-worker boundary, not an external
-audio API dependency. Automatic current-job polling on reload is retained; asset-library
-history integration is not implemented yet.
+audio API dependency. Automatic current-job polling on reload is retained; the asset library
+lists archived songs (see *Archive*).
 
 Not claimed: generic MIDI-to-ABC import, audio stem separation, voice cloning, automatic
 transcription of lyrics, sample-accurate multi-player synchronization, or a guarantee of subjective music quality.

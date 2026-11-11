@@ -56,6 +56,10 @@ class Store:
         with self.db() as db:
             return [json.loads(r['data']) for r in db.execute('SELECT data FROM jobs ORDER BY created DESC LIMIT 50')]
 
+    def all(self):
+        with self.db() as db:
+            return [json.loads(r['data']) for r in db.execute('SELECT data FROM jobs ORDER BY created DESC')]
+
     def path(self, job_id):
         if not isinstance(job_id, str) or not re.fullmatch('[a-f0-9]{32}', job_id):
             raise ValueError('无效音频任务 ID')

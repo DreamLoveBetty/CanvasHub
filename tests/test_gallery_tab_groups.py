@@ -33,7 +33,7 @@ class GalleryTabGroupsTest(unittest.TestCase):
     def test_model_tab_follows_output_tabs(self):
         self.assertEqual(
             [tab["data-gallery-view"] for tab, _ in self.tabs],
-            ["images", "videos", "files", "pinterest", "sources", "sets", "loras"],
+            ["images", "videos", "audio", "files", "pinterest", "sources", "sets", "loras"],
         )
         ids = [tab["id"] for tab, _ in self.tabs]
         self.assertEqual(len(ids), len(set(ids)))

@@ -132,6 +132,7 @@ raglite/chroma-data/
 # Qwen worker-only checkout, pinned model caches and preparation receipts.
 /components/qwen21/
 /components/moss/
+/components/asr/
 
 # Installed ReShot weights/cache/receipt; source lives in backend/video_control.
 /components/reshot/

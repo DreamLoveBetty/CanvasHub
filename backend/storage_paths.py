@@ -35,6 +35,15 @@ def _existing_unique_roots(*paths: Path) -> list[Path]:
     return roots
 
 
+# Generated audio lives in its own subtree of the archive; image and video scans skip it.
+AUDIO_ARCHIVE_DIR_NAME = "audio"
+
+
+def audio_archive_dir() -> Path:
+    """Return the archive subtree for generated audio (`<archive>/audio/YYYY-MM-DD/`)."""
+    return IMAGE_ARCHIVE_DIR / AUDIO_ARCHIVE_DIR_NAME
+
+
 def daily_output_dir(now: datetime | None = None) -> Path:
     """Return the archive date folder for new generated images."""
     date_part = now.strftime("%Y-%m-%d") if now else time.strftime("%Y-%m-%d")
@@ -112,6 +121,7 @@ def _generated_date_from_path(path: Path) -> str:
 
 
 VIDEO_SIDECAR_SUFFIXES = frozenset({".mp4", ".webm", ".mov", ".m4v"})
+AUDIO_SIDECAR_SUFFIXES = frozenset({".flac", ".wav", ".mp3", ".m4a", ".ogg", ".opus", ".aac"})
 
 
 def write_obsidian_prompt_sidecar(
@@ -120,22 +130,24 @@ def write_obsidian_prompt_sidecar(
     *,
     txt_path: Path | None = None,
 ) -> Path:
-    """Write an Obsidian-readable markdown prompt sidecar next to an image or video.
+    """Write an Obsidian-readable markdown prompt sidecar next to an image, video or audio file.
 
-    Videos are marked `type: video_prompt` so the archive scan files them as generated videos."""
+    Videos are marked `type: video_prompt` so the archive scan files them as generated videos;
+    audio is marked `type: audio_prompt`."""
     image_path = Path(image_path)
     txt_path = Path(txt_path) if txt_path else image_path.with_suffix(".txt")
     prompt_text = str(prompt_text or "").strip()
     md_path = image_path.with_suffix(".md")
-    is_video = image_path.suffix.lower() in VIDEO_SIDECAR_SUFFIXES
+    suffix = image_path.suffix.lower()
+    media = "video" if suffix in VIDEO_SIDECAR_SUFFIXES else "audio" if suffix in AUDIO_SIDECAR_SUFFIXES else "image"
     fence = _markdown_fence_for(prompt_text)
     lines = [
         "---",
         "source: tg-mini-app-img-gen",
-        f"type: {'video_prompt' if is_video else 'image_prompt'}",
+        f"type: {media}_prompt",
         f"generated_date: {_yaml_string(_generated_date_from_path(image_path))}",
         f"task_id: {_yaml_string(image_path.stem)}",
-        f"{'video' if is_video else 'image'}: {_yaml_string(image_path.name)}",
+        f"{media}: {_yaml_string(image_path.name)}",
         f"txt_file: {_yaml_string(txt_path.name)}",
         "---",
         "",

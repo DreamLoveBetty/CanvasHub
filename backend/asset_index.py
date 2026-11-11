@@ -24,7 +24,7 @@ from .database import DB_PATH as TASKS_DB_PATH
 from .database import get_all_tasks
 from .image_resolution import infer_resolution_label, normalize_resolution_label
 from .services.generation_timing import normalize_generation_timing, task_total_seconds
-from .storage_paths import IMAGE_ARCHIVE_DIR, archive_scan_roots
+from .storage_paths import AUDIO_ARCHIVE_DIR_NAME, IMAGE_ARCHIVE_DIR, archive_scan_roots
 from .thumb_cache import thumb_url_for_media_url
 from .services.image_preview import preview_url
 
@@ -155,7 +155,7 @@ def _index_fingerprint() -> tuple:
             children = sorted(
                 (child.name, int(child.stat().st_mtime_ns))
                 for child in root.iterdir()
-                if child.is_dir()
+                if child.is_dir() and child.name != AUDIO_ARCHIVE_DIR_NAME
             )
         except OSError:
             children = []
@@ -553,6 +553,8 @@ def _provider_label(provider: str) -> str:
         "google": "Google",
         "comfy": "Comfy",
         "layout": "排版",
+        "video_frame": "视频抽帧",
+        "video_compose": "视频合成",
     }.get(provider, provider or "资产")
 
 
@@ -653,6 +655,9 @@ def _archive_image_files() -> list[tuple[Path, str, str]]:
             # output assets. pathlib.rglob includes dot-directories as well.
             if {".krea2-controls", ".moss-overlays"} & set(relative.parts[:-1]):
                 continue
+            # Generated audio has its own subtree and asset-library page.
+            if relative.parts[0] == AUDIO_ARCHIVE_DIR_NAME:
+                continue
             rel_path = relative.as_posix()
             files.append((path, root_key, rel_path))
     files.sort(key=lambda item: (int(item[0].stat().st_mtime), item[0].as_posix()), reverse=True)
@@ -685,6 +690,10 @@ def _infer_archive_provider(path: Path, template: dict[str, Any] | None = None) 
         return "layout"
     if name.startswith("topaz_"):
         return "topaz"
+    if name.startswith("video_frame_"):
+        return "video_frame"
+    if name.startswith("video_compose_"):
+        return "video_compose"
     if name.startswith("krea2_"):
         return "krea2"
     if name.startswith("qwen21_"):

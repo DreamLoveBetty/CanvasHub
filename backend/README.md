@@ -35,6 +35,7 @@ flowchart TD
 | --- | --- | --- |
 | 资产、候选集、历史 | `asset_*_routes`、`history_routes`、`asset_maintenance_routes` | `asset_files`、`asset_delete`、`asset_undo`、`asset_health`、`history_*`、`generation_timing`（统一总用时与本地分段耗时公开契约） |
 | 图片、视频、归档资源 | `media_routes` | `media_lookup`、`image_import`、`archive_sidecars`、`archive_video` |
+| 资产库音频 | `routes/archive_audio_routes.py`（`GET /api/assets/audio`、`GET /api/assets/audio/file`、`GET /api/assets/audio/peaks`、`POST /api/assets/audio/delete`） | `services/archive_audio.py`：生成歌曲在 `<归档目录>/audio/YYYY-MM-DD/`，旁附 `.txt` 提示词、Obsidian `.md`（`type: audio_prompt`）、`.json` 元数据与 `.abc` 乐谱；标准库读取 FLAC/WAV 时长；系统 FFmpeg 计算 64 段响度波形（`peaks`）存入 `.json` 侧车，旧歌曲经 `peaks` 端点按需补算一次；删除连同侧车移入废纸篓并写入共享删除日志，经 `/api/assets/undo-delete` 撤销。图片索引与视频扫描跳过 `audio/` 子树。`server.py` 把 `AudioArchive.publish` 作为端口注入 `AudioService` |
 | 视频节点本地上传 | `routes/video_upload_routes.py`（`POST /api/video/upload`） | `services/video_upload.py`：文件头识别 MP4/MOV/WebM（≤ 200 MiB）、写入当天归档目录 `video_upload_<时间>_<sha12>.<扩展名>`（同日同内容复用）、ffprobe 读尺寸/帧率/时长，读不出画面即删除；由 `/video/` 提供，资产库归为「导入素材」，下游视频节点按归档视频接受 |
 | 姿态识别多人追踪 | `pose_capture/comotion.py`、`comotion_pose.py`（worker 内） | 可选的 CoMotion：影片人物轨迹（代替 YOLOX + ByteTrack）与 GEM-X 起始姿态（SMPL→SOMA）；固定 `ml-comotion` `04b035a`，模型与 SMPL 逐一校验；需 MPS；`install.py --comotion-only` 补装，`requirements-comotion-py314.txt` 单独校验；状态 `modes.comotion`；失败或没人时退回侦测器 |
 | 姿态识别影像证据 | `pose_capture/evidence.py`（worker 内） | 可选的 SAM 3D Body：手臂深度与手指形状；骨干放 MPS、其余 CPU；固定 sam-3d-body `b5c765a` 与 DINOv3 `6876159a`，权重来自 `nvidia/GEM-X` 固定版本；`install.py --evidence-only` 补装，`requirements-evidence-py314.txt` 单独校验；状态 `modes.evidence` |
@@ -50,6 +51,8 @@ flowchart TD
 | 放大、H3 提示词编译、ComfyUI | `runtime_generation_routes` | `upscale_generation`、`comfy_workflows`、`comfy_gateway`、`comfy_transport`、`comfy_generation`、`comfy_video`、`comfy_audio`、`comfy_workflow_tags`、`comfy_workflow_switches`、`comfy_object_info` |
 | ComfyUI 视频/音频源上传 | `routes/comfy_video_routes.py`（`POST /api/comfy/upload_video`、`POST /api/comfy/upload_audio`） | `services/comfy_video.py`：文件头识别 MP4/MOV/WebM（≤ 200 MiB）；`services/comfy_audio.py`：文件头识别 MP3/WAV/FLAC/OGG/M4A（≤ 50 MiB）。都转存到 ComfyUI 输入目录（`/upload/image`），只回传输入名；`/api/comfy/run` 的 `videos`/`audios` 只接受这种输入名 |
 | Topaz 独立增强节点 | `topaz/routes.py` / 既有任务查询与取消 | `topaz/` 独立参数、服务适配、版本门禁与子进程；`services/image_enhancement` 仅共享归档/任务生命周期，Spandrel 不依赖 Topaz；见 `topaz/README.md` |
+| 视频剪辑（抽帧、场景候选、分离音频、合成） | `routes/video_edit_routes.py`（`/api/video_edit/{status,probe,preview_frame,filmstrip,submit,job,cancel,compose,compose_check,compose_recipe,subtitle_fonts,transcribe}`） | `video_edit/` 只调系统 FFmpeg/ffprobe：按帧号精确抽帧（含 VFR）、`scdet` 场景候选、首条音轨复制或转 FLAC、多段按帧裁切拼接加配乐的合成；来源只接受画布已在播放的 `/video/`、Topaz Video / ReShot 产物 URL，由 `server.py` 注入对应领域的解析器；帧进当日归档（provider `video_frame`），音轨经 `AudioArchive.publish_file` 进音频归档；抽帧等短任务仅存内存，合成任务持久化在 `data/video-edit/jobs.sqlite3`、独立线程渲染，成片带 `.json` 配方；自动字幕（`transcribe`）只渲染片段原声给 ASR 端口，返回可编辑字幕草稿，任务仅存内存；见 `video_edit/README.md` |
+| 语音识别（自动字幕） | `routes/asr_routes.py`（`GET /api/asr/status`、`POST /api/asr/prepare`） | `asr/` Qwen3-ASR 1.7B + ForcedAligner，独立 Python 3.12 venv（`components/asr/`，哈希锁定、`--no-deps`）；模型优先 ModelScope 直连下载并校验 sha256；每次识别是一次性子进程，持共享 `.local-inference.lock`，结束即释放内存；识别本身只经 video_edit 调用端口；见 `asr/README.md` |
 | Topaz Video 独立节点 | `routes/topaz_video_routes.py` | `topaz_video/` 独立模型目录、视频素材、串行任务、进度/取消/结果和本地子进程；不依赖 Gigapixel 图片域、ReShot 视频控制或音频域；见 `topaz_video/README.md` |
 | 姿态识别（GEM-X 精简版） | `routes/pose_capture_routes.py` | `pose_capture/` 固定 GEM-X 源码与模型、常驻 CPU worker（照片识别）、场景转换（重力、机位、地面）、视频识别（`video.py`，CoreML 加速在 `accel.py`）、识别体型 GLB（`bodies.py`）、任务队列；HTTP 进程不导入推理依赖；见 `pose_capture/README.md` |
 | 姿态参考（SOMA 人偶） | `routes/pose_routes.py` | `pose_scene/` 固定 SOMA 与 Anny 资产、安装时子进程生成中性 / 女性 / 男性人偶 GLB、姿态视频 ffmpeg 编码（`video_export.py`，成品进图片归档）、导出图与场景快照存放；不依赖识别、图像 Provider 或其他本地模型；见 `pose_scene/README.md` |
@@ -177,6 +180,23 @@ subprocess (`py-soma-x` legacy mode, never imported by the HTTP process) and exp
 images with their scene snapshot sidecars. `routes/pose_routes.py` is its only HTTP adapter;
 `server.py` injects `APP_DATA_DIR/components/pose-soma` and `APP_DATA_DIR/data/pose`. It replaces
 the old Mixamo/Blender `pose_service.py`. Installation and limits: `pose_scene/README.md`.
+
+## Video edit domain
+
+`video_edit/` turns canvas videos into exact frames, scene candidates and a separated audio
+track with the system FFmpeg. `sources` accepts only URLs the canvas already plays and resolves
+them through resolvers `server.py` injects (`routes/media_routes.resolve_video_file` for
+`/video/…`, the Topaz Video and ReShot stores for their artifacts), so path checks stay with
+the owning domain. Frames are written to today's archive folder; audio goes through
+`AudioArchive.publish_file`, the same publish path generated songs use. Frame, scene and audio
+jobs are in memory; outputs are idempotent per source content. Compose renders run on their own
+worker with durable receipts in `data/video-edit/jobs.sqlite3` (check it before a restart);
+the MP4 lands in today's archive folder beside a `.json` recipe that `compose_recipe` reads back.
+Its music resolver gets the audio job store lazily (`store=lambda: _AUDIO_SERVICE.store`):
+opening that store takes the audio service's lease, which must not happen at import.
+Automatic subtitles (`video_edit/transcribe.py`) render the clips' own sound and call the
+`asr/` port, which runs Qwen3-ASR one-shot in `components/asr/venv`; see `asr/README.md`.
+See `video_edit/README.md`.
 
 ## Independent Topaz Video domain
 

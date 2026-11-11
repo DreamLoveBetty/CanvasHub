@@ -97,6 +97,30 @@ def handle_image_import_url(handler, *, _download_remote_image_for_import, urlli
         handler.send_json({"ok": False, "error": "远程图片导入失败"}, 502)
 
 
+def resolve_video_file(
+    filename,
+    *,
+    Path,
+    _ARCHIVE_VIDEO_EXTENSIONS,
+    _resolve_archive_video_file,
+    _resolve_download_file,
+    os,
+    safe_basename,
+    urllib,
+):
+    """The file behind a public `/video/<path>` URL, or None; shared by the player and the video editor."""
+    raw_path = urllib.parse.unquote(str(filename or '').strip()).lstrip('/\\')
+    safe_name = safe_basename(raw_path)
+    if Path(safe_name).suffix.lower() not in _ARCHIVE_VIDEO_EXTENSIONS:
+        return None
+    filepath = _resolve_archive_video_file(raw_path)
+    if not filepath and '/' not in raw_path.replace('\\', '/'):
+        filepath = _resolve_download_file(safe_name)
+    if not filepath or not os.path.isfile(filepath):
+        return None
+    return filepath
+
+
 def handle_video(
     handler,
     filename,
@@ -112,15 +136,11 @@ def handle_video(
     urllib,
 ):
     """Serve an archived video with byte-range support for the canvas player."""
-    raw_path = urllib.parse.unquote(str(filename or '').strip()).lstrip('/\\')
-    safe_name = safe_basename(raw_path)
-    if Path(safe_name).suffix.lower() not in _ARCHIVE_VIDEO_EXTENSIONS:
-        handler.send_error(404, 'Video not found')
-        return
-    filepath = _resolve_archive_video_file(raw_path)
-    if not filepath and '/' not in raw_path.replace('\\', '/'):
-        filepath = _resolve_download_file(safe_name)
-    if not filepath or not os.path.isfile(filepath):
+    filepath = resolve_video_file(
+        filename, Path=Path, _ARCHIVE_VIDEO_EXTENSIONS=_ARCHIVE_VIDEO_EXTENSIONS,
+        _resolve_archive_video_file=_resolve_archive_video_file, _resolve_download_file=_resolve_download_file,
+        os=os, safe_basename=safe_basename, urllib=urllib)
+    if not filepath:
         handler.send_error(404, 'Video not found')
         return
 

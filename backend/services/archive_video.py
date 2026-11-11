@@ -5,6 +5,7 @@ Preserve existing operation order, payloads and failure semantics.
 """
 from __future__ import annotations
 
+from ..storage_paths import AUDIO_ARCHIVE_DIR_NAME
 from .archive_video_actions import video_asset_id
 
 
@@ -275,7 +276,10 @@ def _list_archive_videos(
             continue
         try:
             walker = os.walk(root, followlinks=False)
-            for directory, _, filenames in walker:
+            for directory, dirnames, filenames in walker:
+                # Generated audio has its own subtree; an imported .webm there is not a video.
+                if directory == str(root):
+                    dirnames[:] = [name for name in dirnames if name != AUDIO_ARCHIVE_DIR_NAME]
                 for filename in filenames:
                     if Path(filename).suffix.lower() not in _ARCHIVE_VIDEO_EXTENSIONS:
                         continue

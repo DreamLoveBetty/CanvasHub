@@ -142,6 +142,18 @@ from .routes.comfy_video_routes import create_router as create_comfy_video_route
 from .services.video_upload import VideoUploads
 from .audio.service import AudioService
 from .routes.audio_routes import create_router as create_audio_router
+from .routes.archive_audio_routes import create_router as create_archive_audio_router
+from .routes.video_edit_routes import create_router as create_video_edit_router
+from .routes.asr_routes import create_router as create_asr_router
+from .asr.runtime import Runtime as AsrRuntime
+from .asr.service import AsrService
+from .video_edit.transcribe import TranscribeService as VideoTranscribeService
+from .video_edit.compose import ComposeService as VideoComposeService
+from .video_edit.service import VideoEditService
+from .video_edit.sources import AudioSourceResolver as VideoComposeMusic, SourceResolver as VideoEditSources
+from .video_edit.storage import ComposeStore as VideoComposeStore
+from .services.archive_audio import AudioArchive
+from . import storage_paths as _storage_paths
 from .api_client_gpt import send_telegram_result, send_tg_document
 from .provider_gpt_codex import generate_image_gpt_codex, edit_image_gpt_codex, get_gpt_provider_auth_status
 from .provider_chatgpt_pool import chat_chatgpt_pool, edit_image_gpt_pool, generate_editable_file_gpt_pool, generate_image_gpt_pool, search_chatgpt_pool
@@ -1915,6 +1927,14 @@ def _resolve_archive_video_file(rel_path):
     )
 
 
+def _resolve_public_video_file(rel_path):
+    """The file behind a `/video/<path>` URL, resolved exactly as the canvas player's route does."""
+    return _domain_routes_media_routes.resolve_video_file(
+        rel_path, Path=Path, _ARCHIVE_VIDEO_EXTENSIONS=_ARCHIVE_VIDEO_EXTENSIONS,
+        _resolve_archive_video_file=_resolve_archive_video_file, _resolve_download_file=_resolve_download_file,
+        os=os, safe_basename=safe_basename, urllib=urllib)
+
+
 def _parse_video_frame_rate(value):
     return _domain_services_archive_video._parse_video_frame_rate(value, math=math)
 
@@ -2425,9 +2445,10 @@ _KREA2_SERVICE.runtime.before_load = lambda: _LOCAL_IMAGE_MEMORY.release_other('
 _QWEN21_SERVICE.runtime.before_load = lambda: _LOCAL_IMAGE_MEMORY.release_other('qwen21')
 _MOSS_SERVICE.runtime.before_load = lambda: _LOCAL_IMAGE_MEMORY.release_other('moss')
 _topaz_runtime.before_load = _LOCAL_IMAGE_MEMORY.release_all
-_VIDEO_CONTROL_ROUTES = create_video_control_router(VideoControlService(
+_VIDEO_CONTROL_SERVICE = VideoControlService(
     APP_DATA_DIR / 'data' / 'video-control', VideoControlRuntime(
-        APP_DATA_DIR / 'components' / 'reshot', before_load=_LOCAL_IMAGE_MEMORY.release_all)))
+        APP_DATA_DIR / 'components' / 'reshot', before_load=_LOCAL_IMAGE_MEMORY.release_all))
+_VIDEO_CONTROL_ROUTES = create_video_control_router(_VIDEO_CONTROL_SERVICE)
 _POSE_ROUTES = create_pose_router(_POSE_SCENE_SERVICE)
 _VIDEO_UPLOAD_ROUTES = create_video_upload_router(VideoUploads(daily_output_dir, _probe_archive_video_metadata))
 _COMFY_VIDEO_ROUTES = create_comfy_video_router(
@@ -2435,12 +2456,40 @@ _COMFY_VIDEO_ROUTES = create_comfy_video_router(
     _domain_services_comfy_audio.ComfyAudioUploads(_new_comfy_session, get_comfy_config),
 )
 _POSE_CAPTURE_ROUTES = create_pose_capture_router(_POSE_CAPTURE_SERVICE)
-_TOPAZ_VIDEO_ROUTES = create_topaz_video_router(TopazVideoService(
+_TOPAZ_VIDEO_SERVICE = TopazVideoService(
     APP_DATA_DIR / 'data' / 'topaz-video', TopazVideoRuntime(
-        APP_DATA_DIR / 'components' / 'topaz-video', before_load=_LOCAL_IMAGE_MEMORY.release_all)))
-_AUDIO_ROUTES = create_audio_router(AudioService(
+        APP_DATA_DIR / 'components' / 'topaz-video', before_load=_LOCAL_IMAGE_MEMORY.release_all))
+_TOPAZ_VIDEO_ROUTES = create_topaz_video_router(_TOPAZ_VIDEO_SERVICE)
+# Finished songs are copied into <archive>/audio/YYYY-MM-DD/; the job store keeps its receipts.
+_AUDIO_ARCHIVE = AudioArchive(
+    _storage_paths.audio_archive_dir, write_markdown=write_obsidian_prompt_sidecar,
+    move_to_trash=_move_asset_file_to_trash, record_batch=record_delete_batch)
+_AUDIO_SERVICE = AudioService(
     APP_DATA_DIR / 'data' / 'audio', AudioRuntime(
-        APP_DATA_DIR / 'components' / 'audio-yue', before_load=_LOCAL_IMAGE_MEMORY.release_all)))
+        APP_DATA_DIR / 'components' / 'audio-yue', before_load=_LOCAL_IMAGE_MEMORY.release_all),
+    archive=_AUDIO_ARCHIVE.publish)
+_AUDIO_ROUTES = create_audio_router(_AUDIO_SERVICE)
+_ARCHIVE_AUDIO_ROUTES = create_archive_audio_router(_AUDIO_ARCHIVE)
+# Frames go to today's image folder, separated audio to the audio archive; sources are only
+# media URLs the canvas already plays, each resolved by the domain that serves it.
+_VIDEO_EDIT_SERVICE = VideoEditService(
+    resolver=VideoEditSources(archive_video=_resolve_public_video_file, stores={
+        'topaz_video': _TOPAZ_VIDEO_SERVICE.store, 'video_control': _VIDEO_CONTROL_SERVICE.store}),
+    frame_dir=daily_output_dir, write_sidecar=write_obsidian_prompt_sidecar, audio_archive=_AUDIO_ARCHIVE)
+# Compose renders land in today's archive folder (served as /video/<name>); receipts and recipes
+# survive restarts in data/video-edit/. Music comes from the audio archive, audio jobs or uploads.
+_VIDEO_COMPOSE_SERVICE = VideoComposeService(
+    store=VideoComposeStore(APP_DATA_DIR / 'data' / 'video-edit'), sources=_VIDEO_EDIT_SERVICE,
+    audio_resolver=VideoComposeMusic(archive=_AUDIO_ARCHIVE.resolve, store=lambda: _AUDIO_SERVICE.store,
+                                     assets_dir=APP_DATA_DIR / 'data' / 'audio' / 'assets'),
+    output_dir=daily_output_dir, write_sidecar=write_obsidian_prompt_sidecar, font_dir=PROJECT_ROOT / 'font')
+# Speech recognition runs one-shot in components/asr/venv under the shared local-inference lock;
+# automatic subtitles keep their jobs in memory and return draft cues to the canvas only.
+_ASR_SERVICE = AsrService(APP_DATA_DIR / 'components' / 'asr', runtime=AsrRuntime(
+    APP_DATA_DIR / 'components' / 'asr', before_load=_LOCAL_IMAGE_MEMORY.release_all))
+_ASR_ROUTES = create_asr_router(_ASR_SERVICE)
+_VIDEO_TRANSCRIBE_SERVICE = VideoTranscribeService(compose=_VIDEO_COMPOSE_SERVICE, asr=_ASR_SERVICE)
+_VIDEO_EDIT_ROUTES = create_video_edit_router(_VIDEO_EDIT_SERVICE, _VIDEO_COMPOSE_SERVICE, _VIDEO_TRANSCRIBE_SERVICE)
 
 _MIGRATED_ROUTES = ProtectedRouter({
     ("GET", "/api/history"): lambda handler: handler.handle_history(),
@@ -2575,7 +2624,13 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
             return
         if _TOPAZ_VIDEO_ROUTES.dispatch(self, 'GET', path):
             return
+        if _ASR_ROUTES.dispatch(self, 'GET', path):
+            return
         if _AUDIO_ROUTES.dispatch(self, 'GET', path):
+            return
+        if _ARCHIVE_AUDIO_ROUTES.dispatch(self, 'GET', path):
+            return
+        if _VIDEO_EDIT_ROUTES.dispatch(self, 'GET', path):
             return
         if _GOOGLE_POOL_ROUTES.dispatch(self, 'GET', path):
             return
@@ -2863,7 +2918,13 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
             return
         if _TOPAZ_VIDEO_ROUTES.dispatch(self, 'POST', path):
             return
+        if _ASR_ROUTES.dispatch(self, 'POST', path):
+            return
         if _AUDIO_ROUTES.dispatch(self, 'POST', path):
+            return
+        if _ARCHIVE_AUDIO_ROUTES.dispatch(self, 'POST', path):
+            return
+        if _VIDEO_EDIT_ROUTES.dispatch(self, 'POST', path):
             return
         if _GOOGLE_POOL_ROUTES.dispatch(self, 'POST', path):
             return

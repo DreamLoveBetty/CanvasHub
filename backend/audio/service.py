@@ -35,8 +35,10 @@ def score_action(body):
 
 
 class AudioService:
-    def __init__(self, root, runtime):
-        self.root, self.runtime = Path(root), runtime
+    def __init__(self, root, runtime, archive=None):
+        # `archive(source, *, job_id, created_at, spec, score)` copies a finished song into the
+        # user's archive and returns {'path': ...}; the job directory stays the receipt.
+        self.root, self.runtime, self.archive = Path(root), runtime, archive
         self._store = None
         self._lock = threading.RLock()
         self._queue = queue.Queue(maxsize=16)
@@ -143,6 +145,48 @@ class AudioService:
                                   url='/api/audio/artifact?' + urlencode({'id': job_id, 'name': name})))
         return artifacts
 
+    @staticmethod
+    def _archivable(job):
+        return (job.get('spec', {}).get('operation') == 'generate' and job.get('status') in ('succeeded', 'partial')
+                and not job.get('archive'))
+
+    def _publish(self, job):
+        """Archive one finished song. Failure is recorded and never fails the job itself."""
+        if self.archive is None or not self._archivable(job):
+            return job
+        directory = self.store.path(job['id'])
+        wanted = f"audio.{job['spec'].get('audio_format', 'flac')}"
+        pick = lambda name: next((directory / item['name'] for item in job.get('artifacts', [])
+                                  if Path(item['name']).name == name), None)
+        song = pick(wanted)
+        if song is None:
+            return self.store.update(job['id'], archive_error='没有找到可归档的音频产物')
+        try:
+            record = self.archive(song, job_id=job['id'], created_at=job.get('created_at'),
+                                  spec=job['spec'], score=pick('score.abc'))
+        except Exception as exc:
+            return self.store.update(job['id'], archive_error=str(exc)[:500] or '归档失败')
+        return self.store.update(job['id'], archive=record, archive_error='')
+
+    def unarchived(self):
+        """Finished songs from before archiving existed, or whose archiving failed."""
+        if self.archive is None:
+            return {'count': 0, 'enabled': False}
+        return {'count': sum(1 for job in self.store.all() if self._archivable(job)), 'enabled': True}
+
+    def archive_existing(self):
+        """Explicit backfill: copy earlier finished songs into the archive (originals stay)."""
+        if self.archive is None:
+            raise RuntimeError('音频归档未配置')
+        archived = failed = 0
+        with self._lock:
+            for job in self.store.all():
+                if not self._archivable(job):
+                    continue
+                if self._publish(job).get('archive'): archived += 1
+                else: failed += 1
+        return {'archived': archived, 'failed': failed}
+
     def _work(self):
         # Lifetime belongs to this service, not to a browser tab or canvas node.
         while not self._closed:
@@ -166,8 +210,9 @@ class AudioService:
                     state, error = self.runtime.execute(spec, directory, asset, cancel, progress)
                 with self._lock:
                     if cancel.is_set(): state, error = 'cancelled', ''
-                    self.store.update(job_id, status=state, stage=state, error=error,
-                                      artifacts=self._manifest(job_id), finished_at=time.time())
+                    job = self.store.update(job_id, status=state, stage=state, error=error,
+                                            artifacts=self._manifest(job_id), finished_at=time.time())
+                    self._publish(job)
             except Exception as exc:
                 self.store.update(job_id, status='cancelled' if cancel.is_set() else 'failed',
                                   stage='任务中止', error=str(exc)[:2000],
