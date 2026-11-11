@@ -13,10 +13,11 @@ subprocesses; it imports no media library, model or other video domain.
 | `subtitles.py` | Burned-in subtitles with Pillow: the font catalog of `PROJECT_ROOT/font` (ttf/otf/ttc, browser preview URL), layout metrics, wrapping (CJK anywhere, Latin by word, no leading punctuation), one transparent PNG per cue with its overlay position and time, `.srt` text. |
 | `compose.py` | `ComposeService`: validates a recipe against each source's probe, renders one job at a time on its own worker (`nice`), writes the MP4 and its `.json` recipe / `.txt` / `.md` sidecars, reads a recipe back for reopening. |
 | `transcribe.py` | `TranscribeService`: automatic subtitles. Resolves the recipe like a render, renders only the clips' own sound (`plan.voice_command`: no music, muted clips silent, same speed and transitions, 16 kHz mono WAV in a temp folder) so timestamps are already output seconds, calls the injected ASR port (`backend/asr`), and cuts the aligned tokens into draft cues (`cues_from_tokens`: sentence punctuation, a comma once a cue is 10 wide, a 0.6 s pause, at most 24 wide / 6 s; trailing commas and full stops dropped; ≥ 0.3 s, no overlaps, +0.2 s hold). In-memory jobs (`transcribe_…` ids, one worker, at most 2 active); nothing is archived and nothing is burned in. |
+| `beats.py` | Music beats for compose snapping, no numpy: FFmpeg `astats` RMS of four bands per 512 samples at 22.05 kHz (first 190 s only), onset envelope from the summed level rises, tempo from windowed autocorrelation with log compression and a 120 BPM log-normal prior (refined over four beats), beats by Ellis dynamic programming. `BeatAnalyzer` runs the four bands in parallel and caches 32 results by content digest. About 0.5 s a song; fast songs can come out at half tempo (every beat still lands on a beat). |
 | `storage.py` | `ComposeStore`: durable compose receipts in `data/video-edit/jobs.sqlite3`; queued/running jobs become `interrupted` on start and keep their recipe. |
 
 HTTP adapter: `routes/video_edit_routes.py` (`/api/video_edit/{status,probe,preview_frame,filmstrip,submit,job,cancel}`,
-plus `compose`, `compose_check`, `compose_recipe` and `subtitle_fonts` for the compose service and `transcribe` for automatic subtitles; `job`/`cancel` route an id to the service
+plus `compose`, `compose_check`, `compose_recipe` and `subtitle_fonts` for the compose service, `music_beats` (GET, `source_url` or `asset_id` of the compose music) and `transcribe` for automatic subtitles; `job`/`cancel` route an id to the service
 that owns it).
 
 ## Frame accuracy

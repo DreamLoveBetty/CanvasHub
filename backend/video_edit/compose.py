@@ -27,6 +27,7 @@ import threading
 import time
 
 from . import contracts, media, plan, subtitles
+from .beats import BeatAnalyzer
 from .media import Cancelled, Runner, Tools
 from .storage import ACTIVE as STORE_ACTIVE, ComposeStore
 
@@ -44,7 +45,7 @@ def _write_text(path: Path, text: str) -> None:
 
 class ComposeService:
     def __init__(self, *, store: ComposeStore, sources, audio_resolver, output_dir, write_sidecar,
-                 font_dir=None, tools=None, runner=None, nice=True):
+                 font_dir=None, tools=None, runner=None, nice=True, beats=None):
         self.store = store
         self.sources = sources
         self.audio_resolver = audio_resolver
@@ -53,6 +54,7 @@ class ComposeService:
         self.font_dir = font_dir
         self.tools = tools or Tools()
         self.runner = runner or Runner()
+        self.beats = beats or BeatAnalyzer(tools=self.tools, runner=self.runner)
         self._nice = ['nice', '-n', '10'] if nice and shutil.which('nice') else []
         self._lock = threading.Lock()
         self._cancels: dict[str, threading.Event] = {}
@@ -74,6 +76,15 @@ class ComposeService:
 
     def subtitle_fonts(self) -> dict:
         return {'fonts': subtitles.catalog(self.font_dir), 'default': subtitles.DEFAULT_FONTS[0]}
+
+    def music_beats(self, source_url: str = '', asset_id: str = '') -> dict:
+        """{tempo, beats} of a music source (the same sources a recipe's music accepts), for snapping
+        cuts in the workbench. Beat seconds are music seconds, which are output seconds: music starts at 0."""
+        source_url, asset_id = str(source_url or '').strip(), str(asset_id or '').strip()
+        if not (source_url or asset_id) or len(source_url) > 2048:
+            raise ValueError('缺少配乐来源')
+        path = self.audio_resolver.resolve(url=source_url, asset_id=asset_id)
+        return self.beats.analyze(path, self.sources.digest(path))
 
     def owns(self, ident) -> bool:
         return self.store.has(ident)

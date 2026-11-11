@@ -59,6 +59,8 @@ def create_router(service, compose=None, transcribe=None):
                 result = compose.submit(body)
             elif action == 'compose_recipe' and compose is not None:
                 result = compose.recipe(first('source_url'))
+            elif action == 'music_beats' and compose is not None:
+                result = compose.music_beats(first('source_url'), first('asset_id'))
             elif action == 'subtitle_fonts' and compose is not None:
                 result = compose.subtitle_fonts()
             elif action == 'compose_check' and compose is not None:
@@ -84,7 +86,8 @@ def create_router(service, compose=None, transcribe=None):
             handler.send_json({'error': '视频剪辑读写失败'}, 500)
 
     routes = {('GET', '/api/video_edit/' + action): (lambda handler, selected=action: handle(handler, selected))
-              for action in ('status', 'probe', 'preview_frame', 'filmstrip', 'job', 'compose_recipe', 'subtitle_fonts')}
+              for action in ('status', 'probe', 'preview_frame', 'filmstrip', 'job', 'compose_recipe', 'subtitle_fonts',
+                                 'music_beats')}
     routes.update({('POST', '/api/video_edit/' + action): (lambda handler, selected=action: handle(handler, selected, True))
                    for action in ('submit', 'cancel', 'compose', 'compose_check', 'transcribe')})
     return ProtectedRouter(routes)
