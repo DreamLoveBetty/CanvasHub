@@ -254,9 +254,9 @@ class UpscaleDesktopSourceTest(unittest.TestCase):
         self.assertIn(".desk-node--upscale .desk-upscale-progress .desk-progress-float__bar", css)
         self.assertIn("height: 9px", css)
         self.assertIn("min-width: 78px", css)
-        self.assertIn("font-size: 8px", css)
+        self.assertIn("font-size: var(--desk-font-size-micro)", css)
         self.assertIn(".desk-node--upscale .desk-upscale-progress .desk-progress-float__timer", css)
-        self.assertIn("font-size: 7px", css)
+        self.assertIn("font-size: var(--desk-font-size-micro)", css)
         self.assertIn("background: transparent", css)
         self.assertIn('body.desk-app[data-theme="dark"] .desk-node--upscale .desk-upscale-progress', css)
         # The module function closes at its own declaration's body boundary;

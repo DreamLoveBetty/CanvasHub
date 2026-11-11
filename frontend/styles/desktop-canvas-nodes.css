@@ -125,7 +125,7 @@ body.desk-app[data-theme] .desk-node-palette__category {
   padding: 6px 8px;
   color: var(--desk-canvas-palette-ink);
   font-size: var(--desk-font-size-body);
-  font-weight: 700;
+  font-weight: var(--desk-font-weight-semibold);
   line-height: var(--desk-line-height-tight);
   list-style: none;
   border: 1px solid transparent;
@@ -145,7 +145,7 @@ body.desk-app[data-theme] .desk-node-palette__category-title {
 body.desk-app[data-theme] .desk-node-palette__count {
   color: var(--desk-canvas-palette-muted-ink);
   font-size: var(--desk-font-size-caption);
-  font-weight: 600;
+  font-weight: var(--desk-font-weight-semibold);
   font-variant-numeric: tabular-nums;
 }
 

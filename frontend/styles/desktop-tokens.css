@@ -1084,14 +1084,14 @@ body.desk-app {
   --desk-font-size-body-strong: 14px;
   --desk-font-size-section-title: 16px;
   --desk-font-size-panel-title: 18px;
+  --desk-font-size-display: 20px;
   --desk-line-height-tight: 1.25;
   --desk-line-height-caption: 1.35;
   --desk-line-height-normal: 1.5;
   --desk-line-height-relaxed: 1.65;
   --desk-font-weight-regular: 400;
-  --desk-font-weight-medium: 600;
-  --desk-font-weight-semibold: 700;
-  --desk-font-weight-bold: 800;
+  --desk-font-weight-medium: 500;
+  --desk-font-weight-semibold: 600;
 
   /* Spacing and control geometry. */
   --desk-space-1: 2px;

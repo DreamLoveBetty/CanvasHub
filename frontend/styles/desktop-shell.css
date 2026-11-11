@@ -25,7 +25,6 @@ body.desk-app[data-theme] .desk-shell {
   position: relative;
   width: 100vw;
   height: 100vh;
-  min-width: 1180px;
   overflow: hidden;
 }
 
@@ -188,7 +187,7 @@ body.desk-app[data-theme] .desk-workflow-dock-panel button {
   padding: 0 var(--desk-space-4);
   color: var(--desk-shell-dock-button-ink);
   font-size: var(--desk-font-size-caption);
-  font-weight: var(--desk-font-weight-bold);
+  font-weight: var(--desk-font-weight-semibold);
   line-height: 1;
   background: var(--desk-shell-dock-button-background);
   border: 1px solid var(--desk-shell-dock-button-border);
@@ -337,14 +336,14 @@ body.desk-app[data-theme] .desk-release__header > div {
 
 body.desk-app[data-theme] .desk-release__header span {
   color: var(--desk-release-eyebrow);
-  font-weight: var(--desk-font-weight-bold);
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 body.desk-app[data-theme] .desk-release__header h2 {
   margin: 0;
   color: var(--desk-color-text-primary);
   font-size: var(--desk-font-size-section-title);
-  font-weight: var(--desk-font-weight-bold);
+  font-weight: var(--desk-font-weight-semibold);
   line-height: var(--desk-line-height-tight);
 }
 
@@ -400,7 +399,7 @@ body.desk-app[data-theme] .desk-release__footer {
 body.desk-app[data-theme] .desk-release__latest {
   padding: var(--desk-space-1) var(--desk-space-2);
   color: var(--desk-release-latest-ink);
-  font-weight: var(--desk-font-weight-bold);
+  font-weight: var(--desk-font-weight-semibold);
   background: var(--desk-release-latest-background);
   border: 1px solid var(--desk-release-latest-border);
   border-radius: var(--desk-radius-pill);
@@ -410,14 +409,14 @@ body.desk-app[data-theme] .desk-release__item h3 {
   margin: 9px 0 7px;
   color: var(--desk-color-text-primary);
   font-size: var(--desk-font-size-label);
-  font-weight: var(--desk-font-weight-bold);
+  font-weight: var(--desk-font-weight-semibold);
   line-height: var(--desk-line-height-caption);
 }
 
 body.desk-app[data-theme] .desk-release__update-copy {
   margin: 0;
   color: var(--desk-release-copy-ink);
-  font-weight: var(--desk-font-weight-medium);
+  font-weight: var(--desk-font-weight-semibold);
   line-height: var(--desk-line-height-normal);
 }
 
@@ -432,7 +431,7 @@ body.desk-app[data-theme] .desk-release__item ul {
 body.desk-app[data-theme] .desk-release__item li {
   position: relative;
   padding-left: 11px;
-  font-weight: var(--desk-font-weight-medium);
+  font-weight: var(--desk-font-weight-semibold);
   line-height: var(--desk-line-height-normal);
 }
 
@@ -457,7 +456,7 @@ body.desk-app[data-theme] .desk-release__footer {
 
 body.desk-app[data-theme] .desk-release__footer strong {
   color: var(--desk-color-text-primary);
-  font-weight: var(--desk-font-weight-bold);
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 @keyframes desk-shell-release-panel-in {
@@ -633,7 +632,7 @@ body.desk-app[data-theme] .desk-language-picker:focus-within {
 body.desk-app[data-theme] .desk-language-picker__label {
   color: var(--desk-color-text-secondary);
   font-size: var(--desk-font-size-micro);
-  font-weight: var(--desk-font-weight-medium);
+  font-weight: var(--desk-font-weight-semibold);
   line-height: 1;
   white-space: nowrap;
 }
@@ -764,7 +763,7 @@ body.desk-app[data-theme] .desk-rail__item[data-tool="node"]::after {
   height: 9px;
   color: var(--desk-shell-rail-marker-ink);
   font-size: 8px;
-  font-weight: var(--desk-font-weight-bold);
+  font-weight: var(--desk-font-weight-semibold);
   line-height: 1;
   content: "+";
   background: var(--desk-shell-rail-marker-background);

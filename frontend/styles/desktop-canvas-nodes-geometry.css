@@ -45,8 +45,8 @@ body.desk-app[data-theme] .desk-node .desk-generation-action svg {
 :where(body.desk-app[data-theme]) .desk-node-context-menu__title {
   padding: 3px 6px 2px;
   color: var(--desk-muted);
-  font-size: 9px;
-  font-weight: 800;
+  font-size: var(--desk-font-size-micro);
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 :where(body.desk-app[data-theme]) .desk-node-palette.is-open {
@@ -180,8 +180,8 @@ body.desk-app[data-theme] .desk-node .desk-generation-action svg {
   justify-content: space-between;
   margin-bottom: 5px;
   color: var(--desk-muted);
-  font-size: 10px;
-  font-weight: 820;
+  font-size: var(--desk-font-size-micro);
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 :where(body.desk-app[data-theme]) .desk-comfy-workflow-list {
@@ -240,8 +240,8 @@ body.desk-app[data-theme] .desk-node .desk-generation-action svg {
   width: 18px;
   height: 18px;
   place-items: center;
-  font-size: 11px;
-  font-weight: 900;
+  font-size: var(--desk-font-size-caption);
+  font-weight: var(--desk-font-weight-semibold);
   border-radius: 999px;
 }
 
@@ -254,8 +254,8 @@ body.desk-app[data-theme] .desk-node .desk-generation-action svg {
 :where(body.desk-app[data-theme]) .desk-comfy-node__empty,
 :where(body.desk-app[data-theme]) .desk-comfy-node__inputs {
   color: var(--desk-muted);
-  font-size: 10px;
-  font-weight: 740;
+  font-size: var(--desk-font-size-micro);
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 :where(body.desk-app[data-theme]) .desk-comfy-node__empty {
@@ -328,7 +328,7 @@ body.desk-app[data-theme] .desk-node .desk-generation-action svg {
   gap: 3px;
   color: var(--desk-muted);
   font-size: var(--desk-font-size-micro);
-  font-weight: 760;
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 :where(body.desk-app[data-theme]) .desk-comfy-parameter-field__control {
@@ -394,7 +394,7 @@ body.desk-app[data-theme] .desk-node .desk-generation-action svg {
 
 :where(body.desk-app[data-theme]) .desk-node--comfy .desk-progress-copy {
   justify-content: space-between;
-  font-size: 9px;
+  font-size: var(--desk-font-size-micro);
 }
 
 :where(body.desk-app[data-theme]) .desk-comfy-node__footer {
@@ -435,7 +435,7 @@ body.desk-app[data-theme] .desk-node .desk-generation-action svg {
 
 :where(body.desk-app[data-theme]) .desk-node--comfy .desk-switch {
   gap: 5px;
-  font-size: 10px;
+  font-size: var(--desk-font-size-micro);
   white-space: nowrap;
 }
 
@@ -468,7 +468,7 @@ body.desk-app[data-theme] .desk-node .desk-generation-action svg {
 }
 
 :where(body.desk-app[data-theme]) .desk-node--upscale .desk-node__eyebrow {
-  font-size: 11px;
+  font-size: var(--desk-font-size-caption);
 }
 
 :where(body.desk-app[data-theme]) .desk-node--upscale .desk-node-tools {
@@ -487,7 +487,7 @@ body.desk-app[data-theme] .desk-node .desk-generation-action svg {
   height: 34px;
   padding-right: 26px;
   padding-left: 10px;
-  font-size: 13px;
+  font-size: var(--desk-font-size-body);
 }
 
 :where(body.desk-app[data-theme]) .desk-node--upscale .desk-upscale-controls .desk-select-anchor-root.is-select-open {
@@ -533,7 +533,7 @@ body.desk-app[data-theme] .desk-node .desk-generation-action svg {
   min-width: 78px;
   height: 14px;
   padding: 0 8px 1px;
-  font-size: 8px;
+  font-size: var(--desk-font-size-micro);
   border-radius: 0 0 9px 9px;
   box-shadow: inset 0 4px 5px rgba(54, 70, 86, 0.22),
     inset 0 1px 1px rgba(47, 62, 78, 0.14),
@@ -543,7 +543,7 @@ body.desk-app[data-theme] .desk-node .desk-generation-action svg {
 }
 
 :where(body.desk-app[data-theme]) .desk-node--upscale .desk-upscale-progress .desk-progress-float__timer {
-  font-size: 7px;
+  font-size: var(--desk-font-size-micro);
 }
 
 :where(body.desk-app[data-theme]) .desk-node--upscale .desk-upscale-actions.is-visible {
@@ -700,7 +700,7 @@ body.desk-app[data-theme] .desk-node .desk-generation-action svg {
   z-index: 4;
   padding: 1px 8px;
   font-size: var(--desk-font-size-micro);
-  font-weight: 720;
+  font-weight: var(--desk-font-weight-semibold);
   line-height: 18px;
   border: 1px solid transparent;
   border-radius: 4px;
@@ -831,8 +831,8 @@ body.desk-app[data-theme] .desk-node .desk-generation-action svg {
   overflow: hidden;
   place-items: center;
   color: var(--desk-blue);
-  font-size: 11px;
-  font-weight: 900;
+  font-size: var(--desk-font-size-caption);
+  font-weight: var(--desk-font-weight-semibold);
   background: rgba(220, 235, 250, 0.82);
   border: 1px solid rgba(8, 79, 189, 0.12);
   border-radius: 7px;
@@ -848,8 +848,8 @@ body.desk-app[data-theme] .desk-node .desk-generation-action svg {
   margin: 0;
   padding: 18px 8px;
   color: var(--desk-muted);
-  font-size: 10px;
-  font-weight: 700;
+  font-size: var(--desk-font-size-micro);
+  font-weight: var(--desk-font-weight-semibold);
   text-align: center;
 }
 
@@ -1116,8 +1116,8 @@ body.desk-app[data-theme] .desk-node .desk-generation-action svg {
 :where(body.desk-app[data-theme]) .desk-image-editor__tool,
 :where(body.desk-app[data-theme]) .desk-image-editor__button {
   min-height: 30px;
-  font-size: 12px;
-  font-weight: 700;
+  font-size: var(--desk-font-size-label);
+  font-weight: var(--desk-font-weight-semibold);
   line-height: 1.1;
   color: var(--desk-image-editor-ink);
   border: 1px solid var(--desk-image-editor-border-strong);
@@ -1196,7 +1196,7 @@ body.desk-app[data-theme] .desk-node .desk-generation-action svg {
   min-height: 28px;
   padding: 0;
   font-size: 0;
-  font-weight: 720;
+  font-weight: var(--desk-font-weight-semibold);
   line-height: 0;
   color: var(--desk-image-editor-ink);
   border: 1px solid var(--desk-image-editor-border-strong);
@@ -1233,8 +1233,8 @@ body.desk-app[data-theme] .desk-node .desk-generation-action svg {
 :where(body.desk-app[data-theme]) .desk-image-editor__zoom-label {
   min-width: 44px;
   padding: 0 7px;
-  font-size: 11px;
-  font-weight: 760;
+  font-size: var(--desk-font-size-caption);
+  font-weight: var(--desk-font-weight-semibold);
   line-height: 28px;
   text-align: center;
   color: var(--desk-image-editor-ink);
@@ -1305,7 +1305,7 @@ body.desk-app[data-theme] .desk-node .desk-generation-action svg {
 
 :where(body.desk-app[data-theme]) .desk-image-editor__meta p {
   margin: 0;
-  font-size: 12px;
+  font-size: var(--desk-font-size-label);
   line-height: 1.5;
   color: var(--desk-image-editor-muted);
 }
@@ -1342,8 +1342,8 @@ body.desk-app[data-theme="dark"] .desk-image-editor {
 
 :where(body.desk-app[data-theme]) .desk-node__eyebrow {
   margin: 0 0 3px;
-  font-size: 12px;
-  font-weight: 800;
+  font-size: var(--desk-font-size-label);
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 :where(body.desk-app[data-theme]) .desk-node--input .desk-param-grid {
@@ -1384,8 +1384,8 @@ body.desk-app[data-theme="dark"] .desk-image-editor {
 }
 
 :where(body.desk-app[data-theme]) .desk-node-hint {
-  font-size: 12px;
-  font-weight: 650;
+  font-size: var(--desk-font-size-label);
+  font-weight: var(--desk-font-weight-semibold);
   line-height: 1.45;
 }
 
@@ -1420,8 +1420,8 @@ body.desk-app[data-theme="dark"] .desk-image-editor {
   height: 30px;
   min-height: 30px;
   padding: 0 10px;
-  font-size: 12px;
-  font-weight: 750;
+  font-size: var(--desk-font-size-label);
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 :where(body.desk-app[data-theme]) .desk-input-footer {
@@ -1465,7 +1465,7 @@ body.desk-app[data-theme="dark"] .desk-image-editor {
 :where(body.desk-app[data-theme]) .desk-node--input .desk-switch {
   gap: 5px;
   color: rgba(43, 58, 79, 0.88);
-  font-size: 11px;
+  font-size: var(--desk-font-size-caption);
   white-space: nowrap;
 }
 
@@ -1545,7 +1545,7 @@ body.desk-app[data-theme="dark"] .desk-image-editor {
   grid-column: 1 / -1;
   justify-content: flex-start;
   padding: 7px 9px;
-  font-size: 9px;
+  font-size: var(--desk-font-size-micro);
   border-radius: 8px;
 }
 
@@ -1798,8 +1798,8 @@ body.desk-app[data-connection-swell-style="droplet"] .desk-node-settled-port--ri
   height: 30px;
   padding: 0 8px;
   color: #b4232d;
-  font-size: 10px;
-  font-weight: 820;
+  font-size: var(--desk-font-size-micro);
+  font-weight: var(--desk-font-weight-semibold);
   text-align: left;
   background: transparent;
   border: 0;
@@ -1888,20 +1888,20 @@ body.desk-app[data-connection-swell-style="droplet"] .desk-node-settled-port--ri
 }
 
 :where(body.desk-app[data-theme]) .desk-node-context-menu button[data-add-node] strong {
-  font-size: 9px;
-  font-weight: 780;
+  font-size: var(--desk-font-size-micro);
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 :where(body.desk-app[data-theme]) .desk-node-context-menu button[data-add-node] em {
   margin-top: 0;
-  font-size: 7px;
+  font-size: var(--desk-font-size-micro);
   line-height: 1.15;
 }
 
 :where(body.desk-app[data-theme]) .desk-node-context-menu__empty {
   padding: 14px 8px;
-  font-size: 8px;
-  font-weight: 700;
+  font-size: var(--desk-font-size-micro);
+  font-weight: var(--desk-font-weight-semibold);
   text-align: center;
 }
 

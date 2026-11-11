@@ -22,7 +22,7 @@
 :where(body.desk-app[data-theme]) .desk-video-edit__actions button {
   height: 26px;
   padding: 0 10px;
-  font-size: 12px;
+  font-size: var(--desk-font-size-label);
   line-height: 24px;
   white-space: nowrap;
 }
@@ -82,7 +82,7 @@ body.desk-app .desk-video-frames__title {
 }
 
 body.desk-app .desk-video-frames__title strong {
-  font-size: 15px;
+  font-size: var(--desk-font-size-body-strong);
   line-height: 20px;
   white-space: nowrap;
 }
@@ -90,7 +90,7 @@ body.desk-app .desk-video-frames__title strong {
 body.desk-app .desk-video-frames__title span {
   max-width: 340px;
   overflow: hidden;
-  font-size: 12px;
+  font-size: var(--desk-font-size-label);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -104,7 +104,7 @@ body.desk-app .desk-video-frames__meta {
 
 body.desk-app .desk-video-frames__meta span {
   padding: 0 8px;
-  font-size: 11px;
+  font-size: var(--desk-font-size-caption);
   line-height: 20px;
   white-space: nowrap;
 }
@@ -172,7 +172,7 @@ body.desk-app .desk-video-frames__badge:not([hidden]) {
   gap: 5px;
   height: 24px;
   padding: 0 10px;
-  font-size: 11px;
+  font-size: var(--desk-font-size-caption);
 }
 
 body.desk-app .desk-video-frames__badge .desk-video-frames__icon {
@@ -186,7 +186,7 @@ body.desk-app .desk-video-frames__loading:not([hidden]) {
   display: grid;
   place-items: center;
   padding: 24px;
-  font-size: 13px;
+  font-size: var(--desk-font-size-body);
   text-align: center;
 }
 
@@ -212,7 +212,7 @@ body.desk-app .desk-video-frames__clock b {
 }
 
 body.desk-app .desk-video-frames__clock span {
-  font-size: 12px;
+  font-size: var(--desk-font-size-label);
 }
 
 body.desk-app .desk-video-frames__controls {
@@ -252,7 +252,7 @@ body.desk-app .desk-video-frames__mark-button {
   justify-self: end;
   height: 32px;
   padding: 0 8px 0 11px;
-  font-size: 12px;
+  font-size: var(--desk-font-size-label);
   white-space: nowrap;
 }
 
@@ -333,7 +333,7 @@ body.desk-app .desk-video-frames__playhead span {
 body.desk-app .desk-video-frames__ruler {
   position: relative;
   height: 16px;
-  font-size: 10.5px;
+  font-size: var(--desk-font-size-caption);
   line-height: 16px;
 }
 
@@ -373,12 +373,12 @@ body.desk-app .desk-video-frames__panel-head {
 
 body.desk-app .desk-video-frames__panel-head h3 {
   margin: 0;
-  font-size: 12px;
+  font-size: var(--desk-font-size-label);
   line-height: 18px;
 }
 
 body.desk-app .desk-video-frames__panel-head small {
-  font-size: 11px;
+  font-size: var(--desk-font-size-caption);
 }
 
 body.desk-app .desk-video-frames__detect {
@@ -388,7 +388,7 @@ body.desk-app .desk-video-frames__detect {
   height: 26px;
   margin-left: auto;
   padding: 0 10px 0 8px;
-  font-size: 12px;
+  font-size: var(--desk-font-size-label);
   white-space: nowrap;
 }
 
@@ -427,12 +427,12 @@ body.desk-app .desk-video-frames__scene-text {
 }
 
 body.desk-app .desk-video-frames__scene-text b {
-  font-size: 12px;
+  font-size: var(--desk-font-size-label);
   line-height: 16px;
 }
 
 body.desk-app .desk-video-frames__scene-text small {
-  font-size: 11px;
+  font-size: var(--desk-font-size-caption);
   line-height: 15px;
   white-space: nowrap;
 }
@@ -481,12 +481,12 @@ body.desk-app .desk-video-frames__mark-meta {
 }
 
 body.desk-app .desk-video-frames__mark-meta b {
-  font-size: 11px;
+  font-size: var(--desk-font-size-caption);
   line-height: 14px;
 }
 
 body.desk-app .desk-video-frames__mark-meta small {
-  font-size: 10.5px;
+  font-size: var(--desk-font-size-caption);
   line-height: 14px;
 }
 
@@ -517,7 +517,7 @@ body.desk-app .desk-video-frames__marks button[data-vf-unmark] .desk-video-frame
 body.desk-app .desk-video-frames__empty {
   grid-column: 1 / -1;
   padding: 18px 12px;
-  font-size: 12px;
+  font-size: var(--desk-font-size-label);
   line-height: 18px;
   text-align: center;
 }
@@ -537,7 +537,7 @@ body.desk-app .desk-video-frames__keys {
   flex-wrap: wrap;
   gap: 4px 14px;
   margin: 0 auto 0 0;
-  font-size: 11px;
+  font-size: var(--desk-font-size-caption);
 }
 
 body.desk-app .desk-video-frames__keys span {
@@ -557,14 +557,14 @@ body.desk-app .desk-video-frames kbd {
   height: 18px;
   padding: 0 4px;
   box-sizing: border-box;
-  font-size: 10.5px;
+  font-size: var(--desk-font-size-caption);
   line-height: 1;
 }
 
 body.desk-app .desk-video-frames__foot button {
   height: 32px;
   padding: 0 16px;
-  font-size: 13px;
+  font-size: var(--desk-font-size-body);
   white-space: nowrap;
 }
 
@@ -667,7 +667,7 @@ body.desk-app .desk-video-compose__title {
   flex: 1;
   min-width: 0;
   overflow: hidden;
-  font-size: 13px;
+  font-size: var(--desk-font-size-body);
   line-height: 18px;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -676,7 +676,7 @@ body.desk-app .desk-video-compose__title {
 body.desk-app .desk-video-compose__badge {
   flex: none;
   padding: 0 8px;
-  font-size: 11px;
+  font-size: var(--desk-font-size-caption);
   line-height: 20px;
   white-space: nowrap;
 }
@@ -758,7 +758,7 @@ body.desk-app .desk-video-compose__empty:not([hidden]) {
   display: grid;
   place-items: center;
   padding: 0 16px;
-  font-size: 12px;
+  font-size: var(--desk-font-size-label);
   text-align: center;
 }
 
@@ -783,7 +783,7 @@ body.desk-app .desk-video-compose__dims {
   right: 8px;
   bottom: 8px;
   padding: 0 6px;
-  font-size: 10px;
+  font-size: var(--desk-font-size-micro);
   line-height: 18px;
 }
 
@@ -806,7 +806,7 @@ body.desk-app .desk-video-compose__strip b {
   top: 3px;
   left: 4px;
   padding: 0 4px;
-  font-size: 10px;
+  font-size: var(--desk-font-size-micro);
   font-style: normal;
   line-height: 14px;
 }
@@ -817,7 +817,7 @@ body.desk-app .desk-video-compose__meta {
   align-items: center;
   gap: 4px 6px;
   min-height: 18px;
-  font-size: 11px;
+  font-size: var(--desk-font-size-caption);
   line-height: 18px;
 }
 
@@ -840,7 +840,7 @@ body.desk-app .desk-video-compose__actions button {
   gap: 6px;
   height: 32px;
   padding: 0 10px;
-  font-size: 12px;
+  font-size: var(--desk-font-size-label);
   white-space: nowrap;
 }
 
@@ -902,20 +902,20 @@ body.desk-app .desk-video-compose-bench__title {
 }
 
 body.desk-app .desk-video-compose-bench__title strong {
-  font-size: 15px;
+  font-size: var(--desk-font-size-body-strong);
   line-height: 20px;
   white-space: nowrap;
 }
 
 body.desk-app .desk-video-compose-bench__title span {
-  font-size: 12px;
+  font-size: var(--desk-font-size-label);
   white-space: nowrap;
 }
 
 body.desk-app .desk-video-compose-bench__total {
   margin-left: auto;
   padding: 0 10px;
-  font-size: 12px;
+  font-size: var(--desk-font-size-label);
   line-height: 24px;
   white-space: nowrap;
 }
@@ -962,7 +962,7 @@ body.desk-app :is(.desk-video-compose-bench__label-chip, .desk-video-compose-ben
   position: absolute;
   top: 10px;
   padding: 0 8px;
-  font-size: 11px;
+  font-size: var(--desk-font-size-caption);
   line-height: 22px;
   white-space: nowrap;
 }
@@ -985,7 +985,7 @@ body.desk-app .desk-video-compose-bench__empty:not([hidden]) {
   display: grid;
   place-items: center;
   padding: 0 24px;
-  font-size: 13px;
+  font-size: var(--desk-font-size-body);
   text-align: center;
 }
 
@@ -1013,11 +1013,11 @@ body.desk-app .desk-video-compose-bench__clock {
   display: flex;
   align-items: baseline;
   gap: 6px;
-  font-size: 12px;
+  font-size: var(--desk-font-size-label);
 }
 
 body.desk-app .desk-video-compose-bench__clock b {
-  font-size: 15px;
+  font-size: var(--desk-font-size-body-strong);
 }
 
 body.desk-app .desk-video-compose-bench__seg {
@@ -1033,7 +1033,7 @@ body.desk-app .desk-video-compose-bench__seg.is-view {
 body.desk-app .desk-video-compose-bench__seg button {
   height: 26px;
   padding: 0 9px;
-  font-size: 12px;
+  font-size: var(--desk-font-size-label);
   white-space: nowrap;
 }
 
@@ -1060,7 +1060,7 @@ body.desk-app .desk-video-compose-bench__panel-head {
 
 body.desk-app .desk-video-compose-bench__panel-head h3 {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--desk-font-size-body);
   line-height: 18px;
 }
 
@@ -1068,7 +1068,7 @@ body.desk-app .desk-video-compose-bench__panel-head small {
   min-width: 0;
   margin-left: auto;
   overflow: hidden;
-  font-size: 11px;
+  font-size: var(--desk-font-size-caption);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1081,7 +1081,7 @@ body.desk-app .desk-video-compose-bench__rows {
 }
 
 body.desk-app .desk-video-compose-bench__label {
-  font-size: 12px;
+  font-size: var(--desk-font-size-label);
 }
 
 body.desk-app .desk-video-compose-bench__range {
@@ -1098,7 +1098,7 @@ body.desk-app .desk-video-compose-bench__range input {
 
 body.desk-app .desk-video-compose-bench__range output {
   width: 40px;
-  font-size: 12px;
+  font-size: var(--desk-font-size-label);
   text-align: right;
 }
 
@@ -1116,11 +1116,11 @@ body.desk-app .desk-video-compose-bench__timeline-head {
 
 body.desk-app .desk-video-compose-bench__timeline-head h3 {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--desk-font-size-body);
 }
 
 body.desk-app .desk-video-compose-bench__timeline-head small {
-  font-size: 11px;
+  font-size: var(--desk-font-size-caption);
 }
 
 body.desk-app .desk-video-compose-bench__timeline-head small.is-note {
@@ -1138,12 +1138,12 @@ body.desk-app .desk-video-compose-bench__clipbar:not([hidden]) {
 
 body.desk-app .desk-video-compose-bench__clipbar strong {
   min-width: 42px;
-  font-size: 12px;
+  font-size: var(--desk-font-size-label);
 }
 
 body.desk-app .desk-video-compose-bench__clipbar small {
   margin-left: auto;
-  font-size: 11px;
+  font-size: var(--desk-font-size-caption);
 }
 
 /* Subtitles panel and the selected cue's editor. */
@@ -1151,7 +1151,7 @@ body.desk-app .desk-video-compose-bench__select {
   min-width: 0;
   height: 26px;
   padding: 0 8px;
-  font-size: 12px;
+  font-size: var(--desk-font-size-label);
 }
 
 body.desk-app .desk-video-compose-bench__sub-actions {
@@ -1174,7 +1174,7 @@ body.desk-app .desk-video-compose-bench__sub-progress {
   align-items: center;
   gap: 8px;
   margin: 0;
-  font-size: 11px;
+  font-size: var(--desk-font-size-caption);
 }
 
 body.desk-app .desk-video-compose-bench__sub-progress span {
@@ -1193,7 +1193,7 @@ body.desk-app :is(.desk-video-compose-bench__sub-actions, .desk-video-compose-be
 body.desk-app .desk-video-compose-bench__clipbar.is-cue button {
   height: 26px;
   padding: 0 10px;
-  font-size: 12px;
+  font-size: var(--desk-font-size-label);
 }
 
 body.desk-app .desk-video-compose-bench__cue-text {
@@ -1202,13 +1202,13 @@ body.desk-app .desk-video-compose-bench__cue-text {
   height: 44px;
   padding: 5px 8px;
   font: inherit;
-  font-size: 12px;
+  font-size: var(--desk-font-size-label);
   line-height: 16px;
   resize: none;
 }
 
 body.desk-app .desk-video-compose-bench__cue-time {
-  font-size: 11px;
+  font-size: var(--desk-font-size-caption);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
@@ -1227,7 +1227,7 @@ body.desk-app .desk-video-compose-bench__status {
   min-width: 0;
   margin: 0;
   overflow: hidden;
-  font-size: 12px;
+  font-size: var(--desk-font-size-label);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1256,7 +1256,7 @@ body.desk-app .desk-video-compose-bench__bar i {
 
 body.desk-app .desk-video-compose-bench__progress b {
   width: 34px;
-  font-size: 12px;
+  font-size: var(--desk-font-size-label);
   text-align: right;
 }
 
@@ -1266,7 +1266,7 @@ body.desk-app :is(.desk-video-compose-bench__cancel, .desk-video-compose-bench__
   gap: 6px;
   height: 34px;
   padding: 0 16px;
-  font-size: 13px;
+  font-size: var(--desk-font-size-body);
   white-space: nowrap;
 }
 
@@ -1291,7 +1291,7 @@ body.desk-app .desk-video-compose-tl__labels {
   grid-template-rows: 18px 52px 26px 40px;
   row-gap: 6px;
   align-items: center;
-  font-size: 11px;
+  font-size: var(--desk-font-size-caption);
 }
 
 body.desk-app .desk-video-compose-tl__tracks {
@@ -1314,7 +1314,7 @@ body.desk-app .desk-video-compose-tl__ruler span {
   top: 0;
   bottom: 0;
   padding-left: 4px;
-  font-size: 10px;
+  font-size: var(--desk-font-size-micro);
   line-height: 18px;
   white-space: nowrap;
 }
@@ -1361,7 +1361,7 @@ body.desk-app .desk-video-compose-tl__cap {
   align-items: baseline;
   gap: 5px;
   overflow: hidden;
-  font-size: 11px;
+  font-size: var(--desk-font-size-caption);
   line-height: 16px;
   white-space: nowrap;
   pointer-events: none;
@@ -1374,7 +1374,7 @@ body.desk-app .desk-video-compose-tl__cap span {
 
 body.desk-app .desk-video-compose-tl__cap small {
   flex: none;
-  font-size: 10px;
+  font-size: var(--desk-font-size-micro);
 }
 
 body.desk-app .desk-video-compose-tl__audio {
@@ -1383,7 +1383,7 @@ body.desk-app .desk-video-compose-tl__audio {
   bottom: 4px;
   height: 18px;
   padding: 0 6px;
-  font-size: 10px;
+  font-size: var(--desk-font-size-micro);
   line-height: 16px;
 }
 
@@ -1447,7 +1447,7 @@ body.desk-app .desk-video-compose-tl__transition svg {
 body.desk-app .desk-video-compose-tl__speed {
   flex: none;
   padding: 0 4px;
-  font-size: 10px;
+  font-size: var(--desk-font-size-micro);
   font-style: normal;
 }
 
@@ -1466,7 +1466,7 @@ body.desk-app .desk-video-compose-tl__cue {
 
 body.desk-app .desk-video-compose-tl__cue span {
   overflow: hidden;
-  font-size: 11px;
+  font-size: var(--desk-font-size-caption);
   line-height: 14px;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1505,7 +1505,7 @@ body.desk-app .desk-video-compose-tl__music span {
   position: absolute;
   top: 3px;
   left: 8px;
-  font-size: 10px;
+  font-size: var(--desk-font-size-micro);
   line-height: 14px;
   white-space: nowrap;
 }
@@ -1515,7 +1515,7 @@ body.desk-app .desk-video-compose-tl__empty {
   align-items: center;
   height: 100%;
   padding-left: 10px;
-  font-size: 11px;
+  font-size: var(--desk-font-size-caption);
 }
 
 body.desk-app .desk-video-compose-tl__playhead {
@@ -1550,7 +1550,7 @@ body.desk-app .desk-video-compose-tl__snap span {
   top: 1px;
   left: 4px;
   padding: 0 5px;
-  font-size: 10px;
+  font-size: var(--desk-font-size-micro);
   line-height: 15px;
   white-space: nowrap;
 }

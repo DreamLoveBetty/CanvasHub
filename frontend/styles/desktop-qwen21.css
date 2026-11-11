@@ -3,23 +3,23 @@
 .desk-app .desk-qwen21__body { display:flex; flex:1 1 auto; flex-direction:column; gap:4px; min-height:0; overflow:visible; }
 .desk-app .desk-qwen21__grid { display:grid; flex:0 0 auto; gap:4px; margin:0; }
 .desk-app .desk-qwen21__grid--model { grid-template-columns:repeat(2,minmax(0,1fr)); }
-.desk-app .desk-qwen21__mode { min-width:0; padding:0 10px; font-size:12px; text-overflow:ellipsis; }
+.desk-app .desk-qwen21__mode { min-width:0; padding:0 10px; font-size:var(--desk-font-size-label); text-overflow:ellipsis; }
 .desk-app .desk-qwen21__grid--params { grid-template-columns:repeat(4,minmax(0,1fr)); }
 .desk-app .desk-qwen21__seed { grid-column:span 2; }
 .desk-app .desk-qwen21__grid label { display:grid; gap:3px; min-width:0; }
-.desk-app .desk-qwen21__grid label > span { color:var(--desk-muted); font-size:11px; font-weight:750; }
+.desk-app .desk-qwen21__grid label > span { color:var(--desk-muted); font-size:var(--desk-font-size-caption); font-weight:var(--desk-font-weight-semibold); }
 .desk-app .desk-qwen21__grid .desk-select-shell { width:100%; }
 .desk-app .desk-qwen21__loras { display:flex; flex:1 1 auto; flex-direction:column; gap:4px; min-height:58px; padding-top:6px; border-top:1px solid var(--desk-color-control-border); overflow:visible; }
 .desk-app .desk-qwen21__loras > header { display:flex; flex:0 0 auto; align-items:center; gap:10px; }
-.desk-app .desk-qwen21__loras strong { color:var(--desk-ink); font-size:12px; font-weight:800; }
-.desk-app .desk-qwen21__loras small { color:var(--desk-muted); font-size:9px; font-weight:700; }
+.desk-app .desk-qwen21__loras strong { color:var(--desk-ink); font-size:var(--desk-font-size-label); font-weight:var(--desk-font-weight-semibold); }
+.desk-app .desk-qwen21__loras small { color:var(--desk-muted); font-size:var(--desk-font-size-micro); font-weight:var(--desk-font-weight-semibold); }
 .desk-app [data-qwen21-lora-list] { display:grid; flex:1 1 auto; grid-template-columns:repeat(2,minmax(0,1fr)); align-content:start; gap:4px; min-height:0; overflow:auto; }
-.desk-app .desk-qwen21__empty { display:flex; grid-column:1 / -1; align-items:center; justify-content:center; min-height:36px; height:100%; color:var(--desk-muted); font-size:10px; font-weight:650; background:var(--desk-color-control-bg); border-radius:var(--desk-radius); }
+.desk-app .desk-qwen21__empty { display:flex; grid-column:1 / -1; align-items:center; justify-content:center; min-height:36px; height:100%; color:var(--desk-muted); font-size:var(--desk-font-size-micro); font-weight:var(--desk-font-weight-semibold); background:var(--desk-color-control-bg); border-radius:var(--desk-radius); }
 .desk-app .desk-qwen21__lora { display:grid; grid-template-columns:minmax(0,1fr) 58px 26px; align-items:center; gap:4px; min-height:32px; padding:2px 4px 2px 7px; background:var(--desk-color-control-bg); border:1px solid var(--desk-color-control-border); border-radius:var(--desk-radius); }
-.desk-app .desk-qwen21__lora strong { overflow:hidden; font-size:10px; text-overflow:ellipsis; white-space:nowrap; }
+.desk-app .desk-qwen21__lora strong { overflow:hidden; font-size:var(--desk-font-size-micro); text-overflow:ellipsis; white-space:nowrap; }
 .desk-app .desk-qwen21__lora .desk-number,.desk-app .desk-qwen21__lora > button { height:26px; min-height:26px; }
-.desk-app .desk-qwen21__lora > button { padding:0; font-size:14px; }
-.desk-app .desk-qwen21__references { display:flex; flex:0 0 28px; align-items:center; gap:5px; min-width:0; overflow:auto; color:var(--desk-muted); font-size:10px; }
+.desk-app .desk-qwen21__lora > button { padding:0; font-size:var(--desk-font-size-body-strong); }
+.desk-app .desk-qwen21__references { display:flex; flex:0 0 28px; align-items:center; gap:5px; min-width:0; overflow:auto; color:var(--desk-muted); font-size:var(--desk-font-size-micro); }
 .desk-app .desk-qwen21__references[hidden] { display:none; }
 .desk-app .desk-qwen21__reference { display:flex; flex:0 0 auto; align-items:center; gap:4px; padding:2px 4px; background:var(--desk-color-control-bg); border:1px solid var(--desk-color-control-border); border-radius:var(--desk-radius); }
 .desk-app .desk-qwen21__reference > span { max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
@@ -72,15 +72,15 @@
 .desk-app .desk-qwen21-tools__model span,
 .desk-app .desk-qwen21-tools__inspection span {
   color: var(--desk-muted);
-  font-size: 9px;
-  font-weight: 700;
+  font-size: var(--desk-font-size-micro);
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 .desk-app .desk-qwen21-tools__paths strong,
 .desk-app .desk-qwen21-tools__model strong {
   overflow: hidden;
   color: var(--desk-ink);
-  font-size: 10px;
+  font-size: var(--desk-font-size-micro);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -106,7 +106,7 @@
 
 .desk-app .desk-qwen21-tools__inspection strong {
   color: var(--desk-ink);
-  font-size: 10px;
+  font-size: var(--desk-font-size-micro);
 }
 
 .desk-app .desk-qwen21-tools__inspection.is-warn,
@@ -126,7 +126,7 @@
   align-items: center;
   gap: 8px;
   color: var(--desk-muted);
-  font-size: 9px;
+  font-size: var(--desk-font-size-micro);
 }
 
 .desk-app .desk-qwen21-tools__progress > div:first-child span {
@@ -156,7 +156,7 @@
 
 .desk-app .desk-qwen21-tools__progress small {
   color: var(--desk-color-danger-ink);
-  font-size: 9px;
+  font-size: var(--desk-font-size-micro);
   line-height: 1.45;
 }
 
@@ -169,9 +169,9 @@
 
 .desk-app .desk-qwen21-tools__model em {
   color: var(--desk-muted);
-  font-size: 9px;
+  font-size: var(--desk-font-size-micro);
   font-style: normal;
-  font-weight: 750;
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 .desk-app .desk-qwen21-tools__actions {

@@ -72,7 +72,7 @@ test('styles: spin arrows hidden, buttons inside the field, settings and fixed-w
   assert.match(read('frontend/styles/desktop-geometry.css'), /label:has\(> input:not\(\[type="file"\]\):not\(\[type="hidden"\]\), > select, > \.desk-select-shell, > \.desk-stepper\)/);
   assert.match(read('frontend/styles/desktop-video-control.css'), /\.desk-video-control__options :is\(input\[type=number\], \.desk-stepper\) \{ width:100px; \}/);
   const controls = read('frontend/styles/desktop-controls.css');
-  assert.match(controls, /body\.desk-app\[data-theme\] \.desk-number \{\n  font-size: 12px;\n\}/);
+  assert.match(controls, /body\.desk-app\[data-theme\] \.desk-number \{\n  font-size: var\(--desk-font-size-label\);\n\}/);
   // ComfyUI parameter fields get the shared control frame instead of the browser's 2px inset.
   assert.match(controls, /body\.desk-app\[data-theme\] \.desk-comfy-parameter-field \.desk-input \{\n  color: var\(--desk-color-control-ink\);\n  background: var\(--desk-color-control-bg\);\n  border: 1px solid var\(--desk-color-control-border\);/);
 });
@@ -81,11 +81,11 @@ test('select menus: quiet rows with an LED on the chosen one, not a filled comma
   const css = read('frontend/styles/desktop-controls.css');
   const M = 'body.desk-app[data-theme] .desk-select-menu:not([data-select-variant="image-group-role"])';
   const rule = selector => { const at = css.indexOf(`${selector} {`); assert.ok(at >= 0, selector); return css.slice(at, css.indexOf('}', at)); };
-  assert.match(rule(`${M} .desk-select-option`), /font-weight: 500;/);
+  assert.match(rule(`${M} .desk-select-option`), /font-weight: var\(--desk-font-weight-medium\);/);
   assert.match(rule(`${M} .desk-select-option::before`), /width: 6px;[\s\S]*background: var\(--desk-select-led\);/);
   const selected = rule(`${M} .desk-select-option.is-selected:not(:disabled)`);
   assert.match(selected, /--desk-select-led: color-mix\(in oklab, var\(--desk-color-accent\), white 12%\);/);
-  assert.match(selected, /font-weight: 650;/);
+  assert.match(selected, /font-weight: var\(--desk-font-weight-semibold\);/);
   assert.doesNotMatch(selected, /action-primary/);
   assert.match(css, /data-theme="dark"\] \.desk-select-menu:not\(\[data-select-variant="image-group-role"\]\) \.desk-select-option\.is-selected:not\(:disabled\) \{\n  --desk-select-led: #ff7f50;/);
 });

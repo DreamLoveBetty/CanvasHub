@@ -28,7 +28,7 @@
   border-radius: var(--desk-radius-control);
   font-family: var(--desk-font-family-sans);
   font-size: var(--desk-font-size-caption);
-  font-weight: var(--desk-font-weight-medium);
+  font-weight: var(--desk-font-weight-semibold);
   line-height: var(--desk-line-height-caption);
 }
 
@@ -253,8 +253,8 @@
 .desk-app .desk-lora-danger .desk-select-shell { flex: 1; min-width: 85px; }
 
 /* Node and Settings entry points retain their host's geometry. */
-.desk-app .desk-lora-picker-button { width: 100%; height: 32px; justify-content: space-between; font-size: 11px; }
-.desk-app .desk-lora-row-detail { width: 100%; padding: 0 !important; border: 0; background: none; color: var(--desk-ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; font: inherit; font-weight: 750; cursor: pointer; }
+.desk-app .desk-lora-picker-button { width: 100%; height: 32px; justify-content: space-between; font-size: var(--desk-font-size-caption); }
+.desk-app .desk-lora-row-detail { width: 100%; padding: 0 !important; border: 0; background: none; color: var(--desk-ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; font: inherit; font-weight: var(--desk-font-weight-semibold); cursor: pointer; }
 .desk-app .desk-lora-settings .desk-lora-actions { margin: 8px 0; }
 .desk-app .desk-lora-settings .desk-lora-actions input { min-width: 160px; flex: 1; }
 

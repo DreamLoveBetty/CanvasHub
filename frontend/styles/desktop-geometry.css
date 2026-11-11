@@ -9,6 +9,12 @@ body.desk-app[data-theme] {
   --desk-shadow-soft: var(--desk-shadow-panel-soft);
 }
 
+/* Browser-default bold (700) falls outside the three-step weight scale; zero
+   specificity so any authored weight still wins. */
+:where(body.desk-app) :where(strong, b, h1, h2, h3, h4, h5, h6, th) {
+  font-weight: var(--desk-font-weight-semibold);
+}
+
 /* Ordinary shells reserve the same frame on every side and in both themes.
    The image-group mother owns its liquid outline and remains an exception. */
 body.desk-app[data-theme] .desk-canvas .desk-node:not(.desk-node--image-group) {
@@ -318,8 +324,8 @@ body.desk-app[data-theme] .desk-prompt-image-menu__kind {
   right: 4px;
   bottom: 4px;
   padding: 1px 4px;
-  font-size: 9px;
-  font-weight: 650;
+  font-size: var(--desk-font-size-micro);
+  font-weight: var(--desk-font-weight-semibold);
   line-height: 1.25;
   pointer-events: none;
   border-width: 1px;
@@ -466,7 +472,7 @@ body.desk-app[data-theme] .desk-agent-task-navigator {
 body.desk-app[data-theme] .desk-prompt-drawer.is-open button.desk-agent-task-nav:not(.desk-prompt-drawer__handle) {
   align-self: center;
   border-radius: var(--desk-radius-control);
-  font-size: 18px;
+  font-size: var(--desk-font-size-panel-title);
   line-height: 1;
 }
 
@@ -482,7 +488,7 @@ body.desk-app[data-theme] .desk-agent-task-rail__label {
   padding-inline: var(--desk-space-2);
   font-size: var(--desk-font-size-caption);
   line-height: var(--desk-line-height-caption);
-  font-weight: var(--desk-font-weight-bold);
+  font-weight: var(--desk-font-weight-semibold);
   white-space: nowrap;
 }
 
@@ -556,13 +562,13 @@ body.desk-app[data-theme] .desk-agent-task-card__copy :is(strong, em) {
 
 body.desk-app[data-theme] .desk-agent-task-card__copy strong {
   font-size: var(--desk-font-size-caption);
-  font-weight: var(--desk-font-weight-bold);
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 body.desk-app[data-theme] .desk-agent-task-card__copy em {
   font-size: var(--desk-font-size-micro);
   font-style: normal;
-  font-weight: var(--desk-font-weight-medium);
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 body.desk-app[data-theme] .desk-prompt-drawer.is-open button.desk-agent-task-card__menu-toggle:not(.desk-prompt-drawer__handle) {
@@ -893,7 +899,7 @@ body.desk-app[data-theme] .desk-agent-task-list-copy strong em {
   border-radius: 5px;
   font-size: var(--desk-font-size-micro);
   font-style: normal;
-  font-weight: var(--desk-font-weight-medium);
+  font-weight: var(--desk-font-weight-semibold);
   line-height: 1;
   vertical-align: middle;
 }
@@ -1014,7 +1020,7 @@ body.desk-app[data-theme] .desk-agent-task-name-field[hidden] {
 
 body.desk-app[data-theme] .desk-agent-task-name-field > span {
   font-size: var(--desk-font-size-caption);
-  font-weight: var(--desk-font-weight-bold);
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 body.desk-app[data-theme] .desk-agent-task-name-field input {
@@ -1432,14 +1438,14 @@ body.desk-app[data-theme] .desk-settings-page__copy {
 
 body.desk-app[data-theme] .desk-settings-page__copy em {
   font-style: normal;
-  font-weight: 900;
+  font-weight: var(--desk-font-weight-semibold);
   letter-spacing: 0.08em;
 }
 
 body.desk-app[data-theme] .desk-settings-page__copy h3 {
   margin: 0;
-  font-size: 16px;
-  font-weight: 900;
+  font-size: var(--desk-font-size-section-title);
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 body.desk-app[data-theme] .desk-settings-page__copy p {
@@ -1450,7 +1456,7 @@ body.desk-app[data-theme] .desk-settings__status {
   flex: 0 0 auto;
   margin-left: auto;
   padding: 3px 10px;
-  font-weight: 800;
+  font-weight: var(--desk-font-weight-semibold);
   border-width: 1px;
   border-style: solid;
   border-radius: 999px;
@@ -1501,7 +1507,7 @@ body.desk-app[data-theme] .desk-settings-group__title {
   gap: 8px;
   margin: 0 0 8px;
   font-size: var(--desk-font-size-micro);
-  font-weight: 850;
+  font-weight: var(--desk-font-weight-semibold);
   letter-spacing: 0.08em;
 }
 
@@ -1636,8 +1642,8 @@ body.desk-app[data-theme] .desk-settings__header {
 }
 
 body.desk-app[data-theme] .desk-settings__title h2 {
-  font-size: 17px;
-  font-weight: 700;
+  font-size: var(--desk-font-size-panel-title);
+  font-weight: var(--desk-font-weight-semibold);
   line-height: 1.1;
 }
 
@@ -1683,7 +1689,7 @@ body.desk-app[data-theme] .desk-settings-tabs__group {
 body.desk-app[data-theme] .desk-settings-tabs__group-label {
   padding: 0 8px 4px;
   font-size: var(--desk-font-size-micro);
-  font-weight: 850;
+  font-weight: var(--desk-font-weight-semibold);
   letter-spacing: 0.08em;
 }
 
@@ -1694,7 +1700,7 @@ body.desk-app[data-theme] .desk-settings-tabs__glyph {
   width: 20px;
   height: 20px;
   font-style: normal;
-  font-weight: 800;
+  font-weight: var(--desk-font-weight-semibold);
   border-width: 1px;
   border-style: solid;
   border-radius: 6px;
@@ -1744,7 +1750,7 @@ body.desk-app[data-theme] .desk-settings :is(
   min-width: 0;
   padding: 0 12px;
   font-size: var(--desk-settings-control-font);
-  font-weight: 800;
+  font-weight: var(--desk-font-weight-semibold);
   line-height: var(--desk-line-height-caption);
   border-radius: var(--desk-radius-control);
 }
@@ -1760,7 +1766,7 @@ body.desk-app[data-theme] .desk-settings-tabs button {
   min-width: 0;
   padding: 5px 8px;
   font-size: var(--desk-settings-control-font);
-  font-weight: 730;
+  font-weight: var(--desk-font-weight-semibold);
   line-height: var(--desk-line-height-caption);
   text-align: left;
   justify-content: flex-start;
@@ -1769,7 +1775,7 @@ body.desk-app[data-theme] .desk-settings-tabs button {
 }
 
 body.desk-app[data-theme] .desk-settings-tabs button.is-active {
-  font-weight: 850;
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 /* Inset paint supplies the track outline without adding to its height. Keep
@@ -1799,17 +1805,17 @@ body.desk-app[data-theme] .desk-settings-card > header {
 }
 
 body.desk-app[data-theme] .desk-settings-card h3 {
-  font-size: 12px;
+  font-size: var(--desk-font-size-label);
   line-height: var(--desk-line-height-caption);
-  font-weight: 900;
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 :where(body.desk-app[data-theme]) .desk-settings-card__goto {
   height: 24px;
   margin-left: auto;
   padding: 0 10px;
-  font-size: 11px;
-  font-weight: 800;
+  font-size: var(--desk-font-size-caption);
+  font-weight: var(--desk-font-weight-semibold);
   border-width: 1px;
   border-style: solid;
   border-radius: 6px;
@@ -1842,12 +1848,12 @@ body.desk-app[data-theme] .desk-settings .desk-settings-color-field {
   column-gap: var(--desk-space-3);
   min-width: 0;
   min-height: var(--desk-settings-control-height);
-  font-size: 10px;
-  font-weight: 760;
+  font-size: var(--desk-font-size-micro);
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 body.desk-app[data-theme] .desk-settings .desk-settings-color-field > span {
-  font-weight: 500;
+  font-weight: var(--desk-font-weight-medium);
   overflow-wrap: anywhere;
 }
 
@@ -1885,13 +1891,13 @@ body.desk-app[data-theme] .desk-settings .desk-settings-color-field .desk-color-
 }
 
 body.desk-app[data-theme] .desk-settings .desk-settings-form :is(label > span, .desk-settings-secret-field > span) {
-  font-weight: 500;
+  font-weight: var(--desk-font-weight-medium);
   white-space: normal;
   overflow-wrap: anywhere;
 }
 
 body.desk-app[data-theme] .desk-settings-canvas-interaction__label {
-  font-weight: 500;
+  font-weight: var(--desk-font-weight-medium);
 }
 
 body.desk-app[data-theme] .desk-settings :is(
@@ -1977,7 +1983,7 @@ body.desk-app[data-theme] .desk-settings-secret-clear {
   height: auto;
   padding: 2px 5px;
   font-size: var(--desk-settings-control-font);
-  font-weight: var(--desk-font-weight-medium);
+  font-weight: var(--desk-font-weight-semibold);
   line-height: var(--desk-line-height-caption);
   border-radius: var(--desk-radius-control);
   white-space: nowrap;
@@ -2039,7 +2045,7 @@ body.desk-app[data-theme] .desk-settings :is(
   .desk-krea2-tools__inspection,
   .desk-qwen21-tools__inspection
 ) strong {
-  font-weight: var(--desk-font-weight-medium);
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 body.desk-app[data-theme] .desk-settings :is(
@@ -2103,7 +2109,7 @@ body.desk-app .desk-runner-slider__name {
 body.desk-app .desk-runner-slider__value {
   display: inline-grid;
   min-width: 3em;
-  font-weight: 650;
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 body.desk-app .desk-runner-slider__value > span {
@@ -2125,7 +2131,7 @@ body.desk-app .desk-runner-slider__value > span.is-entering {
 }
 
 body.desk-app .desk-runner-slider__ms {
-  font-size: 12.5px;
+  font-size: var(--desk-font-size-body);
   font-variant-numeric: tabular-nums;
 }
 
@@ -2202,14 +2208,14 @@ body.desk-app .desk-runner-slider__below {
   display: flex;
   justify-content: space-between;
   margin: 5px 2px 0;
-  font-size: 12px;
+  font-size: var(--desk-font-size-label);
 }
 
 body.desk-app .desk-runner-slider__recommended {
   position: absolute;
   top: 0;
   transform: translateX(-50%);
-  font-size: 11.5px;
+  font-size: var(--desk-font-size-label);
 }
 
 body.desk-app[data-theme] .desk-settings .desk-settings-form__section-title {
@@ -2218,7 +2224,7 @@ body.desk-app[data-theme] .desk-settings .desk-settings-form__section-title {
 }
 
 body.desk-app[data-theme] .desk-settings .desk-settings__body strong {
-  font-weight: var(--desk-font-weight-medium);
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 body.desk-app[data-theme] .desk-settings .desk-settings__body :is(
@@ -2244,7 +2250,7 @@ body.desk-app[data-theme] .desk-settings :is(.desk-krea2-tools__form, .desk-qwen
 }
 
 body.desk-app[data-theme] .desk-settings :is(.desk-krea2-tools__form, .desk-qwen21-tools__form) label > span {
-  font-weight: 500;
+  font-weight: var(--desk-font-weight-medium);
 }
 
 /* Full-width source/decoder rows can align; half-width conversion options
@@ -2371,8 +2377,8 @@ body.desk-app[data-theme] .desk-settings-pool-summary {
 body.desk-app[data-theme] .desk-settings-pool-summary span {
   min-height: 20px;
   padding: 1px 6px;
-  font-size: 10px;
-  font-weight: var(--desk-font-weight-medium);
+  font-size: var(--desk-font-size-micro);
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 body.desk-app[data-theme] .desk-settings-account__error {

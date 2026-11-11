@@ -153,7 +153,7 @@ body.desk-app[data-theme="dark"] .desk-gallery-audio {
   overflow: hidden;
   color: var(--desk-gallery-muted-ink);
   font-size: var(--desk-font-size-micro);
-  font-weight: var(--desk-font-weight-medium);
+  font-weight: var(--desk-font-weight-semibold);
   letter-spacing: 0.08em;
   text-overflow: ellipsis;
   text-transform: uppercase;

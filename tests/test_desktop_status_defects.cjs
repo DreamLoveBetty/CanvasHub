@@ -199,7 +199,7 @@ test('input footer and generate-action geometry live in the node geometry file o
   assert.match(ruleIn(geometry, 'body.desk-app[data-theme] .desk-node .desk-generation-action'), /width: 72px;/);
   const controls = read('frontend/styles/desktop-controls.css');
   assert.doesNotMatch(controls, /\.desk-generation-action \{[^}]*width:72px/);
-  assert.match(controls, /\.desk-generation-action__label \{ font-size:11px; font-weight:750;/);
+  assert.match(controls, /\.desk-generation-action__label \{ font-size:var\(--desk-font-size-caption\); font-weight:var\(--desk-font-weight-semibold\);/);
   assert.equal(geometry.match(/\.desk-node--input \.desk-thumb-row \{/g).length, 1);
   assert.ok(!geometry.includes('.desk-node--input .desk-generation-action {'));
 });

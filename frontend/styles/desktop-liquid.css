@@ -422,13 +422,13 @@ button:disabled {
 }
 
 .desk-release__meta strong {
-  font-weight: 850;
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 .desk-release__meta time {
   margin-left: auto;
-  font-size: 9px;
-  font-weight: 700;
+  font-size: var(--desk-font-size-micro);
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 
@@ -438,7 +438,7 @@ button:disabled {
 
 
 .desk-release__item li {
-  font-size: 10px;
+  font-size: var(--desk-font-size-micro);
 }
 
 @keyframes desk-release-panel-in {
@@ -639,15 +639,15 @@ body.desk-app[data-theme="dark"] .desk-theme-toggle__icon--moon {
 }
 
 .desk-language-picker__label {
-  font-size: 10px;
-  font-weight: 650;
+  font-size: var(--desk-font-size-micro);
+  font-weight: var(--desk-font-weight-semibold);
   line-height: 1;
   white-space: nowrap;
 }
 
 .desk-language-picker__select {
   min-width: 60px;
-  font-size: 10px;
+  font-size: var(--desk-font-size-micro);
   line-height: 1;
   color: inherit;
   background: transparent;
@@ -707,8 +707,8 @@ body.desk-app[data-theme="dark"] .desk-theme-toggle__icon--moon {
   height: 32px;
   padding: 0 10px;
   font: inherit;
-  font-size: 12px;
-  font-weight: 650;
+  font-size: var(--desk-font-size-label);
+  font-weight: var(--desk-font-weight-semibold);
   text-align: left;
   border: 1px solid rgba(255, 255, 255, 0.56);
   border-radius: var(--desk-radius);
@@ -782,8 +782,8 @@ body.desk-app[data-theme="dark"] .desk-theme-toggle__icon--moon {
 
 .desk-select-group-label {
   color: var(--desk-muted);
-  font-size: 10px;
-  font-weight: 800;
+  font-size: var(--desk-font-size-micro);
+  font-weight: var(--desk-font-weight-semibold);
   line-height: 1.2;
   padding-top: 6px;
   padding-bottom: 2px;
@@ -810,7 +810,7 @@ body.desk-app .desk-select-menu[data-select-width="content"] .desk-select-option
 
 
 .desk-select-option.is-selected {
-  font-weight: 800;
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 .desk-select-option:disabled {
@@ -854,7 +854,7 @@ body.desk-app[data-theme="dark"] .desk-language-picker:focus-within {
 #deskGalleryFilterSelect + .desk-select-shell .desk-select-trigger {
   height: 30px;
   padding: 0 7px;
-  font-size: 11px;
+  font-size: var(--desk-font-size-caption);
   border-radius: 10px;
   box-shadow: none;
 }
@@ -874,7 +874,7 @@ body.desk-app[data-theme="dark"] .desk-language-picker:focus-within {
 .desk-layout-actions .desk-select-trigger {
   min-width: 150px;
   padding: 0 28px 0 10px;
-  font-weight: 700;
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 
@@ -1174,12 +1174,12 @@ body.desk-app[data-theme="dark"]::after {
 }
 
 .desk-node-palette strong {
-  font-weight: 800;
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 .desk-node-palette em {
   margin-top: 2px;
-  font-weight: 650;
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 
@@ -1239,8 +1239,8 @@ body.desk-app[data-theme="dark"]::after {
   min-width: 58px;
   padding: 5px 9px;
   color: var(--desk-blue);
-  font-size: 11px;
-  font-weight: 850;
+  font-size: var(--desk-font-size-caption);
+  font-weight: var(--desk-font-weight-semibold);
   text-align: right;
   white-space: nowrap;
   background: rgba(255, 255, 255, 0.62);
@@ -1291,8 +1291,8 @@ body.desk-app[data-theme="dark"]::after {
   min-width: 30px;
   height: 26px;
   padding: 0;
-  font-size: 11px;
-  font-weight: 800;
+  font-size: var(--desk-font-size-caption);
+  font-weight: var(--desk-font-weight-semibold);
   border: 1px solid rgba(255, 255, 255, 0.46);
   border-radius: 999px;
 }
@@ -1420,8 +1420,8 @@ body.desk-app[data-theme="dark"]::after {
   height: 28px;
   padding: 0 17px 2px;
   color: #084fbd;
-  font-size: 16px;
-  font-weight: 900;
+  font-size: var(--desk-font-size-section-title);
+  font-weight: var(--desk-font-weight-semibold);
   letter-spacing: 0;
   line-height: 1;
   text-shadow: 0 1px 0 rgba(255, 255, 255, 0.58);
@@ -1452,8 +1452,8 @@ body.desk-app[data-theme="dark"]::after {
 .desk-progress-float__timer {
   position: static;
   color: #084fbd;
-  font-size: 14px;
-  font-weight: 900;
+  font-size: var(--desk-font-size-body-strong);
+  font-weight: var(--desk-font-weight-semibold);
   letter-spacing: 0;
   line-height: 1;
   text-shadow: inherit;
@@ -1514,7 +1514,7 @@ body.desk-app[data-theme="dark"]::after {
 .desk-zoom-row span {
   display: grid;
   place-items: center;
-  font-weight: 800;
+  font-weight: var(--desk-font-weight-semibold);
   border: 1px solid rgba(255, 255, 255, 0.48);
 }
 
@@ -1539,8 +1539,8 @@ body.desk-app[data-theme="dark"]::after {
   min-width: 0;
   height: 28px;
   padding: 0;
-  font-size: 12px;
-  font-weight: 800;
+  font-size: var(--desk-font-size-label);
+  font-weight: var(--desk-font-weight-semibold);
   border: 1px solid rgba(255, 255, 255, 0.62);
   border-radius: 8px;
   transition: color 160ms ease, background 160ms ease, transform 160ms ease;
@@ -1616,7 +1616,7 @@ body.desk-app[data-theme="dark"]::after {
 
 
 .desk-node--comfy .desk-node__header h2 {
-  font-size: 18px;
+  font-size: var(--desk-font-size-panel-title);
 }
 
 
@@ -1668,13 +1668,13 @@ body.desk-app[data-theme="dark"]::after {
 .desk-comfy-workflow-card__copy strong {
   display: -webkit-box;
   overflow: hidden;
-  font-size: 11px;
-  font-weight: 880;
+  font-size: var(--desk-font-size-caption);
+  font-weight: var(--desk-font-weight-semibold);
   line-height: 1.3;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
 }
-.desk-comfy-workflow-card__copy small { color: var(--desk-muted); font-size: 9px; font-weight: 720; }
+.desk-comfy-workflow-card__copy small { color: var(--desk-muted); font-size: var(--desk-font-size-micro); font-weight: var(--desk-font-weight-semibold); }
 
 
 
@@ -1691,14 +1691,14 @@ body.desk-app[data-theme="dark"]::after {
 
 .desk-comfy-parameter-panel__head > span {
   font-size: var(--desk-font-size-caption);
-  font-weight: 880;
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 .desk-comfy-parameter-panel__head small,
 .desk-comfy-parameter-group header small {
   color: var(--desk-muted);
   font-size: var(--desk-font-size-micro);
-  font-weight: 720;
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 .desk-comfy-parameter-panel__head button {
@@ -1716,7 +1716,7 @@ body.desk-app[data-theme="dark"]::after {
   overflow: hidden;
   color: var(--desk-muted);
   font-size: var(--desk-font-size-micro);
-  font-weight: 820;
+  font-weight: var(--desk-font-weight-semibold);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1739,8 +1739,8 @@ body.desk-app[data-theme="dark"]::after {
   place-items: center;
   color: #ffffff;
   font: inherit;
-  font-size: 14px;
-  font-weight: 900;
+  font-size: var(--desk-font-size-body-strong);
+  font-weight: var(--desk-font-weight-semibold);
   line-height: 1;
   background: #ef4444;
   border: 1px solid rgba(255, 255, 255, 0.78);
@@ -1787,7 +1787,7 @@ body.desk-app[data-theme="dark"]::after {
   padding: 2px 6px;
   color: var(--desk-muted);
   font-size: var(--desk-font-size-micro);
-  font-weight: 720;
+  font-weight: var(--desk-font-weight-semibold);
   background: rgba(8, 79, 189, 0.05);
   border-radius: 999px;
 }
@@ -1837,8 +1837,8 @@ body.desk-app[data-theme="dark"]::after {
   gap: 4px;
   min-width: 0;
   color: var(--desk-muted);
-  font-size: 10px;
-  font-weight: 800;
+  font-size: var(--desk-font-size-micro);
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 
@@ -1950,18 +1950,18 @@ body.desk-app[data-theme="dark"]::after {
 
 
 .desk-image-node__placeholder strong {
-  font-size: 14px;
+  font-size: var(--desk-font-size-body-strong);
 }
 
 .desk-image-node__placeholder span {
-  font-size: 12px;
+  font-size: var(--desk-font-size-label);
 }
 
 
 .desk-image-node__empty-upload span {
   font-size: 28px;
   line-height: 1;
-  font-weight: 700;
+  font-weight: var(--desk-font-weight-semibold);
   transform: translateY(-1px);
 }
 
@@ -1972,8 +1972,8 @@ body.desk-app[data-theme="dark"]::after {
 .desk-image-node__tools span {
   height: 26px;
   padding: 0 9px;
-  font-size: 12px;
-  font-weight: 700;
+  font-size: var(--desk-font-size-label);
+  font-weight: var(--desk-font-weight-semibold);
   color: #102238;
   border: 1px solid rgba(255, 255, 255, 0.58);
   border-radius: 7px;
@@ -2001,8 +2001,8 @@ body.desk-app[data-theme="dark"]::after {
   padding: 0 7px;
   overflow: hidden;
   color: var(--desk-muted);
-  font-size: 10px;
-  font-weight: 800;
+  font-size: var(--desk-font-size-micro);
+  font-weight: var(--desk-font-weight-semibold);
   text-overflow: ellipsis;
   white-space: nowrap;
   background: transparent;
@@ -2065,17 +2065,17 @@ body.desk-app[data-theme="dark"]::after {
 .desk-text-style-tag em {
   flex: 0 0 auto;
   color: rgba(8, 79, 189, 0.68);
-  font-size: 10px;
+  font-size: var(--desk-font-size-micro);
   font-style: normal;
-  font-weight: 850;
+  font-weight: var(--desk-font-weight-semibold);
   line-height: 1;
 }
 
 .desk-text-style-tag strong {
   min-width: 0;
   overflow: hidden;
-  font-size: 12px;
-  font-weight: 900;
+  font-size: var(--desk-font-size-label);
+  font-weight: var(--desk-font-weight-semibold);
   line-height: 1;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -2096,16 +2096,16 @@ body.desk-app[data-theme="dark"]::after {
 
 .desk-text-node__image-mention-head strong {
   color: var(--desk-blue);
-  font-size: 11px;
-  font-weight: 900;
+  font-size: var(--desk-font-size-caption);
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 .desk-text-node__image-mention-head span {
   max-width: 142px;
   overflow: hidden;
   color: var(--desk-muted);
-  font-size: 9px;
-  font-weight: 700;
+  font-size: var(--desk-font-size-micro);
+  font-weight: var(--desk-font-weight-semibold);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -2147,16 +2147,16 @@ body.desk-app[data-theme="dark"]::after {
   gap: 5px;
   align-items: center;
   min-width: 0;
-  font-size: 11px;
-  font-weight: 900;
+  font-size: var(--desk-font-size-caption);
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 .desk-text-node__image-mention-copy strong em {
   overflow: hidden;
   color: var(--desk-muted);
-  font-size: 9px;
+  font-size: var(--desk-font-size-micro);
   font-style: normal;
-  font-weight: 800;
+  font-weight: var(--desk-font-weight-semibold);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -2164,16 +2164,16 @@ body.desk-app[data-theme="dark"]::after {
 .desk-text-node__image-mention-copy small {
   overflow: hidden;
   color: var(--desk-muted);
-  font-size: 9px;
-  font-weight: 650;
+  font-size: var(--desk-font-size-micro);
+  font-weight: var(--desk-font-weight-semibold);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .desk-text-node__image-mention-list button > b {
   color: #18734e;
-  font-size: 8px;
-  font-weight: 850;
+  font-size: var(--desk-font-size-micro);
+  font-weight: var(--desk-font-weight-semibold);
   white-space: nowrap;
 }
 
@@ -2194,8 +2194,8 @@ body.desk-app[data-theme="dark"]::after {
   align-items: center;
   vertical-align: middle;
   color: var(--desk-blue);
-  font-size: 11px;
-  font-weight: 880;
+  font-size: var(--desk-font-size-caption);
+  font-weight: var(--desk-font-weight-semibold);
   line-height: 16px;
   white-space: nowrap;
   background: rgba(232, 243, 255, 0.92);
@@ -2210,8 +2210,8 @@ body.desk-app[data-theme="dark"]::after {
 
 .desk-image-reference-token small {
   color: currentColor;
-  font-size: 8px;
-  font-weight: 800;
+  font-size: var(--desk-font-size-micro);
+  font-weight: var(--desk-font-weight-semibold);
   opacity: 0.68;
 }
 
@@ -2235,7 +2235,7 @@ body.desk-app[data-theme="dark"]::after {
   justify-content: center;
   color: var(--prompt-token-module-ink);
   font-size: 9px;
-  font-weight: 950;
+  font-weight: var(--desk-font-weight-semibold);
   line-height: 1;
   content: attr(data-prompt-block-module-mark);
   background:
@@ -2319,8 +2319,8 @@ body.desk-app[data-theme="dark"]::after {
   padding: 0 10px;
   overflow: hidden;
   color: var(--desk-muted);
-  font-size: 12px;
-  font-weight: 800;
+  font-size: var(--desk-font-size-label);
+  font-weight: var(--desk-font-weight-semibold);
   background: rgba(255, 255, 255, 0.62);
   border: 1px solid rgba(255, 255, 255, 0.72);
   border-radius: 8px;
@@ -2388,8 +2388,8 @@ body.desk-app[data-theme="dark"]::after {
 
 .desk-text-style-menu strong {
   overflow: hidden;
-  font-size: 12px;
-  font-weight: 850;
+  font-size: var(--desk-font-size-label);
+  font-weight: var(--desk-font-weight-semibold);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -2398,8 +2398,8 @@ body.desk-app[data-theme="dark"]::after {
   display: -webkit-box;
   overflow: hidden;
   color: var(--desk-muted);
-  font-size: 10px;
-  font-weight: 650;
+  font-size: var(--desk-font-size-micro);
+  font-weight: var(--desk-font-weight-semibold);
   line-height: 1.35;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
@@ -2491,8 +2491,8 @@ body.desk-app[data-theme="dark"]::after {
   justify-content: flex-end;
   margin-bottom: 8px;
   color: var(--desk-muted);
-  font-size: 12px;
-  font-weight: 700;
+  font-size: var(--desk-font-size-label);
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 .desk-progress {
@@ -2553,9 +2553,9 @@ body.desk-app[data-theme="dark"]::after {
   max-width: 160px;
   height: 24px;
   overflow: hidden;
-  font-size: 14px;
+  font-size: var(--desk-font-size-body-strong);
   line-height: 24px;
-  font-weight: 720;
+  font-weight: var(--desk-font-weight-semibold);
   color: var(--desk-image-editor-ink);
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -2806,7 +2806,7 @@ body.desk-app[data-theme="dark"] .desk-image-editor__canvas-wrap {
 
 .desk-node h2 {
   margin: 0;
-  font-size: 20px;
+  font-size: var(--desk-font-size-display);
   line-height: 1.18;
 }
 
@@ -2828,7 +2828,7 @@ body.desk-app[data-theme="dark"] .desk-image-editor__canvas-wrap {
   border: 0;
   border-radius: 7px;
   font-size: var(--desk-font-size-label);
-  font-weight: 750;
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 
@@ -2881,8 +2881,8 @@ body.desk-app[data-theme="dark"] .desk-image-editor__canvas-wrap {
 .desk-param-grid span:not(.desk-select-value),
 .desk-panel-title {
   color: var(--desk-muted);
-  font-size: 11px;
-  font-weight: 750;
+  font-size: var(--desk-font-size-caption);
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 /* One line box for field captions and select values, whatever font the glyphs fall back to,
@@ -2901,8 +2901,8 @@ body.desk-app[data-theme="dark"] .desk-image-editor__canvas-wrap {
 
 .desk-prompt-mode span:not(.desk-select-value) {
   color: var(--desk-muted);
-  font-size: 11px;
-  font-weight: 750;
+  font-size: var(--desk-font-size-caption);
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 
@@ -2918,9 +2918,9 @@ body.desk-app[data-theme="dark"] .desk-image-editor__canvas-wrap {
   background: var(--desk-model-badge-background);
   border: 1px solid var(--desk-model-badge-border);
   border-radius: 3px;
-  font-size: 8px;
+  font-size: var(--desk-font-size-micro);
   font-style: normal;
-  font-weight: 800;
+  font-weight: var(--desk-font-weight-semibold);
   line-height: 10px;
 }
 
@@ -2934,7 +2934,7 @@ body.desk-app[data-theme="dark"] .desk-image-editor__canvas-wrap {
   height: 32px;
   padding: 0 8px;
   font: inherit;
-  font-weight: 650;
+  font-weight: var(--desk-font-weight-semibold);
   border: 1px solid rgba(255, 255, 255, 0.56);
   border-radius: var(--desk-radius);
   outline: none;
@@ -2974,11 +2974,11 @@ body.desk-app[data-theme="dark"] .desk-image-editor__canvas-wrap {
 
 
 .desk-node--input .desk-upload--square span {
-  font-size: 17px;
+  font-size: var(--desk-font-size-panel-title);
 }
 
 .desk-node--input .desk-upload--square small {
-  font-size: 9px;
+  font-size: var(--desk-font-size-micro);
 }
 
 
@@ -3004,8 +3004,8 @@ body.desk-app[data-theme="dark"] .desk-image-editor__canvas-wrap {
   min-height: 28px;
   padding: 0 8px;
   color: var(--desk-muted);
-  font-size: 12px;
-  font-weight: 700;
+  font-size: var(--desk-font-size-label);
+  font-weight: var(--desk-font-weight-semibold);
   background: rgba(255, 255, 255, 0.34);
   border: 1px solid rgba(255, 255, 255, 0.42);
   border-radius: 10px;
@@ -3023,7 +3023,7 @@ body.desk-app[data-theme="dark"] .desk-image-editor__canvas-wrap {
   min-height: 28px;
   padding: 0 9px;
   color: var(--desk-muted);
-  font-size: 12px;
+  font-size: var(--desk-font-size-label);
 }
 
 .desk-upload {
@@ -3049,12 +3049,12 @@ body.desk-app[data-theme="dark"] .desk-image-editor__canvas-wrap {
 }
 
 .desk-upload--square span {
-  font-size: 20px;
+  font-size: var(--desk-font-size-display);
   line-height: 1;
 }
 
 .desk-upload--square small {
-  font-size: 10px;
+  font-size: var(--desk-font-size-micro);
 }
 
 .desk-upload.is-dragover {
@@ -3064,12 +3064,12 @@ body.desk-app[data-theme="dark"] .desk-image-editor__canvas-wrap {
 
 .desk-upload span {
   color: var(--desk-ink);
-  font-size: 13px;
-  font-weight: 750;
+  font-size: var(--desk-font-size-body);
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 .desk-upload small {
-  font-size: 11px;
+  font-size: var(--desk-font-size-caption);
   line-height: 1.35;
 }
 
@@ -3122,8 +3122,8 @@ body.desk-app[data-theme="dark"] .desk-image-editor__canvas-wrap {
   padding: 1px 5px;
   overflow: hidden;
   color: rgba(255, 255, 255, 0.94);
-  font-size: 9px;
-  font-weight: 800;
+  font-size: var(--desk-font-size-micro);
+  font-weight: var(--desk-font-weight-semibold);
   line-height: 1.35;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -3156,8 +3156,8 @@ body.desk-app[data-theme="dark"] .desk-image-editor__canvas-wrap {
   height: 17px;
   padding: 0;
   color: rgba(255, 255, 255, 0.95);
-  font-size: 11px;
-  font-weight: 850;
+  font-size: var(--desk-font-size-caption);
+  font-weight: var(--desk-font-weight-semibold);
   line-height: 1;
   background: rgba(11, 20, 32, 0.5);
   border: 0;
@@ -3176,8 +3176,8 @@ body.desk-app[data-theme="dark"] .desk-image-editor__canvas-wrap {
   min-height: 58px;
   padding: 0;
   color: var(--desk-muted);
-  font-size: 11px;
-  font-weight: 800;
+  font-size: var(--desk-font-size-caption);
+  font-weight: var(--desk-font-weight-semibold);
   background: rgba(255, 255, 255, 0.32);
   border: 1px solid rgba(255, 255, 255, 0.46);
   border-radius: var(--desk-radius);
@@ -3189,8 +3189,8 @@ body.desk-app[data-theme="dark"] .desk-image-editor__canvas-wrap {
   min-height: 26px;
   padding: 0 10px;
   color: var(--desk-muted);
-  font-size: 12px;
-  font-weight: 800;
+  font-size: var(--desk-font-size-label);
+  font-weight: var(--desk-font-weight-semibold);
   background: rgba(255, 255, 255, 0.48);
   border: 1px solid rgba(255, 255, 255, 0.5);
   border-radius: 999px;
@@ -3373,8 +3373,8 @@ body.desk-app[data-theme="dark"] .desk-image-editor__canvas-wrap {
   min-height: 22px;
   padding: 4px 8px;
   color: #fff;
-  font-size: 11px;
-  font-weight: 850;
+  font-size: var(--desk-font-size-caption);
+  font-weight: var(--desk-font-weight-semibold);
   line-height: 1.1;
   background: rgba(15, 23, 42, 0.42);
   border: 1px solid rgba(255, 255, 255, 0.22);
@@ -3387,8 +3387,8 @@ body.desk-app[data-theme="dark"] .desk-image-editor__canvas-wrap {
   gap: 7px;
   align-items: center;
   color: var(--desk-muted);
-  font-size: 12px;
-  font-weight: 750;
+  font-size: var(--desk-font-size-label);
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 .desk-switch input {
@@ -3447,7 +3447,7 @@ body.desk-app[data-theme="dark"] .desk-image-editor__canvas-wrap {
 
 .desk-node--input .desk-switch em {
   color: rgba(40, 54, 73, 0.88);
-  font-weight: 800;
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 .desk-action-row,
@@ -3470,8 +3470,8 @@ body.desk-app[data-theme="dark"] .desk-image-editor__canvas-wrap {
   min-height: 24px;
   padding: 5px 8px;
   color: var(--desk-muted);
-  font-size: 11px;
-  font-weight: 750;
+  font-size: var(--desk-font-size-caption);
+  font-weight: var(--desk-font-weight-semibold);
   background: rgba(85, 101, 120, 0.08);
   border-radius: 999px;
   box-shadow: inset 0 0 0 1px rgba(85, 101, 120, 0.14);
@@ -3534,7 +3534,7 @@ body.desk-app[data-theme="dark"] .desk-image-editor__canvas-wrap {
 
 
 .desk-history__header strong {
-  font-size: 14px;
+  font-size: var(--desk-font-size-body-strong);
 }
 
 
@@ -3578,7 +3578,7 @@ body.desk-app[data-theme="dark"] .desk-image-editor__canvas-wrap {
   overflow: hidden;
   max-width: none;
   margin-bottom: 3px;
-  font-size: 11px;
+  font-size: var(--desk-font-size-caption);
   line-height: 1.25;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -3587,7 +3587,7 @@ body.desk-app[data-theme="dark"] .desk-image-editor__canvas-wrap {
 .desk-history-item span {
   display: block;
   color: var(--desk-muted);
-  font-size: 10px;
+  font-size: var(--desk-font-size-micro);
 }
 
 
@@ -3779,7 +3779,7 @@ body.desk-history-collapsed .desk-gallery {
   flex: 0 0 auto;
   margin: 0;
   color: var(--desk-blue);
-  font-weight: 850;
+  font-weight: var(--desk-font-weight-semibold);
   text-transform: uppercase;
 }
 
@@ -3787,7 +3787,7 @@ body.desk-history-collapsed .desk-gallery {
   min-width: 0;
   margin: 0;
   overflow: hidden;
-  font-size: 16px;
+  font-size: var(--desk-font-size-section-title);
   line-height: 1.2;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -3870,7 +3870,7 @@ body.desk-history-collapsed .desk-gallery {
 .desk-text-polish-modal__card-head strong {
   min-width: 0;
   overflow: hidden;
-  font-weight: 880;
+  font-weight: var(--desk-font-weight-semibold);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -3879,7 +3879,7 @@ body.desk-history-collapsed .desk-gallery {
   flex: 0 0 auto;
   color: var(--desk-muted);
   font-style: normal;
-  font-weight: 760;
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 
@@ -3892,7 +3892,7 @@ body.desk-history-collapsed .desk-gallery {
   align-items: center;
   justify-content: center;
   color: var(--desk-muted);
-  font-weight: 820;
+  font-weight: var(--desk-font-weight-semibold);
   white-space: nowrap;
   background: rgba(255, 255, 255, 0.62);
   border: 1px solid rgba(82, 107, 135, 0.16);
@@ -4133,8 +4133,8 @@ body.desk-history-collapsed .desk-gallery {
 .desk-text-copy-fallback__panel header p {
   margin: 0 0 3px;
   color: var(--desk-blue);
-  font-size: 10px;
-  font-weight: 850;
+  font-size: var(--desk-font-size-micro);
+  font-weight: var(--desk-font-weight-semibold);
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -4142,7 +4142,7 @@ body.desk-history-collapsed .desk-gallery {
 .desk-text-copy-fallback__panel header h2 {
   margin: 0;
   color: var(--desk-ink);
-  font-size: 18px;
+  font-size: var(--desk-font-size-panel-title);
   letter-spacing: 0;
 }
 
@@ -4151,8 +4151,8 @@ body.desk-history-collapsed .desk-gallery {
   height: 32px;
   padding: 0 12px;
   color: var(--desk-muted);
-  font-size: 12px;
-  font-weight: 850;
+  font-size: var(--desk-font-size-label);
+  font-weight: var(--desk-font-weight-semibold);
   background: rgba(255, 255, 255, 0.68);
   border: 1px solid rgba(255, 255, 255, 0.72);
   border-radius: 8px;
@@ -4169,8 +4169,8 @@ body.desk-history-collapsed .desk-gallery {
 .desk-text-copy-fallback__hint {
   margin: 0;
   color: var(--desk-muted);
-  font-size: 12px;
-  font-weight: 740;
+  font-size: var(--desk-font-size-label);
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 .desk-text-copy-fallback textarea {
@@ -4180,7 +4180,7 @@ body.desk-history-collapsed .desk-gallery {
   padding: 11px;
   resize: vertical;
   color: var(--desk-ink);
-  font-size: 13px;
+  font-size: var(--desk-font-size-body);
   line-height: 1.65;
   background: rgba(255, 255, 255, 0.72);
   border: 1px solid rgba(99, 113, 130, 0.16);
@@ -4276,8 +4276,8 @@ body.desk-history-collapsed .desk-gallery {
 
 .desk-comfy-settings-library__meta,
 .desk-comfy-workflow-editor__heading small {
-  font-size: 9px;
-  font-weight: 760;
+  font-size: var(--desk-font-size-micro);
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 
@@ -4323,7 +4323,7 @@ body.desk-history-collapsed .desk-gallery {
 
 .desk-comfy-settings-workflow__copy small,
 .desk-comfy-settings-workflow__state {
-  font-weight: 720;
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 
@@ -4334,7 +4334,7 @@ body.desk-history-collapsed .desk-gallery {
 }
 
 .desk-comfy-workflow-editor__heading span {
-  font-weight: 760;
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 .desk-comfy-workflow-editor__heading strong {
@@ -4438,7 +4438,7 @@ body.desk-history-collapsed .desk-gallery {
   gap: 4px;
   align-items: start;
   min-width: 0;
-  font-weight: 760;
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 
@@ -4461,7 +4461,7 @@ body.desk-history-collapsed .desk-gallery {
   width: 100%;
   min-width: 0;
   color: var(--desk-ink);
-  font-weight: 720;
+  font-weight: var(--desk-font-weight-semibold);
   background: rgba(255, 255, 255, 0.7);
   border: 1px solid rgba(99, 113, 130, 0.16);
   border-radius: 8px;
@@ -4594,7 +4594,7 @@ body.desk-history-collapsed .desk-gallery {
 .desk-settings-account__main span {
   flex: 0 0 auto;
   padding: 2px 6px;
-  font-weight: 850;
+  font-weight: var(--desk-font-weight-semibold);
   background: rgba(220, 252, 231, 0.68);
   border-radius: 999px;
 }
@@ -4689,13 +4689,13 @@ body.desk-history-collapsed .desk-gallery {
 .desk-gallery__header p {
   margin: 0 0 3px;
   color: var(--desk-blue);
-  font-size: 10px;
-  font-weight: 850;
+  font-size: var(--desk-font-size-micro);
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 .desk-gallery__header h2 {
   margin: 0;
-  font-size: 17px;
+  font-size: var(--desk-font-size-panel-title);
   line-height: 1.1;
 }
 
@@ -4709,7 +4709,7 @@ body.desk-history-collapsed .desk-gallery {
   display: grid;
   place-items: center;
   padding: 0;
-  font-size: 11px;
+  font-size: var(--desk-font-size-caption);
   color: var(--desk-ink);
   background: rgba(255, 255, 255, 0.68);
   border: 1px solid rgba(92, 112, 132, 0.16);
@@ -4755,8 +4755,8 @@ body.desk-history-collapsed .desk-gallery {
   gap: 5px;
   height: 24px;
   padding: 0 8px;
-  font-size: 10px;
-  font-weight: 800;
+  font-size: var(--desk-font-size-micro);
+  font-weight: var(--desk-font-weight-semibold);
   line-height: 1;
   background: transparent;
   border: 0;
@@ -4766,9 +4766,9 @@ body.desk-history-collapsed .desk-gallery {
 .desk-gallery-video-source button em {
   min-width: 15px;
   padding: 2px 4px;
-  font-size: 8px;
+  font-size: var(--desk-font-size-micro);
   font-style: normal;
-  font-weight: 900;
+  font-weight: var(--desk-font-weight-semibold);
   border-radius: 999px;
 }
 
@@ -4816,8 +4816,8 @@ body.desk-history-collapsed .desk-gallery {
 .desk-prompt-source-head strong {
   flex: 0 0 auto;
   color: var(--desk-ink);
-  font-size: 12px;
-  font-weight: 900;
+  font-size: var(--desk-font-size-label);
+  font-weight: var(--desk-font-weight-semibold);
   line-height: 1.2;
 }
 
@@ -4840,8 +4840,8 @@ body.desk-history-collapsed .desk-gallery {
   padding: 0 7px;
   overflow: hidden;
   color: var(--desk-muted);
-  font-size: 10px;
-  font-weight: 800;
+  font-size: var(--desk-font-size-micro);
+  font-weight: var(--desk-font-weight-semibold);
   line-height: 1;
   background: rgba(255, 255, 255, 0.28);
   border: 1px solid rgba(255, 255, 255, 0.62);
@@ -4896,7 +4896,7 @@ body.desk-history-collapsed .desk-gallery {
 
 .desk-prompt-source-sync__top strong {
   color: var(--desk-blue);
-  font-size: 12px;
+  font-size: var(--desk-font-size-label);
   white-space: nowrap;
 }
 
@@ -4905,9 +4905,9 @@ body.desk-history-collapsed .desk-gallery {
   min-width: 0;
   overflow: hidden;
   color: rgba(40, 54, 70, 0.62);
-  font-size: 11px;
+  font-size: var(--desk-font-size-caption);
   font-style: normal;
-  font-weight: 750;
+  font-weight: var(--desk-font-weight-semibold);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -4932,8 +4932,8 @@ body.desk-history-collapsed .desk-gallery {
   min-height: 22px;
   padding: 0 8px;
   color: var(--desk-muted);
-  font-size: 10px;
-  font-weight: 850;
+  font-size: var(--desk-font-size-micro);
+  font-weight: var(--desk-font-weight-semibold);
   background: rgba(255, 255, 255, 0.22);
   border: 1px solid rgba(255, 255, 255, 0.58);
   border-radius: 999px;
@@ -4996,8 +4996,8 @@ body.desk-history-collapsed .desk-gallery {
   min-width: 0;
   overflow: hidden;
   color: rgba(40, 54, 70, 0.62);
-  font-size: 10px;
-  font-weight: 800;
+  font-size: var(--desk-font-size-micro);
+  font-weight: var(--desk-font-weight-semibold);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -5007,8 +5007,8 @@ body.desk-history-collapsed .desk-gallery {
 .desk-prompt-source-taxonomy__row strong {
   padding-top: 6px;
   color: rgba(40, 54, 70, 0.64);
-  font-size: 11px;
-  font-weight: 900;
+  font-size: var(--desk-font-size-caption);
+  font-weight: var(--desk-font-weight-semibold);
   line-height: 1;
   white-space: nowrap;
 }
@@ -5057,11 +5057,11 @@ body.desk-history-collapsed .desk-gallery {
   max-width: 118px;
   padding: 0 10px;
   overflow: hidden;
-  font-size: 11px;
+  font-size: var(--desk-font-size-caption);
   background: transparent;
   border: 0;
   border-radius: 7px;
-  font-weight: 800;
+  font-weight: var(--desk-font-weight-semibold);
   line-height: 1;
   text-overflow: ellipsis;
 }
@@ -5094,7 +5094,7 @@ body.desk-history-collapsed .desk-gallery {
   min-width: 0;
   border: 0;
   outline: 0;
-  font-size: 11px;
+  font-size: var(--desk-font-size-caption);
 }
 
 .desk-gallery-filter {
@@ -5102,7 +5102,7 @@ body.desk-history-collapsed .desk-gallery {
   min-width: 106px;
   height: 30px;
   padding: 0 7px;
-  font-size: 11px;
+  font-size: var(--desk-font-size-caption);
   border-radius: 10px;
 }
 
@@ -5114,8 +5114,8 @@ body.desk-history-collapsed .desk-gallery {
   align-items: center;
   min-height: 21px;
   padding: 0 8px;
-  font-size: 10px;
-  font-weight: 800;
+  font-size: var(--desk-font-size-micro);
+  font-weight: var(--desk-font-weight-semibold);
   line-height: 1;
   border: 1px solid rgba(255, 255, 255, 0.52);
   border-radius: 999px;
@@ -5134,8 +5134,8 @@ body.desk-history-collapsed .desk-gallery {
 }
 
 .desk-gallery-tag-filter span {
-  font-size: 12px;
-  font-weight: 900;
+  font-size: var(--desk-font-size-label);
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 .desk-gallery-tag-filter input {
@@ -5143,7 +5143,7 @@ body.desk-history-collapsed .desk-gallery {
   width: 100%;
   border: 0;
   outline: 0;
-  font-size: 11px;
+  font-size: var(--desk-font-size-caption);
 }
 
 .desk-gallery__body {
@@ -5195,15 +5195,15 @@ a.desk-pinterest-profile-home-link:hover {
 
 .desk-pinterest-head__identity strong {
   color: var(--desk-ink);
-  font-size: 11px;
-  font-weight: 850;
+  font-size: var(--desk-font-size-caption);
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 .desk-pinterest-head__identity em {
   color: var(--desk-muted);
-  font-size: 9px;
+  font-size: var(--desk-font-size-micro);
   font-style: normal;
-  font-weight: 700;
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 .desk-pinterest-download-board,
@@ -5216,8 +5216,8 @@ a.desk-pinterest-profile-home-link:hover {
   min-height: 26px;
   padding: 0 9px;
   color: var(--desk-ink);
-  font-size: 9px;
-  font-weight: 800;
+  font-size: var(--desk-font-size-micro);
+  font-weight: var(--desk-font-weight-semibold);
   background: rgba(255, 255, 255, 0.64);
   border: 1px solid rgba(96, 112, 128, 0.16);
   border-radius: 7px;
@@ -5299,16 +5299,16 @@ a.desk-pinterest-profile-home-link:hover {
 
 .desk-pinterest-download-board__content.is-progress strong {
   color: var(--pinterest-sync-accent);
-  font-size: 13px;
-  font-weight: 950;
+  font-size: var(--desk-font-size-body);
+  font-weight: var(--desk-font-weight-semibold);
   line-height: 1;
   letter-spacing: -0.35px;
 }
 
 .desk-pinterest-download-board__content.is-progress > span {
   color: color-mix(in srgb, var(--desk-ink) 72%, transparent);
-  font-size: 7.5px;
-  font-weight: 850;
+  font-size: var(--desk-font-size-micro);
+  font-weight: var(--desk-font-weight-semibold);
   line-height: 1;
 }
 
@@ -5357,8 +5357,8 @@ a.desk-pinterest-profile-home-link:hover {
   min-height: 34px;
   padding: 7px 28px 7px 9px;
   color: #6f0011;
-  font-size: 9px;
-  font-weight: 750;
+  font-size: var(--desk-font-size-micro);
+  font-weight: var(--desk-font-weight-semibold);
   line-height: 1.4;
   text-align: left;
   background: rgba(255, 255, 255, 0.98);
@@ -5457,13 +5457,13 @@ a.desk-pinterest-profile-home-link:hover {
 }
 
 .desk-pinterest-boards strong {
-  font-size: 9px;
-  font-weight: 850;
+  font-size: var(--desk-font-size-micro);
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 .desk-pinterest-boards em {
   color: inherit;
-  font-size: 8px;
+  font-size: var(--desk-font-size-micro);
   font-style: normal;
   opacity: 0.7;
 }
@@ -5474,12 +5474,12 @@ a.desk-pinterest-profile-home-link:hover {
 
 .desk-pinterest-state strong {
   color: var(--desk-ink);
-  font-size: 12px;
+  font-size: var(--desk-font-size-label);
 }
 
 .desk-pinterest-state span {
   max-width: 420px;
-  font-size: 10px;
+  font-size: var(--desk-font-size-micro);
 }
 
 .desk-pinterest-state.is-loading > span {
@@ -5604,8 +5604,8 @@ a.desk-pinterest-profile-home-link:hover {
   min-height: 18px;
   padding: 2px 6px;
   color: rgba(18, 26, 34, 0.88);
-  font-size: 8px;
-  font-weight: 850;
+  font-size: var(--desk-font-size-micro);
+  font-weight: var(--desk-font-weight-semibold);
   background: rgba(255, 255, 255, 0.34);
   border: 1px solid rgba(255, 255, 255, 0.28);
   border-radius: 999px;
@@ -5644,8 +5644,8 @@ a.desk-pinterest-profile-home-link:hover {
   padding: 0;
   place-items: center;
   color: rgba(18, 26, 34, 0.82);
-  font-size: 12px;
-  font-weight: 900;
+  font-size: var(--desk-font-size-label);
+  font-weight: var(--desk-font-weight-semibold);
   line-height: 1;
   background: rgba(255, 255, 255, 0.28);
   border: 0;
@@ -5655,8 +5655,8 @@ a.desk-pinterest-profile-home-link:hover {
 .desk-gallery-card__switcher span {
   min-width: 0;
   color: rgba(18, 26, 34, 0.78);
-  font-size: 8px;
-  font-weight: 900;
+  font-size: var(--desk-font-size-micro);
+  font-weight: var(--desk-font-weight-semibold);
   line-height: 1;
   white-space: nowrap;
 }
@@ -5715,9 +5715,9 @@ a.desk-pinterest-profile-home-link:hover {
   padding: 2px 5px;
   overflow: hidden;
   color: rgba(18, 26, 34, 0.84);
-  font-size: 8px;
+  font-size: var(--desk-font-size-micro);
   font-style: normal;
-  font-weight: 850;
+  font-weight: var(--desk-font-weight-semibold);
   line-height: 1.2;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -5739,8 +5739,8 @@ a.desk-pinterest-profile-home-link:hover {
   min-height: 18px;
   padding: 0 6px;
   color: rgba(255, 255, 255, 0.92);
-  font-size: 8px;
-  font-weight: 900;
+  font-size: var(--desk-font-size-micro);
+  font-weight: var(--desk-font-weight-semibold);
   line-height: 1;
   background: rgba(15, 23, 42, 0.42);
   border: 1px solid rgba(255, 255, 255, 0.18);
@@ -5802,8 +5802,8 @@ a.desk-pinterest-profile-home-link:hover {
 .desk-gallery-card__meta strong {
   overflow: hidden;
   color: rgba(18, 26, 34, 0.92);
-  font-size: 10px;
-  font-weight: 850;
+  font-size: var(--desk-font-size-micro);
+  font-weight: var(--desk-font-weight-semibold);
   line-height: 1.22;
   text-shadow: none;
   text-overflow: ellipsis;
@@ -5828,14 +5828,14 @@ a.desk-pinterest-profile-home-link:hover {
 .desk-gallery-set em {
   overflow: hidden;
   color: var(--desk-muted);
-  font-size: 10px;
+  font-size: var(--desk-font-size-micro);
   font-style: normal;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .desk-gallery-card__meta-copy em {
-  font-weight: 800;
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 
@@ -5881,8 +5881,8 @@ a.desk-pinterest-profile-home-link:hover {
   z-index: 1;
   padding: 3px 7px;
   color: #fff;
-  font-size: 9px;
-  font-weight: 900;
+  font-size: var(--desk-font-size-micro);
+  font-weight: var(--desk-font-weight-semibold);
   line-height: 1;
   pointer-events: none;
   background: rgba(15, 23, 42, 0.58);
@@ -5903,16 +5903,16 @@ a.desk-pinterest-profile-home-link:hover {
 
 .desk-gallery-video__body strong {
   color: var(--desk-ink);
-  font-size: 12px;
+  font-size: var(--desk-font-size-label);
   line-height: 1.25;
 }
 
 .desk-gallery-video__body span,
 .desk-gallery-video__body em {
   color: var(--desk-muted);
-  font-size: 10px;
+  font-size: var(--desk-font-size-micro);
   font-style: normal;
-  font-weight: 750;
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 
@@ -5924,8 +5924,8 @@ a.desk-pinterest-profile-home-link:hover {
   height: 25px;
   padding: 0 9px;
   color: rgba(42, 56, 74, 0.88);
-  font-size: 11px;
-  font-weight: 850;
+  font-size: var(--desk-font-size-caption);
+  font-weight: var(--desk-font-weight-semibold);
   text-decoration: none;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.78), rgba(255, 255, 255, 0.56)),
@@ -6048,7 +6048,7 @@ a.desk-pinterest-profile-home-link:hover {
   color: #ffffff;
   font-size: 9px;
   font-style: normal;
-  font-weight: 900;
+  font-weight: var(--desk-font-weight-semibold);
   line-height: 1;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -6103,13 +6103,13 @@ a.desk-pinterest-profile-home-link:hover {
 
 .desk-gallery-video-folder__case i {
   font-size: 7px;
-  font-weight: 750;
+  font-weight: var(--desk-font-weight-semibold);
   text-transform: lowercase;
 }
 
 .desk-gallery-video-folder__case b {
-  font-size: 21px;
-  font-weight: 900;
+  font-size: var(--desk-font-size-display);
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 .desk-gallery-video-folder__face > strong {
@@ -6117,8 +6117,8 @@ a.desk-pinterest-profile-home-link:hover {
   display: -webkit-box;
   min-width: 0;
   overflow: hidden;
-  font-size: 19px;
-  font-weight: 900;
+  font-size: var(--desk-font-size-display);
+  font-weight: var(--desk-font-weight-semibold);
   line-height: 1.02;
   overflow-wrap: anywhere;
   -webkit-box-orient: vertical;
@@ -6131,7 +6131,7 @@ a.desk-pinterest-profile-home-link:hover {
   overflow: hidden;
   color: #9aa3b3;
   font-size: 9px;
-  font-weight: 750;
+  font-weight: var(--desk-font-weight-semibold);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -6194,8 +6194,8 @@ a.desk-pinterest-profile-home-link:hover {
 .desk-gallery-video-resources > header span,
 .desk-gallery-video-parameters > header span {
   color: var(--desk-muted);
-  font-size: 9px;
-  font-weight: 750;
+  font-size: var(--desk-font-size-micro);
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 .desk-gallery-video-prompt > header button {
@@ -6203,8 +6203,8 @@ a.desk-pinterest-profile-home-link:hover {
   height: 23px;
   padding: 0 8px;
   color: var(--desk-muted);
-  font-size: 10px;
-  font-weight: 850;
+  font-size: var(--desk-font-size-micro);
+  font-weight: var(--desk-font-weight-semibold);
   background: rgba(255, 255, 255, 0.58);
   border: 1px solid rgba(255, 255, 255, 0.72);
   border-radius: 7px;
@@ -6236,8 +6236,8 @@ a.desk-pinterest-profile-home-link:hover {
 .desk-gallery-video-parameters > header strong,
 .desk-gallery-video-resources > header strong {
   color: var(--desk-ink);
-  font-size: 11px;
-  font-weight: 900;
+  font-size: var(--desk-font-size-caption);
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 .desk-gallery-video-prompt p {
@@ -6245,7 +6245,7 @@ a.desk-pinterest-profile-home-link:hover {
   margin: 4px 0 0;
   overflow: auto;
   color: rgba(35, 48, 63, 0.82);
-  font-size: 10px;
+  font-size: var(--desk-font-size-micro);
   line-height: 1.45;
   white-space: pre-wrap;
 }
@@ -6279,18 +6279,18 @@ a.desk-pinterest-profile-home-link:hover {
 .desk-gallery-video-parameters dd {
   min-width: 0;
   margin: 0;
-  font-size: 9px;
+  font-size: var(--desk-font-size-micro);
 }
 
 .desk-gallery-video-parameters dt {
   color: var(--desk-muted);
-  font-weight: 750;
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 .desk-gallery-video-parameters dd {
   overflow: hidden;
   color: var(--desk-ink);
-  font-weight: 850;
+  font-weight: var(--desk-font-weight-semibold);
   text-align: right;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -6338,8 +6338,8 @@ a.desk-gallery-video-resource:hover {
 }
 
 .desk-gallery-video-resource__preview strong {
-  font-size: 8px;
-  font-weight: 950;
+  font-size: var(--desk-font-size-micro);
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 
@@ -6353,13 +6353,13 @@ a.desk-gallery-video-resource:hover {
 
 .desk-gallery-video-resource__copy strong {
   color: var(--desk-ink);
-  font-size: 10px;
+  font-size: var(--desk-font-size-micro);
 }
 
 .desk-gallery-video-resource__copy span,
 .desk-gallery-video-resource__copy em {
   color: var(--desk-muted);
-  font-size: 8px;
+  font-size: var(--desk-font-size-micro);
   font-style: normal;
 }
 
@@ -6427,8 +6427,8 @@ button.desk-gallery-file__preview {
   left: 6px;
   padding: 3px 7px;
   color: #fff;
-  font-size: 10px;
-  font-weight: 900;
+  font-size: var(--desk-font-size-micro);
+  font-weight: var(--desk-font-weight-semibold);
   line-height: 1;
   background: rgba(15, 23, 42, 0.44);
   border-radius: 999px;
@@ -6445,15 +6445,15 @@ button.desk-gallery-file__preview {
 }
 
 .desk-gallery-file__body strong {
-  font-size: 12px;
+  font-size: var(--desk-font-size-label);
   line-height: 1.25;
 }
 
 .desk-gallery-file__body span,
 .desk-gallery-file__body em {
-  font-size: 10px;
+  font-size: var(--desk-font-size-micro);
   font-style: normal;
-  font-weight: 750;
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 
@@ -6464,8 +6464,8 @@ button.desk-gallery-file__preview {
   justify-content: center;
   height: 25px;
   padding: 0 9px;
-  font-size: 11px;
-  font-weight: 850;
+  font-size: var(--desk-font-size-caption);
+  font-weight: var(--desk-font-weight-semibold);
   text-decoration: none;
   border: 1px solid rgba(255, 255, 255, 0.7);
   border-radius: 7px;
@@ -6537,7 +6537,7 @@ button.desk-gallery-file__preview {
 
 .desk-file-preview-modal__info p {
   margin: 0;
-  font-weight: 900;
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 .desk-file-preview-modal__info h2 {
@@ -6545,7 +6545,7 @@ button.desk-gallery-file__preview {
   margin: 0;
   padding-right: 42px;
   overflow: hidden;
-  font-size: 18px;
+  font-size: var(--desk-font-size-panel-title);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -6555,7 +6555,7 @@ button.desk-gallery-file__preview {
   min-width: 0;
   padding: 7px 8px;
   overflow: hidden;
-  font-weight: 750;
+  font-weight: var(--desk-font-weight-semibold);
   text-overflow: ellipsis;
   white-space: nowrap;
   border-radius: 8px;
@@ -6563,7 +6563,7 @@ button.desk-gallery-file__preview {
 
 .desk-file-preview-modal__meta b {
   display: block;
-  font-size: 10px;
+  font-size: var(--desk-font-size-micro);
 }
 
 .desk-file-preview-modal__info section {
@@ -6605,15 +6605,15 @@ button.desk-gallery-file__preview {
 
 .desk-file-preview-modal__layer-copy strong {
   color: var(--desk-ink);
-  font-size: 11px;
-  font-weight: 820;
+  font-size: var(--desk-font-size-caption);
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 .desk-file-preview-modal__layer-copy em {
   color: var(--desk-muted);
-  font-size: 9px;
+  font-size: var(--desk-font-size-micro);
   font-style: normal;
-  font-weight: 720;
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 
@@ -6649,8 +6649,8 @@ button.desk-gallery-file__preview {
   justify-content: center;
   min-height: 30px;
   padding: 0 10px;
-  font-size: 12px;
-  font-weight: 850;
+  font-size: var(--desk-font-size-label);
+  font-weight: var(--desk-font-weight-semibold);
   text-decoration: none;
   border: 1px solid rgba(255, 255, 255, 0.68);
   border-radius: 8px;
@@ -6818,7 +6818,7 @@ body.desk-app[data-theme="dark"] .desk-file-preview-modal__actions #deskFilePrev
   grid-column: 1 / -1;
   place-items: center;
   color: var(--desk-muted);
-  font-size: 11px;
+  font-size: var(--desk-font-size-caption);
   font-style: normal;
 }
 
@@ -6829,8 +6829,8 @@ body.desk-app[data-theme="dark"] .desk-file-preview-modal__actions #deskFilePrev
   overflow: hidden;
   padding: 2px 6px;
   color: rgba(8, 79, 189, 0.84);
-  font-size: 10px;
-  font-weight: 850;
+  font-size: var(--desk-font-size-micro);
+  font-weight: var(--desk-font-weight-semibold);
   text-overflow: ellipsis;
   white-space: nowrap;
   background: rgba(8, 79, 189, 0.1);
@@ -6842,8 +6842,8 @@ body.desk-app[data-theme="dark"] .desk-file-preview-modal__actions #deskFilePrev
   height: 24px;
   padding: 0 8px;
   color: var(--desk-ink);
-  font-size: 10px;
-  font-weight: 850;
+  font-size: var(--desk-font-size-micro);
+  font-weight: var(--desk-font-weight-semibold);
   background: rgba(255, 255, 255, 0.56);
   border: 1px solid rgba(255, 255, 255, 0.6);
   border-radius: 8px;
@@ -6889,7 +6889,7 @@ body.desk-app[data-theme="dark"] .desk-file-preview-modal__actions #deskFilePrev
 .desk-gallery-set-detail__title strong {
   overflow: hidden;
   color: var(--desk-ink);
-  font-size: 14px;
+  font-size: var(--desk-font-size-body-strong);
   line-height: 1.25;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -6897,8 +6897,8 @@ body.desk-app[data-theme="dark"] .desk-file-preview-modal__actions #deskFilePrev
 
 .desk-gallery-set-detail__title > span {
   color: var(--desk-muted);
-  font-size: 10px;
-  font-weight: 780;
+  font-size: var(--desk-font-size-micro);
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 
@@ -6907,8 +6907,8 @@ body.desk-app[data-theme="dark"] .desk-file-preview-modal__actions #deskFilePrev
   overflow: hidden;
   padding: 2px 6px;
   color: rgba(8, 79, 189, 0.82);
-  font-size: 10px;
-  font-weight: 850;
+  font-size: var(--desk-font-size-micro);
+  font-weight: var(--desk-font-weight-semibold);
   text-overflow: ellipsis;
   white-space: nowrap;
   background: rgba(8, 79, 189, 0.1);
@@ -6920,8 +6920,8 @@ body.desk-app[data-theme="dark"] .desk-file-preview-modal__actions #deskFilePrev
   height: 26px;
   padding: 0 8px;
   color: var(--desk-ink);
-  font-size: 10px;
-  font-weight: 850;
+  font-size: var(--desk-font-size-micro);
+  font-weight: var(--desk-font-weight-semibold);
   background: rgba(255, 255, 255, 0.55);
   border: 1px solid rgba(255, 255, 255, 0.62);
   border-radius: 8px;
@@ -6970,8 +6970,8 @@ body.desk-app[data-theme="dark"] .desk-file-preview-modal__actions #deskFilePrev
   min-width: 20px;
   padding: 2px 6px;
   color: #fff;
-  font-size: 10px;
-  font-weight: 850;
+  font-size: var(--desk-font-size-micro);
+  font-weight: var(--desk-font-weight-semibold);
   text-align: center;
   background: rgba(15, 23, 42, 0.42);
   border-radius: 999px;
@@ -6984,9 +6984,9 @@ body.desk-app[data-theme="dark"] .desk-file-preview-modal__actions #deskFilePrev
   right: 5px;
   padding: 2px 6px;
   color: #fff;
-  font-size: 10px;
+  font-size: var(--desk-font-size-micro);
   font-style: normal;
-  font-weight: 850;
+  font-weight: var(--desk-font-weight-semibold);
   background: rgba(15, 23, 42, 0.58);
   border-radius: 999px;
 }
@@ -7005,14 +7005,14 @@ body.desk-app[data-theme="dark"] .desk-file-preview-modal__actions #deskFilePrev
 
 .desk-gallery-set-asset__meta strong {
   color: var(--desk-ink);
-  font-size: 10px;
+  font-size: var(--desk-font-size-micro);
   line-height: 1.25;
 }
 
 .desk-gallery-set-asset__meta span {
   color: var(--desk-muted);
-  font-size: 9px;
-  font-weight: 760;
+  font-size: var(--desk-font-size-micro);
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 
@@ -7049,12 +7049,12 @@ body.desk-app[data-theme="dark"] .desk-file-preview-modal__actions #deskFilePrev
 
 .desk-gallery-inspector__head {
   justify-content: space-between;
-  font-size: 11px;
-  font-weight: 800;
+  font-size: var(--desk-font-size-caption);
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 .desk-gallery-inspector__head strong {
-  font-size: 13px;
+  font-size: var(--desk-font-size-body);
 }
 
 
@@ -7123,7 +7123,7 @@ body.desk-app[data-theme="dark"] .desk-file-preview-modal__actions #deskFilePrev
   place-items: center;
   min-height: 112px;
   padding: 14px;
-  font-size: 11px;
+  font-size: var(--desk-font-size-caption);
   text-align: center;
   border: 1px solid rgba(255, 255, 255, 0.44);
   border-radius: 12px;
@@ -7299,7 +7299,7 @@ body.desk-app[data-theme="dark"] .desk-file-preview-modal__actions #deskFilePrev
 
 .desk-gallery-preview__section p {
   margin: 0;
-  font-weight: 500;
+  font-weight: var(--desk-font-weight-medium);
 }
 
 
@@ -7309,8 +7309,8 @@ body.desk-app[data-theme="dark"] .desk-file-preview-modal__actions #deskFilePrev
 .desk-gallery-preview__section h2 {
   overflow: hidden;
   margin: 0;
-  font-size: 10px;
-  font-weight: 500;
+  font-size: var(--desk-font-size-micro);
+  font-weight: var(--desk-font-weight-medium);
   line-height: 1.4;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -7330,7 +7330,7 @@ body.desk-app[data-theme="dark"] .desk-file-preview-modal__actions #deskFilePrev
 .desk-gallery-preview__meta-row span {
   overflow: hidden;
   color: rgba(241, 245, 249, 0.74);
-  font-size: 10px;
+  font-size: var(--desk-font-size-micro);
   line-height: 1.35;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -7339,8 +7339,8 @@ body.desk-app[data-theme="dark"] .desk-file-preview-modal__actions #deskFilePrev
 .desk-gallery-preview__meta-row strong {
   overflow: hidden;
   color: rgba(248, 250, 252, 0.9);
-  font-size: 10px;
-  font-weight: 400;
+  font-size: var(--desk-font-size-micro);
+  font-weight: var(--desk-font-weight-regular);
   line-height: 1.35;
   text-align: right;
   text-overflow: ellipsis;
@@ -7352,8 +7352,8 @@ body.desk-app[data-theme="dark"] .desk-file-preview-modal__actions #deskFilePrev
 .desk-gallery-lineage-group > strong,
 .desk-gallery-lineage-empty {
   color: rgba(241, 245, 249, 0.66);
-  font-size: 10px;
-  font-weight: 500;
+  font-size: var(--desk-font-size-micro);
+  font-weight: var(--desk-font-weight-medium);
   line-height: 1.35;
 }
 
@@ -7376,8 +7376,8 @@ body.desk-app[data-theme="dark"] .desk-file-preview-modal__actions #deskFilePrev
   display: grid;
   place-items: center;
   color: rgba(241, 245, 249, 0.7);
-  font-size: 10px;
-  font-weight: 800;
+  font-size: var(--desk-font-size-micro);
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 .desk-gallery-lineage-chip > span.is-missing {
@@ -7388,9 +7388,9 @@ body.desk-app[data-theme="dark"] .desk-file-preview-modal__actions #deskFilePrev
 .desk-gallery-lineage-chip em {
   overflow: hidden;
   color: inherit;
-  font-size: 10px;
+  font-size: var(--desk-font-size-micro);
   font-style: normal;
-  font-weight: 500;
+  font-weight: var(--desk-font-weight-medium);
   line-height: 1.35;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -7501,8 +7501,8 @@ body.desk-app[data-theme="dark"] .desk-file-preview-modal__actions #deskFilePrev
   height: 34px;
   padding: 0 6px 0 10px;
   color: rgba(22, 32, 43, 0.72);
-  font-size: 11px;
-  font-weight: 700;
+  font-size: var(--desk-font-size-caption);
+  font-weight: var(--desk-font-weight-semibold);
   border-radius: 0;
 }
 
@@ -7522,7 +7522,7 @@ body.desk-app[data-theme="dark"] .desk-file-preview-modal__actions #deskFilePrev
   left: 50%;
   width: 87px;
   height: 21px;
-  font-size: 12px;
+  font-size: var(--desk-font-size-label);
   pointer-events: none;
   background: transparent;
   border: 0;
@@ -7688,7 +7688,7 @@ body.desk-app[data-theme="dark"] .desk-file-preview-modal__actions #deskFilePrev
 
 .desk-prompt-drawer__header span {
   margin-top: 2px;
-  font-weight: 700;
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 
@@ -7704,8 +7704,8 @@ body.desk-app[data-theme="dark"] .desk-file-preview-modal__actions #deskFilePrev
   padding: 0 18px 0 6px;
   overflow: hidden;
   color: var(--desk-muted);
-  font-size: 8px;
-  font-weight: 750;
+  font-size: var(--desk-font-size-micro);
+  font-weight: var(--desk-font-weight-semibold);
   text-overflow: ellipsis;
   white-space: nowrap;
   background: rgba(255, 255, 255, 0.08);
@@ -7723,8 +7723,8 @@ body.desk-app[data-theme="dark"] .desk-file-preview-modal__actions #deskFilePrev
   min-height: 20px;
   padding: 0 7px;
   color: #ffffff;
-  font-size: 8px;
-  font-weight: 700;
+  font-size: var(--desk-font-size-micro);
+  font-weight: var(--desk-font-weight-semibold);
   background: linear-gradient(180deg, var(--desk-prompt-jewel-top), var(--desk-prompt-jewel-bottom));
   border: 1px solid var(--desk-prompt-jewel-border);
   border-radius: 10px;
@@ -7823,14 +7823,14 @@ body.desk-app[data-theme="dark"] .desk-file-preview-modal__actions #deskFilePrev
 .desk-prompt-chat__message span {
   display: block;
   margin-bottom: 3px;
-  font-weight: 800;
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 .desk-prompt-chat__message p,
 .desk-prompt-candidate p {
   margin: 0;
   color: var(--desk-ink);
-  font-size: 8px;
+  font-size: var(--desk-font-size-micro);
   line-height: 1.48;
   white-space: pre-wrap;
 }
@@ -7896,7 +7896,7 @@ body.desk-app[data-theme="dark"] .desk-file-preview-modal__actions #deskFilePrev
   padding: 6px 8px;
   overflow: auto;
   color: var(--desk-ink);
-  font-size: 9px;
+  font-size: var(--desk-font-size-micro);
   line-height: 1.45;
   white-space: pre-wrap;
   word-break: break-word;
@@ -8044,7 +8044,7 @@ body.desk-app[data-theme="dark"] .desk-file-preview-modal__actions #deskFilePrev
 
 .desk-prompt-candidate em {
   font-style: normal;
-  font-weight: 800;
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 
@@ -8072,14 +8072,14 @@ body.desk-app[data-theme="dark"] .desk-file-preview-modal__actions #deskFilePrev
 }
 
 .desk-prompt-analysis-module strong {
-  font-size: 9px;
-  font-weight: 850;
+  font-size: var(--desk-font-size-micro);
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 .desk-prompt-analysis-module em {
-  font-size: 7px;
+  font-size: var(--desk-font-size-micro);
   font-style: normal;
-  font-weight: 850;
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 .desk-prompt-analysis-module p,
@@ -8087,7 +8087,7 @@ body.desk-app[data-theme="dark"] .desk-file-preview-modal__actions #deskFilePrev
   max-height: 92px;
   margin: 0;
   overflow: auto;
-  font-size: 8px;
+  font-size: var(--desk-font-size-micro);
   line-height: 1.48;
   white-space: pre-wrap;
 }
@@ -8095,7 +8095,7 @@ body.desk-app[data-theme="dark"] .desk-file-preview-modal__actions #deskFilePrev
 
 .desk-prompt-analysis-editor textarea {
   padding: 8px;
-  font-size: 9px;
+  font-size: var(--desk-font-size-micro);
   line-height: 1.5;
   resize: vertical;
   background: rgba(255, 255, 255, 0.66);
@@ -8145,8 +8145,8 @@ body.desk-app[data-theme="dark"] .desk-file-preview-modal__actions #deskFilePrev
 
 
 .desk-prompt-modal__head strong {
-  font-size: 12px;
-  font-weight: 850;
+  font-size: var(--desk-font-size-label);
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 .desk-prompt-modal__head button {
@@ -8179,8 +8179,8 @@ body.desk-app[data-theme="dark"] .desk-file-preview-modal__actions #deskFilePrev
 .desk-prompt-modal__content button {
   min-height: 24px;
   padding: 0 9px;
-  font-size: 10px;
-  font-weight: 700;
+  font-size: var(--desk-font-size-micro);
+  font-weight: var(--desk-font-weight-semibold);
   background: linear-gradient(180deg, var(--desk-prompt-jewel-top, #0b58a8), var(--desk-prompt-jewel-bottom, #021f4f));
   border: 1px solid var(--desk-prompt-jewel-border, rgba(126, 189, 255, 0.44));
   border-radius: var(--desk-radius);
@@ -8410,7 +8410,7 @@ body.desk-app[data-theme="dark"] .desk-file-preview-modal__actions #deskFilePrev
 .desk-history__header button {
   min-height: 26px;
   padding: 0;
-  font-size: 11px;
+  font-size: var(--desk-font-size-caption);
 }
 
 .desk-history__header button:hover {
@@ -8432,7 +8432,7 @@ body.desk-app[data-theme="dark"] .desk-file-preview-modal__actions #deskFilePrev
   min-width: 0;
   height: 28px;
   padding: 0;
-  font-size: 12px;
+  font-size: var(--desk-font-size-label);
 }
 
 .desk-zoom-row span {
@@ -8481,7 +8481,7 @@ body.desk-app[data-theme="dark"] .desk-file-preview-modal__actions #deskFilePrev
   color: #fff;
   background: var(--desk-blue);
   border: 0;
-  font-weight: 800;
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 /* Compact desktop chrome: halve panel, toolbar, and button corner radii while keeping circular status pills intact. */
@@ -11328,7 +11328,7 @@ body.desk-app:not([data-theme="dark"]) .desk-gallery-preview__toolbar button:dis
   padding: 0 9px;
   overflow: visible;
   color: rgba(91, 107, 122, 0.9);
-  font-size: 10px;
+  font-size: var(--desk-font-size-micro);
   line-height: 1;
   white-space: nowrap;
   background: rgba(255, 255, 255, 0.22);
@@ -11468,7 +11468,7 @@ body.desk-app:not([data-theme="dark"]) .desk-gallery-preview__toolbar button:dis
   padding: 0 10px;
   overflow: hidden;
   color: #138a42;
-  font-size: 10px;
+  font-size: var(--desk-font-size-micro);
   text-overflow: ellipsis;
   white-space: nowrap;
   background: rgba(255, 255, 255, 0.34);
@@ -11592,7 +11592,7 @@ body.desk-app:not([data-theme="dark"]) .desk-gallery-preview__toolbar button:dis
 .desk-status-tip__meta dt {
   margin: 0 0 2px;
   color: rgba(91, 107, 122, 0.68);
-  font-size: 8px;
+  font-size: var(--desk-font-size-micro);
   line-height: 1.1;
 }
 
@@ -11600,7 +11600,7 @@ body.desk-app:not([data-theme="dark"]) .desk-gallery-preview__toolbar button:dis
   margin: 0;
   overflow: hidden;
   color: rgba(23, 31, 45, 0.88);
-  font-size: 9px;
+  font-size: var(--desk-font-size-micro);
   line-height: 1.22;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -11650,8 +11650,8 @@ body.desk-app:not([data-theme="dark"]) .desk-gallery-preview__toolbar button:dis
 
 .desk-settings-info-tip__section h4 {
   margin: 0 0 5px;
-  font-size: 10px;
-  font-weight: 880;
+  font-size: var(--desk-font-size-micro);
+  font-weight: var(--desk-font-weight-semibold);
   line-height: 1.2;
 }
 
@@ -11666,8 +11666,8 @@ body.desk-app:not([data-theme="dark"]) .desk-gallery-preview__toolbar button:dis
 .desk-settings-info-tip__section li {
   position: relative;
   padding-left: 9px;
-  font-size: 9px;
-  font-weight: 660;
+  font-size: var(--desk-font-size-micro);
+  font-weight: var(--desk-font-weight-semibold);
   line-height: 1.45;
 }
 
@@ -11927,8 +11927,8 @@ body.desk-app:not([data-theme="dark"]) .desk-gallery-preview__toolbar button:dis
 
 .desk-pinterest-analysis-modal__identity h2 {
   margin: 0;
-  font-size: 16px;
-  font-weight: 900;
+  font-size: var(--desk-font-size-section-title);
+  font-weight: var(--desk-font-weight-semibold);
   line-height: 1.05;
 }
 
@@ -11970,19 +11970,19 @@ body.desk-app:not([data-theme="dark"]) .desk-gallery-preview__toolbar button:dis
 }
 
 .desk-pinterest-analysis-modal__source strong {
-  font-size: 11px;
-  font-weight: 900;
+  font-size: var(--desk-font-size-caption);
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 .desk-pinterest-analysis-modal__source span {
-  font-size: 9px;
-  font-weight: 750;
+  font-size: var(--desk-font-size-micro);
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 
 .desk-pinterest-analysis-modal__prompt > span {
-  font-size: 10px;
-  font-weight: 850;
+  font-size: var(--desk-font-size-micro);
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 .desk-pinterest-analysis-modal__prompt textarea {
@@ -12020,8 +12020,8 @@ body.desk-app:not([data-theme="dark"]) .desk-gallery-preview__toolbar button:dis
 .desk-pinterest-analysis-modal__footer p {
   max-width: 380px;
   margin: 0;
-  font-size: 9px;
-  font-weight: 700;
+  font-size: var(--desk-font-size-micro);
+  font-weight: var(--desk-font-weight-semibold);
   line-height: 1.45;
 }
 
@@ -12035,8 +12035,8 @@ body.desk-app:not([data-theme="dark"]) .desk-gallery-preview__toolbar button:dis
 .desk-pinterest-analysis-modal__footer button {
   min-height: 30px;
   padding: 0 13px;
-  font-size: 9px;
-  font-weight: 850;
+  font-size: var(--desk-font-size-micro);
+  font-weight: var(--desk-font-weight-semibold);
   border: 1px solid rgba(255, 255, 255, 0.74);
   border-radius: 999px;
 }
@@ -12154,8 +12154,8 @@ body.desk-app[data-theme="dark"] .desk-pinterest-analysis-modal__footer button.i
 
 .desk-pinterest-split-modal__identity h2 {
   margin: 0;
-  font-size: 16px;
-  font-weight: 900;
+  font-size: var(--desk-font-size-section-title);
+  font-weight: var(--desk-font-weight-semibold);
   line-height: 1.05;
 }
 
@@ -12197,13 +12197,13 @@ body.desk-app[data-theme="dark"] .desk-pinterest-analysis-modal__footer button.i
 }
 
 .desk-pinterest-split-modal__source strong {
-  font-size: 11px;
-  font-weight: 900;
+  font-size: var(--desk-font-size-caption);
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 .desk-pinterest-split-modal__source span {
-  font-size: 9px;
-  font-weight: 750;
+  font-size: var(--desk-font-size-micro);
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 
@@ -12228,8 +12228,8 @@ body.desk-app[data-theme="dark"] .desk-pinterest-analysis-modal__footer button.i
 
 .desk-pinterest-split-modal__candidate-copy strong {
   color: var(--desk-ink);
-  font-size: 10px;
-  font-weight: 900;
+  font-size: var(--desk-font-size-micro);
+  font-weight: var(--desk-font-weight-semibold);
   line-height: 1.2;
   white-space: nowrap;
 }
@@ -12240,9 +12240,9 @@ body.desk-app[data-theme="dark"] .desk-pinterest-analysis-modal__footer button.i
   padding: 2px 5px;
   overflow: hidden;
   color: #bd001d;
-  font-size: 8px;
+  font-size: var(--desk-font-size-micro);
   font-style: normal;
-  font-weight: 800;
+  font-weight: var(--desk-font-weight-semibold);
   line-height: 1;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -12254,7 +12254,7 @@ body.desk-app[data-theme="dark"] .desk-pinterest-analysis-modal__footer button.i
   display: block;
   overflow: visible;
   color: rgba(20, 32, 44, 0.7);
-  font-size: 10px;
+  font-size: var(--desk-font-size-micro);
   line-height: 1.62;
   text-overflow: clip;
   white-space: normal;
@@ -12273,8 +12273,8 @@ body.desk-app[data-theme="dark"] .desk-pinterest-analysis-modal__footer button.i
 .desk-pinterest-split-modal__loading strong,
 .desk-pinterest-split-modal__empty strong {
   color: var(--desk-ink);
-  font-size: 11px;
-  font-weight: 900;
+  font-size: var(--desk-font-size-caption);
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 .desk-pinterest-split-modal__loading p,
@@ -12282,7 +12282,7 @@ body.desk-app[data-theme="dark"] .desk-pinterest-analysis-modal__footer button.i
   max-width: 270px;
   margin: 0;
   color: var(--desk-muted);
-  font-size: 9px;
+  font-size: var(--desk-font-size-micro);
   line-height: 1.5;
 }
 
@@ -12300,8 +12300,8 @@ body.desk-app[data-theme="dark"] .desk-pinterest-analysis-modal__footer button.i
 .desk-pinterest-split-modal__footer p {
   max-width: 420px;
   margin: 0;
-  font-size: 9px;
-  font-weight: 700;
+  font-size: var(--desk-font-size-micro);
+  font-weight: var(--desk-font-weight-semibold);
   line-height: 1.45;
 }
 
@@ -12315,8 +12315,8 @@ body.desk-app[data-theme="dark"] .desk-pinterest-analysis-modal__footer button.i
 .desk-pinterest-split-modal__footer button {
   min-height: 30px;
   padding: 0 13px;
-  font-size: 9px;
-  font-weight: 850;
+  font-size: var(--desk-font-size-micro);
+  font-weight: var(--desk-font-weight-semibold);
   border: 1px solid rgba(255, 255, 255, 0.74);
   border-radius: 999px;
 }
@@ -12614,14 +12614,14 @@ body.desk-app .desk-node--edge-handles > .desk-port--floating:is(:hover, :focus-
 
 .desk-node-context-menu__cap strong {
   color: inherit;
-  font-size: 7px;
-  font-weight: 820;
+  font-size: var(--desk-font-size-micro);
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 .desk-node-context-menu__cap span {
   color: rgba(255, 255, 255, 0.62);
-  font-size: 6px;
-  font-weight: 700;
+  font-size: var(--desk-font-size-micro);
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 
@@ -12639,8 +12639,8 @@ body.desk-app .desk-node--edge-handles > .desk-port--floating:is(:hover, :focus-
   padding: 0;
   color: var(--desk-ink);
   font: inherit;
-  font-size: 9px;
-  font-weight: 650;
+  font-size: var(--desk-font-size-micro);
+  font-weight: var(--desk-font-weight-semibold);
   background: transparent;
   border: 0;
   outline: 0;
@@ -12831,8 +12831,8 @@ body.desk-app[data-theme="dark"] .desk-prompt-drawer.is-open .desk-prompt-task-m
   padding: 0 7px;
   align-items: center;
   justify-content: center;
-  font-size: 8px;
-  font-weight: 850;
+  font-size: var(--desk-font-size-micro);
+  font-weight: var(--desk-font-weight-semibold);
   line-height: 1;
   white-space: nowrap;
   pointer-events: none;
@@ -13047,7 +13047,7 @@ body.desk-app[data-theme="dark"] .desk-prompt-drawer.is-open button.desk-agent-i
   align-items: center;
   justify-content: center;
   padding: 0 8px;
-  font-weight: 800;
+  font-weight: var(--desk-font-weight-semibold);
   background: rgba(8, 79, 189, 0.08);
   border: 1px solid rgba(8, 79, 189, 0.18);
 }

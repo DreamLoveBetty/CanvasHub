@@ -58,14 +58,14 @@
 
 .desk-node--file-output .desk-node__eyebrow {
   margin-bottom: 2px;
-  font-size: 10px;
+  font-size: var(--desk-font-size-micro);
   letter-spacing: 0.08em;
 }
 
 .desk-node--file-output h2 {
   overflow: hidden;
   max-width: 238px;
-  font-size: 21px;
+  font-size: var(--desk-font-size-display);
   line-height: 1.08;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -78,7 +78,7 @@
 .desk-node--file-output .desk-status-pill {
   min-height: 24px;
   padding: 0 9px;
-  font-size: 11px;
+  font-size: var(--desk-font-size-caption);
 }
 
 .desk-node--file-output .desk-node-delete {
@@ -99,7 +99,7 @@
   justify-content: space-between;
   gap: 10px;
   margin-bottom: 7px;
-  font-size: 11px;
+  font-size: var(--desk-font-size-caption);
 }
 
 .desk-node--file-output .desk-progress-copy > span {
@@ -229,8 +229,8 @@
 .desk-file-result-empty__kicker {
   margin-bottom: 4px;
   color: var(--desk-file-accent);
-  font-size: 10px;
-  font-weight: 850;
+  font-size: var(--desk-font-size-micro);
+  font-weight: var(--desk-font-weight-semibold);
   letter-spacing: 0.12em;
   text-transform: uppercase;
 }
@@ -242,7 +242,7 @@
 
 .desk-file-result-empty strong {
   margin-bottom: 7px;
-  font-size: 17px;
+  font-size: var(--desk-font-size-panel-title);
   line-height: 1.2;
 }
 
@@ -250,8 +250,8 @@
   display: -webkit-box;
   max-width: 310px;
   overflow: hidden;
-  font-size: 12px;
-  font-weight: 650;
+  font-size: var(--desk-font-size-label);
+  font-weight: var(--desk-font-weight-semibold);
   line-height: 1.55;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 3;
@@ -268,8 +268,8 @@
   min-width: 42px;
   padding: 5px 9px;
   color: rgba(61, 82, 108, 0.7);
-  font-size: 10px;
-  font-weight: 900;
+  font-size: var(--desk-font-size-micro);
+  font-weight: var(--desk-font-weight-semibold);
   letter-spacing: 0.08em;
   background: rgba(255, 255, 255, 0.54);
   border: 1px solid rgba(255, 255, 255, 0.72);
@@ -367,8 +367,8 @@
   left: 8px;
   padding: 4px 7px;
   color: #fff;
-  font-size: 9px;
-  font-weight: 850;
+  font-size: var(--desk-font-size-micro);
+  font-weight: var(--desk-font-weight-semibold);
   letter-spacing: 0.05em;
   background: rgba(21, 43, 69, 0.66);
   border: 1px solid rgba(255, 255, 255, 0.22);
@@ -383,8 +383,8 @@
   padding: 18px;
   place-items: center;
   color: var(--desk-muted);
-  font-size: 12px;
-  font-weight: 700;
+  font-size: var(--desk-font-size-label);
+  font-weight: var(--desk-font-weight-semibold);
   line-height: 1.5;
   text-align: center;
 }
@@ -402,8 +402,8 @@
   min-width: 48px;
   padding: 4px 8px;
   color: var(--desk-file-accent);
-  font-size: 10px;
-  font-weight: 900;
+  font-size: var(--desk-font-size-micro);
+  font-weight: var(--desk-font-weight-semibold);
   letter-spacing: 0.06em;
   text-align: center;
   background: var(--desk-file-accent-soft);
@@ -421,8 +421,8 @@
 .desk-file-card__title strong {
   min-width: 0;
   overflow: hidden;
-  font-size: 13px;
-  font-weight: 850;
+  font-size: var(--desk-font-size-body);
+  font-weight: var(--desk-font-weight-semibold);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -431,8 +431,8 @@
 .desk-file-card__meta,
 .desk-file-card__note {
   color: var(--desk-muted);
-  font-size: 10px;
-  font-weight: 700;
+  font-size: var(--desk-font-size-micro);
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 .desk-file-card__actions {
@@ -449,8 +449,8 @@
   padding: 0 9px;
   align-items: center;
   color: var(--desk-ink);
-  font-size: 10px;
-  font-weight: 850;
+  font-size: var(--desk-font-size-micro);
+  font-weight: var(--desk-font-weight-semibold);
   text-decoration: none;
   background: rgba(255, 255, 255, 0.62);
   background:
@@ -495,15 +495,15 @@
 
 .desk-file-preview-list__label {
   color: var(--desk-muted);
-  font-size: 10px;
-  font-weight: 850;
+  font-size: var(--desk-font-size-micro);
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 .desk-file-preview-list__head > em {
   color: var(--desk-muted);
-  font-size: 9px;
+  font-size: var(--desk-font-size-micro);
   font-style: normal;
-  font-weight: 750;
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 .desk-file-layer-list {
@@ -556,8 +556,8 @@
 .desk-file-layer__copy strong {
   overflow: hidden;
   color: var(--desk-ink);
-  font-size: 10px;
-  font-weight: 800;
+  font-size: var(--desk-font-size-micro);
+  font-weight: var(--desk-font-weight-semibold);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -567,7 +567,7 @@
   color: var(--desk-muted);
   font-size: 9px;
   font-style: normal;
-  font-weight: 700;
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 .desk-file-layer > i {
@@ -600,8 +600,8 @@
   gap: 6px;
   align-items: center;
   color: var(--desk-muted);
-  font-size: 10px;
-  font-weight: 750;
+  font-size: var(--desk-font-size-micro);
+  font-weight: var(--desk-font-weight-semibold);
   white-space: nowrap;
 }
 
@@ -626,7 +626,7 @@
 .desk-file-output-footer .desk-pill-row span {
   min-height: 21px;
   padding: 4px 7px;
-  font-size: 9px;
+  font-size: var(--desk-font-size-micro);
   white-space: nowrap;
 }
 

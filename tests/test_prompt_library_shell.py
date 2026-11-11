@@ -42,7 +42,7 @@ class PromptLibraryShellTest(unittest.TestCase):
     def test_header_is_the_asset_library_title_row(self):
         self.assertIn('<div class="desk-prompt-library__identity">\n          <h2>提示词素材库</h2>\n        </div>', self.html)
         self.assertNotIn("desk-prompt-library__mark", self.html + self.module + self.geometry)
-        self.assertIn(".desk-prompt-library__identity h2 { margin: 0; font-size: 17px; font-weight: 700; line-height: 1.1; }", self.module)
+        self.assertIn(".desk-prompt-library__identity h2 { margin: 0; font-size: var(--desk-font-size-panel-title); font-weight: var(--desk-font-weight-semibold); line-height: 1.1; }", self.module)
 
     def test_tabs_are_a_compact_single_line_row(self):
         nav = self.html[self.html.index('id="deskPromptLibraryTabs"'):self.html.index("</nav>", self.html.index('id="deskPromptLibraryTabs"'))]

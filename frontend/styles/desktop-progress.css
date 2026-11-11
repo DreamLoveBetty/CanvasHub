@@ -92,22 +92,22 @@ body.desk-app .desk-progress-material__title {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 11px;
-  font-weight: 650;
+  font-size: var(--desk-font-size-caption);
+  font-weight: var(--desk-font-weight-semibold);
   line-height: 14px;
   color: inherit;
 }
-body.desk-app .desk-progress-material__meta { display: flex; align-items: baseline; gap: 10px; min-width: 0; font-size: 9px; line-height: 12px; color: var(--desk-progress-meta-ink); }
+body.desk-app .desk-progress-material__meta { display: flex; align-items: baseline; gap: 10px; min-width: 0; font-size: var(--desk-font-size-micro); line-height: 12px; color: var(--desk-progress-meta-ink); }
 body.desk-app .desk-progress-material__detail { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 body.desk-app .desk-progress-material__time { flex: 0 0 auto; white-space: nowrap; }
-body.desk-app .desk-progress-material__value { flex: 0 0 auto; font-size: 19px; line-height: 1; font-weight: 650; color: inherit; white-space: nowrap; }
+body.desk-app .desk-progress-material__value { flex: 0 0 auto; font-size: var(--desk-font-size-display); line-height: 1; font-weight: var(--desk-font-weight-semibold); color: inherit; white-space: nowrap; }
 body.desk-app .desk-progress-material[data-progress-size="48"] .desk-progress-material__title,
-body.desk-app .desk-progress-material[data-progress-size="56"] .desk-progress-material__title { font-size: 13px; line-height: 18px; }
+body.desk-app .desk-progress-material[data-progress-size="56"] .desk-progress-material__title { font-size: var(--desk-font-size-body); line-height: 18px; }
 body.desk-app .desk-progress-material[data-progress-size="48"] .desk-progress-material__meta,
-body.desk-app .desk-progress-material[data-progress-size="56"] .desk-progress-material__meta { font-size: 10px; line-height: 14px; }
+body.desk-app .desk-progress-material[data-progress-size="56"] .desk-progress-material__meta { font-size: var(--desk-font-size-micro); line-height: 14px; }
 body.desk-app .desk-progress-material[data-progress-size="48"] .desk-progress-material__value,
 body.desk-app .desk-progress-material[data-progress-size="56"] .desk-progress-material__value { font-size: 23px; }
-body.desk-app .desk-progress-material__track.is-indeterminate .desk-progress-material__value { font-size: 12px; }
+body.desk-app .desk-progress-material__track.is-indeterminate .desk-progress-material__value { font-size: var(--desk-font-size-label); }
 body.desk-app .desk-progress-material[data-progress-style="smoke"] :is(.desk-progress-material__copy, .desk-progress-material__value) { color: white; mix-blend-mode: difference; text-shadow: none; }
 body.desk-app .desk-progress-material[data-progress-style="smoke"] .desk-progress-material__meta { color: inherit; }
 

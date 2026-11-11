@@ -35,8 +35,8 @@
   align-items: center;
   vertical-align: middle;
   color: var(--prompt-token-accent);
-  font-size: 11px;
-  font-weight: 850;
+  font-size: var(--desk-font-size-caption);
+  font-weight: var(--desk-font-weight-semibold);
   line-height: 20px;
   white-space: nowrap;
   background: var(--prompt-token-surface);
@@ -202,14 +202,14 @@
 
 :where(body.desk-app[data-theme]) .desk-text-polish-modal__card-hint {
   color: var(--desk-muted);
-  font-weight: 680;
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 :where(body.desk-app[data-theme]) .desk-text-polish-modal__card-text {
   min-height: 0;
   overflow: auto;
   padding: 10px;
-  font-weight: 510;
+  font-weight: var(--desk-font-weight-medium);
   white-space: pre-wrap;
   word-break: break-word;
   background: rgba(255, 255, 255, 0.56);
@@ -241,8 +241,8 @@
   min-height: 18px;
   overflow: hidden;
   color: var(--desk-muted);
-  font-size: 11px;
-  font-weight: 680;
+  font-size: var(--desk-font-size-caption);
+  font-weight: var(--desk-font-weight-semibold);
   line-height: 18px;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -382,8 +382,8 @@
   width: 60px;
   height: 24px;
   padding: 0;
-  font-size: 8px;
-  font-weight: 800;
+  font-size: var(--desk-font-size-micro);
+  font-weight: var(--desk-font-weight-semibold);
   pointer-events: auto;
   background: radial-gradient(circle at 28% 18%, rgba(255, 255, 255, 0.32), transparent 34%),
     linear-gradient(180deg, var(--desk-prompt-jewel-top), var(--desk-prompt-jewel-bottom));
@@ -426,8 +426,8 @@
   bottom: calc(100% + 6px);
   left: 50%;
   padding: 3px 8px;
-  font-size: 11px;
-  font-weight: 700;
+  font-size: var(--desk-font-size-caption);
+  font-weight: var(--desk-font-weight-semibold);
   line-height: 16px;
   white-space: nowrap;
   pointer-events: none;
@@ -560,7 +560,7 @@
   gap: 6px;
   place-items: center;
   height: 100%;
-  font-weight: 700;
+  font-weight: var(--desk-font-weight-semibold);
   text-align: center;
 }
 
@@ -572,7 +572,7 @@
   margin: 0 3px 2px 0;
   overflow: hidden;
   align-items: center;
-  font-weight: 850;
+  font-weight: var(--desk-font-weight-semibold);
   line-height: 1;
   border: 1px dashed rgba(8, 79, 189, 0.42);
   border-radius: 999px;
@@ -589,7 +589,7 @@
   display: grid;
   flex: 0 0 9px;
   place-items: center;
-  font-weight: 900;
+  font-weight: var(--desk-font-weight-semibold);
   cursor: pointer;
   border-radius: 999px;
   opacity: 0.78;
@@ -639,7 +639,7 @@
   gap: 5px;
   align-items: center;
   justify-content: center;
-  font-weight: 850;
+  font-weight: var(--desk-font-weight-semibold);
   cursor: pointer;
   user-select: none;
 }
@@ -675,8 +675,8 @@
 :where(body.desk-app[data-theme]) .desk-prompt-image-menu__empty {
   padding: 6px;
   color: var(--desk-muted);
-  font-size: 8px;
-  font-weight: 800;
+  font-size: var(--desk-font-size-micro);
+  font-weight: var(--desk-font-weight-semibold);
   text-align: center;
 }
 
@@ -688,8 +688,8 @@
   display: block;
   margin: -2px 0 5px;
   color: var(--desk-muted);
-  font-size: 7px;
-  font-weight: 800;
+  font-size: var(--desk-font-size-micro);
+  font-weight: var(--desk-font-weight-semibold);
   line-height: 1.35;
 }
 
@@ -1055,12 +1055,12 @@ body.desk-app[data-theme="dark"] .desk-prompt-drawer.is-open button.desk-agent-i
 }
 
 :where(body.desk-app[data-theme]) .desk-agent-pane__head strong {
-  font-weight: 800;
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 :where(body.desk-app[data-theme]) .desk-agent-pane__head span {
   overflow: hidden;
-  font-weight: 700;
+  font-weight: var(--desk-font-weight-semibold);
   white-space: nowrap;
   text-overflow: ellipsis;
 }
@@ -1116,7 +1116,7 @@ body.desk-app[data-theme="dark"] .desk-prompt-drawer.is-open button.desk-agent-i
   height: 22px;
   align-items: center;
   overflow: hidden;
-  font-weight: 750;
+  font-weight: var(--desk-font-weight-semibold);
   white-space: nowrap;
   text-overflow: ellipsis;
   border: 1px solid rgba(92, 112, 132, 0.13);
@@ -1137,14 +1137,14 @@ body.desk-app[data-theme="dark"] .desk-prompt-drawer.is-open button.desk-agent-i
 }
 
 :where(body.desk-app[data-theme]) .desk-agent-field > span {
-  font-weight: 800;
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 :where(body.desk-app[data-theme]) .desk-agent-field select {
   width: 100%;
   height: 26px;
   padding: 0 20px 0 7px;
-  font-weight: 750;
+  font-weight: var(--desk-font-weight-semibold);
   border-radius: 5px;
 }
 
@@ -1153,7 +1153,7 @@ body.desk-app[data-theme="dark"] .desk-prompt-drawer.is-open button.desk-agent-i
   height: 26px;
   gap: 5px;
   align-items: center;
-  font-weight: 800;
+  font-weight: var(--desk-font-weight-semibold);
   cursor: pointer;
   white-space: nowrap;
 }
@@ -1203,8 +1203,8 @@ body.desk-app[data-theme="dark"] .desk-prompt-drawer.is-open button.desk-agent-i
   min-height: 92px;
   place-items: center;
   padding: 18px;
-  font-size: 9px;
-  font-weight: 700;
+  font-size: var(--desk-font-size-micro);
+  font-weight: var(--desk-font-weight-semibold);
   line-height: 1.5;
   text-align: center;
 }
@@ -1232,7 +1232,7 @@ body.desk-app[data-theme="dark"] .desk-prompt-drawer.is-open button.desk-agent-i
   width: 23px;
   height: 23px;
   place-items: center;
-  font-weight: 850;
+  font-weight: var(--desk-font-weight-semibold);
   border: 1px solid rgba(92, 112, 132, 0.22);
   border-radius: 50%;
 }
@@ -1252,12 +1252,12 @@ body.desk-app[data-theme="dark"] .desk-prompt-drawer.is-open button.desk-agent-i
 
 :where(body.desk-app[data-theme]) .desk-agent-step__copy strong {
   margin-bottom: 3px;
-  font-weight: 800;
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 :where(body.desk-app[data-theme]) .desk-agent-step__copy span,
 :where(body.desk-app[data-theme]) .desk-agent-step__state {
-  font-weight: 700;
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 :where(body.desk-app[data-theme]) .desk-agent-step__state {
@@ -1290,7 +1290,7 @@ body.desk-app[data-theme="dark"] .desk-prompt-drawer.is-open button.desk-agent-i
 :where(body.desk-app[data-theme]) .desk-agent-approval__meta span {
   max-width: 52%;
   overflow: hidden;
-  font-weight: 800;
+  font-weight: var(--desk-font-weight-semibold);
   white-space: nowrap;
   text-overflow: ellipsis;
 }
@@ -1324,13 +1324,13 @@ body.desk-app[data-theme="dark"] .desk-prompt-drawer.is-open button.desk-agent-i
 :where(body.desk-app[data-theme]) .desk-agent-decision__copy > span {
   display: block;
   margin-bottom: 2px;
-  font-weight: 850;
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 :where(body.desk-app[data-theme]) .desk-agent-decision__copy > strong {
   display: -webkit-box;
   overflow: hidden;
-  font-weight: 800;
+  font-weight: var(--desk-font-weight-semibold);
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
 }
@@ -1347,7 +1347,7 @@ body.desk-app[data-theme="dark"] .desk-prompt-drawer.is-open button.desk-agent-i
 :where(body.desk-app[data-theme]) .desk-agent-decision__meta > span {
   min-width: 0;
   overflow: hidden;
-  font-weight: 700;
+  font-weight: var(--desk-font-weight-semibold);
   white-space: nowrap;
   text-overflow: ellipsis;
 }
@@ -1358,7 +1358,7 @@ body.desk-app[data-theme="dark"] .desk-prompt-drawer.is-open button.desk-agent-i
   padding-left: 5px;
   overflow: hidden;
   font-style: normal;
-  font-weight: 800;
+  font-weight: var(--desk-font-weight-semibold);
   white-space: nowrap;
   text-overflow: ellipsis;
   border-left: 1px solid rgba(168, 75, 24, 0.22);
@@ -1377,7 +1377,7 @@ body.desk-app[data-theme="dark"] .desk-prompt-drawer.is-open button.desk-agent-i
   height: 27px;
   min-width: 0;
   padding: 0 8px;
-  font-weight: 700;
+  font-weight: var(--desk-font-weight-semibold);
   border: 1px solid rgba(92, 112, 132, 0.16);
   border-radius: 5px;
   outline: none;
@@ -1407,7 +1407,7 @@ body.desk-app[data-theme="dark"] .desk-prompt-drawer.is-open button.desk-agent-i
 
 :where(body.desk-app[data-theme]) .desk-agent-param > span {
   overflow: hidden;
-  font-weight: 800;
+  font-weight: var(--desk-font-weight-semibold);
   white-space: nowrap;
   text-overflow: ellipsis;
 }
@@ -1417,7 +1417,7 @@ body.desk-app[data-theme="dark"] .desk-prompt-drawer.is-open button.desk-agent-i
   height: 25px;
   min-width: 0;
   padding: 0 18px 0 6px;
-  font-weight: 750;
+  font-weight: var(--desk-font-weight-semibold);
   border-radius: 4px;
   outline: none;
 }
@@ -1461,7 +1461,7 @@ body.desk-app[data-theme="dark"] .desk-prompt-drawer.is-open button.desk-agent-i
   gap: 5px;
   align-self: end;
   align-items: center;
-  font-weight: 800;
+  font-weight: var(--desk-font-weight-semibold);
   cursor: pointer;
   white-space: nowrap;
 }
@@ -1542,13 +1542,13 @@ body.desk-app[data-theme="dark"] .desk-prompt-drawer.is-open button.desk-agent-i
 }
 
 :where(body.desk-app[data-theme]) .desk-agent-event__copy strong {
-  font-weight: 750;
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 :where(body.desk-app[data-theme]) .desk-agent-event__copy span,
 :where(body.desk-app[data-theme]) .desk-agent-event time {
   margin-top: 2px;
-  font-weight: 650;
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 :where(body.desk-app[data-theme]) .desk-agent-event time {
@@ -1558,7 +1558,7 @@ body.desk-app[data-theme="dark"] .desk-prompt-drawer.is-open button.desk-agent-i
 :where(body.desk-app[data-theme]) .desk-agent-artifact > span {
   display: block;
   margin-bottom: 4px;
-  font-weight: 800;
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 :where(body.desk-app[data-theme]) .desk-agent-artifact strong {
@@ -1638,8 +1638,8 @@ body.desk-app[data-theme="dark"] .desk-agent-status[data-status="rolled_back"] {
   min-height: 18px;
   padding: 0 6px;
   color: var(--desk-muted);
-  font-size: 8px;
-  font-weight: 850;
+  font-size: var(--desk-font-size-micro);
+  font-weight: var(--desk-font-weight-semibold);
   line-height: 18px;
   background: transparent;
   border: 0;

@@ -41,7 +41,7 @@ class SettingsControlStyleTests(unittest.TestCase):
         self.assertIn("min-height: var(--desk-settings-control-height);", block)
         self.assertIn("line-height: var(--desk-line-height-caption);", block)
         self.assertIn("border-radius: var(--desk-radius-control);", block)
-        self.assertIn("font-weight: 800;", block)
+        self.assertIn("font-weight: var(--desk-font-weight-semibold);", block)
         self.assertIn("padding: 0 12px;", block)
 
     def test_help_text_includes_small_and_uses_caption_tokens(self):
@@ -66,7 +66,7 @@ class SettingsControlStyleTests(unittest.TestCase):
         match = re.search(r"body\.desk-app\[data-theme\] \.desk-settings-tabs button\s*\{([^}]+)\}", self.geometry)
         self.assertIsNotNone(match)
         for declaration in ("height: var(--desk-settings-nav-item-height);", "min-height: var(--desk-settings-nav-item-height);",
-                            "font-weight: 730;", "text-align: left;"):
+                            "font-weight: var(--desk-font-weight-semibold);", "text-align: left;"):
             self.assertIn(declaration, match[1])
         self.assertIn("--desk-settings-nav-item-height: 30px;", self.geometry)
 
@@ -162,12 +162,12 @@ class SettingsControlStyleTests(unittest.TestCase):
 
     def test_heading_hierarchy_does_not_make_auxiliary_text_bolder_than_values(self):
         title = re.search(r"\.desk-settings__title h2\s*\{([^}]+)\}", self.geometry)[1]
-        self.assertIn("font-size: 17px;", title)  # the asset library's title size
+        self.assertIn("font-size: var(--desk-font-size-panel-title);", title)  # the asset library's title size
         heading = re.search(r"\.desk-settings-card h3\s*\{([^}]+)\}", self.geometry)[1]
-        self.assertIn("font-size: 12px;", heading)
-        self.assertIn("font-weight: 900;", heading)
+        self.assertIn("font-size: var(--desk-font-size-label);", heading)
+        self.assertIn("font-weight: var(--desk-font-weight-semibold);", heading)
         labels = re.search(r"\.desk-settings-form :is\(label > span, \.desk-settings-secret-field > span\)\s*\{([^}]+)\}", self.geometry)[1]
-        self.assertIn("font-weight: 500;", labels)
+        self.assertIn("font-weight: var(--desk-font-weight-medium);", labels)
         self.assertRegex(self.geometry, r"\.desk-settings__body :is\(\s*p, small, em,[^}]+font-weight: var\(--desk-font-weight-regular\);")
 
     def test_real_status_frames_remain_domain_owned(self):

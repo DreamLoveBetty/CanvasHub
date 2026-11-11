@@ -5,15 +5,15 @@
 }
 .desk-app .desk-krea2-control__fields label > span {
   color: var(--desk-muted);
-  font-size: 11px;
-  font-weight: 750;
+  font-size: var(--desk-font-size-caption);
+  font-weight: var(--desk-font-weight-semibold);
 }
 .desk-app .desk-krea2-control__body :is(.desk-button, .desk-number, .desk-select-trigger, .desk-switch em) {
-  font-size: 11px;
+  font-size: var(--desk-font-size-caption);
 }
 .desk-app .desk-krea2-control__body > small {
   color: var(--desk-muted);
-  font-size: 10px;
+  font-size: var(--desk-font-size-micro);
   line-height: 1.4;
 }
 .desk-app .desk-krea2-control__selection {

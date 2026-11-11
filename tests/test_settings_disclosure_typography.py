@@ -39,7 +39,7 @@ class SettingsDisclosureTypographyTests(unittest.TestCase):
             self.assertIn(selector, match[1])
         self.assertIn("font-weight: var(--desk-font-weight-regular);", match[2])
         self.assertIn("overflow-wrap: anywhere;", match[2])
-        self.assertRegex(self.geometry, re.compile(r"\.desk-settings :is\([^)]*\.desk-qwen21-tools__inspection[^)]*\) strong\s*\{\s*font-weight: var\(--desk-font-weight-medium\);", re.S))
+        self.assertRegex(self.geometry, re.compile(r"\.desk-settings :is\([^)]*\.desk-qwen21-tools__inspection[^)]*\) strong\s*\{\s*font-weight: var\(--desk-font-weight-semibold\);", re.S))
 
     def test_static_guidance_uses_muted_settings_paint_without_hiding_error_states(self):
         match = re.search(r"body\.desk-app\[data-theme\] \.desk-settings :is\([^)]*\.desk-qwen21-tools__card[^)]*\) \.desk-settings-form__hint,[^{]+\{([^}]+)\}", self.paint)

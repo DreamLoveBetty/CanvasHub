@@ -61,20 +61,20 @@
 }
 
 :where(body.desk-app[data-theme]) .desk-release__latest {
-  font-size: 8px;
+  font-size: var(--desk-font-size-micro);
   line-height: 1;
 }
 
 :where(body.desk-app[data-theme]) .desk-release__update-copy {
-  font-size: 10px;
+  font-size: var(--desk-font-size-micro);
   line-height: 1.55;
 }
 
 :where(body.desk-app[data-theme]) .desk-release__update-action {
   padding: 0 10px;
   margin-top: 10px;
-  font-size: 10px;
-  font-weight: 800;
+  font-size: var(--desk-font-size-micro);
+  font-weight: var(--desk-font-weight-semibold);
   border: 1px solid rgba(183, 54, 14, 0.34);
   border-radius: 6px;
 }
@@ -84,7 +84,7 @@
 }
 
 :where(body.desk-app[data-theme]) .desk-release__footer {
-  font-size: 9px;
+  font-size: var(--desk-font-size-micro);
 }
 
 :where(body.desk-app[data-theme]) .desk-settings__header {
@@ -103,8 +103,8 @@
 
 :where(body.desk-app[data-theme]) .desk-settings__version {
   flex: 0 0 auto;
-  font-size: 8px;
-  font-weight: 850;
+  font-size: var(--desk-font-size-micro);
+  font-weight: var(--desk-font-weight-semibold);
   letter-spacing: 0.04em;
   line-height: 1;
   text-transform: uppercase;
@@ -151,7 +151,7 @@
 :where(body.desk-app[data-theme]) .desk-settings-canvas-interaction__label {
   min-width: 0;
   overflow: hidden;
-  font-size: 10px;
+  font-size: var(--desk-font-size-micro);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -177,7 +177,7 @@
   gap: 6px;
   align-items: center;
   min-height: 20px;
-  font-size: 10px;
+  font-size: var(--desk-font-size-micro);
 }
 
 :where(body.desk-app[data-theme]) .desk-settings-path {
@@ -195,8 +195,8 @@
   display: grid;
   gap: 4px;
   min-width: 0;
-  font-size: 10px;
-  font-weight: 760;
+  font-size: var(--desk-font-size-micro);
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 :where(body.desk-app[data-theme]) .desk-settings-secret-field.desk-settings-form__wide {
@@ -244,7 +244,7 @@
   padding: 0 6px;
   color: rgba(185, 28, 28, 0.9);
   font: inherit;
-  font-size: 9px;
+  font-size: var(--desk-font-size-micro);
   line-height: 1;
   background: radial-gradient(circle at 28% 18%, rgba(255, 255, 255, 0.48), transparent 36%),
     linear-gradient(180deg, rgba(229, 72, 77, 0.16), rgba(229, 72, 77, 0.07));
@@ -293,8 +293,8 @@
 :where(body.desk-app[data-theme]) .desk-settings-form__hint {
   grid-column: 1 / -1;
   margin: 2px 0 0;
-  font-size: 10px;
-  font-weight: 720;
+  font-size: var(--desk-font-size-micro);
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 :where(body.desk-app[data-theme]) .desk-settings-pinterest-status {
@@ -304,7 +304,7 @@
   gap: 6px;
   min-width: 0;
   padding: 6px 8px;
-  font-size: 10px;
+  font-size: var(--desk-font-size-micro);
   border: 1px solid rgba(217, 119, 6, 0.2);
   border-radius: 8px;
 }
@@ -313,8 +313,8 @@
   grid-column: 1 / -1;
   margin: 0;
   padding: 6px 8px;
-  font-size: 10px;
-  font-weight: 760;
+  font-size: var(--desk-font-size-micro);
+  font-weight: var(--desk-font-weight-semibold);
   border: 1px solid rgba(8, 79, 189, 0.14);
   border-radius: 8px;
 }
@@ -369,8 +369,8 @@
   display: flex;
   align-items: center;
   padding: 0 8px;
-  font-size: 10px;
-  font-weight: 820;
+  font-size: var(--desk-font-size-micro);
+  font-weight: var(--desk-font-weight-semibold);
   line-height: 1.3;
   border: 1px solid rgba(255, 255, 255, 0.64);
   border-radius: 8px;
@@ -401,8 +401,8 @@
 :where(body.desk-app[data-theme]) .desk-settings-account__error {
   grid-column: 1;
   overflow: hidden;
-  font-size: 10px;
-  font-weight: 720;
+  font-size: var(--desk-font-size-micro);
+  font-weight: var(--desk-font-weight-semibold);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -411,8 +411,8 @@
   display: grid;
   place-items: center;
   min-height: 132px;
-  font-size: 11px;
-  font-weight: 700;
+  font-size: var(--desk-font-size-caption);
+  font-weight: var(--desk-font-weight-semibold);
   border: 1px dashed rgba(99, 113, 130, 0.22);
   border-radius: 10px;
 }
@@ -432,12 +432,12 @@
 
 :where(body.desk-app[data-theme]) .auth-title {
   margin-bottom: 8px;
-  font-size: 20px;
-  font-weight: 800;
+  font-size: var(--desk-font-size-display);
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 :where(body.desk-app[data-theme]) .auth-message {
-  font-size: 13px;
+  font-size: var(--desk-font-size-body);
   line-height: 1.5;
 }
 

@@ -153,7 +153,7 @@ body.desk-app[data-theme] .desk-image-group__thumb strong {
   height: calc(56px * var(--desk-image-group-ui-scale));
   place-items: center;
   font-size: calc(32px * var(--desk-image-group-ui-scale));
-  font-weight: 900;
+  font-weight: var(--desk-font-weight-semibold);
   line-height: 1;
   text-align: center;
   white-space: nowrap;
@@ -174,7 +174,7 @@ body.desk-app[data-theme] :is(.desk-image-group__role, .desk-image-group__insert
   padding: 0;
   place-items: center;
   font-size: calc(18px * var(--desk-image-group-ui-scale));
-  font-weight: 800;
+  font-weight: var(--desk-font-weight-semibold);
   line-height: 1;
   white-space: nowrap;
   border: 0;
@@ -443,7 +443,7 @@ body.desk-app[data-theme] .desk-image-group-transition__chip strong {
   height: calc(var(--desk-image-group-chip-unit) * 56);
   place-items: center;
   font-size: calc(var(--desk-image-group-chip-unit) * 32);
-  font-weight: 900;
+  font-weight: var(--desk-font-weight-semibold);
   line-height: 1;
   border: calc(var(--desk-image-group-chip-unit) * 6) solid var(--desk-image-group-badge-border);
   border-radius: 50%;

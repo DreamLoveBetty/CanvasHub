@@ -30,7 +30,7 @@ body.desk-app :is(.desk-video-frames, .desk-video-compose-bench, .desk-video-com
   background: var(--desk-color-control-bg);
   color: var(--desk-color-control-ink);
   font-family: var(--desk-font-family-sans);
-  font-weight: 500;
+  font-weight: var(--desk-font-weight-medium);
   cursor: pointer;
   transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease, transform 120ms ease;
 }
@@ -108,7 +108,7 @@ body.desk-app :is(.desk-video-frames__side, .desk-video-compose-bench__side) {
 }
 
 body.desk-app :is(.desk-video-frames__title, .desk-video-compose-bench__title) strong {
-  font-weight: 600;
+  font-weight: var(--desk-font-weight-semibold);
   letter-spacing: 0.01em;
 }
 
@@ -157,7 +157,7 @@ body.desk-app :is(.desk-video-frames__badge, .desk-video-compose-bench__label-ch
   border-radius: var(--desk-radius-pill);
   background: var(--desk-video-frames-overlay);
   color: var(--desk-video-frames-overlay-ink);
-  font-weight: 500;
+  font-weight: var(--desk-font-weight-medium);
 }
 
 body.desk-app .desk-video-frames__badge.is-mark .desk-video-frames__icon {
@@ -180,7 +180,7 @@ body.desk-app :is(.desk-video-frames__clock, .desk-video-compose-bench__clock) {
 
 body.desk-app :is(.desk-video-frames__clock, .desk-video-compose-bench__clock) b {
   font-family: var(--desk-font-family-mono);
-  font-weight: 600;
+  font-weight: var(--desk-font-weight-semibold);
   letter-spacing: -0.01em;
 }
 
@@ -284,7 +284,7 @@ body.desk-app :is(.desk-video-frames__ruler, .desk-video-compose-tl__ruler) {
 
 body.desk-app :is(.desk-video-frames__panel-head h3, .desk-video-compose-bench__panel-head h3, .desk-video-compose-bench__timeline-head h3) {
   color: var(--desk-color-text-primary);
-  font-weight: 600;
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 body.desk-app :is(.desk-video-frames__panel-head small, .desk-video-frames__keys, .desk-video-frames__empty,
@@ -311,7 +311,7 @@ body.desk-app .desk-video-frames__scene.is-current {
 }
 
 body.desk-app .desk-video-frames__scene-text b {
-  font-weight: 600;
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 body.desk-app .desk-video-frames__scene-text small {
@@ -372,7 +372,7 @@ body.desk-app .desk-video-frames__mark-meta {
 }
 
 body.desk-app .desk-video-frames__mark-meta b {
-  font-weight: 600;
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 body.desk-app .desk-video-frames__mark-meta small {
@@ -459,7 +459,7 @@ body.desk-app .desk-video-compose__icon {
   color: var(--desk-color-accent);
 }
 body.desk-app .desk-video-compose__title {
-  font-weight: 600;
+  font-weight: var(--desk-font-weight-semibold);
 }
 body.desk-app :is(.desk-video-compose__badge, .desk-video-compose-bench__total) {
   border: 1px solid var(--desk-color-border-subtle);
@@ -532,7 +532,7 @@ body.desk-app .desk-video-compose__strip b {
   border-radius: 4px;
   background: var(--desk-video-frames-overlay);
   color: var(--desk-video-frames-overlay-ink);
-  font-weight: 600;
+  font-weight: var(--desk-font-weight-semibold);
 }
 body.desk-app .desk-video-compose__meta {
   color: var(--desk-node-muted-ink);
@@ -616,7 +616,7 @@ body.desk-app .desk-video-compose-tl__cap {
   text-shadow: 0 1px 2px var(--desk-video-frames-strip-shade);
 }
 body.desk-app .desk-video-compose-tl__cap b {
-  font-weight: 700;
+  font-weight: var(--desk-font-weight-semibold);
 }
 body.desk-app .desk-video-compose-tl__cap small {
   color: var(--desk-video-frames-overlay-muted);
@@ -683,7 +683,7 @@ body.desk-app .desk-video-compose-tl__speed {
   border-radius: 3px;
   background: var(--desk-video-frames-overlay);
   color: var(--desk-video-frames-overlay-ink);
-  font-weight: 700;
+  font-weight: var(--desk-font-weight-semibold);
 }
 /* Subtitle cues: text chips on the lane; a cue past the end of the render is flagged in the cut colour. */
 body.desk-app .desk-video-compose-tl__cue {
@@ -754,7 +754,7 @@ body.desk-app .desk-video-compose-tl__snap span {
   border-radius: 4px;
   background: var(--desk-color-warning);
   color: var(--desk-status-warning-on-fill);
-  font-weight: 600;
+  font-weight: var(--desk-font-weight-semibold);
 }
 body.desk-app .desk-video-compose-tl__music .is-beat-marks {
   fill: var(--desk-color-text-primary);
@@ -768,7 +768,7 @@ body.desk-app .desk-video-compose-tl__music .is-ramp {
 }
 body.desk-app .desk-video-compose-tl__music span {
   color: var(--desk-color-accent);
-  font-weight: 500;
+  font-weight: var(--desk-font-weight-medium);
 }
 body.desk-app :is(.desk-video-compose-tl__playhead, .desk-video-compose-tl__playhead span) {
   background: var(--desk-video-frames-playhead);

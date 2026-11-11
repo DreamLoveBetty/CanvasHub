@@ -202,7 +202,7 @@ body.desk-app[data-theme] .desk-compare__label {
   overflow: hidden;
   padding: 6px 10px;
   color: var(--desk-compare-label-ink);
-  font-weight: 850;
+  font-weight: var(--desk-font-weight-semibold);
   text-overflow: ellipsis;
   white-space: nowrap;
   background: var(--desk-compare-label-background);
@@ -255,7 +255,7 @@ body.desk-app[data-theme] .desk-compare__section {
 body.desk-app[data-theme] .desk-compare__section p {
   margin: 0;
   color: var(--desk-compare-caption-ink);
-  font-weight: 850;
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 body.desk-app[data-theme] .desk-compare__section pre {
@@ -265,7 +265,7 @@ body.desk-app[data-theme] .desk-compare__section pre {
   overflow: auto;
   color: var(--desk-compare-value-ink);
   font-family: inherit;
-  font-weight: 650;
+  font-weight: var(--desk-font-weight-semibold);
   white-space: pre-wrap;
   word-break: break-word;
   background: var(--desk-compare-prompt-background);
@@ -298,7 +298,7 @@ body.desk-app[data-theme] .desk-compare__diff-row.is-different {
 body.desk-app[data-theme] .desk-compare__diff-row span {
   overflow: hidden;
   color: var(--desk-compare-row-label-ink);
-  font-weight: 850;
+  font-weight: var(--desk-font-weight-semibold);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -306,7 +306,7 @@ body.desk-app[data-theme] .desk-compare__diff-row span {
 body.desk-app[data-theme] .desk-compare__diff-row strong {
   overflow: hidden;
   color: var(--desk-compare-row-value-ink);
-  font-weight: 750;
+  font-weight: var(--desk-font-weight-semibold);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -316,7 +316,7 @@ body.desk-app[data-theme] .desk-compare__empty {
   min-height: 56px;
   place-items: center;
   color: var(--desk-compare-empty-ink);
-  font-size: 11px;
+  font-size: var(--desk-font-size-caption);
 }
 
 @media (max-width: 980px) {
@@ -363,10 +363,10 @@ body.desk-app .desk-compare__divider::after { content:""; position:absolute; ins
 body.desk-app .desk-compare__stage:focus-visible { outline:2px solid var(--desk-color-accent); outline-offset:-2px; }
 body.desk-app .desk-compare__stage:has(input[type="range"]:focus-visible) .desk-compare__divider::before { outline:3px solid var(--desk-color-accent); outline-offset:3px; }
 body.desk-app .desk-compare__tools { position:absolute; z-index:3; bottom:16px; left:50%; transform:translateX(-50%); display:flex; align-items:center; gap:6px; padding:6px 8px; max-width:calc(100% - 24px); box-sizing:border-box; border:1px solid var(--desk-node-stroke); border-radius:10px; background:var(--desk-compare-tools-background); box-shadow:var(--desk-compare-tools-shadow); color:var(--desk-node-ink); cursor:default; }
-body.desk-app .desk-compare__tools button { flex:none; min-width:32px; height:32px; padding:0 9px; border:1px solid var(--desk-color-border-faint); border-radius:7px; color:inherit; background:var(--desk-color-accent-soft); font-family:inherit; font-size:12px; font-weight:600; line-height:1; cursor:pointer; }
+body.desk-app .desk-compare__tools button { flex:none; min-width:32px; height:32px; padding:0 9px; border:1px solid var(--desk-color-border-faint); border-radius:7px; color:inherit; background:var(--desk-color-accent-soft); font-family:inherit; font-size:var(--desk-font-size-label); font-weight:var(--desk-font-weight-semibold); line-height:1; cursor:pointer; }
 body.desk-app .desk-compare__tools button:hover:not(:disabled) { background:var(--desk-compare-tools-button-hover); }
 body.desk-app .desk-compare__tools button:focus-visible { outline:2px solid var(--desk-color-accent); outline-offset:2px; }
 body.desk-app .desk-compare__tools button:disabled { opacity:.4; cursor:default; }
-body.desk-app .desk-compare__tools output { min-width:48px; text-align:center; font-size:12px; font-variant-numeric:tabular-nums; }
-body.desk-app .desk-compare__hint { font-size:11px; color:var(--desk-node-muted-ink); white-space:nowrap; padding:0 5px; }
+body.desk-app .desk-compare__tools output { min-width:48px; text-align:center; font-size:var(--desk-font-size-label); font-variant-numeric:tabular-nums; }
+body.desk-app .desk-compare__hint { font-size:var(--desk-font-size-caption); color:var(--desk-node-muted-ink); white-space:nowrap; padding:0 5px; }
 @media(max-width:1100px) { body.desk-app .desk-compare__hint { display:none; } }

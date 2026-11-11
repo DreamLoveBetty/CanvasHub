@@ -37,7 +37,7 @@
 .desk-app .desk-krea2__mode {
   min-width: 0;
   padding: 0 10px;
-  font-size: 12px;
+  font-size: var(--desk-font-size-label);
   text-overflow: ellipsis;
 }
 
@@ -54,15 +54,15 @@
 }
 
 .desk-app .desk-krea2__cache em {
-  font-size: 10px;
+  font-size: var(--desk-font-size-micro);
   white-space: nowrap;
 }
 
 .desk-app .desk-krea2__cache small {
   display: block;
   color: var(--desk-muted);
-  font-size: 9px;
-  font-weight: 500;
+  font-size: var(--desk-font-size-micro);
+  font-weight: var(--desk-font-weight-medium);
 }
 
 .desk-app .desk-krea2__grid--control[hidden] {
@@ -89,8 +89,8 @@
 .desk-app .desk-krea2__edit label > span,
 .desk-app .desk-krea2__lora label > span {
   color: var(--desk-muted);
-  font-size: 11px;
-  font-weight: 750;
+  font-size: var(--desk-font-size-caption);
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 .desk-app .desk-krea2__grid .desk-select-shell,
@@ -157,15 +157,15 @@
 
 .desk-app .desk-krea2__loras > header strong {
   color: var(--desk-ink);
-  font-size: 12px;
-  font-weight: 800;
+  font-size: var(--desk-font-size-label);
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 .desk-app .desk-krea2__loras > header small {
   overflow: hidden;
   color: var(--desk-muted);
-  font-size: 9px;
-  font-weight: 650;
+  font-size: var(--desk-font-size-micro);
+  font-weight: var(--desk-font-weight-semibold);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -178,8 +178,8 @@
   height: 18px;
   padding: 0 6px;
   color: var(--desk-color-info-ink, var(--desk-ink));
-  font-size: 9px;
-  font-weight: 800;
+  font-size: var(--desk-font-size-micro);
+  font-weight: var(--desk-font-weight-semibold);
   line-height: 1;
   background: var(--desk-color-control-bg);
   border: 1px solid var(--desk-color-control-border);
@@ -210,8 +210,8 @@
   min-height: 32px;
   padding: 4px 8px;
   color: var(--desk-muted);
-  font-size: 10px;
-  font-weight: 650;
+  font-size: var(--desk-font-size-micro);
+  font-weight: var(--desk-font-weight-semibold);
   text-align: center;
   background: var(--desk-color-control-bg);
   border: 1px dashed var(--desk-color-control-border);
@@ -234,8 +234,8 @@
 .desk-app .desk-krea2__lora strong {
   overflow: hidden;
   color: var(--desk-ink);
-  font-size: 10px;
-  font-weight: 750;
+  font-size: var(--desk-font-size-micro);
+  font-weight: var(--desk-font-weight-semibold);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -248,7 +248,7 @@
 
 .desk-app .desk-krea2__lora > button {
   padding: 0;
-  font-size: 14px;
+  font-size: var(--desk-font-size-body-strong);
   line-height: 1;
 }
 
@@ -335,15 +335,15 @@
 .desk-app .desk-krea2-tools__model span,
 .desk-app .desk-krea2-tools__inspection span {
   color: var(--desk-muted);
-  font-size: 9px;
-  font-weight: 700;
+  font-size: var(--desk-font-size-micro);
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 .desk-app .desk-krea2-tools__paths strong,
 .desk-app .desk-krea2-tools__model strong {
   overflow: hidden;
   color: var(--desk-ink);
-  font-size: 10px;
+  font-size: var(--desk-font-size-micro);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -369,7 +369,7 @@
 
 .desk-app .desk-krea2-tools__inspection strong {
   color: var(--desk-ink);
-  font-size: 10px;
+  font-size: var(--desk-font-size-micro);
 }
 
 .desk-app .desk-krea2-tools__inspection.is-warn,
@@ -389,7 +389,7 @@
   align-items: center;
   gap: 8px;
   color: var(--desk-muted);
-  font-size: 9px;
+  font-size: var(--desk-font-size-micro);
 }
 
 .desk-app .desk-krea2-tools__progress > div:first-child span {
@@ -419,7 +419,7 @@
 
 .desk-app .desk-krea2-tools__progress small {
   color: var(--desk-color-danger-ink);
-  font-size: 9px;
+  font-size: var(--desk-font-size-micro);
   line-height: 1.45;
 }
 
@@ -432,9 +432,9 @@
 
 .desk-app .desk-krea2-tools__model em {
   color: var(--desk-muted);
-  font-size: 9px;
+  font-size: var(--desk-font-size-micro);
   font-style: normal;
-  font-weight: 750;
+  font-weight: var(--desk-font-weight-semibold);
 }
 
 .desk-app .desk-krea2-tools__actions {
