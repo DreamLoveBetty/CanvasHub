@@ -87,11 +87,17 @@ body.desk-app[data-theme] .desk-titlebar-logo {
 }
 
 body.desk-app[data-theme] .desk-titlebar-logo__image {
-  display: block;
+  display: var(--desk-shell-logo-display);
   width: 100%;
   height: 100%;
   object-fit: contain;
   object-position: left center;
+}
+
+/* animated-dark.webp is the same animation with the black strokes and "Hub"
+   lettering turned light; the theme tokens show one copy or the other. */
+body.desk-app[data-theme] .desk-titlebar-logo__image--dark {
+  display: var(--desk-shell-logo-dark-display);
 }
 
 body.desk-app[data-theme] .desk-titlebar-actions {

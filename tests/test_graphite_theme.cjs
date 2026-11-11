@@ -26,7 +26,10 @@ test('links pick the facing sides of the two nodes, including top/bottom', () =>
   assert.deepEqual({ ...routes.get('e1'), from: 0, to: 0 }, { from: 0, to: 0, fromSide: 'right', toSide: 'left' });
   assert.equal(routes.get('e2').fromSide, 'bottom');
   assert.equal(routes.get('e2').toSide, 'top');
-  assert.equal(routes.get('e3').fromSide, 'left');
+  // A target to the left is never fed from the source's input side: the link turns to
+  // the bottom (level partner) instead, and enters the target off its output side too.
+  assert.equal(routes.get('e3').fromSide, 'bottom');
+  assert.equal(routes.get('e3').toSide, 'bottom');
   // Diagonal neighbours with room for a horizontal run keep left/right, even when the
   // vertical gap is larger (no pipe hugging the next node's top edge).
   const diagonal = { text: box(-500, -530, 600, 360), input: box(240, 100, 720, 460) };
@@ -36,6 +39,52 @@ test('links pick the facing sides of the two nodes, including top/bottom', () =>
   // Endpoints sit on the plate face, 9px outside the card edge.
   assert.equal(routes.get('e1').from.x, 300 + P.PLATE.depth);
   assert.equal(routes.get('e2').from.y, 200 + P.PLATE.depth);
+});
+
+test('however the nodes move, inputs stay off the output side and never merge with output plates', () => {
+  const P = loadPlates();
+  // The screenshot case: an image group feeding a model sits up and to the right of it,
+  // while the model also sends a result further right.
+  const nodes = { model: box(0, 0, 720, 460), group: box(900, -700, 360, 600), result: box(1100, 300, 300, 200) };
+  const edges = [{ id: 'ref', from: 'group', to: 'model' }, { id: 'out', from: 'model', to: 'result' }];
+  const { routes, ports } = P.layout(edges, id => nodes[id]);
+  assert.equal(routes.get('out').fromSide, 'right');
+  assert.notEqual(routes.get('ref').toSide, 'right', 'the incoming reference does not join the output plate');
+  assert.equal(routes.get('ref').toSide, 'top');
+  assert.notEqual(routes.get('ref').fromSide, 'left');
+  const r = ({ x, y, width, height }) => ({ x, y, w: width, h: height });
+  assert.deepEqual([...P.portSides(r(nodes.group), r(nodes.model))], ['bottom', 'top']);
+  assert.deepEqual([...P.facingSides(r(nodes.group), r(nodes.model))], ['left', 'right'], 'what plain facing would have picked');
+  const plates = ports.get('model');
+  assert.ok(plates.every(plate => plate.side !== 'right' || plate.incoming === 0));
+  // Sweep the upstream node all around the model: no incoming end ever on the right, no
+  // outgoing end ever on the left, for either node.
+  for (let angle = 0; angle < 360; angle += 15) {
+    const t = angle * Math.PI / 180;
+    const moved = { ...nodes, group: box(180 + Math.cos(t) * 1200, -70 + Math.sin(t) * 900, 360, 600) };
+    const laid = P.layout(edges, id => moved[id]).routes;
+    laid.forEach(route => {
+      assert.notEqual(route.toSide, 'right', `incoming on the output side at ${angle}°`);
+      assert.notEqual(route.fromSide, 'left', `outgoing on the input side at ${angle}°`);
+    });
+  }
+});
+
+test('an input and an output on the same top or bottom side get separate plates on separate halves', () => {
+  const P = loadPlates();
+  // Both partners sit straight below the model: the input arrives on its bottom, the output leaves from it.
+  const nodes = { model: box(0, 0, 720, 460), src: box(200, 900), dst: box(260, 900) };
+  const { routes, ports } = P.layout([
+    { id: 'in', from: 'src', to: 'model' },
+    { id: 'out', from: 'model', to: 'dst' },
+  ], id => nodes[id]);
+  assert.equal(routes.get('in').toSide, 'bottom');
+  assert.equal(routes.get('out').fromSide, 'bottom');
+  const bottom = ports.get('model').filter(plate => plate.side === 'bottom');
+  assert.equal(bottom.length, 2, 'two plates, not one merged plate');
+  const [input, output] = [bottom.find(p => p.incoming), bottom.find(p => !p.incoming)];
+  assert.ok(input.hit.x + input.hit.w <= output.hit.x, 'the input plate keeps to the left of the output plate');
+  assert.ok(routes.get('in').to.x < 360 && routes.get('out').from.x > 360);
 });
 
 test('ports sharing a side are spaced evenly on one merged plate and lean toward partners', () => {
@@ -91,13 +140,57 @@ test('a transient plate grows with the swell, stays clear of corners and the not
   assert.match(P.edgePlate(rect, 'bottom', 200, 0.5).path, /^M.* Z$/);
 });
 
+test('the hover plate travels round a corner without jumping and keeps its straight-side cross-section', () => {
+  const P = loadPlates();
+  const context = { window: {} };
+  vm.runInNewContext(read('frontend/scripts/desktop-canvas-port-geometry.js'), context);
+  const G = context.window.DesktopCanvasPortGeometry;
+  const geometry = G.buildFloatingSwellPerimeter(300, 200, 14);
+  const pointAt = s => G.floatingSwellPointAt(geometry, s).point;
+  // Walk the whole outline in 1px steps: the face never moves further than the outline does
+  // (plus the turn of the normal on a corner), and every corner is crossed on the way.
+  let previous = P.perimeterPlate(pointAt, 0).face, longest = 0;
+  for (let s = 1; s <= geometry.length; s += 1) {
+    const face = P.perimeterPlate(pointAt, s).face;
+    longest = Math.max(longest, Math.hypot(face.x - previous.x, face.y - previous.y));
+    previous = face;
+  }
+  assert.ok(longest < 1 + P.PLATE.depth / 14 + 0.01, `face hopped ${longest.toFixed(2)}px in one 1px step`);
+  // On a straight run it is the same plate edgePlate draws on that side.
+  const side = 14 + 150;
+  const located = pointAt(side);
+  assert.equal(located.ny, -1);
+  const straight = P.perimeterPlate(pointAt, side);
+  assert.deepEqual({ ...straight.face }, { x: located.x, y: -P.PLATE.depth });
+  const ys = [...straight.path.matchAll(/(-?[\d.]+),(-?[\d.]+)/g)].map(m => Number(m[2]));
+  assert.equal(Math.min(...ys), -P.PLATE.depth);
+  assert.equal(Math.max(...ys), 3, 'the plate closes 3px inside the card');
+  assert.equal(P.perimeterPlate(pointAt, 40, 0).path, '');
+});
+
+test('a travelling plate sinks into the card over the notch and comes back after it', () => {
+  const P = loadPlates();
+  const rect = { x: 0, y: 0, w: 720, h: 460 };
+  const range = P.edgeRange(rect, 'right', P.NOTCH);
+  assert.equal(P.notchFade(rect, null, 720, 450), 1);
+  assert.equal(P.notchFade(rect, P.NOTCH, 720, range.max), 1, 'full height wherever edgeRange still allows a port');
+  const half = P.notchFade(rect, P.NOTCH, 720, range.max + 8);
+  assert.ok(half > 0 && half < 1);
+  assert.equal(P.notchFade(rect, P.NOTCH, 720, range.max + 16), 0);
+  assert.equal(P.notchFade(rect, P.NOTCH, 650, 460), 0, 'gone along the notched bottom too');
+  assert.equal(P.notchFade(rect, P.NOTCH, 300, 460), 1);
+});
+
 test('graphite hover swell, drag preview and notch ring are wired through the injected plate module', () => {
   const ports = read('frontend/scripts/desktop-canvas-port-interaction.js');
-  assert.match(ports, /portPlates\.edgePlate\(/);
+  assert.match(ports, /portPlates\.perimeterPlate\(s => floatingSwellPointAt\(state\.geometry, s\)\.point, state\.position\.value, amount\)/);
+  assert.match(ports, /portPlates\.notchFade\(/);
+  assert.doesNotMatch(ports, /portPlates\.edgePlate\(/, 'the hover plate no longer parks at the side ends');
   assert.match(ports, /style === 'droplet' \|\| plate/);
   const connections = read('frontend/scripts/desktop-canvas-connections.js');
   assert.match(connections, /data-live-connection-plate/);
-  assert.match(connections, /snapPlate\?\.face/);
+  assert.match(connections, /const destination = previewRoute\?\.to \|\| /, 'a snapped drag ends on its future port');
+  assert.doesNotMatch(connections, /graphiteSnapPlate|snapPlate/, 'no separate plate at the pointer level any more');
   const canvas = read('frontend/scripts/desktop-canvas.js');
   assert.equal(canvas.match(/portPlates: window\.DesktopCanvasPortPlates/g).length, 2);
   assert.match(canvas, /'desktop:theme-style-change', refreshFloatingSwellStyle/);
@@ -106,6 +199,41 @@ test('graphite hover swell, drag preview and notch ring are wired through the in
   assert.match(css, /\.desk-node--comfy\) \{\n  --desk-node-border-width: 0px;/);
   assert.match(css, /\.desk-node-swell-border__paint \{\n  fill: var\(--desk-graphite-card\);/);
   assert.match(css, /\.desk-link-path:is\(\.is-preview, \.is-pending\) \{\n  stroke: var\(--desk-graphite-card\);\n  stroke-width: 8;/);
+});
+
+test('a snapped drag lands exactly where the made link will sit, making room on the shared plate', () => {
+  const P = loadPlates();
+  const nodes = { target: box(1200, 0, 720, 460), old: box(0, 700), dragged: box(0, -300), lone: box(0, 1400) };
+  const geometryOf = id => nodes[id];
+  const existing = [{ id: 'old', from: 'old', to: 'target' }];
+  const before = P.layout(existing, geometryOf);
+  const preview = P.layout([...existing, { id: 'p', from: 'dragged', to: 'target', toOnly: true }], geometryOf);
+  const made = P.layout([...existing, { id: 'new', from: 'dragged', to: 'target' }], geometryOf);
+  assert.deepEqual({ ...preview.routes.get('p').to }, { ...made.routes.get('new').to });
+  assert.deepEqual({ ...preview.routes.get('old').to }, { ...made.routes.get('old').to }, 'the old port already made room');
+  assert.notDeepEqual({ ...before.routes.get('old').to }, { ...preview.routes.get('old').to });
+  assert.equal(Math.abs(preview.routes.get('p').to.y - preview.routes.get('old').to.y), P.PORT_GAP, 'one shared plate');
+  // The dragged source grows nothing until the link is made (its swell is the source end).
+  assert.equal(preview.ports.has('dragged'), false);
+  assert.equal(made.ports.has('dragged'), true);
+  // A level partner still pulls a lone preview port straight, as it will once made.
+  const level = { target: box(1200, 0, 720, 460), side: box(0, 120) };
+  const levelOf = id => level[id];
+  assert.deepEqual(
+    { ...P.layout([{ id: 'p', from: 'side', to: 'target', toOnly: true }], levelOf).routes.get('p').to },
+    { ...P.layout([{ id: 'n', from: 'side', to: 'target' }], levelOf).routes.get('n').to });
+});
+
+test('a snapped drag joins the layout as a target-only preview link and gives the room back after', () => {
+  const connections = read('frontend/scripts/desktop-canvas-connections.js');
+  assert.match(connections, /\{ id: GRAPHITE_PREVIEW_EDGE_ID, \.\.\.graphitePreviewLink, toOnly: true \}/);
+  assert.match(connections, /const previewRoute = syncGraphitePreviewLink\(preview\.fromNodeId, snap\);/);
+  // Magnetic capture measures the input port's plate hit: it must not follow the preview,
+  // or making room would carry the target away from the pointer and drop the snap.
+  assert.match(connections, /if \(!graphitePreviewLink\) syncGraphitePortHits\(layout\.ports\);/);
+  assert.equal(connections.match(/syncGraphitePortHits\(layout\.ports\)/g).length, 1);
+  const clear = connections.slice(connections.indexOf('function clearLiveConnectionPreview'));
+  assert.match(clear.slice(0, 1200), /graphitePreviewLink = null;\n\s+scheduleGraphiteRefresh\(\);/);
 });
 
 test('self links and incomplete edges are ignored', () => {
@@ -269,7 +397,7 @@ test('pulling a link off a shared graphite plate detaches the grabbed link and k
   assert.match(connections, /Math\.hypot\(route\.to\.x - point\.x, route\.to\.y - point\.y\)/);
   // The preview leaves from the source plate face and draws that plate while dragging.
   assert.match(detach, /fromAnchor: graphiteSourcePlate\(sourcePlate\)\?\.face \|\| getAnchor/);
-  assert.match(connections, /syncLiveConnectionPlate\(svg, `\$\{sourcePlate\?\.path \|\| ''\}\$\{snapPlate\?\.path \|\| ''\}`\)/);
+  assert.match(connections, /syncLiveConnectionPlate\(svg, sourcePlate\?\.path \|\| ''\)/);
   assert.match(connections, /activeInteractionRef\.current\.fromAnchor,\n\s+activeInteractionRef\.current\.sourcePlate\n/);
 });
 
@@ -355,4 +483,67 @@ test('graphite restates the liquid-painted gallery keys, prompt library and draw
   assert.match(css, /\.desk-prompt-inspiration-preview pre\n\) \{\n  background: var\(--desk-graphite-inset\);/);
   assert.match(css, new RegExp(`${P} :is\\(\\n  \\.desk-prompt-drawer__body,\\n  \\.desk-prompt-drawer\\.is-open \\.desk-prompt-drawer__body\\n\\) \\{\\n  -webkit-backdrop-filter: none;\\n  backdrop-filter: none;`));
   assert.ok(!/!important/.test(css), 'graphite never needs !important');
+});
+
+function hexLuminance(hex) {
+  const channel = value => {
+    const v = parseInt(value, 16) / 255;
+    return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+  };
+  const h = hex.replace('#', '');
+  return 0.2126 * channel(h.slice(0, 2)) + 0.7152 * channel(h.slice(2, 4)) + 0.0722 * channel(h.slice(4, 6));
+}
+function contrast(a, b) {
+  const [x, y] = [hexLuminance(a), hexLuminance(b)];
+  return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
+}
+function graphiteTokens(css, dark) {
+  const head = dark
+    ? 'body.desk-app[data-desk-style="graphite"][data-theme="dark"] {'
+    : 'body.desk-app[data-desk-style="graphite"] {';
+  const start = css.indexOf(head);
+  const block = css.slice(start, css.indexOf('\n}', start));
+  return Object.fromEntries([...block.matchAll(/--desk-graphite-([\w-]+): (#[0-9a-f]{6});/g)].map(m => [m[1], m[2]]));
+}
+
+test('graphite secondary text stays readable on its card and inset surfaces; faint is kept for disabled', () => {
+  const css = read('frontend/styles/desktop-graphite.css');
+  for (const dark of [false, true]) {
+    const t = graphiteTokens(css, dark);
+    // Meta labels are 10-11px: at least 4:1 on the card and 3.9:1 on the inset well.
+    assert.ok(contrast(t.muted, t.card) >= 4.5, `muted on card (${dark ? 'dark' : 'light'})`);
+    assert.ok(contrast(t.muted, t.inset) >= 3.9, `muted on inset (${dark ? 'dark' : 'light'})`);
+    assert.ok(contrast(t['accent-ink'], t.card) >= 4.5, `status ok ink on card (${dark ? 'dark' : 'light'})`);
+    // Disabled and placeholder ink stays a step quieter than muted.
+    assert.ok(contrast(t.faint, t.card) < contrast(t.muted, t.card), 'faint is quieter than muted');
+  }
+  for (const token of ['--desk-color-text-placeholder', '--desk-color-text-disabled', '--desk-action-primary-disabled-ink', '--desk-node-manual-send-disabled-ink']) {
+    assert.match(css, new RegExp(`${token}: var\\(--desk-graphite-faint\\);`));
+  }
+  assert.match(css, /--desk-status-ok-ink: var\(--desk-graphite-accent-ink\);/);
+});
+
+test('the model badge paints from tokens, and graphite restates them in its accent', () => {
+  const liquid = read('frontend/styles/desktop-liquid.css');
+  const rule = liquid.match(/\.desk-gpt-model-caption small \{[^}]*\}/)[0];
+  assert.match(rule, /color: var\(--desk-model-badge-ink\);/);
+  assert.match(rule, /background: var\(--desk-model-badge-background\);/);
+  assert.ok(!/#[0-9a-f]{3,6}|rgba\(/i.test(rule), 'no literal colours in the badge rule');
+  assert.ok(!/data-theme="dark"\] \.desk-gpt-model-caption small/.test(liquid), 'dark set lives in the tokens');
+  const tokens = read('frontend/styles/desktop-tokens.css');
+  assert.equal((tokens.match(/--desk-model-badge-ink: /g) || []).length, 2, 'light and dark token sets');
+  assert.match(read('frontend/styles/desktop-graphite.css'), /--desk-model-badge-ink: var\(--desk-graphite-accent-ink\);/);
+});
+
+test('graphite gives the gallery audio cards neutral surfaces and the teal accent', () => {
+  const css = read('frontend/styles/desktop-graphite.css');
+  const light = css.match(/body\.desk-app\[data-desk-style="graphite"\] \.desk-gallery-audio \{[^}]*\}/)[0];
+  const dark = css.match(/body\.desk-app\[data-desk-style="graphite"\]\[data-theme="dark"\] \.desk-gallery-audio \{[^}]*\}/)[0];
+  assert.match(light, /--desk-gallery-audio-surface: var\(--desk-graphite-card\);/);
+  assert.match(light, /--desk-gallery-audio-accent: var\(--desk-graphite-accent\);/);
+  assert.match(dark, /--desk-gallery-audio-on-accent: #[0-9a-f]{6};/);
+  // The play key's shading follows the accent instead of a literal orange-brown.
+  const audio = read('frontend/styles/desktop-gallery-audio.css');
+  assert.ok(!/rgba\(120, 32, 0/.test(audio));
+  assert.match(audio, /--desk-gallery-audio-accent-shade: #782000;/);
 });

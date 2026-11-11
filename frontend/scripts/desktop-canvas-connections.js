@@ -56,6 +56,7 @@
     makeClassicCurvePath,
     makeSmoothStepPath,
     portPlates,
+    linkFlow,
     nodeMenuButtonHtml,
     normalizePortSide,
     oppositePortSide,
@@ -483,6 +484,11 @@
     let graphiteMotion = portPlates?.createMotion() || null;
     let graphiteFrame = 0;
     let graphiteRoutes = new Map();
+    // While a dragged link is snapped onto a target it joins the layout as a target-only
+    // preview edge: that side's ports make room and the link lands on the shared plate,
+    // exactly where it stays once it is made.
+    const GRAPHITE_PREVIEW_EDGE_ID = '__desk-connection-preview__';
+    let graphitePreviewLink = null;
     function graphitePortLayout(edges) {
     if (!isGraphite()) {
       if (graphiteMotion?.time) graphiteMotion = portPlates.createMotion();
@@ -491,17 +497,27 @@
       return null;
     }
     const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-    const layout = portPlates.layout(edges, getNodeGeometry, graphiteNotch,
+    const laidOut = graphitePreviewLink
+      ? [...edges, { id: GRAPHITE_PREVIEW_EDGE_ID, ...graphitePreviewLink, toOnly: true }]
+      : edges;
+    const layout = portPlates.layout(laidOut, getNodeGeometry, graphiteNotch,
       reduceMotion ? null : graphiteMotion, performance.now());
-    syncGraphitePortHits(layout.ports);
+    // The input port's plate hit is what magnetic capture measures, so it stays put while
+    // a preview link is laid out; otherwise making room would move the target out from
+    // under the pointer and drop the snap that caused it. It catches up once the link is
+    // made or the drag ends.
+    if (!graphitePreviewLink) syncGraphitePortHits(layout.ports);
     graphiteRoutes = layout.routes;
-    if (!layout.settled && !graphiteFrame) {
-      graphiteFrame = requestAnimationFrame(() => {
-        graphiteFrame = 0;
-        refreshGraphiteGeometry();
-      });
-    }
+    if (!layout.settled) scheduleGraphiteRefresh();
     return layout;
+  }
+
+    function scheduleGraphiteRefresh() {
+    if (graphiteFrame) return;
+    graphiteFrame = requestAnimationFrame(() => {
+      graphiteFrame = 0;
+      refreshGraphiteGeometry();
+    });
   }
 
     // A settled input port is the pointer target for pulling a link off; in graphite it
@@ -527,13 +543,15 @@
     });
   }
 
-    // While dragging a link onto a target, its facing side grows a plate and the
-    // pipe ends on the plate face instead of the bare card edge.
-    function graphiteSnapPlate(snap, side, from) {
-    if (!isGraphite()) return null;
-    const g = getNodeGeometry(snap.nodeId);
-    const along = side === 'left' || side === 'right' ? from.y : from.x;
-    return portPlates.edgePlate({ x: g.x, y: g.y, w: g.width, h: g.height }, side, along, 1, graphiteNotch(snap.nodeId));
+    // Snapping (or leaving) a target re-lays the plates once; the slide that follows runs
+    // on the layout's own frame loop. Returns the preview link's route while snapped.
+    function syncGraphitePreviewLink(fromNodeId, snap) {
+    const next = snap && isGraphite() ? { from: fromNodeId, to: snap.nodeId } : null;
+    if (next?.from !== graphitePreviewLink?.from || next?.to !== graphitePreviewLink?.to) {
+      graphitePreviewLink = next;
+      refreshGraphiteGeometry();
+    }
+    return graphitePreviewLink ? graphiteRoutes.get(GRAPHITE_PREVIEW_EDGE_ID) || null : null;
   }
 
     // A link pulled off its target keeps leaving from the plate it had on its source.
@@ -582,6 +600,7 @@
       const safeEdgeId = escapeHtml(edge.id);
       return `
         <path class="desk-link-path${relatedClass}${negativeClass}${selectedClass}${hoveredClass}" data-edge-id="${safeEdgeId}" d="${d}"></path>
+        ${linkFlow?.overlayMarkup(edge, d, escapeHtml) || ''}
         <path class="desk-link-hit desk-link-interaction${selectedClass}" data-edge-id="${safeEdgeId}" data-edge-interaction d="${d}"></path>
       `;
     }).join('');
@@ -745,20 +764,20 @@
       const normalizedFromSide = normalizePortSide(preview.fromSide, 'right');
       const sourceGeometry = getNodeGeometry(preview.fromNodeId);
       const snap = connectionSnapTarget;
-      const toSide = snap?.side || oppositePortSide(dominantPortSide(
+      const previewRoute = syncGraphitePreviewLink(preview.fromNodeId, snap);
+      const toSide = previewRoute?.toSide || snap?.side || oppositePortSide(dominantPortSide(
         { x: sourceGeometry.centerX, y: sourceGeometry.centerY },
         preview.pointer
       ));
       const from = preview.fromAnchor || getAnchor(preview.fromNodeId, normalizedFromSide);
-      const snapPlate = snap ? graphiteSnapPlate(snap, toSide, from) : null;
-      const destination = snapPlate?.face || (snap ? getAnchor(snap.nodeId, toSide) : preview.pointer);
+      const destination = previewRoute?.to || (snap ? getAnchor(snap.nodeId, toSide) : preview.pointer);
       const d = makeConnectionPath(from, destination, normalizedFromSide, toSide, {
         fromGeometry: sourceGeometry,
         ...(snap ? { toGeometry: getNodeGeometry(snap.nodeId) } : {})
       });
       ensureLiveConnectionPreviewPath(svg)?.setAttribute('d', d);
       const sourcePlate = graphiteSourcePlate(preview.sourcePlate);
-      syncLiveConnectionPlate(svg, `${sourcePlate?.path || ''}${snapPlate?.path || ''}`);
+      syncLiveConnectionPlate(svg, sourcePlate?.path || '');
     }
   }
 
@@ -791,6 +810,13 @@
     connectionSnapTarget = null;
     clearConnectionProximity?.();
     document.querySelectorAll('.desk-link-layer :is([data-live-connection-preview], [data-live-connection-plate])').forEach(path => path.remove());
+    // A made link takes over the preview's port in the same layout pass; a cancelled one
+    // gives the room back. Re-laying out next frame, not now, keeps the ports from
+    // stepping back toward the old layout in between.
+    if (graphitePreviewLink) {
+      graphitePreviewLink = null;
+      scheduleGraphiteRefresh();
+    }
   }
 
     function renderConnectionPreview(fromNodeId, pointer, fromSide = 'right', fromAnchor = null, sourcePlate = null) {

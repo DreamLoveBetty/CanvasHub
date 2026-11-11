@@ -17,13 +17,15 @@ body.desk-app[data-desk-style="graphite"] {
   --desk-graphite-model: #d24f2f;
   --desk-graphite-popover-shadow: 0 1px 0 rgba(20, 20, 18, 0.04), 0 12px 28px -12px rgba(20, 20, 18, 0.28);
   --desk-graphite-ink: #262624;
-  --desk-graphite-muted: #92928c;
+  --desk-graphite-muted: #6b6b66;
+  --desk-graphite-faint: #92928c;
   --desk-graphite-dot: rgba(38, 38, 36, 0.13);
   --desk-graphite-line: rgba(38, 38, 36, 0.08);
   --desk-graphite-primary: #262624;
   --desk-graphite-primary-hover: #3a3a37;
   --desk-graphite-primary-ink: #fafaf8;
   --desk-graphite-accent: #1f8f7c;
+  --desk-graphite-accent-ink: #17786a;
   --desk-graphite-accent-soft: rgba(31, 143, 124, 0.14);
   --desk-graphite-lift: 0 10px 24px -14px rgba(20, 20, 18, 0.28);
 
@@ -36,6 +38,8 @@ body.desk-app[data-desk-style="graphite"] {
   --desk-canvas-surface-background-size: var(--canvas-grid-size, 20px) var(--canvas-grid-size, 20px);
   --desk-canvas-selection-stroke: var(--desk-graphite-accent);
   --desk-canvas-flow-solid: var(--desk-graphite-accent);
+  /* The frame picker's timeline is dark in every theme; the ink accent would vanish on it. */
+  --desk-video-frames-pin: var(--desk-graphite-accent);
   --desk-canvas-flow-soft: var(--desk-graphite-accent-soft);
   --desk-canvas-flow-border-soft: var(--desk-graphite-accent-soft);
 
@@ -54,7 +58,7 @@ body.desk-app[data-desk-style="graphite"] {
   --desk-node-text-shadow: none;
 
   /* Media and file empty states: card wells, inset chips, no frost or glow. */
-  --desk-node-image-placeholder-ink: var(--desk-graphite-muted);
+  --desk-node-image-placeholder-ink: var(--desk-graphite-faint);
   --desk-node-image-placeholder-title-ink: var(--desk-graphite-ink);
   --desk-node-image-placeholder-background: var(--desk-graphite-card);
   --desk-node-image-placeholder-border: transparent;
@@ -87,7 +91,7 @@ body.desk-app[data-desk-style="graphite"] {
   --desk-file-card-shadow: none;
   --desk-file-empty-icon-halo: none;
   --desk-file-empty-back-fill: var(--desk-graphite-chip);
-  --desk-file-empty-back-stroke: var(--desk-graphite-muted);
+  --desk-file-empty-back-stroke: var(--desk-graphite-faint);
   --desk-file-empty-front-fill: var(--desk-graphite-card);
   --desk-file-type-background: var(--desk-graphite-card);
   --desk-file-type-border: transparent;
@@ -103,13 +107,15 @@ body.desk-app[data-desk-style="graphite"][data-theme="dark"] {
   --desk-graphite-model: #ee6a4b;
   --desk-graphite-popover-shadow: 0 1px 0 rgba(0, 0, 0, 0.2), 0 14px 30px -14px rgba(0, 0, 0, 0.6);
   --desk-graphite-ink: #ececec;
-  --desk-graphite-muted: #8b8b8b;
+  --desk-graphite-muted: #a3a3a3;
+  --desk-graphite-faint: #8b8b8b;
   --desk-graphite-dot: rgba(236, 236, 236, 0.08);
   --desk-graphite-line: rgba(236, 236, 236, 0.08);
   --desk-graphite-primary: #e6e6e6;
   --desk-graphite-primary-hover: #ffffff;
   --desk-graphite-primary-ink: #232323;
   --desk-graphite-accent: #5ec4b0;
+  --desk-graphite-accent-ink: #5ec4b0;
   --desk-graphite-accent-soft: rgba(94, 196, 176, 0.18);
   --desk-graphite-lift: 0 10px 24px -14px rgba(0, 0, 0, 0.6);
 
@@ -140,7 +146,7 @@ body.desk-app[data-desk-style="graphite"][data-theme="dark"] {
   --desk-node-text-shadow: none;
 
   /* Media and file empty states: card wells, inset chips, no frost or glow. */
-  --desk-node-image-placeholder-ink: var(--desk-graphite-muted);
+  --desk-node-image-placeholder-ink: var(--desk-graphite-faint);
   --desk-node-image-placeholder-title-ink: var(--desk-graphite-ink);
   --desk-node-image-placeholder-background: var(--desk-graphite-card);
   --desk-node-image-placeholder-border: transparent;
@@ -173,7 +179,7 @@ body.desk-app[data-desk-style="graphite"][data-theme="dark"] {
   --desk-file-card-shadow: none;
   --desk-file-empty-icon-halo: none;
   --desk-file-empty-back-fill: var(--desk-graphite-chip);
-  --desk-file-empty-back-stroke: var(--desk-graphite-muted);
+  --desk-file-empty-back-stroke: var(--desk-graphite-faint);
   --desk-file-empty-front-fill: var(--desk-graphite-card);
   --desk-file-type-background: var(--desk-graphite-card);
   --desk-file-type-border: transparent;
@@ -196,8 +202,8 @@ body.desk-app[data-desk-style="graphite"][data-theme] {
   --desk-color-bg-canvas: var(--desk-graphite-canvas);
   --desk-color-text-primary: var(--desk-graphite-ink);
   --desk-color-text-secondary: var(--desk-graphite-ink-2);
-  --desk-color-text-placeholder: var(--desk-graphite-muted);
-  --desk-color-text-disabled: var(--desk-graphite-muted);
+  --desk-color-text-placeholder: var(--desk-graphite-faint);
+  --desk-color-text-disabled: var(--desk-graphite-faint);
   --desk-color-border-faint: var(--desk-graphite-line);
   --desk-color-border-glass: transparent;
   --desk-color-border-subtle: var(--desk-graphite-line);
@@ -244,7 +250,7 @@ body.desk-app[data-desk-style="graphite"][data-theme] {
   --desk-action-primary-edge-lowlight: transparent;
   --desk-action-primary-edge-lowlight-hover: transparent;
   --desk-action-primary-disabled: var(--desk-graphite-chip);
-  --desk-action-primary-disabled-ink: var(--desk-graphite-muted);
+  --desk-action-primary-disabled-ink: var(--desk-graphite-faint);
   --desk-action-primary-disabled-border: transparent;
   --desk-action-primary-gradient-disabled: linear-gradient(var(--desk-graphite-chip), var(--desk-graphite-chip));
   --desk-jewel: var(--desk-graphite-primary);
@@ -551,7 +557,10 @@ body.desk-app[data-desk-style="graphite"][data-theme] {
   --desk-status-chip-border: transparent;
   --desk-status-chip-shadow: none;
   --desk-status-checking-ink: var(--desk-graphite-muted);
-  --desk-status-ok-ink: var(--desk-graphite-accent);
+  --desk-status-ok-ink: var(--desk-graphite-accent-ink);
+  --desk-model-badge-ink: var(--desk-graphite-accent-ink);
+  --desk-model-badge-background: var(--desk-graphite-accent-soft);
+  --desk-model-badge-border: transparent;
   --desk-status-ok-background: var(--desk-graphite-inset);
   --desk-status-ok-border: transparent;
   --desk-status-ok-shadow: none;
@@ -619,7 +628,7 @@ body.desk-app[data-desk-style="graphite"][data-theme] {
   --desk-gallery-toolbar-background: var(--desk-graphite-inset);
   --desk-gallery-toolbar-border: transparent;
   --desk-gallery-toolbar-shadow: none;
-  --desk-gallery-field-placeholder-ink: var(--desk-graphite-muted);
+  --desk-gallery-field-placeholder-ink: var(--desk-graphite-faint);
   --desk-gallery-native-option-ink: var(--desk-graphite-ink);
   --desk-gallery-native-option-background: var(--desk-graphite-card);
   --desk-gallery-asset-background: var(--desk-graphite-card);
@@ -1085,7 +1094,7 @@ body.desk-app[data-desk-style="graphite"][data-theme] {
   .desk-gallery-card__favorite[aria-pressed="true"],
   .desk-gallery-card__download.is-cached
 ):disabled {
-  color: var(--desk-graphite-muted);
+  color: var(--desk-graphite-faint);
   background: var(--desk-graphite-inset);
   border-color: transparent;
   box-shadow: none;
@@ -1586,7 +1595,7 @@ body.desk-app[data-desk-style="graphite"][data-theme] .desk-prompt-drawer__handl
 
 /* Canvas-only control states. */
 body.desk-app[data-desk-style="graphite"] .desk-canvas {
-  --desk-node-manual-send-disabled-ink: var(--desk-graphite-muted);
+  --desk-node-manual-send-disabled-ink: var(--desk-graphite-faint);
   --desk-node-manual-send-disabled-background: var(--desk-graphite-inset);
   --desk-node-manual-send-disabled-border: transparent;
   --desk-node-manual-send-disabled-shadow: none;
@@ -1693,6 +1702,21 @@ body.desk-app[data-desk-style="graphite"] .desk-link-path:is(.is-preview, .is-pe
 body.desk-app[data-desk-style="graphite"] .desk-link-hit {
   stroke-width: 12;
   vector-effect: none;
+}
+
+/* Running links: an accent dash line down the middle of the 8px pipe, scaling with zoom
+   like the pipe itself. Same 14px period as the classic flow. */
+body.desk-app[data-desk-style="graphite"] .desk-link-flow {
+  stroke-width: 2.5;
+  stroke-linecap: butt;
+  stroke-dasharray: 6 8;
+  vector-effect: none;
+  filter: none;
+}
+
+/* A hovered or selected pipe turns accent, so its flow switches to the card colour. */
+body.desk-app[data-desk-style="graphite"] .desk-link-path:is(.is-hovered, .is-selected) + .desk-link-flow {
+  stroke: var(--desk-graphite-card);
 }
 
 .desk-port-plates {
@@ -1815,6 +1839,35 @@ body.desk-app[data-desk-style="graphite"] .desk-canvas .desk-node--audio {
   background: var(--desk-audio-face);
 }
 
+/* Gallery audio cards keep their raised build on neutral graphite surfaces, with the teal
+   accent in place of the classic orange; in dark the key is light teal under dark ink, like
+   graphite's light primary buttons. */
+body.desk-app[data-desk-style="graphite"] .desk-gallery-audio {
+  --desk-gallery-audio-surface: var(--desk-graphite-card);
+  --desk-gallery-audio-sheen: #ffffff;
+  --desk-gallery-audio-shade: #f1f1ee;
+  --desk-gallery-audio-edge: var(--desk-graphite-line);
+  --desk-gallery-audio-drop-near: rgba(20, 20, 18, 0.08);
+  --desk-gallery-audio-drop-far: rgba(20, 20, 18, 0.2);
+  --desk-gallery-audio-well: rgba(38, 38, 36, 0.045);
+  --desk-gallery-audio-accent: var(--desk-graphite-accent);
+  --desk-gallery-audio-accent-light: #3fb39d;
+  --desk-gallery-audio-accent-deep: #16705f;
+  --desk-gallery-audio-accent-shade: #08342c;
+}
+
+body.desk-app[data-desk-style="graphite"][data-theme="dark"] .desk-gallery-audio {
+  --desk-gallery-audio-sheen: #3f3f3f;
+  --desk-gallery-audio-shade: #323232;
+  --desk-gallery-audio-drop-near: rgba(0, 0, 0, 0.3);
+  --desk-gallery-audio-drop-far: rgba(0, 0, 0, 0.55);
+  --desk-gallery-audio-well: rgba(0, 0, 0, 0.22);
+  --desk-gallery-audio-accent-light: #86dccb;
+  --desk-gallery-audio-accent-deep: #3fa592;
+  --desk-gallery-audio-accent-shade: #0b2e27;
+  --desk-gallery-audio-on-accent: #12332c;
+}
+
 body.desk-app[data-desk-style="graphite"] .desk-canvas .desk-node--audio .desk-audio__display {
   background: #1c1c1b;
   border-color: transparent;
@@ -1869,4 +1922,11 @@ body.desk-app[data-desk-style="graphite"] .desk-theme-reveal-overlay[data-theme=
 
 body.desk-app[data-desk-style="graphite"] .desk-theme-reveal-overlay[data-theme="dark"]::before {
   background: radial-gradient(circle, rgba(236, 236, 236, 0.08) 1px, transparent 1.2px) 0 0 / 20px 20px repeat;
+}
+
+/* Compose workbench segmented choices: graphite maps accent-soft to inset-hover and accent to ink,
+   which leaves a pressed choice indistinguishable on the inset track; fill it like other pressed buttons. */
+body.desk-app[data-desk-style="graphite"] .desk-video-compose-bench .desk-video-compose-bench__seg button[aria-pressed="true"] {
+  color: var(--desk-graphite-primary-ink);
+  background: var(--desk-graphite-primary);
 }

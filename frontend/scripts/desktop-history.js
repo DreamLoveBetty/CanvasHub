@@ -3,6 +3,7 @@
   let lastHistoryDragAt = 0;
   let galleryView = 'images';
   let loraGallery = null;
+  let audioGallery = null;
   let galleryFilter = 'all';
   let galleryQuery = '';
   let galleryTag = '';
@@ -35,6 +36,7 @@
   let previewLineageItems = [];
   let previewEditableFile = null;
   let lastDeleteBatchIds = [];
+  let lastDeleteCount = 0;
   const remoteImageChoice = new Map();
   const selectedGalleryIds = new Set();
   const GALLERY_ASSET_LOAD_LIMIT = 5000;
@@ -1154,6 +1156,7 @@
     if (type.startsWith('moss') || provider.startsWith('moss')) return 'moss';
     if (type.includes('pinterest') || itemOrType?.provider === 'pinterest') return 'pinterest';
     if (type === 'topaz' || itemOrType?.provider === 'topaz') return 'topaz';
+    if (type.startsWith('video_frame') || provider === 'video_frame') return 'video_frame';
     if (type.startsWith('gpt')) return 'gpt';
     if (type === 'comfy') return 'comfy';
     if (type.includes('layout')) return 'layout';
@@ -1170,7 +1173,8 @@
       google: 'Google',
       comfy: 'Comfy',
       layout: '排版',
-      pinterest: 'Pinterest'
+      pinterest: 'Pinterest',
+      video_frame: '视频抽帧'
     }[providerGroup(itemOrType)] || '图片';
   }
 
@@ -3445,7 +3449,7 @@
     clearGalleryHoverState(els.deskGalleryGrid.querySelector('[data-prompt-source-scroll]'));
     disposeGalleryVirtualContainer(els.deskGalleryGrid.querySelector('[data-prompt-source-scroll]'));
     invalidateGalleryVirtualData();
-    if (!['images', 'videos', 'sets', 'setDetail', 'sources', 'files', 'pinterest', 'loras'].includes(galleryView)) galleryView = 'images';
+    if (!['images', 'videos', 'audio', 'sets', 'setDetail', 'sources', 'files', 'pinterest', 'loras'].includes(galleryView)) galleryView = 'images';
     document.querySelectorAll('[data-gallery-view]').forEach(button => {
       const view = button.dataset.galleryView;
       const isActive = view === galleryView || (galleryView === 'setDetail' && view === 'sets');
@@ -3455,6 +3459,8 @@
       if (isActive && button.id) els.deskGalleryGrid.setAttribute('aria-labelledby', button.id);
     });
     els.deskGalleryPanel?.classList.toggle('desk-gallery--loras', galleryView === 'loras');
+    els.deskGalleryPanel?.classList.toggle('desk-gallery--audio', galleryView === 'audio');
+    if (galleryView !== 'audio') audioGallery?.unmount();
     // Video actions live on each expanded video, so the selection basket is not shown there.
     els.deskGalleryPanel?.classList.toggle('desk-gallery--videos', galleryView === 'videos');
     if (galleryView === 'loras') {
@@ -3469,6 +3475,15 @@
     }
     loraGallery?.unmount();
     galleryVideoFolder.renderSourceSwitch();
+    // The audio page owns its toolbar, list and player inside the grid, like LoRA.
+    if (galleryView === 'audio') {
+      ['is-prompt-sources', 'is-video-assets', 'is-file-assets', 'is-pinterest'].forEach(name => els.deskGalleryGrid.classList.remove(name));
+      if (!audioGallery?.mounted()) {
+        resetGalleryVirtualContent(els.deskGalleryGrid);
+        audioGallery?.mount(els.deskGalleryGrid);
+      }
+      return;
+    }
     if (els.deskGalleryFilterSelect) els.deskGalleryFilterSelect.value = galleryFilter;
     if (els.deskGalleryTagInput && els.deskGalleryTagInput.value !== galleryTag) els.deskGalleryTagInput.value = galleryTag;
     const isSimpleMediaView = ['pinterest', 'videos'].includes(galleryView);
@@ -3500,8 +3515,19 @@
     else renderGalleryImages();
   }
 
+  // Undo exists only while the last image delete can still be restored; otherwise the
+  // danger row is the delete button alone. Other views keep their own undo.
+  function syncUndoDeleteButton(available = true) {
+    const button = els.deskGalleryUndoDeleteBtn;
+    if (!button) return;
+    const show = available && lastDeleteBatchIds.length > 0;
+    button.hidden = !show;
+    button.disabled = !show;
+    button.title = lastDeleteCount ? `恢复刚删除的 ${lastDeleteCount} 张图片` : '恢复上一次删除的文件';
+  }
+
   function renderGallerySelection() {
-    if (galleryView === 'loras') return;
+    if (galleryView === 'loras' || galleryView === 'audio') return;
     if (galleryView === 'videos') {
       const count = galleryVideoFolder.visibleVideos().length;
       if (els.deskGallerySelectedCount) els.deskGallerySelectedCount.textContent = `${count} 个`;
@@ -3516,11 +3542,11 @@
         els.deskGalleryTagBtn,
         els.deskGalleryHideBtn,
         els.deskGalleryDeleteBtn,
-        els.deskGalleryUndoDeleteBtn,
         els.deskGalleryClearBtn
       ].forEach(button => {
         if (button) button.disabled = true;
       });
+      syncUndoDeleteButton(false);
       return;
     }
     if (galleryView === 'files') {
@@ -3536,11 +3562,11 @@
         els.deskGalleryTagBtn,
         els.deskGalleryHideBtn,
         els.deskGalleryDeleteBtn,
-        els.deskGalleryUndoDeleteBtn,
         els.deskGalleryClearBtn
       ].forEach(button => {
         if (button) button.disabled = true;
       });
+      syncUndoDeleteButton(false);
       return;
     }
     const selected = getSelectedAssets();
@@ -3579,7 +3605,7 @@
       els.deskGalleryHideBtn.textContent = selected.length && selected.every(asset => asset.hidden) ? '取消隐藏' : '隐藏';
     }
     if (els.deskGalleryDeleteBtn) els.deskGalleryDeleteBtn.disabled = !selected.length || hasRemote;
-    if (els.deskGalleryUndoDeleteBtn) els.deskGalleryUndoDeleteBtn.disabled = !lastDeleteBatchIds.length;
+    syncUndoDeleteButton();
     if (els.deskGalleryClearBtn) els.deskGalleryClearBtn.disabled = !selected.length;
   }
 
@@ -4059,6 +4085,8 @@
   // options.rendered: renderGallery() has just drawn the current view (tab switch).
   function refreshGalleryAssets(options = {}) {
     if (galleryView === 'loras') return loraGallery?.refresh();
+    // Mounting the audio page (tab switch) already loads it.
+    if (galleryView === 'audio') return options.rendered ? undefined : audioGallery?.refresh();
     resetGalleryRenderLimit();
     if (galleryView === 'images') {
       loadGalleryAssets().catch(error => DesktopResults.showError(error));
@@ -4088,6 +4116,8 @@
     // 首屏只等当前视图的数据；其余数据集延后到空闲时段加载，避免和关键请求争抢后端
     const primaryLoaders = {
       loras: () => loraGallery?.refresh(),
+      // renderGallery() above mounted the audio page, which loads its own list.
+      audio: () => null,
       images: loadGalleryAssets,
       videos: galleryVideoFolder.load,
       sets: loadGallerySets,
@@ -4103,7 +4133,7 @@
     if (primaryKey !== 'files') deferredLoads.push(loadGalleryFiles);
     if (primaryKey !== 'sources') deferredLoads.push(galleryPromptSources.load);
     // LoRA has its own catalog lifecycle; opening it need not scan image history.
-    if (primaryKey === 'loras') deferredLoads.length = 0;
+    if (primaryKey === 'loras' || primaryKey === 'audio') deferredLoads.length = 0;
     const scheduleIdle = typeof window.requestIdleCallback === 'function'
       ? callback => window.requestIdleCallback(callback, { timeout: 1500 })
       : callback => window.setTimeout(callback, 600);
@@ -4124,6 +4154,7 @@
 
   function closeGallery() {
     if (loraGallery?.dispose() === false) return;
+    audioGallery?.unmount();
     galleryPinterest.closeAnalysisModal({ restoreFocus: false });
     galleryPinterest.closeSplitModal({ restoreFocus: false, force: true });
     els.deskGalleryGrid?.querySelectorAll('.desk-gallery-video-detail video').forEach(video => video.pause?.());
@@ -4433,6 +4464,7 @@
       const batchId = result.delete_batch_id || result.undo_id || '';
       if (batchId) batchIds.push(batchId);
       lastDeleteBatchIds = batchIds;
+      lastDeleteCount = deletedIds.length;
       removeAssetsFromGalleryState(deletedIds);
       await Promise.all([
         loadHistory(80),
@@ -4444,7 +4476,10 @@
       galleryMessage(deletedIds.length > 1 ? `${deletedIds.length} 张图片已移入废纸篓，可撤销${suffix}。` : `图片和提示词已移入废纸篓，可撤销${suffix}。`);
     } catch (error) {
       if (deletedIds.length) removeAssetsFromGalleryState(deletedIds);
-      if (batchIds.length) lastDeleteBatchIds = batchIds;
+      if (batchIds.length) {
+        lastDeleteBatchIds = batchIds;
+        lastDeleteCount = deletedIds.length;
+      }
       galleryError(error, '删除图片失败');
     } finally {
       if (button && canSetButtonText && originalText) button.textContent = originalText;
@@ -4564,6 +4599,7 @@
       const result = await DesktopApi.undoAssetDelete(lastDeleteBatchIds);
       if (!result?.ok) throw new Error(result?.error || result?.errors?.join('；') || '撤销失败');
       lastDeleteBatchIds = [];
+      lastDeleteCount = 0;
       await Promise.all([
         loadHistory(80),
         loadGalleryAssets(),
@@ -4710,6 +4746,7 @@
 
     els.deskGalleryRefreshBtn?.addEventListener('click', () => {
       if (galleryView === 'loras') { loraGallery?.refresh(true); return; }
+      if (galleryView === 'audio') { audioGallery?.refresh(); return; }
       if (galleryView === 'sources') {
         galleryPromptSources.refresh().catch(error => DesktopResults.showError(error));
         return;
@@ -4923,6 +4960,23 @@
       triggerTargets: (...args) => DesktopCanvas.listLoRATextTargets(...args),
       insertTriggers: (...args) => DesktopCanvas.insertLoRATriggers(...args),
       notify: message => DesktopResults.showTransientMessage(message)
+    });
+    audioGallery = window.DesktopGalleryAudio.create({
+      api: {
+        listAudioAssets: options => DesktopApi.listAudioAssets(options),
+        deleteAudioAssets: paths => DesktopApi.deleteAudioAssets(paths),
+        getAudioAssetBlob: url => DesktopApi.getAudioAssetBlob(url),
+        getAudioPeaks: path => DesktopApi.getAudioPeaks(path),
+        getUnarchivedAudio: () => DesktopApi.getUnarchivedAudio(),
+        archiveExistingAudio: () => DesktopApi.archiveExistingAudio(),
+        undoAssetDelete: ids => DesktopApi.undoAssetDelete(ids)
+      },
+      sendToCanvas: result => DesktopCanvas.createAudioNodeFromAsset(result),
+      closeGallery,
+      notify: message => DesktopResults.showTransientMessage(message),
+      showError: error => DesktopResults.showError(error),
+      copyText: copyPinterestSplitText,
+      escapeHtml, formatFileSize, formatTime
     });
     compareViewport?.destroy();
     compareViewport = window.DesktopCompareViewport.create({

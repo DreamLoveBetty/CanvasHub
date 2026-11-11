@@ -612,6 +612,49 @@
     });
   }
 
+  // Generated audio archived under <archive>/audio/; undo goes through undoAssetDelete.
+  function listAudioAssets(options = {}) {
+    const params = new URLSearchParams();
+    params.set('limit', options.limit || 500);
+    params.set('offset', options.offset || 0);
+    if (options.query) params.set('query', options.query);
+    return requireApi().json(`/api/assets/audio?${params.toString()}`);
+  }
+
+  function deleteAudioAssets(paths) {
+    const cleanPaths = (Array.isArray(paths) ? paths : [paths]).map(value => String(value || '').trim()).filter(Boolean);
+    if (!cleanPaths.length) return Promise.reject(new Error('缺少音频路径'));
+    return requireApi().json('/api/assets/audio/delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ paths: cleanPaths })
+    });
+  }
+
+  function getAudioAssetBlob(url) {
+    const parsed = new URL(String(url || ''), window.location.href);
+    if (parsed.origin !== window.location.origin || parsed.pathname !== '/api/assets/audio/file') {
+      return Promise.reject(new Error('只能读取资产库中的音频'));
+    }
+    return requireApi().blob(parsed.pathname + parsed.search);
+  }
+
+  function getAudioPeaks(path) {
+    return requireApi().json(`/api/assets/audio/peaks?path=${encodeURIComponent(String(path || ''))}`);
+  }
+
+  function getUnarchivedAudio() {
+    return requireApi().json('/api/audio/unarchived');
+  }
+
+  function archiveExistingAudio() {
+    return requireApi().json('/api/audio/archive', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({})
+    });
+  }
+
   function listEditableFiles(options = {}) {
     const params = new URLSearchParams();
     params.set('limit', options.limit || 200);
@@ -1476,6 +1519,12 @@
     getAssetHealth,
     listVideoAssets,
     deleteVideoAssets,
+    listAudioAssets,
+    deleteAudioAssets,
+    getAudioAssetBlob,
+    getAudioPeaks,
+    getUnarchivedAudio,
+    archiveExistingAudio,
     uploadVideo,
     listEditableFiles,
     sendEditableFile,

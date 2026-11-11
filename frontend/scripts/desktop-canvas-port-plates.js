@@ -12,6 +12,7 @@
   const STRAIGHT_SNAP = 36;   // a near-level single port snaps level so its pipe runs straight
   const MIN_HORIZONTAL_GAP = 60; // room for two 30px connection leads
   const OPPOSITE = Object.freeze({ right: 'left', left: 'right', top: 'bottom', bottom: 'top' });
+  const SIDE_SPLIT = 12;      // half gap between a side's incoming and outgoing plates
   const EASE_SLIDE_MS = 90;   // time constant for ports sliding along a side
   const EASE_GROW_MS = 110;   // time constant for a plate growing on / shrinking off a side
   const SETTLED_PX = 0.2;
@@ -40,6 +41,20 @@
       ? (right >= left ? 'right' : 'left')
       : (down >= up ? 'bottom' : 'top');
     return [side, OPPOSITE[side]];
+  }
+
+  // A node takes links in on its left and sends them out on its right, however the nodes
+  // move: an incoming end never lands on the right side, an outgoing end never on the
+  // left. Such an end turns to the top or bottom, whichever faces its partner.
+  function portSide(side, incoming, own, other) {
+    if (side !== (incoming ? 'right' : 'left')) return side;
+    return other.y + other.h / 2 < own.y + own.h / 2 ? 'top' : 'bottom';
+  }
+
+  /** Facing sides of a link's source `a` and target `b`, kept off each node's opposite-direction side. */
+  function portSides(a, b) {
+    const [fromSide, toSide] = facingSides(a, b);
+    return [portSide(fromSide, false, a, b), portSide(toSide, true, b, a)];
   }
 
   // Usable range of port centres along one side; `notch` reserves a bottom-right cut-out.
@@ -93,6 +108,55 @@
     return { x: from - rect.x, y: -outside, w: to - from, h: inside + outside };
   }
 
+  // Plate height at |u| px from its centre: flat face, rounded outer corners, concave
+  // base fillets into the card - the same cross-section platePath draws on a straight side.
+  function plateProfile(u, depth, base, corner) {
+    const half = PIPE_HALF + PLATE.pad;
+    if (u <= half - corner) return depth;
+    if (u <= half) return depth - corner + Math.sqrt(Math.max(0, corner * corner - (u - half + corner) ** 2));
+    if (u < half + base) return base - Math.sqrt(Math.max(0, base * base - (half + base - u) ** 2));
+    return 0;
+  }
+
+  /**
+   * The hover plate laid along a node's rounded outline, so it travels round the corners
+   * instead of hopping from one side to the next. `pointAt(s)` gives {x, y, nx, ny}
+   * (outward normal) at arc length `s`; `center` is the plate's arc position.
+   * @returns {{ path: string, face: {x:number,y:number} }}
+   */
+  function perimeterPlate(pointAt, center, amount = 1) {
+    const at = pointAt(center);
+    const face = { x: at.x + at.nx * PLATE.depth, y: at.y + at.ny * PLATE.depth };
+    if (!(amount > 0)) return { path: '', face };
+    const depth = PLATE.depth * amount, base = PLATE.base * amount;
+    const corner = Math.min(PLATE.corner, depth / 2);
+    const reach = PIPE_HALF + PLATE.pad + base;
+    const step = 0.25;
+    const count = Math.ceil(reach * 2 / step);
+    const offset = (u, out) => {
+      const p = pointAt(center + u);
+      return point([p.x + p.nx * out, p.y + p.ny * out]);
+    };
+    const points = Array.from({ length: count + 1 }, (_, index) => {
+      const u = -reach + index * reach * 2 / count;
+      return offset(u, plateProfile(Math.abs(u), depth, base, corner));
+    });
+    return { path: `M${offset(-reach, -3)} L${points.join(' L')} L${offset(reach, -3)} Z`, face };
+  }
+
+  /**
+   * 1 away from a notched node's bottom-right cut-out, easing to 0 within `fade` px of
+   * the zone where edgeRange stops ports, so a travelling plate sinks into the card there.
+   */
+  function notchFade(rect, notch, x, y, fade = 16) {
+    if (!notch) return 1;
+    const pad = notch.r + PLATE.base + PLATE.pad + PIPE_HALF + 2;
+    const into = Math.min(x - (rect.x + rect.w - notch.w - pad), y - (rect.y + rect.h - notch.h - pad));
+    if (into <= 0) return 1;
+    const t = clamp(into / fade, 0, 1);
+    return 1 - t * t * (3 - 2 * t);
+  }
+
   /** Easing state for layout(); keep one per link layer and drop it to snap. */
   function createMotion() {
     return { time: 0, ends: new Map(), groups: new Map() };
@@ -113,7 +177,10 @@
   }
 
   /**
-   * @param {Array<{id:string, from:string, to:string}>} edges
+   * An edge with `toOnly` is a link still being dragged: only its target end takes a
+   * port (and makes room on that plate); its source end is laid out as a lone port that
+   * draws nothing, so the drag can show where the link will land before it is made.
+   * @param {Array<{id:string, from:string, to:string, toOnly?:boolean}>} edges
    * @param {(nodeId:string) => {x:number,y:number,width:number,height:number}} geometryOf
    * @param {(nodeId:string) => ({w:number,h:number,r:number}|null)} [notchOf]
    * @param {ReturnType<createMotion>|null} [motion] eases ports and plates toward this layout
@@ -137,25 +204,39 @@
     edges.forEach(edge => {
       if (!edge?.id || !edge.from || !edge.to || edge.from === edge.to) return;
       const a = rect(edge.from), b = rect(edge.to);
-      const [fromSide, toSide] = facingSides(a, b);
-      const toward = (nodeId, side, other) => {
-        const r = edgeRange(rect(nodeId), side, notch(nodeId));
-        return clamp(isHorizontal(side) ? other.y + other.h / 2 : other.x + other.w / 2, r.min, r.max);
-      };
-      const from = { key: `${edge.id}|out`, nodeId: edge.from, side: fromSide, desired: toward(edge.from, fromSide, b) };
-      const to = { key: `${edge.id}|in`, nodeId: edge.to, side: toSide, desired: toward(edge.to, toSide, a), incoming: true };
-      ends.push(from, to);
+      const [fromSide, toSide] = portSides(a, b);
+      const from = { key: `${edge.id}|out`, nodeId: edge.from, side: fromSide, partner: b };
+      const to = { key: `${edge.id}|in`, nodeId: edge.to, side: toSide, partner: a, incoming: true };
+      if (!edge.toOnly) ends.push(from);
+      ends.push(to);
       links.push({ edge, from, to });
     });
 
+    // Incoming and outgoing ends never share a plate. Where both meet on a top/bottom side,
+    // inputs keep to the half nearer the input (left) side and outputs to the other half.
+    const groupKey = end => `${end.nodeId}|${end.side}|${end.incoming ? 'in' : 'out'}`;
+    const occupied = new Set(ends.map(groupKey));
+    const rangeOf = end => {
+      const r = edgeRange(rect(end.nodeId), end.side, notch(end.nodeId));
+      if (!occupied.has(`${end.nodeId}|${end.side}|${end.incoming ? 'out' : 'in'}`)) return r;
+      const mid = (r.min + r.max) / 2;
+      return end.incoming
+        ? { min: r.min, max: Math.max(r.min, mid - SIDE_SPLIT) }
+        : { min: Math.min(r.max, mid + SIDE_SPLIT), max: r.max };
+    };
+    links.forEach(({ from, to }) => [from, to].forEach(end => {
+      const r = rangeOf(end), other = end.partner;
+      end.desired = clamp(isHorizontal(end.side) ? other.y + other.h / 2 : other.x + other.w / 2, r.min, r.max);
+    }));
+
     const groups = new Map();
     ends.forEach(end => {
-      const key = `${end.nodeId}|${end.side}`;
+      const key = groupKey(end);
       if (!groups.has(key)) groups.set(key, { nodeId: end.nodeId, side: end.side, ends: [] });
       groups.get(key).ends.push(end);
     });
     groups.forEach(group => {
-      const r = edgeRange(rect(group.nodeId), group.side, notch(group.nodeId));
+      const r = rangeOf(group.ends[0]);
       const list = group.ends.sort((p, q) => p.desired - q.desired);
       const span = (list.length - 1) * PORT_GAP;
       const mean = list.reduce((sum, end) => sum + end.desired, 0) / list.length;
@@ -165,17 +246,18 @@
       list.forEach((end, index) => { end.desired = centre - span / 2 + index * PORT_GAP; });
       group.single = list.length === 1;
     });
-    const groupOf = end => groups.get(`${end.nodeId}|${end.side}`);
+    const groupOf = end => groups.get(groupKey(end));
+    const single = end => groupOf(end)?.single ?? true; // an ungrouped (preview) end acts as a lone port
     const reachable = (end, value) => {
-      const r = edgeRange(rect(end.nodeId), end.side, notch(end.nodeId));
+      const r = rangeOf(end);
       return value >= r.min && value <= r.max;
     };
-    const nearLevel = (own, other) => groupOf(own).single && Math.abs(own.desired - other.desired) < STRAIGHT_SNAP;
+    const nearLevel = (own, other) => single(own) && Math.abs(own.desired - other.desired) < STRAIGHT_SNAP;
     // A single port that cannot reach its partner (edge range) levels the partner's
     // whole cluster instead, when that cluster has room; then singles snap level.
     links.forEach(({ from, to }) => {
       [[from, to], [to, from]].forEach(([own, other]) => {
-        if (!nearLevel(own, other) || reachable(own, other.desired) || groupOf(other).single) return;
+        if (!nearLevel(own, other) || reachable(own, other.desired) || single(other)) return;
         const delta = own.desired - other.desired;
         const cluster = groupOf(other).ends;
         if (cluster.every(end => reachable(end, end.desired + delta))) cluster.forEach(end => { end.desired += delta; });
@@ -212,7 +294,7 @@
     });
     const routes = new Map();
     const face = end => {
-      const [x, y] = frameOf(rect(end.nodeId), end.side).at(PLATE.depth * (groupOf(end).amount ?? 1), end.desired);
+      const [x, y] = frameOf(rect(end.nodeId), end.side).at(PLATE.depth * (groupOf(end)?.amount ?? 1), end.desired);
       return { x, y };
     };
     links.forEach(({ edge, from, to }) => {
@@ -269,6 +351,6 @@
   }
 
   window.DesktopCanvasPortPlates = Object.freeze({
-    PLATE, PORT_GAP, PIPE_HALF, NOTCH, NOTCHED_NODES, notchOf, facingSides, edgeRange, edgePlate, createMotion, layout,
+    PLATE, PORT_GAP, PIPE_HALF, NOTCH, NOTCHED_NODES, notchOf, facingSides, portSides, edgeRange, edgePlate, perimeterPlate, notchFade, createMotion, layout,
   });
 })();

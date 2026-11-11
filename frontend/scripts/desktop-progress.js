@@ -4,7 +4,9 @@
   'use strict';
   const M = window.DesktopProgressModel;
 
-  function create({ getPreferences, getViewport, isInteracting = () => false,
+  // onActivityChange(owners): called after the set of running entries may have changed,
+  // with the owner element of every entry whose display is running.
+  function create({ getPreferences, getViewport, isInteracting = () => false, onActivityChange = null,
     Renderer = window.DesktopProgressRenderer.ProgressRenderer } = {}) {
     const entries = new Map();
     let preferences = M.normalizePreferences(getPreferences?.());
@@ -137,6 +139,11 @@
       entry.track.classList.toggle('is-indeterminate', d.percent === null);
     }
 
+    function reportActivity() {
+      if (!onActivityChange || destroyed) return;
+      onActivityChange([...entries.values()].filter(entry => entry.display.running).map(entry => entry.owner));
+    }
+
     function update(root, display, owner = root) {
       if (destroyed || !root) return;
       const next = M.normalizeDisplay(display);
@@ -163,6 +170,7 @@
         entry.dirty = true;
         paintText(entry);
       }
+      reportActivity();
       schedule();
     }
 
@@ -250,6 +258,7 @@
         window.cancelAnimationFrame(frame); frame = 0;
         window.clearTimeout(clock); clock = 0;
       }
+      reportActivity();
     }
     function releaseWithin(root) {
       if (!root) return;
@@ -272,6 +281,7 @@
       if (entry.track) next.appendChild(entry.track);
       syncStyle(entry);
       observer?.observe(next); resizeObserver?.observe(next);
+      reportActivity();
       schedule();
     }
     function clear() { [...entries.keys()].forEach(release); }

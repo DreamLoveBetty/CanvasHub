@@ -2914,9 +2914,9 @@ body.desk-app[data-theme="dark"] .desk-image-editor__canvas-wrap {
 .desk-gpt-model-caption small {
   flex: 0 0 auto;
   padding: 1px 4px;
-  color: #b13e14;
-  background: rgba(255, 106, 34, 0.1);
-  border: 1px solid rgba(213, 77, 25, 0.18);
+  color: var(--desk-model-badge-ink);
+  background: var(--desk-model-badge-background);
+  border: 1px solid var(--desk-model-badge-border);
   border-radius: 3px;
   font-size: 8px;
   font-style: normal;
@@ -9009,12 +9009,6 @@ body.desk-app[data-theme="dark"] .desk-pill-row span {
   color: var(--desk-muted);
 }
 
-body.desk-app[data-theme="dark"] .desk-gpt-model-caption small {
-  color: #ffb38f;
-  background: rgba(255, 106, 34, 0.14);
-  border-color: rgba(255, 137, 82, 0.2);
-}
-
 body.desk-app[data-theme="dark"] .desk-segment {
   background: rgba(24, 29, 31, 0.58);
   border-color: rgba(255, 255, 255, 0.06);
@@ -11866,9 +11860,6 @@ body.desk-app:not([data-theme="dark"]) .desk-gallery-preview__toolbar button:dis
     animation: none !important;
   }
 
-  .desk-link-pulse {
-    display: none;
-  }
 }
 
 

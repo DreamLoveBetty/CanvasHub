@@ -18,12 +18,13 @@
     try { return decodeURIComponent(raw); } catch (_error) { return raw; }
   }
 
+  // isVideoSource: which upstream nodes feed a video (video nodes, and rendered compose nodes).
   function create({getCanvas, getNodeState, addNode, connectNodes, refreshVideoNode, refreshComfyNode,
-    getOutput, saveState, showMessage}) {
+    getOutput, saveState, showMessage, isVideoSource = node => node?.type === 'video'}) {
     let publishing = false;
     const edges = () => getCanvas().edges || [];
     const incomingVideos = comfyId => edges().filter(edge => edge.to === comfyId)
-      .map(edge => getNodeState(edge.from)).filter(node => node?.type === 'video');
+      .map(edge => getNodeState(edge.from)).filter(isVideoSource);
 
     function connectedVideoReferences(comfyId) {
       return incomingVideos(comfyId).filter(node => String(node.mediaUrl || '').trim())

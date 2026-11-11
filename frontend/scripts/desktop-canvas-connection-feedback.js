@@ -106,7 +106,7 @@
       const points = Array.from({ length: ARC_SEGMENTS + 1 }, (_, index) => {
         const t = index / ARC_SEGMENTS;
         // Sparse bends read as an arc, with continuous interpolation between
-        // 80ms key poses. The envelope pins both ends to the free tip and port.
+        // 80ms key poses. The envelope pins both ends to the free tip and node edge.
         const shape = arcNoise(index, pose) * (1 - blend) + arcNoise(index, pose + 1) * blend;
         const wave = Math.sin(Math.PI * t) * shape * amplitude;
         return `${index ? 'L' : 'M'} ${(pointer.x + dx * t - dy / length * wave).toFixed(3)} ${(pointer.y + dy * t + dx / length * wave).toFixed(3)}`;
@@ -115,6 +115,18 @@
       state.layers.forEach(layer => layer.setAttribute('d', d));
       state.arc.style.opacity = String(settle);
       return !settling || settle > 0;
+    }
+
+    function edgeAnchor(state, side) {
+      // The arc lands where the free tip meets the target edge: the tip projected
+      // onto that side of the node frame, kept on its straight run (off the corners).
+      const width = state.nodeElement.offsetWidth, height = state.nodeElement.offsetHeight;
+      const along = (value, length) => {
+        const inset = Math.min(state.radius, length / 2);
+        return Math.max(inset, Math.min(length - inset, value));
+      };
+      if (side === 'top' || side === 'bottom') return { x: along(state.pointer.x, width), y: side === 'top' ? 0 : height };
+      return { x: side === 'right' ? width : 0, y: along(state.pointer.y, height) };
     }
 
     function updateProximity(target) {
@@ -132,27 +144,24 @@
         const arc = svgElement('g', { class: 'desk-connection-proximity__arc' });
         const layers = ['halo', 'wave', 'core'].map(layer => svgElement('path', { class: `desk-connection-proximity__${layer}` }));
         layers.forEach(layer => arc.appendChild(layer));
-        const ring = svgElement('ellipse', { class: 'desk-connection-proximity__ring', rx: 4, ry: 9 });
-        root.appendChild(arc); root.appendChild(ring);
-        proximity = { root, arc, layers, ring, nodeElement, port, fromNodeId: interaction.fromNodeId,
+        root.appendChild(arc);
+        proximity = { root, arc, layers, nodeElement, port, fromNodeId: interaction.fromNodeId,
+          radius: parseFloat(getComputedStyle(nodeElement).borderTopLeftRadius) || 0,
           started: performance.now(), phase: '', strength: 0 };
         syncLifecycle();
       }
       const state = proximity, nodeRect = nodeElement.getBoundingClientRect();
-      const x = target.side === 'right' ? rect.right : target.side === 'left' ? rect.left : (rect.left + rect.right) / 2;
-      const y = target.side === 'top' ? rect.top : target.side === 'bottom' ? rect.bottom : (rect.top + rect.bottom) / 2;
-      state.anchor = { x: (x - nodeRect.left) / scale, y: (y - nodeRect.top) / scale };
       // Keep the last free tip during the short snap-settling phase.
       if (target.phase !== 'snapped' || !state.pointer) {
         state.pointer = { x: (target.pointer.x - nodeRect.left) / scale, y: (target.pointer.y - nodeRect.top) / scale };
         state.strength = target.strength;
       }
+      state.anchor = edgeAnchor(state, target.side);
       if (target.phase === 'snapped' && state.phase !== 'snapped') state.snappedAt = performance.now();
       state.phase = target.phase;
       state.root.dataset.phase = state.phase;
-      state.ring.setAttribute('cx', state.anchor.x); state.ring.setAttribute('cy', state.anchor.y);
       if (prefersReducedMotion()) {
-        state.arc.style.opacity = '0'; // Static port highlight; magnetic capture is unchanged.
+        state.arc.style.opacity = '0'; // No marker; magnetic capture is unchanged.
       } else if (drawArc(state, performance.now())) schedule();
     }
 

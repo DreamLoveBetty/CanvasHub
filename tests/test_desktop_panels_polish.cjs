@@ -77,6 +77,16 @@ test('record stats filter on click and metadata refresh left the selection baske
   const basket = html.slice(html.indexOf('class="desk-gallery-inspector__actions"'), html.indexOf('</aside>', html.indexOf('class="desk-gallery-inspector__actions"')));
   const danger = basket.slice(basket.indexOf('desk-gallery-inspector__danger'));
   assert.ok(danger.includes('id="deskGalleryDeleteBtn"') && danger.includes('id="deskGalleryUndoDeleteBtn"'));
+  // Undo is a regular button that only appears while the last delete can be restored.
+  const undo = danger.match(/<button [^>]*id="deskGalleryUndoDeleteBtn"[^>]*>/)[0];
+  assert.match(undo, /class="desk-button"/);
+  assert.match(undo, / hidden>/);
+  assert.match(history, /button\.hidden = !show;\n    button\.disabled = !show;/);
+  assert.equal(history.match(/syncUndoDeleteButton\(false\);/g).length, 2, 'video and file views hide the image undo');
+  assert.match(history, /lastDeleteCount = deletedIds\.length;/);
+  for (const file of ['frontend/styles/desktop-gallery.css', 'frontend/styles/desktop-gallery-geometry.css']) {
+    assert.ok(!read(file).includes('desk-gallery-inspector__undo'), `${file} keeps no text-link undo styles`);
+  }
   assert.ok(!basket.slice(0, basket.indexOf('desk-gallery-inspector__danger')).includes('deskGalleryDeleteBtn'));
   for (const button of basket.match(/<button [^>]*>/g)) assert.match(button, / title="/, button);
 });

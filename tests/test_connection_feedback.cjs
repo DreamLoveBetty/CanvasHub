@@ -67,16 +67,16 @@ function fixture({ scale = 1 } = {}) {
     get overlay() { return to.nodeElement.children[0]; } };
 }
 
-test('one pinned layered arc near the input, no graph/edge updates or accumulating effects',()=>{
+test('one pinned layered arc from the tip to the node edge, no port marker, graph/edge updates or accumulating effects',()=>{
   const h=fixture(), before=JSON.stringify(h.nodes);h.api.updateProximity(h.to);
   const root=h.overlay,arc=root.children[0],wave=arc.children[1];
-  assert.equal(root.attributes['aria-hidden'],'true');assert.equal(root.children.length,2);
+  assert.equal(root.attributes['aria-hidden'],'true');assert.equal(root.children.length,1,'arc only: no magnet ring at the port');
   assert.equal(arc.children.length,3,'halo, color body and bright core share one local arc');
   assert.equal(arc.attributes.class,'desk-connection-proximity__arc');
   const initial=wave.getAttribute('d');for(let i=0;i<80;i++)h.api.updateProximity(h.to);
   assert.equal(h.overlay,root);assert.equal(h.frames.size,1);assert.equal(h.timers.size,0);
   h.tick(150);assert.notEqual(wave.getAttribute('d'),initial);assert.match(wave.getAttribute('d'),/^M -20\.000 100\.000/);
-  assert.match(wave.getAttribute('d'),/L -8\.000 100\.000$/);assert.equal(h.refreshes.length,0);assert.equal(JSON.stringify(h.nodes),before);
+  assert.match(wave.getAttribute('d'),/L -?0\.000 100\.000$/);assert.equal(h.refreshes.length,0);assert.equal(JSON.stringify(h.nodes),before);
   assert.ok(arc.children.every(layer=>layer.getAttribute('d')===wave.getAttribute('d')));
 });
 test('arc reshapes rapidly with bounded angular bends, smooth pose boundaries and steady light',()=>{
@@ -86,7 +86,7 @@ test('arc reshapes rapidly with bounded angular bends, smooth pose boundaries an
   for(let i=0;i<20;i++){
     h.tick(16);const p=points();frames.push(p);
     assert.equal(p.length,18,'eight angular segments, not a slow dense sine wave');
-    assert.deepEqual(p.slice(0,2),[-20,100]);assert.deepEqual(p.slice(-2),[-8,100]);
+    assert.deepEqual(p.slice(0,2),[-20,100]);assert.deepEqual(p.slice(-2),[0,100]);
     assert.ok(p.every((v,i)=>i%2===0||Math.abs(v-100)<=3.534),'bounded local arc envelope');
     assert.equal(arc.style.opacity,'1','fast movement, not fast on/off flashing');
     assert.ok(arc.children.every(layer=>layer.getAttribute('d')===wave.getAttribute('d')));
@@ -102,16 +102,29 @@ test('arc reshapes rapidly with bounded angular bends, smooth pose boundaries an
 });
 for(const scale of [.1,.3,1,2])test(`visuals inherit node zoom ${scale}; hit bounds do not move`,()=>{
   const h=fixture({scale}),rect=h.to.rect;h.api.updateProximity(h.to);
-  assert.equal(h.overlay.style.transform,undefined);assert.ok(Math.abs(Number(h.overlay.children[1].getAttribute('cx'))+8)<1e-8);
-  assert.ok(Math.abs(Number(h.overlay.children[1].getAttribute('cy'))-100)<1e-8);assert.deepEqual(h.to.rect,rect);
+  assert.equal(h.overlay.style.transform,undefined);
+  assert.match(h.overlay.children[0].children[1].getAttribute('d'),/L -?0\.000 100\.000$/,'arc lands on the node frame at every zoom');
+  assert.deepEqual(h.to.rect,rect);
   assert.equal(h.overlay.attributes.width,'200');assert.equal(h.overlay.style.left,'-1px');
 });
-test('snap settles wave once in 100ms; keeping the snapped ring never shakes/commits',()=>{
+test('snap settles wave once in 100ms; holding the snap never shakes/commits',()=>{
   const h=fixture();h.api.updateProximity(h.to);h.tick(40);
   const snapped={...h.to,phase:'snapped',strength:0};h.api.updateProximity(snapped);const root=h.overlay;
   h.tick(60);assert.ok(Number(root.children[0].style.opacity)>0);
   h.api.updateProximity(snapped);h.tick(50);assert.equal(root.children[0].style.opacity,'0');assert.equal(h.frames.size,0);
   assert.equal(h.refreshes.length,0);assert.equal(h.timers.size,0);assert.equal(h.to.nodeElement.style.translate,'');
+});
+test('arc end follows the tip along the target edge and stays off its rounded corners',()=>{
+  const end=(h,t)=>{h.api.updateProximity(t);return h.overlay.children[0].children[1].getAttribute('d').match(/L (-?\d+\.\d+) (-?\d+\.\d+)$/).slice(1).map(v=>Number(v)+0);};
+  let h=fixture();assert.deepEqual(end(h,{...h.to,pointer:{x:480,y:250}}),[0,50],'left edge, level with the tip');
+  h=fixture();assert.deepEqual(end(h,{...h.to,pointer:{x:480,y:198}}),[0,8],'clamped below the top-left radius');
+  h=fixture();assert.deepEqual(end(h,{...h.to,pointer:{x:480,y:460}}),[0,232],'clamped above the bottom-left radius');
+  h=fixture();assert.deepEqual(end(h,{...h.to,side:'right',pointer:{x:712,y:300}}),[200,100],'right edge');
+  h=fixture();assert.deepEqual(end(h,{...h.to,side:'top',pointer:{x:560,y:190}}),[60,0],'top edge');
+  h=fixture();assert.deepEqual(end(h,{...h.to,side:'bottom',pointer:{x:560,y:452}}),[60,240],'bottom edge');
+  h=fixture();h.api.updateProximity(h.to);h.tick(40);
+  h.api.updateProximity({...h.to,phase:'snapped',strength:0,pointer:{x:500,y:330}});
+  assert.match(h.overlay.children[0].children[1].getAttribute('d'),/L -?0\.000 100\.000$/,'snap keeps the last free tip and its edge point');
 });
 test('switch target/leave cancels old root/RAF and re-entry does not multiply loops',()=>{
   const h=fixture();h.api.updateProximity(h.to);const old=h.overlay;h.api.updateProximity(h.target('other'));
@@ -184,9 +197,9 @@ test('next manipulation cancels recoil before node drag/pan; detached DOM or rep
     h.tick(16);assert.equal(h.overlay,undefined,reason);assert.equal(h.frames.size,0);assert.equal(h.listeners,0);
   }
 });
-test('reduced motion uses only a static ring and no frame/geometry animation',()=>{
+test('reduced motion hides the arc, shows no marker and runs no frame/geometry animation',()=>{
   const h=fixture();h.reduce(true);h.api.updateProximity(h.to);
-  assert.equal(h.overlay.children[0].style.opacity,'0');assert.equal(h.frames.size,0);
+  assert.equal(h.overlay.children.length,1);assert.equal(h.overlay.children[0].style.opacity,'0');assert.equal(h.frames.size,0);
   h.commit();assert.equal(h.overlay.children.length,1);assert.equal(h.frames.size,0);assert.equal(h.animations.length,0);
   assert.equal(h.refreshes.length,0);h.tick(220);assert.equal(h.overlay,undefined);assert.equal(h.listeners,0);
 });
@@ -201,6 +214,17 @@ test('feedback module is loaded before host; old splash removed; overlays are hi
   assert.match(css,/\.desk-node > :is\(\.desk-connection-proximity, \.desk-connection-impact\) \{[^}]*pointer-events: none;/);
   assert.match(css,/color: var\(--desk-node-edge-stroke\)/);assert.match(css,/@media \(prefers-reduced-motion: reduce\)/);
   const host=read('scripts/desktop-canvas.js');assert.match(host,/discardConnectionFeedback: nodeElement => canvasConnectionFeedback.discardNode\(nodeElement\)/);
+});
+
+test('connecting paints no magnet capsule on target input ports; hit size and source port paint stay',()=>{
+  const css=read('styles/desktop-canvas-nodes-geometry.css');
+  const target=/\.is-compatible-target > \.desk-port\[data-semantic-port\]\[data-port="in"\],\n[^{]*:is\(\.is-connecting, \.is-drop-target\) \{([^}]*)\}/.exec(css);
+  assert.ok(target,'shared connecting hit-size rule');
+  assert.match(target[1],/width: 9px;/);assert.match(target[1],/height: 28px;/);
+  assert.doesNotMatch(target[1],/opacity|background/,'target port stays invisible');
+  assert.match(css,/\.desk-port\[data-semantic-port\]\.is-connecting \{[^}]*background: var\(--desk-node-edge-stroke\);/);
+  assert.doesNotMatch(read('styles/desktop-canvas-nodes.css'),/desk-connection-proximity__ring/);
+  assert.doesNotMatch(read('scripts/desktop-canvas-connection-feedback.js'),/proximity__ring|ellipse', \{ class: 'desk-connection-proximity/);
 });
 
 test('arc has theme-colored light layers and a white-hot core without blur or strobing',()=>{

@@ -11,6 +11,7 @@
   let krea2Tools = null;
   let qwen21Tools = null;
   let mossTools = null;
+  let asrTools = null;
   let loraSettings = null;
   let pinterestAuthSessionId = window.sessionStorage?.getItem('deskPinterestAuthSessionId') || '';
   let pinterestAuthActivity = null;
@@ -1612,7 +1613,7 @@
       {
         tab: 'model-tools',
         html: activeTab === 'model-tools'
-          ? (loraSettings?.render?.() || '') + (mossTools?.render?.() || '') + (qwen21Tools?.render?.() || '') + (krea2Tools?.render?.() || renderCard('Krea 2 模型转换', [
+          ? (loraSettings?.render?.() || '') + (asrTools?.render?.() || '') + (mossTools?.render?.() || '') + (qwen21Tools?.render?.() || '') + (krea2Tools?.render?.() || renderCard('Krea 2 模型转换', [
               '<div class="desk-settings-empty">模型工具模块未加载。</div>'
             ], false))
           : ''
@@ -2729,7 +2730,7 @@
       } else {
         renderDiagnostics(lastDiagnostics);
       }
-      if (activeTab === 'model-tools') await Promise.all([krea2Tools?.activate?.(),qwen21Tools?.activate?.(),mossTools?.activate?.(),loraSettings?.activate?.()]);
+      if (activeTab === 'model-tools') await Promise.all([krea2Tools?.activate?.(),qwen21Tools?.activate?.(),mossTools?.activate?.(),asrTools?.activate?.(),loraSettings?.activate?.()]);
     } catch (error) {
       if (els.deskSettingsSummary) {
         els.deskSettingsSummary.innerHTML = '<span class="desk-settings__status is-warn">诊断读取失败</span>';
@@ -2760,6 +2761,7 @@
     krea2Tools?.deactivate?.();
     qwen21Tools?.deactivate?.();
     mossTools?.deactivate?.();
+    asrTools?.deactivate?.();
     loraSettings?.deactivate?.();
     closeSettingsInfoTip();
   }
@@ -2785,12 +2787,13 @@
     }
     updateTabs();
     if (lastDiagnostics) renderDiagnostics(lastDiagnostics);
-    if (previousTab === 'model-tools' && activeTab !== 'model-tools') {krea2Tools?.deactivate?.();qwen21Tools?.deactivate?.();mossTools?.deactivate?.();loraSettings?.deactivate?.();}
+    if (previousTab === 'model-tools' && activeTab !== 'model-tools') {krea2Tools?.deactivate?.();qwen21Tools?.deactivate?.();mossTools?.deactivate?.();asrTools?.deactivate?.();loraSettings?.deactivate?.();}
     if (activeTab === 'model-tools') {
       loraSettings?.activate?.().catch(error => showSettingsFeedback(error, 'LoRA 连接设置读取失败'));
       krea2Tools?.activate?.().catch(error => showSettingsFeedback(error, '模型工具状态读取失败'));
       qwen21Tools?.activate?.().catch(error => showSettingsFeedback(error, 'Qwen 模型工具状态读取失败'));
       mossTools?.activate?.().catch(error => showSettingsFeedback(error, 'MOSS 状态读取失败'));
+      asrTools?.activate?.().catch(error => showSettingsFeedback(error, '语音识别状态读取失败'));
     }
     if (activeTab === 'chatgpt-pool' && googlePoolSettings.isGoogle()) {
       void googlePoolSettings.refresh();
@@ -2917,7 +2920,7 @@
         syncProgressSettings(progressColorReset.closest('[data-progress-settings]'));
         return;
       }
-      if (loraSettings?.handleClick?.(event) || mossTools?.handleClick?.(event) || qwen21Tools?.handleClick?.(event) || krea2Tools?.handleClick?.(event)) return;
+      if (loraSettings?.handleClick?.(event) || asrTools?.handleClick?.(event) || mossTools?.handleClick?.(event) || qwen21Tools?.handleClick?.(event) || krea2Tools?.handleClick?.(event)) return;
       if (googlePoolSettings.handleClick(event)) return;
       const themeStyleButton = event.target.closest('button[data-theme-style]');
       if (themeStyleButton) {
@@ -3372,6 +3375,11 @@
     }) || null;
     qwen21Tools = window.DesktopQwen21Tools?.create?.({
       api: window.DesktopQwen21API, escapeHtml,
+      rerender: () => { if (activeTab === 'model-tools' && lastDiagnostics) renderDiagnostics(lastDiagnostics); },
+      notify: (message, tone) => window.DesktopResults?.showTransientMessage?.(message, tone)
+    }) || null;
+    asrTools = window.DesktopAsrTools?.create?.({
+      api: window.DesktopAsrAPI, escapeHtml,
       rerender: () => { if (activeTab === 'model-tools' && lastDiagnostics) renderDiagnostics(lastDiagnostics); },
       notify: (message, tone) => window.DesktopResults?.showTransientMessage?.(message, tone)
     }) || null;

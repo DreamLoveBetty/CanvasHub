@@ -580,7 +580,7 @@ body.desk-app[data-theme] .desk-prompt-drawer.is-open button.desk-agent-task-car
   place-items: center;
   border-width: 1px;
   border-style: solid;
-  border-radius: var(--desk-radius-control-sm);
+  border-radius: var(--desk-radius-control);
   opacity: 0.5;
   transform: translateY(-50%);
 }
@@ -630,7 +630,7 @@ body.desk-app[data-theme] .desk-prompt-drawer.is-open button.desk-agent-task-car
   padding: 0 8px;
   border-width: 1px;
   border-style: solid;
-  border-radius: var(--desk-radius-control-sm);
+  border-radius: var(--desk-radius-control);
   text-align: left;
   font-size: var(--desk-font-size-caption);
   white-space: nowrap;
@@ -1000,7 +1000,7 @@ body.desk-app[data-theme] .desk-agent-task-dialog__head .desk-agent-icon-btn {
 body.desk-app[data-theme] .desk-agent-task-dialog > form > p {
   margin: 0;
   font-size: var(--desk-font-size-caption);
-  line-height: var(--desk-line-height-body);
+  line-height: var(--desk-line-height-normal);
 }
 
 body.desk-app[data-theme] .desk-agent-task-name-field {
@@ -1038,7 +1038,7 @@ body.desk-app[data-theme] .desk-agent-task-dialog__error {
   padding: var(--desk-space-3);
   border-width: 1px;
   border-style: solid;
-  border-radius: var(--desk-radius-control-sm);
+  border-radius: var(--desk-radius-control);
 }
 
 body.desk-app[data-theme] .desk-agent-task-dialog__error[hidden] {

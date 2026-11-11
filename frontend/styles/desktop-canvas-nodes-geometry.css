@@ -131,15 +131,6 @@ body.desk-app[data-theme] .desk-node .desk-generation-action svg {
   stroke-width: 2;
 }
 
-:where(body.desk-app[data-theme]) .desk-link-pulse {
-  fill: rgba(8, 79, 189, 0.42);
-  filter: drop-shadow(0 0 8px rgba(8, 79, 189, 0.28));
-}
-
-:where(body.desk-app[data-theme]) .desk-link-pulse.is-related {
-  fill: rgba(8, 79, 189, 0.72);
-}
-
 :where(body.desk-app[data-theme]) .desk-node {
   position: absolute;
   display: flex;
@@ -1562,11 +1553,6 @@ body.desk-app[data-theme="dark"] .desk-image-editor {
   border: 1px solid rgba(255, 255, 255, 0.62);
 }
 
-body.desk-app[data-theme="dark"] .desk-link-pulse {
-  fill: rgba(255, 90, 31, 0.62);
-  filter: drop-shadow(0 0 10px rgba(255, 90, 31, 0.28));
-}
-
 body.desk-app[data-theme="dark"] .desk-comfy-workflow-card.is-selected .desk-comfy-workflow-card__check {
   color: #1c2224;
   background: #ff9b68;
@@ -1620,10 +1606,15 @@ body.desk-app .desk-node.desk-node--edge-handles:has(> .desk-port--floating:is(.
   pointer-events: auto;
 }
 
+/* Target input ports keep this hit size while connecting but stay unpainted: the
+   approach arc lands on the node frame instead of a port marker. */
 :where(body.desk-app[data-theme]) .desk-canvas.is-connecting .desk-node--edge-handles.is-compatible-target > .desk-port[data-semantic-port][data-port="in"],
 :where(body.desk-app[data-theme]) .desk-node--edge-handles > .desk-port[data-semantic-port]:is(.is-connecting, .is-drop-target) {
   width: 9px;
   height: 28px;
+}
+
+:where(body.desk-app[data-theme]) .desk-node--edge-handles > .desk-port[data-semantic-port].is-connecting {
   opacity: 1;
   background: var(--desk-node-edge-stroke);
   box-shadow: none;
@@ -1740,12 +1731,32 @@ body.desk-app[data-connection-swell-style="droplet"] .desk-node-settled-port--ri
   stroke: var(--desk-flow-stroke);
 }
 
-:where(body.desk-app[data-theme]) .desk-link-pulse {
-  display: none;
-}
-
 :where(body.desk-app[data-theme]) .desk-link-path.is-selected {
   stroke-width: 2.35;
+}
+
+/* Running links (desktop-canvas-link-flow.js): dashes travel from source to target while
+   a linked node generates. The 700ms cycle moves one 14px dash period and must match
+   DesktopCanvasLinkFlow.CYCLE_MS, which keeps the phase across link redraws. */
+:where(body.desk-app[data-theme]) .desk-link-flow {
+  fill: none;
+  pointer-events: none;
+  stroke-width: 2.6;
+  stroke-linecap: round;
+  stroke-dasharray: 5 9;
+  vector-effect: non-scaling-stroke;
+  animation: desk-link-flow 700ms linear infinite;
+}
+
+@keyframes desk-link-flow {
+  from { stroke-dashoffset: 14; }
+  to { stroke-dashoffset: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :where(body.desk-app[data-theme]) .desk-link-flow {
+    animation: none;
+  }
 }
 
 :where(body.desk-app[data-theme]) .desk-link-hit {

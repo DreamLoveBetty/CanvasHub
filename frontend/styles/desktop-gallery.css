@@ -461,18 +461,6 @@ body.desk-app[data-theme] .desk-gallery-inspector__danger {
   border-color: var(--desk-gallery-inspector-border);
 }
 
-body.desk-app[data-theme] .desk-gallery-inspector__undo {
-  color: var(--desk-gallery-muted-ink);
-}
-
-body.desk-app[data-theme] .desk-gallery-inspector__undo:hover:not(:disabled) {
-  color: var(--desk-gallery-accent-ink);
-}
-
-body.desk-app[data-theme] .desk-gallery-inspector__undo:disabled {
-  color: var(--desk-gallery-disabled-ink);
-}
-
 body.desk-app[data-theme] .desk-gallery-selected {
   background: var(--desk-gallery-selection-background);
   border-color: var(--desk-gallery-selection-border);

@@ -1,13 +1,14 @@
 // Local Topaz Video jobs, source uploads and video result publication.
 // The workbench is an editor adapter; this controller remains the task owner.
 (function () {
+  // isVideoSource: which upstream nodes feed a video (video nodes, and rendered compose nodes).
   function create({model, api, view, workbench, pipeline, getCanvas, getNodeState, getNodeElement, addNode, connectNodes,
-    refreshVideoNode, saveState, reportStatus}) {
+    refreshVideoNode, saveState, reportStatus, isVideoSource = source => source?.type === 'video'}) {
     const sessions = new Map(), submissions = new Set();
     let catalog = null, runtimeStatus = null, catalogError = '', catalogPromise = null;
     const live = s => sessions.get(s.id) === s && getNodeState(s.id) === s.node && getNodeElement(s.id) === s.el;
     const sourceFor = node => (getCanvas().edges || []).filter(edge => edge.to === node.id)
-      .map(edge => getNodeState(edge.from)).find(source => source?.type === 'video');
+      .map(edge => getNodeState(edge.from)).find(isVideoSource);
     const sourceKey = source => source?.mediaUrl
       ? [String(source.id || ''), String(source.mediaUrl), String(source.sourceTaskId || '')].join('|') : '';
     const metaFor = node => catalog?.find(item => item.id === node.model);

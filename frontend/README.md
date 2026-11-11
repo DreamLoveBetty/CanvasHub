@@ -96,7 +96,8 @@ Threads、Diamond、Grain 与 Classic；新轨道默认 36px，可选 48/56px，
 2. `desktop-progress-materials.js` → `desktop-progress-renderer.js`：Canvas2D 材质与有限尺寸的
    前沿缓冲复用；不读任务、不调 API、不持有计时器。
 3. `desktop-progress.js`：显式注入偏好与视口，统一管理 `update(root, display, owner)`、
-   `replaceRoot`、`releaseWithin`、`clear`、`destroy`。一条公平调度 RAF，单秒级显示时钟，
+   `replaceRoot`、`releaseWithin`、`clear`、`destroy`；可选 `onActivityChange(owners)` 在
+   进度登记/释放/换根后回报所有 running 进度的 owner 元素（画布用它驱动连线流动）。一条公平调度 RAF，单秒级显示时钟，
    Intersection/ResizeObserver 仅观察已显示的进度条；离屏/后台/静止时不持续绘制，
    reduced-motion 禁用循环动画；每帧绘制预算 4ms，平移/缩放或多轨道时降频。
 4. 以上先于 preferences、各领域 controller/view 与 canvas host 加载；CSS 在节点领域样式
@@ -228,7 +229,9 @@ ID；下拉显示服务端返回的真实模型名称，而不是把量化方案
 
 - `desktop-gallery-videos.js`：资产库「视频」文件夹，`window.DesktopGalleryVideos.create(deps)`（宿主实例名 `galleryVideoFolder`）。持有视频与资源列表、生成/导入/全部来源切换（含其点击绑定）、文件夹卡片与展开详情/播放、发送到画布和视频统计行。宿主的视图/搜索以 getter 传入；宿主切换分页或关闭资产库时经 `collapseExpanded()` 收起展开的卡片，选择栏文案经 `source()` 读当前来源。历史面板自己的 `isVideoHistoryItem` 与共享剪贴板工具 `copyPinterestSplitText` 留在宿主。
 
-加载顺序：`desktop-genie-fx.js` → `desktop-gallery-pinterest.js` → `desktop-gallery-prompt-sources.js` → `desktop-gallery-videos.js` → `desktop-gallery-facets.js` → `desktop-history.js` → `desktop-prompt-drawer.js`。宿主以 `const genieFx = window.DeskGenieFX;`、`const galleryPinterest = window.DesktopGalleryPinterest.create({...});` 等显式取得依赖，不保留第二套实现。源码契约测试经 `tests/history_js.py` 按 `desktop.html` 加载顺序读取宿主及拆出的模块；边界回归：`tests/test_desktop_genie_fx.py`、`tests/test_desktop_gallery_pinterest.py`、`tests/test_desktop_gallery_prompt_sources.py`、`tests/test_desktop_gallery_videos.py`。
+- `desktop-gallery-audio.js`：资产库「音频」页，`window.DesktopGalleryAudio.create(deps)`（宿主实例名 `audioGallery`）。与 LoRA 页一样自行挂载进资产库网格（`mount` / `unmount` / `refresh` / `mounted`），持有自己的搜索、播放器卡片网格（按路径哈希生成的封面、以首句歌词为标题、后端响度波形兼进度条、±10 秒、下载/发送到画布）、单个 `<audio>` 播放器、展开详情（风格/歌词/参数/删除）、撤销，缺波形的卡片逐个经 `DesktopApi.getAudioPeaks` 补取，以及把旧歌曲归档到存储路径的显式按钮。数据只经注入的 `api`（`DesktopApi.listAudioAssets` 等，snake_case 在 `normalize()` 转换）；发送到画布经 `sendToCanvas` → `DesktopCanvas.createAudioNodeFromAsset`（新建音频节点后交给 `DesktopCanvasAudio.setResult`，Blob 存入浏览器音频库）。宿主切换到其他视图或关闭资产库时 `unmount()`，播放随之停止；样式在 `styles/desktop-gallery-audio.css`：文字与分区取资产库令牌，卡片凸起面、光影与播放强调色是组件自有令牌（经典主题为橙色，含深色一套）；石墨风格在 `desktop-graphite.css` 重设同一组令牌（中性表面 + 青绿强调，深色时浅青按键配深色图标）。
+
+加载顺序：`desktop-genie-fx.js` → `desktop-gallery-pinterest.js` → `desktop-gallery-prompt-sources.js` → `desktop-gallery-videos.js` → `desktop-gallery-audio.js` → `desktop-gallery-facets.js` → `desktop-history.js` → `desktop-prompt-drawer.js`。宿主以 `const genieFx = window.DeskGenieFX;`、`const galleryPinterest = window.DesktopGalleryPinterest.create({...});` 等显式取得依赖，不保留第二套实现。源码契约测试经 `tests/history_js.py` 按 `desktop.html` 加载顺序读取宿主及拆出的模块；边界回归：`tests/test_desktop_genie_fx.py`、`tests/test_desktop_gallery_pinterest.py`、`tests/test_desktop_gallery_prompt_sources.py`、`tests/test_desktop_gallery_videos.py`、`tests/test_gallery_audio.cjs`。
 
 ## 资产库对比视口（2026-09-22）
 
@@ -511,6 +514,7 @@ suffix:
 | `connections` | Shared type compatibility, menus, SVG edges, magnetic input-port capture, nearest compatible proximity target, connection previews, edge mutation and connect/detach/drop lifecycle. | Global pointer dispatch and port animation. |
 | `port-interaction` | Liquid/droplet port DOM, hover/hold/release, source spring lifecycle and connection anchors; forwards node disposal. | Connection rules belong to `connections`; commit/proximity feedback to `connection-feedback`; pure shape/spring calculations to port-geometry. |
 | `connection-feedback` | Ephemeral attraction/snap/commit presentation, temporary visual node offsets, animation lifecycle and cleanup. | Edge mutation/compatibility/adjacency and targeted wire rendering belong to `connections`; never mutates persistent coordinates or triggers collision/layout. |
+| `link-flow` | The set of nodes with running progress (from `desktop-progress.js`'s `onActivityChange`), which edges flow (either end running), the `.desk-link-flow` dashed overlay markup and its shared dash phase (a negative `animation-delay` on one 700 ms clock, so redraws never restart the dashes); one coalesced link redraw per frame when the set changes. Loads before `connections` and the host. | Task state, polling and progress drawing stay with the domains and `desktop-progress.js`; link geometry and the SVG rebuild stay in `connections`, which calls `overlayMarkup()` right after each link path. Styles: geometry/keyframes in `desktop-canvas-nodes-geometry.css`, colour in `desktop-canvas-nodes.css`, the in-pipe variant in `desktop-graphite.css`. |
 | `generation-config` | Generation request/output configuration adapters, including existing form synchronization, Provider normalization, reference order and expected-output counts. | Executing a request. These adapters are not pure/read-only: their existing sync calls can update node/parameter state. |
 | `collision` | Optional drag collision solving, passive-group translation and short-lived smooth position targets. | Preference persistence belongs to `desktop-preferences`; settings presentation to `desktop-settings`. No graph topology, Provider or image-group merge ownership. |
 | `generation` | Existing image-editor/video/polish/upscale execution, video polling/cancellation, output slots/result propagation and upscale chaining. | Backend Provider fallback, archive persistence, Telegram delivery or new request schemas. |
@@ -1243,6 +1247,60 @@ no uploads or tasks. `desktop-canvas-topaz-video.js` owns uploads, preview/expor
 polling, cancellation and publication of full exports to the existing `video` result
 node. Preview artifacts remain inside the workbench and never replace a downstream
 result. These modules do not read image Topaz or ReShot private state.
+
+## Video edit (frames, scenes, audio separation)
+
+`desktop-video-edit-api.js` adapts `/api/video_edit/*` to `DesktopTasks` and sends only served
+same-origin media URLs (`/video/…`, Topaz Video / ReShot source and artifact URLs).
+`desktop-video-frames.js` is the frame-picker workbench: frame stepping on the backend's real
+frame times (VFR included; the player seeks to frame midpoints, the position the backend decodes),
+marks, scene candidates with backend thumbnails and keyboard transport. Its timeline is time-based
+(a client-side filmstrip drawn from a hidden `<video>`, an adaptive ruler, mark pins, scene-cut ticks
+and the playhead share one time → % mapping); play/pause uses `DesktopStateIcon`. It owns transient
+modal state only and asks the controller to run scene detection. `desktop-canvas-video-edit.js` owns the
+action dock rendered under `video` nodes (首帧 / 尾帧 / 抽帧… / 分离音频), the jobs and their
+progress float, and where outputs land: frames become `image` nodes, the track an `audio` node,
+each connected from the video. Its connection domain adds `video → image` and `video → audio`.
+Load order: `desktop-tasks.js` → `desktop-video-edit-api.js` → `desktop-video-frames.js` →
+`desktop-canvas-video-edit.js` → `desktop-canvas.js`, which only wires dependencies, dispatches
+`[data-video-edit]` clicks and passes the dock template to `desktop-canvas-model-nodes.js`.
+Styles: `desktop-video-edit-geometry.css` (layout) then `desktop-video-edit.css` (paint, shared tokens).
+The picker's stage and filmstrip stay dark in every theme, like the Topaz workbench; their colours are
+the `--desk-video-frames-*` roles in `desktop-tokens.css` (light and dark blocks).
+
+## Video compose (`video_compose` node)
+
+Clips are the `video` nodes connected into the node (one audio node is the music); order, frame
+trims, per-clip audio, levels and output settings live on the node. The rendered MP4 stays on the
+node (`mediaUrl`) and its output port feeds `topaz_video`, `video_control` and `comfy`
+(`DesktopVideoComposeModel.isVideoSource` is injected into those controllers). When settings change
+after a render, the result is kept and marked stale (「设定已改，成片仍是上一版」) until re-rendered.
+
+| Module | Owns |
+|---|---|
+| `desktop-video-compose-subtitles.js` | Pure subtitle state: cue normalize/add/move (output seconds, 0.05 s snap, 0.3 s minimum, no overlaps), SRT/VTT import, the request and settings-key pieces (null without cues), blocker reasons and the layout ratios shared with `backend/video_edit/subtitles.py`. |
+| `desktop-video-compose-model.js` | Pure state: normalize, clip sync/reorder, the client mirror of the backend clip window, output size and `timing()` (seconds after speed, transition cuts, draft segments), the settings key, the snake_case request, connection policy. |
+| `desktop-video-compose-player.js` | Draft preview: trimmed clips back to back in one `<video>` at each clip's `playbackRate` (cutting at each transition's midpoint, no transition effect), music in an `<audio>` with fades, blur-fit canvas. |
+| `desktop-video-compose-timeline.js` | Workbench timeline: ruler seek, clip blocks sized by output seconds with backend filmstrip tiles and a speed badge, transition markers on seams, frame-snapped trim handles (scaled by speed), drag/Alt+arrow reorder, subtitle lane (drag/resize cues, double-click to add, late cues pinned to the end), music lane with waveform and fades. |
+| `desktop-video-compose-view.js` | Markup only: the compact canvas card and the workbench. |
+| `desktop-video-compose-subtitle-panel.js` | The 「字幕」 side panel (size, position, look, font, add, SRT import, clear), the selected cue's bar (text, times, delete, Delete key) and the draft caption overlay with project font faces, on both the card and the workbench; hidden for the burned-in result. |
+| `desktop-video-compose-autosub.js` | 「自动字幕」 in the subtitle panel: script choice (原文／繁体／简体, remembered per viewer in `localStorage`), readiness check through `DesktopAsrAPI` (not ready → points to the settings center), confirm before replacing cues, submit/poll/cancel of `transcribe_…` jobs, and handing the draft cues to the controller. Never renders or burns anything. |
+| `desktop-canvas-video-compose.js` | Node sessions, the single shared workbench, the selected clip's bar (speed, transition, transition seconds, with disabled choices and cap notes), music input (archive URLs by reference, local audio uploaded once), render jobs, polling, cancel, `adopt` for a reopened render. |
+| `desktop-canvas-video-compose-recipe.js` | 「配方」 on archived `video_compose_*.mp4` video nodes: reads the `.json` recipe and rebuilds clip video nodes, the music audio node and a compose node holding the archived render. Edges are connected before the trims are written, because every new edge re-syncs the clip list. |
+
+Load order: `desktop-video-edit-api.js` → `desktop-video-compose-subtitles.js` → `desktop-video-compose-model.js` → `-player.js` →
+`-timeline.js` → `-autosub.js` → `-view.js` → `-subtitle-panel.js` → `desktop-canvas-video-compose.js` → `desktop-canvas-video-compose-recipe.js`
+→ `desktop-canvas.js`. The video-edit dock calls the recipe module through an injected
+`recipe: {isOutput, reopen}`. Compose styles share `desktop-video-edit-geometry.css` and
+`desktop-video-edit.css`; the workbench progress is its own plain bar (the shared progress material
+is positioned for nodes).
+Speech recognition (automatic subtitles): `desktop-asr-api.js` is the `/api/asr/{status,prepare}` adapter
+(`DesktopAsrAPI`, camelCase at the boundary) and `desktop-asr-tools.js` the settings-center card in 「模型工具」
+(readiness, one-click prepare with download progress; reuses the MOSS/Qwen card classes, no styles of its own).
+Both load before `desktop-settings.js`; recognition jobs go through `DesktopVideoEditAPI.compose.transcribe`.
+Delete/Backspace pressed inside any `aria-modal="true"` dialog (the workbenches and editors) never
+reaches the canvas node/edge delete handlers (`isInModalDialog` in `desktop-canvas.js`), so the
+selected canvas node under an open workbench is safe.
 
 `desktop-canvas-comfy-video.js` owns ComfyUI video I/O on the canvas (load it before
 `desktop-canvas.js`): the `video → comfy` and `comfy → video` connection domain, the

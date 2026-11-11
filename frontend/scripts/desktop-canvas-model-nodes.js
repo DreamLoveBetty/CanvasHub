@@ -25,6 +25,7 @@
     MIN_VIDEO_NODE_WIDTH,
     UPSCALE_MODEL_OPTIONS,
     VIDEO_NODE_LAYOUT_VERSION,
+    videoEditDockHtml = () => '',
     applyAllNodeLayouts,
     applyCanvasTransform,
     applyNodeLayout,
@@ -751,6 +752,7 @@
         <button type="button" class="desk-port desk-port--in desk-port--video-result-in" data-port="in" data-node-id="${node.id}" title="连接视频生成输出" aria-label="连接视频输入"></button>
         <button type="button" class="desk-port desk-port--out desk-port--video-result-out" data-port="out" data-node-id="${node.id}" title="作为参考视频连接到其他节点" aria-label="连接视频输出"></button>
         <span class="desk-resize-handle" data-node-resize-handle title="缩放视频节点" aria-hidden="true"></span>
+        ${rawSource ? videoEditDockHtml(node) : ''}
       </section>
     `;
   }

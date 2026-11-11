@@ -405,6 +405,11 @@ body.desk-app[data-theme] .desk-link-path.is-selected {
   filter: drop-shadow(0 0 6px var(--desk-canvas-flow-border-soft));
 }
 
+body.desk-app[data-theme] .desk-link-flow {
+  stroke: var(--desk-canvas-flow-solid);
+  filter: drop-shadow(0 0 3px var(--desk-canvas-flow-soft));
+}
+
 body.desk-app[data-theme] .desk-edge-menu {
   color: var(--desk-canvas-menu-ink);
   background: var(--desk-canvas-edge-menu-background);
@@ -724,8 +729,6 @@ body.desk-app .desk-connection-proximity__core {
   stroke: color-mix(in srgb, currentColor 18%, white);
   stroke-width: 0.85px;
 }
-body.desk-app .desk-connection-proximity__ring { stroke-width: 1.6px; opacity: 0.75; }
-body.desk-app .desk-connection-proximity[data-phase="snapped"] .desk-connection-proximity__ring { opacity: 1; }
 body.desk-app .desk-connection-impact__ring { opacity: 0.65; }
 body.desk-app .desk-connection-impact__wave {
   /* Width/dash length are per-layer SVG attributes, with one shared light head. */

@@ -433,6 +433,11 @@ body.desk-app {
   --desk-status-stop-background: var(--desk-status-error-soft-background);
   --desk-status-stop-border: var(--desk-status-error-soft-border);
   --desk-status-stop-shadow: var(--desk-status-error-soft-shadow);
+  --desk-model-badge-ink: #b13e14;
+  --desk-model-badge-background: rgba(255, 106, 34, 0.1);
+  --desk-model-badge-border: rgba(213, 77, 25, 0.18);
+  --desk-shell-logo-display: block;
+  --desk-shell-logo-dark-display: none;
   --desk-status-stop-hover-ink: var(--desk-status-error-on-fill);
   --desk-status-stop-hover-background: var(--desk-status-error-silk-background);
   --desk-status-stop-hover-border: var(--desk-status-error-silk-border);
@@ -1114,6 +1119,25 @@ body.desk-app {
 
   /* Elevation. */
 
+  /* Video frame picker: the stage and filmstrip stay dark in every theme, like the Topaz workbench. */
+  --desk-video-frames-stage: #080d14;
+  --desk-video-frames-stage-border: rgba(96, 116, 139, 0.42);
+  --desk-video-frames-strip: #111923;
+  --desk-video-frames-strip-divider: rgba(255, 255, 255, 0.09);
+  --desk-video-frames-strip-shade: rgba(3, 8, 14, 0.55);
+  --desk-video-frames-overlay: rgba(5, 10, 16, 0.72);
+  --desk-video-frames-overlay-ink: #f3f6fa;
+  --desk-video-frames-overlay-muted: rgba(243, 246, 250, 0.7);
+  --desk-video-frames-playhead: #f05b62;
+  --desk-video-frames-pin: var(--desk-color-accent);
+  --desk-video-frames-cut: #f3a43b;
+  --desk-video-frames-cut-ink: var(--desk-status-warning-soft-ink);
+  --desk-video-frames-cut-soft: var(--desk-status-warning-soft-background);
+  /* Compose draft captions preview burned-in pixels (backend subtitles.py), identical in every theme. */
+  --desk-video-subtitle-ink: #ffffff;
+  --desk-video-subtitle-stroke: #000000;
+  --desk-video-subtitle-box: rgba(0, 0, 0, 0.59);
+
   /* Phase 6 Gallery paint roles. Media geometry and interaction stay component-owned. */
   --desk-gallery-color-scheme: light;
   --desk-gallery-ink: var(--desk-color-text-primary);
@@ -1125,7 +1149,6 @@ body.desk-app {
   --desk-gallery-popover-background: var(--desk-color-popover-bg);
   --desk-gallery-popover-border: var(--desk-color-popover-border);
   --desk-gallery-popover-shadow: var(--desk-shadow-panel-soft);
-  --desk-gallery-disabled-ink: var(--desk-color-text-disabled);
   --desk-gallery-accent-ink: var(--desk-color-accent);
   --desk-gallery-toolbar-ink: var(--desk-color-text-primary);
   --desk-gallery-tag-ink: var(--desk-color-text-secondary);
@@ -2286,6 +2309,11 @@ body.desk-app[data-theme="dark"] {
   --desk-status-stop-background: var(--desk-status-error-soft-background);
   --desk-status-stop-border: var(--desk-status-error-soft-border);
   --desk-status-stop-shadow: var(--desk-status-error-soft-shadow);
+  --desk-model-badge-ink: #ffb38f;
+  --desk-model-badge-background: rgba(255, 106, 34, 0.14);
+  --desk-model-badge-border: rgba(255, 137, 82, 0.2);
+  --desk-shell-logo-display: none;
+  --desk-shell-logo-dark-display: block;
   --desk-status-stop-hover-ink: var(--desk-status-error-on-fill);
   --desk-status-stop-hover-background: var(--desk-status-error-silk-background);
   --desk-status-stop-hover-border: var(--desk-status-error-silk-border);
@@ -2953,6 +2981,21 @@ body.desk-app[data-theme="dark"] {
   --desk-agent-event-failure: var(--desk-status-error-base);
   --desk-agent-event-active: var(--desk-status-warning-base);
 
+  /* Video frame picker: darker stage edge and overlay so the dark dialog keeps separation. */
+  --desk-video-frames-stage: #05080d;
+  --desk-video-frames-stage-border: rgba(255, 255, 255, 0.08);
+  --desk-video-frames-strip: #0d141c;
+  --desk-video-frames-strip-divider: rgba(255, 255, 255, 0.07);
+  --desk-video-frames-strip-shade: rgba(0, 0, 0, 0.55);
+  --desk-video-frames-overlay: rgba(0, 0, 0, 0.66);
+  --desk-video-frames-overlay-ink: #f3f6fa;
+  --desk-video-frames-overlay-muted: rgba(243, 246, 250, 0.66);
+  --desk-video-frames-playhead: #ff6b71;
+  --desk-video-frames-pin: var(--desk-color-accent);
+  --desk-video-frames-cut: #ecd35c;
+  --desk-video-frames-cut-ink: var(--desk-status-warning-soft-ink);
+  --desk-video-frames-cut-soft: var(--desk-status-warning-soft-background);
+
   /* Phase 6 Gallery paint roles. */
   --desk-gallery-color-scheme: dark;
   --desk-gallery-ink: var(--desk-color-text-primary);
@@ -2964,7 +3007,6 @@ body.desk-app[data-theme="dark"] {
   --desk-gallery-popover-background: var(--desk-color-popover-bg);
   --desk-gallery-popover-border: var(--desk-color-popover-border);
   --desk-gallery-popover-shadow: var(--desk-shadow-panel-soft);
-  --desk-gallery-disabled-ink: var(--desk-color-text-disabled);
   --desk-gallery-accent-ink: var(--desk-color-accent);
   --desk-gallery-toolbar-ink: rgba(214, 220, 221, 0.76);
   --desk-gallery-tag-ink: rgba(214, 220, 221, 0.76);

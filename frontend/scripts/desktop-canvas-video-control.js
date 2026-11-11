@@ -1,10 +1,11 @@
 // Owns only video-control sessions/jobs; canvas graph, video display and status are ports.
 (function () {
+  // isVideoSource: which upstream nodes feed a video (video nodes, and rendered compose nodes).
   function create({ model, api, view, getCanvas, getNodeState, getNodeElement, addNode, connectNodes,
-    refreshVideoNode, saveState, reportStatus }) {
+    refreshVideoNode, saveState, reportStatus, isVideoSource = n => n?.type === 'video' }) {
     const sessions=new Map(), submissions=new Set();
     const live=s=>sessions.get(s.id)===s && getNodeState(s.id)===s.node && getNodeElement(s.id)===s.el;
-    const sourceFor=node=>(getCanvas().edges || []).filter(edge=>edge.to===node.id).map(edge=>getNodeState(edge.from)).find(n=>n?.type==='video');
+    const sourceFor=node=>(getCanvas().edges || []).filter(edge=>edge.to===node.id).map(edge=>getNodeState(edge.from)).find(isVideoSource);
     function feedback(s, error='', force=false) {
       if (!live(s)) return;
       if (error) s.noticeError=error;

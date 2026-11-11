@@ -236,19 +236,15 @@
     }
   }
 
-    // Graphite style: the travelling swell is a low port plate that slides along the
-    // side under the pointer (clear of corners and the input node's notch).
+    // Graphite style: the travelling swell is a low port plate that follows the node's
+    // rounded outline under the pointer, round the corners like the liquid swell, and
+    // sinks into the card over a generate node's bottom-right notch.
     function graphiteSwellPlate(state, located, amplitude) {
     if (!portPlates || document.body?.dataset.deskStyle !== 'graphite') return null;
-    const side = floatingSwellSide(located);
     const rect = { x: state.geometryX, y: state.geometryY, w: state.geometryWidth, h: state.geometryHeight };
-    const along = side === 'left' || side === 'right' ? located.y : located.x;
-    const notch = portPlates.notchOf(state.nodeElement);
-    return {
-      path: portPlates.edgePlate(rect, side, along, amplitude, notch).path,
-      face: portPlates.edgePlate(rect, side, along, 1, notch).face,
-      peak: amplitude * portPlates.PLATE.depth,
-    };
+    const amount = amplitude * portPlates.notchFade(rect, portPlates.notchOf(state.nodeElement), located.x, located.y);
+    const plate = portPlates.perimeterPlate(s => floatingSwellPointAt(state.geometry, s).point, state.position.value, amount);
+    return { path: plate.path, face: plate.face, peak: amount * portPlates.PLATE.depth };
   }
 
     function renderFloatingSwellState(state) {

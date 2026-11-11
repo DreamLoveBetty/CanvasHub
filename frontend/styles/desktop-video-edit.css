@@ -1,0 +1,805 @@
+/* Video-edit paint: dock, frame picker and compose node/workbench consume the shared semantic
+   tokens plus the --desk-video-frames-* roles (dark stage and filmstrip, playhead, pins) shared by
+   both workbenches, so light, dark and graphite follow desktop-tokens.css.
+   Layout lives in desktop-video-edit-geometry.css. */
+
+/* The dock appears with the node's other hover chrome and stays out of the way otherwise. */
+:where(body.desk-app[data-theme]) .desk-video-edit {
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 150ms ease, visibility 0s linear 150ms;
+}
+
+:where(body.desk-app[data-theme]) .desk-node--video:is(:hover, .is-selected, :focus-within) .desk-video-edit:not(.is-busy) {
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 150ms ease;
+}
+
+:where(body.desk-app[data-theme]) .desk-video-edit__actions {
+  border: 1px solid var(--desk-color-popover-border);
+  border-radius: var(--desk-radius-pill);
+  background: var(--desk-color-popover-bg);
+  box-shadow: var(--desk-shadow-control);
+}
+
+:where(body.desk-app[data-theme]) .desk-video-edit__actions button,
+body.desk-app :is(.desk-video-frames, .desk-video-compose-bench, .desk-video-compose__actions) button {
+  border: 1px solid var(--desk-color-control-border);
+  border-radius: var(--desk-radius-pill);
+  background: var(--desk-color-control-bg);
+  color: var(--desk-color-control-ink);
+  font-family: var(--desk-font-family-sans);
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease, transform 120ms ease;
+}
+
+:where(body.desk-app[data-theme]) .desk-video-edit__actions button:hover:not(:disabled),
+body.desk-app :is(.desk-video-frames, .desk-video-compose-bench, .desk-video-compose__actions) button:hover:not(:disabled) {
+  border-color: var(--desk-color-control-border-hover);
+  background: var(--desk-color-control-bg-hover);
+}
+
+body.desk-app :is(.desk-video-frames, .desk-video-compose-bench, .desk-video-compose__actions) button:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+:where(body.desk-app[data-theme]) .desk-video-edit__actions button.is-accent {
+  border-color: transparent;
+  background: var(--desk-color-accent);
+  color: var(--desk-color-text-inverse);
+}
+
+:where(body.desk-app[data-theme]) .desk-video-edit__actions button.is-accent:hover:not(:disabled) {
+  border-color: transparent;
+  background: var(--desk-color-accent);
+  filter: brightness(1.08);
+}
+
+:where(body.desk-app[data-theme]) .desk-video-edit__actions button:disabled,
+body.desk-app :is(.desk-video-frames, .desk-video-compose-bench, .desk-video-compose__actions) button:disabled {
+  border-color: var(--desk-color-control-border-disabled);
+  background: var(--desk-color-control-bg-disabled);
+  color: var(--desk-color-text-disabled);
+  cursor: not-allowed;
+}
+
+:where(body.desk-app[data-theme]) .desk-video-edit__actions button:focus-visible,
+body.desk-app :is(.desk-video-frames, .desk-video-compose-bench, .desk-video-compose__actions) :is(button, input, select, textarea):focus-visible {
+  outline: 2px solid var(--desk-color-focus-ring);
+  outline-offset: 2px;
+}
+
+/* Frame picker */
+body.desk-app :is(.desk-video-frames, .desk-video-compose-bench) {
+  color: var(--desk-color-text-primary);
+  font-family: var(--desk-font-family-sans);
+}
+
+body.desk-app :is(.desk-video-frames__scrim, .desk-video-compose-bench__scrim) {
+  background: var(--desk-color-surface-dark);
+  animation: desk-video-frames-fade 160ms ease-out;
+}
+
+body.desk-app :is(.desk-video-frames__dialog, .desk-video-compose-bench__dialog) {
+  border: 1px solid var(--desk-color-popover-border);
+  border-radius: var(--desk-radius-panel);
+  background: var(--desk-color-popover-bg);
+  box-shadow: var(--desk-shadow-panel);
+  outline: none;
+  animation: desk-video-frames-enter 180ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+body.desk-app :is(.desk-video-frames__head, .desk-video-compose-bench__head, .desk-video-compose-bench__body) {
+  border-bottom: 1px solid var(--desk-color-border-subtle);
+}
+
+body.desk-app :is(.desk-video-frames__panel + .desk-video-frames__panel, .desk-video-compose-bench__panel + .desk-video-compose-bench__panel) {
+  border-top: 1px solid var(--desk-color-border-subtle);
+}
+
+body.desk-app :is(.desk-video-frames__foot, .desk-video-compose-bench__foot) {
+  border-top: 1px solid var(--desk-color-border-subtle);
+}
+
+body.desk-app :is(.desk-video-frames__side, .desk-video-compose-bench__side) {
+  border-left: 1px solid var(--desk-color-border-subtle);
+}
+
+body.desk-app :is(.desk-video-frames__title, .desk-video-compose-bench__title) strong {
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+body.desk-app :is(.desk-video-frames__title span, .desk-video-frames__clock span, .desk-video-frames__scene-text small,
+  .desk-video-compose-bench__title span, .desk-video-compose-bench__clock span, .desk-video-compose-bench__label,
+  .desk-video-compose-bench__range output, .desk-video-compose-tl__labels) {
+  color: var(--desk-color-text-secondary);
+}
+
+body.desk-app .desk-video-frames__meta span {
+  border: 1px solid var(--desk-color-border-subtle);
+  border-radius: var(--desk-radius-pill);
+  background: var(--desk-color-control-bg);
+  color: var(--desk-color-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+body.desk-app :is(.desk-video-frames__icon, .desk-video-compose__icon-svg) {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+body.desk-app :is(.desk-video-frames button.desk-video-frames__close, .desk-video-compose-bench button.desk-video-compose-bench__close) {
+  border-color: transparent;
+  background: transparent;
+  color: var(--desk-color-text-secondary);
+}
+
+body.desk-app :is(.desk-video-frames button.desk-video-frames__close, .desk-video-compose-bench button.desk-video-compose-bench__close):hover {
+  border-color: transparent;
+  background: var(--desk-color-control-bg-hover);
+  color: var(--desk-color-text-primary);
+}
+
+/* Stage and timeline stay dark in every theme, like the Topaz workbench. */
+body.desk-app :is(.desk-video-frames__screen, .desk-video-compose-bench__screen, .desk-video-compose__preview) {
+  border: 1px solid var(--desk-video-frames-stage-border);
+  border-radius: var(--desk-radius-card);
+  background: var(--desk-video-frames-stage);
+}
+
+body.desk-app :is(.desk-video-frames__badge, .desk-video-compose-bench__label-chip, .desk-video-compose-bench__dims, .desk-video-compose__dims) {
+  border-radius: var(--desk-radius-pill);
+  background: var(--desk-video-frames-overlay);
+  color: var(--desk-video-frames-overlay-ink);
+  font-weight: 500;
+}
+
+body.desk-app .desk-video-frames__badge.is-mark .desk-video-frames__icon {
+  fill: var(--desk-video-frames-pin);
+  stroke: var(--desk-video-frames-pin);
+}
+
+body.desk-app .desk-video-frames__badge.is-cut {
+  box-shadow: inset 0 0 0 1px var(--desk-video-frames-cut);
+  color: var(--desk-video-frames-cut);
+}
+
+body.desk-app :is(.desk-video-frames__loading, .desk-video-compose-bench__empty, .desk-video-compose__empty) {
+  color: var(--desk-video-frames-overlay-muted);
+}
+
+body.desk-app :is(.desk-video-frames__clock, .desk-video-compose-bench__clock) {
+  font-variant-numeric: tabular-nums;
+}
+
+body.desk-app :is(.desk-video-frames__clock, .desk-video-compose-bench__clock) b {
+  font-family: var(--desk-font-family-mono);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+body.desk-app .desk-video-frames__controls button {
+  border-radius: var(--desk-radius-control);
+}
+
+body.desk-app .desk-video-frames__controls button:hover:not(:disabled) {
+  color: var(--desk-color-accent);
+}
+
+body.desk-app :is(.desk-video-frames__controls button.desk-video-frames__play, .desk-video-compose-bench button.desk-video-compose-bench__play) {
+  border-color: var(--desk-color-control-border-active);
+  border-radius: var(--desk-radius-pill);
+  background: var(--desk-color-accent-soft);
+  color: var(--desk-color-accent);
+}
+
+body.desk-app :is(.desk-video-frames__play, .desk-video-compose-bench__play, .desk-video-compose__play) .desk-state-icon {
+  fill: currentColor;
+}
+
+body.desk-app .desk-video-frames__mark-button kbd {
+  color: inherit;
+  font-family: var(--desk-font-family-mono);
+  opacity: 0.6;
+}
+
+body.desk-app .desk-video-frames button.desk-video-frames__mark-button[aria-pressed="true"] {
+  border-color: transparent;
+  background: var(--desk-color-accent);
+  color: var(--desk-action-primary-ink);
+}
+
+body.desk-app .desk-video-frames__mark-button[aria-pressed="true"] .desk-video-frames__icon {
+  fill: currentColor;
+}
+
+body.desk-app .desk-video-frames__track {
+  outline: none;
+}
+
+body.desk-app .desk-video-frames__track:focus-visible {
+  outline: 2px solid var(--desk-color-focus-ring);
+  outline-offset: 2px;
+}
+
+/* The filmstrip clips the tiles; the outline draws its edge above them. Markers sit outside the clip. */
+body.desk-app .desk-video-frames__filmstrip {
+  border-radius: var(--desk-radius-control);
+  background: var(--desk-video-frames-strip);
+  outline: 1px solid var(--desk-video-frames-stage-border);
+  outline-offset: -1px;
+}
+
+body.desk-app .desk-video-frames__filmstrip canvas {
+  border-right: 1px solid var(--desk-video-frames-strip-divider);
+  opacity: 0;
+  transition: opacity 220ms ease;
+}
+
+body.desk-app .desk-video-frames__filmstrip canvas.is-ready {
+  opacity: 0.82;
+}
+
+body.desk-app .desk-video-frames__track:hover .desk-video-frames__filmstrip canvas.is-ready,
+body.desk-app .desk-video-frames.is-scrubbing .desk-video-frames__filmstrip canvas.is-ready {
+  opacity: 1;
+}
+
+body.desk-app .desk-video-frames__filmstrip.is-unavailable {
+  background: var(--desk-video-frames-strip-shade);
+}
+
+body.desk-app .desk-video-frames__pin,
+body.desk-app .desk-video-frames__pin::after {
+  background: var(--desk-video-frames-pin);
+}
+
+body.desk-app .desk-video-frames__pin {
+  box-shadow: 0 0 0 1px var(--desk-video-frames-strip-shade);
+}
+
+body.desk-app .desk-video-frames__cut {
+  background: repeating-linear-gradient(to bottom, var(--desk-video-frames-cut) 0 4px, transparent 4px 7px);
+}
+
+body.desk-app .desk-video-frames__playhead,
+body.desk-app .desk-video-frames__playhead span {
+  background: var(--desk-video-frames-playhead);
+}
+
+body.desk-app .desk-video-frames__playhead {
+  box-shadow: 0 0 0 1px var(--desk-video-frames-strip-shade);
+}
+
+body.desk-app :is(.desk-video-frames__ruler, .desk-video-compose-tl__ruler) {
+  color: var(--desk-color-text-placeholder);
+  font-variant-numeric: tabular-nums;
+}
+
+body.desk-app :is(.desk-video-frames__panel-head h3, .desk-video-compose-bench__panel-head h3, .desk-video-compose-bench__timeline-head h3) {
+  color: var(--desk-color-text-primary);
+  font-weight: 600;
+}
+
+body.desk-app :is(.desk-video-frames__panel-head small, .desk-video-frames__keys, .desk-video-frames__empty,
+  .desk-video-compose-bench__panel-head small, .desk-video-compose-bench__timeline-head small, .desk-video-compose-tl__empty,
+  .desk-video-compose-bench__clipbar small, .desk-video-compose-bench__cue-time, .desk-video-compose-bench__sub-progress) {
+  color: var(--desk-color-text-placeholder);
+}
+
+body.desk-app .desk-video-frames__panel-head small {
+  font-variant-numeric: tabular-nums;
+}
+
+body.desk-app .desk-video-frames__scene {
+  border-radius: var(--desk-radius-control);
+  transition: background-color 120ms ease;
+}
+
+body.desk-app .desk-video-frames__scene:hover {
+  background: var(--desk-color-control-bg);
+}
+
+body.desk-app .desk-video-frames__scene.is-current {
+  background: var(--desk-color-accent-soft);
+}
+
+body.desk-app .desk-video-frames__scene-text b {
+  font-weight: 600;
+}
+
+body.desk-app .desk-video-frames__scene-text small {
+  font-variant-numeric: tabular-nums;
+}
+
+body.desk-app :is(.desk-video-frames__scene, .desk-video-frames__marks) img {
+  border-radius: 4px;
+  background: var(--desk-video-frames-stage);
+  opacity: 0;
+  transition: opacity 180ms ease;
+}
+
+body.desk-app :is(.desk-video-frames__scene, .desk-video-frames__marks) img.is-ready {
+  opacity: 1;
+}
+
+body.desk-app .desk-video-frames__scene img {
+  box-shadow: inset 0 0 0 1px var(--desk-video-frames-stage-border);
+}
+
+body.desk-app .desk-video-frames__scene input {
+  border: 1.5px solid var(--desk-color-control-border-hover);
+  border-radius: 4px;
+  background: var(--desk-color-popover-bg) center / 12px 12px no-repeat;
+  transition: background-color 120ms ease, border-color 120ms ease;
+}
+
+body.desk-app .desk-video-frames__scene input:checked {
+  border-color: var(--desk-color-accent);
+  background-color: var(--desk-color-accent);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+
+body.desk-app .desk-video-frames__marks > li[data-vf-frame-item] {
+  border-radius: var(--desk-radius-control);
+  background: var(--desk-video-frames-stage);
+  box-shadow: 0 0 0 1px var(--desk-color-border-subtle);
+  transition: box-shadow 120ms ease, transform 120ms ease;
+}
+
+body.desk-app .desk-video-frames__marks > li[data-vf-frame-item]:hover {
+  box-shadow: 0 0 0 1px var(--desk-color-control-border-hover);
+}
+
+body.desk-app .desk-video-frames__marks > li.is-current {
+  box-shadow: 0 0 0 2px var(--desk-color-accent);
+}
+
+body.desk-app .desk-video-frames__marks > li.is-new {
+  animation: desk-video-frames-pop 200ms cubic-bezier(0.2, 0.8, 0.2, 1.2);
+}
+
+body.desk-app .desk-video-frames__mark-meta {
+  background: linear-gradient(to top, var(--desk-video-frames-overlay), transparent);
+  color: var(--desk-video-frames-overlay-ink);
+  font-variant-numeric: tabular-nums;
+}
+
+body.desk-app .desk-video-frames__mark-meta b {
+  font-weight: 600;
+}
+
+body.desk-app .desk-video-frames__mark-meta small {
+  color: var(--desk-video-frames-overlay-muted);
+}
+
+body.desk-app .desk-video-frames__mark-cut {
+  border-radius: 50%;
+  background: var(--desk-video-frames-cut);
+  box-shadow: 0 0 0 2px var(--desk-video-frames-overlay);
+}
+
+body.desk-app .desk-video-frames__marks button[data-vf-unmark] {
+  border-color: transparent;
+  background: var(--desk-video-frames-overlay);
+  color: var(--desk-video-frames-overlay-ink);
+  opacity: 0;
+  transition: opacity 120ms ease, color 120ms ease;
+}
+
+body.desk-app .desk-video-frames__marks > li:is(:hover, :focus-within) button[data-vf-unmark] {
+  opacity: 1;
+}
+
+body.desk-app .desk-video-frames__marks button[data-vf-unmark]:hover:not(:disabled) {
+  border-color: transparent;
+  background: var(--desk-video-frames-overlay);
+  color: var(--desk-video-frames-playhead);
+}
+
+body.desk-app .desk-video-frames__empty {
+  border: 1px dashed var(--desk-color-border-subtle);
+  border-radius: var(--desk-radius-control);
+}
+
+body.desk-app .desk-video-frames__empty.is-busy {
+  color: var(--desk-color-text-secondary);
+}
+
+body.desk-app :is(.desk-video-frames__keys, .desk-video-frames__empty) kbd {
+  border: 1px solid var(--desk-color-control-border);
+  border-radius: 4px;
+  background: var(--desk-color-control-bg);
+  box-shadow: inset 0 -1px 0 var(--desk-color-border-subtle);
+  color: var(--desk-color-text-secondary);
+  font-family: var(--desk-font-family-mono);
+}
+
+body.desk-app :is(.desk-video-frames button.desk-video-frames__extract, .desk-video-compose-bench button.desk-video-compose-bench__run,
+  .desk-video-compose__actions button.desk-video-compose__run):not(:disabled) {
+  border-color: var(--desk-action-primary-border);
+  background: var(--desk-action-primary-gloss);
+  background-position: var(--desk-action-primary-silk-position);
+  background-size: var(--desk-action-primary-silk-background-size);
+  color: var(--desk-action-primary-ink);
+  box-shadow: inset 0 1px 0 var(--desk-action-primary-highlight), 0 1px 3px var(--desk-action-primary-shadow);
+}
+
+body.desk-app :is(.desk-video-frames button.desk-video-frames__extract, .desk-video-compose-bench button.desk-video-compose-bench__run,
+  .desk-video-compose__actions button.desk-video-compose__run):hover:not(:disabled) {
+  border-color: var(--desk-action-primary-hover-border);
+  background: var(--desk-action-primary-gloss-hover);
+  background-position: var(--desk-action-primary-silk-position-hover);
+  background-size: var(--desk-action-primary-silk-background-size);
+}
+
+/* Compose node card: the canvas node glass, a dark preview stage and a filmstrip summary. */
+body.desk-app .desk-node--video-compose {
+  border: 1px solid var(--desk-node-stroke);
+  border-radius: var(--desk-node-radius);
+  background: var(--desk-node-sheen-background), var(--desk-node-glass-background);
+  box-shadow: var(--desk-node-glass-shadow);
+  color: var(--desk-node-ink);
+}
+body.desk-app .desk-node--video-compose::before {
+  display: none;
+}
+body.desk-app .desk-node--video-compose.is-selected {
+  border-color: var(--desk-node-selection-stroke);
+}
+body.desk-app .desk-video-compose__icon {
+  border-radius: 7px;
+  background: var(--desk-color-accent-soft);
+  color: var(--desk-color-accent);
+}
+body.desk-app .desk-video-compose__title {
+  font-weight: 600;
+}
+body.desk-app :is(.desk-video-compose__badge, .desk-video-compose-bench__total) {
+  border: 1px solid var(--desk-color-border-subtle);
+  border-radius: var(--desk-radius-pill);
+  background: var(--desk-color-control-bg);
+  color: var(--desk-color-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+body.desk-app .desk-video-compose__badge:is(.is-busy, .is-result, .is-stale) {
+  border-color: transparent;
+}
+body.desk-app .desk-video-compose__badge.is-busy {
+  background: var(--desk-color-accent-soft);
+  color: var(--desk-color-accent);
+}
+body.desk-app .desk-video-compose__badge.is-result {
+  background: var(--desk-status-success-soft-fill);
+  color: var(--desk-status-success-soft-ink);
+}
+body.desk-app .desk-video-compose__badge.is-stale {
+  background: var(--desk-status-warning-soft-fill);
+  color: var(--desk-status-warning-soft-ink);
+}
+body.desk-app :is(.desk-video-compose__badge.is-error, .desk-video-compose-bench__total.is-over, .desk-video-compose__meta .is-over,
+  .desk-video-compose-bench__status.is-error) {
+  color: var(--desk-color-danger);
+}
+body.desk-app .desk-video-compose__preview {
+  border-radius: var(--desk-radius-control);
+  cursor: zoom-in;
+}
+body.desk-app .desk-video-compose__frame {
+  background: var(--desk-video-frames-strip);
+}
+body.desk-app .desk-video-compose__blur {
+  filter: blur(14px) brightness(0.8);
+}
+body.desk-app :is(.desk-video-compose__play, .desk-video-compose__dims) {
+  border-radius: var(--desk-radius-pill);
+  background: var(--desk-video-frames-overlay);
+  color: var(--desk-video-frames-overlay-ink);
+}
+body.desk-app .desk-video-compose__play {
+  border: 0;
+  cursor: pointer;
+  transition: transform 120ms ease;
+}
+body.desk-app .desk-video-compose__play:hover {
+  transform: scale(1.06);
+}
+body.desk-app .desk-video-compose__play:focus-visible {
+  outline: 2px solid var(--desk-color-focus-ring);
+  outline-offset: 2px;
+}
+body.desk-app :is(.desk-video-compose__dims, .desk-video-compose__meta, .desk-video-compose-bench__dims, .desk-video-compose-bench__range output) {
+  font-variant-numeric: tabular-nums;
+}
+body.desk-app .desk-video-compose__strip {
+  border-radius: 6px;
+  background: var(--desk-video-frames-stage);
+}
+body.desk-app .desk-video-compose__strip i {
+  background-color: var(--desk-video-frames-strip);
+  box-shadow: inset 0 0 0 1px var(--desk-video-frames-strip-divider);
+}
+body.desk-app .desk-video-compose__strip i.is-pending {
+  background-color: var(--desk-video-frames-strip-shade);
+}
+body.desk-app .desk-video-compose__strip b {
+  border-radius: 4px;
+  background: var(--desk-video-frames-overlay);
+  color: var(--desk-video-frames-overlay-ink);
+  font-weight: 600;
+}
+body.desk-app .desk-video-compose__meta {
+  color: var(--desk-node-muted-ink);
+}
+body.desk-app .desk-video-compose__meta > i {
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.5;
+}
+/* Compose workbench */
+body.desk-app .desk-video-compose-bench__screen {
+  border-radius: var(--desk-radius-card);
+}
+body.desk-app .desk-video-compose-bench .desk-video-compose-bench__seg button[aria-pressed="true"] {
+  border-color: var(--desk-color-control-border-active);
+  background: var(--desk-color-accent-soft);
+  color: var(--desk-color-accent);
+}
+body.desk-app .desk-video-compose-bench__range input {
+  accent-color: var(--desk-color-accent);
+}
+body.desk-app .desk-video-compose-bench__panel-head .desk-video-compose__icon-svg {
+  color: var(--desk-color-accent);
+}
+body.desk-app .desk-video-compose-bench__status {
+  color: var(--desk-color-text-secondary);
+}
+body.desk-app .desk-video-compose-bench__status.is-stale {
+  color: var(--desk-status-warning-soft-ink);
+}
+body.desk-app .desk-video-compose-bench__bar {
+  border-radius: 3px;
+  background: var(--desk-color-accent-soft);
+}
+body.desk-app .desk-video-compose-bench__bar i {
+  border-radius: 3px;
+  background: var(--desk-color-accent);
+  transition: width 400ms ease;
+}
+body.desk-app .desk-video-compose-bench__progress.is-indeterminate .desk-video-compose-bench__bar i {
+  animation: desk-video-compose-sweep 1.2s ease-in-out infinite alternate;
+}
+body.desk-app .desk-video-compose-bench__progress b {
+  color: var(--desk-color-accent);
+  font-variant-numeric: tabular-nums;
+}
+body.desk-app .desk-video-compose-bench button.desk-video-compose-bench__cancel:hover:not(:disabled) {
+  color: var(--desk-color-danger);
+}
+/* Timeline: clip blocks are filmstrips on the dark strip colour; the selected one gets the accent ring. */
+body.desk-app .desk-video-compose-tl__lane {
+  border-radius: var(--desk-radius-control);
+  background: var(--desk-color-control-bg);
+}
+body.desk-app .desk-video-compose-tl__clip {
+  border-radius: 6px;
+  background: var(--desk-video-frames-strip);
+  box-shadow: inset 0 0 0 1px var(--desk-video-frames-stage-border);
+  transition: box-shadow 120ms ease, opacity 120ms ease;
+}
+body.desk-app .desk-video-compose-tl__clip.is-selected {
+  box-shadow: inset 0 0 0 2px var(--desk-color-accent);
+}
+body.desk-app .desk-video-compose-tl__clip.is-dragging {
+  opacity: 0.85;
+  box-shadow: inset 0 0 0 2px var(--desk-color-accent), var(--desk-shadow-panel);
+}
+body.desk-app .desk-video-compose-tl__clip:focus-visible {
+  outline: 2px solid var(--desk-color-focus-ring);
+  outline-offset: 1px;
+}
+body.desk-app .desk-video-compose-tl__clip.is-error {
+  background: var(--desk-video-frames-strip-shade);
+}
+body.desk-app .desk-video-compose-tl__strip i {
+  border-right: 1px solid var(--desk-video-frames-strip-divider);
+  opacity: 0.86;
+}
+body.desk-app .desk-video-compose-tl__cap {
+  color: var(--desk-video-frames-overlay-ink);
+  text-shadow: 0 1px 2px var(--desk-video-frames-strip-shade);
+}
+body.desk-app .desk-video-compose-tl__cap b {
+  font-weight: 700;
+}
+body.desk-app .desk-video-compose-tl__cap small {
+  color: var(--desk-video-frames-overlay-muted);
+  font-variant-numeric: tabular-nums;
+}
+body.desk-app .desk-video-compose-tl__clip.is-error .desk-video-compose-tl__cap {
+  color: var(--desk-video-frames-cut);
+}
+body.desk-app .desk-video-compose-bench .desk-video-compose-tl__audio,
+body.desk-app .desk-video-compose-tl__audio.is-none {
+  border-color: transparent;
+  border-radius: 4px;
+  background: var(--desk-video-frames-overlay);
+  color: var(--desk-video-frames-overlay-muted);
+}
+body.desk-app .desk-video-compose-bench button.desk-video-compose-tl__audio[aria-pressed="true"] {
+  border-color: transparent;
+  background: var(--desk-color-accent);
+  color: var(--desk-action-primary-ink);
+}
+body.desk-app .desk-video-compose-tl__handle {
+  background: var(--desk-video-frames-overlay);
+  opacity: 0;
+  transition: opacity 120ms ease, background-color 120ms ease;
+}
+body.desk-app .desk-video-compose-tl__handle::after {
+  border-radius: 1px;
+  background: var(--desk-video-frames-overlay-ink);
+}
+body.desk-app .desk-video-compose-tl__clip:is(:hover, .is-selected) .desk-video-compose-tl__handle,
+body.desk-app .desk-video-compose-tl.is-trimming .desk-video-compose-tl__handle {
+  opacity: 1;
+}
+body.desk-app .desk-video-compose-tl__handle:hover {
+  background: var(--desk-color-accent);
+}
+body.desk-app .desk-video-compose-tl__insert {
+  border-radius: 2px;
+  background: var(--desk-color-accent);
+}
+/* Seam chips and speed badges sit on the dark strip: overlay chips in the strip's light ink (readable
+   in every theme), with the theme's pin colour on the border once set. */
+body.desk-app .desk-video-compose-bench button.desk-video-compose-tl__transition {
+  border-color: var(--desk-video-frames-stage-border);
+  border-radius: 6px;
+  background: var(--desk-video-frames-overlay);
+  color: var(--desk-video-frames-overlay-muted);
+}
+body.desk-app .desk-video-compose-bench button.desk-video-compose-tl__transition:hover:not(:disabled),
+body.desk-app .desk-video-compose-bench button.desk-video-compose-tl__transition.is-set {
+  border-color: var(--desk-video-frames-pin);
+  background: var(--desk-video-frames-overlay);
+  color: var(--desk-video-frames-overlay-ink);
+}
+body.desk-app .desk-video-compose-bench button.desk-video-compose-tl__transition.is-selected {
+  box-shadow: 0 0 0 2px var(--desk-color-focus-ring);
+}
+body.desk-app .desk-video-compose-tl__transition svg {
+  fill: currentColor;
+}
+body.desk-app .desk-video-compose-tl__speed {
+  border: 1px solid var(--desk-video-frames-pin);
+  border-radius: 3px;
+  background: var(--desk-video-frames-overlay);
+  color: var(--desk-video-frames-overlay-ink);
+  font-weight: 700;
+}
+/* Subtitle cues: text chips on the lane; a cue past the end of the render is flagged in the cut colour. */
+body.desk-app .desk-video-compose-tl__cue {
+  border-radius: 5px;
+  background: var(--desk-color-accent-soft);
+  box-shadow: inset 0 0 0 1px var(--desk-color-control-border-active);
+  color: var(--desk-color-text-primary);
+}
+body.desk-app .desk-video-compose-tl__cue.is-selected {
+  box-shadow: inset 0 0 0 2px var(--desk-color-accent);
+}
+body.desk-app .desk-video-compose-tl__cue.is-empty {
+  color: var(--desk-color-text-disabled);
+  font-style: italic;
+}
+body.desk-app .desk-video-compose-tl__cue.is-over {
+  box-shadow: inset 0 0 0 1px var(--desk-video-frames-cut);
+}
+body.desk-app .desk-video-compose-tl__cue:focus-visible {
+  outline: 2px solid var(--desk-color-focus-ring);
+  outline-offset: 1px;
+}
+body.desk-app .desk-video-compose-tl__cue-edge:hover {
+  background: var(--desk-color-accent);
+  opacity: 0.5;
+}
+body.desk-app :is(.desk-video-compose-bench__select, .desk-video-compose-bench__cue-text) {
+  border: 1px solid var(--desk-color-control-border);
+  border-radius: var(--desk-radius-control);
+  background: var(--desk-color-control-bg);
+  color: var(--desk-color-control-ink);
+}
+/* The draft caption previews the render's pixels, so it uses the same colours in every theme. */
+body.desk-app .desk-video-compose__caption {
+  color: var(--desk-video-subtitle-ink);
+  -webkit-text-stroke: 0.16em var(--desk-video-subtitle-stroke);
+  paint-order: stroke fill;
+}
+body.desk-app .desk-video-compose__caption[data-look="box"] {
+  border-radius: 0.25em;
+  background: var(--desk-video-subtitle-box);
+  -webkit-text-stroke: 0;
+}
+body.desk-app .desk-video-compose-tl__music {
+  border-radius: 6px;
+  background: var(--desk-color-accent-soft);
+  box-shadow: inset 0 0 0 1px var(--desk-color-control-border-active);
+}
+body.desk-app .desk-video-compose-tl__music .is-bars {
+  fill: var(--desk-color-accent);
+  opacity: 0.55;
+}
+body.desk-app .desk-video-compose-tl__music .is-fade {
+  fill: var(--desk-color-popover-bg);
+  opacity: 0.55;
+}
+body.desk-app .desk-video-compose-tl__music .is-ramp {
+  fill: none;
+  stroke: var(--desk-color-accent);
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+body.desk-app .desk-video-compose-tl__music span {
+  color: var(--desk-color-accent);
+  font-weight: 500;
+}
+body.desk-app :is(.desk-video-compose-tl__playhead, .desk-video-compose-tl__playhead span) {
+  background: var(--desk-video-frames-playhead);
+}
+body.desk-app .desk-video-compose-tl__playhead {
+  box-shadow: 0 0 0 1px var(--desk-video-frames-strip-shade);
+}
+body.desk-app .desk-video-compose-tl__playhead span {
+  border-radius: 2px 2px 50% 50%;
+}
+
+@keyframes desk-video-frames-fade {
+  from { opacity: 0; }
+}
+
+@keyframes desk-video-frames-enter {
+  from { opacity: 0; transform: translateY(8px) scale(0.985); }
+}
+
+@keyframes desk-video-compose-sweep {
+  from { left: 0; }
+  to { left: 70%; }
+}
+@keyframes desk-video-frames-pop {
+  from { opacity: 0; transform: scale(0.9); }
+}
+
+@media (max-width: 760px) {
+  body.desk-app .desk-video-frames__side {
+    border-left: 0;
+    border-top: 1px solid var(--desk-color-border-subtle);
+  }
+}
+
+@media (max-width: 900px) {
+  body.desk-app .desk-video-compose-bench__side {
+    border-left: 0;
+    border-top: 1px solid var(--desk-color-border-subtle);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :where(body.desk-app[data-theme]) :is(.desk-video-edit, .desk-node--video:is(:hover, .is-selected, :focus-within) .desk-video-edit:not(.is-busy)) {
+    transition: none;
+  }
+
+  body.desk-app :is(.desk-video-frames, .desk-video-compose-bench, .desk-node--video-compose) :is(*, *::after) {
+    animation: none;
+    transition: none;
+  }
+
+  body.desk-app :is(.desk-video-frames, .desk-video-compose-bench, .desk-video-compose__actions) button:active:not(:disabled) {
+    transform: none;
+  }
+}

@@ -1513,7 +1513,8 @@ body.desk-app[data-lang="en"] .desk-gallery-tabs button[data-gallery-view="sets"
   font-size: 11px;
 }
 
-/* Deleting files sits apart from the selection actions; undo is a quiet text action. */
+/* Deleting files sits apart from the selection actions; after a delete the undo button
+   (hidden otherwise) shares the row half and half. */
 :where(body.desk-app[data-theme]) .desk-gallery-inspector__danger {
   display: flex;
   flex: 1 1 100%;
@@ -1521,24 +1522,6 @@ body.desk-app[data-lang="en"] .desk-gallery-tabs button[data-gallery-view="sets"
   align-items: center;
   padding-top: 7px;
   border-top: 1px solid;
-}
-
-:where(body.desk-app[data-theme]) .desk-gallery-inspector__undo {
-  flex: 0 0 auto;
-  min-height: 30px;
-  padding: 0 4px;
-  font-size: 11px;
-  font-weight: 700;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-  background: none;
-  border: 0;
-  cursor: pointer;
-}
-
-:where(body.desk-app[data-theme]) .desk-gallery-inspector__undo:disabled {
-  cursor: default;
-  text-decoration: none;
 }
 
 :where(body.desk-app[data-theme]) .desk-gallery-more {

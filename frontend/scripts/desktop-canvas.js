@@ -346,6 +346,7 @@
     },
     window.DesktopCanvasAudio.MENU_ITEM,
     window.DesktopVideoControlModel.menu,
+    window.DesktopVideoComposeModel.menu,
     window.DesktopTopazVideoModel.menu,
     ...window.DesktopMusicModel.MENU_ITEMS,
     {
@@ -1018,6 +1019,10 @@
     return [];
   }
 
+  // Keys pressed inside a modal workbench/editor (aria-modal dialogs) belong to it: Delete there
+  // must never remove the canvas node underneath, which stays selected while the dialog is open.
+  const isInModalDialog = target => Boolean(target?.closest?.('[aria-modal="true"]'));
+
   function handleCanvasDeleteKeydown(event) {
     if (event.defaultPrevented) return;
     if (event.key !== 'Delete' && event.key !== 'Backspace') return;
@@ -1033,7 +1038,7 @@
         return;
       }
     }
-    if (isEditingSelectedNode(event.target)) return;
+    if (isEditingSelectedNode(event.target) || isInModalDialog(event.target)) return;
     if (selectedEdgeId) {
       const edgeId = selectedEdgeId;
       event.preventDefault();
@@ -3036,6 +3041,7 @@
   function notifyDomainGraphChanged() {
     canvasMusic.graphChanged();
     canvasVideoControl.graphChanged();
+    canvasVideoCompose.graphChanged();
     canvasTopazVideo.graphChanged();
     canvasPose.graphChanged();
     canvasCyimg.graphChanged();
@@ -3447,6 +3453,7 @@
     canvasAudio.disposeAll();
     canvasMusic.disposeAll();
     canvasVideoControl.disposeAll(true);
+    canvasVideoCompose.disposeAll(true);
     canvasTopazVideo.disposeAll(true);
     canvasPose.disposeAll();
     canvasCyimg.disposeAll();
@@ -3939,6 +3946,15 @@
     return canvasMediaImport.createVideoNodeFromAsset(item, clientX, clientY);
   }
 
+  // Asset-library audio: a new audio node at the viewport centre, filled by the audio domain.
+  async function createAudioNodeFromAsset(result) {
+    const nodeId = addNode('audio', getViewportCenterWorldPoint());
+    if (!DesktopState.state.canvas.nodes[nodeId]) throw new Error('音频节点创建失败');
+    selectNode(nodeId);
+    await canvasAudio.setResult(nodeId, result);
+    return nodeId;
+  }
+
   function isLocalVideoFile(file) {
     return canvasMediaImport.isLocalVideoFile(file);
   }
@@ -4001,6 +4017,8 @@
     document.addEventListener('keyup', canvasViewport.syncMarqueeCursor);
     window.addEventListener('blur', () => canvasViewport.syncMarqueeCursor(null));
     els.deskCanvasWorld?.addEventListener('pointerover', event => {
+      const videoNode = event.target.closest?.('.desk-node--video[data-node-id]');
+      if (videoNode) canvasVideoEdit.warm(videoNode.dataset.nodeId);
       const item = event.target.closest?.('.desk-node--image-group [data-image-group-item]');
       if (!item || (event.relatedTarget && item.contains(event.relatedTarget))) return;
       activateImageGroupReferenceItem(item);
@@ -4325,6 +4343,14 @@
         pendingImageTargetNodeId = node.dataset.nodeId;
         selectNode(node.dataset.nodeId);
         els.deskFileInput?.click();
+        return;
+      }
+
+      const videoEditButton = event.target.closest('[data-video-edit]');
+      if (videoEditButton) {
+        event.preventDefault();
+        event.stopPropagation();
+        canvasVideoEdit.handleAction(videoEditButton);
         return;
       }
 
@@ -4729,7 +4755,7 @@
           els.deskFileInput?.click();
           return;
         }
-        const type = [window.DesktopTopazModel.TYPE, window.DesktopKrea2Model.TYPE, window.DesktopKrea2Control.TYPE, window.DesktopQwen21Model.TYPE, window.DesktopMossModel.TYPE, ...window.DesktopCyimgModel.TYPES, window.DesktopVideoControlModel.TYPE, window.DesktopTopazVideoModel.TYPE, ...window.DesktopMusicModel.TYPES, 'file_output', 'video', 'audio', 'layout', 'text', 'pose', 'upscale'].includes(addNodePayload.type) ? addNodePayload.type : 'input';
+        const type = [window.DesktopTopazModel.TYPE, window.DesktopKrea2Model.TYPE, window.DesktopKrea2Control.TYPE, window.DesktopQwen21Model.TYPE, window.DesktopMossModel.TYPE, ...window.DesktopCyimgModel.TYPES, window.DesktopVideoControlModel.TYPE, window.DesktopVideoComposeModel.TYPE, window.DesktopTopazVideoModel.TYPE, ...window.DesktopMusicModel.TYPES, 'file_output', 'video', 'audio', 'layout', 'text', 'pose', 'upscale'].includes(addNodePayload.type) ? addNodePayload.type : 'input';
         const pointer = screenToWorld(event.clientX, event.clientY);
         selectNode(addNode(type, pointer));
         setNodePaletteOpen(false);
@@ -4882,9 +4908,9 @@
       }
     });
     window.addEventListener('pointermove', moveInteraction);
-    window.addEventListener('pagehide', event => { if (!event.persisted) canvasProgress.destroy(); canvasAudio.disposeAll(); canvasMusic.disposeAll(); canvasVideoControl.disposeAll(); canvasTopazVideo.disposeAll(); canvasPose.disposeAll(); canvasCyimg.disposeAll(); canvasKrea2.disposeAll(); canvasKrea2Control.disposeAll(); canvasQwen21.disposeAll(); canvasMoss.disposeAll(); });
+    window.addEventListener('pagehide', event => { if (!event.persisted) canvasProgress.destroy(); canvasAudio.disposeAll(); canvasMusic.disposeAll(); canvasVideoControl.disposeAll(); canvasVideoCompose.disposeAll(); canvasTopazVideo.disposeAll(); canvasPose.disposeAll(); canvasCyimg.disposeAll(); canvasKrea2.disposeAll(); canvasKrea2Control.disposeAll(); canvasQwen21.disposeAll(); canvasMoss.disposeAll(); });
     window.addEventListener('desktop:progress-preferences-change', canvasProgress.refreshPreferences);
-    window.addEventListener('pageshow', () => { canvasAudio.reconcile(); canvasMusic.reconcile(); canvasVideoControl.reconcile(); canvasTopazVideo.reconcile(); canvasPose.reconcile(); canvasCyimg.reconcile(); canvasKrea2.reconcile(); canvasKrea2Control.reconcile(); canvasQwen21.reconcile(); canvasMoss.reconcile(); });
+    window.addEventListener('pageshow', () => { canvasAudio.reconcile(); canvasMusic.reconcile(); canvasVideoControl.reconcile(); canvasVideoCompose.reconcile(); canvasTopazVideo.reconcile(); canvasPose.reconcile(); canvasCyimg.reconcile(); canvasKrea2.reconcile(); canvasKrea2Control.reconcile(); canvasQwen21.reconcile(); canvasMoss.reconcile(); });
     window.addEventListener('pointerup', endInteraction);
     window.addEventListener('pointercancel', endInteraction);
     window.addEventListener('blur', () => {
@@ -5032,7 +5058,7 @@
         if (!event.repeat) toggleSelectionGroup();
         return;
       }
-      if ((event.key === 'Delete' || event.key === 'Backspace') && !editingSelectedNode) {
+      if ((event.key === 'Delete' || event.key === 'Backspace') && !editingSelectedNode && !isInModalDialog(event.target)) {
         const selectedNodeIds = nodeIdsForKeyboardDelete(event);
         if (selectedNodeIds.length) {
           event.preventDefault();
@@ -5123,10 +5149,13 @@
     reportStatus: feedback => DesktopResults.reportTaskStatus(feedback),
   });
   const stateIcon = window.DesktopStateIcon;
+  // Links into and out of a node with running progress carry a dashed flow.
+  const canvasLinkFlow = window.DesktopCanvasLinkFlow.create({ requestRender: () => updateLinkPath() });
   const canvasProgress = window.DesktopProgress.create({
     getPreferences: () => window.DesktopPreferences.state.progress,
     getViewport: () => els.deskCanvasViewport,
     isInteracting: () => els.deskCanvasViewport?.matches('.is-panning, .is-wheel-transforming'),
+    onActivityChange: owners => canvasLinkFlow.setRunningOwners(owners),
   });
   const canvasAudio = window.DesktopCanvasAudio.create({
     stateIcon,
@@ -5232,6 +5261,7 @@
     getCanvas: () => DesktopState.state.canvas, getNodeState, getNodeElement, addNode, connectNodes, refreshVideoNode,
     saveState: () => DesktopState.saveSettings({ criticalCanvas: true }),
     reportStatus: feedback => taskRegistry.report('video_control', feedback),
+    isVideoSource: window.DesktopVideoComposeModel.isVideoSource,
   });
   const topazVideoWorkbench = window.DesktopTopazVideoWorkbench.create({
     inspector: window.DesktopTopazVideoInspector.create({pipeline: window.DesktopTopazVideoPipeline, escapeHtml}),
@@ -5245,12 +5275,55 @@
     getCanvas: () => DesktopState.state.canvas, getNodeState, getNodeElement, addNode, connectNodes, refreshVideoNode,
     saveState: () => DesktopState.saveSettings({ criticalCanvas: true }),
     reportStatus: feedback => taskRegistry.report('topaz_video', feedback),
+    isVideoSource: window.DesktopVideoComposeModel.isVideoSource,
+  });
+  const canvasVideoEdit = window.DesktopCanvasVideoEdit.create({
+    api: window.DesktopVideoEditAPI,
+    picker: window.DesktopVideoFrames.create({ api: window.DesktopVideoEditAPI, escapeHtml, stateIcon,
+      mediaUrl: url => (typeof window.miniappMediaUrl === 'function' ? window.miniappMediaUrl(url) : url),
+      showMessage: message => DesktopResults.showTransientMessage(message) }),
+    getCanvas: () => DesktopState.state.canvas, getNodeState, getNodeElement, addNode, connectNodes, insertImageNode,
+    getImageNodeSize, setAudioResult: (nodeId, result) => canvasAudio.setResult(nodeId, result),
+    fetchBlob: url => api.blob(url),
+    progressView: canvasProgress, escapeHtml,
+    audioSize: { width: window.DesktopCanvasAudio.WIDTH, height: window.DesktopCanvasAudio.HEIGHT },
+    reportStatus: feedback => taskRegistry.report('video_edit', feedback),
+    showMessage: message => DesktopResults.showTransientMessage(message),
+    // Built below; the dock only calls it on click.
+    recipe: { isOutput: window.DesktopCanvasVideoComposeRecipe.isOutput, reopen: nodeId => canvasVideoComposeRecipe.reopen(nodeId) },
+  });
+  const canvasVideoCompose = window.DesktopCanvasVideoCompose.create({
+    model: window.DesktopVideoComposeModel, api: window.DesktopVideoEditAPI,
+    view: window.DesktopVideoComposeView.create({ model: window.DesktopVideoComposeModel,
+      subtitles: window.DesktopVideoComposeSubtitles, escapeHtml, stateIcon }),
+    players: window.DesktopVideoComposePlayer, timelines: window.DesktopVideoComposeTimeline, helpers: window.DesktopVideoFrames,
+    subtitles: window.DesktopVideoComposeSubtitles, subtitlePanels: window.DesktopVideoComposeSubtitlePanel,
+    autosubs: window.DesktopVideoComposeAutosub, asr: window.DesktopAsrAPI,
+    escapeHtml, stateIcon, progressView: canvasProgress,
+    getCanvas: () => DesktopState.state.canvas, getNodeState, getNodeElement,
+    getAudioInput: nodeId => canvasAudio.getInput(nodeId), uploadAudio: (blob, name) => window.DesktopMusicAPI.upload(blob, name),
+    fetchBlob: url => api.blob(url), getAudioPeaks: path => DesktopApi.getAudioPeaks(path),
+    mediaUrl: url => (typeof window.miniappMediaUrl === 'function' ? window.miniappMediaUrl(url) : url),
+    saveState: () => DesktopState.saveSettings({ criticalCanvas: true }),
+    reportStatus: feedback => taskRegistry.report('video_compose', feedback),
+    showMessage: message => DesktopResults.showTransientMessage(message),
+    // A finished render changes what downstream video consumers read from the output port.
+    onResult: () => notifyDomainGraphChanged(),
+  });
+  const canvasVideoComposeRecipe = window.DesktopCanvasVideoComposeRecipe.create({
+    model: window.DesktopVideoComposeModel, api: window.DesktopVideoEditAPI, compose: canvasVideoCompose,
+    getNodeState, addNode, connectNodes, refreshVideoNode, selectNode,
+    setAudioResult: (nodeId, result) => canvasAudio.setResult(nodeId, result),
+    videoSize: { width: DEFAULT_VIDEO_NODE_WIDTH, height: DEFAULT_VIDEO_NODE_HEIGHT },
+    audioSize: { width: window.DesktopCanvasAudio.WIDTH, height: window.DesktopCanvasAudio.HEIGHT },
+    showMessage: message => DesktopResults.showTransientMessage(message),
   });
   const canvasComfyVideo = window.DesktopCanvasComfyVideo.create({
     getCanvas: () => DesktopState.state.canvas, getNodeState, addNode, connectNodes, refreshVideoNode, refreshComfyNode,
     getOutput: nodeId => DesktopState.state.outputs?.[nodeId],
     saveState: () => DesktopState.saveSettings({ criticalCanvas: true }),
     showMessage: message => DesktopResults.showTransientMessage(message),
+    isVideoSource: window.DesktopVideoComposeModel.isVideoSource,
   });
   const canvasComfyAudio = window.DesktopCanvasComfyAudio.create({
     getCanvas: () => DesktopState.state.canvas, getNodeState, refreshComfyNode,
@@ -5287,6 +5360,10 @@
     listCancelable: canvasVideoControl.getCancelableTasks, showStatus: canvasVideoControl.showStatus});
   taskRegistry.register('topaz_video', {client: () => window.DesktopTopazVideoAPI.tasks,
     listCancelable: canvasTopazVideo.getCancelableTasks, showStatus: canvasTopazVideo.showStatus});
+  taskRegistry.register('video_edit', {client: () => window.DesktopVideoEditAPI.tasks,
+    listCancelable: canvasVideoEdit.getCancelableTasks, showStatus: canvasVideoEdit.showStatus});
+  taskRegistry.register('video_compose', {client: () => window.DesktopVideoEditAPI.compose.tasks(),
+    listCancelable: canvasVideoCompose.getCancelableTasks, showStatus: canvasVideoCompose.showStatus});
   taskRegistry.register('cyimg', {client: () => window.DesktopCyimgAPI.tasks,
     showStatus: canvasCyimg.showStatus});
   taskRegistry.register('krea2', {client: () => window.DesktopKrea2API.tasks,
@@ -5332,6 +5409,7 @@
     qwen21Definition: window.DesktopQwen21Model,
     mossDefinition: window.DesktopMossModel,
     videoControlDefinition: window.DesktopVideoControlModel,
+    videoComposeDefinition: window.DesktopVideoComposeModel,
     topazVideoDefinition: window.DesktopTopazVideoModel,
     poseDefinition: window.DesktopPoseModel,
     embedAudioAssets: window.DesktopAudioAssets.embedWorkflowAssets,
@@ -5675,6 +5753,7 @@
     qwen21Node: canvasQwen21,
     mossNode: canvasMoss,
     videoControlNode: canvasVideoControl,
+    videoComposeNode: canvasVideoCompose,
     topazVideoNode: canvasTopazVideo,
     poseNode: canvasPose,
     audioNodeDefinition: window.DesktopCanvasAudio,
@@ -5686,6 +5765,7 @@
     qwen21Definition: window.DesktopQwen21Model,
     mossDefinition: window.DesktopMossModel,
     videoControlDefinition: window.DesktopVideoControlModel,
+    videoComposeDefinition: window.DesktopVideoComposeModel,
     topazVideoDefinition: window.DesktopTopazVideoModel,
     poseDefinition: window.DesktopPoseModel,
     clearPromptDocumentHistory,
@@ -5741,6 +5821,7 @@
 
   const canvasModelNodes = window.DesktopCanvasModelNodes.create({
     progressView: canvasProgress,
+    videoEditDockHtml: node => canvasVideoEdit.dockHtml(node),
     comfyLayout: canvasComfyLayout,
     ASPECT_RATIO_OPTIONS,
     COMFY_PIXEL_STEP,
@@ -5789,7 +5870,7 @@
 
   const canvasConnections = window.DesktopCanvasConnections.create({
     imageGroupContentBounds: node => canvasImageGroupModel.imageGroupContentBounds(node),
-    domainConnections: window.DesktopCanvasConnections.combineDomains(canvasMusic.connections, canvasVideoControl.connections, canvasTopazVideo.connections, canvasTopaz.connections, canvasCyimg.connections, canvasKrea2.connections, canvasKrea2Control.connections, canvasQwen21.connections, canvasMoss.connections, canvasComfyVideo.connections, canvasComfyAudio.connections),
+    domainConnections: window.DesktopCanvasConnections.combineDomains(canvasMusic.connections, canvasVideoControl.connections, canvasVideoCompose.connections, canvasTopazVideo.connections, canvasVideoEdit.connections, canvasTopaz.connections, canvasCyimg.connections, canvasKrea2.connections, canvasKrea2Control.connections, canvasQwen21.connections, canvasMoss.connections, canvasComfyVideo.connections, canvasComfyAudio.connections),
     IMAGE_GROUP_LIQUID_VISIBLE_OUTSET_PX,
     LINK_VIEWBOX,
     NODE_MENU_ITEMS,
@@ -5821,6 +5902,7 @@
     makeClassicCurvePath,
     makeSmoothStepPath,
     portPlates: window.DesktopCanvasPortPlates,
+    linkFlow: canvasLinkFlow,
     nodeMenuButtonHtml,
     normalizePortSide,
     oppositePortSide,
@@ -6001,6 +6083,7 @@
     continueEditFromHistoryItem,
     createImageNodesFromHistoryItems,
     createVideoNodeFromAsset,
+    createAudioNodeFromAsset,
     runMusicNode: canvasMusic.run,
     getCancelableMusicTasks: canvasMusic.getCancelableTasks,
     refreshTaskNode: nodeId => { refreshUpscaleNodeMode(nodeId); canvasTopaz.paint(nodeId); },

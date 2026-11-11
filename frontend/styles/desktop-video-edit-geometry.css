@@ -1,0 +1,1577 @@
+/* Video-edit layout: the action dock under a video node, the frame-picker workbench, and the
+   compose node (canvas card, workbench and timeline).
+   Paint (colors, borders, shadows, visibility transitions) lives in desktop-video-edit.css. */
+
+:where(body.desk-app[data-theme]) .desk-video-edit {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 5;
+  display: flex;
+  justify-content: center;
+  padding-top: 8px;
+}
+
+:where(body.desk-app[data-theme]) .desk-video-edit__actions {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+}
+
+:where(body.desk-app[data-theme]) .desk-video-edit__actions button {
+  height: 26px;
+  padding: 0 10px;
+  font-size: 12px;
+  line-height: 24px;
+  white-space: nowrap;
+}
+
+:where(body.desk-app[data-theme]) .desk-video-edit__progress {
+  top: calc(100% + 5px);
+  left: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Frame picker workbench: stage, transport and filmstrip timeline on the left, scene candidates and
+   the marked-frame contact sheet on the right. */
+body.desk-app.desk-video-frames-open {
+  overflow: hidden;
+}
+
+body.desk-app .desk-video-frames:not([hidden]) {
+  position: fixed;
+  inset: 0;
+  z-index: 2600;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  box-sizing: border-box;
+}
+
+body.desk-app .desk-video-frames__scrim {
+  position: absolute;
+  inset: 0;
+}
+
+body.desk-app .desk-video-frames__dialog {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: min(1240px, 100%);
+  height: min(860px, 100%);
+  overflow: hidden;
+}
+
+body.desk-app .desk-video-frames__head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 52px;
+  padding: 0 12px 0 18px;
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+
+body.desk-app .desk-video-frames__title {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+
+body.desk-app .desk-video-frames__title strong {
+  font-size: 15px;
+  line-height: 20px;
+  white-space: nowrap;
+}
+
+body.desk-app .desk-video-frames__title span {
+  max-width: 340px;
+  overflow: hidden;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body.desk-app .desk-video-frames__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+
+body.desk-app .desk-video-frames__meta span {
+  padding: 0 8px;
+  font-size: 11px;
+  line-height: 20px;
+  white-space: nowrap;
+}
+
+body.desk-app .desk-video-frames__close {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  margin-left: auto;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+body.desk-app .desk-video-frames__icon {
+  display: block;
+  width: 16px;
+  height: 16px;
+}
+
+body.desk-app .desk-video-frames__body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  flex: 1;
+  min-height: 0;
+}
+
+body.desk-app .desk-video-frames__main {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  min-height: 0;
+  padding: 16px 18px 14px;
+}
+
+body.desk-app .desk-video-frames__screen {
+  position: relative;
+  flex: 1;
+  min-height: 220px;
+  overflow: hidden;
+}
+
+body.desk-app .desk-video-frames__screen video {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+body.desk-app .desk-video-frames__badges {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  display: flex;
+  gap: 6px;
+  pointer-events: none;
+}
+
+body.desk-app .desk-video-frames__badge:not([hidden]) {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 24px;
+  padding: 0 10px;
+  font-size: 11px;
+}
+
+body.desk-app .desk-video-frames__badge .desk-video-frames__icon {
+  width: 12px;
+  height: 12px;
+}
+
+body.desk-app .desk-video-frames__loading:not([hidden]) {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  font-size: 13px;
+  text-align: center;
+}
+
+body.desk-app .desk-video-frames__transport {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+body.desk-app .desk-video-frames__clock {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+body.desk-app .desk-video-frames__clock b {
+  font-size: 22px;
+  line-height: 28px;
+}
+
+body.desk-app .desk-video-frames__clock span {
+  font-size: 12px;
+}
+
+body.desk-app .desk-video-frames__controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+body.desk-app .desk-video-frames__controls button {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+}
+
+body.desk-app .desk-video-frames__controls .desk-video-frames__icon {
+  width: 18px;
+  height: 18px;
+}
+
+body.desk-app .desk-video-frames__controls button.desk-video-frames__play {
+  width: 40px;
+  height: 40px;
+  margin: 0 4px;
+}
+
+body.desk-app .desk-video-frames__play .desk-state-icon {
+  width: 18px;
+  height: 18px;
+}
+
+body.desk-app .desk-video-frames__mark-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  justify-self: end;
+  height: 32px;
+  padding: 0 8px 0 11px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+body.desk-app .desk-video-frames__timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex-shrink: 0;
+}
+
+body.desk-app .desk-video-frames__track {
+  position: relative;
+  height: 58px;
+  cursor: pointer;
+  touch-action: none;
+}
+
+body.desk-app .desk-video-frames__filmstrip {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  overflow: hidden;
+}
+
+body.desk-app .desk-video-frames__filmstrip canvas {
+  display: block;
+  flex: 1 1 0;
+  min-width: 0;
+  height: 100%;
+}
+
+body.desk-app .desk-video-frames__markers {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+body.desk-app .desk-video-frames__pin,
+body.desk-app .desk-video-frames__cut {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  margin-left: -1px;
+}
+
+body.desk-app .desk-video-frames__pin::after {
+  content: "";
+  position: absolute;
+  bottom: 3px;
+  left: 50%;
+  width: 9px;
+  height: 11px;
+  transform: translateX(-50%);
+  clip-path: polygon(0 100%, 0 40%, 50% 0, 100% 40%, 100% 100%);
+}
+
+body.desk-app .desk-video-frames__playhead {
+  position: absolute;
+  z-index: 2;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  margin-left: -1px;
+  pointer-events: none;
+}
+
+body.desk-app .desk-video-frames__playhead span {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 12px;
+  height: 8px;
+  transform: translateX(-50%);
+  clip-path: polygon(0 0, 100% 0, 50% 100%);
+}
+
+body.desk-app .desk-video-frames__ruler {
+  position: relative;
+  height: 16px;
+  font-size: 10.5px;
+  line-height: 16px;
+}
+
+body.desk-app .desk-video-frames__ruler span {
+  position: absolute;
+  top: 2px;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+
+body.desk-app .desk-video-frames__ruler span:first-child {
+  transform: none;
+}
+
+body.desk-app .desk-video-frames__side {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: auto;
+}
+
+body.desk-app .desk-video-frames__panel {
+  padding: 14px 16px;
+}
+
+body.desk-app .desk-video-frames__panel.is-marks {
+  flex: 1;
+}
+
+body.desk-app .desk-video-frames__panel-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 26px;
+  margin-bottom: 10px;
+}
+
+body.desk-app .desk-video-frames__panel-head h3 {
+  margin: 0;
+  font-size: 12px;
+  line-height: 18px;
+}
+
+body.desk-app .desk-video-frames__panel-head small {
+  font-size: 11px;
+}
+
+body.desk-app .desk-video-frames__detect {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 26px;
+  margin-left: auto;
+  padding: 0 10px 0 8px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+body.desk-app .desk-video-frames__detect .desk-video-frames__icon {
+  width: 14px;
+  height: 14px;
+}
+
+body.desk-app .desk-video-frames__scenes {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+body.desk-app .desk-video-frames__scene {
+  display: grid;
+  grid-template-columns: 68px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 8px 5px 5px;
+  cursor: pointer;
+}
+
+body.desk-app .desk-video-frames__scene img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+}
+
+body.desk-app .desk-video-frames__scene-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+body.desk-app .desk-video-frames__scene-text b {
+  font-size: 12px;
+  line-height: 16px;
+}
+
+body.desk-app .desk-video-frames__scene-text small {
+  font-size: 11px;
+  line-height: 15px;
+  white-space: nowrap;
+}
+
+body.desk-app .desk-video-frames__scene input {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  cursor: pointer;
+}
+
+body.desk-app .desk-video-frames__marks {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+body.desk-app .desk-video-frames__marks > li[data-vf-frame-item] {
+  position: relative;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+body.desk-app .desk-video-frames__marks img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+}
+
+body.desk-app .desk-video-frames__mark-meta {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 14px 7px 5px;
+  pointer-events: none;
+}
+
+body.desk-app .desk-video-frames__mark-meta b {
+  font-size: 11px;
+  line-height: 14px;
+}
+
+body.desk-app .desk-video-frames__mark-meta small {
+  font-size: 10.5px;
+  line-height: 14px;
+}
+
+body.desk-app .desk-video-frames__mark-cut {
+  position: absolute;
+  top: 7px;
+  left: 7px;
+  width: 7px;
+  height: 7px;
+}
+
+body.desk-app .desk-video-frames__marks button[data-vf-unmark] {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+}
+
+body.desk-app .desk-video-frames__marks button[data-vf-unmark] .desk-video-frames__icon {
+  width: 12px;
+  height: 12px;
+}
+
+body.desk-app .desk-video-frames__empty {
+  grid-column: 1 / -1;
+  padding: 18px 12px;
+  font-size: 12px;
+  line-height: 18px;
+  text-align: center;
+}
+
+body.desk-app .desk-video-frames__foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 56px;
+  padding: 0 16px 0 18px;
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+
+body.desk-app .desk-video-frames__keys {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin: 0 auto 0 0;
+  font-size: 11px;
+}
+
+body.desk-app .desk-video-frames__keys span {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+body.desk-app .desk-video-frames__keys kbd {
+  margin-right: 2px;
+}
+
+body.desk-app .desk-video-frames kbd {
+  display: inline-grid;
+  place-items: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  box-sizing: border-box;
+  font-size: 10.5px;
+  line-height: 1;
+}
+
+body.desk-app .desk-video-frames__foot button {
+  height: 32px;
+  padding: 0 16px;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+body.desk-app .desk-video-frames__extract {
+  min-width: 112px;
+}
+
+@media (max-width: 760px) {
+  body.desk-app .desk-video-frames:not([hidden]) {
+    padding: 8px;
+  }
+
+  body.desk-app .desk-video-frames__dialog {
+    height: 100%;
+  }
+
+  body.desk-app .desk-video-frames__head {
+    flex-wrap: wrap;
+    padding: 10px 10px 10px 14px;
+  }
+
+  body.desk-app .desk-video-frames__meta {
+    order: 3;
+    flex-basis: 100%;
+  }
+
+  body.desk-app .desk-video-frames__body {
+    grid-template-columns: minmax(0, 1fr);
+    align-content: start;
+    overflow: auto;
+  }
+
+  body.desk-app .desk-video-frames__main {
+    padding: 12px;
+  }
+
+  body.desk-app .desk-video-frames__screen {
+    flex: none;
+    height: 34vh;
+  }
+
+  body.desk-app .desk-video-frames__transport {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  body.desk-app .desk-video-frames__controls {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    justify-content: center;
+  }
+
+  body.desk-app .desk-video-frames__side {
+    overflow: visible;
+  }
+
+  body.desk-app .desk-video-frames__marks {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  body.desk-app .desk-video-frames__keys {
+    display: none;
+  }
+
+  body.desk-app .desk-video-frames__cancel {
+    margin-left: auto;
+  }
+}
+
+/* Compose node card (300×318): header, letterboxed preview, clip strip, summary, actions. */
+body.desk-app .desk-node--video-compose {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  box-sizing: border-box;
+  overflow: visible;
+}
+
+body.desk-app .desk-video-compose__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 26px;
+}
+
+body.desk-app .desk-video-compose__icon {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  flex: none;
+}
+
+body.desk-app .desk-video-compose__icon .desk-node-icon {
+  width: 16px;
+  height: 16px;
+}
+
+body.desk-app .desk-video-compose__title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 13px;
+  line-height: 18px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body.desk-app .desk-video-compose__badge {
+  flex: none;
+  padding: 0 8px;
+  font-size: 11px;
+  line-height: 20px;
+  white-space: nowrap;
+}
+
+body.desk-app .desk-video-compose__preview {
+  position: relative;
+  display: grid;
+  place-items: center;
+  height: 152px;
+  flex: none;
+  overflow: hidden;
+  container-type: size;
+}
+
+/* The frame takes the output's shape and fits the box: --desk-video-compose-ratio is width / height. */
+body.desk-app .desk-video-compose__frame {
+  position: relative;
+  width: min(100cqw, 100cqh * var(--desk-video-compose-ratio, 1.7778));
+  height: min(100cqh, 100cqw / var(--desk-video-compose-ratio, 1.7778));
+  overflow: hidden;
+  container-type: size;
+}
+
+/* Draft caption: the frame is a size container, so these mirror backend subtitles.py on the output
+   (font = short side × ratio, wrap 86% of the width, 8% margin, 1.3 line height). */
+body.desk-app .desk-video-compose__caption {
+  position: absolute;
+  bottom: 8cqh;
+  left: 50%;
+  z-index: 1;
+  width: max-content;
+  max-width: 86cqw;
+  translate: -50% 0;
+  font-size: calc(min(100cqw, 100cqh) * var(--desk-video-subtitle-ratio, 0.055));
+  line-height: 1.3;
+  line-break: strict;
+  overflow-wrap: anywhere;
+  text-align: center;
+  white-space: pre-line;
+  pointer-events: none;
+}
+
+body.desk-app .desk-video-compose__caption[data-position="top"] {
+  top: 8cqh;
+  bottom: auto;
+}
+
+body.desk-app .desk-video-compose__caption[data-look="box"] {
+  padding: 0.22em 0.45em;
+}
+
+body.desk-app .desk-video-compose__frame :is(video, canvas) {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+body.desk-app .desk-video-compose__frame video {
+  object-fit: cover;
+}
+
+body.desk-app .desk-video-compose__frame:is([data-fit="pad"], [data-fit="blur"]) video {
+  object-fit: contain;
+}
+
+body.desk-app .desk-video-compose__blur {
+  display: none;
+  transform: scale(1.15);
+}
+
+body.desk-app .desk-video-compose__frame[data-fit="blur"] .desk-video-compose__blur {
+  display: block;
+}
+
+body.desk-app .desk-video-compose__empty:not([hidden]) {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 0 16px;
+  font-size: 12px;
+  text-align: center;
+}
+
+body.desk-app .desk-video-compose__play {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+}
+
+body.desk-app .desk-video-compose__play svg {
+  width: 14px;
+  height: 14px;
+}
+
+body.desk-app .desk-video-compose__dims {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  padding: 0 6px;
+  font-size: 10px;
+  line-height: 18px;
+}
+
+body.desk-app .desk-video-compose__strip {
+  display: flex;
+  gap: 2px;
+  height: 22px;
+  flex: none;
+  overflow: hidden;
+}
+
+body.desk-app .desk-video-compose__strip i {
+  position: relative;
+  min-width: 8px;
+  background-repeat: no-repeat;
+}
+
+body.desk-app .desk-video-compose__strip b {
+  position: absolute;
+  top: 3px;
+  left: 4px;
+  padding: 0 4px;
+  font-size: 10px;
+  font-style: normal;
+  line-height: 14px;
+}
+
+body.desk-app .desk-video-compose__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 6px;
+  min-height: 18px;
+  font-size: 11px;
+  line-height: 18px;
+}
+
+body.desk-app .desk-video-compose__meta > i {
+  width: 3px;
+  height: 3px;
+}
+
+body.desk-app .desk-video-compose__actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 8px;
+  margin-top: auto;
+}
+
+body.desk-app .desk-video-compose__actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 10px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+body.desk-app .desk-video-compose__actions svg {
+  width: 15px;
+  height: 15px;
+  flex: none;
+}
+
+body.desk-app .desk-video-compose__icon-svg {
+  display: block;
+  width: 16px;
+  height: 16px;
+}
+
+/* Compose workbench: preview + settings on top, single-track timeline below, run bar at the foot. */
+body.desk-app.desk-video-compose-open {
+  overflow: hidden;
+}
+
+body.desk-app .desk-video-compose-bench:not([hidden]) {
+  position: fixed;
+  inset: 0;
+  z-index: 2600;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  box-sizing: border-box;
+}
+
+body.desk-app .desk-video-compose-bench__scrim {
+  position: absolute;
+  inset: 0;
+}
+
+body.desk-app .desk-video-compose-bench__dialog {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: min(1120px, 100%);
+  max-height: 100%;
+  overflow: hidden;
+}
+
+body.desk-app .desk-video-compose-bench__head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 52px;
+  padding: 0 12px 0 18px;
+  flex: none;
+}
+
+body.desk-app .desk-video-compose-bench__title {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+
+body.desk-app .desk-video-compose-bench__title strong {
+  font-size: 15px;
+  line-height: 20px;
+  white-space: nowrap;
+}
+
+body.desk-app .desk-video-compose-bench__title span {
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+body.desk-app .desk-video-compose-bench__total {
+  margin-left: auto;
+  padding: 0 10px;
+  font-size: 12px;
+  line-height: 24px;
+  white-space: nowrap;
+}
+
+body.desk-app .desk-video-compose-bench__close {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  flex: none;
+}
+
+/* On a short window the body gives way first: the preview screen shrinks (to 140px) so the
+   timeline and the foot with 「合成」 stay on screen. */
+body.desk-app .desk-video-compose-bench__body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 376px;
+  grid-template-rows: minmax(0, 1fr);
+  min-height: 0;
+  flex: 0 1 auto;
+}
+
+body.desk-app .desk-video-compose-bench__stage {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  min-height: 0;
+  padding: 16px 18px 12px;
+}
+
+body.desk-app .desk-video-compose-bench__screen {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 140px;
+  flex: 0 1 clamp(220px, 40vh, 380px);
+  overflow: hidden;
+  container-type: size;
+}
+
+body.desk-app :is(.desk-video-compose-bench__label-chip, .desk-video-compose-bench__dims) {
+  position: absolute;
+  top: 10px;
+  padding: 0 8px;
+  font-size: 11px;
+  line-height: 22px;
+  white-space: nowrap;
+}
+
+body.desk-app .desk-video-compose-bench__label-chip {
+  left: 10px;
+}
+
+body.desk-app .desk-video-compose-bench__label-chip:empty {
+  display: none;
+}
+
+body.desk-app .desk-video-compose-bench__dims {
+  right: 10px;
+}
+
+body.desk-app .desk-video-compose-bench__empty:not([hidden]) {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 0 24px;
+  font-size: 13px;
+  text-align: center;
+}
+
+body.desk-app .desk-video-compose-bench__transport {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+body.desk-app .desk-video-compose-bench__play {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  flex: none;
+}
+
+body.desk-app .desk-video-compose-bench__play svg {
+  width: 16px;
+  height: 16px;
+}
+
+body.desk-app .desk-video-compose-bench__clock {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 12px;
+}
+
+body.desk-app .desk-video-compose-bench__clock b {
+  font-size: 15px;
+}
+
+body.desk-app .desk-video-compose-bench__seg {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+body.desk-app .desk-video-compose-bench__seg.is-view {
+  margin-left: auto;
+}
+
+body.desk-app .desk-video-compose-bench__seg button {
+  height: 26px;
+  padding: 0 9px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+/* The stage sets the body's height; the side panels scroll inside it (size containment keeps
+   their content from stretching the row). */
+body.desk-app .desk-video-compose-bench__side {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: auto;
+  contain: size;
+}
+
+body.desk-app .desk-video-compose-bench__panel {
+  padding: 14px 16px;
+}
+
+body.desk-app .desk-video-compose-bench__panel-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+body.desk-app .desk-video-compose-bench__panel-head h3 {
+  margin: 0;
+  font-size: 13px;
+  line-height: 18px;
+}
+
+body.desk-app .desk-video-compose-bench__panel-head small {
+  min-width: 0;
+  margin-left: auto;
+  overflow: hidden;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body.desk-app .desk-video-compose-bench__rows {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px 10px;
+}
+
+body.desk-app .desk-video-compose-bench__label {
+  font-size: 12px;
+}
+
+body.desk-app .desk-video-compose-bench__range {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+body.desk-app .desk-video-compose-bench__range input {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+}
+
+body.desk-app .desk-video-compose-bench__range output {
+  width: 40px;
+  font-size: 12px;
+  text-align: right;
+}
+
+body.desk-app .desk-video-compose-bench__timeline {
+  padding: 12px 18px 14px;
+  flex: none;
+}
+
+body.desk-app .desk-video-compose-bench__timeline-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+body.desk-app .desk-video-compose-bench__timeline-head h3 {
+  margin: 0;
+  font-size: 13px;
+}
+
+body.desk-app .desk-video-compose-bench__timeline-head small {
+  font-size: 11px;
+}
+
+body.desk-app .desk-video-compose-bench__timeline-head small.is-note {
+  margin-left: auto;
+}
+
+/* Selected clip's speed and its transition into the next clip. */
+body.desk-app .desk-video-compose-bench__clipbar:not([hidden]) {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  margin-bottom: 8px;
+}
+
+body.desk-app .desk-video-compose-bench__clipbar strong {
+  min-width: 42px;
+  font-size: 12px;
+}
+
+body.desk-app .desk-video-compose-bench__clipbar small {
+  margin-left: auto;
+  font-size: 11px;
+}
+
+/* Subtitles panel and the selected cue's editor. */
+body.desk-app .desk-video-compose-bench__select {
+  min-width: 0;
+  height: 26px;
+  padding: 0 8px;
+  font-size: 12px;
+}
+
+body.desk-app .desk-video-compose-bench__sub-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+body.desk-app .desk-video-compose-bench__sub-auto {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 6px;
+  margin-top: 8px;
+}
+
+body.desk-app .desk-video-compose-bench__sub-progress {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 11px;
+}
+
+body.desk-app .desk-video-compose-bench__sub-progress span {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body.desk-app .desk-video-compose-bench__sub-progress[hidden] {
+  display: none;
+}
+
+body.desk-app :is(.desk-video-compose-bench__sub-actions, .desk-video-compose-bench__sub-auto) button,
+body.desk-app .desk-video-compose-bench__clipbar.is-cue button {
+  height: 26px;
+  padding: 0 10px;
+  font-size: 12px;
+}
+
+body.desk-app .desk-video-compose-bench__cue-text {
+  flex: 1 1 320px;
+  min-width: 200px;
+  height: 44px;
+  padding: 5px 8px;
+  font: inherit;
+  font-size: 12px;
+  line-height: 16px;
+  resize: none;
+}
+
+body.desk-app .desk-video-compose-bench__cue-time {
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+body.desk-app .desk-video-compose-bench__foot {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 60px;
+  padding: 0 18px;
+  flex: none;
+}
+
+body.desk-app .desk-video-compose-bench__status {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body.desk-app .desk-video-compose-bench__progress:not([hidden]) {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 200px;
+  flex: none;
+}
+
+body.desk-app .desk-video-compose-bench__bar {
+  position: relative;
+  height: 6px;
+  flex: 1;
+  overflow: hidden;
+}
+
+body.desk-app .desk-video-compose-bench__bar i {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+}
+
+body.desk-app .desk-video-compose-bench__progress b {
+  width: 34px;
+  font-size: 12px;
+  text-align: right;
+}
+
+body.desk-app :is(.desk-video-compose-bench__cancel, .desk-video-compose-bench__run) {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 16px;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+body.desk-app .desk-video-compose-bench__cancel[hidden] {
+  display: none;
+}
+
+body.desk-app .desk-video-compose-bench__run {
+  min-width: 112px;
+  justify-content: center;
+}
+
+/* Timeline: labels column, then ruler (18px), picture lane (52px), subtitle lane (26px) and music lane (40px). */
+body.desk-app .desk-video-compose-tl {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr);
+  gap: 8px;
+}
+
+body.desk-app .desk-video-compose-tl__labels {
+  display: grid;
+  grid-template-rows: 18px 52px 26px 40px;
+  row-gap: 6px;
+  align-items: center;
+  font-size: 11px;
+}
+
+body.desk-app .desk-video-compose-tl__tracks {
+  position: relative;
+  display: grid;
+  grid-template-rows: 18px 52px 26px 40px;
+  row-gap: 6px;
+  min-width: 0;
+  user-select: none;
+}
+
+body.desk-app .desk-video-compose-tl__ruler {
+  position: relative;
+  cursor: pointer;
+  touch-action: none;
+}
+
+body.desk-app .desk-video-compose-tl__ruler span {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  padding-left: 4px;
+  font-size: 10px;
+  line-height: 18px;
+  white-space: nowrap;
+}
+
+body.desk-app .desk-video-compose-tl__lane {
+  position: relative;
+  overflow: hidden;
+}
+
+body.desk-app .desk-video-compose-tl__clip {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  overflow: hidden;
+  cursor: grab;
+  touch-action: none;
+}
+
+body.desk-app .desk-video-compose-tl__clip.is-dragging {
+  z-index: 2;
+  cursor: grabbing;
+}
+
+body.desk-app .desk-video-compose-tl__strip {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+body.desk-app .desk-video-compose-tl__strip i {
+  flex: none;
+  height: 100%;
+  background-repeat: no-repeat;
+}
+
+body.desk-app .desk-video-compose-tl__cap {
+  position: absolute;
+  top: 4px;
+  left: 12px;
+  right: 12px;
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  overflow: hidden;
+  font-size: 11px;
+  line-height: 16px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+body.desk-app .desk-video-compose-tl__cap span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+body.desk-app .desk-video-compose-tl__cap small {
+  flex: none;
+  font-size: 10px;
+}
+
+body.desk-app .desk-video-compose-tl__audio {
+  position: absolute;
+  left: 12px;
+  bottom: 4px;
+  height: 18px;
+  padding: 0 6px;
+  font-size: 10px;
+  line-height: 16px;
+}
+
+body.desk-app .desk-video-compose-tl__handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 8px;
+  cursor: ew-resize;
+  touch-action: none;
+}
+
+body.desk-app .desk-video-compose-tl__handle.is-in {
+  left: 0;
+}
+
+body.desk-app .desk-video-compose-tl__handle.is-out {
+  right: 0;
+}
+
+body.desk-app .desk-video-compose-tl__handle::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 3px;
+  width: 2px;
+  height: 16px;
+  margin-top: -8px;
+}
+
+body.desk-app .desk-video-compose-tl__insert {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  z-index: 3;
+  width: 3px;
+  margin-left: -2px;
+}
+
+body.desk-app .desk-video-compose-tl__insert[hidden] {
+  display: none;
+}
+
+body.desk-app .desk-video-compose-tl__transition {
+  position: absolute;
+  top: 50%;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  margin: -10px 0 0 -10px;
+  padding: 0;
+}
+
+body.desk-app .desk-video-compose-tl__transition svg {
+  width: 10px;
+  height: 10px;
+}
+
+body.desk-app .desk-video-compose-tl__speed {
+  flex: none;
+  padding: 0 4px;
+  font-size: 10px;
+  font-style: normal;
+}
+
+body.desk-app .desk-video-compose-tl__cue {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  display: flex;
+  align-items: center;
+  min-width: 4px;
+  padding: 0 6px;
+  overflow: hidden;
+  cursor: grab;
+  touch-action: none;
+}
+
+body.desk-app .desk-video-compose-tl__cue span {
+  overflow: hidden;
+  font-size: 11px;
+  line-height: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body.desk-app .desk-video-compose-tl__cue-edge {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  cursor: ew-resize;
+}
+
+body.desk-app .desk-video-compose-tl__cue-edge.is-start {
+  left: 0;
+}
+
+body.desk-app .desk-video-compose-tl__cue-edge.is-end {
+  right: 0;
+}
+
+body.desk-app .desk-video-compose-tl__music {
+  position: relative;
+  height: 100%;
+  overflow: hidden;
+}
+
+body.desk-app .desk-video-compose-tl__music svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+body.desk-app .desk-video-compose-tl__music span {
+  position: absolute;
+  top: 3px;
+  left: 8px;
+  font-size: 10px;
+  line-height: 14px;
+  white-space: nowrap;
+}
+
+body.desk-app .desk-video-compose-tl__empty {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  padding-left: 10px;
+  font-size: 11px;
+}
+
+body.desk-app .desk-video-compose-tl__playhead {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 4;
+  width: 2px;
+  margin-left: -1px;
+  pointer-events: none;
+}
+
+body.desk-app .desk-video-compose-tl__playhead span {
+  position: absolute;
+  top: 0;
+  left: -4px;
+  width: 10px;
+  height: 10px;
+}
+
+@media (max-width: 900px) {
+  body.desk-app .desk-video-compose-bench:not([hidden]) {
+    padding: 0;
+  }
+
+  body.desk-app .desk-video-compose-bench__dialog {
+    height: 100%;
+    overflow: auto;
+  }
+
+  body.desk-app .desk-video-compose-bench__body {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: none;
+    flex: none;
+  }
+
+  body.desk-app .desk-video-compose-bench__side {
+    contain: none;
+  }
+
+  body.desk-app .desk-video-compose-bench__screen {
+    flex-basis: 32vh;
+  }
+
+  body.desk-app .desk-video-compose-bench__timeline-head small:not(.is-note) {
+    display: none;
+  }
+
+  body.desk-app .desk-video-compose-bench__foot {
+    flex-wrap: wrap;
+    padding: 10px 12px;
+  }
+
+  body.desk-app .desk-video-compose-bench__status {
+    flex-basis: 100%;
+    white-space: normal;
+  }
+}

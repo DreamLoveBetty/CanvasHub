@@ -41,6 +41,7 @@
     qwen21Definition,
     mossDefinition,
     videoControlDefinition,
+    videoComposeDefinition,
     topazVideoDefinition,
     poseDefinition,
     embedAudioAssets,
@@ -250,6 +251,7 @@
     if (clean.type === qwen21Definition?.TYPE) qwen21Definition.normalize(clean);
     if (clean.type === mossDefinition?.TYPE) mossDefinition.normalize(clean);
     if (clean.type === videoControlDefinition?.TYPE) videoControlDefinition.normalize(clean);
+    if (clean.type === videoComposeDefinition?.TYPE) videoComposeDefinition.normalize(clean);
     if (clean.type === topazVideoDefinition?.TYPE) topazVideoDefinition.normalize(clean);
     if (clean.type === poseDefinition?.TYPE) poseDefinition.normalize(clean);
     if (musicNodeDefinition?.TYPES.includes(clean.type)) musicNodeDefinition.normalizeState(clean);
