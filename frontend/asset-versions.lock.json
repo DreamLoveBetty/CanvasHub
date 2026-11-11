@@ -183,8 +183,8 @@
     "sha256": "dca973c9cb139e7cd295325207207763b3d22af1a5b9ced67e42bf2e143c0c62"
    },
    "scripts/desktop-canvas-video-compose.js": {
-    "v": "20261111-asr1",
-    "sha256": "912c5c26866c6ba004b904f5b4de907cadf9b129c3f31920f4d0dd8aa2d482c3"
+    "v": "20261111-beatfit1",
+    "sha256": "2fe300934b7d63ec6c98548e1a214a36074d21221c2a537b2a2c9cedc1215f2b"
    },
    "scripts/desktop-canvas-video-control.js": {
     "v": "20261110-compose1",
@@ -203,8 +203,8 @@
     "sha256": "29de846a8bdad62e72d32f8db1d3650f71041f98c9d02d233e93e67f12e3ad1f"
    },
    "scripts/desktop-canvas.js": {
-    "v": "20261111-asr1",
-    "sha256": "c4c25b17cfcb303267c32315c77b6b8394c24a791290df319fbcc478bd741c41"
+    "v": "20261111-beatfit1",
+    "sha256": "e23cdee269fde681ea46d2ee843ea3b86256424f2c2df4b802441276db82ddfe"
    },
    "scripts/desktop-color-bloom.js": {
     "v": "20261019-color-drag1",
@@ -522,9 +522,13 @@
     "v": "20261111-asr1",
     "sha256": "bc76f3153139464c700cc06d548d4542a97a04d85b9732829a43c182f1564ff7"
    },
+   "scripts/desktop-video-compose-beatfit.js": {
+    "v": "20261111-beatfit1",
+    "sha256": "23690297cf5200c16acbd9cc5aaa33aa027e5961d8df7fb414da59998a8e9eeb"
+   },
    "scripts/desktop-video-compose-model.js": {
-    "v": "20261110-phase3b1",
-    "sha256": "08101ce4113fa7e016c44753ef54299e0d3d1c2828c0cc41ce3682678d9c4048"
+    "v": "20261111-beats1",
+    "sha256": "573c3e8e2d48bef78e7eb5ae9082ba7c22aa1ca45150aec68973862dd1b1e073"
    },
    "scripts/desktop-video-compose-player.js": {
     "v": "20261110-phase3a1",
@@ -539,12 +543,12 @@
     "sha256": "1cdf3e19ba0eb685c43007368c9ebac035e36207749c6da1d3c5eb281ad8c9ce"
    },
    "scripts/desktop-video-compose-timeline.js": {
-    "v": "20261110-phase3b2",
-    "sha256": "0a2949721f5113f2622dfd510176a9c2e0be2a08e5ecbc2295d0632bbd7fd767"
+    "v": "20261111-beats6",
+    "sha256": "5bbe0f8fd528517a2609e142de15adfe7c2978b1987e480bbffa16d9a593287a"
    },
    "scripts/desktop-video-compose-view.js": {
-    "v": "20261111-asr1",
-    "sha256": "a7bfa1e0de7e5f745913de9afb0fb0465b7a82500e105555fbcd0aef2bb68fa0"
+    "v": "20261111-beatfit1",
+    "sha256": "7ef4826bdc7f9fb2174dd2ce74a9b0ba41d7e098b3b37978a7fa50459a89efe8"
    },
    "scripts/desktop-video-control-api.js": {
     "v": "20260925-topaz-video1",
@@ -559,8 +563,8 @@
     "sha256": "1352be9de96f5927c3763a8d947b19611391516419c7e1cda261e496294e7081"
    },
    "scripts/desktop-video-edit-api.js": {
-    "v": "20261111-asr1",
-    "sha256": "d061bdcaef8d7174838424d853f32d127a0cf57c1ab08b988616252c61bb978b"
+    "v": "20261111-beats1",
+    "sha256": "58d39f3423e30c4abef2905f49ef4a2053741d1a16a094b0dae9decd8ee369e6"
    },
    "scripts/desktop-video-frames.js": {
     "v": "20261110-video-frames1",
@@ -767,12 +771,12 @@
     "sha256": "ec85f8bc2f8d4f700546f291e413a06f70dd8a0bbdf58031fafe2c525327698f"
    },
    "styles/desktop-video-edit-geometry.css": {
-    "v": "20261111-asr1",
-    "sha256": "3d3c217877a4bedb262033f87dcc23b220efd71eb2adf6d3c9aa61b03d2d3327"
+    "v": "20261111-beats5",
+    "sha256": "d522147e2d0b9a886ddb7c9b5669d0ff3c4f13c8e289310cd443306364d0d104"
    },
    "styles/desktop-video-edit.css": {
-    "v": "20261111-asr1",
-    "sha256": "3a1a627c1345d9a13705e3b13f641f0131e0f6aa9f3ec6a557d1217a5e8aa490"
+    "v": "20261111-beats4",
+    "sha256": "68cf72ddc052743ed52778d31b2ffb66bf767b06ed376f23267c4e3932fcd984"
    },
    "styles/desktop-video.css": {
     "v": "20261102-h3-removal1",

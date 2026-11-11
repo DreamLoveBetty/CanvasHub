@@ -650,7 +650,8 @@ body.desk-app .desk-video-compose-tl__clip:is(:hover, .is-selected) .desk-video-
 body.desk-app .desk-video-compose-tl.is-trimming .desk-video-compose-tl__handle {
   opacity: 1;
 }
-body.desk-app .desk-video-compose-tl__handle:hover {
+body.desk-app .desk-video-compose-tl__handle:hover,
+body.desk-app .desk-video-compose-tl.is-beat-snapped .desk-video-compose-tl__handle:active {
   background: var(--desk-color-accent);
 }
 body.desk-app .desk-video-compose-tl__insert {
@@ -738,6 +739,26 @@ body.desk-app .desk-video-compose-tl__music .is-bars {
 body.desk-app .desk-video-compose-tl__music .is-fade {
   fill: var(--desk-color-popover-bg);
   opacity: 0.55;
+}
+body.desk-app .desk-video-compose-tl__music .is-beats {
+  stroke: var(--desk-color-text-primary);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+  opacity: 0.22;
+}
+body.desk-app .desk-video-compose-tl__snap {
+  background: var(--desk-color-warning);
+  box-shadow: 0 0 0 1px var(--desk-video-frames-strip-shade);
+}
+body.desk-app .desk-video-compose-tl__snap span {
+  border-radius: 4px;
+  background: var(--desk-color-warning);
+  color: var(--desk-status-warning-on-fill);
+  font-weight: 600;
+}
+body.desk-app .desk-video-compose-tl__music .is-beat-marks {
+  fill: var(--desk-color-text-primary);
+  opacity: 0.75;
 }
 body.desk-app .desk-video-compose-tl__music .is-ramp {
   fill: none;

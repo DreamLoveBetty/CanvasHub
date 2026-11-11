@@ -77,6 +77,12 @@
   const compose = Object.freeze({
     ...composeCalls,
     check: body => json('compose_check', body),
+    // Beat times (music seconds = output seconds) of a compose music source: {sourceUrl} or {assetId}.
+    musicBeats: ({sourceUrl = '', assetId = ''} = {}) => {
+      const query = new URLSearchParams(assetId ? {asset_id: assetId} : {source_url: sourceUrl});
+      return json('music_beats?' + query).then(data => ({tempo: Number(data.tempo || 0),
+        beats: (Array.isArray(data.beats) ? data.beats : []).filter(Number.isFinite)}));
+    },
     // Automatic subtitles: {recipe, script} -> an in-memory job whose result carries draft cues.
     transcribe: body => json('transcribe', body),
     // A transcribe job's result as draft cues; seconds are already on the output timeline.

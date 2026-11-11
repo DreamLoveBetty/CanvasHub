@@ -8,7 +8,7 @@
   const POLL_MS = 1000;
   const MUSIC_PATHS = Object.freeze(['/api/assets/audio/file', '/api/audio/artifact']);
 
-  function create({model, view, api, asr, players, timelines, subtitles, subtitlePanels, autosubs, helpers, escapeHtml, stateIcon, progressView,
+  function create({model, view, api, asr, players, timelines, subtitles, subtitlePanels, autosubs, beatfits, helpers, escapeHtml, stateIcon, progressView,
     getCanvas, getNodeState, getNodeElement, getAudioInput, uploadAudio, fetchBlob, getAudioPeaks = null, mediaUrl = url => url,
     saveState, reportStatus, showMessage, onResult = () => {}}) {
     const sessions = new Map(), submissions = new Set();
@@ -16,6 +16,10 @@
     const thumbs = new Map();   // url|tiles -> Promise<object URL>
     const musicBlobs = new Map(); // audioAssetId -> object URL for the draft preview
     const archivePeaks = new Map(); // archive audio path -> peaks[] once loaded, or the pending Promise
+    const musicBeats = new Map(); // music key -> {tempo, beats, failed} once analyzed, or the pending Promise
+    const SNAP_KEY = 'desk-video-compose-snap-beats';
+    const beatfit = beatfits.create({model});
+    let snapBeats = (() => { try { return window.localStorage.getItem(SNAP_KEY) !== 'off'; } catch (_error) { return true; } })();
     let bench = null;           // {root, s, player, timeline, panel, view, selected, cue}
     let saveTimer = 0;
     // Draft caption overlay on the card and workbench previews (renders burn the cues in).
@@ -108,8 +112,9 @@
     function musicView(s) {
       const node = musicNode(s);
       if (!node || !(node.audioAssetId || node.mediaUrl)) return null;
-      return {node, name: nameOf(node), seconds: Number(node.durationSeconds) || 0, peaks: peaksFor(node),
-        key: node.audioAssetId || node.mediaUrl, volume: s.node.music.volume, fadeIn: s.node.music.fadeIn, fadeOut: s.node.music.fadeOut};
+      const key = node.audioAssetId || node.mediaUrl, beats = musicBeats.get(key);
+      return {node, name: nameOf(node), seconds: Number(node.durationSeconds) || 0, peaks: peaksFor(node), key,
+        tempo: beats?.tempo || 0, beats: beats?.beats || [], volume: s.node.music.volume, fadeIn: s.node.music.fadeIn, fadeOut: s.node.music.fadeOut};
     }
 
     // Everything the card and workbench show, computed once per paint.
@@ -304,6 +309,7 @@
           clip.startFrame = next.startFrame; clip.endFrame = next.endFrame;
           // While trimming the preview shows the cut frame (onShow); the timeline re-renders on release.
           bench.trimming = !final;
+          if (final) bench.beatUndo = null; // a manual trim after a beat cut: undo would now overwrite it
           if (final) edited(s); else paintTotal(snapshot(s));
         },
         onMove(from, to) {
@@ -382,6 +388,7 @@
       bench.player.setPlan({clips: []});
       bench.root.hidden = true;
       bench.s = null;
+      bench.beatUndo = null;
       document.body.classList.remove('desk-video-compose-open');
       if (restoreFocus && bench.returnFocus?.isConnected) bench.returnFocus.focus?.({preventScroll: true});
       bench.returnFocus = null;
@@ -414,11 +421,82 @@
       const snap = snapshot(s);
       bench.selected = Math.min(bench.selected, Math.max(0, snap.clips.length - 1));
       bench.cue = Math.min(bench.cue, s.node.subtitles.cues.length - 1);
-      bench.timeline.render({clips: snap.clips, music: snap.music, selected: bench.cue >= 0 ? -1 : bench.selected,
+      requestBeats(s, snap.music);
+      paintSnap(snap.music);
+      paintBeatFit(snap);
+      bench.timeline.render({clips: snap.clips, music: snap.music, snap: snapBeats, selected: bench.cue >= 0 ? -1 : bench.selected,
         cues: s.node.subtitles.cues, cue: bench.cue});
       bench.timeline.setTime(bench.view === 'draft' ? bench.player.time() : null);
       paintClipBar(snap);
       paintSubtitles(snap.seconds);
+    }
+
+    // ----- beat snapping -------------------------------------------------------------------------
+    // Analyzed once per music source while the workbench is open (a local file is uploaded the way
+    // compose would upload it); failures just leave the lane without ticks.
+    function requestBeats(s, music) {
+      if (!music || musicBeats.has(music.key)) return;
+      const key = music.key;
+      musicBeats.set(key, musicInput(s, music)
+        .then(input => api.compose.musicBeats(input))
+        .then(result => musicBeats.set(key, result))
+        .catch(() => musicBeats.set(key, {tempo: 0, beats: [], failed: true}))
+        .finally(() => { if (bench?.s) renderTimeline(); }));
+    }
+
+    function paintSnap(music) {
+      const button = q(bench.root, '[data-cb-snap]'), state = music ? musicBeats.get(music.key) : null;
+      const pending = state instanceof Promise, count = pending ? 0 : state?.beats?.length || 0;
+      button.disabled = !count;
+      button.setAttribute('aria-pressed', String(snapBeats && count > 0));
+      button.title = !music ? '连接配乐后可用' : pending ? '正在分析配乐节拍…' : !count
+        ? (state?.failed ? '节拍分析失败' : '这段配乐没有检测到明显节拍')
+        : `${snapBeats ? '已开启' : '已关闭'}：拖动片段两端把手时，片段结尾吸附到附近的节拍或配乐结尾（${state.beats[0].toFixed(1)}–${state.beats[count - 1].toFixed(1)} 秒有节拍）`;
+    }
+
+    // Beats the music actually plays (the analysis can run past a shorter music node).
+    function playedBeats(music) {
+      const state = music ? musicBeats.get(music.key) : null;
+      if (!state || state instanceof Promise) return [];
+      return music.seconds > 0 ? state.beats.filter(beat => beat < music.seconds) : state.beats;
+    }
+
+    function paintBeatFit(snap) {
+      const group = q(bench.root, '[data-cb-beatfit]'), beats = playedBeats(snap.music);
+      const ready = beats.length > 0 && snap.clips.some(clip => clip.probe);
+      group.querySelectorAll('button:not([data-value="undo"])').forEach(button => { button.disabled = !ready; });
+      q(group, '[data-value="undo"]').hidden = bench.beatUndo?.s !== bench.s;
+    }
+
+    // One click: every clip's out point moves so it ends on a beat (in points stay). Undo restores
+    // the out points by source, so a reorder in between does not scramble them.
+    function fitToBeats(s, mode) {
+      const snap = snapshot(s), beats = playedBeats(snap.music);
+      if (!beats.length) { showMessage('配乐还没有可用的节拍'); return; }
+      const result = beatfit.plan(snap.clips, beats, mode);
+      if (!result.aligned) { showMessage('没有片段能对上节拍：片段比第一个节拍还短，或已在配乐结束之后'); return; }
+      bench.beatUndo = {s, ends: new Map(s.node.clips.map(clip => [clip.sourceId, clip.endFrame]))};
+      result.ends.forEach((end, k) => { if (end !== undefined) s.node.clips[k].endFrame = end; });
+      edited(s);
+      const notes = [];
+      if (result.short.length) notes.push(`第 ${result.short.map(k => k + 1).join('、')} 段素材不够长，停在能到的最后一拍`);
+      if (result.missed.length) notes.push(`第 ${result.missed.map(k => k + 1).join('、')} 段附近没有节拍，保持原样`);
+      showMessage(`已按节拍裁切：${result.aligned} 段结尾落在节拍上${notes.length ? '；' + notes.join('；') : ''}`);
+    }
+
+    function undoBeatFit(s) {
+      const undo = bench.beatUndo;
+      if (undo?.s !== s) return;
+      s.node.clips.forEach(clip => { if (undo.ends.has(clip.sourceId)) clip.endFrame = undo.ends.get(clip.sourceId); });
+      bench.beatUndo = null;
+      edited(s);
+      showMessage('已恢复按节拍裁切之前的出点');
+    }
+
+    function toggleSnap() {
+      snapBeats = !snapBeats;
+      try { window.localStorage.setItem(SNAP_KEY, snapBeats ? 'on' : 'off'); } catch (_error) { /* per-viewer convenience only */ }
+      renderTimeline();
     }
 
     // ----- subtitles -----------------------------------------------------------------------------
@@ -597,6 +675,9 @@
       if (event.target.closest('[data-cb-play]')) { bench.player.isPlaying() ? bench.player.stop() : bench.player.play(); return; }
       if (event.target.closest('[data-cb-run]')) { run(s.id); return; }
       if (event.target.closest('[data-cb-cancel]')) { cancel(s); return; }
+      if (event.target.closest('[data-cb-snap]')) { toggleSnap(); return; }
+      const fit = event.target.closest('[data-cb-beatfit] button');
+      if (fit) { if (!fit.disabled) fit.dataset.value === 'undo' ? undoBeatFit(s) : fitToBeats(s, fit.dataset.value); return; }
       if (bench.autosub.click(event) || bench.panel.click(event)) return;
       const clipOption = event.target.closest('[data-cb-clip-seg] button');
       if (clipOption) {

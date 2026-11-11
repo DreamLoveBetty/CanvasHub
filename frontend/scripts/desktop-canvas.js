@@ -5298,7 +5298,7 @@
       subtitles: window.DesktopVideoComposeSubtitles, escapeHtml, stateIcon }),
     players: window.DesktopVideoComposePlayer, timelines: window.DesktopVideoComposeTimeline, helpers: window.DesktopVideoFrames,
     subtitles: window.DesktopVideoComposeSubtitles, subtitlePanels: window.DesktopVideoComposeSubtitlePanel,
-    autosubs: window.DesktopVideoComposeAutosub, asr: window.DesktopAsrAPI,
+    autosubs: window.DesktopVideoComposeAutosub, asr: window.DesktopAsrAPI, beatfits: window.DesktopVideoComposeBeatFit,
     escapeHtml, stateIcon, progressView: canvasProgress,
     getCanvas: () => DesktopState.state.canvas, getNodeState, getNodeElement,
     getAudioInput: nodeId => canvasAudio.getInput(nodeId), uploadAudio: (blob, name) => window.DesktopMusicAPI.upload(blob, name),

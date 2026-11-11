@@ -91,6 +91,12 @@
                   ${range('clipVolume', '原声音量')}
                   ${row('淡入', seg('fadeIn', model.FADES.slice(0, 4)))}
                   ${row('淡出', seg('fadeOut', model.FADES.slice(0, 5)))}
+                  ${row('卡点', `<div class="desk-video-compose-bench__seg" role="group" aria-label="按节拍裁切" data-cb-beatfit>
+                    <button type="button" data-value="nearest" title="每段结尾移到最近的节拍，长度基本不变">就近对齐</button>
+                    <button type="button" data-value="2" title="每段从所在节拍起放 2 拍">每段 2 拍</button>
+                    <button type="button" data-value="4" title="每段放 4 拍（约一小节）">4 拍</button>
+                    <button type="button" data-value="8" title="每段放 8 拍（约两小节）">8 拍</button>
+                    <button type="button" data-value="undo" title="恢复按节拍裁切之前的出点" hidden>撤销</button></div>`)}
                 </div>
               </section>
               <section class="desk-video-compose-bench__panel">
@@ -128,7 +134,8 @@
           </div>
           <section class="desk-video-compose-bench__timeline">
             <header class="desk-video-compose-bench__timeline-head"><h3>时间轴</h3>
-              <small>拖动片段排序 · 拖两端把手按帧裁切 · 点片段或接缝设变速与转场 · 双击字幕轨添加字幕</small><small class="is-note" data-cb-music-note></small></header>
+              <small>拖动片段排序 · 拖两端把手按帧裁切 · 点片段或接缝设变速与转场 · 双击字幕轨添加字幕</small><small class="is-note" data-cb-music-note></small>
+              <span class="desk-video-compose-bench__seg"><button type="button" data-cb-snap aria-pressed="false" disabled title="连接配乐后可用">吸附节拍</button></span></header>
             <div class="desk-video-compose-bench__clipbar" data-cb-clip hidden>
               <strong data-cb-clip-name></strong>
               <span class="desk-video-compose-bench__label">变速</span>${seg('speed', model.SPEEDS, 'data-cb-clip-seg', '变速')}

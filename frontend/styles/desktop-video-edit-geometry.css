@@ -1529,6 +1529,32 @@ body.desk-app .desk-video-compose-tl__playhead {
   pointer-events: none;
 }
 
+/* Beat-snap guide while a trim holds on a beat; its label sits on the ruler. The playhead (on the
+   cut frame, a frame or two away) steps aside so the two lines don't read as one. */
+body.desk-app .desk-video-compose-tl.is-beat-snapped .desk-video-compose-tl__playhead {
+  visibility: hidden;
+}
+
+body.desk-app .desk-video-compose-tl__snap {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 5;
+  width: 1px;
+  pointer-events: none;
+}
+
+body.desk-app .desk-video-compose-tl__snap span {
+  position: absolute;
+  top: 1px;
+  left: 4px;
+  padding: 0 5px;
+  font-size: 10px;
+  line-height: 15px;
+  white-space: nowrap;
+}
+
 body.desk-app .desk-video-compose-tl__playhead span {
   position: absolute;
   top: 0;

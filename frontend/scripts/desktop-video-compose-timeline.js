@@ -1,21 +1,24 @@
 // Compose workbench timeline: one picture lane of clip blocks (width = output seconds: trimmed
 // length / speed, less half of each transition overlap), transition markers on the boundaries, a
 // subtitle lane of cue blocks on the output timeline (drag to move, edges to resize, double-click to
-// add), a music lane with waveform and fade ramps, a ruler that seeks and a playhead. Trims snap to real
-// frame times from the backend probe (in and out handles, at least MIN output seconds); blocks
-// drag to reorder.
+// add), a music lane with waveform, fade ramps and beat ticks, a ruler that seeks and a playhead. Trims snap to real
+// frame times from the backend probe (in and out handles, at least MIN output seconds); with `snap`
+// on, a trim pulls the clip's end on the output timeline to a music beat within SNAP_PX. Blocks drag
+// to reorder.
 // Owns only its DOM and drag state; every edit is reported through callbacks and the caller
 // re-renders from its own state.
 (function () {
   const LANE_H = 52;
   const MUSIC_H = 40;
+  const SNAP_PX = 8;
   const TILE_CHOICES = [8, 16, 24, 40];
   const clamp = (value, lo, hi) => Math.min(hi, Math.max(lo, value));
   // Same snapping as backend contracts.filmstrip_tiles: about four tiles a second, at most 40.
   const tilesFor = seconds => TILE_CHOICES.reduce((best, n) => Math.abs(n - seconds * 4) < Math.abs(best - seconds * 4) ? n : best);
 
   // view: {clips: [{key, label, url, probe, startFrame, endFrame, audio, hasAudio, speed, transition, error}],
-  //        music: {name, seconds, peaks, volume, fadeIn, fadeOut} | null, selected (clip, -1 for none),
+  //        music: {name, seconds, peaks, volume, fadeIn, fadeOut, tempo, beats} | null, snap (pull trims to beats),
+  //        selected (clip, -1 for none),
   //        cues: [{start, end, text}] (the node's own cues), cue (selected cue, -1 for none)}
   // onShow(k, sourceSeconds): show that source frame of clip k (the cut frame while trimming).
   // onCueEdit(k, edge, start, end, final): edge 'move' | 'start' | 'end'; the caller clamps the cue in place.
@@ -29,12 +32,13 @@
         <div class="desk-video-compose-tl__lane is-subtitles" data-tl-subs title="双击空白处添加字幕"></div>
         <div class="desk-video-compose-tl__lane is-music" data-tl-music></div>
         <div class="desk-video-compose-tl__playhead" data-tl-head hidden><span></span></div>
+        <div class="desk-video-compose-tl__snap" data-tl-snap hidden><span></span></div>
       </div>`;
     const q = selector => root.querySelector(selector);
     const tracks = q('[data-tl-tracks]'), ruler = q('[data-tl-ruler]'), lane = q('[data-tl-lane]');
     const musicLane = q('[data-tl-music]'), insert = q('[data-tl-insert]'), head = q('[data-tl-head]');
-    const subsLane = q('[data-tl-subs]');
-    let view = {clips: [], music: null, selected: 0, cues: [], cue: -1};
+    const subsLane = q('[data-tl-subs]'), guide = q('[data-tl-snap]');
+    let view = {clips: [], music: null, snap: false, selected: 0, cues: [], cue: -1};
     let pps = 40, frozen = false, headTime = 0;
     // url|tiles -> {url, tiles} once loaded, or the pending Promise. Object URLs belong to `filmstrip`'s cache.
     const sprites = new Map();
@@ -194,9 +198,22 @@
       const fades = (fadeIn ? `<polygon class="is-fade" points="0,0 ${fadeIn},0 0,${MUSIC_H}"/>` : '')
         + (fadeOut ? `<polygon class="is-fade" points="${width - fadeOut},0 ${width},0 ${width},${MUSIC_H}"/>` : '');
       const ramp = `<polyline class="is-ramp" points="0,${fadeIn ? MUSIC_H : 2} ${fadeIn},2 ${width - fadeOut},2 ${width},${fadeOut ? MUSIC_H : 2}"/>`;
+      // Beat ticks (a faint line and a notch on the lower edge, apart from the waveform bars); at most one
+      // every 4 px so a zoomed-out long song stays readable.
+      const ticks = [], marks = [];
+      let last = -Infinity;
+      for (const beat of music.beats || []) {
+        const x = beat * pps;
+        if (x > width) break;
+        if (x - last < 4) continue;
+        ticks.push(`<line x1="${x.toFixed(1)}" y1="0" x2="${x.toFixed(1)}" y2="${MUSIC_H}"/>`);
+        marks.push(`<rect x="${(x - 1).toFixed(1)}" y="${MUSIC_H - 5}" width="2" height="5"/>`);
+        last = x;
+      }
+      const tempo = music.tempo ? ` · ${Math.round(music.tempo)} BPM` : '';
       musicLane.innerHTML = `<div class="desk-video-compose-tl__music" style="width:${width.toFixed(1)}px">
-        <svg viewBox="0 0 ${width.toFixed(1)} ${MUSIC_H}" preserveAspectRatio="none" aria-hidden="true">${fades}<g class="is-bars">${bars.join('')}</g>${ramp}</svg>
-        <span>${esc(music.name)} · ${Math.round(music.volume * 100)}%</span></div>`;
+        <svg viewBox="0 0 ${width.toFixed(1)} ${MUSIC_H}" preserveAspectRatio="none" aria-hidden="true">${fades}<g class="is-bars">${bars.join('')}</g><g class="is-beats">${ticks.join('')}</g><g class="is-beat-marks">${marks.join('')}</g>${ramp}</svg>
+        <span>${esc(music.name)}${tempo} · ${Math.round(music.volume * 100)}%</span></div>`;
     }
 
     function paintHead() {
@@ -224,6 +241,40 @@
       return {startFrame: clip.startFrame, endFrame: last === count - 1 ? -1 : last};
     }
 
+    // Snap targets: the music's beats and its end (a clip that stops with the music is the other common cut).
+    function snapTargets() {
+      const music = view.music, beats = music?.beats || [];
+      if (!view.snap || !beats.length) return [];
+      return music.seconds > 0 ? [...beats.filter(beat => beat < music.seconds), music.seconds] : beats;
+    }
+
+    // trimTo, then with snapping on: where would clip k end on the output timeline? If a target is within
+    // SNAP_PX, move the cut by that difference in source seconds (× speed): later for the out point,
+    // earlier for the in point (a later in point shortens the clip). The frame rounding stays.
+    function snapTrim(clip, k, edge, at) {
+      const next = trimTo(clip, edge, at), beats = snapTargets();
+      if (!beats.length) return {...next, beat: null};
+      const saved = {startFrame: clip.startFrame, endFrame: clip.endFrame};
+      Object.assign(clip, next);
+      const segment = timing().segments[k], end = segment.from + segment.length, win = windowOf(clip);
+      Object.assign(clip, saved);
+      const beat = model.nearestBeat(beats, end, SNAP_PX / pps);
+      if (beat === null) return {...next, beat};
+      // Shift from the frame-aligned cut, not the pointer: the same beat then always picks the same frame.
+      const shift = (beat - end) * (clip.speed || 1);
+      return {...trimTo(clip, edge, edge === 'out' ? win.stop + shift : win.start - shift), beat};
+    }
+
+    // While a trim holds on a beat: a guide through every lane at that beat, labelled with its time.
+    function showGuide(beat) {
+      guide.hidden = beat === null;
+      root.classList.toggle('is-beat-snapped', beat !== null);
+      if (beat === null) return;
+      guide.style.transform = `translateX(${(beat * pps).toFixed(1)}px)`;
+      const end = view.music?.seconds > 0 && Math.abs(beat - view.music.seconds) < 1e-6;
+      guide.querySelector('span').textContent = `${end ? '配乐结尾' : '卡点'} ${helpers.clock(beat)}`;
+    }
+
     function dragHandle(event, handle, k) {
       const clip = view.clips[k], edge = handle.dataset.tlHandle;
       const win = windowOf(clip), origin = event.clientX, anchor = edge === 'in' ? win.start : win.stop;
@@ -236,7 +287,9 @@
         return clip.probe.frameTimes[edge === 'in' ? fresh.startFrame : fresh.endFrame];
       };
       const move = moveEvent => {
-        const next = trimTo(clip, edge, anchor + (moveEvent.clientX - origin) / pps * (clip.speed || 1));
+        const next = snapTrim(clip, k, edge, anchor + (moveEvent.clientX - origin) / pps * (clip.speed || 1));
+        showGuide(next.beat);
+        delete next.beat;
         if (next.startFrame === clip.startFrame && next.endFrame === clip.endFrame) return;
         Object.assign(clip, next);
         layout();
@@ -248,6 +301,7 @@
         handle.removeEventListener('pointerup', up);
         handle.removeEventListener('pointercancel', up);
         root.classList.remove('is-trimming');
+        showGuide(null);
         frozen = false;
         onTrim(k, {startFrame: clip.startFrame, endFrame: clip.endFrame}, true);
         onShow(k, cutTime());

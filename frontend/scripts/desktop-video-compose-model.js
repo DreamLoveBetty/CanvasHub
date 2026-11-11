@@ -124,6 +124,16 @@
     return {lengths, cuts, segments, total: round6(lengths.reduce((a, b) => a + b, 0) - cuts.reduce((a, b) => a + b, 0))};
   }
 
+  // Beat (sorted seconds) nearest to `time` within `tolerance` seconds, or null. Snapping only: the
+  // music starts with the output, so music seconds and output seconds are the same.
+  function nearestBeat(beats, time, tolerance) {
+    let lo = 0, hi = (beats || []).length;
+    while (lo < hi) { const mid = (lo + hi) >> 1; if (beats[mid] < time) lo = mid + 1; else hi = mid; }
+    const best = [beats?.[lo - 1], beats?.[lo]].filter(Number.isFinite)
+      .reduce((a, b) => a === null || Math.abs(b - time) < Math.abs(a - time) ? b : a, null);
+    return best !== null && Math.abs(best - time) <= tolerance ? best : null;
+  }
+
   // Mirrors plan.output_size: short side = resolution, even dimensions, long side <= 3840.
   function outputSize(output, probe) {
     const [across, down] = RATIOS[output.aspect] || [Math.max(1, probe?.width || 16), Math.max(1, probe?.height || 9)];
@@ -189,7 +199,7 @@
   window.DesktopVideoComposeModel = Object.freeze({
     TYPE, WIDTH, HEIGHT, MAX_CLIPS, MAX_SECONDS, MIN_CLIP_SECONDS, SUBTITLE_MIN_SECONDS: Subtitles.MIN_SECONDS, ASPECTS, RESOLUTIONS, FRAME_RATES, FITS, ENCODERS, FADES,
     SPEEDS, TRANSITIONS, TRANSITION_SECONDS,
-    CONSUMERS, active, normalize, syncClips, moveClip, clipWindow, timing, outputSize, settingsKey, request, resultFromJob,
+    CONSUMERS, active, normalize, syncClips, moveClip, clipWindow, timing, nearestBeat, outputSize, settingsKey, request, resultFromJob,
     isVideoSource, targets, policy, labels, ICON,
     menu: Object.freeze({type: TYPE, title: '视频合成', subtitle: '拼接片段 · 裁切 · 配乐', icon: ICON}),
   });
