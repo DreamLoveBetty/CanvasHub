@@ -38,7 +38,7 @@ PYTHONPATH="$PWD" .venv/bin/python -m backend.moss.environment status
 ```
 
 - `prepare` 需要 uv 與共享 Python；打包版從 Qwen/Krea 收據取解釋器。收據最後寫入，中斷後重跑即可。
-- 社區 Base 走設定中心「MOSS 模型轉換」：放進 `data/moss/base-imports/`，支援 ComfyUI INT8 ConvRot、BF16 單檔與已轉換的 MLX 目錄。`base_converter.py` 在隔離 venv 的子進程執行，只用 NumPy；驗證後發布到 `data/moss/bases/<id>/` 並綁定。必須先綁官方權重，張量名稱、形狀、精度要與官方一致（`time_embedding.1/.2` 視為同名）。文字編碼器、tokenizer、VAE、Turbo student、destripe 沿用官方，並有自己的指紋與提示詞快取；官方或微調任一邊的檔案變化都會使它失效。
+- 社區 Base 走設定中心「MOSS 模型轉換」：放進 `data/moss/base-imports/`，支援 ComfyUI INT8 ConvRot、BF16 單檔與已轉換的 MLX 目錄。`base_converter.py` 在隔離 venv 的子進程執行，只用 NumPy；驗證後發布到 `data/moss/bases/<id>/` 並綁定。必須先綁官方權重，張量名稱、形狀、精度要與官方一致（`time_embedding.1/.2` 視為同名）。各家匯出的打包方式不同：`model.diffusion_model.` 前綴可有可無，量化標記可多帶 `per_row: true`，`rope.bands` 只在與執行時按 `rope_base` 重算的表逐位相同時丟棄，其餘差異一律拒絕。文字編碼器、tokenizer、VAE、Turbo student、destripe 沿用官方，並有自己的指紋與提示詞快取；官方或微調任一邊的檔案變化都會使它失效。
 - 白名單檔案變化會使綁定失效，重新 `bind` 即恢復；完整校驗會計算約 27 GB 權重的 SHA256。
 - 依賴鎖更新：以驗證過的版本為約束，執行 `MACOSX_DEPLOYMENT_TARGET=14.0 uv pip compile --generate-hashes --no-config --python-version 3.14 --python-platform aarch64-apple-darwin`，不得加入 mflux。
 

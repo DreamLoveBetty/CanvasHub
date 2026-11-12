@@ -59,11 +59,13 @@ class Fixture(unittest.TestCase):
         self.q[0, 0], self.q[3, 3] = 16, -32
         self.scales = np.full((6, 1), .5, dtype="<f4")
         self.source = self.tmp / "imports" / "tune.safetensors"
-        p = converter.PREFIX
-        marker = np.frombuffer(json.dumps(CONFIG).encode(), dtype=np.uint8)
-        write(self.source, [(p + "layers.0.proj.qkv.weight", "I8", self.q), (p + "layers.0.proj.qkv.weight_scale", "F32", self.scales),
-                            ("layers.0.proj.qkv.comfy_quant", "U8", marker),
-                            (p + "time_embedding.2.weight", "BF16", np.array([[7, 9]], dtype="<u2"))],
+        self.write_source(self.source)
+
+    def write_source(self, path, p=converter.PREFIX, extra=(), marker_config=CONFIG):
+        marker = np.frombuffer(json.dumps(marker_config).encode(), dtype=np.uint8)
+        write(path, [(p + "layers.0.proj.qkv.weight", "I8", self.q), (p + "layers.0.proj.qkv.weight_scale", "F32", self.scales),
+                     ("layers.0.proj.qkv.comfy_quant", "U8", marker),
+                     (p + "time_embedding.2.weight", "BF16", np.array([[7, 9]], dtype="<u2")), *extra],
               {"_quantization_metadata": json.dumps({"format_version": "1.0", "layers": {"layers.0.proj.qkv": CONFIG}})})
 
 
@@ -85,6 +87,29 @@ class Converter(Fixture):
         k = np.frombuffer(reader.raw("layers.0.proj.k.weight"), dtype="<u2").reshape(2, 256)
         expected = converter.float32_to_bf16(converter.restore_convrot(self.q, self.scales, 256)[2:4])
         np.testing.assert_array_equal(k, expected)
+
+    def test_unprefixed_export_with_runtime_rope_bands_converts_like_the_prefixed_one(self):
+        source = self.tmp / "imports" / "bare.safetensors"
+        self.write_source(source, "", [("rope.bands", "BF16", converter.expected_rope_bands())], {**CONFIG, "per_row": True})
+        _, _, prefixed = converter.prepare(self.source, self.reference)
+        _, _, bare = converter.prepare(source, self.reference)
+        strip = lambda plans: [{**plan, "source": converter.normalize_key(plan["source"])} for plan in plans]
+        self.assertEqual(strip(bare), strip(prefixed))
+        self.assertNotIn("rope.bands", {plan["target"] for plan in bare})
+
+    def test_rejects_rope_bands_that_differ_from_the_runtime_table(self):
+        bands = converter.expected_rope_bands().copy()
+        bands[-1] += 1
+        source = self.tmp / "imports" / "rope.safetensors"
+        self.write_source(source, "", [("rope.bands", "BF16", bands)])
+        with self.assertRaisesRegex(ValueError, "RoPE bands"):
+            converter.prepare(source, self.reference)
+
+    def test_marker_may_add_per_row_true_but_nothing_else(self):
+        for extra in ({"per_row": False}, {"symmetric": True}):
+            self.write_source(self.source, marker_config={**CONFIG, **extra})
+            with self.subTest(extra=extra), self.assertRaisesRegex(ValueError, "marker contradicts"):
+                converter.prepare(self.source, self.reference)
 
     def test_rejects_mismatched_architecture(self):
         write(self.reference / "1.safetensors", [("extra.weight", "BF16", np.zeros((1, 2), dtype="<u2"))])

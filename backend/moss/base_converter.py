@@ -2,6 +2,8 @@
 
 Comfy INT8 ConvRot follows comfy-kitchen's dequantize_int8_convrot_weight: FP32(q * per-row scale), inverse REGULAR
 H4 Kronecker rotation, BF16 round-to-nearest-even. Native BF16 tensors stay byte-identical. Needs NumPy only.
+Exporters differ in packaging: the `model.diffusion_model.` prefix is optional, markers may carry `per_row: true`,
+and a saved `rope.bands` buffer is dropped only when it is bit-identical to the table the MLX DiT recomputes.
 """
 from __future__ import annotations
 
@@ -23,6 +25,8 @@ PREFIX = "model.diffusion_model."
 EVENT_PREFIX = "MOSS_CONVERT_EVENT "
 QKV = re.compile(r"^layers\.\d+\.proj\.qkv\.weight$")
 DTYPE_BYTES = {"I8": 1, "U8": 1, "F32": 4, "BF16": 2}
+ROPE_BANDS = "rope.bands"
+ROPE_BASE, ROPE_BAND_COUNT = 10000.0, 16  # MOSS DiT: rope_base 10000, head_dim 128 -> head_dim // 8 bands
 SHARD_BYTES = 2 << 30
 ROWS_PER_CHUNK = 256
 
@@ -143,8 +147,28 @@ def normalize_key(key):
     return key
 
 
+def marker_config(value):
+    """Some exporters add `per_row: true` to the per-tensor marker; the [rows, 1] scale check already requires it."""
+    if isinstance(value, dict) and value.get("per_row") is True:
+        value = {k: v for k, v in value.items() if k != "per_row"}
+    return value
+
+
+def expected_rope_bands():
+    exponent = np.arange(ROPE_BAND_COUNT, dtype=np.float32) / np.float32(ROPE_BAND_COUNT)
+    return float32_to_bf16(np.float32(1) / (np.float32(ROPE_BASE) ** exponent))
+
+
+def check_rope_bands(reader, key):
+    entry = reader.tensors[key]
+    if (entry["dtype"] != "BF16" or entry["shape"] != [ROPE_BAND_COUNT]
+            or not np.array_equal(np.frombuffer(reader.raw(key), dtype="<u2"), expected_rope_bands())):
+        raise ValueError(f"RoPE bands differ from the MOSS runtime table: {key}")
+
+
 def prepare(source, reference):
     reader = SafeTensorReader(source)
+    prefix = PREFIX if any(key.startswith(PREFIX) for key in reader.tensors) else ""
     raw_metadata = reader.metadata.get("_quantization_metadata")
     metadata = json.loads(raw_metadata, object_pairs_hook=strict_object) if raw_metadata else {"layers": {}}
     if raw_metadata and (metadata["format_version"] != "1.0" or not metadata["layers"]):
@@ -153,12 +177,14 @@ def prepare(source, reference):
     for module, config in metadata["layers"].items():
         if config != {"format": "int8_tensorwise", "convrot": True, "convrot_groupsize": 256}:
             raise ValueError(f"Unsupported quantization: {module}: {config}")
-        weight, scale, marker = PREFIX + module + ".weight", PREFIX + module + ".weight_scale", module + ".comfy_quant"
+        weight, scale, marker = prefix + module + ".weight", prefix + module + ".weight_scale", module + ".comfy_quant"
+        if not all(k in reader.tensors for k in (weight, scale, marker)):
+            raise ValueError(f"Quantized tensors missing for {module}")
         w, s, m = (reader.tensors[k] for k in (weight, scale, marker))
         if (w["dtype"] != "I8" or len(w["shape"]) != 2 or w["shape"][1] % 256
                 or s["dtype"] != "F32" or s["shape"] != [w["shape"][0], 1] or m["dtype"] != "U8"):
             raise ValueError(f"Incompatible quantized tensor descriptors: {module}")
-        if json.loads(reader.raw(marker)) != config:
+        if marker_config(json.loads(reader.raw(marker))) != config:
             raise ValueError(f"Quantization marker contradicts metadata: {module}")
         values = np.frombuffer(reader.raw(scale), dtype="<f4").reshape(s["shape"])
         if not np.isfinite(values).all() or not (values > 0).all():
@@ -169,6 +195,9 @@ def prepare(source, reference):
         if source_key in handled:
             continue
         key, shape = normalize_key(source_key), entry["shape"]
+        if key == ROPE_BANDS:
+            check_rope_bands(reader, source_key)
+            continue
         quantized = source_key in scales
         if entry["dtype"] != ("I8" if quantized else "BF16"):
             raise ValueError(f"Unaccounted or unsupported tensor: {source_key}")
