@@ -56,3 +56,12 @@ test('准备、绑定、取消、LoRA 路径与字段',async()=>{
   assert.equal(calls.at(-1).path,'/api/moss/lora-import?name=a%20b.safetensors');assert.equal(calls.at(-1).options.body,file);
   await assert.rejects(()=>A.importLora(new Blob(0)),/2 GiB/);
 });
+
+test('只有自定义预设发送 sampler_params',()=>{
+  const turbo=M.normalize({type:'moss',prompt:'猫',samplerParams:{steps:12}});
+  assert.equal('sampler_params' in A.jobRequest(turbo,M.resolveTextSources(turbo,ports())),false);
+  const custom=M.normalize({type:'moss',prompt:'猫',preset:'custom',samplerParams:{steps:12,cfg:1.5,shift:3}});
+  const body=plain(A.jobRequest(custom,M.resolveTextSources(custom,ports())));
+  assert.equal(body.preset,'custom');assert.deepEqual(body.sampler_params,{steps:12,cfg:1.5,shift:3});
+  assert.equal('sampler_params' in plain(A.compileRequest(custom,M.resolveTextSources(custom,ports()))),false,'compile does not take sampler params');
+});

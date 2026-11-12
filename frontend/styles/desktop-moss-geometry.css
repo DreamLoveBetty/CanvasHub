@@ -2,6 +2,7 @@
 .desk-app .desk-moss__header { flex:0 0 auto; margin-bottom:4px; }
 .desk-app .desk-moss__body { display:flex; flex:1 1 auto; flex-direction:column; gap:4px; min-height:0; overflow:visible; }
 .desk-app .desk-moss__grid { display:grid; flex:0 0 auto; grid-template-columns:repeat(4,minmax(0,1fr)); gap:4px; margin:0; }
+.desk-app .desk-moss__grid[hidden] { display:none; }
 .desk-app .desk-moss__grid label { display:grid; gap:3px; min-width:0; }
 .desk-app .desk-moss__grid .desk-select-shell { width:100%; }
 .desk-app .desk-moss__prompt { display:flex; flex:0 0 auto; flex-direction:column; gap:3px; }

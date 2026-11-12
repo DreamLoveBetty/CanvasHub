@@ -27,8 +27,8 @@
     "sha256": "90145992f2c0d2c93ab6ecb9363862fe4e65eff32d8cae8fb3bbac9ff361a2a0"
    },
    "scripts/desktop-bootstrap.js": {
-    "v": "20260818-canvas-persist2",
-    "sha256": "9fe1de3026261f0e13cef57167750a00d07ba86f261c4d3f8bca3e9acb90000e"
+    "v": "20261113-init-isolation1",
+    "sha256": "9b1542a00d075b5a3e50b09538b54a4e9f8399e338cd7b8fb48c1cab26551889"
    },
    "scripts/desktop-canvas-audio.js": {
     "v": "20261030-ui-polish1",
@@ -123,8 +123,8 @@
     "sha256": "384876f49bc53a62927106f24bceaaccd2181c059159b3cd051b685caa0413a6"
    },
    "scripts/desktop-canvas-moss.js": {
-    "v": "20261104-local-negative1",
-    "sha256": "965531a860e642cfa1a7367d9635895ac90e83f7fad5684bb68760cb04a6b642"
+    "v": "20261113-moss-legacy1",
+    "sha256": "b872dabb488b98f5bc717cddbdb2019c8aa2a19b122a8e3c167bdeb7161f36a1"
    },
    "scripts/desktop-canvas-music.js": {
     "v": "20260919-music-status2",
@@ -311,8 +311,8 @@
     "sha256": "f247991f0d882ae3bf332612d749581707c1972957cea35aee5c080b2a026892"
    },
    "scripts/desktop-moss-api.js": {
-    "v": "20261104-local-negative1",
-    "sha256": "6e5c85751d078c8e50170ac3d0256d0b23107d32b7815be0634ec20521e1ad6f"
+    "v": "20261113-moss-sampler1",
+    "sha256": "4bef3c4f2d5380dca28072bdfaf2e76832ec3246156476b584ce3486d1f37d52"
    },
    "scripts/desktop-moss-grid.js": {
     "v": "20261101-moss-grid1",
@@ -323,8 +323,8 @@
     "sha256": "f549230168966c19af01374bd9cf97f8200f844b32074f198ce3a80e4fcdb63b"
    },
    "scripts/desktop-moss-model.js": {
-    "v": "20261104-local-negative1",
-    "sha256": "e71c0045b7ba3639ce5145d26d718e334ca0d1e67e58ec6750c2265522f143e4"
+    "v": "20261113-moss-sampler1",
+    "sha256": "30d06b6f86870114eba8231b22850b48e2512ef87118ccf36b08712d3ba4b9af"
    },
    "scripts/desktop-moss-tools.js": {
     "v": "20261101-moss-base3",
@@ -679,8 +679,8 @@
     "sha256": "9256424e25bb378b800e060956c2d6c1403ee9f4e73dc472ddaddd6f763a6d04"
    },
    "styles/desktop-moss-geometry.css": {
-    "v": "20261101-moss-grid1",
-    "sha256": "b77339dfafaf9dfd83c09673f8390bc250ba8125c8ccc499508e01a936b3877e"
+    "v": "20261113-moss-sampler1",
+    "sha256": "38184699cd9d32d067d52cc84bca244d6d2f20608d021d2e3b4e023c9f108365"
    },
    "styles/desktop-moss.css": {
     "v": "20261111-type-scale1",

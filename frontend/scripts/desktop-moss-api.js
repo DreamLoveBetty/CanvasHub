@@ -10,6 +10,7 @@
   function jobRequest(node,input){
     const storyboard=node.mode==='storyboard';
     return{...compileRequest(node,input),...(node.seed===''?{}:{seed:Number(node.seed)}),loras:node.loras.map(item=>({asset_id:item.assetId,scale:item.scale})),
+      ...(node.preset==='custom'?{sampler_params:{steps:node.samplerParams.steps,cfg:node.samplerParams.cfg,shift:node.samplerParams.shift}}:{}),
       telegram_enabled:node.telegramEnabled,draw_grid:storyboard&&node.drawGrid,split_panels:storyboard&&node.splitPanels,text_sources:input.textSources.map(wireTrace)};
   }
   function compileReceipt(raw){

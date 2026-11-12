@@ -55,3 +55,10 @@ test('sha256 与服务端一致（含中文与分块边界）',()=>{
 });
 
 test('菜单项',()=>{assert.equal(M.MENU_ITEM.title,'MOSS · 本地生成 / Layout');assert.equal(M.MENU_ITEM.type,'moss');});
+
+test('自定义采样参数默认 8 步 / CFG 1 / Shift 5，并夹在后端上限内',()=>{
+  assert.deepEqual(plain(M.normalize({type:'moss'}).samplerParams),{steps:8,cfg:1,shift:5});
+  assert.equal(M.normalize({type:'moss',preset:'custom'}).preset,'custom');
+  assert.deepEqual(plain(M.normalizeSamplerParams({steps:500,cfg:0,shift:'x'})),{steps:100,cfg:1,shift:5});
+  assert.deepEqual(plain(M.normalizeSamplerParams({steps:7.6,cfg:1.25,shift:0.1})),{steps:8,cfg:1.3,shift:0.5});
+});

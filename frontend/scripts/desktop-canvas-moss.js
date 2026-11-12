@@ -25,6 +25,15 @@
       return options(items.map(item=>[item.model_id,item.label+(item.ready?'':' · 未绑定')]),node.baseModelId);
     }
     const ratioOptions=node=>options([...M.ASPECT_RATIOS.map(x=>[x,x]),['custom','自定义']],M.ratioFromDimensions(node.imageWidth,node.imageHeight));
+    // Canvases saved before the custom preset have no samplerParams, and saved nodes render before
+    // mount() normalizes them, so rendering always reads the normalized values.
+    const samplerParams=node=>M.normalizeSamplerParams(node.samplerParams);
+    const samplerFields=node=>{const params=samplerParams(node);return[['steps','步数',1],['cfg','CFG',0.1],['shift','Shift',0.1]].map(([key,name,step])=>{const [lo,hi]=M.SAMPLER_LIMITS[key];return`<label><span>${name}</span><input class="desk-number" type="number" min="${lo}" max="${hi}" step="${step}" value="${params[key]}" data-stepper="off" data-moss-sampler="${key}" aria-label="自定义采样 ${name}"></label>`;}).join('');};
+    function samplingText(node){
+      if(node.preset==='turbo')return'Turbo · 10 更新 / 15 前向 · CFG 3 → 1';
+      if(node.preset==='standard')return'标准 · Euler 50 步 · CFG 3';
+      const {steps,cfg,shift}=samplerParams(node);return`自定义 · Euler ${steps} 步 · CFG ${cfg} · Shift ${shift}`;
+    }
     function loraRows(node){if(!node.loras.length)return'<div class="desk-moss__empty">未加载普通 LoRA · 受管适配器由预设自动加载</div>';return node.loras.map((item,index)=>{
       const name=(loraLibrary?.peek(item.assetId)||loras.find(x=>x.asset_id===item.assetId))?.name||item.assetId.slice(0,12);return`<div class="desk-moss__lora"><strong title="${esc(name)}">${loraView?`<button type="button" class="desk-lora-row-detail" data-moss-lora-detail="${esc(item.assetId)}" title="查看效果与触发词">${esc(name)} ⓘ</button>`:esc(name)}</strong><input class="desk-number" type="number" min="${M.LORA_SCALE_MIN}" max="${M.LORA_SCALE_MAX}" step="0.05" value="${item.scale}" data-stepper="off" data-moss-lora-scale="${index}" aria-label="${esc(name)} LoRA 强度"><button class="desk-button desk-button--danger" data-moss-lora-remove="${index}" aria-label="移除 ${esc(name)}">×</button></div>`;}).join('');}
     function nodeHtml(node){return`<section class="desk-node desk-node--moss desk-glass" data-node-id="${esc(node.id)}" aria-label="MOSS 节点">
@@ -33,6 +42,7 @@
       <div class="desk-moss__body" data-moss-body data-node-drag-ignore>
         <div class="desk-param-grid desk-moss__grid"><label><span>工作模式</span><select class="desk-select" data-moss-field="mode">${modeOptions(node)}</select></label><label><span>推理预设</span><select class="desk-select" data-moss-field="preset">${presetOptions(node)}</select></label><label><span>Base 权重模型</span><select class="desk-select" data-desk-select-width="content" data-moss-field="baseModelId">${modelOptions(node)}</select></label><label><span>LoRA 模型</span>${loraView?'<button type="button" class="desk-button desk-lora-picker-button" data-moss-lora-picker aria-label="看图选择 LoRA">＋ 看图选择 LoRA <span>⌄</span></button>':'<span class="desk-moss__empty">LoRA 目录不可用</span>'}</label></div>
         <div class="desk-param-grid desk-moss__grid"><label><span>画幅比例</span><select class="desk-select" data-moss-field="ratio">${ratioOptions(node)}</select></label><label><span>宽度</span><select class="desk-select" data-moss-field="imageWidth">${sizeOptions(node.imageWidth)}</select></label><label><span>高度</span><select class="desk-select" data-moss-field="imageHeight">${sizeOptions(node.imageHeight)}</select></label><label><span>Seed</span><input class="desk-number" type="text" inputmode="numeric" placeholder="随机" value="${esc(node.seed)}" data-moss-field="seed"></label></div>
+        <div class="desk-param-grid desk-moss__grid" data-moss-sampler-row${node.preset==='custom'?'':' hidden'}>${samplerFields(node)}</div>
         <section class="desk-moss__prompt"><header><strong>全局描述</strong><span data-moss-source></span></header><textarea rows="3" placeholder="写下画面描述，或连接一个文本节点" data-moss-prompt aria-label="全局描述">${esc(node.prompt)}</textarea></section>
         <section class="desk-moss__loras"><header><strong>已加载 LoRA</strong><small data-moss-lora-count>${node.loras.length} / ${M.MAX_LORAS}</small></header><div class="desk-moss__lora-list" data-moss-lora-list>${loraRows(node)}</div></section>
         <section class="desk-moss-layout" data-moss-layout hidden aria-label="布局画板"></section><section class="desk-moss-layout" data-moss-grid hidden aria-label="分镜画板"></section><button type="button" class="desk-button desk-moss__expand" data-moss-expand hidden>展开设置</button>
@@ -76,7 +86,9 @@
       badge.textContent=isBusy?(labels[node.status]||'处理中'):isPreparing?'准备中':isReady?(labels[node.status]||'就绪'):status?'未就绪':'检查环境';
       badge.classList.toggle('is-success',isReady&&!isBusy&&!['failed','canceled'].includes(node.status));badge.classList.toggle('is-busy',isBusy||isPreparing);badge.classList.toggle('is-error',node.status==='failed');badge.classList.toggle('is-canceled',node.status==='canceled');
       const run=s.el.querySelector('[data-moss-run]');run.disabled=Boolean(s.pending||s.starting)||(!isBusy&&(isPreparing||(isReady&&Boolean(reason))));run.querySelector('span').textContent=isBusy?'停止生成':isPreparing?'准备中':!status?'检查环境':!isReady?'前往模型工具':node.status==='failed'?'重试生成':'开始生成';
-      s.el.querySelector('[data-moss-sampling]').textContent=(node.preset==='turbo'?'Turbo · 10 更新 / 15 前向 · CFG 3 → 1':'标准 · Euler 50 步 · CFG 3')+(input.negativePrompt?' · 负面':'');
+      // CFG 1 skips the unconditional branch, so a negative prompt has nothing to steer there.
+      s.el.querySelector('[data-moss-sampling]').textContent=samplingText(node)+(input.negativePrompt?(node.preset==='custom'&&samplerParams(node).cfg===1?' · 负面在 CFG 1 下不生效':' · 负面'):'');
+      const samplerRow=s.el.querySelector('[data-moss-sampler-row]');samplerRow.hidden=node.preset!=='custom';
       const budget=s.el.querySelector('[data-moss-budget]');budget.textContent=reason||s.compileError||(receipt?.tokenBudget.checked?`提示词 ${receipt.tokenBudget.promptTokens}${input.negativePrompt?` · 负面 ${receipt.tokenBudget.negativeTokens}`:''} / ${receipt.tokenBudget.maxTokens}`:'');budget.classList.toggle('is-error',Boolean(input.issues.length||s.compileError)||receipt?.tokenBudget.valid===false);
       const runtime=s.el.querySelector('[data-moss-runtime]');runtime.textContent=isPreparing?(prep.message||'正在准备'):isReady?(status.warm?'已热载入':'环境已就绪'):(status?.reasons?.[0]||'正在检查环境…');runtime.classList.toggle('is-success',isReady&&!isBusy);runtime.classList.toggle('is-busy',isBusy||isPreparing);runtime.classList.toggle('is-error',node.status==='failed'||prep.status==='failed');
       const progress=s.el.querySelector('[data-moss-progress]');progress.hidden=!isBusy;progress.classList.toggle('is-visible',isBusy);
@@ -247,6 +259,7 @@
     }
     function change(s,input){if(busy(s)||preparing())return;const node=s.node;
       if(input.matches('[data-moss-telegram]'))node.telegramEnabled=input.checked;
+      else if(input.dataset.mossSampler){const key=input.dataset.mossSampler;node.samplerParams=M.normalizeSamplerParams({...node.samplerParams,[key]:input.value===''?NaN:Number(input.value)});input.value=String(node.samplerParams[key]);}
       else if(input.dataset.mossLoraScale!==undefined){const item=node.loras[Number(input.dataset.mossLoraScale)];if(item){item.scale=M.normalizeLoraScale(input.value);input.value=String(item.scale);}}
       else if(input.dataset.mossField){const key=input.dataset.mossField;
         if(key==='ratio'){const size=M.dimensionsForRatio(input.value);if(size&&!resize(s,{imageWidth:size.width,imageHeight:size.height})){syncControls(s);return;}}

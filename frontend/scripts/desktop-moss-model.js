@@ -3,7 +3,10 @@
   const TYPE='moss',WIDTH=720,HEIGHT=500,SCHEMA='canvashub.moss.layout',SCHEMA_VERSION=1;
   const DEFAULT_MODEL_ID='moss-image-sft-mflux-bf16',DEFAULT_PRESET='turbo';
   const MODES=Object.freeze(['text','layout','storyboard']);
-  const PRESETS=Object.freeze({turbo:{label:'Turbo · 10 步'},standard:{label:'标准 · 50 步'}});
+  const PRESETS=Object.freeze({turbo:{label:'Turbo · 10 步'},standard:{label:'标准 · 50 步'},custom:{label:'自定义 · Euler'}});
+  // Custom preset only: plain Euler for distilled Bases; limits mirror backend CUSTOM_LIMITS.
+  const SAMPLER_LIMITS=Object.freeze({steps:Object.freeze([1,100]),cfg:Object.freeze([1,15]),shift:Object.freeze([0.5,20])});
+  const SAMPLER_DEFAULTS=Object.freeze({steps:8,cfg:1,shift:5});
   const ASPECT_RATIOS=Object.freeze(['1:1','2:3','3:2','3:4','4:3','4:5','5:4','9:16','16:9']);
   const LORA_SCALE_MIN=-20,LORA_SCALE_MAX=20,MAX_LORAS=4,MAX_PIXELS=2097152,SEED_MAX=4294967295,GLOBAL='global';
   const ICON='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z"/></svg>';
@@ -73,6 +76,10 @@
   const ratioFromDimensions=(width,height)=>ASPECT_RATIOS.find(ratio=>{const size=dimensionsForRatio(ratio);return size.width===width&&size.height===height;})||ASPECT_RATIOS.find(ratio=>{const [a,b]=ratio.split(':').map(Number);return Math.abs(width/height-a/b)<.002;})||'custom';
   const withinPixels=(width,height)=>width*height<=MAX_PIXELS;
   const unsupported=node=>node.schemaVersion!==SCHEMA_VERSION;
+  function normalizeSamplerParams(value){
+    const source=isObject(value)?value:{},number=key=>clamp(source[key],...SAMPLER_LIMITS[key],SAMPLER_DEFAULTS[key]);
+    return{steps:Math.round(number('steps')),cfg:Math.round(number('cfg')*10)/10,shift:Math.round(number('shift')*10)/10};
+  }
   function normalize(node){
     if(node.type!==TYPE)return node;
     node.width=WIDTH;
@@ -83,6 +90,7 @@
     node.prompt=text(node.prompt);node.promptSource=normalizeSource(node.promptSource);
     normalizeSize(node);
     node.preset=PRESETS[node.preset]?node.preset:DEFAULT_PRESET;
+    node.samplerParams=normalizeSamplerParams(node.samplerParams);
     const requested=String(node.baseModelId||'').toLowerCase();node.baseModelId=/^[a-z0-9][a-z0-9._-]{0,119}$/.test(requested)?requested:DEFAULT_MODEL_ID;
     node.seed=normalizeSeed(node.seed);
     node.telegramEnabled=node.telegramEnabled===true;node.drawGrid=node.drawGrid===true;node.splitPanels=node.splitPanels!==false;
@@ -199,5 +207,5 @@
     copy.jobId='';copy.resultJobId='';copy.panelJobId='';copy.status='idle';
     return copy;
   }
-  window.DesktopMossModel=Object.freeze({TYPE,WIDTH,HEIGHT,SCHEMA,SCHEMA_VERSION,DEFAULT_MODEL_ID,DEFAULT_PRESET,MODES,PRESETS,GLOBAL,ASPECT_RATIOS,dimensionsForRatio,ratioFromDimensions,withinPixels,allBindings,bindingSlot,bound,LORA_SCALE_MIN,LORA_SCALE_MAX,MAX_LORAS,ICON,MENU_ITEM,sha256,active,normalizeLoraScale,normalizeSource,normalize,unsupported,targets,policy,modeBindings,textDependencies,missingDependencies,resolveTextSources,scaleFreeDraft,exportDraft,exportOfficial,applyImport,remapClone});
+  window.DesktopMossModel=Object.freeze({TYPE,WIDTH,HEIGHT,SCHEMA,SCHEMA_VERSION,DEFAULT_MODEL_ID,DEFAULT_PRESET,MODES,PRESETS,SAMPLER_LIMITS,SAMPLER_DEFAULTS,normalizeSamplerParams,GLOBAL,ASPECT_RATIOS,dimensionsForRatio,ratioFromDimensions,withinPixels,allBindings,bindingSlot,bound,LORA_SCALE_MIN,LORA_SCALE_MAX,MAX_LORAS,ICON,MENU_ITEM,sha256,active,normalizeLoraScale,normalizeSource,normalize,unsupported,targets,policy,modeBindings,textDependencies,missingDependencies,resolveTextSources,scaleFreeDraft,exportDraft,exportOfficial,applyImport,remapClone});
 })();

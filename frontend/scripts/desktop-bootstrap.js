@@ -41,24 +41,35 @@
     });
   }
 
+  // Each startup step runs on its own: one module throwing (say, on a saved canvas node it
+  // cannot render) must not leave history, settings and the rest uninitialised, and the
+  // error has to reach the console instead of disappearing into a promise.
+  async function initStep(name, run) {
+    try {
+      await run();
+    } catch (error) {
+      console.error(`[desktop] ${name} failed during startup`, error);
+    }
+  }
+
   function initDesktopApp() {
     if (desktopInitPromise) return desktopInitPromise;
     desktopInitPromise = (async () => {
-      DesktopState.loadSettings();
-      await DesktopState.restoreCanvasBackup?.();
-      DesktopState.loadDraft();
-      DesktopState.loadLastTask();
+      await initStep('DesktopState.loadSettings', () => DesktopState.loadSettings());
+      await initStep('DesktopState.restoreCanvasBackup', () => DesktopState.restoreCanvasBackup?.());
+      await initStep('DesktopState.loadDraft', () => DesktopState.loadDraft());
+      await initStep('DesktopState.loadLastTask', () => DesktopState.loadLastTask());
 
-      DesktopResults.init();
-      DesktopCanvas.init();
-      DesktopHistory.init();
-      window.DesktopSettings?.init?.();
-      window.DesktopPromptDrawer?.init?.();
-      window.DesktopPromptAgent?.init?.();
-      window.DesktopPromptLibrary?.init?.();
-      window.DesktopPromptInsert?.init?.();
-      window.DesktopI18n?.apply?.();
-      window.DesktopSelect?.init?.();
+      await initStep('DesktopResults.init', () => DesktopResults.init());
+      await initStep('DesktopCanvas.init', () => DesktopCanvas.init());
+      await initStep('DesktopHistory.init', () => DesktopHistory.init());
+      await initStep('DesktopSettings.init', () => window.DesktopSettings?.init?.());
+      await initStep('DesktopPromptDrawer.init', () => window.DesktopPromptDrawer?.init?.());
+      await initStep('DesktopPromptAgent.init', () => window.DesktopPromptAgent?.init?.());
+      await initStep('DesktopPromptLibrary.init', () => window.DesktopPromptLibrary?.init?.());
+      await initStep('DesktopPromptInsert.init', () => window.DesktopPromptInsert?.init?.());
+      await initStep('DesktopI18n.apply', () => window.DesktopI18n?.apply?.());
+      await initStep('DesktopSelect.init', () => window.DesktopSelect?.init?.());
       bindGlobalKeys();
 
       window.loadHistory = function () {
