@@ -37,9 +37,16 @@ PRESETS = {
     "standard": {"label": "标准",
                  "managed_adapters": [{"id": "destripe", "scale": 1.5}],
                  "sampler": {**SAMPLER_COMMON, "name": "euler", "steps": 50, "cfg": 3, "shift": 5}},
+    # Plain Euler with caller-set steps/CFG/shift and no managed adapters: distilled community Bases
+    # (e.g. CFG 1, 8 steps) overcook under the Turbo student or a teacher CFG of 3.
+    "custom": {"label": "自定义",
+               "managed_adapters": [],
+               "sampler": {**SAMPLER_COMMON, "name": "euler", "steps": 8, "cfg": 1, "shift": 5}},
 }
+CUSTOM_PRESET = "custom"
+CUSTOM_LIMITS = {"steps": (1, 100), "cfg": (1, 15), "shift": (0.5, 20)}
 JOB_FIELDS = {"mode", "base_model_id", "preset", "width", "height", "seed", "prompt", "negative_prompt", "layout_draft", "loras",
-              "telegram_enabled", "draw_grid", "split_panels", "text_sources", "input_fingerprint"}
+              "telegram_enabled", "draw_grid", "split_panels", "text_sources", "input_fingerprint", "sampler_params"}
 COMPILE_FIELDS = {"mode", "base_model_id", "preset", "width", "height", "prompt", "negative_prompt", "layout_draft",
                   "input_fingerprint", "draft_json"}
 SOURCE_REQUIRED = {"source_node_id", "target_id", "field", "content_hash"}
@@ -220,6 +227,23 @@ def _seed(value):
     return integer(value, "Seed", 0, SEED_MAX)
 
 
+def _sampler_params(body, preset):
+    """Only the custom preset takes steps/CFG/shift; the fixed presets stay fixed."""
+    if "sampler_params" not in body:
+        return {}
+    if preset != CUSTOM_PRESET:
+        raise ValueError("仅自定义预设可设置采样参数")
+    raw = body["sampler_params"]
+    check_fields(raw, set(CUSTOM_LIMITS), "采样参数")
+    params = {}
+    if "steps" in raw:
+        params["steps"] = integer(raw["steps"], "步数", *CUSTOM_LIMITS["steps"])
+    for key, name in (("cfg", "CFG"), ("shift", "Shift")):
+        if key in raw:
+            params[key] = _number(raw[key], name, *CUSTOM_LIMITS[key])
+    return params
+
+
 def normalize_job(body):
     check_fields(body, JOB_FIELDS, "任务参数")
     result = _generation_input(body)
@@ -230,7 +254,9 @@ def normalize_job(body):
     split_panels = _flag(body, "split_panels", True)
     preset = PRESETS[result["preset"]]
     # Both presets read the negative through the CFG branch (turbo through its teacher CFG); it costs no extra pass.
-    sampler = {**copy.deepcopy(preset["sampler"]), "negative_prompt": result["negative_prompt"]}
+    # At CFG 1 the sampler skips the unconditional branch, so the negative has no effect there.
+    sampler = {**copy.deepcopy(preset["sampler"]), **_sampler_params(body, result["preset"]),
+               "negative_prompt": result["negative_prompt"]}
     return {**result, "seed": _seed(body.get("seed")), "loras": _loras(body.get("loras", [])),
             "telegram_enabled": _flag(body, "telegram_enabled"), "draw_grid": draw_grid,
             "split_panels": split_panels and storyboard, "text_sources": _text_sources(body.get("text_sources", [])),
@@ -256,6 +282,7 @@ def catalog(models=()):
             "limits": {"width": [SIZE_MIN, SIZE_MAX], "height": [SIZE_MIN, SIZE_MAX],
                        "dimension_multiple": SIZE_MULTIPLE, "max_pixels": MAX_PIXELS, "max_tokens": MAX_TOKENS,
                        "free_regions": MAX_FREE_REGIONS, "lora_count": MAX_LORAS,
-                       "lora_scale": [LORA_SCALE_MIN, LORA_SCALE_MAX], "seed": [0, SEED_MAX]},
+                       "lora_scale": [LORA_SCALE_MIN, LORA_SCALE_MAX], "seed": [0, SEED_MAX],
+                       "sampler_params": {key: list(value) for key, value in CUSTOM_LIMITS.items()}},
             "defaults": {"mode": "text", "preset": DEFAULT_PRESET, "base_model_id": DEFAULT_MODEL_ID,
                          "width": 1024, "height": 1024, "split_panels": True, "draw_grid": False}}

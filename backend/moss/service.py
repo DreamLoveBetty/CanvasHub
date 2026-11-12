@@ -13,7 +13,7 @@ from ..local_image.preparation import Preparation
 from ..local_image.task_queue import ImageTaskQueue
 from . import environment
 from .artifacts import publish_artifacts
-from .contracts import (DEFAULT_MODEL_ID, ENGINE, MAX_TOKENS, PRESETS, TASK_TYPE, TERMINAL, catalog, check_fields,
+from .contracts import (CUSTOM_PRESET, DEFAULT_MODEL_ID, ENGINE, MAX_TOKENS, PRESETS, TASK_TYPE, TERMINAL, catalog, check_fields,
                         normalize_asset_id, normalize_compile, normalize_job)
 from .environment import PREFIX
 from .layout import compile_layout, import_draft
@@ -195,6 +195,9 @@ class Service:
 
     def _model_label(self, job):
         preset = PRESETS[job["preset"]]["label"]
+        if job["preset"] == CUSTOM_PRESET:
+            sampler = job["sampler"]
+            preset += f" · {sampler['steps']} 步 · CFG {sampler['cfg']:g} · Shift {sampler['shift']:g}"
         if job["base_model_id"] == DEFAULT_MODEL_ID:
             return f"MOSS · {preset}"
         return f"MOSS · {self.models.public(job['base_model_id']).get('label')} · {preset}"

@@ -147,6 +147,29 @@ class PresetTests(unittest.TestCase):
                          (50, 3, 5))
         self.assertEqual(result["managed_adapters"], [{"id": "destripe", "scale": 1.5}])
 
+    def test_custom_is_plain_euler_without_managed_adapters(self):
+        result = normalize_job(job(preset="custom", seed=1))
+        self.assertEqual((result["sampler"]["name"], result["sampler"]["steps"], result["sampler"]["cfg"],
+                          result["sampler"]["shift"]), ("euler", 8, 1, 5))
+        self.assertEqual(result["managed_adapters"], [])
+
+    def test_custom_takes_sampler_params_within_limits(self):
+        result = normalize_job(job(preset="custom", seed=1, sampler_params={"steps": 12, "cfg": 1.5, "shift": 3}))
+        self.assertEqual((result["sampler"]["steps"], result["sampler"]["cfg"], result["sampler"]["shift"]), (12, 1.5, 3.0))
+        partial = normalize_job(job(preset="custom", seed=1, sampler_params={"cfg": 2}))
+        self.assertEqual((partial["sampler"]["steps"], partial["sampler"]["cfg"]), (8, 2.0))
+        self.assertEqual(contracts.PRESETS["custom"]["sampler"]["steps"], 8, "preset stays pristine")
+
+    def test_sampler_params_are_rejected_outside_custom_or_limits(self):
+        for preset in ("turbo", "standard"):
+            with self.assertRaisesRegex(ValueError, "仅自定义"):
+                normalize_job(job(preset=preset, sampler_params={"steps": 8}))
+        for params, message in (({"steps": 0}, "步数"), ({"steps": 101}, "步数"), ({"steps": 8.5}, "步数"),
+                                ({"cfg": 0.5}, "CFG"), ({"cfg": True}, "CFG"), ({"shift": 21}, "Shift"),
+                                ({"sampler": "er_sde"}, "未知字段"), ([8], "采样参数")):
+            with self.assertRaisesRegex(ValueError, message):
+                normalize_job(job(preset="custom", sampler_params=params))
+
     def test_job_copy_does_not_alias_preset_tables(self):
         result = normalize_job(job(seed=1))
         result["sampler"]["updates"] = 1
@@ -293,7 +316,8 @@ class CatalogTests(unittest.TestCase):
     def test_lists_presets_limits_and_defaults(self):
         result = catalog([{"id": "m"}])
         self.assertEqual(result["models"], [{"id": "m"}])
-        self.assertEqual([item["id"] for item in result["presets"]], ["turbo", "standard"])
+        self.assertEqual([item["id"] for item in result["presets"]], ["turbo", "standard", "custom"])
+        self.assertEqual(result["limits"]["sampler_params"], {"steps": [1, 100], "cfg": [1, 15], "shift": [0.5, 20]})
         self.assertEqual(result["limits"]["dimension_multiple"], 16)
         self.assertEqual(result["limits"]["max_pixels"], 2_097_152)
         self.assertEqual(result["limits"]["max_tokens"], 4096)
