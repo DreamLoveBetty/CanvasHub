@@ -10,6 +10,18 @@
     { id: 'enhance', title: '增强放大节点', types: ['upscale', 'topaz', 'topaz_video'] },
     { id: 'general', title: '通用节点', types: ['text', 'comfy', 'file_output', 'layout'] }
   ];
+  // Sidebar palette only: the node types added most recently, newest first.
+  const NODE_PALETTE_RECENT_KEY = 'desktop_node_palette_recent_v1';
+  const NODE_PALETTE_RECENT_LIMIT = 4;
+
+  function readRecentNodeTypes() {
+    try {
+      const stored = JSON.parse(window.localStorage?.getItem(NODE_PALETTE_RECENT_KEY) || '[]');
+      return Array.isArray(stored) ? stored.filter(type => typeof type === 'string').slice(0, NODE_PALETTE_RECENT_LIMIT) : [];
+    } catch (e) {
+      return [];
+    }
+  }
 
   function create({
     DEFAULT_COMFY_NODE_HEIGHT,
@@ -274,10 +286,13 @@
         nodePaletteCloseTimerRef.current = 0;
       }
       if (!palette.classList.contains('is-open')) {
+        // Each opening starts from the categories, with the latest recents and an empty search.
+        renderNodePaletteItems();
         palette.classList.add('is-closing');
         void palette.offsetWidth;
         palette.classList.remove('is-closing');
         palette.classList.add('is-open');
+        palette.querySelector('[data-node-palette-search]')?.focus({ preventScroll: true });
       }
     } else if (palette?.classList.contains('is-open')) {
       if (palette.contains(document.activeElement)) els.deskNodeToolBtn?.focus();
@@ -290,6 +305,34 @@
       }, ORDINARY_MENU_CLOSE_FALLBACK_MS);
     }
     els.deskNodeToolBtn?.setAttribute('aria-expanded', open ? 'true' : 'false');
+  }
+
+    function recordRecentNodeType(type) {
+    if (!type) return;
+    const recent = [type, ...readRecentNodeTypes().filter(item => item !== type)].slice(0, NODE_PALETTE_RECENT_LIMIT);
+    try {
+      window.localStorage?.setItem(NODE_PALETTE_RECENT_KEY, JSON.stringify(recent));
+    } catch (e) {
+      // Ignore private-mode storage failures.
+    }
+  }
+
+    // Searching replaces the category accordion with one flat list of matches.
+    function filterNodePalette(query = '') {
+    const palette = els.deskNodePalette;
+    const results = palette?.querySelector('[data-node-palette-results]');
+    if (!palette || !results) return 0;
+    const normalized = String(query || '').trim().toLowerCase();
+    const matches = normalized
+      ? NODE_MENU_ITEMS.filter(item => `${item.title || ''} ${item.subtitle || ''} ${item.type || ''}`.toLowerCase().includes(normalized))
+      : [];
+    palette.classList.toggle('is-searching', Boolean(normalized));
+    results.innerHTML = matches.map(nodeMenuButtonHtml).join('');
+    results.querySelectorAll('[data-add-node]').forEach(button => { button.draggable = true; });
+    results.hidden = !matches.length;
+    const empty = palette.querySelector('[data-node-palette-empty]');
+    if (empty) empty.hidden = !normalized || matches.length > 0;
+    return matches.length;
   }
 
     function nodeMenuButtonHtml(item) {
@@ -321,7 +364,18 @@
     });
     // New catalog entries must remain reachable before a category is assigned.
     groups.find(group => group.id === 'general').items.push(...remaining.values());
-    palette.innerHTML = groups.filter(group => group.items.length).map((group, index) => {
+    const recentItems = readRecentNodeTypes().flatMap(type => NODE_MENU_ITEMS.filter(item => item.type === type));
+    if (recentItems.length) groups.unshift({ id: 'recent', title: '最近使用', items: recentItems });
+    palette.classList.remove('is-searching');
+    const visibleGroups = groups.filter(group => group.items.length);
+    palette.innerHTML = !visibleGroups.length ? '' : `
+      <label class="desk-node-context-menu__search desk-node-palette__search">
+        <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="8.5" cy="8.5" r="4.75"></circle><path d="m12 12 4 4"></path></svg>
+        <input type="search" autocomplete="off" spellcheck="false" placeholder="搜索节点…" aria-label="搜索可添加节点" data-node-palette-search>
+      </label>
+      <div class="desk-node-palette__items desk-node-palette__results" data-node-palette-results hidden></div>
+      <div class="desk-node-context-menu__empty" data-node-palette-empty hidden>没有匹配节点</div>
+    ` + visibleGroups.map((group, index) => {
       const open = previousGroups.length ? group.id === openGroupId : index === 0;
       return `
         <details class="desk-node-palette__group" data-node-menu-group="${group.id}" name="desk-node-palette-groups"${open ? ' open' : ''}>
@@ -970,6 +1024,8 @@
       setNodePaletteOpen,
       nodeMenuButtonHtml,
       renderNodePaletteItems,
+      filterNodePalette,
+      recordRecentNodeType,
       applyNodeSelection,
       nextNodeId,
       createNodeState,

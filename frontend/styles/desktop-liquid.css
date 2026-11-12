@@ -3694,7 +3694,7 @@ body.desk-app[data-theme="dark"] .desk-image-editor__canvas-wrap {
 }
 
 body.desk-history-collapsed .desk-gallery {
-  right: 68px;
+  right: 18px;
 }
 
 .desk-gallery.is-open {
@@ -4460,10 +4460,8 @@ body.desk-history-collapsed .desk-gallery {
 .desk-settings-textarea {
   width: 100%;
   min-width: 0;
-  color: var(--desk-ink);
   font-weight: var(--desk-font-weight-semibold);
-  background: rgba(255, 255, 255, 0.7);
-  border: 1px solid rgba(99, 113, 130, 0.16);
+  border: 1px solid;
   border-radius: 8px;
 }
 
@@ -10539,16 +10537,6 @@ body.desk-app[data-theme="dark"] .desk-settings-account.is-warn .desk-settings-a
 body.desk-app[data-theme="dark"] .desk-settings-pool-summary span.is-warn {
   background: rgba(255, 106, 34, 0.14);
   border-color: rgba(255, 106, 34, 0.24);
-}
-
-body.desk-app[data-theme="dark"] .desk-settings-form input,
-body.desk-app[data-theme="dark"] .desk-settings-textarea {
-  color: var(--desk-ink);
-  background: rgba(28, 34, 36, 0.74);
-  border-color: rgba(255, 255, 255, 0.07);
-  box-shadow:
-    inset 0 1px 2px rgba(0, 0, 0, 0.34),
-    inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
 body.desk-app[data-theme="dark"] .desk-settings-form input:focus,

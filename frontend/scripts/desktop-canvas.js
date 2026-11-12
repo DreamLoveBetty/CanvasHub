@@ -4069,11 +4069,21 @@
       const button = event.target.closest('[data-add-node]');
       if (!button) return;
       addNodeFromMenu(button.dataset.addNode || 'input', getViewportCenterWorldPoint());
+      canvasNodes.recordRecentNodeType(button.dataset.addNode || 'input');
       setNodePaletteOpen(false);
+    });
+    els.deskNodePalette?.addEventListener('input', event => {
+      if (event.target.matches?.('[data-node-palette-search]')) canvasNodes.filterNodePalette(event.target.value);
+    });
+    els.deskNodePalette?.addEventListener('keydown', event => {
+      if (event.key !== 'Enter' || !event.target.matches?.('[data-node-palette-search]')) return;
+      event.preventDefault();
+      els.deskNodePalette.querySelector('[data-node-palette-results] [data-add-node]')?.click();
     });
     els.deskNodePalette?.addEventListener('dragstart', event => {
       const button = event.target.closest('[data-add-node]');
       if (!button) return;
+      canvasNodes.recordRecentNodeType(button.dataset.addNode || 'input');
       event.dataTransfer.effectAllowed = 'copy';
       event.dataTransfer.setData('application/x-desktop-add-node', JSON.stringify({
         type: button.dataset.addNode || 'input'

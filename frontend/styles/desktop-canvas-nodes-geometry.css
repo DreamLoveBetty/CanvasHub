@@ -1553,6 +1553,11 @@ body.desk-app[data-theme="dark"] .desk-image-editor {
   border: 1px solid rgba(255, 255, 255, 0.62);
 }
 
+/* While searching, one flat list of matches stands in for the category accordion. */
+:where(body.desk-app[data-theme]) .desk-node-palette.is-searching .desk-node-palette__group {
+  display: none;
+}
+
 body.desk-app[data-theme="dark"] .desk-comfy-workflow-card.is-selected .desk-comfy-workflow-card__check {
   color: #1c2224;
   background: #ff9b68;

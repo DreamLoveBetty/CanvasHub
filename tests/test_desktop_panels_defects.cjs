@@ -102,16 +102,12 @@ test('gallery uses one word per concept and explains lineage badges', () => {
   assert.match(history, /<em title="以此图为参考衍生出 \$\{derivedCount\} 张图" aria-label="衍生图 \$\{derivedCount\} 张">派 \$\{derivedCount\}<\/em>/);
 });
 
-test('prompt library dates never read like fractions and module glyphs are distinct', () => {
+test('prompt library dates never read like fractions and its nav is text only', () => {
   const library = read('frontend/scripts/desktop-prompt-library.js');
   assert.match(library, /new Intl\.DateTimeFormat\('zh-CN', \{ month: 'long', day: 'numeric' \}\)/);
   assert.match(library, /title="\$\{escapeHtml\(sideTitle\)\}"/);
-  const labels = library.slice(library.indexOf('const MODULE_LABELS = {'), library.indexOf('};', library.indexOf('const MODULE_LABELS = {')) + 2);
-  const icons = library.match(/const MODULE_ICONS = \{[^}]*\};/)[0];
-  const start = library.indexOf('function moduleIcons(keys)');
-  const body = library.slice(start, library.indexOf('\n  }\n', start) + 4);
-  const run = vm.runInContext(`${icons}\n${labels}\nconst moduleLabel = key => MODULE_LABELS[key] || key;\n${body}\nmoduleIcons(Object.keys(MODULE_LABELS))`, vm.createContext({}));
-  assert.equal(new Set(run).size, run.length, run.join(' '));
+  assert.ok(!/desk-prompt-library__nav-icon|MODULE_ICONS|TYPE_ICONS/.test(library));
+  assert.match(library, /function navButton\(id, label, count\) \{/);
 });
 
 test('settings status and help read correctly', () => {

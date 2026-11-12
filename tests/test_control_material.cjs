@@ -208,7 +208,6 @@ test('segmented controls opt in through .desk-key-bank (nodes, settings, library
       /<nav class="desk-prompt-library__tabs desk-key-bank" id="deskPromptLibraryTabs" role="tablist"/],
     'frontend/scripts/desktop-music-view.js': [/<nav class="desk-music__tabs desk-key-bank"/],
     'frontend/scripts/desktop-settings.js': [/desk-settings-canvas-interaction__segment desk-key-bank/g],
-    'frontend/scripts/desktop-google-pool.js': [/<div class="desk-segment desk-key-bank desk-google-pool-tabs/],
   };
   for (const [file, patterns] of Object.entries(banks)) for (const pattern of patterns) assert.match(read(file), pattern, file);
   assert.equal(read('frontend/scripts/desktop-settings.js').match(/desk-settings-canvas-interaction__segment desk-key-bank/g).length, 5);
@@ -307,8 +306,12 @@ test('settings, asset-library and prompt-library commands take the key caps; pri
   const adapter = read('frontend/styles/desktop-control-material.css');
   // One key body for every key: primary and danger change only the legend.
   const PRIMARY = ':is(.is-primary, .desk-button--primary, .desk-prompt-library__new)', DANGER = ':is(.is-danger, .desk-button--danger)';
-  assert.ok(adapter.includes(`${S}:not([data-control-tinted]) ${T}${PRIMARY} {\n  --desk-control-face-ink: #1f4f8a;\n  --desk-control-hover-ink: #163c6b;\n}`));
-  assert.ok(adapter.includes(`${S}[data-theme="dark"]:not([data-control-tinted]) ${T}${PRIMARY} {\n  --desk-control-face-ink: #9cc3ff;`));
+  assert.ok(adapter.includes(`${S}:not([data-control-tinted]) ${T}${PRIMARY} {\n  --desk-control-face-ink: var(--desk-control-primary-ink, #1f4f8a);\n  --desk-control-hover-ink: var(--desk-control-primary-hover-ink, #163c6b);\n}`));
+  assert.ok(adapter.includes(`${S}[data-theme="dark"]:not([data-control-tinted]) ${T}${PRIMARY} {\n  --desk-control-face-ink: var(--desk-control-primary-ink, #9cc3ff);`));
+  const graphite = read('frontend/styles/desktop-graphite.css');
+  assert.match(graphite, /\[data-control-material="ambient"\]\[data-desk-style="graphite"\] \{[^}]*--desk-control-primary-ink: color-mix\(in oklab, var\(--desk-graphite-accent-ink\), var\(--desk-graphite-ink\) 25%\);/);
+  assert.match(graphite, /\[data-desk-style="graphite"\]:not\(\[data-control-tinted\]\):not\(\[data-control-finish="glass"\]\) \{\s*--amb-light-saturation: 0%;/);
+  assert.match(graphite, /\[data-field-style="groove"\]\[data-desk-style="graphite"\] \{\s*--desk-field-light-saturation: 0%;/);
   assert.ok(adapter.includes(`${S} ${T}${DANGER} {\n  --desk-control-face-ink: #c2353b;`));
   const roleRules = adapter.slice(adapter.indexOf('/* Primary and danger actions'), adapter.indexOf('/* Surface shape is Matte-only'));
   assert.doesNotMatch(roleRules, /--amb-albedo|--amb-light-hue|--amb-light-saturation/);
@@ -395,7 +398,7 @@ test('text fields: their own opt-in (independent of the button material), groove
   assert.ok(generated.includes(`/* ambient.css: :root */\n#deskApp[data-control-material="ambient"],\n${FS} {`));
   for (const block of generated.split('/* ambient.css: .amb-groove */').slice(1)) assert.ok(block.split('{')[0].includes(`${FS} ${F}`));
   const adapter = read('frontend/styles/desktop-control-material.css');
-  assert.ok(adapter.includes(`${FS} ${F} {\n  --amb-albedo: color(srgb-linear 0.82 0.82 0.82);\n  --amb-light-hue: 234;\n  --amb-light-saturation: 15%;`));
+  assert.ok(adapter.includes(`${FS} ${F} {\n  --amb-albedo: color(srgb-linear 0.82 0.82 0.82);\n  --amb-light-hue: 234;\n  --amb-light-saturation: var(--desk-field-light-saturation, 15%);`));
   assert.ok(adapter.includes(`${FS}[data-theme="dark"] ${F} {\n  --amb-albedo: #454d4f;\n  --amb-light-saturation: 0%;`));
   assert.ok(adapter.includes(`${FS} ${F}:focus {\n  outline: none;\n  --amb-thickness: .3;\n  box-shadow: 0 0 0 1.5px var(--desk-color-accent)`));
   const section = adapter.slice(adapter.indexOf('/* Text fields'), adapter.indexOf('@media (prefers-reduced-motion'));

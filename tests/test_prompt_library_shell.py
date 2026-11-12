@@ -32,8 +32,8 @@ class PromptLibraryShellTest(unittest.TestCase):
                             "border: 1px solid var(--desk-gallery-panel-border);",
                             "box-shadow: var(--desk-gallery-panel-shadow);", "backdrop-filter: blur(4px) saturate(1.06);"):
             self.assertIn(declaration, panel)
-        self.assertIn("body.desk-history-collapsed .desk-prompt-library { right: 68px; }", self.module)
-        self.assertIn("body.desk-history-collapsed .desk-gallery {\n  right: 68px;", self.liquid)
+        self.assertIn("body.desk-history-collapsed .desk-prompt-library { right: 18px; }", self.module)
+        self.assertIn("body.desk-history-collapsed .desk-gallery {\n  right: 18px;", self.liquid)
         self.assertRegex(self.module, r"@media \(max-width: 980px\) \{\n  \.desk-prompt-library,\n  body\.desk-history-collapsed \.desk-prompt-library \{\n    position: fixed;\n    inset: 48px 8px 44px 72px;")
         # Theme blocks no longer repaint the shell on top of the shared paint.
         for theme in ('body.desk-app:not([data-theme="dark"]) .desk-prompt-library', 'body.desk-app[data-theme="dark"] .desk-prompt-library'):

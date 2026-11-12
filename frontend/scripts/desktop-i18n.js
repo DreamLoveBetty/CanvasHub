@@ -6,6 +6,7 @@
 
   const keyed = {
     zh: {
+      nodePaletteGroup_recent: '最近使用',
       nodePaletteGroup_image: '图像节点',
       nodePaletteGroup_video: '视频节点',
       nodePaletteGroup_audio: '音频节点',
@@ -41,6 +42,7 @@
       layoutAlignCenter: '中',
     },
     en: {
+      nodePaletteGroup_recent: 'Recently Used',
       nodePaletteGroup_image: 'Image Nodes',
       nodePaletteGroup_video: 'Video Nodes',
       nodePaletteGroup_audio: 'Audio Nodes',

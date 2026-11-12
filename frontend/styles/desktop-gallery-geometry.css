@@ -157,6 +157,13 @@
   align-items: center;
 }
 
+/* A full-width workbench (asset library, prompt library, settings) runs to the right
+   margin; the collapsed history's wind-chime handle and the canvas zoom controls, which
+   would peek out past its corner, step out until it closes. */
+body.desk-workbench-open.desk-app[data-theme] :is(.desk-history, .desk-zoom-controls) {
+  visibility: hidden;
+}
+
 :where(body.desk-app[data-theme]) .desk-history-windchime-button {
   position: relative;
   place-items: center;
@@ -508,8 +515,9 @@ body.desk-app[data-lang="en"] .desk-gallery-tabs button[data-gallery-view="sets"
   grid-row: 3 / -1;
 }
 
-/* Video actions sit on each expanded video, so the selection basket is not shown there. */
-:where(body.desk-app[data-theme]) .desk-gallery--videos .desk-gallery-inspector {
+/* Video actions sit on each expanded video, so the selection basket is not shown there;
+   elsewhere it gives its column to the grid until there is a selection or an undo. */
+:where(body.desk-app[data-theme]) :is(.desk-gallery--videos, .desk-gallery--basket-empty) .desk-gallery-inspector {
   display: none;
 }
 

@@ -136,12 +136,60 @@ test('searching before settings load says so, then re-runs once they arrive', ()
   assert.ok(js.includes('    settingsSearch?.refresh();\n'));
 });
 
-test('English UI swaps nav glyphs for abbreviations; a lone grouped card takes the row', () => {
+test('settings nav is text only; a lone grouped card takes the row', () => {
   const html = read('frontend/desktop.html');
-  const glyphs = html.match(/<i class="desk-settings-tabs__glyph"[^>]*>/g);
-  assert.equal(glyphs.length, 12);
-  for (const glyph of glyphs) assert.match(glyph, /data-i18n-skip data-glyph-en="[\w]{2}"/);
+  const tabs = html.match(/data-settings-tab="[\w-]+">[^\n]*<\/button>/g);
+  assert.equal(tabs.length, 12);
+  for (const tab of tabs) assert.match(tab, /^data-settings-tab="[\w-]+"><span class="desk-settings-tabs__label">[^<]+<\/span><b class="desk-settings-tabs__dot"/);
   const geometry = read('frontend/styles/desktop-geometry.css');
-  assert.match(geometry, /\[data-lang="en"\] \.desk-settings-tabs__glyph::after \{[^}]*content: attr\(data-glyph-en\);/);
+  assert.ok(!(html + geometry).includes('desk-settings-tabs__glyph'));
+  assert.match(geometry, /\.desk-settings-tabs button\.is-active::before \{[^}]*width: 2px;[^}]*background: currentColor;/);
   assert.match(geometry, /\.desk-settings__body:not\(\[data-settings-page="status"\]\) \.desk-settings-group__cards:has\(> :only-child\) \{\n    grid-template-columns: minmax\(0, 1fr\);/);
+});
+
+test('a settings form keeps its commands in one action row, the save command last', () => {
+  const js = read('frontend/scripts/desktop-settings.js');
+  // No action row directly followed by the save row: that stacked two single-button rows.
+  assert.doesNotMatch(js, /<\/div>\s*\$\{renderSystemSaveButton\(/);
+  assert.match(js, /function renderSystemSaveButton\(scope, label = '保存配置', secondaryActions = ''\) \{/);
+  assert.match(js, /\$\{secondaryActions\}<button type="button" class="is-primary" data-system-settings-save=/);
+  assert.match(js, /renderSystemSaveButton\('provider', '保存模型设置', '<button type="button" data-gpt-generation-models-refresh>刷新线路模型<\/button>'\)/);
+  assert.match(js, /renderSystemSaveButton\('chatgpt-pool', '保存账号池配置', '<button type="button" data-gpt-generation-models-refresh>刷新网页模型<\/button>'\)/);
+});
+
+test('the account pool switch is a track with one sliding thumb, not a bank of keys', () => {
+  const js = read('frontend/scripts/desktop-google-pool.js');
+  assert.match(js, /<div class="desk-track-switch desk-google-pool-tabs" role="tablist"[^>]*style="--track-count: \$\{providers\.length\}; --track-index: \$\{index\}; --track-from: \$\{from\}; --track-elapsed: \$\{elapsed\}ms">/);
+  assert.ok(!/desk-key-bank desk-google-pool-tabs|desk-google-pool-tabs--web/.test(js));
+  const geometry = read('frontend/styles/desktop-geometry.css');
+  assert.match(geometry, /\.desk-track-switch \{[^}]*grid-template-columns: repeat\(var\(--track-count\), minmax\(0, 1fr\)\);/);
+  assert.match(geometry, /\.desk-track-switch::before \{[^}]*translate: calc\(var\(--track-index\) \* 100%\) 0;[^}]*animation: desk-track-switch-slide [^;]*calc\(-1 \* var\(--track-elapsed, 0ms\)\) both;/);
+  assert.match(geometry, /@keyframes desk-track-switch-slide \{\n  from \{ translate: calc\(var\(--track-from\) \* 100%\) 0; \}/);
+  assert.ok(!read('frontend/styles/desktop-google-web-geometry.css').includes('desk-google-pool-tabs--web'));
+  const tokens = read('frontend/styles/desktop-tokens.css');
+  for (const token of ['--desk-settings-track-background:', '--desk-settings-track-thumb-background:', '--desk-settings-track-thumb-shadow:'])
+    assert.equal(tokens.split(token).length - 1, 2, token);
+  assert.match(read('frontend/styles/desktop-graphite.css'), /--desk-settings-track-thumb-background: var\(--desk-graphite-card\);/);
+});
+
+test('the Gemini Web cookie file is picked with a key, not a native file field in a label', () => {
+  const js = read('frontend/scripts/desktop-google-web.js');
+  assert.match(js, /<div class="desk-google-web-actions desk-settings-form__actions">\$\{button\('file-pick','选择 JSON 文件'\)\}\$\{button\('accounts-import','导入 Cookie','class="is-primary" '\)\}<input type="file" accept="\.json,application\/json" data-google-web-file hidden>/);
+  assert.match(js, /if\(action==='file-pick'\)\{panel\.querySelector\('\[data-google-web-file\]'\)\?\.click\(\);return true;\}/);
+  assert.ok(!/<label[^>]*>[^<]*<input type="file"/.test(js));
+  assert.ok(!read('frontend/styles/desktop-google-web.css').includes('desk-google-web-file'));
+});
+
+test('Gemini Web sits in a settings card and its cookie box is a settings field', () => {
+  const pool = read('frontend/scripts/desktop-google-pool.js');
+  assert.match(pool, /if \(provider === 'web'\) return tabs \+ renderCard\('Gemini Web 账号', \[webSettings\.render\(\)\], webSettings\.isEnabled\(\)\);/);
+  const web = read('frontend/scripts/desktop-google-web.js');
+  assert.match(web, /<textarea class="desk-settings-textarea" rows="4" data-google-web-cookies/);
+  assert.match(web, /isEnabled:\(\)=>!!status\?\.enabled/);
+  // Its button rows are settings action rows, so they take the same key paint as Google OAuth.
+  assert.equal(web.match(/desk-settings-form__actions/g).length, 5, 'every Gemini Web button row, Chrome import included, is a settings action row');
+  assert.match(web, /<input type="text" class="desk-input" maxlength="120" data-google-web-label/);
+  assert.doesNotMatch(read('frontend/styles/desktop-google-web.css'), /desk-google-web (input|textarea|button)/, 'settings rules own Gemini Web fields and keys');
+  // Dark settings fields take the field tokens, so graphite's mapping applies in dark too.
+  assert.doesNotMatch(read('frontend/styles/desktop-liquid.css'), /\[data-theme="dark"\] \.desk-settings-textarea \{/);
 });

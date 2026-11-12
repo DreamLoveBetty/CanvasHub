@@ -499,10 +499,11 @@
     `;
   }
 
-  function renderSystemSaveButton(scope, label = '保存配置') {
+  // One action row per form: secondary commands (trusted markup) first, the save command last.
+  function renderSystemSaveButton(scope, label = '保存配置', secondaryActions = '') {
     return `
       <div class="desk-settings-form__actions">
-        <button type="button" class="is-primary" data-system-settings-save="${escapeHtml(scope)}">${escapeHtml(label)}</button>
+        ${secondaryActions}<button type="button" class="is-primary" data-system-settings-save="${escapeHtml(scope)}">${escapeHtml(label)}</button>
       </div>
     `;
   }
@@ -808,10 +809,7 @@
         </label>
         <p class="desk-settings-form__hint">生图引擎：${escapeHtml(codexRoute?.image_engine?.label || 'GPT Image 2')}</p>
         ${requestEndpointValue(provider) === 'images' ? '<p class="desk-settings-form__hint">当前请求端点为 Images API：推理强度不参与生图，主模型仅在账号池托底时使用。</p>' : ''}
-        <div class="desk-settings-form__actions desk-settings-form__actions--compact">
-          <button type="button" data-gpt-generation-models-refresh>刷新线路模型</button>
-        </div>
-        ${renderSystemSaveButton('provider', '保存模型设置')}
+        ${renderSystemSaveButton('provider', '保存模型设置', '<button type="button" data-gpt-generation-models-refresh>刷新线路模型</button>')}
       </div>`
     ], true);
   }
@@ -1026,10 +1024,7 @@
         <p class="desk-settings-form__hint">生图引擎：${escapeHtml(poolRoute?.image_engine?.label || 'ChatGPT Image')}</p>
         ${renderInput('超时秒数', 'chatgpt_pool.timeout_seconds', pool.timeout_seconds || 900, { type: 'number', min: 60, max: 900, step: 30 })}
         ${renderInput('账号库路径', 'chatgpt_pool.db_path', pool.db_path || 'data/chatgpt_pool/accounts.db')}
-        <div class="desk-settings-form__actions desk-settings-form__actions--compact">
-          <button type="button" data-gpt-generation-models-refresh>刷新网页模型</button>
-        </div>
-        ${renderSystemSaveButton('chatgpt-pool', '保存账号池配置')}
+        ${renderSystemSaveButton('chatgpt-pool', '保存账号池配置', '<button type="button" data-gpt-generation-models-refresh>刷新网页模型</button>')}
       </div>`
     ], Boolean(pool.enabled));
   }
@@ -1428,7 +1423,7 @@
               <textarea class="desk-settings-textarea" data-chatgpt-pool-import-json placeholder='{"access_token":"...","refresh_token":"...","id_token":"..."}'></textarea>
             </label>
             <div class="desk-settings-form__actions">
-              <button type="button" data-chatgpt-pool-import>导入粘贴 JSON</button>
+              <button type="button" class="is-primary" data-chatgpt-pool-import>导入粘贴 JSON</button>
             </div>
           </div>`
       ], online)
@@ -2724,6 +2719,7 @@
     const gallery = document.getElementById('deskGalleryPanel');
     gallery?.classList.remove('is-open');
     gallery?.setAttribute('aria-hidden', 'true');
+    window.DesktopHistory?.syncWorkbenchYield?.();
     try {
       if (!lastDiagnostics) {
         await refresh();
@@ -2755,6 +2751,7 @@
     els.deskSettingsPanel?.classList.remove('is-open');
     els.deskSettingsPanel?.setAttribute('aria-hidden', 'true');
     document.body.classList.remove('desk-settings-open');
+    window.DesktopHistory?.syncWorkbenchYield?.();
     settingsSearch?.close();
     progressPreview?.release();
     themeSpeedSlider?.release();

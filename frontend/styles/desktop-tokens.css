@@ -1078,7 +1078,7 @@ body.desk-app {
   --desk-font-family-sans: -apple-system, BlinkMacSystemFont, "SF Pro Display", "PingFang SC", "Hiragino Sans GB", "Segoe UI", sans-serif;
   --desk-font-family-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   --desk-font-size-micro: 10px;
-  --desk-font-size-caption: 11px;
+  --desk-font-size-caption: 12px;
   --desk-font-size-label: 12px;
   --desk-font-size-body: 13px;
   --desk-font-size-body-strong: 14px;
@@ -1430,12 +1430,6 @@ body.desk-app {
     inset 0 1px 0 rgba(255, 255, 255, 0.92),
     0 6px 16px rgba(31, 45, 62, 0.08);
   --desk-settings-nav-hover-background: rgba(255, 255, 255, 0.48);
-  --desk-settings-glyph-ink: rgba(68, 96, 126, 0.92);
-  --desk-settings-glyph-background: rgba(255, 255, 255, 0.7);
-  --desk-settings-glyph-border: rgba(60, 78, 100, 0.1);
-  --desk-settings-glyph-active-ink: var(--desk-action-primary-ink);
-  --desk-settings-glyph-active-background: var(--desk-action-primary-gloss);
-  --desk-settings-glyph-active-border: var(--desk-action-primary-border);
   --desk-settings-action-ink: rgb(83, 107, 136);
   --desk-settings-action-background: linear-gradient(145deg, rgba(255, 255, 255, 0.72), rgba(231, 242, 249, 0.34));
   --desk-settings-action-border: rgba(78, 103, 131, 0.14);
@@ -1477,6 +1471,10 @@ body.desk-app {
   --desk-settings-segment-border: rgba(85, 101, 120, 0.12);
   --desk-settings-segment-shadow: inset 0 1px 2px rgba(var(--desk-blue-midnight-rgb), 0.05);
   --desk-settings-segment-ink: rgba(72, 91, 112, 0.86);
+  --desk-settings-track-background: rgba(80, 96, 116, 0.1);
+  --desk-settings-track-shadow: inset 0 1px 2px rgba(var(--desk-blue-midnight-rgb), 0.08);
+  --desk-settings-track-thumb-background: rgba(255, 255, 255, 0.94);
+  --desk-settings-track-thumb-shadow: 0 1px 3px rgba(var(--desk-blue-midnight-rgb), 0.14), 0 0 0 0.5px rgba(var(--desk-blue-midnight-rgb), 0.08);
   --desk-settings-path-background: rgba(255, 255, 255, 0.42);
   --desk-settings-path-border: rgba(255, 255, 255, 0.5);
   --desk-settings-path-shadow: none;
@@ -3296,12 +3294,6 @@ body.desk-app[data-theme="dark"] {
   --desk-settings-nav-active-border: rgba(255, 255, 255, 0.1);
   --desk-settings-nav-active-shadow: none;
   --desk-settings-nav-hover-background: rgba(255, 255, 255, 0.05);
-  --desk-settings-glyph-ink: rgba(201, 209, 211, 0.86);
-  --desk-settings-glyph-background: rgba(255, 255, 255, 0.06);
-  --desk-settings-glyph-border: rgba(255, 255, 255, 0.08);
-  --desk-settings-glyph-active-ink: var(--desk-action-primary-ink);
-  --desk-settings-glyph-active-background: var(--desk-action-primary-gloss);
-  --desk-settings-glyph-active-border: var(--desk-action-primary-border);
   --desk-settings-action-ink: rgba(201, 209, 211, 0.9);
   --desk-settings-action-background: rgba(255, 255, 255, 0.06);
   --desk-settings-action-border: rgba(255, 255, 255, 0.1);
@@ -3345,6 +3337,10 @@ body.desk-app[data-theme="dark"] {
   --desk-settings-segment-border: rgba(255, 255, 255, 0.07);
   --desk-settings-segment-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.24);
   --desk-settings-segment-ink: rgba(190, 199, 201, 0.72);
+  --desk-settings-track-background: rgba(14, 19, 21, 0.5);
+  --desk-settings-track-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.28);
+  --desk-settings-track-thumb-background: rgba(255, 255, 255, 0.12);
+  --desk-settings-track-thumb-shadow: 0 1px 3px rgba(0, 0, 0, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.06);
   --desk-settings-path-background: rgba(28, 34, 36, 0.58);
   --desk-settings-path-border: rgba(255, 255, 255, 0.07);
   --desk-settings-path-shadow:

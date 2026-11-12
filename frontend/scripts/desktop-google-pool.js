@@ -7,17 +7,26 @@
     let busy = false;
     let message = '';
     let oauth = null;
+    let slide = { from: null, to: null, at: 0 };
     const esc = escapeHtml;
     const button = (action, label, extra = '') => `<button type="button" data-google-pool-action="${action}" ${extra}${busy ? ' disabled' : ''}>${label}</button>`;
 
     function render(gptHtml) {
-      const tabs = `<div class="desk-segment desk-key-bank desk-google-pool-tabs${webSettings ? ' desk-google-pool-tabs--web' : ''}" role="tablist" aria-label="账号池类型">
-        <button type="button" role="tab" data-google-pool-provider="gpt" aria-selected="${provider === 'gpt'}" class="${provider === 'gpt' ? 'is-active' : ''}">GPT 账号池</button>
-        <button type="button" role="tab" data-google-pool-provider="google" aria-selected="${provider === 'google'}" class="${provider === 'google' ? 'is-active' : ''}">Google OAuth</button>
-        ${webSettings ? `<button type="button" role="tab" data-google-pool-provider="web" aria-selected="${provider === 'web'}" class="${provider === 'web' ? 'is-active' : ''}">Gemini Web</button>` : ''}
+      // A track with one sliding thumb. Switching tabs starts a slide from the old stop; a
+      // re-render during the slide (the tab's own data arriving) resumes it where it is.
+      const providers = webSettings ? ['gpt', 'google', 'web'] : ['gpt', 'google'];
+      const labels = { gpt: 'GPT 账号池', google: 'Google OAuth', web: 'Gemini Web' };
+      const index = Math.max(0, providers.indexOf(provider));
+      const now = performance.now();
+      if (slide.to !== index) slide = { from: slide.to ?? index, to: index, at: now };
+      const elapsed = Math.round(now - slide.at);
+      const from = elapsed < 1000 ? slide.from : index;
+      const tabs = `<div class="desk-track-switch desk-google-pool-tabs" role="tablist" aria-label="账号池类型" style="--track-count: ${providers.length}; --track-index: ${index}; --track-from: ${from}; --track-elapsed: ${elapsed}ms">
+        ${providers.map(id => `<button type="button" role="tab" data-google-pool-provider="${id}" aria-selected="${provider === id}" class="${provider === id ? 'is-active' : ''}">${labels[id]}</button>`).join('')}
       </div>`;
       if (provider === 'gpt') return tabs + gptHtml;
-      if (provider === 'web') return tabs + webSettings.render();
+      // Each provider's content sits in a settings card, so its fields read against the card.
+      if (provider === 'web') return tabs + renderCard('Gemini Web 账号', [webSettings.render()], webSettings.isEnabled());
       const items = status?.items || [];
       const accounts = items.map(account => {
         const models = (account.models || []).map(model => {

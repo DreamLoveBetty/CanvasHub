@@ -5,12 +5,12 @@
   const COLOR_FAVORITES_KEY = 'desk_prompt_color_favorites_v1';
   const COLOR_CUSTOM_KEY = 'desk_prompt_custom_colors_v1';
   const COLOR_CATEGORIES = [
-    { id: 'warm', label: '暖色氛围', icon: '暖' },
-    { id: 'cool', label: '冷色氛围', icon: '冷' },
-    { id: 'neutral', label: '中性色调', icon: '中' },
-    { id: 'vivid', label: '高饱和', icon: '亮' },
-    { id: 'muted', label: '低饱和', icon: '柔' },
-    { id: 'cinematic', label: '电影感', icon: '影' },
+    { id: 'warm', label: '暖色氛围' },
+    { id: 'cool', label: '冷色氛围' },
+    { id: 'neutral', label: '中性色调' },
+    { id: 'vivid', label: '高饱和' },
+    { id: 'muted', label: '低饱和' },
+    { id: 'cinematic', label: '电影感' },
   ];
   const COLOR_FORMULAS = [
     { id: 'monochromatic', label: '单色', en: 'Monochromatic', description: '同一色相改变明度与饱和度，最安全统一。', offsets: [0, 0, 0, 0, 0] },
@@ -107,19 +107,12 @@
     },
   };
 
-  const TYPE_ICONS = {
-    all: '⌘', portrait: '人', landscape: '景', product: '物', food: '食', architecture: '筑',
-    interior: '室', character: '角', scene_concept: '境', animal: '宠', fashion: '装', storyboard: '镜',
-    illustration: '画', poster: '报', social: '媒', infographic: '图', three_d: '3D', pattern: '纹'
-  };
   const TYPE_LABELS = {
     portrait: '人像人物', landscape: '风景自然', product: '商品电商', food: '美食餐饮', architecture: '建筑外观',
     interior: '室内空间', character: '角色设计', scene_concept: '场景概念', animal: '动物宠物', fashion: '服装时尚',
     storyboard: '影视分镜', illustration: '插画漫画', poster: '海报与 KV', social: '品牌社媒', infographic: '信息图表',
     three_d: '3D 视觉', pattern: '图案纹理'
   };
-  // Nav glyphs where the first character would collide (视角与镜头 / 视觉风格).
-  const MODULE_ICONS = { camera: '镜', style: '风' };
   const MODULE_LABELS = {
     raw: '原始提示词', custom: '自定义', identity: '身份', appearance: '外貌', body_shape: '体形身材', pose: '动作姿态', expression: '表情视线',
     clothing: '服装造型', makeup_hair: '妆发', accessories: '配饰', subject: '主体', scene: '场景环境', composition: '构图',
@@ -462,22 +455,9 @@
     items.forEach(item => { const value = item?.[key] || 'other'; counts[value] = (counts[value] || 0) + 1; });
     return counts;
   }
-  // One distinct glyph per module, in nav order: the explicit map first, else the first character
-  // of the label not already taken by an earlier module.
-  function moduleIcons(keys) {
-    const used = new Set();
-    return keys.map(key => {
-      const label = moduleLabel(key);
-      const icon = MODULE_ICONS[key] || [...label].find(char => !used.has(char)) || label.slice(0, 1);
-      used.add(icon);
-      return icon;
-    });
-  }
-
-  function navButton(id, label, count, icon) {
+  function navButton(id, label, count) {
     const active = state.category[state.workspace] === id;
     return `<button type="button" class="${active ? 'is-active' : ''}" data-prompt-category="${escapeHtml(id)}">
-      <span class="desk-prompt-library__nav-icon">${escapeHtml(icon || TYPE_ICONS[id] || '·')}</span>
       <span>${escapeHtml(label)}</span>${Number.isFinite(count) ? `<span class="desk-prompt-library__nav-count">${count}</span>` : ''}
     </button>`;
   }
@@ -494,29 +474,29 @@
       const keys = [...new Set([...Object.keys(counts), ...alwaysVisible])]
         .sort((a, b) => (preferred.indexOf(a) < 0 ? 99 : preferred.indexOf(a)) - (preferred.indexOf(b) < 0 ? 99 : preferred.indexOf(b)) || moduleLabel(a).localeCompare(moduleLabel(b), 'zh-CN'));
       els.deskPromptLibraryNav.innerHTML = `<div class="desk-prompt-library__nav-group"><div class="desk-prompt-library__nav-label">素材模块</div>
-        ${navButton('all', '全部素材块', state.blocks.length, '/')}
-        ${moduleIcons(keys).map((icon, index) => navButton(keys[index], moduleLabel(keys[index]), counts[keys[index]] || 0, icon)).join('')}</div>`;
+        ${navButton('all', '全部素材块', state.blocks.length)}
+        ${keys.map(key => navButton(key, moduleLabel(key), counts[key] || 0)).join('')}</div>`;
       return;
     }
     if (state.workspace === 'templates') {
       const systemRules = state.templates.filter(item => item.system);
       els.deskPromptLibraryNav.innerHTML = `<div class="desk-prompt-library__nav-group"><div class="desk-prompt-library__nav-label">内容类型</div>
-        ${navButton('all', '全部规则', state.templates.length, '⌘')}
-        ${systemRules.map(item => navButton(item.primary_type, item.name, null, TYPE_ICONS[item.primary_type])).join('')}</div>`;
+        ${navButton('all', '全部规则', state.templates.length)}
+        ${systemRules.map(item => navButton(item.primary_type, item.name, null)).join('')}</div>`;
       return;
     }
     if (state.workspace === 'colors') {
       const counts = {};
       state.colors.forEach(item => (item.categories || []).forEach(category => { counts[category] = (counts[category] || 0) + 1; }));
       els.deskPromptLibraryNav.innerHTML = `<div class="desk-prompt-library__nav-group"><div class="desk-prompt-library__nav-label">色彩气质</div>
-        ${navButton('all', '全部方案', state.colors.length, '#')}
-        ${COLOR_CATEGORIES.map(category => navButton(category.id, category.label, counts[category.id] || 0, category.icon)).join('')}</div>`;
+        ${navButton('all', '全部方案', state.colors.length)}
+        ${COLOR_CATEGORIES.map(category => navButton(category.id, category.label, counts[category.id] || 0)).join('')}</div>`;
       return;
     }
     const total = state.sources.reduce((sum, source) => sum + Number(source.itemCount || 0), 0);
     els.deskPromptLibraryNav.innerHTML = `<div class="desk-prompt-library__nav-group"><div class="desk-prompt-library__nav-label">提示词来源</div>
-      ${navButton('all', '全部来源', total, '∞')}
-      ${state.sources.map(source => navButton(source.slug, source.name, Number(source.itemCount || 0), '↗')).join('')}</div>`;
+      ${navButton('all', '全部来源', total)}
+      ${state.sources.map(source => navButton(source.slug, source.name, Number(source.itemCount || 0))).join('')}</div>`;
   }
 
   function filteredItems() {
@@ -1942,6 +1922,7 @@
   async function open() {
     window.DesktopHistory?.closeGallery?.(); window.DesktopSettings?.close?.();
     els.deskPromptLibraryPanel?.classList.add('is-open'); els.deskPromptLibraryPanel?.setAttribute('aria-hidden', 'false');
+    window.DesktopHistory?.syncWorkbenchYield?.();
     document.querySelector('.desk-rail__item[data-tool="prompts"]')?.setAttribute('aria-expanded', 'true');
     try { await loadAll(); } catch (error) { state.loading = false; render(); reportError(error, '提示词素材库读取失败'); }
   }
@@ -1962,6 +1943,7 @@
       else if (activeElement instanceof HTMLElement) activeElement.blur();
     }
     els.deskPromptLibraryPanel?.classList.remove('is-open'); els.deskPromptLibraryPanel?.setAttribute('aria-hidden', 'true');
+    window.DesktopHistory?.syncWorkbenchYield?.();
     document.querySelector('.desk-rail__item[data-tool="prompts"]')?.setAttribute('aria-expanded', 'false');
     return true;
   }

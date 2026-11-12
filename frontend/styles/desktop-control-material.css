@@ -97,15 +97,15 @@
 
 /* Primary and danger actions share every other key's body (one material across nodes,
    settings and the libraries) and carry their role in the legend: navy, the production
-   primary hue, for primary; red for danger. A user-chosen key colour (data-control-tinted)
+   primary hue, for primary (a style may set --desk-control-primary-ink); red for danger. A user-chosen key colour (data-control-tinted)
    sets one legend for every key, so the primary legend stands down there. */
 #deskApp[data-control-material="ambient"]:not([data-control-tinted]) :is(.desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key), .desk-settings :is(.desk-settings__actions, .desk-settings-form__actions, .desk-settings-account__actions, .desk-lora-actions, .desk-qwen21-tools__inspection, .desk-qwen21-tools__model, .desk-qwen21-tools__progress, .desk-krea2-tools__model, .desk-krea2-tools__progress) > button, .desk-settings .desk-color-bloom__control > .desk-button, :is(.desk-gallery, .desk-prompt-library) .desk-button, :is(.desk-gallery__actions, .desk-gallery-video__actions, .desk-gallery-file__actions, .desk-pinterest-state, .desk-prompt-source-actions, .desk-prompt-library__header-actions, .desk-prompt-editor-pane__head-actions, .desk-prompt-editor-actions, .desk-prompt-extractor__footer) > button, .desk-prompt-template__create, .desk-prompt-library__load-more, :is(.desk-node, .desk-settings, .desk-gallery, .desk-prompt-library) .desk-key-bank > button):is(.is-primary, .desk-button--primary, .desk-prompt-library__new) {
-  --desk-control-face-ink: #1f4f8a;
-  --desk-control-hover-ink: #163c6b;
+  --desk-control-face-ink: var(--desk-control-primary-ink, #1f4f8a);
+  --desk-control-hover-ink: var(--desk-control-primary-hover-ink, #163c6b);
 }
 #deskApp[data-control-material="ambient"][data-theme="dark"]:not([data-control-tinted]) :is(.desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key), .desk-settings :is(.desk-settings__actions, .desk-settings-form__actions, .desk-settings-account__actions, .desk-lora-actions, .desk-qwen21-tools__inspection, .desk-qwen21-tools__model, .desk-qwen21-tools__progress, .desk-krea2-tools__model, .desk-krea2-tools__progress) > button, .desk-settings .desk-color-bloom__control > .desk-button, :is(.desk-gallery, .desk-prompt-library) .desk-button, :is(.desk-gallery__actions, .desk-gallery-video__actions, .desk-gallery-file__actions, .desk-pinterest-state, .desk-prompt-source-actions, .desk-prompt-library__header-actions, .desk-prompt-editor-pane__head-actions, .desk-prompt-editor-actions, .desk-prompt-extractor__footer) > button, .desk-prompt-template__create, .desk-prompt-library__load-more, :is(.desk-node, .desk-settings, .desk-gallery, .desk-prompt-library) .desk-key-bank > button):is(.is-primary, .desk-button--primary, .desk-prompt-library__new) {
-  --desk-control-face-ink: #9cc3ff;
-  --desk-control-hover-ink: #c4dcff;
+  --desk-control-face-ink: var(--desk-control-primary-ink, #9cc3ff);
+  --desk-control-hover-ink: var(--desk-control-primary-hover-ink, #c4dcff);
 }
 #deskApp[data-control-material="ambient"] :is(.desk-node :is(.desk-button, .desk-node-delete, .desk-generation-action, .desk-key), .desk-settings :is(.desk-settings__actions, .desk-settings-form__actions, .desk-settings-account__actions, .desk-lora-actions, .desk-qwen21-tools__inspection, .desk-qwen21-tools__model, .desk-qwen21-tools__progress, .desk-krea2-tools__model, .desk-krea2-tools__progress) > button, .desk-settings .desk-color-bloom__control > .desk-button, :is(.desk-gallery, .desk-prompt-library) .desk-button, :is(.desk-gallery__actions, .desk-gallery-video__actions, .desk-gallery-file__actions, .desk-pinterest-state, .desk-prompt-source-actions, .desk-prompt-library__header-actions, .desk-prompt-editor-pane__head-actions, .desk-prompt-editor-actions, .desk-prompt-extractor__footer) > button, .desk-prompt-template__create, .desk-prompt-library__load-more, :is(.desk-node, .desk-settings, .desk-gallery, .desk-prompt-library) .desk-key-bank > button):is(.is-danger, .desk-button--danger) {
   --desk-control-face-ink: #c2353b;
@@ -276,7 +276,7 @@
 #deskApp[data-field-style="groove"] :is(.desk-node, .desk-settings) :is(input:is([type="text"], [type="number"], [type="password"], [type="email"], [type="url"], :not([type])), textarea.desk-settings-textarea):not(.desk-select):not(.desk-settings-search__input):not(.desk-text-node__alias input) {
   --amb-albedo: color(srgb-linear 0.82 0.82 0.82);
   --amb-light-hue: 234;
-  --amb-light-saturation: 15%;
+  --amb-light-saturation: var(--desk-field-light-saturation, 15%);
   --amb-thickness: .45;
   border-width: 0;
   background-image: none;

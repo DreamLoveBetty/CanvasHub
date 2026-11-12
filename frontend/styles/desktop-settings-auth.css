@@ -68,18 +68,6 @@ body.desk-app[data-theme] :where(.desk-settings-tabs button) {
   color: var(--desk-settings-tabs-ink);
 }
 
-body.desk-app[data-theme] .desk-settings-tabs__glyph {
-  color: var(--desk-settings-glyph-ink);
-  background: var(--desk-settings-glyph-background);
-  border-color: var(--desk-settings-glyph-border);
-}
-
-body.desk-app[data-theme] .desk-settings-tabs button.is-active .desk-settings-tabs__glyph {
-  color: var(--desk-settings-glyph-active-ink);
-  background: var(--desk-settings-glyph-active-background);
-  border-color: var(--desk-settings-glyph-active-border);
-}
-
 body.desk-app[data-theme] .desk-settings-tabs button[data-settings-status="ok"] .desk-settings-tabs__dot {
   background: var(--desk-settings-ok-dot);
   box-shadow: var(--desk-settings-ok-dot-shadow);

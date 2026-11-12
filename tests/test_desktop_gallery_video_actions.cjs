@@ -41,11 +41,16 @@ test('expanded video offers save-to-set, hide and delete with undo', () => {
 
 test('video page hides the basket and sets keep tools image-only', () => {
   const geometry = read('frontend/styles/desktop-gallery-geometry.css');
-  assert.match(geometry, /\.desk-gallery--videos \.desk-gallery-inspector \{\s*display: none;/);
+  assert.match(geometry, /:is\(\.desk-gallery--videos, \.desk-gallery--basket-empty\) \.desk-gallery-inspector \{\s*display: none;/);
   assert.match(geometry, /\.desk-gallery-statsbar\[hidden\] \+ \.desk-gallery__body/);
   assert.ok(!geometry.includes('.desk-gallery-stats[hidden]'));
   assert.ok(read('frontend/styles/desktop-lora.css').includes('.desk-gallery-statsbar)'));
   const history = read('frontend/scripts/desktop-history.js');
+  // Elsewhere the basket only takes its column for a selection or a delete that can be undone.
+  assert.match(history, /setGalleryBasketEmpty\(!selected\.length && !lastDeleteBatchIds\.length,/);
+  // A workbench runs to the right margin: the history yields and its handle steps out.
+  assert.match(history, /document\.body\.classList\.toggle\('desk-workbench-open', open\);\n    if \(open\) setHistoryCollapsed\(true, false\);/);
+  assert.match(read('frontend/styles/desktop-gallery-geometry.css'), /body\.desk-workbench-open\.desk-app\[data-theme\] :is\(\.desk-history, \.desk-zoom-controls\) \{\s*visibility: hidden;/);
   assert.match(history, /toggle\('desk-gallery--videos', galleryView === 'videos'\)/);
   assert.match(history, /async function saveVideoToSet\(snapshot\)/);
   assert.match(history, /function setImageAssets\(assets\)/);

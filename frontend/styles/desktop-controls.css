@@ -1218,6 +1218,35 @@ body.desk-app[data-theme] .desk-settings :is(
   transform: none;
 }
 
+/* Track switch paint: the track is recessed, the thumb is the lifted chip, the legends
+   carry no fill of their own so the thumb shows through. */
+body.desk-app[data-theme] .desk-track-switch {
+  background: var(--desk-settings-track-background);
+  box-shadow: var(--desk-settings-track-shadow);
+}
+
+body.desk-app[data-theme] .desk-track-switch::before {
+  background: var(--desk-settings-track-thumb-background);
+  box-shadow: var(--desk-settings-track-thumb-shadow);
+}
+
+body.desk-app[data-theme] .desk-track-switch > button {
+  color: var(--desk-settings-muted-ink);
+  background: transparent;
+  box-shadow: none;
+  transition: color var(--desk-motion-duration-base) var(--desk-motion-ease-standard);
+}
+
+body.desk-app[data-theme] .desk-track-switch > button:hover:not(.is-active):not(:disabled),
+body.desk-app[data-theme] .desk-track-switch > button.is-active {
+  color: var(--desk-settings-ink);
+}
+
+body.desk-app[data-theme] .desk-track-switch > button:focus-visible {
+  outline: 2px solid var(--desk-color-accent);
+  outline-offset: -2px;
+}
+
 /* Category navigation: the prompt library's nav items (a lifted chip when active). */
 body.desk-app[data-theme] .desk-settings .desk-settings-tabs button:hover:not(.is-active):not(:disabled) {
   color: var(--desk-settings-ink);

@@ -1,6 +1,5 @@
 .desk-app .desk-google-web { display: grid; gap: 10px; }
-.desk-app .desk-google-pool-tabs--web { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.desk-app .desk-google-web h3, .desk-app .desk-google-web p { margin: 0; }
+.desk-app .desk-google-web p { margin: 0; }
 .desk-app .desk-google-web-toolbar, .desk-app .desk-google-web-actions,
 .desk-app .desk-google-web-account__head, .desk-app .desk-google-web-account__actions {
   display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap;

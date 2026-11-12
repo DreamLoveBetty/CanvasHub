@@ -66,8 +66,9 @@ class SettingsControlStyleTests(unittest.TestCase):
         match = re.search(r"body\.desk-app\[data-theme\] \.desk-settings-tabs button\s*\{([^}]+)\}", self.geometry)
         self.assertIsNotNone(match)
         for declaration in ("height: var(--desk-settings-nav-item-height);", "min-height: var(--desk-settings-nav-item-height);",
-                            "font-weight: var(--desk-font-weight-semibold);", "text-align: left;"):
+                            "font-weight: var(--desk-font-weight-medium);", "text-align: left;"):
             self.assertIn(declaration, match[1])
+        self.assertRegex(self.geometry, r"\.desk-settings-tabs button\.is-active\s*\{\s*font-weight: var\(--desk-font-weight-semibold\);")
         self.assertIn("--desk-settings-nav-item-height: 30px;", self.geometry)
 
     def test_segments_use_inset_paint_not_extra_height_for_the_track(self):

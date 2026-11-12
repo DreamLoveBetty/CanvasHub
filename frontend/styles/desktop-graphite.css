@@ -16,8 +16,10 @@ body.desk-app[data-desk-style="graphite"] {
   --desk-graphite-ink-2: #5d5d59;
   --desk-graphite-model: #d24f2f;
   --desk-graphite-popover-shadow: 0 1px 0 rgba(20, 20, 18, 0.04), 0 12px 28px -12px rgba(20, 20, 18, 0.28);
+  /* A chip lifted off an inset track (the track switch's thumb). */
+  --desk-graphite-raised-shadow: 0 1px 2px rgba(20, 20, 18, 0.12);
   --desk-graphite-ink: #262624;
-  --desk-graphite-muted: #6b6b66;
+  --desk-graphite-muted: #63635e;
   --desk-graphite-faint: #92928c;
   --desk-graphite-dot: rgba(38, 38, 36, 0.13);
   --desk-graphite-line: rgba(38, 38, 36, 0.08);
@@ -106,6 +108,7 @@ body.desk-app[data-desk-style="graphite"][data-theme="dark"] {
   --desk-graphite-ink-2: #b4b4b4;
   --desk-graphite-model: #ee6a4b;
   --desk-graphite-popover-shadow: 0 1px 0 rgba(0, 0, 0, 0.2), 0 14px 30px -14px rgba(0, 0, 0, 0.6);
+  --desk-graphite-raised-shadow: 0 1px 2px rgba(0, 0, 0, 0.36);
   --desk-graphite-ink: #ececec;
   --desk-graphite-muted: #a3a3a3;
   --desk-graphite-faint: #8b8b8b;
@@ -452,12 +455,6 @@ body.desk-app[data-desk-style="graphite"][data-theme] {
   --desk-settings-nav-active-border: transparent;
   --desk-settings-nav-active-shadow: none;
   --desk-settings-nav-hover-background: var(--desk-graphite-inset);
-  --desk-settings-glyph-ink: var(--desk-graphite-ink-2);
-  --desk-settings-glyph-background: var(--desk-graphite-inset);
-  --desk-settings-glyph-border: transparent;
-  --desk-settings-glyph-active-ink: var(--desk-graphite-primary-ink);
-  --desk-settings-glyph-active-background: var(--desk-graphite-primary);
-  --desk-settings-glyph-active-border: transparent;
   --desk-settings-action-ink: var(--desk-graphite-ink);
   --desk-settings-action-background: var(--desk-graphite-inset);
   --desk-settings-action-border: transparent;
@@ -488,6 +485,10 @@ body.desk-app[data-desk-style="graphite"][data-theme] {
   --desk-settings-segment-background: var(--desk-graphite-card);
   --desk-settings-segment-border: transparent;
   --desk-settings-segment-shadow: none;
+  --desk-settings-track-background: var(--desk-graphite-inset);
+  --desk-settings-track-shadow: none;
+  --desk-settings-track-thumb-background: var(--desk-graphite-card);
+  --desk-settings-track-thumb-shadow: var(--desk-graphite-raised-shadow);
   --desk-settings-path-background: var(--desk-graphite-card);
   --desk-settings-path-border: transparent;
   --desk-settings-path-shadow: none;
@@ -1883,6 +1884,20 @@ body.desk-app[data-desk-style="graphite"] .desk-canvas .desk-node--audio .desk-a
    writes a custom accent inline on <body>, which still wins over this default. */
 #deskApp[data-control-material="ambient"][data-desk-style="graphite"] {
   --amb-highlight-color: var(--desk-graphite-accent);
+  /* Primary keys carry their role in the legend: graphite's accent, not liquid's navy,
+     pulled toward the ink so it clears 4.5:1 on the key body in both themes. */
+  --desk-control-primary-ink: color-mix(in oklab, var(--desk-graphite-accent-ink), var(--desk-graphite-ink) 25%);
+  --desk-control-primary-hover-ink: color-mix(in oklab, var(--desk-graphite-accent-ink), var(--desk-graphite-ink) 55%);
+}
+
+/* Upstream lights every key and groove field with a 15% hue-234 tint, which reads cool
+   blue on graphite's warm neutrals. A user-chosen key colour and Glass keep upstream lighting. */
+#deskApp[data-control-material="ambient"][data-desk-style="graphite"]:not([data-control-tinted]):not([data-control-finish="glass"]) {
+  --amb-light-saturation: 0%;
+}
+
+#deskApp[data-field-style="groove"][data-desk-style="graphite"] {
+  --desk-field-light-saturation: 0%;
 }
 
 /* Liquid pins the dark switch pill to coral so it shows in the near-black recess;

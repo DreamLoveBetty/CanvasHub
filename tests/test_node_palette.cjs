@@ -15,8 +15,10 @@ function fixture(items) {
   const document = { activeElement: null };
   const timers = new Map();
   let sequence = 0;
+  const stored = new Map();
   const context = { document, setTimeout: fn => { timers.set(++sequence, fn); return sequence; },
-    clearTimeout: id => timers.delete(id) };
+    clearTimeout: id => timers.delete(id),
+    localStorage: { getItem: key => stored.get(key) ?? null, setItem: (key, value) => stored.set(key, String(value)) } };
   context.window = context;
   vm.createContext(context);
   // Use actual domain menu declarations and the host's injected catalog, not a
@@ -30,7 +32,16 @@ function fixture(items) {
   const classes = new Set();
   const palette = {
     markup: '', groups: [], buttons: [],
-    classList: { add: c => classes.add(c), remove: c => classes.delete(c), contains: c => classes.has(c) },
+    classList: { add: c => classes.add(c), remove: c => classes.delete(c), contains: c => classes.has(c),
+      toggle: (c, on) => (on ? classes.add(c) : classes.delete(c)) },
+    search: { focused: 0, focus() { this.focused += 1; } },
+    results: { innerHTML: '', hidden: true, querySelectorAll: () => [] },
+    empty: { hidden: true },
+    querySelector(selector) {
+      if (!this.markup) return null;
+      return { '[data-node-palette-search]': this.search, '[data-node-palette-results]': this.results,
+        '[data-node-palette-empty]': this.empty }[selector] || null;
+    },
     contains: element => Boolean(element && element.palette),
     get innerHTML() { return this.markup; },
     set innerHTML(value) {
@@ -122,6 +133,42 @@ test('palette closing/reopening preserves accordion state and handles keyboard f
   for (const callback of h.timers.values()) callback();
   assert.ok(!h.palette.classList.contains('is-closing'));
   assert.ok(h.palette.groups[0].open);
+});
+
+test('palette search swaps the accordion for a flat match list and opening resets it', () => {
+  const h = fixture();
+  h.api.renderNodePaletteItems();
+  assert.match(h.palette.innerHTML, /data-node-palette-search/);
+  assert.equal(h.api.filterNodePalette('  TOPAZ '), h.catalog.filter(item => /topaz/i.test(`${item.title} ${item.subtitle} ${item.type}`)).length);
+  assert.ok(h.palette.classList.contains('is-searching'));
+  assert.ok(!h.palette.results.hidden && h.palette.empty.hidden);
+  assert.match(h.palette.results.innerHTML, /data-add-node="topaz"/);
+  assert.equal(h.api.filterNodePalette('no-such-node'), 0);
+  assert.ok(h.palette.results.hidden && !h.palette.empty.hidden);
+  assert.equal(h.api.filterNodePalette(''), 0);
+  assert.ok(!h.palette.classList.contains('is-searching') && h.palette.empty.hidden);
+  h.api.filterNodePalette('topaz');
+  h.api.setNodePaletteOpen(true);
+  assert.ok(!h.palette.classList.contains('is-searching'), 'opening starts from the categories');
+  assert.equal(h.palette.search.focused, 1);
+  const geometry = read('styles/desktop-canvas-nodes-geometry.css');
+  assert.match(geometry, /\.desk-node-palette\.is-searching \.desk-node-palette__group \{\s*display: none;/);
+});
+
+test('recently added node types lead the palette, newest first and capped', () => {
+  const h = fixture();
+  h.api.renderNodePaletteItems();
+  assert.ok(!h.palette.groups.some(group => group.dataset.nodeMenuGroup === 'recent'));
+  for (const type of ['text', 'image', 'video', 'audio', 'image', 'no_longer_registered', 'pose']) h.api.recordRecentNodeType(type);
+  h.api.renderNodePaletteItems();
+  const recent = h.palette.groups.find(group => group.dataset.nodeMenuGroup === 'recent');
+  assert.deepEqual(recent.types, ['pose', 'image', 'audio']);
+  assert.equal(h.palette.groups.indexOf(recent), 0);
+  assert.ok(h.palette.groups.find(group => group.dataset.nodeMenuGroup === 'image').types.includes('image'), 'categories keep every node');
+  assert.match(read('scripts/desktop-i18n.js'), /nodePaletteGroup_recent: '最近使用'[\s\S]+nodePaletteGroup_recent: 'Recently Used'/);
+  const host = read('scripts/desktop-canvas.js');
+  assert.match(host, /canvasNodes\.recordRecentNodeType\(button\.dataset\.addNode/);
+  assert.match(host, /canvasNodes\.filterNodePalette\(event\.target\.value\)/);
 });
 
 test('shared node button remains flat, searchable and escapes full-label tooltips', () => {

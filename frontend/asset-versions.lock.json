@@ -131,8 +131,8 @@
     "sha256": "b93826e20d41af49a57ea9a60668e489908347b5b7fce3995ca57d40230a1f3e"
    },
    "scripts/desktop-canvas-nodes.js": {
-    "v": "20261110-compose1",
-    "sha256": "2eae64845e364f25c387a98cc485c7db3926d8452f26c307b9790504fc7d1208"
+    "v": "20261111-workbench-focus3",
+    "sha256": "77c5a38f7e786f969fd00816905d0550691a43f66a161405f17764084576bc6b"
    },
    "scripts/desktop-canvas-port-geometry.js": {
     "v": "20260911-canvas-port-geometry1",
@@ -203,8 +203,8 @@
     "sha256": "29de846a8bdad62e72d32f8db1d3650f71041f98c9d02d233e93e67f12e3ad1f"
    },
    "scripts/desktop-canvas.js": {
-    "v": "20261111-beatfit1",
-    "sha256": "e23cdee269fde681ea46d2ee843ea3b86256424f2c2df4b802441276db82ddfe"
+    "v": "20261111-workbench-focus1",
+    "sha256": "0553df75c1d9a69c867bc4ee371ed2527428d99bc61e83dc87a7378e8285f27a"
    },
    "scripts/desktop-color-bloom.js": {
     "v": "20261019-color-drag1",
@@ -259,24 +259,24 @@
     "sha256": "727e37a85d8d2cb29f5879307ee16df024084f69e85604290e5fc7b57146acf5"
    },
    "scripts/desktop-google-pool.js": {
-    "v": "20261102-pool-tabs1",
-    "sha256": "ba51bf87b3fa92826906b661f5218c9675cff15f24b1cb03bf9a2c4b48eed876"
+    "v": "20261112-cookie-field2",
+    "sha256": "ebef948db6c6e010dcdb6f55c136590d1acc3d8a0955f2cd72d403c7e39a0155"
    },
    "scripts/desktop-google-web-controls.js": {
     "v": "20261024-google-web-2k-prompt1",
     "sha256": "b725f3da35115430af0439c38410cdca9b373f7064bd06fa0cfe0707b336be4f"
    },
    "scripts/desktop-google-web.js": {
-    "v": "20261102-settings-flat1",
-    "sha256": "13ae825f278b6cc4a6ad45364cc4bb9d6492c6e569223ad1c5fd33a934dd9b7f"
+    "v": "20261112-chrome-keys1",
+    "sha256": "129eb55cf83ad4b7f07638d519c0338e70c260919d1e6f8e8ee240ffb2bc5678"
    },
    "scripts/desktop-history.js": {
-    "v": "20261110-video-edit1",
-    "sha256": "f5e70ae282355f26d99ee720a7f843650f94dbf0215d7c6e555a6e6b1ca364c3"
+    "v": "20261112-workbench-edge1",
+    "sha256": "9d688d504284273b972eaf9e9eaaa81c5716ffb679eae7f5bde840ab65ac93e0"
    },
    "scripts/desktop-i18n.js": {
-    "v": "20261103-comfy-video1",
-    "sha256": "a1ddb9e88d6cfc069c8a20379e1671b4adee7f874a5c6391a4b10021c03b68a7"
+    "v": "20261111-workbench-focus1",
+    "sha256": "88ec3a1e691a3e777666549e549debccb7ee3001c2b6cb875c5e8d206c0db2ba"
    },
    "scripts/desktop-krea2-api.js": {
     "v": "20260929-krea2-layout-3",
@@ -419,8 +419,8 @@
     "sha256": "f7bf9567e05e597d4f73e25e346a9e62573915806f74de566f0b6c0c1b897f12"
    },
    "scripts/desktop-prompt-library.js": {
-    "v": "20261030-panels-polish1",
-    "sha256": "0cc0f805aad423211b54cb3baded2869b527749bb69acadb016118f19af9f1ab"
+    "v": "20261111-text-nav1",
+    "sha256": "28e48a5ed850aafa7a2acbaf8ba8db0c4a8e07411d5e969c4c737dcd048a346d"
    },
    "scripts/desktop-prompt-media.js": {
     "v": "20260929-prompt-video1",
@@ -459,8 +459,8 @@
     "sha256": "43e81dc5525b3de0c5613d1e35cf12222c76d74610a18f3f9eb899bac8922cf7"
    },
    "scripts/desktop-settings.js": {
-    "v": "20261111-asr1",
-    "sha256": "7def52f18455871d6074002bdd0d4a270ca0e94f8583297b5a11075cd7ba2f56"
+    "v": "20261112-action-rows1",
+    "sha256": "ea930b3b6b97764bbcb734ef8550acc8e300a254206d1dc17cc6bc3e2a66dbda"
    },
    "scripts/desktop-state-icon.js": {
     "v": "20261004-state-icons1",
@@ -579,8 +579,8 @@
     "sha256": "f436e48eac9919241d977df7c303e471bb75dee41809654336261cf2408df916"
    },
    "styles/desktop-canvas-nodes-geometry.css": {
-    "v": "20261111-type-scale1",
-    "sha256": "404b40bc956f3728c188cb1548f7917597af603ed57d076bb531645055e8e62f"
+    "v": "20261111-workbench-focus1",
+    "sha256": "697ba0bda04256d446d7bf80cad401646f767605454d61c91e28ab7207e5b1a5"
    },
    "styles/desktop-canvas-nodes.css": {
     "v": "20261111-type-scale1",
@@ -595,12 +595,12 @@
     "sha256": "10c9b6b5f072046b5060825627241a890d855cf15ea791260d7915d8af82de5d"
    },
    "styles/desktop-control-material.css": {
-    "v": "20261019-pinterest-body2",
-    "sha256": "15b159c8d422c6da0fcea418e95c21e0b6a085cfe09021ed00a2dc8693fd5b7d"
+    "v": "20261112-graphite-keys2",
+    "sha256": "9d80e40d92197602f3a310b7c06e8800ff0c120dc8ab28621ee6d08a8a04d8f8"
    },
    "styles/desktop-controls.css": {
-    "v": "20261111-type-scale1",
-    "sha256": "e413441a05555cf2c3d8561f96b248a97846a9d029cafe256f659e62ebb317b1"
+    "v": "20261112-track-switch1",
+    "sha256": "6d56747d1d3981d3c96866991bdacbe0dfc7281c71b1085e2006ca68d31303dc"
    },
    "styles/desktop-creation-tools.css": {
     "v": "20261102-h3-removal1",
@@ -619,28 +619,28 @@
     "sha256": "c99a3460152057461acdb3308291ef8429cf35a826397825b6103d7798887100"
    },
    "styles/desktop-gallery-geometry.css": {
-    "v": "20261111-type-scale1",
-    "sha256": "dcdfb768510f04de0ca62087a6560e6d7f0650e1ca67b9126a1d6b32ee2f71f5"
+    "v": "20261112-workbench-edge2",
+    "sha256": "b05c7a3eeaee079f5e82f073003bc1da074a5f92d243d3ccf2629543a30eb733"
    },
    "styles/desktop-gallery.css": {
     "v": "20261109-undo-delete1",
     "sha256": "e9237a20a313e8a6d328ac2e435ed69cf207d670f695bb3be8bdbf1b40add515"
    },
    "styles/desktop-geometry.css": {
-    "v": "20261111-type-scale2",
-    "sha256": "402fe962440fc3ac99826c3db5479ecfeb3ae92fee1f081644f89eae466fa9f7"
+    "v": "20261112-track-switch2",
+    "sha256": "d5416421ed1d9d7bd3006b91cb3cf8e25a8db90c10030da810951835fe9b6105"
    },
    "styles/desktop-google-web-geometry.css": {
-    "v": "20261023-google-web2",
-    "sha256": "e213bc005edc27cc15e95e490378c509387c44c079260f0c985435184510747f"
+    "v": "20261112-cookie-field2",
+    "sha256": "0f4455cd975b774afb14d969d32a097c39d50d5dc542121adc8c5703a5e1591e"
    },
    "styles/desktop-google-web.css": {
-    "v": "20261111-type-scale1",
-    "sha256": "b72b53f329c2790f2bb05a72bab63a3f96cd841de0c3bc7f846513f655a58a1d"
+    "v": "20261112-chrome-keys1",
+    "sha256": "043f2d20008eae5a6fd8fcee52ac6c088e89bb054e9e6697d5c8d12f5eb175aa"
    },
    "styles/desktop-graphite.css": {
-    "v": "20261110-phase3a1",
-    "sha256": "1959b9b8d976bbbac5dd6a85227e311aaf69ff4987c9951a60c99c33ec6eb754"
+    "v": "20261112-track-switch2",
+    "sha256": "5efa9684121e514ee57f8407b2d566dc5c6a34a892b06dcfca480032acd6689b"
    },
    "styles/desktop-image-group-geometry.css": {
     "v": "20261111-type-scale1",
@@ -671,8 +671,8 @@
     "sha256": "8f8a07111602a378573a0ce98e164b04e9bfd78106a63c0c1345aee6721ef565"
    },
    "styles/desktop-liquid.css": {
-    "v": "20261111-type-scale1",
-    "sha256": "a5d1273908a6df3b04537ddf1821f86246a982708820e52fc70208d1dc7e9451"
+    "v": "20261112-cookie-field2",
+    "sha256": "c2a18cdfc5af2c7ab7e92ab5afe4efc9347dbd2fdd5d8bf24178b17f4445d160"
    },
    "styles/desktop-lora.css": {
     "v": "20261111-type-scale1",
@@ -727,8 +727,8 @@
     "sha256": "15e7a3dc1fb387cfbc322024c0d60a543a09c417cb22b313ee76a1399b0e78be"
    },
    "styles/desktop-prompt-library.css": {
-    "v": "20261111-type-scale1",
-    "sha256": "b6389647dc895944a1257449145da360abd9753b5d512c2f6873ad48b5813839"
+    "v": "20261112-workbench-edge1",
+    "sha256": "33c0626c1f958a491660ad7ef40df62d6a364584d1eadabb967d152cc83b0e51"
    },
    "styles/desktop-qwen21.css": {
     "v": "20261111-type-scale1",
@@ -739,8 +739,8 @@
     "sha256": "3fed07220cfba775931db9fec9c003be5b1953ffa21cdf6c06d45a899339d949"
    },
    "styles/desktop-settings-auth.css": {
-    "v": "20261102-h3-removal1",
-    "sha256": "f9174ff0e265c2f7c6b0027d5b5fdd501a1eee8c1e61f87c60d3cc63b01d894d"
+    "v": "20261111-text-nav1",
+    "sha256": "f355cab508a23ca027ca4e9cf80241d023f22f3c61118946443f1c7c73ac1ca8"
    },
    "styles/desktop-shell-geometry.css": {
     "v": "20261111-type-scale1",
@@ -751,8 +751,8 @@
     "sha256": "beedba0023c9850ddad4ea580858df2d89e5137cd689e6e781f34907ef9246f5"
    },
    "styles/desktop-tokens.css": {
-    "v": "20261111-type-scale1",
-    "sha256": "53d3692771f2eeb9888c3da540ba4541bd431889daf33c3893c71d746d384606"
+    "v": "20261112-track-switch1",
+    "sha256": "932fb2d0fd4a091b8eb3ab65e65f14c56b69402b2c39c1065864d8b65ddab105"
    },
    "styles/desktop-topaz-video-workbench.css": {
     "v": "20261111-type-scale1",

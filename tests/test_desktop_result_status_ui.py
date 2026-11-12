@@ -441,10 +441,12 @@ class DesktopResultStatusUiTest(unittest.TestCase):
             css,
             r"body\.desk-app\[data-theme=\"dark\"\] \.desk-settings-form__actions button\.is-primary,[\s\S]*?rgba\(255, 122, 51, 0\.96\)[\s\S]*?rgba\(185, 51, 18, 0\.96\)"
         )
-        self.assertRegex(
-            css,
-            r"body\.desk-app\[data-theme=\"dark\"\] \.desk-settings-form input,\s*\nbody\.desk-app\[data-theme=\"dark\"\] \.desk-settings-textarea\s*\{[\s\S]*?rgba\(28, 34, 36, 0\.74\);[\s\S]*?rgba\(255, 255, 255, 0\.07\);"
-        )
+        # Dark settings fields take the field tokens (so graphite's mapping applies in dark too);
+        # the liquid dark values live in desktop-tokens.css.
+        self.assertNotRegex(css, r"body\.desk-app\[data-theme=\"dark\"\] \.desk-settings-textarea\s*\{")
+        tokens = read_text("styles/desktop-tokens.css")
+        self.assertIn("--desk-settings-field-background: rgba(28, 34, 36, 0.74);", tokens)
+        self.assertIn("--desk-settings-field-border: rgba(255, 255, 255, 0.07);", tokens)
         self.assertRegex(
             css,
             r"body\.desk-app\[data-theme=\"dark\"\] \.desk-settings-path em,\s*\nbody\.desk-app\[data-theme=\"dark\"\] \.desk-settings-account__main span,\s*\nbody\.desk-app\[data-theme=\"dark\"\] \.desk-settings-pool-summary span\.is-ok\s*\{[\s\S]*?rgba\(34, 197, 94, 0\.16\);[\s\S]*?rgba\(150, 240, 189, 0\.24\);"

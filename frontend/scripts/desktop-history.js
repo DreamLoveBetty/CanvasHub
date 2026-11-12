@@ -966,6 +966,22 @@
     }
   }
 
+  // The asset library, prompt library and settings workbenches take the main area: while one
+  // is open the recent-records panel yields (collapsed, not saved); once none is open it
+  // returns to the saved preference. Expanding or collapsing it by hand meanwhile saves as
+  // usual, so that choice is what the workbench closes back to.
+  const WORKBENCH_PANEL_IDS = ['deskGalleryPanel', 'deskPromptLibraryPanel', 'deskSettingsPanel'];
+  let historyYieldingToWorkbench = false;
+
+  function syncWorkbenchYield() {
+    const open = WORKBENCH_PANEL_IDS.some(id => document.getElementById(id)?.classList.contains('is-open'));
+    if (open === historyYieldingToWorkbench) return;
+    historyYieldingToWorkbench = open;
+    document.body.classList.toggle('desk-workbench-open', open);
+    if (open) setHistoryCollapsed(true, false);
+    else restoreHistoryCollapsedState();
+  }
+
   function getLayoutTopWithin(element, ancestor) {
     if (!element || !ancestor) return 0;
     let top = 0;
@@ -3526,6 +3542,21 @@
     button.title = lastDeleteCount ? `恢复刚删除的 ${lastDeleteCount} 张图片` : '恢复上一次删除的文件';
   }
 
+  // The basket only takes its column when it has something to act on: a selection, or a
+  // delete that can still be undone. The grid re-wraps when the column appears or goes, so
+  // the card being worked on is brought back into view.
+  function setGalleryBasketEmpty(empty, anchorAssetId = '') {
+    const panel = els.deskGalleryPanel;
+    if (!panel || panel.classList.contains('desk-gallery--basket-empty') === empty) return;
+    panel.classList.toggle('desk-gallery--basket-empty', empty);
+    if (!anchorAssetId) return;
+    window.requestAnimationFrame(() => window.requestAnimationFrame(() => {
+      Array.from(els.deskGalleryGrid?.querySelectorAll('.desk-gallery-card[data-asset-id]') || [])
+        .find(card => card.dataset.assetId === anchorAssetId)
+        ?.scrollIntoView({ block: 'nearest' });
+    }));
+  }
+
   function renderGallerySelection() {
     if (galleryView === 'loras' || galleryView === 'audio') return;
     if (galleryView === 'videos') {
@@ -3555,6 +3586,7 @@
       if (els.deskGallerySelectedList) {
         els.deskGallerySelectedList.innerHTML = '<div class="desk-gallery-empty">文件页可直接打开、发送或删除 PPT/PSD 目录。</div>';
       }
+      setGalleryBasketEmpty(true);
       [
         els.deskGalleryCompareBtn,
         els.deskGalleryCanvasBtn,
@@ -3607,6 +3639,7 @@
     if (els.deskGalleryDeleteBtn) els.deskGalleryDeleteBtn.disabled = !selected.length || hasRemote;
     syncUndoDeleteButton();
     if (els.deskGalleryClearBtn) els.deskGalleryClearBtn.disabled = !selected.length;
+    setGalleryBasketEmpty(!selected.length && !lastDeleteBatchIds.length, selected.length ? selected[selected.length - 1].id : '');
   }
 
   function bindGalleryCardEvents() {
@@ -4110,6 +4143,7 @@
     window.DesktopSettings?.close?.();
     els.deskGalleryPanel?.classList.add('is-open');
     els.deskGalleryPanel?.setAttribute('aria-hidden', 'false');
+    syncWorkbenchYield();
     resetGalleryRenderLimit();
     renderGallery();
     renderGallerySelection();
@@ -4167,6 +4201,7 @@
     }
     els.deskGalleryPanel?.classList.remove('is-open');
     els.deskGalleryPanel?.setAttribute('aria-hidden', 'true');
+    syncWorkbenchYield();
   }
 
   function normalizeCompareValue(value) {
@@ -4994,6 +5029,7 @@
     renderHistory,
     selectHistoryItem,
     setHistoryCollapsed,
+    syncWorkbenchYield,
     syncHistoryPanelBounds,
     openGallery,
     closeGallery,
