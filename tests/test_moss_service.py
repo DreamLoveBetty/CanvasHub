@@ -303,6 +303,15 @@ class Submit(Base):
         with self.assertRaisesRegex(ValueError, "不一致"):
             self.service.submit(self.body(text_sources=[{**trace, "content_hash": "0" * 64}]))
 
+    def test_pe_source_is_preserved_in_task_but_not_sent_to_mlx(self):
+        trace = {"node_id": "pe", "profile": "moss_caption", "source_text": "猫",
+                 "rewritten_prompt": "A black cat.", "provider": "gpt_oauth", "model": "fixture", "edited": True}
+        task_id = self.service.submit(self.body(prompt="A black cat.", prompt_pe=[trace]))["task_id"]
+        self.wait_done(task_id)
+        self.assertEqual(self.tasks.get(task_id)["params"]["prompt_pe"], [trace])
+        self.assertEqual(self.runtime.specs[0]["prompt"], "A black cat.")
+        self.assertNotIn("prompt_pe", self.runtime.specs[0])
+
     def test_text_sources_target_regions_and_panels(self):
         panel = {"source_node_id": "n", "target_id": "p1", "field": "caption",
                  "content_hash": hashlib.sha256("镜头1".encode()).hexdigest()}

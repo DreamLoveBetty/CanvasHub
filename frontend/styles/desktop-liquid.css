@@ -2313,96 +2313,24 @@ body.desk-app[data-theme="dark"]::after {
 }
 
 .desk-text-node__drawer button {
-  flex: 1 1 0;
-  min-width: 0;
-  height: 30px;
-  padding: 0 10px;
-  overflow: hidden;
   color: var(--desk-muted);
   font-size: var(--desk-font-size-label);
   font-weight: var(--desk-font-weight-semibold);
   background: rgba(255, 255, 255, 0.62);
   border: 1px solid rgba(255, 255, 255, 0.72);
   border-radius: 8px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.desk-text-node__drawer button[data-text-action="clear"] {
-  display: grid;
-  flex: 0 0 42px;
-  padding: 0;
-  place-items: center;
 }
 
 .desk-text-node__drawer button[data-text-action="clear"] svg {
-  width: 14px;
-  height: 14px;
   fill: none;
   stroke: currentColor;
   stroke-width: 2.2;
   stroke-linecap: round;
 }
 
-.desk-text-node__drawer button:hover {
+.desk-text-node__drawer button:hover:not(:disabled) {
   color: var(--desk-blue);
   background: rgba(255, 255, 255, 0.86);
-}
-
-.desk-text-style-menu {
-  position: absolute;
-  top: calc(100% + 62px);
-  left: -1px;
-  z-index: 9;
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 6px;
-  width: calc(100% + 2px);
-  max-height: 260px;
-  padding: 7px;
-  overflow: auto;
-  background: rgba(249, 252, 255, 0.9);
-  border: 1px solid rgba(255, 255, 255, 0.68);
-  border-radius: 10px;
-  box-shadow: 0 18px 46px rgba(31, 45, 62, 0.18);
-  backdrop-filter: blur(16px);
-}
-
-.desk-text-style-menu[hidden] {
-  display: none;
-}
-
-.desk-text-style-menu button {
-  display: grid;
-  gap: 3px;
-  min-width: 0;
-  min-height: 52px;
-  padding: 8px;
-  color: var(--desk-ink);
-  text-align: left;
-  background: rgba(255, 255, 255, 0.58);
-  border: 1px solid rgba(255, 255, 255, 0.72);
-  border-radius: 8px;
-}
-
-
-.desk-text-style-menu strong {
-  overflow: hidden;
-  font-size: var(--desk-font-size-label);
-  font-weight: var(--desk-font-weight-semibold);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.desk-text-style-menu span {
-  display: -webkit-box;
-  overflow: hidden;
-  color: var(--desk-muted);
-  font-size: var(--desk-font-size-micro);
-  font-weight: var(--desk-font-weight-semibold);
-  line-height: 1.35;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
 }
 
 
@@ -3819,6 +3747,20 @@ body.desk-history-collapsed .desk-gallery {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
   min-height: 0;
+}
+
+.desk-text-polish-modal__editor {
+  color: var(--desk-ink);
+  font: inherit;
+  line-height: 1.6;
+  background: var(--desk-node-text-background);
+  border: 1px solid var(--desk-flow-border-soft);
+  border-radius: 6px;
+}
+
+.desk-text-polish-modal__editor:focus-visible {
+  outline: 2px solid var(--desk-flow-stroke);
+  outline-offset: -2px;
 }
 
 .desk-text-polish-modal__card {
@@ -5818,7 +5760,9 @@ a.desk-pinterest-profile-home-link:hover {
 .desk-gallery-card__meta-copy span,
 .desk-gallery-card__meta-copy em {
   overflow: hidden;
+  font-size: 8px;
   font-style: normal;
+  line-height: var(--desk-line-height-tight);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -8548,7 +8492,6 @@ body.desk-app[data-theme="dark"] .desk-file-preview-modal__actions #deskFilePrev
 .desk-image-editor__button--primary,
 .desk-segment button.is-active,
 .desk-text-node__alias button,
-.desk-text-style-menu button:hover,
 .desk-text-copy-fallback__panel header button,
 .desk-text-copy-fallback__panel footer button,
 .auth-submit-btn {
@@ -9186,18 +9129,11 @@ body.desk-app[data-theme="dark"] .desk-node--text {
 }
 
 body.desk-app[data-theme="dark"] .desk-text-node__alias,
-body.desk-app[data-theme="dark"] .desk-text-node__drawer,
-body.desk-app[data-theme="dark"] .desk-text-style-menu {
-  background: rgba(38, 46, 48, 0.92);
-}
-
-body.desk-app[data-theme="dark"] .desk-text-node__alias input,
-body.desk-app[data-theme="dark"] .desk-text-style-menu span {
+body.desk-app[data-theme="dark"] .desk-text-node__alias input {
   color: var(--desk-muted);
 }
 
 body.desk-app[data-theme="dark"] .desk-text-style-tag,
-body.desk-app[data-theme="dark"] .desk-text-style-menu button,
 body.desk-app[data-theme="dark"] .desk-text-node__drawer button,
 body.desk-app[data-theme="dark"] .desk-mini-toggle,
 body.desk-app[data-theme="dark"] .desk-upload,
@@ -9226,7 +9162,6 @@ body.desk-app[data-theme="dark"] .desk-text-style-tag em {
   color: #ff9b68;
 }
 
-body.desk-app[data-theme="dark"] .desk-text-style-menu strong,
 body.desk-app[data-theme="dark"] .desk-text-style-tag strong {
   color: var(--desk-ink);
 }
@@ -12653,6 +12588,22 @@ body.desk-app .desk-node--edge-handles > .desk-port--floating:is(:hover, :focus-
   color: var(--desk-ink);
   background: var(--desk-flow-soft);
   outline: none;
+}
+
+.desk-node-context-menu button[data-node-context-command] {
+  width: 100%;
+  min-height: 32px;
+  padding: 4px 8px;
+  color: var(--desk-ink);
+  font: inherit;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  border-radius: 5px;
+}
+
+.desk-node-context-menu button[data-node-context-command]:is(:hover, :focus-visible) {
+  background: var(--desk-flow-soft);
 }
 
 

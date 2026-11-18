@@ -42,7 +42,7 @@ flowchart TD
 | 排版、字体、成品读取与操作 | `layout_routes`、`editable_routes` | `layout_publish`；沿用原草稿与成品存储 |
 | 鉴权、设置、运行诊断 | `auth_routes`、`system_routes` | `auth_policy`、`system_settings` |
 | 模型与账号管理 | `provider_account_routes` | `provider_accounts` |
-| 提示词与远程素材 | `prompt_routes`、`remote_source_routes` | `prompt_presets`、`prompt_enrichment`、`prompt_video`（校验浏览器均匀抽取的 12–24 帧，按 8 帧分批理解并缓存文本摘要）；`prompt_skill_client` 的纯规则见下方；沿用原 Pinterest/同步实现 |
+| 提示词与远程素材 | `prompt_routes`、`remote_source_routes` | `prompt_presets`、`prompt_enrichment`、`prompt_pe`、`prompt_video`（校验浏览器均匀抽取的 12–24 帧，按 8 帧分批理解并缓存文本摘要）；`prompt_skill_client` 的纯规则见下方；沿用原 Pinterest/同步实现 |
 | Agent、工作流文件 | `agent_routes` | 沿用原 Agent runtime/store |
 | 状态、重试、批次、并发 | `task_routes`、`task_control_routes` | `task_tracking`、`task_retry`、`task_batch`、`task_execution` |
 | GPT 图片、编辑、PPT/PSD | `gpt_generation_routes` | `gpt_generation`、`editable_generation` |
@@ -74,6 +74,14 @@ flowchart TD
 - `prompt_block_rules`（依赖 text、image_analysis）：素材块主类型推断、模板与模块表（导入时由提示词库模板填充）、generic-19 锚点/约束/体型/质量/合并规则及图片分析拆块；公开 `generic_19_prompt_block_split_rule`。
 
 原 `prompt_skill_client.<name>` 导入仍有效（入口用到的名称、公开名称和回归测试直接读取的私有名称均从原模块再导出）。测试替换点（`_choose_model`、`_call_prompt_provider`、`chat_chatgpt_pool`、调参常量等）都留在原模块，替换仍然生效。
+
+文本节点扩展共用鉴权后的 `POST /api/prompt/pe`（`text`、`profile`）。三个规则分别加载 `prompt_skills/moss_caption.md`、`prompt_skills/qwen_t2i.md`、`prompt_skills/h3_image_t2i.md`，统一通过 `call_prompt_model` 使用设置中的提示词 LLM、推理强度及已有账号池回退，不使用通用生图润色模板。确认应用后写入普通文本，生成只消费 `prompt`；归档和 Telegram `sendDocument` 不变。
+
+两套规则按各自官方文生图方式编写：[MOSS Caption](https://github.com/OpenMOSS/MOSS-Image/blob/main/skills/moss-image-prompt-enhancer/SKILL.md) 按画面类型和复杂度决定篇幅，复杂场景允许多段；[Qwen-Image 2.1 T2I](https://github.com/QwenLM/Qwen-Image-2.1/blob/main/prompt_rewrite/prompts/system_prompt_t2i.txt) 按构图次序写一段英文，常规详细场景目标约 400–500 词，刻意留白的画面可以更短。两者要求画内文字原样保留，只返回正向描述，不接管画幅或生成参数。
+
+H3 Image 规则参考 [公开文生图任务提示词](https://huggingface.co/MiniMaxAI/MiniMax-H3-Image-PE/blob/main/prompt/t2i/task_prompt.txt) 编写，由项目已有的 LLM 执行，不请求 MiniMax PE、不需要独立密钥。LLM 返回 `expanded_caption` 和 `aspect_ratio`；只有前者写入文本，可用的比例只在预览里提示。
+
+独立 PE 节点已退役。为兼容尚未刷新的客户端，保留旧版 `GET /api/prompt/pe` 的配置键及生成接口的可选 `prompt_pe` 快照契约；历史和归档里的快照继续能读取。MOSS / Qwen 规则变化时再递增 `prompt_pe.RULESET_VERSION`。
 
 ## 保留的兼容边界
 

@@ -2,15 +2,17 @@
 .desk-app .desk-qwen21__header { flex:0 0 auto; margin-bottom:4px; }
 .desk-app .desk-qwen21__body { display:flex; flex:1 1 auto; flex-direction:column; gap:4px; min-height:0; overflow:visible; }
 .desk-app .desk-qwen21__grid { display:grid; flex:0 0 auto; gap:4px; margin:0; }
-.desk-app .desk-qwen21__grid--model { grid-template-columns:repeat(2,minmax(0,1fr)); }
+.desk-app .desk-qwen21__grid--model { grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1.6fr); align-items:end; }
 .desk-app .desk-qwen21__mode { min-width:0; padding:0 10px; font-size:var(--desk-font-size-label); text-overflow:ellipsis; }
 .desk-app .desk-qwen21__grid--params { grid-template-columns:repeat(4,minmax(0,1fr)); }
 .desk-app .desk-qwen21__seed { grid-column:span 2; }
 .desk-app .desk-qwen21__grid label { display:grid; gap:3px; min-width:0; }
 .desk-app .desk-qwen21__grid label > span { color:var(--desk-muted); font-size:var(--desk-font-size-caption); font-weight:var(--desk-font-weight-semibold); }
-.desk-app .desk-qwen21__grid .desk-select-shell { width:100%; }
+.desk-app .desk-qwen21__grid .desk-select-shell,.desk-app .desk-qwen21__lora-add .desk-select-shell { width:100%; }
 .desk-app .desk-qwen21__loras { display:flex; flex:1 1 auto; flex-direction:column; gap:4px; min-height:58px; padding-top:6px; border-top:1px solid var(--desk-color-control-border); overflow:visible; }
-.desk-app .desk-qwen21__loras > header { display:flex; flex:0 0 auto; align-items:center; gap:10px; }
+.desk-app .desk-qwen21__loras > header { display:grid; grid-template-columns:minmax(0,1fr) minmax(180px,240px); flex:0 0 auto; align-items:center; gap:10px; }
+.desk-app .desk-qwen21__lora-heading { display:flex; align-items:center; gap:8px; min-width:0; }
+.desk-app .desk-qwen21__lora-add { width:100%; min-width:0; }
 .desk-app .desk-qwen21__loras strong { color:var(--desk-ink); font-size:var(--desk-font-size-label); font-weight:var(--desk-font-weight-semibold); }
 .desk-app .desk-qwen21__loras small { color:var(--desk-muted); font-size:var(--desk-font-size-micro); font-weight:var(--desk-font-weight-semibold); }
 .desk-app [data-qwen21-lora-list] { display:grid; flex:1 1 auto; grid-template-columns:repeat(2,minmax(0,1fr)); align-content:start; gap:4px; min-height:0; overflow:auto; }

@@ -154,6 +154,8 @@ def retry_failed_task(
     _validate_retry_payload,
     create_task,
     get_task,
+    resend_task_telegram=None,
+    task_has_trusted_archive=None,
 ):
     if not original_task:
         raise TaskRetryError('找不到要重跑的任务。')
@@ -162,6 +164,15 @@ def retry_failed_task(
     status = str(original_task.get('status') or '')
     if status not in FAILED_RETRY_STATUSES:
         raise TaskRetryError('只有失败任务可以重跑。')
+    if status == 'telegram_failed':
+        has_archive = bool(task_has_trusted_archive(original_task)) if callable(task_has_trusted_archive) else bool(
+            original_task.get('result_file') or original_task.get('result_files')
+        )
+        if has_archive and callable(resend_task_telegram):
+            return resend_task_telegram(original_task.get('task_id'))
+        if has_archive:
+            raise TaskRetryError('该任务已有归档结果，请使用补发而不是重新生成。')
+        raise TaskRetryError('没有可补发的归档文件，无法只补发；请重新提交生成任务。')
     task_type = str(original_task.get('type') or 'google-gen')
     if task_type in ('gpt-edit', 'google-edit'):
         raise TaskRetryError('图片编辑任务依赖原始图片/蒙版，当前历史记录未保存完整输入，暂不能直接重跑。')

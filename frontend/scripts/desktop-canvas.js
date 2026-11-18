@@ -395,7 +395,6 @@
     updateInputProgressOverlay,
     focusCanvasViewport,
     saveSettings: () => DesktopState.saveSettings(),
-    isSelectToolActive,
     constants: {
       WORLD_WIDTH, WORLD_HEIGHT, MIN_SCALE, MAX_SCALE, ZOOM_PRESETS,
       DEFAULT_CANVAS_SCALE, CANVAS_WHEEL_GESTURE_END_MS,
@@ -794,10 +793,6 @@
     return canvasModelNodes.ratioFromAspect(aspectRatio, fallback);
   }
 
-  function textStylePresetButtonsHtml() {
-    return canvasTextEditor.textStylePresetButtonsHtml();
-  }
-
   function loadCustomTextStylePresets() {
     return canvasTextEditor.loadCustomTextStylePresets();
   }
@@ -1104,14 +1099,6 @@
     if (save) DesktopState.saveSettings();
   }
 
-  function getActiveTool() {
-    return document.querySelector('.desk-rail__item.is-active[data-tool]')?.dataset.tool || 'select';
-  }
-
-  function isSelectToolActive() {
-    return getActiveTool() === 'select';
-  }
-
   function applyCanvasTransform(options = {}) {
     return canvasViewport.applyCanvasTransform(options);
   }
@@ -1241,6 +1228,30 @@
 
   function openContextMenu(event, options = {}) {
     return canvasConnections.openContextMenu(event, options);
+  }
+
+  function openTextNodeContextMenu(event, nodeId) {
+    const node = getNodeState(nodeId);
+    if (node?.type !== 'text') return;
+    openContextMenu(event, {
+      title: '文本节点',
+      command: {
+        label: node.promptRole === 'negative' ? '恢复为正向提示词' : '设为负面提示词',
+        run: () => {
+          if (getNodeState(nodeId) !== node) return;
+          const negative = node.promptRole !== 'negative';
+          canvasTextEditor.setTextNodePromptRole(getNodeElement(nodeId), node, negative);
+          selectNode(nodeId);
+          updateLinkPath();
+          (DesktopState.state.canvas.edges || [])
+            .filter(edge => edge.from === nodeId && getNodeState(edge.to)?.type === 'comfy')
+            .forEach(edge => refreshComfyNode(edge.to));
+          notifyDomainGraphChanged();
+          DesktopState.saveSettings();
+          DesktopResults.showTransientMessage(negative ? '已设为负面提示词。' : '已恢复为正向提示词。');
+        },
+      },
+    });
   }
 
   function getCanvasEdge(edgeId) {
@@ -2290,6 +2301,7 @@
       pointerButton: isRightButton ? 'right' : 'left',
       pointerId: event.pointerId,
       startedOnNode,
+      textContextNodeId: isRightButton ? event.target.closest('.desk-node--text[data-node-id]')?.dataset.nodeId : '',
       startX: event.clientX,
       startY: event.clientY,
       canvasX: canvas.x,
@@ -2323,6 +2335,7 @@
       pointerButton: 'right',
       mouseFallback: true,
       startedOnNode: !!target.closest('.desk-node'),
+      textContextNodeId: target.closest('.desk-node--text[data-node-id]')?.dataset.nodeId,
       startX: event.clientX,
       startY: event.clientY,
       canvasX: canvas.x,
@@ -2344,7 +2357,7 @@
 
   function isTextNodeDragEdge(event, node) {
     if (!node?.classList?.contains('desk-node--text')) return false;
-    if (event.target.closest('button, input, select, [contenteditable="true"], [data-text-style-menu], [data-node-resize-handle], .desk-port')) return false;
+    if (event.target.closest('button, input, select, [contenteditable="true"], [data-node-resize-handle], .desk-port')) return false;
     const rect = node.getBoundingClientRect();
     const x = event.clientX - rect.left;
     const y = event.clientY - rect.top;
@@ -2603,7 +2616,9 @@
     if (!collisionPending) DesktopState.saveSettings();
     if (interaction.type === 'pan' && interaction.pointerButton === 'right') {
       suppressCanvasContextMenuUntil = Date.now() + CANVAS_CONTEXTMENU_SUPPRESS_MS;
-      if (!interaction.moved && !interaction.startedOnNode && event?.type === 'pointerup') {
+      if (!interaction.moved && interaction.textContextNodeId && (event?.type === 'pointerup' || event?.type === 'mouseup')) {
+        openTextNodeContextMenu(event, interaction.textContextNodeId);
+      } else if (!interaction.moved && !interaction.startedOnNode && event?.type === 'pointerup') {
         openContextMenu(event);
       }
     }
@@ -2659,14 +2674,6 @@
 
   function applyGptTaskTypeToNode(node, taskType) {
     return canvasModelNodes.applyGptTaskTypeToNode(node, taskType);
-  }
-
-  function setTextStyleMenuOpen(node, open) {
-    return canvasTextEditor.setTextStyleMenuOpen(node, open);
-  }
-
-  function closeAllTextStyleMenus(exceptNode = null) {
-    return canvasTextEditor.closeAllTextStyleMenus(exceptNode);
   }
 
   function setTextNodeValue(node, nodeState, value) {
@@ -2777,10 +2784,6 @@
     return canvasTextEditor.setTextNodeStyle(node, nodeState, presetId);
   }
 
-  function selectTextNodePreset(node, nodeState, presetId) {
-    return canvasTextEditor.selectTextNodePreset(node, nodeState, presetId);
-  }
-
   function clearTextNodeStyle(node, nodeState) {
     return canvasTextEditor.clearTextNodeStyle(node, nodeState);
   }
@@ -2839,14 +2842,6 @@
 
   function undoAppliedTextPolish() {
     return canvasTextEditor.undoAppliedTextPolish();
-  }
-
-  function openTextPolishModal(payload) {
-    return canvasTextEditor.openTextPolishModal(payload);
-  }
-
-  function runTextNodeGptPolish(node, nodeState, triggerButton) {
-    return canvasGeneration.runTextNodeGptPolish(...arguments);
   }
 
   function composePromptWithTextStyles(prompt, styleIds = []) {
@@ -4029,7 +4024,6 @@
         clearSelectedEdge();
         document.querySelectorAll('.desk-rail__item[data-tool]').forEach(item => item.classList.toggle('is-active', item === button));
         const tool = button.dataset.tool;
-        canvasViewport.syncMarqueeCursor(null);
         if (tool === 'select') {
           setNodePaletteOpen(false);
           selectNode('');
@@ -4100,7 +4094,7 @@
       clearSelectedEdge();
       setNodePaletteOpen(false);
       hideContextMenu();
-      if (!event.target.closest('.desk-node--text, #deskPromptDrawer')) {
+      if (!event.target.closest('.desk-node--text, #deskPromptDrawer, #deskTextPolishModal, #deskThemeToggle')) {
         const selectedIds = getSelectedNodeIds();
         const pointerNodeId = getCanvasNodeIdForElement(event.target);
         const pointerInsideSelection = pointerNodeId && selectedIds.includes(pointerNodeId);
@@ -4235,18 +4229,6 @@
         return;
       }
 
-      const stylePresetButton = event.target.closest('[data-text-style-preset]');
-      if (stylePresetButton) {
-        const node = stylePresetButton.closest('.desk-node--text[data-node-id]');
-        const nodeState = node ? DesktopState.state.canvas.nodes[node.dataset.nodeId] : null;
-        if (!node || !nodeState) return;
-        event.preventDefault();
-        event.stopPropagation();
-        selectNode(node.dataset.nodeId);
-        selectTextNodePreset(node, nodeState, stylePresetButton.dataset.textStylePreset || '');
-        return;
-      }
-
       const styleClearButton = event.target.closest('[data-text-style-clear]');
       if (styleClearButton) {
         const node = styleClearButton.closest('.desk-node--text[data-node-id]');
@@ -4267,45 +4249,13 @@
         event.preventDefault();
         event.stopPropagation();
         selectNode(node.dataset.nodeId);
-        if (textAction.dataset.textAction === 'preset') {
-          const nextOpen = !node.classList.contains('is-style-menu-open');
-          closeAllTextStyleMenus(node);
-          setTextStyleMenuOpen(node, nextOpen);
-          return;
-        }
-        if (textAction.dataset.textAction === 'negative') {
-          const negative = nodeState.promptRole !== 'negative';
-          canvasTextEditor.setTextNodePromptRole(node, nodeState, negative);
-          setTextStyleMenuOpen(node, false);
-          updateLinkPath();
-          (DesktopState.state.canvas.edges || [])
-            .filter(edge => edge.from === nodeState.id && DesktopState.state.canvas.nodes[edge.to]?.type === 'comfy')
-            .forEach(edge => refreshComfyNode(edge.to));
-          notifyDomainGraphChanged();
-          DesktopState.saveSettings();
-          DesktopResults.showTransientMessage(negative
-            ? '已设为负面提示词：Comfy 写入 [负面] 节点，Qwen 标准预设（CFG > 1）与 MOSS 走负向分支，GPT / Google 作为负面约束附加，其他本地模型会忽略。'
-            : '已恢复为正向提示词。');
-          return;
-        }
         if (textAction.dataset.textAction === 'clear') {
           setTextNodeValue(node, nodeState, '');
           clearTextNodeStyle(node, nodeState);
-          setTextStyleMenuOpen(node, false);
           DesktopResults.showTransientMessage('文本节点已清空。');
-          return;
-        }
-        setTextStyleMenuOpen(node, false);
-        if (textAction.dataset.textAction === 'gpt-polish') {
-          runTextNodeGptPolish(node, nodeState, textAction).catch(error => DesktopResults.showError(error));
-          return;
-        }
-        if (textAction.dataset.textAction === 'safe-rewrite') {
-          if (window.DesktopPromptDrawer?.generateSafeRewriteForTextNode) {
-            window.DesktopPromptDrawer.generateSafeRewriteForTextNode(node.dataset.nodeId);
-          } else {
-            DesktopResults.showTransientMessage('提示词助手尚未加载，无法生成安全审核版。', 'warning');
-          }
+        } else {
+          canvasTextEditor.runTextNodeRewrite(node, nodeState, textAction)
+            .catch(error => DesktopResults.showTransientMessage(error.message || '改写失败，请重试。', 'warning'));
         }
         return;
       }
@@ -4416,7 +4366,6 @@
       const providerButton = event.target.closest('.desk-segment button[data-provider]');
       const node = event.target.closest('.desk-node[data-node-id]');
       if (node) selectNode(node.dataset.nodeId);
-      if (!event.target.closest('.desk-node--text')) closeAllTextStyleMenus();
       const promptModeButton = event.target.closest('.desk-prompt-mode button[data-prompt-mode]');
       if (promptModeButton) {
         const modeWrap = promptModeButton.closest('.desk-prompt-mode');
@@ -4520,7 +4469,6 @@
       const nodeState = node ? DesktopState.state.canvas.nodes[node.dataset.nodeId] : null;
       if (!nodeState) return;
       syncPromptDocumentFromEditor(input, nodeState);
-      setTextStyleMenuOpen(node, false);
       updateTextImageMention(input);
     });
 
@@ -4728,6 +4676,14 @@
       if (Date.now() < suppressCanvasContextMenuUntil || (activeInteraction?.type === 'pan' && activeInteraction.pointerButton === 'right')) {
         event.preventDefault();
         event.stopPropagation();
+        return;
+      }
+      const textNode = event.target.closest('.desk-node--text[data-node-id]');
+      if (textNode) {
+        event.preventDefault();
+        event.stopPropagation();
+        setNodePaletteOpen(false);
+        openTextNodeContextMenu(event, textNode.dataset.nodeId);
         return;
       }
       if (event.target.closest(CANVAS_INTERACTION_BLOCK_SELECTOR)) return;
@@ -5099,6 +5055,10 @@
 
   function init() {
     collectElements();
+    const priorCanvas = DesktopState.state.canvas;
+    const migratedCanvas = canvasWorkflow.migrateRetiredPromptPENodes(priorCanvas);
+    const migratedPromptPE = migratedCanvas !== priorCanvas;
+    if (migratedPromptPE) DesktopState.state.canvas = migratedCanvas;
     if (canvasPose.purgeLegacy()) DesktopState.saveSettings({ criticalCanvas: true });
     const retiredVideoNodes = canvasWorkflow.purgeRetiredVideoNodes();
     if (retiredVideoNodes) {
@@ -5140,7 +5100,10 @@
         loadComfyWorkflowCatalog().catch(() => {});
       }
     });
-    if (groupsChanged || promptDocumentsChanged || comfyMigrated) DesktopState.saveSettings();
+    if (migratedPromptPE) {
+      DesktopState.saveSettings({ criticalCanvas: true });
+      DesktopResults.showTransientMessage('旧 PE 节点已退役，保存的改写已转成文本。');
+    } else if (groupsChanged || promptDocumentsChanged || comfyMigrated) DesktopState.saveSettings();
   }
 
   // Domain controllers are assembled after shared state, before the public compatibility API.
@@ -5263,7 +5226,7 @@
     getNegativeTextNodes:getConnectedNegativeTextNodes,
     layoutFactory:window.DesktopMossLayout.create, gridFactory:window.DesktopMossGrid.create,
     layoutModes:[...window.DesktopMossLayout.MODES,...window.DesktopMossGrid.MODES],
-    openModelTools:()=>window.DesktopSettings.openTab('model-tools'),
+    openModelTools:(subTab='moss')=>window.DesktopSettings.openTab('model-tools',subTab),
   });
   const canvasVideoControl = window.DesktopCanvasVideoControl.create({
     model: window.DesktopVideoControlModel, api: window.DesktopVideoControlAPI,
@@ -5487,6 +5450,7 @@
     ensureGraphDom,
     ensureTextNodePromptDocument,
     escapeHtml,
+    expandPrompt: payload => window.DesktopApi.rewritePromptPE(payload),
     getConnectedImageReferences,
     getImageGroupItem,
     getNodeElement,
@@ -5504,6 +5468,7 @@
     normalizeImageReferenceSegment,
     normalizePromptBlockSegment,
     normalizePromptDocument,
+    polishPrompt: payload => window.DesktopApi.polishPromptText(payload),
     promptDocumentFingerprint,
     promptDocumentHasEditorContent,
     selectNode,
@@ -5817,7 +5782,6 @@
     selectNode,
     setPromptTextForInputNode,
     setSelectedNodes,
-    setTextStyleMenuOpen,
     syncOutputControlsToNodes,
     textNodeHtml,
     triggerImageNodePopIn,
@@ -6013,10 +5977,8 @@
   const canvasGeneration = window.DesktopCanvasGeneration.create({
     activeImageEditRef: { get current() { return activeImageEdit; }, set current(value) { activeImageEdit = value; } },
     buildImageEditPrompt,
-    clonePromptDocument,
     closeImageEditor,
     connectNodes,
-    ensureTextNodePromptDocument,
     expectedImageOutputCount,
     exportImageEditAnnotatedDataUrl,
     findInputForResult,
@@ -6030,10 +5992,7 @@
     imageUrlToDataUrl,
     insertImageNode,
     isEmptyAutoOutputImageNode,
-    materializePromptDocument,
-    openTextPolishModal,
     outputImageReference,
-    promptDocumentFingerprint,
     ratioFromAspect,
     ratioToMeta,
     readUpscaleNodeConfigForReference,
@@ -6050,6 +6009,8 @@
     addLoRAToNode: canvasLoRA.addToNode,
     listLoRATextTargets: canvasLoRA.listTextTargets,
     insertLoRATriggers: canvasLoRA.insertTriggers,
+    copyTextToClipboardLocal,
+    setPolishCopyButtonState,
     init,
     readFormToState,
     syncFormFromState,

@@ -362,6 +362,19 @@ class ServiceTests(unittest.TestCase):
                 self.assertEqual(json.loads(path.with_suffix('.qwen21.json').read_text())['generation_timing'],task['params']['generation_timing'])
                 self.assertEqual(path.read_bytes(),image_fixture('blue'))
 
+            pe = {"node_id": "pe", "profile": "qwen_t2i", "source_text": "藍色紙燈",
+                  "rewritten_prompt": "A blue paper lantern.", "provider": "gpt_oauth", "model": "fixture", "edited": True}
+            task_id = service.submit({"prompt": "A blue paper lantern.", "prompt_pe": [pe]})["task_id"]
+            deadline = time.monotonic() + 4
+            while tasks[task_id]["status"] not in {"succeeded_no_telegram", "failed"} and time.monotonic() < deadline:
+                time.sleep(.02)
+            task = tasks[task_id]
+            self.assertEqual(task["status"], "succeeded_no_telegram")
+            self.assertEqual(task["params"]["prompt_pe"], [pe])
+            self.assertNotIn("prompt_pe", captured[-1])
+            path = root / "archive/2026-01-01" / task["result_files"][0]
+            self.assertEqual(json.loads(path.with_suffix(".qwen21.json").read_text())["parameters"]["prompt_pe"], [pe])
+
     def test_queued_vae_choice_is_snapshotted_and_private_path_stays_in_worker_spec(self):
         with tempfile.TemporaryDirectory() as temp:
             root=Path(temp);tasks={};queued=[]
@@ -393,6 +406,22 @@ class ServiceTests(unittest.TestCase):
         handler.read_json_body=lambda **kwargs:{'prompt':'teapot'}
         router.dispatch(handler,'POST','/api/qwen21/generate');self.assertEqual(handler.send_json.call_args.args[1],202)
         self.assertFalse(router.dispatch(handler,'GET','/api/krea2/status'))
+
+    def test_kohya_flat_lora_keys_map_to_canonical_qwen_targets(self):
+        self.assertEqual(
+            canonical_lora_key('lora_unet_transformer_blocks_0_attn_to_out_0.lora_down.weight'),
+            ('transformer_blocks.0.attn.to_out.0', 'A'),
+        )
+        self.assertEqual(
+            canonical_lora_key('lora_unet_transformer_blocks_31_img_mlp_gate_up.lora_up.weight'),
+            ('transformer_blocks.31.img_mlp.gate_up', 'B'),
+        )
+        self.assertEqual(
+            canonical_lora_key('lora_unet_transformer_blocks_5_img_mlp_out.alpha'),
+            ('transformer_blocks.5.img_mlp.out', 'alpha'),
+        )
+        with self.assertRaises(ValueError):
+            canonical_lora_key('lora_unet_transformer_blocks_32_attn_to_q.lora_down.weight')
 
 
 if __name__=='__main__':unittest.main()

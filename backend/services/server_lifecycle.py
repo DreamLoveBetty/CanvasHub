@@ -20,6 +20,7 @@ def run_server(
     _validate_public_mode_password,
     cancel_orphan_prompt_source_runs,
     fail_stale_processing_tasks,
+    fail_orphaned_queued_generation_tasks,
     get_agent_runtime,
     init_agent_store,
     init_asset_store,
@@ -41,6 +42,9 @@ def run_server(
     stale_count = fail_stale_processing_tasks(max_age_seconds=0)
     if stale_count:
         print(f"⚠️ 已标记 {stale_count} 个重启后遗留的生成任务为失败")
+    queued_count = fail_orphaned_queued_generation_tasks()
+    if queued_count:
+        print(f"⚠️ 已标记 {queued_count} 个重启后遗留的排队任务为失败，可手动重跑")
     _init_generation_semaphore()
     recover_cyimg_tasks()
     recover_krea2_tasks()

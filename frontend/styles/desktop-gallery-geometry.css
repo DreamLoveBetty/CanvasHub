@@ -983,7 +983,7 @@ body.desk-app[data-lang="en"] .desk-gallery-tabs button[data-gallery-view="sets"
 
 :where(body.desk-app[data-theme]) .desk-gallery-card__description {
   display: -webkit-box;
-  font-size: var(--desk-font-size-micro);
+  font-size: 8px;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 1;
 }
@@ -1718,6 +1718,13 @@ body.desk-app[data-lang="en"] .desk-gallery-tabs button[data-gallery-view="sets"
   gap: 8px;
 }
 
+:where(body.desk-app[data-theme]) .desk-gallery-preview__section-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+}
+
 :where(body.desk-app[data-theme]) .desk-gallery-preview__mini-btn {
   flex: 0 0 auto;
   min-width: 34px;
@@ -1747,6 +1754,13 @@ body.desk-app[data-lang="en"] .desk-gallery-tabs button[data-gallery-view="sets"
   gap: 8px;
   align-items: baseline;
   min-height: 18px;
+}
+
+:where(body.desk-app[data-theme]) .desk-gallery-preview__meta-lora {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: pre-wrap;
 }
 
 :where(body.desk-app[data-theme]) .desk-gallery-preview__lineage {

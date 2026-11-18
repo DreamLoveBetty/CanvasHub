@@ -48,23 +48,27 @@
       <div class="desk-progress-float__panel"><div class="desk-progress-float__bar"><span data-progress-bar></span>
       <strong class="desk-progress-float__percent"><span data-progress-percent-value>提交中</span><span class="desk-progress-float__timer" data-progress-timer>00:00</span></strong></div>
       <span class="desk-progress-float__stage" data-progress-stage></span></div></div>`;
-    const input = (key, label, value, attrs = '') => `<label>${label}<input data-music-field="${key}" value="${e(value)}" ${attrs}></label>`;
-    const select = (key, label, value, items) => `<label>${label}<select data-music-field="${key}">${items.map(([v, t]) => `<option value="${e(v)}" ${String(v) === String(value) ? 'selected' : ''}>${e(t)}</option>`).join('')}</select></label>`;
+    const input = (key, label, value, attrs = '', cls = '') => {
+      const fieldClass = /\btype="number"/.test(attrs) ? 'desk-number' : cls;
+      return `<label>${label}<input${fieldClass ? ` class="${fieldClass}"` : ''} data-music-field="${key}" value="${e(value)}" ${attrs}></label>`;
+    };
+    const select = (key, label, value, items, cls = '') => `<label>${label}<select${cls ? ` class="${cls}"` : ''} data-music-field="${key}">${items.map(([v, t]) => `<option value="${e(v)}" ${String(v) === String(value) ? 'selected' : ''}>${e(t)}</option>`).join('')}</select></label>`;
     const button = (action, label, primary = false) => `<button type="button" class="desk-key${primary ? ' desk-music__primary' : ''}" data-music-action="${action}">${label}</button>`;
     const artifacts = `<div class="desk-music__artifacts" data-music-artifacts></div>`;
     const errorNotice = `<p class="desk-music__error" data-music-error role="alert" hidden></p>`;
     const tabs = (items, active) => `<nav class="desk-music__tabs desk-key-bank" aria-label="节点视图">${items.map(([key, label]) => `<button type="button" data-music-tab="${key}" aria-pressed="${key === active}">${label}</button>`).join('')}</nav>`;
     function generation(n) {
+      const publicSelect = (key, label, value, items) => select(key, label, value, items, 'desk-select');
       return `<div class="desk-music__generation-content">
-        <div class="desk-music__grid desk-music__generation-params">${select('operation', '任务', n.operation, [['generate', '生成歌曲'], ['plan', '只生成乐谱']])}${select('cot', '生成模式', n.cot, [['full', 'full · 旋律 + 和弦'], ['melody', 'melody · 旋律'], ['off', 'off · 直接生成']])}
-        ${select('precision', 'AR 精度', n.precision, [['8bit', '8bit · 推荐'], ['bf16', 'bf16']])}${select('odeSteps', 'ODE 步数', n.odeSteps, [[8, '极速 · 8 步'], [32, '标准 · 32 步'], ...(![8, 32].includes(n.odeSteps) ? [[n.odeSteps, `${n.odeSteps} 步`]] : [])])}
-        ${input('cfgScale', 'CFG（留空用默认）', n.cfgScale, 'type="number" min="0" max="20" step="0.01" placeholder="模型默认" title="full/melody: 1.0；off: 1.01"')}${input('seed', '种子（−1 随机）', n.seed, 'type="number" min="-1" max="9007199254740991" step="1"')}${input('odeSteps', '自定义 ODE 步数', n.odeSteps, 'type="number" min="1" max="128" step="1"')}${input('songId', '任务标识', n.songId || 'song', 'maxlength="180"')}</div>
+        <div class="desk-music__grid desk-music__generation-params">${publicSelect('operation', '任务', n.operation, [['generate', '生成歌曲'], ['plan', '只生成乐谱']])}${publicSelect('cot', '生成模式', n.cot, [['full', 'full · 旋律 + 和弦'], ['melody', 'melody · 旋律'], ['off', 'off · 直接生成']])}
+        ${publicSelect('precision', 'AR 精度', n.precision, [['8bit', '8bit · 推荐'], ['bf16', 'bf16']])}${publicSelect('odeSteps', 'ODE 步数', n.odeSteps, [[8, '极速 · 8 步'], [32, '标准 · 32 步'], ...(![8, 32].includes(n.odeSteps) ? [[n.odeSteps, `${n.odeSteps} 步`]] : [])])}
+        ${input('cfgScale', 'CFG（留空用默认）', n.cfgScale, 'type="number" min="0" max="20" step="0.01" placeholder="模型默认" title="full/melody: 1.0；off: 1.01"')}${input('seed', '种子（−1 随机）', n.seed, 'type="number" min="-1" max="9007199254740991" step="1"')}${input('odeSteps', '自定义 ODE 步数', n.odeSteps, 'type="number" min="1" max="128" step="1"')}${input('songId', '任务标识', n.songId || 'song', 'maxlength="180"', 'desk-number')}</div>
         <section class="desk-music__generation-inputs"><h4>输入参考</h4>
-        <div class="desk-music__generation-reference-row"><div class="desk-music__connections" data-music-inputs>接入风格、歌词两个文本节点；ABC 可选</div><div class="desk-music__generation-format">${select('audioFormat', '生成格式', n.audioFormat, [['flac', 'FLAC'], ['wav', 'WAV']])}</div></div>
+        <div class="desk-music__generation-reference-row"><div class="desk-music__connections" data-music-inputs>接入风格、歌词两个文本节点；ABC 可选</div><div class="desk-music__generation-format">${publicSelect('audioFormat', '生成格式', n.audioFormat, [['flac', 'FLAC'], ['wav', 'WAV']])}</div></div>
         <p class="desk-music__muted">音频参考：音频节点 → 音频转谱 → 本节点（ABC）</p></section>
         </div>
-        <div class="desk-music__generation-footer">
-        <div class="desk-music__actions"><button type="button" class="desk-music__primary desk-music__generate desk-generation-action" data-music-action="run" aria-label="开始生成" title="开始生成音乐或乐谱">${stateIcon.html(runIcons)}<span class="desk-generation-action__label" data-music-run-label>开始生成</span></button></div></div>`;
+        <footer class="desk-input-footer desk-music__generation-footer">
+        <div class="desk-action-row"><button type="button" class="desk-music__generate desk-generation-action" data-music-action="run" aria-label="开始生成" title="开始生成音乐或乐谱">${stateIcon.html(runIcons)}<span class="desk-generation-action__label" data-music-run-label>开始生成</span></button></div></footer>`;
     }
     function transcribe(n) {
       return `<div class="desk-music__connections" data-music-inputs>连接一个音频素材节点</div>
@@ -102,7 +106,7 @@
     function nodeHtml(n) {
       model.normalizeState(n); const def = model.definitions[n.type], id = e(n.id);
       const body = ({ music_generate: generation, music_transcribe: transcribe, music_abc: editor, music_score: score, music_compare: compare })[n.type](n);
-      return `<section class="desk-node desk-node--music" data-node-id="${id}" data-music-kind="${e(n.type)}" data-i18n-skip>
+      return `<section class="desk-node desk-node--music${n.type === 'music_generate' ? ' desk-node--music-generate desk-glass' : ''}" data-node-id="${id}" data-music-kind="${e(n.type)}" data-i18n-skip>
         <header class="desk-music__header" data-node-drag-handle><span class="desk-music__icon">${model.ICON}</span><div><strong>${def.title}</strong><small>${def.subtitle}</small></div><span class="desk-status-pill" data-music-status>就绪</span><button type="button" class="desk-node-delete" data-node-delete aria-label="删除${def.title}" title="删除${def.title}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16"></path><path d="M9 7V4h6v3"></path><path d="m7 7 1 13h8l1-13"></path><path d="M10 11v5M14 11v5"></path></svg></button></header>
         <button type="button" class="desk-port desk-port--in" data-port="in" data-node-id="${id}" aria-label="${def.title}输入端点"></button>
         ${n.type === 'music_compare' ? '' : `<button type="button" class="desk-port desk-port--out" data-port="out" data-node-id="${id}" aria-label="${def.title}输出端点"></button>`}

@@ -991,8 +991,11 @@
     });
   }
 
-  function getPromptConfig(provider = '') {
-    const suffix = provider ? `?provider=${encodeURIComponent(provider)}` : '';
+  function getPromptConfig(provider = '', options = {}) {
+    const query = new URLSearchParams();
+    if (provider) query.set('provider', provider);
+    if (options.refresh) query.set('refresh', '1');
+    const suffix = query.toString() ? `?${query.toString()}` : '';
     return requireApi().json(`/api/prompt/config${suffix}`);
   }
 
@@ -1014,6 +1017,16 @@
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
+    });
+  }
+
+  // Model-specific rules are independent of the generic polish skill.
+  function rewritePromptPE({ text, profile } = {}, { signal } = {}) {
+    return requireApi().json('/api/prompt/pe', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text, profile }),
+      signal
     });
   }
 
@@ -1575,6 +1588,7 @@
     getPromptModels,
     savePromptConfig,
     polishPromptText,
+    rewritePromptPE,
     promptChat,
     promptAssistantChat,
     promptAssistantChatStream,

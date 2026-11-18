@@ -173,13 +173,14 @@ body.desk-history-collapsed .desk-prompt-library { right: 18px; }
   overflow: auto;
 }
 .desk-prompt-library__nav-group { display: grid; gap: 3px; margin-bottom: 13px; }
-.desk-prompt-library__nav-label { padding: 0 8px 4px; color: var(--desk-muted); font-size: var(--desk-font-size-micro); font-weight: var(--desk-font-weight-semibold); letter-spacing: .08em; text-transform: uppercase; }
+.desk-prompt-library__nav-label { padding: 0 8px 4px; color: var(--desk-muted); font-size: var(--desk-font-size-body); font-weight: var(--desk-font-weight-semibold); letter-spacing: .08em; text-transform: uppercase; }
 .desk-prompt-library__nav button {
   display: flex;
   align-items: center;
   width: 100%;
   min-height: 29px;
   padding: 5px 8px;
+  padding-inline-start: calc(8px + var(--desk-space-4));
   gap: 7px;
   color: var(--desk-muted);
   font-size: var(--desk-font-size-micro);

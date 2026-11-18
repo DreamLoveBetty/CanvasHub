@@ -99,3 +99,26 @@ test('desktop.html: stepper stylesheet after the field materials, script loaded,
   for (const asset of ['scripts/desktop-topaz-video-workbench.js', 'styles/desktop-controls.css', 'styles/desktop-geometry.css', 'styles/desktop-video-control.css', 'scripts/desktop-canvas-qwen21.js', 'scripts/desktop-canvas-krea2.js'])
     assert.ok(hasCacheKey(html, asset), asset);
 });
+
+test('Yue music number fields reuse desk-number and do not restyle stepper buttons as separate squares', () => {
+  const view = read('frontend/scripts/desktop-music-view.js');
+  const css = read('frontend/styles/desktop-music.css');
+  const stepper = read('frontend/styles/desktop-number-stepper.css');
+  const html = read('frontend/desktop.html');
+  // type=number fields always get the public desk-number class. The generate
+  // task-id text field also uses that public field class so it shares paint and
+  // 32px/4px geometry; the stepper still wraps only input[type=number].
+  assert.match(view, /\\btype="number"\/\.test\(attrs\) \? 'desk-number'/);
+  assert.match(view, /input\('cfgScale', 'CFG（留空用默认）', n\.cfgScale, 'type="number" min="0" max="20" step="0.01"/);
+  assert.match(view, /input\('seed', '种子（−1 随机）', n\.seed, 'type="number" min="-1" max="9007199254740991" step="1"'\)/);
+  assert.match(view, /input\('odeSteps', '自定义 ODE 步数', n\.odeSteps, 'type="number" min="1" max="128" step="1"'\)/);
+  assert.match(view, /input\('maxSeconds', '最多处理（秒）', n\.maxSeconds, 'type="number" min="1" max="1800"'\)/);
+  assert.match(view, /input\('songId', '任务标识', n\.songId \|\| 'song', 'maxlength="180"', 'desk-number'\)/);
+  // The music body button skin must not win over the in-field stepper buttons.
+  assert.match(css, /button:not\(\.desk-select-option\):not\(\.desk-stepper__button\)/);
+  assert.doesNotMatch(css, /generation-params :is\(input,select,\.desk-select-trigger,\.desk-stepper\)/);
+  assert.match(stepper, /\.desk-stepper__button \{[\s\S]*?border: 0;/);
+  assert.match(stepper, /background: transparent;/);
+  assert.ok(hasCacheKey(html, 'styles/desktop-music.css'));
+  assert.ok(hasCacheKey(html, 'scripts/desktop-music-view.js'));
+});

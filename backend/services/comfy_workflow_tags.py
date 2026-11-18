@@ -215,6 +215,41 @@ def media_loader_ids(tags):
     return [*tags['images'], *tags['videos'], *tags['audios']]
 
 
+_OPTIONAL_MEDIA_INPUT_PREFIXES = ('images.image_', 'ref_images.', 'ref_videos.', 'ref_audios.')
+
+
+def _iter_input_links(inputs):
+    for name, value in (inputs or {}).items():
+        if isinstance(value, list) and len(value) == 2 and isinstance(value[0], (str, int)) and isinstance(value[1], int):
+            yield name, str(value[0])
+
+
+def detach_empty_optional_media(workflow, empty_media_ids):
+    """Detach empty tagged media loaders from optional multi-reference inputs (e.g. MiniMax H3
+    images.image_N / ref_images.* / ref_videos.* / ref_audios.*) even when a workflow has no
+    explicit [分支]/[开关]/[选项] tags. Loaders that still feed required inputs keep their defaults."""
+    empty = {str(node_id) for node_id in (empty_media_ids or ()) if str(node_id)}
+    if not empty or not isinstance(workflow, dict):
+        return workflow
+    detached_sources = set()
+    still_consumed = set()
+    for node in workflow.values():
+        inputs = node.get('inputs') if isinstance(node, dict) and isinstance(node.get('inputs'), dict) else None
+        if not inputs:
+            continue
+        for name, source in list(_iter_input_links(inputs)):
+            if source not in empty:
+                continue
+            if str(name).startswith(_OPTIONAL_MEDIA_INPUT_PREFIXES):
+                del inputs[name]
+                detached_sources.add(source)
+            else:
+                still_consumed.add(source)
+    for node_id in detached_sources - still_consumed:
+        workflow.pop(node_id, None)
+    return workflow
+
+
 # Seed inputs a ComfyUI editor re-rolls after every queue ("control after generate"); an API export
 # freezes them, so tagged runs draw a fresh seed unless the node is a [参数] with a value other than -1.
 _SEED_FIELDS = {'randomnoise': 'noise_seed', 'ksampler': 'seed', 'ksampleradvanced': 'noise_seed', 'samplercustom': 'noise_seed'}

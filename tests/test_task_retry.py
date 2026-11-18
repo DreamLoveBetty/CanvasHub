@@ -378,16 +378,24 @@ class TaskStartupRecoveryTest(unittest.TestCase):
                 database.create_task("queued", "p", {}, status="queued", task_type="gpt")
                 database.create_task("done", "p", {}, status="succeeded", task_type="gpt")
 
-                changed = database.fail_stale_processing_tasks(max_age_seconds=0)
+                in_flight = database.fail_stale_processing_tasks(max_age_seconds=0)
+                # fail_stale still only touches in-flight statuses; leftover
+                # queued/pending online tasks are failed by the startup helper.
+                after_stale = {task["task_id"]: task for task in database.get_all_tasks(limit=10)}
+                queued = database.fail_orphaned_queued_generation_tasks()
                 tasks = {task["task_id"]: task for task in database.get_all_tasks(limit=10)}
 
-        self.assertEqual(changed, 2)
+        self.assertEqual(in_flight, 2)
+        self.assertEqual(after_stale["queued"]["status"], "queued")
+        self.assertEqual(queued, 1)
         self.assertEqual(tasks["processing"]["status"], "failed")
         self.assertEqual(tasks["fallback"]["status"], "failed")
         self.assertEqual(tasks["processing"]["transport_error_type"], "OrphanedTask")
         self.assertEqual(tasks["processing"]["error"], "生成进程已中断，请重新提交任务")
         self.assertGreaterEqual(tasks["processing"]["finished_at"], now)
-        self.assertEqual(tasks["queued"]["status"], "queued")
+        self.assertEqual(tasks["queued"]["status"], "failed")
+        self.assertEqual(tasks["queued"]["transport_error_type"], "OrphanedQueuedTask")
+        self.assertEqual(tasks["queued"]["error_code"], "task.orphaned_queue")
         self.assertEqual(tasks["done"]["status"], "succeeded")
 
 

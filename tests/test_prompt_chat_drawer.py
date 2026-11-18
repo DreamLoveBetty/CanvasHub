@@ -298,7 +298,7 @@ class PromptChatBackendTest(unittest.TestCase):
             preset = prompt_skill_client.extract_style_preset(
                 "雨夜城市角色海报，冷调电影感",
                 "提取风格",
-                {"candidate": "克制冷调电影感，玻璃反光，避免广告感"},
+                {"provider": "gpt_oauth", "candidate": "克制冷调电影感，玻璃反光，避免广告感"},
             )
 
         pool_chat.assert_called_once()
@@ -443,7 +443,7 @@ class PromptChatBackendTest(unittest.TestCase):
              patch.object(prompt_skill_client, "chat_chatgpt_pool", return_value=pool_payload) as pool_chat:
             result = prompt_skill_client.safe_rewrite_prompt(
                 "young women in a seductive pose with transparent dress and cleavage",
-                {},
+                {"provider": "gpt_oauth"},
             )
 
         pool_chat.assert_called_once()
@@ -576,7 +576,7 @@ class PromptChatFrontendTest(unittest.TestCase):
         self.assertIn("registerTextStylePresets", canvas_js)
         self.assertIn("applyTextStylePresetToTarget", canvas_js)
         self.assertIn("请先选择文本节点", text_editor_js)
-        self.assertIn("event.target.closest('.desk-node--text, #deskPromptDrawer')", canvas_js)
+        self.assertRegex(canvas_js, r"event\.target\.closest\('\.desk-node--text, #deskPromptDrawer(?:, [^']+)?'\)")
         self.assertIn("boundTextNodeId: ''", drawer_js)
         self.assertIn("desktop:canvas-selection-change", canvas_js)
         self.assertIn("desktop:canvas-selection-change", drawer_js)
@@ -626,8 +626,8 @@ class PromptChatFrontendTest(unittest.TestCase):
         self.assertIn('id="deskPromptDrawerClear" aria-label="清空提示词助手" title="清空">清空</button>', html)
         self.assertNotIn("已绑定：", html)
         self.assertNotIn("已绑定：", drawer_js)
-        self.assertIn("安全审核版", text_editor_js)
-        self.assertIn('data-text-action="safe-rewrite"', text_editor_js)
+        self.assertNotIn('data-text-action="safe-rewrite"', text_editor_js)
+        self.assertIn("generateSafeRewriteForTextNode", drawer_js)
         self.assertNotIn("deskPromptSafeRewrite", html)
         self.assertNotIn("safety_review", drawer_js)
         self.assertNotIn("更电影感", drawer_js)

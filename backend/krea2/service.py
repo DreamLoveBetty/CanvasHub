@@ -25,7 +25,7 @@ from .lora_store import LoRAStore
 from .model_store import BaseModelStore
 from .runtime import Krea2Cancelled
 from .control_profile import render_control
-from .lokr import FORMAT as LOKR_FORMAT
+from .lokr import FORMAT as LOKR_FORMAT, STYLE_FORMAT as LOKR_STYLE_FORMAT
 
 
 class _CancelPort:
@@ -288,6 +288,7 @@ class Service:
 
     def submit(self, body):
         spec = normalize_job(body)
+        pe = spec.pop("prompt_pe", None)
         with self._model_lock:
             model = self.models.resolve(spec["base_model_id"])
             spec.update({"base_model_id": model["id"], "base_model_name": model["name"],
@@ -310,14 +311,17 @@ class Service:
                 path, meta = self.loras.resolve(item["asset_id"])
                 if meta.get("adapter_format") == LOKR_FORMAT:
                     raise ValueError("LoKr 控制适配器须通过区域控制输入使用，不能加入普通 LoRA 栈")
-                resolved_loras.append({"path": str(path), "scale": item["scale"]})
+                entry = {"path": str(path), "scale": item["scale"]}
+                if meta.get("adapter_format"):
+                    entry["adapter_format"] = meta["adapter_format"]
+                resolved_loras.append(entry)
                 public_loras.append({"asset_id": item["asset_id"], "name": meta.get("name", "LoRA"),
                                      "scale": item["scale"]})
             resolved_edit_adapter = None
             public_edit_adapter = None
             if spec["mode"] == "edit":
                 path, meta = self.loras.resolve(spec["edit_adapter_asset_id"])
-                if meta.get("adapter_format") == LOKR_FORMAT:
+                if meta.get("adapter_format") in {LOKR_FORMAT, LOKR_STYLE_FORMAT}:
                     raise ValueError("LoKr 控制适配器不能用作 Identity Edit 适配器")
                 resolved_edit_adapter = {
                     "path": str(path), "scale": spec["edit_adapter_scale"]}
@@ -360,6 +364,8 @@ class Service:
                                              "precision": model["precision"],
                                              "path": str(model["path"])}}
                     stored_params = {key: value for key, value in spec.items() if key != "prompt"}
+                    if pe:
+                        stored_params["prompt_pe"] = pe
                     model_display_name = str(model["name"])
                     if not model_display_name.lower().startswith("krea"):
                         model_display_name = f"Krea2 · {model_display_name}"

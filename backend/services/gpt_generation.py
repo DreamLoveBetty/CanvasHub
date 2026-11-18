@@ -236,48 +236,51 @@ def process_gpt_task(
         requested_count = max(1, int(image_count or 1))
         actual_count = len(result_files) or len(result.get('image_paths') or [result.get('image_path')])
         filename = result_files[0] if result_files else os.path.basename(result['image_path'])
-        if telegram_success or not telegram_enabled:
-            if not telegram_enabled:
-                progress_text = 'GPT 图片生成成功，已按节点开关跳过 Telegram'
-            elif actual_count < requested_count:
+        provider = 'third_party_image_api' if source == 'third_party_image_api' else ('chatgpt_pool' if source == 'chatgpt_pool' else 'codex')
+        route = result.get('gpt_provider_route') or source or task_route
+        extra = {'fallback_source': result.get('fallback_source'), 'render_contract_warnings': result.get('render_contract_warnings'), 'partial_errors': result.get('partial_errors')}
+        event_payload = {'provider': provider, 'route': route, 'image_count': actual_count, 'partial_errors': result.get('partial_errors')}
+        if telegram_success:
+            if actual_count < requested_count:
                 progress_text = f'GPT 图片生成完成（{actual_count}/{requested_count} 张）'
             elif result.get('render_contract_warnings'):
                 progress_text = 'GPT 图片生成成功（注意：实际尺寸/比例与请求不完全一致）'
             else:
                 progress_text = f'GPT 图片生成成功（共 {actual_count} 张）' if actual_count > 1 else 'GPT 图片生成成功'
             _finalize_generation_task(
-                task_id,
-                'succeeded',
-                run_id=run_id,
-                provider='third_party_image_api' if source == 'third_party_image_api' else ('chatgpt_pool' if source == 'chatgpt_pool' else 'codex'),
-                route=result.get('gpt_provider_route') or source or task_route,
-                task_type=task_kind,
-                result_file=filename,
-                progress_text=progress_text,
-                result_files=result_files,
-                image_count=actual_count,
-                extra={'fallback_source': result.get('fallback_source'), 'render_contract_warnings': result.get('render_contract_warnings'), 'partial_errors': result.get('partial_errors')},
+                task_id, 'succeeded', run_id=run_id, provider=provider, route=route, task_type=task_kind,
+                result_file=filename, progress_text=progress_text, result_files=result_files,
+                image_count=actual_count, extra=extra,
             )
-            _record_generation_event(task_id, 'run_succeeded', progress_text, stage='done', payload={'provider': 'third_party_image_api' if source == 'third_party_image_api' else ('chatgpt_pool' if source == 'chatgpt_pool' else 'codex'), 'route': result.get('gpt_provider_route') or source or task_route, 'image_count': actual_count, 'partial_errors': result.get('partial_errors')})
+            _record_generation_event(task_id, 'run_succeeded', progress_text, stage='done', payload=event_payload)
             send_status_notification(task_id, '✅ GPT 图片生成成功！', '🎉')
             print(f"✅ GPT 任务成功：{task_id} ({source})")
+        elif not telegram_enabled:
+            progress_text = 'GPT 图片生成成功，已按节点开关跳过 Telegram'
+            _finalize_generation_task(
+                task_id, 'succeeded_no_telegram', run_id=run_id, provider=provider, route=route, task_type=task_kind,
+                result_file=filename, progress_text=progress_text, result_files=result_files,
+                image_count=actual_count, extra=extra,
+            )
+            event_payload['telegram_enabled'] = False
+            _record_generation_event(task_id, 'run_succeeded', progress_text, stage='done', payload=event_payload)
+            print(f"⚠️ GPT 任务完成但未发送 Telegram: {task_id} ({source})")
         else:
             progress_text = 'GPT 图片已生成，但 Telegram 发送失败'
-            _finalize_generation_task(
-                task_id,
-                'succeeded_no_telegram',
-                run_id=run_id,
-                provider='third_party_image_api' if source == 'third_party_image_api' else ('chatgpt_pool' if source == 'chatgpt_pool' else 'codex'),
-                route=result.get('gpt_provider_route') or source or task_route,
-                task_type=task_kind,
-                result_file=filename,
-                progress_text=progress_text,
-                result_files=result_files,
-                image_count=actual_count,
-                extra={'fallback_source': result.get('fallback_source'), 'partial_errors': result.get('partial_errors')},
+            error_info = _translate_generation_failure(
+                task_id, progress_text, provider='telegram', route='telegram',
+                task_type=task_kind, stage='telegram_failed',
             )
-            _record_generation_event(task_id, 'run_succeeded', progress_text, stage='done', payload={'provider': 'third_party_image_api' if source == 'third_party_image_api' else ('chatgpt_pool' if source == 'chatgpt_pool' else 'codex'), 'route': result.get('gpt_provider_route') or source or task_route, 'image_count': actual_count, 'telegram_enabled': telegram_enabled, 'partial_errors': result.get('partial_errors')})
-            print(f"⚠️ GPT 任务完成但未发送 Telegram: {task_id} ({source})")
+            _finalize_generation_task(
+                task_id, 'telegram_failed', run_id=run_id, stage='telegram_failed',
+                provider=provider, route=route, task_type=task_kind,
+                result_file=filename, progress_text=error_info.get('display_error') or progress_text,
+                result_files=result_files, image_count=actual_count, extra=extra,
+                error_info=error_info, error_type='TelegramSendFailed',
+            )
+            event_payload['telegram_enabled'] = True
+            _record_generation_event(task_id, 'telegram_send_failed', progress_text, stage='telegram_failed', severity='error', payload=event_payload)
+            print(f"⚠️ GPT 任务已保存但 Telegram 发送失败: {task_id} ({source})")
 
     except Exception as e:
         raw_error_msg = str(e)
@@ -595,42 +598,40 @@ def process_gpt_edit_task(
         })
         image_count = len(result_files) or len(result.get('image_paths') or [result.get('image_path')])
         filename = result_files[0] if result_files else os.path.basename(result['image_path'])
-        if telegram_success or not telegram_enabled:
-            if not telegram_enabled:
-                progress_text = 'GPT 图片编辑成功，已按节点开关跳过 Telegram'
-            else:
-                progress_text = f'GPT 图片编辑成功（共 {image_count} 张）' if image_count > 1 else 'GPT 图片编辑成功'
+        if telegram_success:
+            progress_text = f'GPT 图片编辑成功（共 {image_count} 张）' if image_count > 1 else 'GPT 图片编辑成功'
             _finalize_generation_task(
-                task_id,
-                'succeeded',
-                run_id=run_id,
-                provider=task_provider,
-                route=task_route,
-                task_type=task_kind,
-                result_file=filename,
-                progress_text=progress_text,
-                result_files=result_files,
-                image_count=image_count,
+                task_id, 'succeeded', run_id=run_id, provider=task_provider, route=task_route,
+                task_type=task_kind, result_file=filename, progress_text=progress_text,
+                result_files=result_files, image_count=image_count,
             )
-            _record_generation_event(task_id, 'run_succeeded', progress_text, stage='done', payload={'provider': task_provider, 'route': task_route, 'image_count': image_count, 'telegram_enabled': telegram_enabled})
+            _record_generation_event(task_id, 'run_succeeded', progress_text, stage='done', payload={'provider': task_provider, 'route': task_route, 'image_count': image_count, 'telegram_enabled': True})
             send_status_notification(task_id, '✅ GPT 图片编辑成功！', '🎉')
             print(f"✅ GPT 编辑任务成功：{task_id}")
+        elif not telegram_enabled:
+            progress_text = 'GPT 图片编辑成功，已按节点开关跳过 Telegram'
+            _finalize_generation_task(
+                task_id, 'succeeded_no_telegram', run_id=run_id, provider=task_provider, route=task_route,
+                task_type=task_kind, result_file=filename, progress_text=progress_text,
+                result_files=result_files, image_count=image_count,
+            )
+            _record_generation_event(task_id, 'run_succeeded', progress_text, stage='done', payload={'provider': task_provider, 'route': task_route, 'image_count': image_count, 'telegram_enabled': False})
+            print(f"⚠️ GPT 编辑任务完成但未发送 Telegram: {task_id}")
         else:
             progress_text = 'GPT 图片编辑已完成，但 Telegram 发送失败'
-            _finalize_generation_task(
-                task_id,
-                'succeeded_no_telegram',
-                run_id=run_id,
-                provider=task_provider,
-                route=task_route,
-                task_type=task_kind,
-                result_file=filename,
-                progress_text=progress_text,
-                result_files=result_files,
-                image_count=image_count,
+            error_info = _translate_generation_failure(
+                task_id, progress_text, provider='telegram', route='telegram',
+                task_type=task_kind, stage='telegram_failed',
             )
-            _record_generation_event(task_id, 'run_succeeded', progress_text, stage='done', payload={'provider': task_provider, 'route': task_route, 'image_count': image_count})
-            print(f"⚠️ GPT 编辑任务完成但未发送 Telegram: {task_id}")
+            _finalize_generation_task(
+                task_id, 'telegram_failed', run_id=run_id, stage='telegram_failed',
+                provider=task_provider, route=task_route, task_type=task_kind,
+                result_file=filename, progress_text=error_info.get('display_error') or progress_text,
+                result_files=result_files, image_count=image_count,
+                error_info=error_info, error_type='TelegramSendFailed',
+            )
+            _record_generation_event(task_id, 'telegram_send_failed', progress_text, stage='telegram_failed', severity='error', payload={'provider': task_provider, 'route': task_route, 'image_count': image_count, 'telegram_enabled': True})
+            print(f"⚠️ GPT 编辑任务已保存但 Telegram 发送失败: {task_id}")
 
     except Exception as e:
         raw_error_msg = str(e)

@@ -1,0 +1,61 @@
+{
+  "1": {
+    "inputs": {
+      "file": "efc1b60abf16757da9dcf9f2563fdb07.mp4",
+      "video-preview": ""
+    },
+    "class_type": "LoadVideo",
+    "_meta": {
+      "title": "[参考视频1]"
+    }
+  },
+  "3": {
+    "inputs": {
+      "transformer": "transformer_bf16.safetensors"
+    },
+    "class_type": "ReCaVSRLoader",
+    "_meta": {
+      "title": "ReCaVSR Model Loader"
+    }
+  },
+  "4": {
+    "inputs": {
+      "scale": 4,
+      "color_fix": "none",
+      "seed": 42,
+      "decoder": "flashdecoder",
+      "kernels": "fast",
+      "kv_offload": false,
+      "encoder": "auto",
+      "fps": 30,
+      "model": [
+        "3",
+        0
+      ],
+      "video": [
+        "1",
+        0
+      ]
+    },
+    "class_type": "ReCaVSRUpscale",
+    "_meta": {
+      "title": "[参数1]"
+    }
+  },
+  "6": {
+    "inputs": {
+      "filename_prefix": "recavsr/video",
+      "format": "auto",
+      "format.codec": "auto",
+      "codec": "auto",
+      "video": [
+        "4",
+        0
+      ]
+    },
+    "class_type": "SaveVideo",
+    "_meta": {
+      "title": "保存视频"
+    }
+  }
+}

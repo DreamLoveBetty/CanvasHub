@@ -52,7 +52,7 @@ class ServerWiring(unittest.TestCase):
         for owner, released in report["seen"].items():
             self.assertEqual(released, sorted(set(report["workers"]) - {owner}))
 
-    def test_real_http_rejects_every_moss_route_without_a_session(self):
+    def test_real_http_rejects_moss_and_pe_routes_without_a_session(self):
         with socket.socket() as probe:
             probe.bind(("127.0.0.1", 0))
             port = probe.getsockname()[1]
@@ -75,7 +75,8 @@ class ServerWiring(unittest.TestCase):
                         break
                     except (urllib.error.URLError, ConnectionError):
                         time.sleep(0.25)
-                self.assertEqual({route: status(*route) for route in ROUTES}, {route: 401 for route in ROUTES})
+                routes = [*ROUTES, ("GET", "/api/prompt/pe"), ("POST", "/api/prompt/pe")]
+                self.assertEqual({route: status(*route) for route in routes}, {route: 401 for route in routes})
             finally:
                 server.terminate()
                 server.wait(timeout=30)

@@ -21,15 +21,14 @@ function fixture() {
   const context = vm.createContext({ window: {}, document, Date: { now: () => now } });
   vm.runInContext(read('scripts/desktop-canvas-viewport.js'), context);
   const api = context.window.DesktopCanvasViewport.create({ getCanvas: () => canvas,
-    els: { deskCanvasViewport: viewport }, constants: {}, focusCanvasViewport: () => viewport.focus({ preventScroll: true }),
-    isSelectToolActive: () => context.isSelectToolActive() });
+    els: { deskCanvasViewport: viewport }, constants: {}, focusCanvasViewport: () => viewport.focus({ preventScroll: true }) });
   Object.assign(context, { els: { deskCanvasViewport: viewport }, canvasViewport: api,
     DesktopState: { state: { canvas }, saveSettings() { saves++; } }, activeInteraction: null,
     CANVAS_INTERACTION_BLOCK_SELECTOR: 'left-block', CANVAS_RIGHT_PAN_BLOCK_SELECTOR: 'right-block',
     CANVAS_RIGHT_PAN_CONTROL_SELECTOR: 'control', CANVAS_CONTEXTMENU_SUPPRESS_MS: 450,
     focusCanvasViewport: () => viewport.focus({ preventScroll: true }), hideContextMenu() {}, clearSelectedEdge() {},
     setZoomPresetMenuOpen: open => dismissed.push(['zoom', open]), setWorkflowDockOpen: open => dismissed.push(['workflow', open]),
-    isSelectToolActive: () => false, selectNode() {}, hideSmartGuides() {}, flushCanvasPanTransform() {},
+    selectNode() {}, hideSmartGuides() {}, flushCanvasPanTransform() {},
     screenToWorld: (x, y) => ({ x, y }), setSelectedNodes() {}, renderMarquee() {}, beginMarquee() {}, moveMarquee() {}, endMarquee() {},
     getNodeElement: () => null, clearImageGroupProximity() {}, openContextMenu() {},
     canvasCollision: {}, suppressCanvasContextMenuUntil: 0 });
@@ -58,8 +57,8 @@ test('accepted left/trackpad and right pans transfer focus before movement', () 
   }
 });
 
-test('a plain primary drag (mouse or macOS three-finger drag) pans even with the select tool', () => {
-  const h = fixture(); h.context.isSelectToolActive = () => true; h.start();
+test('a plain primary drag (mouse or macOS three-finger drag) pans', () => {
+  const h = fixture(); h.start();
   assert.equal(h.context.activeInteraction.type, 'pan');
   assert.equal(h.context.activeInteraction.pointerButton, 'left');
   assert.ok(h.classes.has('is-panning'));
@@ -67,30 +66,32 @@ test('a plain primary drag (mouse or macOS three-finger drag) pans even with the
   assert.ok(!h.classes.has('is-panning') && !h.classes.has('is-pan-dragging'), 'release restores the arrow');
 });
 
-test('only Shift with the select tool turns a primary drag into a marquee', () => {
-  const marquee = fixture(); marquee.context.isSelectToolActive = () => true; marquee.start({ shiftKey: true });
+test('Shift plus a primary drag on empty canvas starts a marquee without first choosing a rail tool', () => {
+  const marquee = fixture(); marquee.start({ shiftKey: true });
   assert.equal(marquee.context.activeInteraction.type, 'marquee');
   assert.ok(!marquee.classes.has('is-panning'));
-  for (const extra of [{ shiftKey: true, altKey: true }, { shiftKey: true, metaKey: true }, { shiftKey: true, ctrlKey: true },
-    { shiftKey: true, button: 2 }]) {
-    const h = fixture(); h.context.isSelectToolActive = () => true; h.start(extra);
-    assert.equal(h.context.activeInteraction.type, 'pan', JSON.stringify(extra));
-  }
-  const otherTool = fixture(); otherTool.start({ shiftKey: true });
-  assert.equal(otherTool.context.activeInteraction.type, 'pan');
 });
 
-test('holding Shift arms the marquee cursor only for the select tool and clears on release or blur', () => {
-  const h = fixture(); let select = true; h.context.isSelectToolActive = () => select;
+test('other modifiers and the right button do not start a marquee', () => {
+  for (const extra of [{ shiftKey: true, altKey: true }, { shiftKey: true, metaKey: true }, { shiftKey: true, ctrlKey: true },
+    { shiftKey: true, button: 2 }]) {
+    const h = fixture(); h.start(extra);
+    assert.equal(h.context.activeInteraction.type, 'pan', JSON.stringify(extra));
+  }
+});
+
+test('holding Shift arms the marquee cursor without a rail tool and clears on release or blur', () => {
+  const h = fixture();
   h.api.syncMarqueeCursor({ shiftKey: true }); assert.ok(h.classes.has('is-marquee-armed'));
+  h.api.syncMarqueeCursor({ shiftKey: true, altKey: true }); assert.ok(!h.classes.has('is-marquee-armed'));
+  h.api.syncMarqueeCursor({ shiftKey: true });
   h.api.syncMarqueeCursor({ shiftKey: false }); assert.ok(!h.classes.has('is-marquee-armed'));
   h.api.syncMarqueeCursor({ shiftKey: true }); h.api.syncMarqueeCursor(null);
   assert.ok(!h.classes.has('is-marquee-armed'));
-  select = false; h.api.syncMarqueeCursor({ shiftKey: true }); assert.ok(!h.classes.has('is-marquee-armed'));
 });
 
 test('marquee takes focus too; mouse fallback preserves right pan focus ownership', () => {
-  const h = fixture(); h.context.isSelectToolActive = () => true; h.start({ shiftKey: true });
+  const h = fixture(); h.start({ shiftKey: true });
   assert.equal(h.context.activeInteraction.type, 'marquee');
   assert.equal(h.document.activeElement, h.viewport);
   const fallback = fixture(); fallback.context.startRightMousePanFallback(fallback.pointer({ button: 2, type: 'mousedown' }));
@@ -98,13 +99,15 @@ test('marquee takes focus too; mouse fallback preserves right pan focus ownershi
   assert.equal(fallback.document.activeElement, fallback.viewport);
 });
 
-test('clicks on controls and panels do not lose focus or become pans', () => {
+test('presses on controls and panels do not lose focus, pan or start a marquee', () => {
   for (const [button, blocked] of [[0, 'left-block'], [2, 'right-block'], [2, 'control']]) {
-    const h = fixture(); h.start({ button, target: { closest: selector => selector === blocked ? {} : null } });
-    assert.equal(h.context.activeInteraction, null);
-    assert.equal(h.document.activeElement, h.oldControl);
-    assert.equal(h.focuses, 0);
-    assert.deepEqual(h.dismissed, []);
+    for (const shiftKey of [false, true]) {
+      const h = fixture(); h.start({ button, shiftKey, target: { closest: selector => selector === blocked ? {} : null } });
+      assert.equal(h.context.activeInteraction, null);
+      assert.equal(h.document.activeElement, h.oldControl);
+      assert.equal(h.focuses, 0);
+      assert.deepEqual(h.dismissed, []);
+    }
   }
 });
 

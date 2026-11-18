@@ -113,7 +113,6 @@
     selectNode,
     setPromptTextForInputNode,
     setSelectedNodes,
-    setTextStyleMenuOpen,
     syncOutputControlsToNodes,
     textNodeHtml,
     triggerImageNodePopIn,
@@ -402,9 +401,6 @@
       node.classList.toggle('is-grouped', Boolean(groupId));
       if (groupId) node.dataset.nodeGroupId = groupId;
       else delete node.dataset.nodeGroupId;
-      if (!isSelected && node.classList.contains('desk-node--text')) {
-        setTextStyleMenuOpen(node, false);
-      }
       if (node.classList.contains('desk-node--input')) {
         const drawer = node.querySelector('.desk-node__drawer');
         if (drawer) drawer.style.display = 'grid';

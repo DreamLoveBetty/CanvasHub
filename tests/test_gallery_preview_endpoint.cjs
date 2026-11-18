@@ -11,10 +11,25 @@ const read = file => fs.readFileSync(path.join(__dirname, '..', file), 'utf8');
 const history = read('frontend/scripts/desktop-history.js');
 
 function extractFunction(source, name) {
-  const start = source.indexOf(`function ${name}(`);
+  let start = source.indexOf(`function ${name}(`);
   assert.ok(start >= 0, `${name} not found`);
+  if (start >= 6 && source.slice(start - 6, start) === 'async ') start -= 6;
+  let i = start;
+  let parens = 0;
+  let seenParen = false;
+  for (; i < source.length; i += 1) {
+    const ch = source[i];
+    if (ch === '(') {
+      parens += 1;
+      seenParen = true;
+    } else if (ch === ')') {
+      parens -= 1;
+    } else if (ch === '{' && seenParen && parens === 0) {
+      break;
+    }
+  }
   let depth = 0;
-  for (let i = source.indexOf('{', start); i < source.length; i += 1) {
+  for (; i < source.length; i += 1) {
     if (source[i] === '{') depth += 1;
     if (source[i] === '}' && --depth === 0) return source.slice(start, i + 1);
   }
@@ -36,7 +51,19 @@ function loadMetaRows() {
     parseTags: () => [],
     formatPreviewTime: () => '',
   });
-  vm.runInContext(`${extractFunction(history, 'getPreviewMetaRows')}; this.getPreviewMetaRows = getPreviewMetaRows;`, context);
+  const helpers = [
+    'previewProviderKey',
+    'assetCanRecordLoras',
+    'isDisabledLoraEntry',
+    'looksLikeFilesystemPath',
+    'previewLoraDisplayName',
+    'previewLoraScale',
+    'formatPreviewLoraScale',
+    'formatPreviewLoraEntry',
+    'collectPreviewLoraEntries',
+    'getPreviewLoraRow',
+  ].map(name => extractFunction(history, name)).join('\n');
+  vm.runInContext(`${helpers}; ${extractFunction(history, 'getPreviewMetaRows')}; this.getPreviewMetaRows = getPreviewMetaRows;`, context);
   return params => {
     const html = context.getPreviewMetaRows({ params, hasTaskRecord: true });
     const rows = {};
@@ -53,6 +80,7 @@ test('Images API records show the endpoint and the model actually used', () => {
   assert.equal(rows.Model, 'gpt-image-2');
   assert.equal(rows['主模型'], undefined);
   assert.equal(rows['推理强度'], undefined);
+  assert.equal(rows.LoRA, undefined);
 });
 
 test('Responses API records keep the main model and reasoning effort', () => {

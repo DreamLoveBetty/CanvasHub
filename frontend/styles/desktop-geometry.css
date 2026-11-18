@@ -1661,6 +1661,7 @@ body.desk-app[data-theme] .desk-settings .desk-segment {
 }
 
 /* Provider switch: a full row on every provider, clear of the raised buttons' shadow. */
+body.desk-app[data-theme] .desk-settings__body > .desk-model-tools-tabs,
 body.desk-app[data-theme] .desk-settings__body > .desk-google-pool-tabs {
   grid-column: 1 / -1;
   margin-bottom: 16px;
@@ -1673,31 +1674,54 @@ body.desk-app[data-theme] .desk-track-switch {
   position: relative;
   display: grid;
   grid-template-columns: repeat(var(--track-count), minmax(0, 1fr));
-  padding: 3px;
-  border-radius: calc(var(--desk-radius-control) + 3px);
+  padding: 4px;
+  border-radius: 999px;
   isolation: isolate;
 }
 
 body.desk-app[data-theme] .desk-track-switch::before {
+  --track-delta: calc(var(--track-index) - var(--track-from));
+  --track-travel: min(1, max(var(--track-delta), calc(-1 * var(--track-delta))));
   position: absolute;
-  top: 3px;
-  bottom: 3px;
-  left: 3px;
+  top: 4px;
+  bottom: 4px;
+  left: 4px;
   z-index: -1;
-  width: calc((100% - 6px) / var(--track-count));
+  width: calc((100% - 8px) / var(--track-count));
   content: "";
-  border-radius: var(--desk-radius-control);
+  border-radius: 999px;
+  transform-origin: center center;
   translate: calc(var(--track-index) * 100%) 0;
-  animation: desk-track-switch-slide var(--desk-motion-duration-slow) var(--desk-motion-ease-emphasized) calc(-1 * var(--track-elapsed, 0ms)) both;
+  animation: desk-track-switch-slide 580ms cubic-bezier(0.22, 1, 0.36, 1) calc(-1 * var(--track-elapsed, 0ms)) both;
 }
 
 @keyframes desk-track-switch-slide {
   from { translate: calc(var(--track-from) * 100%) 0; }
+  26% {
+    translate: calc((var(--track-from) + var(--track-delta) * 0.44) * 100%) 0;
+    scale: calc(1 - 0.34 * var(--track-travel)) calc(1 + 0.15 * var(--track-travel));
+  }
+  56% {
+    translate: calc((var(--track-from) + var(--track-delta) * 1.065) * 100%) 0;
+    scale: calc(1 + 0.11 * var(--track-travel)) calc(1 - 0.09 * var(--track-travel));
+  }
+  75% {
+    translate: calc((var(--track-from) + var(--track-delta) * 0.982) * 100%) 0;
+    scale: calc(1 - 0.05 * var(--track-travel)) calc(1 + 0.04 * var(--track-travel));
+  }
+  90% {
+    translate: calc((var(--track-from) + var(--track-delta) * 1.012) * 100%) 0;
+    scale: calc(1 + 0.02 * var(--track-travel)) calc(1 - 0.015 * var(--track-travel));
+  }
+  to {
+    translate: calc(var(--track-index) * 100%) 0;
+    scale: 1 1;
+  }
 }
 
 body.desk-app[data-theme] .desk-track-switch > button {
   min-width: 0;
-  height: var(--desk-control-height-sm);
+  height: calc(var(--desk-control-height-sm) + 2px);
   padding: 0 var(--desk-space-3);
   overflow: hidden;
   font-size: var(--desk-font-size-label);
@@ -1705,7 +1729,7 @@ body.desk-app[data-theme] .desk-track-switch > button {
   text-overflow: ellipsis;
   white-space: nowrap;
   border: 0;
-  border-radius: var(--desk-radius-control);
+  border-radius: 999px;
 }
 
 body.desk-app[data-theme] .desk-track-switch > button.is-active {
@@ -1735,7 +1759,7 @@ body.desk-app[data-theme] .desk-settings-tabs__group {
 
 body.desk-app[data-theme] .desk-settings-tabs__group-label {
   padding: 0 8px 4px;
-  font-size: var(--desk-font-size-micro);
+  font-size: var(--desk-font-size-body);
   font-weight: var(--desk-font-weight-semibold);
   letter-spacing: 0.08em;
 }
@@ -1789,6 +1813,7 @@ body.desk-app[data-theme] .desk-settings-tabs button {
   min-height: var(--desk-settings-nav-item-height);
   min-width: 0;
   padding: 5px 8px;
+  padding-inline-start: calc(8px + var(--desk-space-4));
   font-size: var(--desk-settings-control-font);
   font-weight: var(--desk-font-weight-medium);
   line-height: var(--desk-line-height-caption);
@@ -2429,10 +2454,6 @@ body.desk-app[data-theme] .desk-settings-account__error {
 
 /* Gallery: make card metadata readable without changing thumbnail dimensions. */
 body.desk-app[data-theme] :is(
-  .desk-gallery-card__meta strong,
-  .desk-gallery-card__meta-copy span,
-  .desk-gallery-card__meta-copy em,
-  .desk-gallery-card__description,
   .desk-gallery-set em,
   .desk-gallery-selected-item span
 ) {

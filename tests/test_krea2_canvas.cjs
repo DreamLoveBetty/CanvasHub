@@ -130,7 +130,8 @@ test('Krea 2 复用标准模型节点控件并约束可变 LoRA 区域',()=>{
   assert.match(css,/\.desk-krea2__footer\s*\{[\s\S]*?min-height:\s*72px;/);
   assert.match(css,/\.desk-krea2__grid--model\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0, 0\.8fr\) minmax\(0, 1\.7fr\)/);
   assert.match(css,/\.desk-krea2__grid--params\s*\{[\s\S]*?grid-template-columns:\s*repeat\(4,/);
-  assert.match(css,/\.desk-krea2__grid--params\s*>\s*label:nth-child\(6\)\s*\{[\s\S]*?grid-column:\s*span 2;/);
+  assert.match(css,/\.desk-krea2__grid--params\s*>\s*label:nth-child\(6\)\s*\{[\s\S]*?grid-column:\s*span 3;/);
+  assert.match(css,/\.desk-krea2__grid--params:has\(>\s*\[data-krea2-edit-control\]:not\(\[hidden\]\)\)\s*>\s*label:nth-child\(6\)\s*\{[\s\S]*?grid-column:\s*span 2;/);
   assert.doesNotMatch(css,/desk-krea2__(?:prepare|import)/);
   assert.match(css,/\.desk-node--krea2\s*>\s*\.desk-krea2__progress\s*\{[\s\S]*?top:\s*calc\(100% \+ 2px\);[\s\S]*?left:\s*0;[\s\S]*?width:\s*100%;/);
   assert.doesNotMatch(css,/\.desk-node--krea2\s*>\s*\.desk-krea2__progress\s*\{[\s\S]*?bottom:\s*78px;/);
@@ -139,7 +140,7 @@ test('Krea 2 复用标准模型节点控件并约束可变 LoRA 区域',()=>{
   assert.match(css,/\.desk-krea2__edit\s*\{[\s\S]*?grid-template-columns:/);
   assert.match(css,/\.desk-krea2__edit\[hidden\][\s\S]*?display:\s*none !important;/);
   assert.match(css,/\.desk-krea2__lora-count\s*\{/);
-  assert.match(css,/grid-template-columns:\s*repeat\(auto-fit, minmax\(190px, 1fr\)\)/);
+  assert.match(css,/grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/);
   assert.match(css,/\.desk-krea2__lora\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\) 58px 26px;/);
 });
 

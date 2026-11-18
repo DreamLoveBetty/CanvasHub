@@ -9,8 +9,8 @@ from .comfy_video import MAX_VIDEOS, fill_video_loaders, video_token_replacement
 from .comfy_audio import MAX_AUDIOS
 from .comfy_workflow_switches import (apply_workflow_switches, collect_workflow_switches, has_switches,
                                       resolve_switch_choices, strip_switch_tags, unknown_title_tags)
-from .comfy_workflow_tags import (apply_tagged_inputs, collect_workflow_tags, empty_media_slots, media_loader_ids,
-                                  randomize_seeds, workflow_tag_summary)
+from .comfy_workflow_tags import (apply_tagged_inputs, collect_workflow_tags, detach_empty_optional_media,
+                                  empty_media_slots, media_loader_ids, randomize_seeds, workflow_tag_summary)
 
 MAX_TAGGED_IMAGES = 12
 
@@ -405,11 +405,13 @@ def _prepare_comfy_workflow(
         report = report if isinstance(report, dict) else {}
         report['seeds'] = randomize_seeds(prepared, tags, random)
         switches = collect_workflow_switches(workflow)
+        empty = empty_media_slots(tags, image_names=slot_images, video_names=slot_videos, audio_names=slot_audios)
         if has_switches(switches):
             choices = resolve_switch_choices(switches, workflow_parameters)
-            empty = empty_media_slots(tags, image_names=slot_images, video_names=slot_videos, audio_names=slot_audios)
             apply_workflow_switches(prepared, switches, choices, media_ids=media_loader_ids(tags), empty_media_ids=empty)
             report['switches'] = choices
+        else:
+            detach_empty_optional_media(prepared, empty)
         return prepared
 
     load_image_index = 0

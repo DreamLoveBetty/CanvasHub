@@ -71,6 +71,7 @@ def collect_renderable_history_tasks(
     task_result_files,
     should_render,
     dedupe_key,
+    should_include=None,
 ):
     combined = load_database_tasks() + load_legacy_tasks()
     combined.sort(key=task_timestamp, reverse=True)
@@ -79,7 +80,12 @@ def collect_renderable_history_tasks(
     seen = set()
     for task in combined:
         result_files, _primary_output = task_result_files(task)
-        if not should_render(task.get('status'), result_files):
+        include = (
+            should_include(task, result_files)
+            if should_include is not None
+            else should_render(task.get('status'), result_files)
+        )
+        if not include:
             continue
         key = dedupe_key(task)
         if key in seen:

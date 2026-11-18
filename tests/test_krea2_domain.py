@@ -668,10 +668,12 @@ class Krea2Tests(unittest.TestCase):
 
             lora_bytes = synthetic_lora()
             asset = service.import_lora(io.BytesIO(lora_bytes), len(lora_bytes), "ink.safetensors")["lora"]
+            pe = {"node_id": "pe", "profile": "moss_caption", "source_text": "玻璃狐狸",
+                  "rewritten_prompt": "a glass fox", "provider": "gpt_oauth", "model": "fixture", "edited": False}
             reply = service.submit({"prompt": "a glass fox", "precision": "8bit", "width": 512,
                 "height": 512, "steps": 4, "image_count": 2, "seed": 7,
                 "loras": [{"asset_id": asset["asset_id"], "scale": .8}],
-                "telegram_enabled": False})
+                "telegram_enabled": False, "prompt_pe": [pe]})
             deadline = time.time() + 4
             while tasks[reply["task_id"]]["status"] not in {"succeeded_no_telegram", "failed"} and time.time() < deadline:
                 time.sleep(.02)
@@ -701,6 +703,9 @@ class Krea2Tests(unittest.TestCase):
             first = root / "archive" / "2026-09-28" / task["result_files"][0]
             sidecar = json.loads(first.with_suffix(".krea2.json").read_text(encoding="utf-8"))
             self.assertEqual(sidecar["generation_timing"], timing)
+            self.assertEqual(sidecar["parameters"]["prompt_pe"], [pe])
+            self.assertEqual(task["params"]["prompt_pe"], [pe])
+            self.assertNotIn("prompt_pe", runtime.last_spec)
             self.assertNotIn(str((root / "data").resolve()), serialized)
             self.assertEqual(sent, [])
             with self.assertRaisesRegex(RuntimeError, "安全分类模型"):

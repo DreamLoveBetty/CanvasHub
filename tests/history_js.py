@@ -11,7 +11,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 FRONTEND = ROOT / "frontend"
 HOST = "desktop-history.js"
-SCRIPT = re.compile(r'<script src="scripts/(desktop-genie-fx\.js|desktop-gallery-[\w-]+\.js|desktop-history\.js)\?')
+SCRIPT = re.compile(r'<script src="scripts/(desktop-genie-fx\.js|desktop-gallery-[\w-]+\.js|desktop-history-results\.js|desktop-history\.js)\?')
 
 
 def history_js_files():

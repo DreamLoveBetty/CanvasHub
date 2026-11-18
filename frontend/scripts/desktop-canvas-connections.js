@@ -78,6 +78,7 @@
     updateUpscaleInputCount,
   }) {
     let contextMenuPoint = null;
+    let contextMenuCommand = null;
     let contextMenuCloseTimer = 0;
     let contextMenuConnectionEndPoint = null;
     let edgeMenuAnchorWorld = null;
@@ -121,6 +122,15 @@
     const safeItems = Array.isArray(items) ? items : NODE_MENU_ITEMS;
     const isConnectionMenu = Boolean(contextMenuConnectionSourceIdRef.current);
     menu.classList.toggle('is-connection-menu', isConnectionMenu);
+    menu.setAttribute('aria-label', title || '添加节点');
+    if (contextMenuCommand) {
+      menu.innerHTML = `
+        <div class="desk-node-context-menu__cap" aria-hidden="true"><strong>${escapeHtml(title)}</strong></div>
+        <div class="desk-node-context-menu__items">
+          <button type="button" data-node-context-command>${escapeHtml(contextMenuCommand.label)}</button>
+        </div>`;
+      return;
+    }
     menu.innerHTML = `
       <div class="desk-node-context-menu__cap" aria-hidden="true">
         <strong>${escapeHtml(title || '添加节点')}</strong>
@@ -149,6 +159,14 @@
     document.body.appendChild(contextMenuElRef.current);
     renderContextMenuItems(NODE_MENU_ITEMS);
     contextMenuElRef.current.addEventListener('click', event => {
+      if (event.target.closest('[data-node-context-command]')) {
+        event.preventDefault();
+        event.stopPropagation();
+        const command = contextMenuCommand;
+        hideContextMenu();
+        command?.run();
+        return;
+      }
       const button = event.target.closest('[data-add-node]');
       if (!button) return;
       event.preventDefault();
@@ -212,6 +230,7 @@
     document.querySelectorAll('.desk-port.is-pending').forEach(item => item.classList.remove('is-pending'));
     releaseFloatingSwell(pendingSourceNode);
     contextMenuPoint = null;
+    contextMenuCommand = null;
     contextMenuConnectionSourceIdRef.current = '';
     contextMenuConnectionSourceSideRef.current = 'right';
     contextMenuConnectionSourceAnchorRef.current = null;
@@ -230,6 +249,7 @@
       ? { x: Number(options.connectionSourceAnchor.x || 0), y: Number(options.connectionSourceAnchor.y || 0) }
       : null;
     contextMenuPoint = screenToWorld(event.clientX, event.clientY);
+    contextMenuCommand = options.command || null;
     const items = contextMenuConnectionSourceIdRef.current ? getConnectableNodeMenuItems(contextMenuConnectionSourceIdRef.current) : NODE_MENU_ITEMS;
     renderContextMenuItems(items, options.title || '添加节点');
     if (contextMenuCloseTimer) {
@@ -262,7 +282,7 @@
     menu.classList.remove('is-closing');
     menu.classList.add('is-open');
     updateLinkPath();
-    requestAnimationFrame(() => menu.querySelector('[data-node-context-search]')?.focus?.({ preventScroll: true }));
+    requestAnimationFrame(() => menu.querySelector('[data-node-context-search], [data-node-context-command]')?.focus?.({ preventScroll: true }));
   }
 
     function getCanvasEdge(edgeId) {
@@ -861,6 +881,10 @@
       return '';
     }
     const domainPolicy = domainConnections?.policy(from, to, options, DesktopState.state.canvas.edges || []);
+    if (domainPolicy?.reject && !options.restoreExisting) {
+      if (!options.quiet) DesktopResults.showTransientMessage(domainPolicy.reject);
+      return '';
+    }
     const inputRole = String(domainPolicy?.inputRole || options.inputRole || '').trim();
     DesktopState.state.canvas.edges = (DesktopState.state.canvas.edges || []).filter(edge => {
       if (domainPolicy?.replaceAllInputs && edge.to === toNodeId) return false;

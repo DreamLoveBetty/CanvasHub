@@ -115,6 +115,8 @@ EDITABLE_PPT_MIME_TYPES = {
 EDITABLE_PSD_EXPORT_FILE_RE = re.compile(r"(?:sandbox:)?(/mnt/data/[^\s\"'\)\]]+\.(?:psd|zip))", re.IGNORECASE)
 EDITABLE_PPT_EXPORT_FILE_RE = re.compile(r"(?:sandbox:)?(/mnt/data/[^\s\"'\)\]]+\.(?:pptx?|zip))", re.IGNORECASE)
 FILE_ID_RE = re.compile(r"\b(file[-_](?!service\b)[A-Za-z0-9_-]+)\b")
+# JSON attachment fields and patch paths are not downloadable file IDs.
+IMAGE_FILE_MARKERS = {"file_id", "file_upload", "file_ids", "file_name", "file_size", "file_type"}
 IMAGE_LIMIT_MARKERS = (
     "free plan limit for image generation",
     "image generations requests",
@@ -262,9 +264,24 @@ def add_unique(values: list[str], candidates: list[str]) -> None:
 def extract_ids(payload: str) -> tuple[str, list[str], list[str]]:
     conversation_match = re.search(r'"conversation_id"\s*:\s*"([^"]+)"', payload)
     conversation_id = conversation_match.group(1) if conversation_match else ""
-    file_ids = re.findall(r"(file[-_](?!service\b)[A-Za-z0-9_-]+)", payload)
+    file_ids = [item for item in FILE_ID_RE.findall(payload) if item not in IMAGE_FILE_MARKERS]
     attachment_ids = ASSET_POINTER_RE.findall(payload)
     return conversation_id, file_ids, attachment_ids
+
+
+def _image_message_role(message: dict[str, Any]) -> str:
+    author = message.get("author")
+    return str(author.get("role") or "") if isinstance(author, dict) else ""
+
+
+def _user_image_asset_ids(messages: Iterable[dict[str, Any]]) -> set[str]:
+    ids: set[str] = set()
+    for message in messages:
+        if _image_message_role(message) == "user":
+            _, files, attachments = extract_ids(json.dumps(message, ensure_ascii=False))
+            ids.update(files)
+            ids.update(attachments)
+    return ids
 
 
 def _int_or_none(value: Any) -> int | None:
@@ -1275,7 +1292,13 @@ class OpenAIBackend:
             for item in payload:
                 self._collect_payload_text(item, parts)
 
-    def _poll_image_results(self, conversation_id: str, deadline: float | None = None) -> tuple[list[str], list[str]]:
+    def _poll_image_results(
+        self,
+        conversation_id: str,
+        deadline: float | None = None,
+        *,
+        input_asset_ids: set[str] | None = None,
+    ) -> tuple[list[str], list[str]]:
         local_timeout = (
             self._image_remaining_seconds()
             if self._image_deadline_monotonic is not None
@@ -1288,6 +1311,7 @@ class OpenAIBackend:
         poll_count = 0
         last_summary = "not-polled"
         last_log_at = 0.0
+        excluded_ids = set(input_asset_ids or ())
         while time.time() < deadline_at:
             if self._image_deadline_monotonic is not None:
                 self._image_remaining_seconds()
@@ -1295,10 +1319,20 @@ class OpenAIBackend:
             data = self._get_conversation(conversation_id)
             self._raise_if_image_limit_message(data)
             last_summary = self._summarize_image_poll_state(data)
-            text = json.dumps(data, ensure_ascii=False)
-            _, files, sediments = extract_ids(text)
-            add_unique(file_ids, [item for item in files if item != "file_upload"])
-            add_unique(sediment_ids, sediments)
+            mapping = data.get("mapping") if isinstance(data, dict) else None
+            nodes = mapping.values() if isinstance(mapping, dict) else ()
+            messages = [
+                node["message"]
+                for node in nodes
+                if isinstance(node, dict) and isinstance(node.get("message"), dict)
+            ]
+            excluded_ids.update(_user_image_asset_ids(messages))
+            for message in messages:
+                if _image_message_role(message) not in {"assistant", "tool"}:
+                    continue
+                _, files, sediments = extract_ids(json.dumps(message, ensure_ascii=False))
+                add_unique(file_ids, [item for item in files if item not in excluded_ids])
+                add_unique(sediment_ids, [item for item in sediments if item not in excluded_ids])
             if file_ids or sediment_ids:
                 print(
                     "[chatgpt-pool] image result ready: "
@@ -3195,7 +3229,13 @@ class OpenAIBackend:
             return [item for value in payload for item in self._walk_dicts(value)]
         return []
 
-    def _result_from_image_response(self, response: requests.Response, revised_prompt: str) -> dict[str, str]:
+    def _result_from_image_response(
+        self,
+        response: requests.Response,
+        revised_prompt: str,
+        *,
+        input_asset_ids: set[str] | None = None,
+    ) -> dict[str, str]:
         request_started_at = time.time()
         result_timeout = (
             self._image_remaining_seconds()
@@ -3208,6 +3248,7 @@ class OpenAIBackend:
         sediment_ids: list[str] = []
         library_urls: list[str] = []
         message = ""
+        excluded_ids = set(input_asset_ids or ())
         try:
             try:
                 for payload in self._iter_image_sse_payloads(response):
@@ -3223,17 +3264,18 @@ class OpenAIBackend:
                         )
                     conv, files, sediments = extract_ids(payload)
                     conversation_id = conv or conversation_id
-                    add_unique(file_ids, [item for item in files if item != "file_upload"])
+                    add_unique(file_ids, files)
                     add_unique(sediment_ids, sediments)
                     try:
                         event = json.loads(payload)
-                        self._raise_if_image_limit_message(event)
-                        if isinstance(event, dict) and event.get("type") == "moderation":
-                            moderation = event.get("moderation_response") or {}
-                            if isinstance(moderation, dict) and moderation.get("blocked"):
-                                message = "Image request was blocked by upstream moderation."
-                    except Exception:
-                        pass
+                    except json.JSONDecodeError:
+                        continue
+                    self._raise_if_image_limit_message(event)
+                    excluded_ids.update(_user_image_asset_ids(self._walk_dicts(event)))
+                    if isinstance(event, dict) and event.get("type") == "moderation":
+                        moderation = event.get("moderation_response") or {}
+                        if isinstance(moderation, dict) and moderation.get("blocked"):
+                            message = "Image request was blocked by upstream moderation."
             except requests.exceptions.RequestException as exc:
                 if not conversation_id:
                     raise UpstreamError(
@@ -3246,6 +3288,10 @@ class OpenAIBackend:
                 )
         finally:
             response.close()
+        # Uploads may be echoed in both complete messages and ownerless SSE
+        # deltas. Apply exclusions before deciding that a result is ready.
+        file_ids = [item for item in file_ids if item not in excluded_ids]
+        sediment_ids = [item for item in sediment_ids if item not in excluded_ids]
         if message and not file_ids and not sediment_ids:
             raise UpstreamError(message)
         if conversation_id and not file_ids and not sediment_ids:
@@ -3256,7 +3302,9 @@ class OpenAIBackend:
                 time.sleep(settle_seconds)
         if conversation_id and not file_ids and not sediment_ids:
             try:
-                file_ids, sediment_ids = self._poll_image_results(conversation_id, deadline=deadline)
+                file_ids, sediment_ids = self._poll_image_results(
+                    conversation_id, deadline=deadline, input_asset_ids=excluded_ids
+                )
             except UpstreamError as exc:
                 if "finished without image output" not in str(exc).lower():
                     raise
@@ -3329,4 +3377,7 @@ class OpenAIBackend:
             [str(item.get("mime_type") or "image/png") for item in uploaded],
         )
         response = self._start_image_generation(final_prompt, requirements, conduit, model, uploaded)
-        return self._result_from_image_response(response, prompt)
+        input_asset_ids = {
+            item[key] for item in uploaded for key in ("file_id", "library_file_id") if item.get(key)
+        }
+        return self._result_from_image_response(response, prompt, input_asset_ids=input_asset_ids)

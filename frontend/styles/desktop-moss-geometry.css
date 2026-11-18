@@ -2,6 +2,7 @@
 .desk-app .desk-moss__header { flex:0 0 auto; margin-bottom:4px; }
 .desk-app .desk-moss__body { display:flex; flex:1 1 auto; flex-direction:column; gap:4px; min-height:0; overflow:visible; }
 .desk-app .desk-moss__grid { display:grid; flex:0 0 auto; grid-template-columns:repeat(4,minmax(0,1fr)); gap:4px; margin:0; }
+.desk-app .desk-moss__grid--model { grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1.6fr); align-items:end; }
 .desk-app .desk-moss__grid[hidden] { display:none; }
 .desk-app .desk-moss__grid label { display:grid; gap:3px; min-width:0; }
 .desk-app .desk-moss__grid .desk-select-shell { width:100%; }
@@ -12,7 +13,9 @@
 .desk-app .desk-moss__prompt [data-moss-source] button { height:22px; min-height:22px; padding:0 7px; }
 .desk-app .desk-moss__prompt textarea { box-sizing:border-box; width:100%; height:72px; padding:6px 8px; resize:none; }
 .desk-app .desk-moss__loras { display:flex; flex:1 1 auto; flex-direction:column; gap:4px; min-height:58px; padding-top:6px; overflow:visible; }
-.desk-app .desk-moss__loras > header { display:flex; flex:0 0 auto; align-items:center; gap:10px; }
+.desk-app .desk-moss__loras > header { display:grid; grid-template-columns:minmax(0,1fr) minmax(180px,240px); flex:0 0 auto; align-items:center; gap:10px; }
+.desk-app .desk-moss__lora-heading { display:flex; align-items:center; gap:8px; min-width:0; }
+.desk-app .desk-moss__lora-add { width:100%; min-width:0; }
 .desk-app .desk-moss__lora-list { display:grid; flex:1 1 auto; grid-template-columns:repeat(2,minmax(0,1fr)); align-content:start; gap:4px; min-height:0; overflow:auto; }
 .desk-app .desk-moss__empty { display:flex; grid-column:1 / -1; align-items:center; justify-content:center; min-height:32px; }
 .desk-app .desk-moss__lora { display:grid; grid-template-columns:minmax(0,1fr) 58px 26px; align-items:center; gap:4px; min-height:32px; padding:2px 4px 2px 7px; }

@@ -1,7 +1,8 @@
 // MOSS node controller. Field references own text bindings; dependency edges are their projection.
 (function () {
   function create({model:M,api,loraLibrary,loraView,getCanvas,getNodeState,getNodeElement,materializeText,addNode,connectNodes,removeEdges,setImageFromResult,
-    applyNodeLayout,updateLinkPath,saveState,reportStatus,progressView,confirmAction,notify,focusTextNode,selectNode,openModelTools,createImage,groupImages,getNegativeTextNodes=()=>[],layoutFactory=null,gridFactory=null,layoutModes=[]}={}){
+    applyNodeLayout,updateLinkPath,saveState,reportStatus,progressView,confirmAction,notify,focusTextNode,selectNode,openModelTools,createImage,groupImages,
+    getNegativeTextNodes=()=>[],layoutFactory=null,gridFactory=null,layoutModes=[]}={}){
     const NODE_CHROME=32,REEXPAND_OFFSET=200,sessions=new Map();
     // Negative text nodes reach MOSS by plain edges, never as field bindings; a bound source stays positive.
     const negativeNodes=node=>getNegativeTextNodes(node.id).filter(item=>!M.textDependencies(node).includes(item.id));
@@ -40,11 +41,11 @@
       <header class="desk-node__header desk-moss__header" data-node-drag-handle><div><p class="desk-node__eyebrow">本地图像生成 / Layout</p><h2>MOSS · MLX</h2></div><div class="desk-node-tools"><span class="desk-status-pill" data-moss-status>检查环境</span><button type="button" class="desk-node-delete" data-node-delete aria-label="删除 MOSS 节点" title="删除 MOSS 节点"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16"></path><path d="M9 7V4h6v3"></path><path d="m7 7 1 13h8l1-13"></path><path d="M10 11v5M14 11v5"></path></svg></button></div></header>
       <button class="desk-port desk-port--in" data-port="in" data-node-id="${esc(node.id)}" aria-label="连接文本节点"></button><button class="desk-port desk-port--out" data-port="out" data-node-id="${esc(node.id)}" aria-label="连接生成图片"></button>
       <div class="desk-moss__body" data-moss-body data-node-drag-ignore>
-        <div class="desk-param-grid desk-moss__grid"><label><span>工作模式</span><select class="desk-select" data-moss-field="mode">${modeOptions(node)}</select></label><label><span>推理预设</span><select class="desk-select" data-moss-field="preset">${presetOptions(node)}</select></label><label><span>Base 权重模型</span><select class="desk-select" data-desk-select-width="content" data-moss-field="baseModelId">${modelOptions(node)}</select></label><label><span>LoRA 模型</span>${loraView?'<button type="button" class="desk-button desk-lora-picker-button" data-moss-lora-picker aria-label="看图选择 LoRA">＋ 看图选择 LoRA <span>⌄</span></button>':'<span class="desk-moss__empty">LoRA 目录不可用</span>'}</label></div>
+        <div class="desk-param-grid desk-moss__grid desk-moss__grid--model"><label><span>工作模式</span><select class="desk-select" data-moss-field="mode">${modeOptions(node)}</select></label><label><span>推理预设</span><select class="desk-select" data-moss-field="preset">${presetOptions(node)}</select></label><label><span>Base 权重模型</span><select class="desk-select" data-desk-select-width="content" data-moss-field="baseModelId">${modelOptions(node)}</select></label></div>
         <div class="desk-param-grid desk-moss__grid"><label><span>画幅比例</span><select class="desk-select" data-moss-field="ratio">${ratioOptions(node)}</select></label><label><span>宽度</span><select class="desk-select" data-moss-field="imageWidth">${sizeOptions(node.imageWidth)}</select></label><label><span>高度</span><select class="desk-select" data-moss-field="imageHeight">${sizeOptions(node.imageHeight)}</select></label><label><span>Seed</span><input class="desk-number" type="text" inputmode="numeric" placeholder="随机" value="${esc(node.seed)}" data-moss-field="seed"></label></div>
         <div class="desk-param-grid desk-moss__grid" data-moss-sampler-row${node.preset==='custom'?'':' hidden'}>${samplerFields(node)}</div>
         <section class="desk-moss__prompt"><header><strong>全局描述</strong><span data-moss-source></span></header><textarea rows="3" placeholder="写下画面描述，或连接一个文本节点" data-moss-prompt aria-label="全局描述">${esc(node.prompt)}</textarea></section>
-        <section class="desk-moss__loras"><header><strong>已加载 LoRA</strong><small data-moss-lora-count>${node.loras.length} / ${M.MAX_LORAS}</small></header><div class="desk-moss__lora-list" data-moss-lora-list>${loraRows(node)}</div></section>
+        <section class="desk-moss__loras"><header><div class="desk-moss__lora-heading"><strong>已加载 LoRA</strong><small data-moss-lora-count>${node.loras.length} / ${M.MAX_LORAS} · 按顺序叠加</small></div><div class="desk-moss__lora-add">${loraView?'<button type="button" class="desk-button desk-lora-picker-button" data-moss-lora-picker aria-label="看图选择 LoRA">＋ 看图选择 LoRA <span>⌄</span></button>':'<span class="desk-moss__empty">LoRA 目录不可用</span>'}</div></header><div class="desk-moss__lora-list" data-moss-lora-list>${loraRows(node)}</div></section>
         <section class="desk-moss-layout" data-moss-layout hidden aria-label="布局画板"></section><section class="desk-moss-layout" data-moss-grid hidden aria-label="分镜画板"></section><button type="button" class="desk-button desk-moss__expand" data-moss-expand hidden>展开设置</button>
         <footer class="desk-input-footer desk-moss__footer"><div class="desk-pill-row desk-moss__meta"><span data-moss-sampling></span><span data-moss-budget></span><span data-moss-runtime>正在检查环境…</span></div><div class="desk-output-controls desk-output-controls--input"><label class="desk-switch"><input type="checkbox" data-moss-telegram ${node.telegramEnabled?'checked':''}><span></span><em>发送到 Telegram</em></label></div><div class="desk-action-row"><button type="button" class="desk-generation-action" data-moss-run><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m13.5 2-9 12h6l-1 8 10-13h-7z"></path></svg><span class="desk-generation-action__label">开始生成</span></button></div></footer>
       </div><div class="desk-progress-float desk-moss__progress" data-moss-progress hidden role="status"><div class="desk-progress-float__panel"><div class="desk-progress-float__bar"><span data-progress-bar data-moss-bar></span><strong class="desk-progress-float__percent" data-moss-percent>处理中</strong></div><span class="desk-progress-float__stage" data-moss-stage>MOSS 任务进行中</span></div></div></section>`;}
@@ -106,7 +107,7 @@
     }
     // Measured here, never in the model. Text mode is the fixed compact size; only the bottom edge moves.
     function syncHeight(s){const height=s.node.mode==='text'?M.HEIGHT:Math.max(M.HEIGHT,Math.ceil(s.el.querySelector('[data-moss-body]').scrollHeight+s.el.querySelector('.desk-moss__header').offsetHeight+NODE_CHROME));if(height!==s.node.height){s.node.height=height;applyNodeLayout(s.id);updateLinkPath();}}
-    function renderLoras(s){if(!live(s))return;s.el.querySelector('[data-moss-lora-list]').innerHTML=loraRows(s.node);s.el.querySelector('[data-moss-lora-count]').textContent=`${s.node.loras.length} / ${M.MAX_LORAS}`;paint(s);}
+    function renderLoras(s){if(!live(s))return;s.el.querySelector('[data-moss-lora-list]').innerHTML=loraRows(s.node);s.el.querySelector('[data-moss-lora-count]').textContent=`${s.node.loras.length} / ${M.MAX_LORAS} · 按顺序叠加`;paint(s);}
     function syncControls(s){const node=s.node;for(const [key,html] of [['imageWidth',sizeOptions(node.imageWidth)],['imageHeight',sizeOptions(node.imageHeight)],['ratio',ratioOptions(node)]]){const select=s.el.querySelector(`[data-moss-field="${key}"]`);if(select)select.innerHTML=html;}window.DesktopSelect?.refreshAll?.();paint(s);}
     function refreshModelSelect(s){const select=s.el.querySelector('[data-moss-field="baseModelId"]');if(select)select.innerHTML=modelOptions(s.node);window.DesktopSelect?.refreshAll?.();}
     function loadResources(force=false){
@@ -122,18 +123,20 @@
     const dropEdge=(s,from)=>quietly(s,()=>removeEdges((getCanvas().edges||[]).filter(edge=>edge.from===from&&edge.to===s.id).map(edge=>edge.id),{quiet:true}));
     function afterBinding(s){s.node.draftRevision+=1;s.receipt=null;saveState();paint(s);requestCompile(s);}
     function listTextSources(){return Object.values(getCanvas().nodes||{}).filter(node=>node.type==='text').map(node=>({id:node.id,alias:node.alias||`文本 ${node.id.slice(-6)}`,preview:String(materializeText(node)||'').slice(0,120)}));}
-    // Unbinding freezes what the source says now; a source that cannot be read leaves the old inline value untouched.
+    // Freeze the current text when unbinding a source.
     function freezeField(s,slot){
       const source=slot.holder[slot.sourceKey],state=getNodeState(source.nodeId);
       if(state?.type==='text'){const value=materializeText(state);if(typeof value==='string'&&value.trim())slot.holder[slot.valueKey]=value;}
       slot.holder[slot.sourceKey]={kind:'inline'};
+      if(slot.holder===s.node)s.el.querySelector('[data-moss-prompt]').value=s.node.prompt;
     }
     function bindTextSource(id,targetId,field,sourceNodeId){
       const s=sessions.get(id);if(!canEdit(id))throw new Error('节点正在运行或已不存在');
       const slot=M.bindingSlot(s.node,targetId,field);if(!slot)throw new Error('绑定目标不存在');
       const previous=slot.holder[slot.sourceKey];
       if(sourceNodeId){
-        if(getNodeState(sourceNodeId)?.type!=='text')throw new Error('只能绑定文本节点');
+        const source=getNodeState(sourceNodeId);
+        if(!M.isTextSource(source))throw new Error('该字段只能绑定文本节点');
         if(!hasEdge(sourceNodeId,id))quietly(s,()=>connectNodes(sourceNodeId,id,{quiet:true}));
         if(!hasEdge(sourceNodeId,id))throw new Error('文本节点连接失败');
         slot.holder[slot.sourceKey]={kind:'text_node',nodeId:sourceNodeId};
@@ -169,7 +172,7 @@
       const field=item.label==='text'?'text':'caption',source=item[field+'Source'];
       if(!M.bound(source))return{bound:false,text:item[field]||''};
       const state=getNodeState(source.nodeId);
-      if(state?.type!=='text')return{bound:true,nodeId:source.nodeId,issue:'来源已删除'};
+      if(!M.isTextSource(state))return{bound:true,nodeId:source.nodeId,issue:'来源已删除'};
       return{bound:true,nodeId:source.nodeId,alias:state.alias||'',text:String(materializeText(state)||'')};
     }
     function textConnected(s,from){
@@ -181,7 +184,8 @@
     function textDisconnected(s,from){
       if(!getNodeState(from)||!M.textDependencies(s.node).includes(from))return;
       const affected=M.allBindings(s.node).filter(item=>item.source?.nodeId===from);
-      if(!canEdit(s.id)||!confirmAction?.(`断开后这 ${affected.length} 处内容将解除绑定，保留当前文字为内联内容。确定断开？`)){quietly(s,()=>connectNodes(from,s.id,{quiet:true}));return;}
+      const message=`断开后这 ${affected.length} 处内容将解除绑定，保留当前文字为内联内容。确定断开？`;
+      if(!canEdit(s.id)||!confirmAction?.(message)){quietly(s,()=>connectNodes(from,s.id,{quiet:true,restoreExisting:true}));return;}
       affected.forEach(item=>freezeField(s,M.bindingSlot(s.node,item.targetId,item.field)));afterBinding(s);
     }
     // Files and image_paths share one order; an overlay is in neither.
@@ -307,7 +311,7 @@
     function graphChanged(){sessions.forEach(s=>{paint(s);requestCompile(s);});}
     function connected(from,to){
       const output=sessions.get(from);if(output?.job?.result_files?.length&&!output.publishing)publish(output,output.job,to).catch(error=>feedback(output,error.message,'error'));
-      const input=sessions.get(to);if(input&&!input.internalEdges&&getNodeState(from)?.type==='text'&&getNodeState(from).promptRole!=='negative')textConnected(input,from);
+      const input=sessions.get(to);if(input&&!input.internalEdges&&M.isTextSource(getNodeState(from))&&getNodeState(from).promptRole!=='negative')textConnected(input,from);
       graphChanged();
     }
     function removed(edges=[]){edges.forEach(edge=>{const s=sessions.get(edge.to);if(s&&!s.internalEdges)textDisconnected(s,edge.from);});graphChanged();}

@@ -3,6 +3,7 @@
 from __future__ import annotations
 import asyncio
 import json
+import queue
 import threading
 from contextlib import asynccontextmanager
 from fastapi import APIRouter, Header, Request
@@ -87,6 +88,18 @@ class GoogleRuntime:
                 raise GoogleError('需要 1–50 个账号 JSON', 400, 'invalid_account')
             items = self.store.import_accounts(accounts)
             return dict(self.status(), imported=len(items))
+        if name == 'models-refresh':
+            # Re-read every enabled account's model catalog (image + LLM).
+            refreshed, errors = 0, []
+            for account in self.store.private_accounts():
+                if not account.get('enabled') or account.get('requires_relogin'):
+                    continue
+                try:
+                    self.pool.refresh(account['id'])
+                    refreshed += 1
+                except GoogleError as e:
+                    errors.append(str(e))
+            return dict(self.status(), refreshed=refreshed, errors=errors[:5])
         account_id = str(body.get('account_id') or '')
         if not account_id:
             raise GoogleError('缺少 account_id', 400, 'invalid_account')
@@ -157,14 +170,26 @@ def create_router(runtime, require_auth):
             )
 
     @router.get('/v1beta/models')
-    def models(authorization: str | None = Header(default=None)):
+    def models(
+        type: str = '',
+        authorization: str | None = Header(default=None),
+    ):
         require_auth(authorization)
+        from .wire import is_image_model, is_text_model
+
+        kind = str(type or '').strip().lower()
         names = sorted(
             {
                 m['name']
                 for a in runtime.store.list_public()
                 if a['enabled']
                 for m in a.get('models', [])
+                if m.get('name')
+                and (
+                    kind not in ('text', 'image')
+                    or (kind == 'text' and is_text_model(m['name']))
+                    or (kind == 'image' and is_image_model(m['name']))
+                )
             }
         )
         return {
@@ -192,6 +217,10 @@ def create_router(runtime, require_auth):
             if not sep or method not in ('generateContent', 'streamGenerateContent'):
                 raise GoogleError('不支持此Gemini方法', 400, 'invalid_method')
             body = await read_body(request)
+            from .wire import is_text_model
+
+            if is_text_model(model):
+                return await text_response(model, method, body, request)
             if method == 'generateContent':
                 return await run_in_threadpool(runtime.pool.generate, model, body)
             # Validate before committing the SSE headers; generation runs once in a worker.
@@ -241,5 +270,71 @@ def create_router(runtime, require_auth):
             )
         except GoogleError as e:
             return JSONResponse(e.public(), status_code=e.status)
+
+    async def text_response(model, method, body, request):
+        """LLM text: a JSON answer, or SSE deltas then one final full candidate."""
+        from .wire import normalize_text_model, prepare_text_request
+
+        normalize_text_model(model)
+        prepare_text_request(body)
+        if not runtime.store.enabled():
+            raise GoogleError('Google OAuth账号池未启用', 503, 'google_pool_disabled')
+        if method == 'generateContent':
+            return await run_in_threadpool(runtime.pool.generate_text, model, body)
+
+        events_queue = queue.Queue()
+        cancelled = threading.Event()
+
+        def worker():
+            try:
+                for item in runtime.pool.stream_text(model, body, cancelled):
+                    events_queue.put(item)
+            except GoogleError as e:
+                events_queue.put(('error', e.public()))
+            except Exception:
+                events_queue.put(
+                    ('error', {'error': 'Google账号池内部错误', 'error_code': 'google_pool_error'})
+                )
+            finally:
+                events_queue.put(('end', None))
+
+        def take():
+            try:
+                return events_queue.get(timeout=5)
+            except queue.Empty:
+                return None
+
+        async def events():
+            thread = threading.Thread(target=worker, name='google-pool-text', daemon=True)
+            thread.start()
+            try:
+                while True:
+                    if await request.is_disconnected():
+                        return
+                    item = await run_in_threadpool(take)
+                    if item is None:
+                        yield ': google-pool heartbeat\n\n'
+                        continue
+                    kind, value = item
+                    if kind == 'end':
+                        return
+                    if kind == 'delta':
+                        payload = {
+                            'candidates': [
+                                {'content': {'role': 'model', 'parts': [{'text': value}]}}
+                            ],
+                            'google_pool_delta': True,
+                        }
+                    else:
+                        payload = value
+                    yield 'data: ' + json.dumps(payload, ensure_ascii=False) + '\n\n'
+            finally:
+                cancelled.set()
+
+        return StreamingResponse(
+            events(),
+            media_type='text/event-stream',
+            headers={'Cache-Control': 'no-store', 'X-Accel-Buffering': 'no'},
+        )
 
     return router

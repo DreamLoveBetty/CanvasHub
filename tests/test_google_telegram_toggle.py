@@ -130,7 +130,7 @@ class GoogleTelegramToggleTest(unittest.TestCase):
 
         send_telegram_result.assert_not_called()
         self.assertTrue(update_task.called)
-        self.assertEqual(update_task.call_args.args[1], "succeeded")
+        self.assertEqual(update_task.call_args.args[1], "succeeded_no_telegram")
         payload = update_task.call_args.kwargs
         self.assertIn("跳过 Telegram", payload.get("progress_text", ""))
 

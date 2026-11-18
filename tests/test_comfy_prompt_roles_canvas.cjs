@@ -137,11 +137,10 @@ test('text node role toggle, link styling and agent targeting skip negatives', (
   context.setRole(element, state, true);
   assert.equal(state.promptRole, 'negative');
   assert.equal(element.badge.hidden, false);
-  assert.deepEqual(elementCalls, [['is-negative-prompt', true], ['aria-pressed', 'true']]);
+  assert.deepEqual(elementCalls, [['is-negative-prompt', true]]);
   context.setRole(element, state, false);
   assert.equal('promptRole' in state, false);
   assert.equal(context.findText('comfy'), 'pos');
-  assert.match(editor, /data-text-action="negative" aria-pressed=/);
 
   assert.match(read('frontend/scripts/desktop-canvas-connections.js'), /promptRole === 'negative' \? ' is-negative-prompt' : ''/);
   assert.match(read('frontend/scripts/desktop-prompt-agent.js'), /nodes\[item\.from\]\.promptRole !== 'negative'/);
@@ -162,7 +161,7 @@ test('module loads before the canvas host, is wired in, and styles use tokens', 
   const host = read('frontend/scripts/desktop-canvas.js');
   assert.match(host, /window\.DesktopCanvasComfyInputs\.create\(/);
   assert.match(host, /canvasComfyInputs\.assign\(nodeState\.id, nodeState\.workflow, comfyInputSlot\.dataset\.comfyInputSlot, comfyInputSlot\.value\)/);
-  assert.match(host, /textAction\.dataset\.textAction === 'negative'/);
+  assert.match(host, /canvasTextEditor\.setTextNodePromptRole\(getNodeElement\(nodeId\), node, negative\)/);
   const tokens = read('frontend/styles/desktop-tokens.css');
   assert.equal((tokens.match(/--desk-node-text-negative-border:/g) || []).length, 2, 'light and dark tokens');
   assert.match(read('frontend/styles/desktop-canvas-nodes.css'), /\.desk-link-path\.is-negative-prompt \{\n  stroke: var\(--desk-node-text-negative-border\);/);

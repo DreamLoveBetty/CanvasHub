@@ -139,8 +139,13 @@ class LoKrTests(unittest.TestCase):
         self.assertEqual(target_path("lycoris_text_fusion_layerwise_blocks_1_attn_to_out_0"),
                          "txtfusion.layerwise_blocks.1.attn.wo")
         self.assertEqual(target_path("lycoris_transformer_blocks_27_ff_down"), "blocks.27.mlp.down")
+        self.assertEqual(target_path("diffusion_model.blocks.0.attn.gate"), "blocks.0.attn.gate")
+        self.assertEqual(target_path("diffusion_model.txtfusion.layerwise_blocks.0.attn.gate"),
+                         "txtfusion.layerwise_blocks.0.attn.gate")
+        self.assertEqual(target_path("lora_unet_blocks_27_attn_wq"), "blocks.27.attn.wq")
+        self.assertEqual(target_path("lora_unet_last_linear"), "last.linear")
         for name in ("lycoris_transformer_blocks_28_ff_down", "lycoris_text_fusion_layerwise_blocks_2_ff_down",
-                     "lycoris_text_fusion_projector_extra", "first"):
+                     "lycoris_text_fusion_projector_extra", "diffusion_model.blocks.28.attn.gate", "first"):
             with self.assertRaises(ValueError):
                 target_path(name)
 

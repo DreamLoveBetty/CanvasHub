@@ -108,6 +108,9 @@ class StrictLoading(unittest.TestCase):
             (self.view / part / "config.json").write_text(json.dumps({"text_config": {}}))
             (self.view / part / "0.safetensors").write_bytes(b"")
         Recorder.loaded = []
+        self.FakeLoRALinear = type("FakeLoRALinear", (), {})
+        lora_mod = types.ModuleType("moss_image_mlx.lora")
+        lora_mod.LoRALinear = self.FakeLoRALinear
         self.shards = {"text_encoder": {"norm.weight": Value("norm")},
                        "vae": {"decoder.conv_in.weight": Value("conv"), "encoder.conv_in.weight": Value("skip")}}
         core = types.SimpleNamespace(load=lambda path: self.shards[Path(path).parent.name],
@@ -118,6 +121,7 @@ class StrictLoading(unittest.TestCase):
                        Qwen3_5TextModel=Recorder, TextModelArgs=types.SimpleNamespace(from_dict=lambda value: value)),
                    "moss_image_mlx": types.ModuleType("moss_image_mlx"),
                    "moss_image_mlx.pipeline": types.SimpleNamespace(MOSSImagePipeline=FakePipeline),
+                   "moss_image_mlx.lora": lora_mod,
                    "moss_image_mlx.text_encoder": types.SimpleNamespace(
                        TextEncoder=object, _use_reference_layers=lambda *_: None, sanitize=lambda value: value),
                    "moss_image_mlx.vae": types.SimpleNamespace(VAEDecoder=Recorder),
@@ -137,6 +141,14 @@ class StrictLoading(unittest.TestCase):
         self.assertEqual(list(text), ["language_model.norm.weight"])
         self.assertEqual(vae, {"decoder.conv_in.weight": ("conv", "float32")})
         self.assertTrue(text_strict and vae_strict)
+
+    def test_make_pipeline_installs_loralinear_weight_compat_before_returning(self):
+        self.assertNotIn("weight", self.FakeLoRALinear.__dict__)
+        adapter.make_pipeline(self.view, "cache", [("lora", 1)])
+        self.assertIsInstance(self.FakeLoRALinear.__dict__["weight"], property)
+        first = self.FakeLoRALinear.__dict__["weight"]
+        adapter.make_pipeline(self.view, "cache", [])
+        self.assertIs(self.FakeLoRALinear.__dict__["weight"], first)
 
 
 if __name__ == "__main__":

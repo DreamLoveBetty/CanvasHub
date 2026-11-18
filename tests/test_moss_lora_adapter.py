@@ -112,6 +112,74 @@ class FourFormats(Base):
         self.assertIn("diffusion_model.layers.41.proj.ffn_up_gate.lora_up.weight", output)
         self.assertIn("diffusion_model.layers.41.proj.ffn_down.alpha", output)
 
+    def test_text_embedder_blocks_preserve_direct_qkv_and_ffn_targets(self):
+        tensors = {
+            "text_embedder.blocks.0.qkv.lora_A.default.weight": ("F16", (16, 3072), blob(16, 3072, 1)),
+            "text_embedder.blocks.0.qkv.lora_B.default.weight": ("F16", (9216, 16), blob(9216, 16, 2)),
+            "text_embedder.blocks.1.ffn_down.lora_A.default.weight": ("F16", (16, 8192), blob(16, 8192, 3)),
+            "text_embedder.blocks.1.ffn_down.lora_B.default.weight": ("F16", (3072, 16), blob(3072, 16, 4)),
+        }
+        output, _ = read_tensors(lora_adapter.prepare(self.write(tensors), SHA, self.cache))
+        self.assertIn("diffusion_model.text_embedder.blocks.0.qkv.lora_down.weight", output)
+        self.assertIn("diffusion_model.text_embedder.blocks.0.qkv.lora_up.weight", output)
+        self.assertIn("diffusion_model.text_embedder.blocks.1.ffn_down.lora_up.weight", output)
+
+    def test_turbo_aux_modules_keep_shapes_and_remap_time_embedding(self):
+        rank = 4
+        tensors = {
+            "diffusion_model.final_linear_video.lora_down.weight": ("BF16", (rank, 3072), blob(rank, 3072, 1)),
+            "diffusion_model.final_linear_video.lora_up.weight": ("BF16", (128, rank), blob(128, rank, 2)),
+            "diffusion_model.final_linear_video.alpha": ("F32", (), alpha_bytes(16.0)),
+            "diffusion_model.shared_block_modulation.lora_down.weight": ("BF16", (rank, 3072), blob(rank, 3072, 3)),
+            "diffusion_model.shared_block_modulation.lora_up.weight": ("BF16", (18432, rank), blob(18432, rank, 4)),
+            "diffusion_model.text_embedder.proj.lora_down.weight": ("BF16", (rank, 4096), blob(rank, 4096, 5)),
+            "diffusion_model.text_embedder.proj.lora_up.weight": ("BF16", (3072, rank), blob(3072, rank, 6)),
+            "diffusion_model.time_embedding.0.lora_down.weight": ("BF16", (rank, 256), blob(rank, 256, 7)),
+            "diffusion_model.time_embedding.0.lora_up.weight": ("BF16", (3072, rank), blob(3072, rank, 8)),
+            "diffusion_model.time_embedding.2.lora_down.weight": ("BF16", (rank, 3072), blob(rank, 3072, 9)),
+            "diffusion_model.time_embedding.2.lora_up.weight": ("BF16", (3072, rank), blob(3072, rank, 10)),
+            "diffusion_model.video_head_modulation.lora_down.weight": ("BF16", (rank, 3072), blob(rank, 3072, 11)),
+            "diffusion_model.video_head_modulation.lora_up.weight": ("BF16", (6144, rank), blob(6144, rank, 12)),
+        }
+        path = self.write(tensors)
+        output, _ = read_tensors(lora_adapter.prepare(path, SHA, self.cache))
+        self.assertEqual(output["diffusion_model.final_linear_video.lora_up.weight"][1], (128, rank))
+        self.assertEqual(output["diffusion_model.shared_block_modulation.lora_up.weight"][1], (18432, rank))
+        self.assertEqual(output["diffusion_model.text_embedder.proj.lora_down.weight"][1], (rank, 4096))
+        self.assertIn("diffusion_model.time_embedding.0.lora_down.weight", output)
+        self.assertEqual(output["diffusion_model.time_embedding.1.lora_up.weight"][2],
+                         tensors["diffusion_model.time_embedding.2.lora_up.weight"][2])
+        self.assertNotIn("diffusion_model.time_embedding.2.lora_down.weight", output)
+        self.assertEqual(output["diffusion_model.video_head_modulation.lora_up.weight"][1], (6144, rank))
+        self.assertEqual(output["diffusion_model.final_linear_video.alpha"], ("F32", (), alpha_bytes(16.0)))
+        self.assertEqual(lora_adapter.inspect(path)["adapter_count"], 6)
+
+    def test_kohya_flat_aux_time_embedding_remaps_to_index_one(self):
+        tensors = {
+            "lora_unet_time_embedding_2.lora_down.weight": ("BF16", (4, 3072), blob(4, 3072, 1)),
+            "lora_unet_time_embedding_2.lora_up.weight": ("BF16", (3072, 4), blob(3072, 4, 2)),
+            "lora_unet_time_embedding_2.alpha": ("F32", (), alpha_bytes(8.0)),
+        }
+        output, _ = read_tensors(lora_adapter.prepare(self.write(tensors), SHA, self.cache))
+        self.assertIn("diffusion_model.time_embedding.1.lora_down.weight", output)
+        self.assertNotIn("diffusion_model.time_embedding.2.lora_down.weight", output)
+
+    def test_time_embedding_one_and_two_are_the_same_target(self):
+        tensors = {
+            "diffusion_model.time_embedding.1.lora_down.weight": ("BF16", (4, 3072), blob(4, 3072, 1)),
+            "diffusion_model.time_embedding.1.lora_up.weight": ("BF16", (3072, 4), blob(3072, 4, 2)),
+            "diffusion_model.time_embedding.2.lora_down.weight": ("BF16", (4, 3072), blob(4, 3072, 3)),
+            "diffusion_model.time_embedding.2.lora_up.weight": ("BF16", (3072, 4), blob(3072, 4, 4)),
+        }
+        self.rejects(tensors, "重复目标层：time_embedding.1")
+
+    def test_aux_module_wrong_shape_is_rejected(self):
+        tensors = {
+            "diffusion_model.text_embedder.proj.lora_down.weight": ("BF16", (4, 3072), blob(4, 3072, 1)),
+            "diffusion_model.text_embedder.proj.lora_up.weight": ("BF16", (3072, 4), blob(3072, 4, 2)),
+        }
+        self.rejects(tensors, "shape 与 MOSS 不匹配：text_embedder.proj")
+
     def test_every_accepted_wrapper_prefix(self):
         for prefix in ("diffusion_model.", "model.diffusion_model.", "transformer.", "base_model.model.",
                        "base_model.model.diffusion_model."):

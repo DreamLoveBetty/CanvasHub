@@ -5,7 +5,7 @@
   function create({
     getCanvas, els, clamp, getSelectedNodeIds, getNodeBounds, getNodeBoundsById,
     getBoundsFromRects, updateSelectionToolbar, positionEdgeMenu,
-    updateInputProgressOverlay, focusCanvasViewport, saveSettings, isSelectToolActive,
+    updateInputProgressOverlay, focusCanvasViewport, saveSettings,
     constants: {
       WORLD_WIDTH, WORLD_HEIGHT, MIN_SCALE, MAX_SCALE, ZOOM_PRESETS,
       DEFAULT_CANVAS_SCALE, CANVAS_WHEEL_GESTURE_END_MS,
@@ -47,15 +47,18 @@
       return true;
     }
 
-    // A primary empty-canvas drag pans; macOS three-finger drag arrives as the same
-    // primary drag, so Shift is the only way to ask for a marquee instead.
+    // A primary empty-canvas drag pans unless Shift is held. The rail's active
+    // item also marks panels, not a prerequisite for selecting on the canvas.
     function isMarqueeDrag(event) {
-      return event.button === 0 && event.shiftKey && !event.altKey && !event.metaKey && !event.ctrlKey
-        && isSelectToolActive();
+      return event.button === 0 && hasMarqueeModifier(event);
+    }
+
+    function hasMarqueeModifier(event) {
+      return !!event?.shiftKey && !event.altKey && !event.metaKey && !event.ctrlKey;
     }
 
     function syncMarqueeCursor(event) {
-      els.deskCanvasViewport?.classList.toggle('is-marquee-armed', !!event?.shiftKey && isSelectToolActive());
+      els.deskCanvasViewport?.classList.toggle('is-marquee-armed', hasMarqueeModifier(event));
     }
 
     function applyCanvasTransform(options = {}) {

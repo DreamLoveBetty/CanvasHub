@@ -29,12 +29,19 @@
       if (provider === 'web') return tabs + renderCard('Gemini Web 账号', [webSettings.render()], webSettings.isEnabled());
       const items = status?.items || [];
       const accounts = items.map(account => {
-        const models = (account.models || []).map(model => {
+        const chip = model => {
           const label = /^gemini-(3(?:\.1)?)-(pro|flash)-image(?:-preview)?$/.exec(model.name);
           const name = label ? `${label[2] === 'pro' ? 'Pro' : 'Flash'} ${label[1]}` : model.name;
           const detail = model.name + (model.reset_time ? ' · 重置 ' + model.reset_time : '');
           return `<span class="desk-google-pool-model" title="${esc(detail)}">${esc(name)} <b>${model.percentage == null ? '未知' : esc(String(model.percentage)) + '%'}</b></span>`;
-        }).join('');
+        };
+        const allModels = account.models || [];
+        const imageModels = allModels.filter(model => /-image/.test(model.name || ''));
+        const textModels = allModels.filter(model => !/-image/.test(model.name || ''));
+        const modelRow = (title, list) => list.length
+          ? `<div class="desk-google-pool-models"><span class="desk-google-pool-note">${title}</span>${list.map(chip).join('')}</div>`
+          : '';
+        const models = modelRow('图像', imageModels) + modelRow('LLM', textModels);
         const id = `data-google-pool-id="${esc(account.id)}"`;
         const name = account.email || 'Google 账号 ' + account.id.slice(0, 8);
         return `<div class="desk-google-pool-account">
@@ -47,7 +54,7 @@
             </div>
           </div>
           <p class="desk-google-pool-note">${account.enabled ? '已启用' : '已停用'} · ${account.requires_relogin ? '需重新授权' : (account.refreshable ? '自动续期' : '临时 Token')} · 成功 ${Number(account.success_count || 0)}</p>
-          <div class="desk-google-pool-models">${models || '<span class="desk-google-pool-note">额度未读取</span>'}</div>
+          ${models || '<div class="desk-google-pool-models"><span class="desk-google-pool-note">额度未读取</span></div>'}
           ${account.last_error ? `<p class="desk-google-pool-error">${esc(account.last_error)}</p>` : ''}
         </div>`;
       }).join('');

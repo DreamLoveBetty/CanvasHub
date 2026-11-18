@@ -7,6 +7,23 @@ from ..local_image.lora_store import LoRAStore as _LoRAStore
 from .weight_schema import expected_shapes
 
 
+_FLAT_BLOCK_LAYERS = {
+    "attn_to_q": "attn.to_q",
+    "attn_to_k": "attn.to_k",
+    "attn_to_v": "attn.to_v",
+    "attn_to_out_0": "attn.to_out.0",
+    "img_mlp_proj": "img_mlp.proj",
+    "img_mlp_gate_layer": "img_mlp.gate_layer",
+    "img_mlp_out": "img_mlp.out",
+    "img_mlp_gate_up": "img_mlp.gate_up",
+}
+_FLAT_GLOBALS = {
+    "modulation_1": "modulation.1",
+    "time_text_embed_timestep_embedder_linear_1": "time_text_embed.timestep_embedder.linear_1",
+    "time_text_embed_timestep_embedder_linear_2": "time_text_embed.timestep_embedder.linear_2",
+}
+
+
 def canonical_lora_key(key):
     """Map known wrappers/PEFT names to the upstream Qwen target namespace."""
     name = key.removeprefix("base_model.model.")
@@ -17,6 +34,16 @@ def canonical_lora_key(key):
                          (".lora_down.weight", "A"), (".lora_up.weight", "B"), (".alpha", "alpha")):
         if name.endswith(suffix):
             target = name[:-len(suffix)]
+            for flat_prefix in ("lora_unet_", "lycoris_"):
+                if target.startswith(flat_prefix):
+                    rest = target[len(flat_prefix):]
+                    if rest in _FLAT_GLOBALS:
+                        target = _FLAT_GLOBALS[rest]
+                    else:
+                        flat = re.fullmatch(r"transformer_blocks_(\d+)_(.+)", rest)
+                        if flat and flat[2] in _FLAT_BLOCK_LAYERS:
+                            target = f"transformer_blocks.{flat[1]}.{_FLAT_BLOCK_LAYERS[flat[2]]}"
+                    break
             block = re.fullmatch(r"transformer_blocks\.(\d+)\.(attn\.(?:to_q|to_k|to_v|to_out\.0)|img_mlp\.(?:proj|gate_layer|out|gate_up))", target)
             globals_ = {"modulation.1", "time_text_embed.timestep_embedder.linear_1",
                         "time_text_embed.timestep_embedder.linear_2"}

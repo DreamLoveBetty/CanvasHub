@@ -10,7 +10,7 @@
   const ASPECT_RATIOS=Object.freeze(['1:1','2:3','3:2','3:4','4:3','4:5','5:4','9:16','16:9']);
   const LORA_SCALE_MIN=-20,LORA_SCALE_MAX=20,MAX_LORAS=4,MAX_PIXELS=2097152,SEED_MAX=4294967295,GLOBAL='global';
   const ICON='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z"/></svg>';
-  const MENU_ITEM=Object.freeze({type:TYPE,title:'MOSS · 本地生成 / Layout',subtitle:'文生图 / 自由布局 / 分镜网格',icon:ICON});
+  const MENU_ITEM=Object.freeze({type:TYPE,title:'MOSS · 本地生成 / Layout',subtitle:'文生图 · 布局 · 分镜',icon:ICON});
   const K=Uint32Array.from('428a2f98 71374491 b5c0fbcf e9b5dba5 3956c25b 59f111f1 923f82a4 ab1c5ed5 d807aa98 12835b01 243185be 550c7dc3 72be5d74 80deb1fe 9bdc06a7 c19bf174 e49b69c1 efbe4786 0fc19dc6 240ca1cc 2de92c6f 4a7484aa 5cb0a9dc 76f988da 983e5152 a831c66d b00327c8 bf597fc7 c6e00bf3 d5a79147 06ca6351 14292967 27b70a85 2e1b2138 4d2c6dfc 53380d13 650a7354 766a0abb 81c2c92e 92722c85 a2bfe8a1 a81a664b c24b8b70 c76c51a3 d192e819 d6990624 f40e3585 106aa070 19a4c116 1e376c08 2748774c 34b0bcb5 391c0cb3 4ed8aa4a 5b9cca4f 682e6ff3 748f82ee 78a5636f 84c87814 8cc70208 90befffa a4506ceb bef9a3f7 c67178f2'.split(' '),hex=>parseInt(hex,16));
   // crypto.subtle is async and missing on plain-http LAN origins; source hashes are checked by the server byte for byte.
   function sha256(value){
@@ -38,6 +38,7 @@
   const active=status=>['submitting','queued','processing','running'].includes(String(status||''));
   const normalizeLoraScale=value=>clamp(value,LORA_SCALE_MIN,LORA_SCALE_MAX,1);
   const inline=()=>({kind:'inline'});
+  const isTextSource=state=>state?.type==='text';
   // A field binding is a reference only: no live copy of the source text is ever stored.
   function normalizeSource(value){
     const nodeId=value?.kind==='text_node'?text(value.nodeId??value.node_id).trim():'';
@@ -128,7 +129,7 @@
   function readSource(binding,{getNodeState,materializeText}){
     const nodeId=binding.source.nodeId,state=getNodeState(nodeId),issue=reason=>({issue:{targetId:binding.targetId,field:binding.field,nodeId,reason}});
     if(!state)return issue('missing');
-    if(state.type!=='text')return issue('incompatible');
+    if(!isTextSource(state))return issue('incompatible');
     if((state.promptDocument?.segments||[]).some(segment=>segment?.type==='image_reference'))return issue('image_reference');
     const value=materializeText(state);
     if(typeof value!=='string'||!value.trim())return issue('empty');
@@ -207,5 +208,5 @@
     copy.jobId='';copy.resultJobId='';copy.panelJobId='';copy.status='idle';
     return copy;
   }
-  window.DesktopMossModel=Object.freeze({TYPE,WIDTH,HEIGHT,SCHEMA,SCHEMA_VERSION,DEFAULT_MODEL_ID,DEFAULT_PRESET,MODES,PRESETS,SAMPLER_LIMITS,SAMPLER_DEFAULTS,normalizeSamplerParams,GLOBAL,ASPECT_RATIOS,dimensionsForRatio,ratioFromDimensions,withinPixels,allBindings,bindingSlot,bound,LORA_SCALE_MIN,LORA_SCALE_MAX,MAX_LORAS,ICON,MENU_ITEM,sha256,active,normalizeLoraScale,normalizeSource,normalize,unsupported,targets,policy,modeBindings,textDependencies,missingDependencies,resolveTextSources,scaleFreeDraft,exportDraft,exportOfficial,applyImport,remapClone});
+  window.DesktopMossModel=Object.freeze({TYPE,WIDTH,HEIGHT,SCHEMA,SCHEMA_VERSION,DEFAULT_MODEL_ID,DEFAULT_PRESET,MODES,PRESETS,isTextSource,SAMPLER_LIMITS,SAMPLER_DEFAULTS,normalizeSamplerParams,GLOBAL,ASPECT_RATIOS,dimensionsForRatio,ratioFromDimensions,withinPixels,allBindings,bindingSlot,bound,LORA_SCALE_MIN,LORA_SCALE_MAX,MAX_LORAS,ICON,MENU_ITEM,sha256,active,normalizeLoraScale,normalizeSource,normalize,unsupported,targets,policy,modeBindings,textDependencies,missingDependencies,resolveTextSources,scaleFreeDraft,exportDraft,exportOfficial,applyImport,remapClone});
 })();

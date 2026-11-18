@@ -1,8 +1,150 @@
-// 文本节点 HTML/别名/风格、contenteditable/token/mention/光标、文档编辑与 undo/redo、图片引用 token 迁移冻结刷新、提示词目标适配、剪贴板及润色结果展示/应用/撤销；润色请求 runTextNodeGptPolish 留生成执行模块。
+// 文本节点 HTML/别名/风格、文档编辑、图片引用及文本改写的预览/应用/撤销。改写通过注入的 DesktopApi 适配，不参与生成。
 // Explicit host callbacks preserve ordering; shared state ports always resolve the live value.
 // No API/schema changes. Load before desktop-canvas.js; create() has no I/O or event binding.
 (function () {
   const IMAGE_REFERENCE_DELETED_TEXT = '（已删除图片）';
+  const TEXT_REWRITE_ACTIONS = Object.freeze({
+    'gpt-polish': 'GPT 润色',
+    moss_caption: 'MOSS 扩展',
+    qwen_t2i: 'Qwen 2.1 扩展',
+    h3_image_t2i: 'H3 Image 扩展',
+  });
+  const TEXT_REWRITE_ICON = `<svg class="desk-text-node__rewrite-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+    <path d="M17.9 4.5A10.1 10.1 0 1 1 2 11.4M7 11.9a5.05 5.05 0 0 0 10.1 0M4.1 22.1l7.4-9.2"></path>
+    <path d="M12 4.4c.7 2 1.7 3 3.7 3.7-2 .7-3 1.8-3.7 3.7-.7-1.9-1.8-3-3.7-3.7 1.9-.7 3-1.7 3.7-3.7ZM4.9 2.2c.4.9.8 1.4 1.7 1.7-.9.4-1.3.8-1.7 1.7-.3-.9-.8-1.3-1.7-1.7.9-.3 1.4-.8 1.7-1.7Z"></path>
+  </svg>`;
+
+  function ensureTextCopyFallback() {
+  let modal = document.getElementById('deskTextCopyFallback');
+  if (modal) return modal;
+  document.body.insertAdjacentHTML('beforeend', `
+    <div class="desk-text-copy-fallback" id="deskTextCopyFallback" aria-hidden="true">
+      <div class="desk-text-copy-fallback__panel desk-glass">
+        <header>
+          <div>
+            <p>Clipboard</p>
+            <h2>手动复制</h2>
+          </div>
+          <button type="button" data-copy-fallback-close title="关闭" aria-label="关闭">×</button>
+        </header>
+        <p class="desk-text-copy-fallback__hint">系统剪贴板受限，文本已选中。</p>
+        <textarea data-copy-fallback-text readonly></textarea>
+        <footer>
+          <button type="button" data-copy-fallback-select>重新选中</button>
+          <button type="button" class="is-primary" data-copy-fallback-close>完成</button>
+        </footer>
+      </div>
+    </div>
+  `);
+  modal = document.getElementById('deskTextCopyFallback');
+  modal?.addEventListener('click', event => {
+    if (event.target === modal || event.target.closest('[data-copy-fallback-close]')) {
+      modal.classList.remove('is-open');
+      modal.setAttribute('aria-hidden', 'true');
+      return;
+    }
+    if (event.target.closest('[data-copy-fallback-select]')) {
+      event.preventDefault();
+      selectTextCopyFallback();
+    }
+  });
+  return modal;
+  }
+
+  function selectTextCopyFallback() {
+  const textarea = document.querySelector('#deskTextCopyFallback [data-copy-fallback-text]');
+  if (!textarea) return;
+  textarea.focus({ preventScroll: true });
+  textarea.select();
+  try { textarea.setSelectionRange(0, textarea.value.length); } catch (e) {}
+  }
+
+  function showTextCopyFallback(text) {
+  const modal = ensureTextCopyFallback();
+  const textarea = modal.querySelector('[data-copy-fallback-text]');
+  if (textarea) textarea.value = String(text || '');
+  modal.classList.add('is-open');
+  modal.setAttribute('aria-hidden', 'false');
+  window.requestAnimationFrame(() => selectTextCopyFallback());
+  }
+
+  function copyTextWithTemporaryTextarea(value) {
+  const ta = document.createElement('textarea');
+  const previousFocus = document.activeElement;
+  ta.value = value;
+  ta.setAttribute('readonly', '');
+  ta.style.position = 'fixed';
+  ta.style.top = '0';
+  ta.style.left = '0';
+  ta.style.width = '1px';
+  ta.style.height = '1px';
+  ta.style.padding = '0';
+  ta.style.border = '0';
+  ta.style.opacity = '0.01';
+  ta.style.zIndex = '-1';
+  document.body.appendChild(ta);
+  try {
+    ta.focus({ preventScroll: true });
+    ta.select();
+    ta.setSelectionRange(0, value.length);
+    return document.execCommand && document.execCommand('copy') === true;
+  } catch (e) {
+    return false;
+  } finally {
+    document.body.removeChild(ta);
+    if (previousFocus && typeof previousFocus.focus === 'function') {
+      try { previousFocus.focus({ preventScroll: true }); } catch (e) {}
+    }
+  }
+  }
+
+  async function copyTextToClipboardLocal(text, successMessage = '已复制') {
+  const value = String(text || '');
+  if (!value) {
+    DesktopResults.showTransientMessage('暂无可复制内容。');
+    return 'empty';
+  }
+  if (navigator.clipboard && window.isSecureContext) {
+    try {
+      await navigator.clipboard.writeText(value);
+      DesktopResults.showTransientMessage(successMessage);
+      return 'copied';
+    } catch (e) {}
+  }
+  if (copyTextWithTemporaryTextarea(value)) {
+    DesktopResults.showTransientMessage(successMessage);
+    return 'copied';
+  }
+  showTextCopyFallback(value);
+  DesktopResults.showTransientMessage('自动复制受限，已打开手动复制框。');
+  return 'manual';
+  }
+
+  function setPolishCopyButtonState(button, state) {
+  if (!button) return;
+  const labels = {
+    idle: button.dataset.copyDefaultLabel || '复制当前',
+    copying: '复制中',
+    copied: '已复制',
+    manual: '手动复制',
+    empty: '无内容',
+    failed: '复制受限'
+  };
+  if (!button.dataset.copyDefaultLabel) button.dataset.copyDefaultLabel = button.textContent.trim() || '复制当前';
+  if (button._copyFeedbackTimer) window.clearTimeout(button._copyFeedbackTimer);
+  button.dataset.copyState = state;
+  button.textContent = labels[state] || labels.idle;
+  button.setAttribute('aria-live', 'polite');
+  button.setAttribute('aria-busy', state === 'copying' ? 'true' : 'false');
+  if (state !== 'copying') button.disabled = false;
+  if (state === 'copied' || state === 'manual' || state === 'empty' || state === 'failed') {
+    button._copyFeedbackTimer = window.setTimeout(() => {
+      button.dataset.copyState = 'idle';
+      button.textContent = button.dataset.copyDefaultLabel || '复制当前';
+      button.setAttribute('aria-busy', 'false');
+    }, state === 'manual' ? 2200 : 1500);
+  }
+  }
 
   function create({
     CUSTOM_TEXT_STYLE_KEY,
@@ -26,6 +168,7 @@
     ensureGraphDom,
     ensureTextNodePromptDocument,
     escapeHtml,
+    expandPrompt,
     getConnectedImageReferences,
     getImageGroupItem,
     getNodeElement,
@@ -43,6 +186,7 @@
     normalizeImageReferenceSegment,
     normalizePromptBlockSegment,
     normalizePromptDocument,
+    polishPrompt,
     promptDocumentFingerprint,
     promptDocumentHasEditorContent,
     selectNode,
@@ -50,6 +194,8 @@
   }) {
     let externalTextStylePresets = [];
     let textPolishState = null;
+    const pendingRewrites = new WeakSet();
+    let lastRewrite = 0;
 
     function updatePromptEditorEmptyState(editor, promptDocument) {
     if (!editor) return;
@@ -447,15 +593,6 @@
     }));
   }
 
-    function textStylePresetButtonsHtml() {
-    return allTextStylePresets().map(item => `
-      <button type="button" data-text-style-preset="${escapeHtml(item.id)}">
-        <strong>${escapeHtml(item.title)}</strong>
-        <span>${escapeHtml(item.promptTemplate)}</span>
-      </button>
-    `).join('');
-  }
-
     function loadCustomTextStylePresets() {
     try {
       const raw = window.localStorage?.getItem(CUSTOM_TEXT_STYLE_KEY);
@@ -631,9 +768,6 @@
     const custom = loadCustomTextStylePresets();
     custom.push(item);
     saveCustomTextStylePresets(custom.slice(-30));
-    document.querySelectorAll('[data-text-style-menu]').forEach(menu => {
-      menu.innerHTML = textStylePresetButtonsHtml();
-    });
     return item;
   }
 
@@ -650,9 +784,6 @@
         external: true
       }))
       .filter(item => item.id && item.title && item.promptTemplate);
-    document.querySelectorAll('[data-text-style-menu]').forEach(menu => {
-      menu.innerHTML = textStylePresetButtonsHtml();
-    });
     return getTextStylePresets();
   }
 
@@ -843,7 +974,6 @@
     element?.classList.toggle('is-negative-prompt', !!negative);
     const badge = element?.querySelector('[data-text-node-role]');
     if (badge) badge.hidden = !negative;
-    element?.querySelector('[data-text-action="negative"]')?.setAttribute('aria-pressed', negative ? 'true' : 'false');
   }
 
     function textNodeHtml(node) {
@@ -872,32 +1002,17 @@
         <div class="desk-text-node__image-mention-menu" data-text-image-mention-menu data-node-drag-ignore hidden role="listbox" aria-label="引用画布图片"></div>
         <button type="button" class="desk-port desk-port--out" data-port="out" data-node-id="${node.id}" title="连接提示词到模型节点" aria-label="连接文本输出"></button>
         <div class="desk-text-node__drawer" aria-label="文本节点操作">
-          <button type="button" class="desk-key" data-text-action="preset">预设风格</button>
-          <button type="button" class="desk-key" data-text-action="gpt-polish">GPT 润色</button>
-          <button type="button" class="desk-key" data-text-action="safe-rewrite">安全审核版</button>
-          <button type="button" class="desk-key" data-text-action="negative" aria-pressed="${negative ? 'true' : 'false'}" title="设为负面提示词">负面</button>
+          <div class="desk-text-node__rewrite-actions">
+            ${Object.entries(TEXT_REWRITE_ACTIONS).map(([action, label]) => `
+              <button type="button" class="desk-key" data-text-action="${action}" data-text-rewrite title="${label}">
+                ${TEXT_REWRITE_ICON}<span data-text-rewrite-label>${label}</span>
+              </button>`).join('')}
+          </div>
           <button type="button" class="desk-key" data-text-action="clear" aria-label="清空文本节点" title="清空"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg></button>
-        </div>
-        <div class="desk-text-style-menu" data-text-style-menu hidden aria-label="选择预设风格">
-          ${textStylePresetButtonsHtml()}
         </div>
         <span class="desk-resize-handle" data-node-resize-handle title="缩放文本节点" aria-hidden="true"></span>
       </section>
     `;
-  }
-
-    function setTextStyleMenuOpen(node, open) {
-    const menu = node?.querySelector('[data-text-style-menu]');
-    if (!menu) return;
-    node.classList.toggle('is-style-menu-open', !!open);
-    menu.hidden = !open;
-  }
-
-    function closeAllTextStyleMenus(exceptNode = null) {
-    document.querySelectorAll('.desk-node--text.is-style-menu-open').forEach(node => {
-      if (exceptNode && node === exceptNode) return;
-      setTextStyleMenuOpen(node, false);
-    });
   }
 
     function setTextNodeValue(node, nodeState, value) {
@@ -1279,7 +1394,6 @@
     setPromptEditorCaret(caret);
     syncPromptDocumentFromEditor(editor, nodeState);
     commitPromptDocumentHistory(nodeState, historyEntry);
-    setTextStyleMenuOpen(node, false);
     editor.dispatchEvent(new CustomEvent('prompt-editor:change', { bubbles: true }));
     return { nodeId: nodeState.id, instanceId: segment.instance_id, token };
   }
@@ -1420,148 +1534,61 @@
     return preset;
   }
 
-    function selectTextNodePreset(node, nodeState, presetId) {
-    const preset = setTextNodeStyle(node, nodeState, presetId);
-    if (!preset) return;
-    setTextStyleMenuOpen(node, false);
-    DesktopResults.showTransientMessage(`已选择「${preset.title}」风格。`);
-  }
-
     function clearTextNodeStyle(node, nodeState) {
     const hadStyle = !!nodeState.stylePresetId;
     setTextNodeStyle(node, nodeState, '');
     if (hadStyle) DesktopResults.showTransientMessage('已移除风格标签。');
   }
 
-    function ensureTextCopyFallback() {
-    let modal = document.getElementById('deskTextCopyFallback');
-    if (modal) return modal;
-    document.body.insertAdjacentHTML('beforeend', `
-      <div class="desk-text-copy-fallback" id="deskTextCopyFallback" aria-hidden="true">
-        <div class="desk-text-copy-fallback__panel desk-glass">
-          <header>
-            <div>
-              <p>Clipboard</p>
-              <h2>手动复制</h2>
-            </div>
-            <button type="button" data-copy-fallback-close title="关闭" aria-label="关闭">×</button>
-          </header>
-          <p class="desk-text-copy-fallback__hint">系统剪贴板受限，文本已选中。</p>
-          <textarea data-copy-fallback-text readonly></textarea>
-          <footer>
-            <button type="button" data-copy-fallback-select>重新选中</button>
-            <button type="button" class="is-primary" data-copy-fallback-close>完成</button>
-          </footer>
-        </div>
-      </div>
-    `);
-    modal = document.getElementById('deskTextCopyFallback');
-    modal?.addEventListener('click', event => {
-      if (event.target === modal || event.target.closest('[data-copy-fallback-close]')) {
-        modal.classList.remove('is-open');
-        modal.setAttribute('aria-hidden', 'true');
-        return;
-      }
-      if (event.target.closest('[data-copy-fallback-select]')) {
-        event.preventDefault();
-        selectTextCopyFallback();
-      }
-    });
-    return modal;
-  }
-
-    function selectTextCopyFallback() {
-    const textarea = document.querySelector('#deskTextCopyFallback [data-copy-fallback-text]');
-    if (!textarea) return;
-    textarea.focus({ preventScroll: true });
-    textarea.select();
-    try { textarea.setSelectionRange(0, textarea.value.length); } catch (e) {}
-  }
-
-    function showTextCopyFallback(text) {
-    const modal = ensureTextCopyFallback();
-    const textarea = modal.querySelector('[data-copy-fallback-text]');
-    if (textarea) textarea.value = String(text || '');
-    modal.classList.add('is-open');
-    modal.setAttribute('aria-hidden', 'false');
-    window.requestAnimationFrame(() => selectTextCopyFallback());
-  }
-
-    function copyTextWithTemporaryTextarea(value) {
-    const ta = document.createElement('textarea');
-    const previousFocus = document.activeElement;
-    ta.value = value;
-    ta.setAttribute('readonly', '');
-    ta.style.position = 'fixed';
-    ta.style.top = '0';
-    ta.style.left = '0';
-    ta.style.width = '1px';
-    ta.style.height = '1px';
-    ta.style.padding = '0';
-    ta.style.border = '0';
-    ta.style.opacity = '0.01';
-    ta.style.zIndex = '-1';
-    document.body.appendChild(ta);
+    async function runTextNodeRewrite(node, nodeState, triggerButton) {
+    const action = triggerButton.dataset.textAction;
+    if (!Object.hasOwn(TEXT_REWRITE_ACTIONS, action) || pendingRewrites.has(nodeState)) return;
+    const expansion = action !== 'gpt-polish';
+    if (expansion && nodeState.promptRole === 'negative') {
+      DesktopResults.showTransientMessage('模型扩展仅适用于正向文生图提示词。', 'warning');
+      return;
+    }
+    const originalDocument = clonePromptDocument(ensureTextNodePromptDocument(nodeState), nodeState.text || '');
+    const originalText = materializePromptDocument(originalDocument).trim();
+    if (!originalText) {
+      DesktopResults.showTransientMessage('先在文本节点里输入提示词片段。');
+      return;
+    }
+    const sourceFingerprint = promptDocumentFingerprint(originalDocument, originalText);
+    const sourceRole = nodeState.promptRole;
+    const sequence = ++lastRewrite;
+    const label = triggerButton.querySelector('[data-text-rewrite-label]');
+    const buttons = [...node.querySelectorAll('[data-text-rewrite]')];
+    pendingRewrites.add(nodeState);
+    buttons.forEach(button => { button.disabled = true; });
+    triggerButton.setAttribute('aria-busy', 'true');
+    if (label) label.textContent = expansion ? '扩展中' : '润色中';
     try {
-      ta.focus({ preventScroll: true });
-      ta.select();
-      ta.setSelectionRange(0, value.length);
-      return document.execCommand && document.execCommand('copy') === true;
-    } catch (e) {
-      return false;
-    } finally {
-      document.body.removeChild(ta);
-      if (previousFocus && typeof previousFocus.focus === 'function') {
-        try { previousFocus.focus({ preventScroll: true }); } catch (e) {}
+      const reply = expansion
+        ? await expandPrompt({ text: originalText, profile: action })
+        : await polishPrompt({ text: originalText });
+      if (sequence !== lastRewrite || DesktopState.state.canvas.nodes[nodeState.id] !== nodeState) return;
+      const output = expansion ? reply?.prompt : reply?.full_prompt;
+      const fullPrompt = typeof output === 'string' ? output.trim() : '';
+      if (!fullPrompt || (expansion && (reply.ok !== true || reply.profile !== action))) {
+        throw new Error(expansion ? '没有收到有效的扩展结果。' : '润色结果为空');
       }
-    }
-  }
-
-    async function copyTextToClipboardLocal(text, successMessage = '已复制') {
-    const value = String(text || '');
-    if (!value) {
-      DesktopResults.showTransientMessage('暂无可复制内容。');
-      return 'empty';
-    }
-    if (navigator.clipboard && window.isSecureContext) {
-      try {
-        await navigator.clipboard.writeText(value);
-        DesktopResults.showTransientMessage(successMessage);
-        return 'copied';
-      } catch (e) {}
-    }
-    if (copyTextWithTemporaryTextarea(value)) {
-      DesktopResults.showTransientMessage(successMessage);
-      return 'copied';
-    }
-    showTextCopyFallback(value);
-    DesktopResults.showTransientMessage('自动复制受限，已打开手动复制框。');
-    return 'manual';
-  }
-
-    function setPolishCopyButtonState(button, state) {
-    if (!button) return;
-    const labels = {
-      idle: button.dataset.copyDefaultLabel || '复制当前',
-      copying: '复制中',
-      copied: '已复制',
-      manual: '手动复制',
-      empty: '无内容',
-      failed: '复制受限'
-    };
-    if (!button.dataset.copyDefaultLabel) button.dataset.copyDefaultLabel = button.textContent.trim() || '复制当前';
-    if (button._copyFeedbackTimer) window.clearTimeout(button._copyFeedbackTimer);
-    button.dataset.copyState = state;
-    button.textContent = labels[state] || labels.idle;
-    button.setAttribute('aria-live', 'polite');
-    button.setAttribute('aria-busy', state === 'copying' ? 'true' : 'false');
-    if (state !== 'copying') button.disabled = false;
-    if (state === 'copied' || state === 'manual' || state === 'empty' || state === 'failed') {
-      button._copyFeedbackTimer = window.setTimeout(() => {
-        button.dataset.copyState = 'idle';
-        button.textContent = button.dataset.copyDefaultLabel || '复制当前';
-        button.setAttribute('aria-busy', 'false');
-      }, state === 'manual' ? 2200 : 1500);
+      openTextPolishModal({
+        nodeId: nodeState.id, originalText, originalDocument, sourceFingerprint, sourceRole, fullPrompt,
+        compactPrompt: expansion ? '' : String(reply.compact_prompt || fullPrompt).trim(),
+        modules: expansion ? [] : reply.modules,
+        model: reply.model,
+        expansionLabel: expansion ? TEXT_REWRITE_ACTIONS[action] : '',
+        aspectRatio: expansion ? reply.aspect_ratio : '',
+        triggerButton,
+      });
+    } catch (error) {
+      if (sequence === lastRewrite && DesktopState.state.canvas.nodes[nodeState.id] === nodeState) throw error;
+    } finally {
+      pendingRewrites.delete(nodeState);
+      buttons.forEach(button => { button.disabled = false; });
+      triggerButton.removeAttribute('aria-busy');
+      if (label) label.textContent = TEXT_REWRITE_ACTIONS[action];
     }
   }
 
@@ -1569,16 +1596,16 @@
     let modal = document.getElementById('deskTextPolishModal');
     if (modal) return modal;
     document.body.insertAdjacentHTML('beforeend', `
-      <div class="desk-text-polish-modal" id="deskTextPolishModal" aria-hidden="true">
+      <div class="desk-text-polish-modal" id="deskTextPolishModal" role="dialog" aria-labelledby="deskTextPolishTitle" aria-hidden="true">
         <div class="desk-text-polish-modal__panel desk-glass">
           <header class="desk-text-polish-modal__header">
             <div class="desk-text-polish-modal__title">
               <p>Prompt Skill</p>
-              <h2>GPT 润色结果</h2>
+              <h2 id="deskTextPolishTitle">GPT 润色结果</h2>
             </div>
             <button type="button" class="desk-text-polish-modal__close" data-polish-close title="关闭" aria-label="关闭"></button>
           </header>
-          <div class="desk-text-polish-modal__grid" role="listbox" aria-label="润色候选提示">
+          <div class="desk-text-polish-modal__grid" role="listbox" aria-label="润色候选提示" data-polish-variants>
             ${TEXT_POLISH_VARIANTS.map(item => `
               <button type="button" class="desk-text-polish-modal__card${item.id === 'full' ? ' is-active' : ''}" data-polish-variant-card data-polish-variant="${item.id}" aria-pressed="${item.id === 'full' ? 'true' : 'false'}">
                 <span class="desk-text-polish-modal__card-head">
@@ -1590,6 +1617,7 @@
               </button>
             `).join('')}
           </div>
+          <textarea class="desk-text-polish-modal__editor" data-polish-edit aria-label="扩展结果" spellcheck="false" hidden></textarea>
           <footer class="desk-text-polish-modal__footer">
             <div class="desk-text-polish-modal__meta" data-polish-meta></div>
             <div class="desk-text-polish-modal__actions">
@@ -1604,6 +1632,17 @@
       </div>
     `);
     modal = document.getElementById('deskTextPolishModal');
+    modal?.addEventListener('input', event => {
+      if (!textPolishState?.expansionLabel || !event.target.matches('[data-polish-edit]')) return;
+      textPolishState.fullPrompt = event.target.value;
+      renderTextPolishModal();
+    });
+    modal?.addEventListener('keydown', event => {
+      if (event.key !== 'Escape') return;
+      event.preventDefault();
+      event.stopPropagation();
+      closeTextPolishModal();
+    });
     modal?.addEventListener('click', event => {
       if (event.target === modal || event.target.closest('[data-polish-close]')) {
         closeTextPolishModal();
@@ -1651,17 +1690,29 @@
     const modal = document.getElementById('deskTextPolishModal');
     modal?.classList.remove('is-open');
     modal?.setAttribute('aria-hidden', 'true');
+    textPolishState?.triggerButton?.focus({ preventScroll: true });
   }
 
     function getTextPolishVariantText(variant) {
     if (!textPolishState) return '';
+    if (textPolishState.expansionLabel) return textPolishState.fullPrompt.trim();
     if (variant === 'compact') return textPolishState.compactPrompt || '';
     if (variant === 'original') return textPolishState.originalText || '';
     return textPolishState.fullPrompt || '';
   }
 
+    function getTextPolishTarget() {
+    const node = DesktopState.state.canvas.nodes[textPolishState?.nodeId || ''];
+    return node && node === textPolishState?.sourceNode ? node : null;
+  }
+
     function renderTextPolishModal() {
     const modal = ensureTextPolishModal();
+    const expansion = textPolishState?.expansionLabel;
+    const preview = modal.querySelector('[data-polish-edit]');
+    preview.hidden = !expansion;
+    modal.querySelector('[data-polish-variants]').hidden = Boolean(expansion);
+    if (expansion && preview.value !== textPolishState.fullPrompt) preview.value = textPolishState.fullPrompt;
     const meta = modal.querySelector('[data-polish-meta]');
     const variant = textPolishState?.variant || 'full';
     TEXT_POLISH_VARIANTS.forEach(item => {
@@ -1675,7 +1726,7 @@
       button.classList.toggle('is-active', button.dataset.polishVariant === variant);
       button.setAttribute('aria-pressed', button.dataset.polishVariant === variant ? 'true' : 'false');
     });
-    const targetNodeState = DesktopState.state.canvas.nodes[textPolishState?.nodeId || ''];
+    const targetNodeState = getTextPolishTarget();
     const targetNodeExists = !!targetNodeState;
     const currentFingerprint = targetNodeState
       ? promptDocumentFingerprint(ensureTextNodePromptDocument(targetNodeState), targetNodeState.text || '')
@@ -1683,9 +1734,10 @@
     const expectedFingerprint = textPolishState?.applied
       ? textPolishState.appliedFingerprint
       : textPolishState?.sourceFingerprint;
-    const targetChanged = !!targetNodeExists
-      && !!expectedFingerprint
-      && currentFingerprint !== expectedFingerprint;
+    const targetChanged = Boolean(targetNodeExists && (
+      (expectedFingerprint && currentFingerprint !== expectedFingerprint) ||
+      (expansion && targetNodeState.promptRole !== textPolishState.sourceRole)
+    ));
     const currentText = getTextPolishVariantText(variant);
     const applyButton = modal.querySelector('[data-polish-apply-current]');
     const createButton = modal.querySelector('[data-polish-create-node]');
@@ -1701,8 +1753,10 @@
       const modules = (textPolishState?.modules || []).join(' / ');
       const model = textPolishState?.model || '';
       const applied = textPolishState?.applied && !targetChanged ? '已应用到当前节点，可撤销' : '';
-      const changed = targetChanged ? '文本节点已修改，请重新润色或新建节点' : '';
-      meta.textContent = [model, modules, applied, changed].filter(Boolean).join(' · ');
+      const changed = targetChanged ? '原文本已修改，请重新改写或另存' : '';
+      const ratioLabel = window.DesktopI18n?.translate?.('建议比例') || '建议比例';
+      const ratio = textPolishState?.aspectRatio ? `${ratioLabel} ${textPolishState.aspectRatio}` : '';
+      meta.textContent = [model, ratio, modules, applied, changed].filter(Boolean).join(' · ');
     }
   }
 
@@ -1716,7 +1770,7 @@
     function applyCurrentTextPolishVariant() {
     if (!textPolishState) return false;
     const node = getNodeElement(textPolishState.nodeId);
-    const nodeState = DesktopState.state.canvas.nodes[textPolishState.nodeId];
+    const nodeState = getTextPolishTarget();
     const text = getTextPolishVariantText(textPolishState.variant || 'full');
     if (!node || !nodeState) {
       DesktopResults.showTransientMessage('原文本节点已不存在。', 'warning');
@@ -1731,8 +1785,9 @@
     const expectedFingerprint = textPolishState.applied
       ? textPolishState.appliedFingerprint
       : textPolishState.sourceFingerprint;
-    if (expectedFingerprint && currentFingerprint !== expectedFingerprint) {
-      DesktopResults.showTransientMessage('文本节点已继续编辑，请重新润色或新建节点。', 'warning');
+    if ((expectedFingerprint && currentFingerprint !== expectedFingerprint) ||
+        (textPolishState.expansionLabel && nodeState.promptRole !== textPolishState.sourceRole)) {
+      DesktopResults.showTransientMessage('文本节点已继续编辑，请重新改写或另存。', 'warning');
       renderTextPolishModal();
       return false;
     }
@@ -1751,7 +1806,7 @@
     renderTextPolishModal();
     DesktopResults.showTransientMessage(restoredOriginal
       ? '已恢复润色前的结构化内容。'
-      : '润色结果已应用到当前文本节点。');
+      : textPolishState.expansionLabel ? '扩展结果已应用到当前文本节点。' : '润色结果已应用到当前文本节点。');
     return true;
   }
 
@@ -1759,7 +1814,7 @@
     if (!textPolishState) return '';
     const text = getTextPolishVariantText(textPolishState.variant || 'full');
     if (!text) return '';
-    const source = DesktopState.state.canvas.nodes[textPolishState.nodeId];
+    const source = getTextPolishTarget();
     const worldPoint = source
       ? { x: source.x + source.width + DEFAULT_TEXT_NODE_WIDTH / 2 + 48, y: source.y + source.height / 2 }
       : null;
@@ -1785,7 +1840,7 @@
     function undoAppliedTextPolish() {
     if (!textPolishState?.applied) return false;
     const node = getNodeElement(textPolishState.nodeId);
-    const nodeState = DesktopState.state.canvas.nodes[textPolishState.nodeId];
+    const nodeState = getTextPolishTarget();
     if (!node || !nodeState) {
       DesktopResults.showTransientMessage('原文本节点已不存在。', 'warning');
       renderTextPolishModal();
@@ -1811,8 +1866,11 @@
   }
 
     function openTextPolishModal(payload) {
+    const sourceNode = DesktopState.state.canvas.nodes[payload.nodeId];
     textPolishState = {
       nodeId: payload.nodeId,
+      sourceNode,
+      sourceRole: payload.sourceRole,
       originalText: payload.originalText || '',
       originalDocument: clonePromptDocument(payload.originalDocument, payload.originalText || ''),
       sourceFingerprint: payload.sourceFingerprint
@@ -1821,15 +1879,21 @@
       compactPrompt: payload.compactPrompt || payload.fullPrompt || '',
       modules: payload.modules || [],
       model: payload.model || '',
+      expansionLabel: payload.expansionLabel || '',
+      aspectRatio: payload.aspectRatio || '',
+      triggerButton: payload.triggerButton,
       variant: 'full',
       applied: false,
       appliedVariant: '',
       appliedFingerprint: ''
     };
     const modal = ensureTextPolishModal();
+    modal.querySelector('#deskTextPolishTitle').textContent = textPolishState.expansionLabel || 'GPT 润色结果';
+    modal.querySelector('[data-polish-create-node]').textContent = textPolishState.expansionLabel ? '另存为文本节点' : '新建文本节点';
     renderTextPolishModal();
     modal.classList.add('is-open');
     modal.setAttribute('aria-hidden', 'false');
+    modal.querySelector(textPolishState.expansionLabel ? '[data-polish-edit]' : '[data-polish-variant-card]')?.focus({ preventScroll: true });
   }
 
     function textNodeModelTargetIds(textNodeId) {
@@ -1869,7 +1933,6 @@
       ensureTextNodeAliases,
       listTextNodes,
       notifyTextNodeListChange,
-      textStylePresetButtonsHtml,
       loadCustomTextStylePresets,
       saveCustomTextStylePresets,
       allTextStylePresets,
@@ -1895,8 +1958,6 @@
       resolveImageReferenceTextNode,
       insertImageReferenceToken,
       textNodeHtml,
-      setTextStyleMenuOpen,
-      closeAllTextStyleMenus,
       setTextNodeValue,
       createPromptBlockTokenElement,
       createImageReferenceTokenElement,
@@ -1924,7 +1985,6 @@
       handlePromptEditorTokenDelete,
       updateTextStyleTag,
       setTextNodeStyle,
-      selectTextNodePreset,
       clearTextNodeStyle,
       ensureTextCopyFallback,
       selectTextCopyFallback,
@@ -1941,6 +2001,7 @@
       createTextNodeFromPolishVariant,
       undoAppliedTextPolish,
       openTextPolishModal,
+      runTextNodeRewrite,
       textNodeModelTargetIds,
     });
   }

@@ -213,6 +213,22 @@ try:
 except Exception:  # pragma: no cover - account-pool fallback is optional
     chat_chatgpt_pool = None  # type: ignore
 
+from .provider_google_pool_llm import (
+    PROVIDER_ID as GOOGLE_POOL_PROVIDER_ID,
+    PROVIDER_LABEL as GOOGLE_POOL_PROVIDER_LABEL,
+    GooglePoolLLM,
+)
+
+
+def _google_pool_transport() -> dict[str, Any]:
+    from .app_config import get_chatgpt_pool_config
+
+    return get_chatgpt_pool_config()
+
+
+def _google_pool_llm() -> GooglePoolLLM:
+    return GooglePoolLLM(_google_pool_transport, timeout_seconds=DEFAULT_TIMEOUT_SECONDS)
+
 try:
     from PIL import Image, ImageOps, UnidentifiedImageError  # type: ignore
 except Exception:  # pragma: no cover - Pillow is optional for prompt text-only helpers
@@ -290,13 +306,18 @@ def list_prompt_providers() -> list[dict[str, str]]:
             "id": DEFAULT_PROMPT_SKILL_PROVIDER,
             "label": "GPT OAuth",
             "type": "gpt_oauth",
-        }
+        },
+        {
+            "id": GOOGLE_POOL_PROVIDER_ID,
+            "label": GOOGLE_POOL_PROVIDER_LABEL,
+            "type": "google_pool",
+        },
     ]
     for provider_id, provider in _provider_settings().items():
         if not isinstance(provider, dict):
             continue
         clean_id = str(provider_id or "").strip()
-        if not clean_id or clean_id == DEFAULT_PROMPT_SKILL_PROVIDER:
+        if not clean_id or clean_id in {DEFAULT_PROMPT_SKILL_PROVIDER, GOOGLE_POOL_PROVIDER_ID}:
             continue
         providers.append(
             {
@@ -397,7 +418,7 @@ def _openai_compatible_models(provider: dict[str, Any]) -> tuple[list[dict[str, 
     return models, ""
 
 
-def discover_prompt_models(provider_id: str | None = None) -> dict[str, Any]:
+def discover_prompt_models(provider_id: str | None = None, refresh: bool = False) -> dict[str, Any]:
     config = get_prompt_skill_config()
     provider_id = str(provider_id or config.get("provider") or DEFAULT_PROMPT_SKILL_PROVIDER).strip()
     providers = {item["id"]: item for item in list_prompt_providers()}
@@ -405,11 +426,15 @@ def discover_prompt_models(provider_id: str | None = None) -> dict[str, Any]:
 
     if provider_id == DEFAULT_PROMPT_SKILL_PROVIDER:
         models, warning = _codex_cache_models()
+    elif provider_id == GOOGLE_POOL_PROVIDER_ID:
+        models, warning = _google_pool_llm().list_models(refresh=bool(refresh))
     else:
         provider = _as_dict(_provider_settings().get(provider_id))
         models, warning = _openai_compatible_models(provider)
 
     default_model = str(config.get("model") or "").strip()
+    if provider_id == GOOGLE_POOL_PROVIDER_ID and default_model not in {m.get("id") for m in models}:
+        default_model = GooglePoolLLM.default_model(models)
     if (
         provider_id == DEFAULT_PROMPT_SKILL_PROVIDER
         and default_model
@@ -756,6 +781,9 @@ def _call_prompt_provider_stream(provider_id: str, prompt: str, system: str, mod
         yield reply
         return
     image_options = {"images": images} if images else {}
+    if provider_id == GOOGLE_POOL_PROVIDER_ID:
+        yield from _google_pool_llm().stream(prompt, system, model, images or None)
+        return
     if provider_id == DEFAULT_PROMPT_SKILL_PROVIDER:
         yield from _call_gpt_oauth_stream(prompt, system, model, reasoning_effort, **image_options)
         return
@@ -836,12 +864,16 @@ def _call_openai_compatible_image_json(provider: dict[str, Any], prompt: str, sy
 def _call_prompt_provider(provider_id: str, prompt: str, system: str, model: str, reasoning_effort: str, images: list[str] | None = None) -> str:
     if images:
         return _call_prompt_provider_image_json(provider_id, prompt, system, images, model, reasoning_effort)
+    if provider_id == GOOGLE_POOL_PROVIDER_ID:
+        return _google_pool_llm().call(prompt, system, model)
     if provider_id == DEFAULT_PROMPT_SKILL_PROVIDER:
         return _call_gpt_oauth(prompt, system, model, reasoning_effort)
     return _call_openai_compatible(_as_dict(_provider_settings().get(provider_id)), prompt, system, model)
 
 
 def _call_prompt_provider_image_json(provider_id: str, prompt: str, system: str, images: list[str], model: str, reasoning_effort: str) -> str:
+    if provider_id == GOOGLE_POOL_PROVIDER_ID:
+        return _google_pool_llm().call(prompt, system, model, images)
     if provider_id == "chatgpt_pool":
         reply, _ = _chatgpt_pool_image_json_reply(prompt, system, images)
         return reply

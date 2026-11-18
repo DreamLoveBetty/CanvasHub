@@ -4,7 +4,14 @@ from __future__ import annotations
 import threading
 import time
 from .errors import GoogleError
-from .wire import normalize_model, prepare_request
+from .wire import (
+    is_image_model,
+    is_text_model,
+    normalize_model,
+    normalize_text_model,
+    prepare_request,
+    prepare_text_request,
+)
 
 
 class GooglePool:
@@ -90,7 +97,9 @@ class GooglePool:
             if not isinstance(raw, dict):
                 raise GoogleError('Google 模型目录格式无效')
             for name, value in raw.items():
-                if not isinstance(value, dict) or '-image' not in name:
+                if not isinstance(value, dict) or not (
+                    is_image_model(name) or is_text_model(name)
+                ):
                     continue
                 quota = (
                     value.get('quotaInfo')
@@ -140,7 +149,138 @@ class GooglePool:
             'google_model_unavailable',
         )
 
+    @staticmethod
+    def resolve_text_model(model, account):
+        models = {
+            m['name']: m
+            for m in account.get('models', [])
+            if isinstance(m, dict) and m.get('name')
+        }
+        if model in models and models[model].get('percentage') != 0:
+            return model
+        raise GoogleError(
+            f'此账号没有可用的 {model} 模型额度',
+            429,
+            'google_model_unavailable',
+        )
+
+    def _candidate_accounts(self, model):
+        with self.lock:
+            candidates = [
+                a
+                for a in self.store.private_accounts()
+                if a.get('enabled')
+                and not a.get('requires_relogin')
+                and a['id'] not in self.inflight
+                and self.cooldowns.get((a['id'], model), 0) <= time.monotonic()
+            ]
+            candidates.sort(key=lambda a: a.get('last_used_at') or 0)
+            return candidates
+
+    def stream_text(self, model, body, cancelled=None):
+        if not self.store.enabled():
+            raise GoogleError('Google OAuth 账号池未启用', 503, 'google_pool_disabled')
+        model = normalize_text_model(model)
+        request = prepare_text_request(body)
+        candidates = self._candidate_accounts(model)
+        last = None
+        for candidate in candidates:
+            account_id = candidate['id']
+            with self.lock:
+                if account_id in self.inflight:
+                    continue
+                self.inflight.add(account_id)
+            yielded = False
+            try:
+                if cancelled and cancelled.is_set():
+                    raise GoogleError('推理已取消', 499, 'cancelled')
+                a = self.credentials(account_id)
+                has_text_catalog = any(
+                    is_text_model(m.get('name'))
+                    for m in (a.get('models') or [])
+                    if isinstance(m, dict)
+                )
+                if (
+                    not a.get('models_checked_at')
+                    or time.time() - a['models_checked_at'] > 300
+                    or not has_text_catalog
+                ):
+                    self.refresh(account_id)
+                    a = self.store.get(account_id)
+                resolved = self.resolve_text_model(model, a)
+                if cancelled and cancelled.is_set():
+                    raise GoogleError('推理已取消', 499, 'cancelled')
+                if not self.store.enabled() or not self.store.get(account_id).get(
+                    'enabled'
+                ):
+                    raise GoogleError(
+                        'Google 账号池或账号已禁用', 503, 'google_pool_disabled'
+                    )
+                for event_type, value in self.upstream.stream_text(
+                    a, resolved, request, cancelled=cancelled
+                ):
+                    if event_type == 'delta':
+                        yielded = True
+                        yield ('delta', value)
+                    elif event_type == 'done':
+                        try:
+                            self.store.patch(
+                                account_id,
+                                {
+                                    'last_used_at': int(time.time()),
+                                    'last_error': '',
+                                    'success_count': a.get('success_count', 0) + 1,
+                                },
+                            )
+                        except GoogleError:
+                            pass
+                        value['google_pool'] = {
+                            'requested_model': model,
+                            'resolved_model': resolved,
+                            'account_id': account_id,
+                        }
+                        yield ('done', value)
+                        return
+            except GoogleError as e:
+                last = e
+                try:
+                    a = self.store.get(account_id)
+                    self.store.patch(
+                        account_id,
+                        {
+                            'last_error': str(e),
+                            'failure_count': a.get('failure_count', 0) + 1,
+                            'requires_relogin': e.code == 'google_auth_expired',
+                        },
+                    )
+                except GoogleError:
+                    pass
+                if e.status == 429:
+                    with self.lock:
+                        self.cooldowns[(account_id, model)] = time.monotonic() + 60
+                if yielded or e.code in ('cancelled', 'google_pool_disabled'):
+                    raise
+            finally:
+                with self.lock:
+                    self.inflight.discard(account_id)
+        raise last or GoogleError(
+            '没有空闲的 Google 账号，请添加授权或等待当前任务结束',
+            429,
+            'google_pool_unavailable',
+        )
+
+    def generate_text(self, model, body, cancelled=None):
+        result = None
+        for event_type, value in self.stream_text(model, body, cancelled=cancelled):
+            if event_type == 'done':
+                result = value
+        if result is None:
+            raise GoogleError('Google 模型未返回有效文本', 502, 'google_empty_text')
+        return result
+
     def generate(self, model, body, cancelled=None):
+        if is_text_model(model):
+            return self.generate_text(model, body, cancelled=cancelled)
         if not self.store.enabled():
             raise GoogleError('Google OAuth 账号池未启用', 503, 'google_pool_disabled')
         model = normalize_model(model)

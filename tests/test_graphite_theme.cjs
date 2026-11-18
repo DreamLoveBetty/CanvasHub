@@ -196,7 +196,7 @@ test('graphite hover swell, drag preview and notch ring are wired through the in
   assert.match(canvas, /'desktop:theme-style-change', refreshFloatingSwellStyle/);
   const css = read('frontend/styles/desktop-graphite.css');
   // Notched nodes are borderless in graphite, so only the notch-shaped ring marks selection.
-  assert.match(css, /\.desk-node--comfy\) \{\n  --desk-node-border-width: 0px;/);
+  assert.match(css, /\.desk-node--music-generate\) \{\n  --desk-node-border-width: 0px;/);
   assert.match(css, /\.desk-node-swell-border__paint \{\n  fill: var\(--desk-graphite-card\);/);
   assert.match(css, /\.desk-link-path:is\(\.is-preview, \.is-pending\) \{\n  stroke: var\(--desk-graphite-card\);\n  stroke-width: 8;/);
 });
@@ -322,8 +322,17 @@ test('every generate node with a 72px key is notched, in the stylesheet and the 
   const element = cls => ({ matches: selector => selector.split(',').map(s => s.trim()).includes(cls) });
   assert.equal(P.notchOf(element('.desk-node--pose')), P.NOTCH);
   assert.equal(P.notchOf(element('.desk-node--comfy')), P.NOTCH);
+  assert.equal(P.notchOf(element('.desk-node--music-generate')), P.NOTCH);
+  assert.equal(P.notchOf(element('.desk-node--music')), null, 'other music nodes have no generate key');
   assert.equal(P.notchOf(element('.desk-node--upscale')), null);
   assert.equal(P.notchOf(null), null);
+  assert.ok(css.includes(
+    ':is(.desk-node--input, .desk-node--krea2, .desk-node--moss, .desk-node--qwen21, .desk-node--music-generate) .desk-input-footer .desk-action-row {\n  right: -6px;\n  bottom: -6px;'
+  ), 'music generate key uses the shared 14px-padding action-row notch offset');
+  assert.ok(css.includes(
+    ':is(.desk-node--topaz, .desk-node--pose, .desk-node--topaz-video, .desk-node--video-control) .desk-generation-action {\n  translate: 8px 8px;'
+  ), '16px-padding flow-footer keys keep the translate offset');
+  assert.equal(css.includes('.desk-node--music-generate) .desk-generation-action {\n  translate: 8px 8px;'), false);
 });
 
 test('ports ease along their side and plates grow in / shrink out when a link switches sides', () => {

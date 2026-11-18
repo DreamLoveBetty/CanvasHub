@@ -15,9 +15,25 @@ from .contracts import normalize_asset_id
 
 CONVERTER_VERSION = "moss-lora-keys-v1"
 LAYER_COUNT = 42
-# (output, input) of each adapted Linear; "qkv" exists only in fused LoRA files.
+TEXT_BLOCK_COUNT = 2
+# (output, input) of each adapted Linear; "qkv" is split on main layers and direct on text_embedder.blocks.
 TARGET_SHAPES = {"q": (3072, 3072), "k": (3072, 3072), "v": (3072, 3072), "o": (3072, 3072),
-                 "ffn_up_gate": (16384, 3072), "ffn_down": (3072, 8192), "qkv": (9216, 3072)}
+                 "ffn_up_gate": (16384, 3072), "ffn_down": (3072, 8192), "qkv": (9216, 3072),
+                 "proj": (3072, 3072), "ffn_gate": (8192, 3072), "ffn_up": (8192, 3072)}
+# Canonical MLX names and (out, in). Official/Comfy time_embedding.2 is loaded as time_embedding.1.
+EXTRA_SHAPES = {"final_linear_video": (128, 3072), "shared_block_modulation": (18432, 3072),
+                "text_embedder.proj": (3072, 4096), "time_embedding.0": (3072, 256),
+                "time_embedding.1": (3072, 3072), "video_head_modulation": (6144, 3072)}
+_EXTRA_CANONICAL = {
+    "final_linear_video": ("final_linear_video", None),
+    "shared_block_modulation": ("shared_block_modulation", None),
+    "text_embedder.proj": ("text_embedder", "proj"),
+    "time_embedding.0": ("time_embedding", "0"),
+    "time_embedding.1": ("time_embedding", "1"),
+    "time_embedding.2": ("time_embedding", "1"),
+    "video_head_modulation": ("video_head_modulation", None),
+}
+_EXTRA_FLAT = {key.replace(".", "_"): value for key, value in _EXTRA_CANONICAL.items()}
 DTYPE_BYTES = {"F32": 4, "F16": 2, "BF16": 2}
 _PREFIXES = ("model.diffusion_model.", "diffusion_model.", "transformer.")
 _SUFFIXES = ((".lora_A.default.weight", "down"), (".lora_B.default.weight", "up"),
@@ -25,8 +41,11 @@ _SUFFIXES = ((".lora_A.default.weight", "down"), (".lora_B.default.weight", "up"
              (".lora_down.weight", "down"), (".lora_up.weight", "up"), (".alpha", "alpha"))
 _LAYER = r"(0|[1-9]\d?)"
 _MODULE = "qkv|q|k|v|o|ffn_up_gate|ffn_down"
+_TEXT_MODULE = "qkv|proj|ffn_gate|ffn_up|ffn_down"
 _DOTTED = re.compile(rf"layers\.{_LAYER}\.proj\.({_MODULE})")
 _FLAT = re.compile(rf"layers_{_LAYER}_proj_({_MODULE})")
+_TEXT_DOTTED = re.compile(rf"text_embedder\.blocks\.{_LAYER}\.({_TEXT_MODULE})")
+_TEXT_FLAT = re.compile(rf"text_embedder_blocks_{_LAYER}_({_TEXT_MODULE})")
 
 
 @dataclass(frozen=True)
@@ -38,8 +57,14 @@ class _Slice:
     length: int
 
 
+def _label(layer, module):
+    if isinstance(layer, int):
+        return f"layers.{layer}.proj.{module}"
+    return layer if module is None else f"{layer}.{module}"
+
+
 def _canonical_module(layer, module):
-    return f"diffusion_model.layers.{layer}.proj.{module}"
+    return f"diffusion_model.{_label(layer, module)}"
 
 
 def _output_key(module, side):
@@ -58,9 +83,16 @@ def parse_key(key):
                 break
     for suffix, side in _SUFFIXES:
         if name.endswith(suffix):
-            match = (_FLAT if flat else _DOTTED).fullmatch(name[:-len(suffix)])
+            stem = name[:-len(suffix)]
+            match = (_FLAT if flat else _DOTTED).fullmatch(stem)
             if match and int(match[1]) < LAYER_COUNT:
                 return int(match[1]), match[2], side
+            text_match = (_TEXT_FLAT if flat else _TEXT_DOTTED).fullmatch(stem)
+            if text_match and int(text_match[1]) < TEXT_BLOCK_COUNT:
+                return f"text_embedder.blocks.{int(text_match[1])}", text_match[2], side
+            extra = (_EXTRA_FLAT if flat else _EXTRA_CANONICAL).get(stem)
+            if extra:
+                return extra[0], extra[1], side
             break
     raise ValueError(f"LoRA 包含 MOSS 不支持的张量：{key}")
 
@@ -88,19 +120,19 @@ def _collect(header):
             raise ValueError(f"LoRA 张量大小与 shape 不符：{key}")
         pair = groups.setdefault((layer, module), {})
         if side in pair:
-            raise ValueError(f"LoRA 包含重复目标层：layers.{layer}.proj.{module}")
+            raise ValueError(f"LoRA 包含重复目标层：{_label(layer, module)}")
         pair[side] = _Slice(dtype, shape, header.payload_offset + start, end - start)
     return groups
 
 
 def _validate_group(stream, layer, module, pair):
-    label = f"layers.{layer}.proj.{module}"
+    label = _label(layer, module)
     down, up, alpha = pair.get("down"), pair.get("up"), pair.get("alpha")
     if not down or not up:
         raise ValueError(f"LoRA 缺少 A/B 权重：{label}")
     if len(down.shape) != 2 or len(up.shape) != 2 or not down.shape[0] or down.shape[0] != up.shape[1]:
         raise ValueError(f"LoRA A/B 秩不一致：{label}")
-    output, width = TARGET_SHAPES[module]
+    output, width = EXTRA_SHAPES.get(label) or TARGET_SHAPES[module]
     if down.shape[1] != width or up.shape[0] != output:
         raise ValueError(f"LoRA shape 与 MOSS 不匹配：{label}")
     if alpha:
@@ -128,9 +160,10 @@ def _plan(path):
     with Path(path).open("rb") as stream:
         for (layer, module), pair in groups.items():
             _validate_group(stream, layer, module, pair)
-            if module == "qkv" and any((layer, name) in groups for name in "qkv"):
+            split_qkv = isinstance(layer, int) and module == "qkv"
+            if split_qkv and any((layer, name) in groups for name in "qkv"):
                 raise ValueError(f"LoRA 同一层同时包含 qkv 与 q/k/v：layers.{layer}")
-            for target, parts in (_split_fused(pair) if module == "qkv" else ((module, pair),)):
+            for target, parts in (_split_fused(pair) if split_qkv else ((module, pair),)):
                 canonical = _canonical_module(layer, target)
                 for side, part in parts.items():
                     outputs[_output_key(canonical, side)] = part

@@ -11,7 +11,11 @@ def handle_prompt_config(handler, parsed, *, _collect_prompt_skill_runtime_confi
     try:
         query = urllib.parse.parse_qs(parsed.query)
         provider = query.get("provider", [""])[0] or None
-        handler.send_json(_collect_prompt_skill_runtime_config(provider))
+        refresh = query.get("refresh", [""])[0] in ("1", "true", "yes")
+        if refresh:
+            handler.send_json(_collect_prompt_skill_runtime_config(provider, refresh=True))
+        else:
+            handler.send_json(_collect_prompt_skill_runtime_config(provider))
     except Exception as e:
         print(f"❌ Prompt Skill 配置读取失败：{e}")
         handler.send_json({"ok": False, "error": str(e)}, 500)
@@ -187,6 +191,7 @@ def handle_prompt_config_save(
     _sanitize_prompt_skill_patch,
     json,
     update_app_settings_section,
+    pe_config_key=None,
 ):
     """Persist non-secret prompt-skill settings into project settings.json."""
     try:
@@ -198,7 +203,10 @@ def handle_prompt_config_save(
             handler.send_json({"ok": False, "error": "没有可保存的配置"}, 400)
             return
         update_app_settings_section("prompt_skill", patch)
-        handler.send_json(_collect_prompt_skill_runtime_config(patch.get("provider")))
+        payload = _collect_prompt_skill_runtime_config(patch.get("provider"))
+        if pe_config_key is not None:
+            payload = {**payload, "pe_config_key": pe_config_key(payload.get("prompt_skill") or {})}
+        handler.send_json(payload)
     except Exception as e:
         print(f"❌ Prompt Skill 配置保存失败：{e}")
         handler.send_json({"ok": False, "error": str(e)}, 500)
@@ -472,6 +480,27 @@ def handle_prompt_assistant_chat_stream(handler, *, assistant_chat_stream):
                 handler.send_json({"ok": False, "error": str(e)}, 400 if isinstance(e, ValueError) else 500)
         except Exception:
             pass
+
+
+def handle_prompt_pe_config(handler, *, prompt_pe, get_prompt_skill_config):
+    """Read the synthetic cache key without model discovery or a provider call."""
+    handler.send_json({"ok": True, "config_key": prompt_pe.config_key(get_prompt_skill_config())})
+
+
+def handle_prompt_pe(handler, *, call_prompt_model, prompt_pe, get_prompt_skill_config):
+    """Model-specific prompt enhancement for the canvas text editor."""
+    try:
+        request = prompt_pe.normalize_request(handler.read_json_body(max_bytes=256 * 1024))
+    except ValueError as e:
+        handler.send_json({"ok": False, "error": str(e)}, 400)
+        return
+    try:
+        reply = prompt_pe.rewrite(request, call_prompt_model, get_prompt_skill_config())
+    except Exception as e:
+        print(f"❌ PE 改写失败（{type(e).__name__}）")
+        handler.send_json({"ok": False, "error": "PE 改写失败，未收到可用结果。请检查提示词模型配置后重试。"}, 502)
+        return
+    handler.send_json(reply)
 
 
 def handle_prompt_safe_rewrite(handler, *, random, safe_rewrite_prompt, time):

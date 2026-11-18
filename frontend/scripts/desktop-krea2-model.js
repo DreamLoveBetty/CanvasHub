@@ -92,7 +92,7 @@
   const resolveMode=(node,canvas)=>controlInputIds(node,canvas).length?'control':imageInputIds(node,canvas).length?'edit':'standard';
   const regularLoras=node=>(node.loras||[]).filter(item=>node.mode!=='edit'||item.assetId!==node.editAdapterId);
   const ICON='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 2.8 14.2 8l5.2.7-4 3.5 1.2 5.1-4.6-2.7-4.6 2.7 1.2-5.1-4-3.5L9.8 8 12 2.8Z"/><path d="M18 3v4M16 5h4"/></svg>';
-  const MENU_ITEM=Object.freeze({type:TYPE,title:'Krea 2 · MLX',subtitle:'Apple Silicon 本地生成 · 多 LoRA',icon:ICON});
+  const MENU_ITEM=Object.freeze({type:TYPE,title:'Krea 2 · MLX',subtitle:'本地生图 · 多 LoRA',icon:ICON});
   window.DesktopKrea2Model=Object.freeze({TYPE,ICON,MENU_ITEM,ASPECT_RATIOS,RATIO_DIMENSIONS,
     BUILTIN_MODEL_IDS,DEFAULT_MODEL_ID,LORA_SCALE_MIN,LORA_SCALE_MAX,MODES,FIT_MODES,active,normalizeLoraScale,normalize,ratioFromDimensions,dimensionsForRatio,targets,policy,imageInputIds,missingInputIds,controlInputIds,resolveMode,regularLoras});
 })();

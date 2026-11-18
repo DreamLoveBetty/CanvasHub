@@ -25,5 +25,5 @@
   const stageLabel = stage => ({prepare:'准备视频',read:'读取视频',plan:'准备处理',check:'检查运行条件',model:'加载模型',load:'加载模型',infer:'提取控制信息',write:'编码控制视频',save:'保存结果',done:'处理完成',warn:'处理提示'})[stage] || stage;
   const ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="m5 16 5-6 4 5 3-3 3 4M8 4v3M16 4v3"/></svg>';
   window.DesktopVideoControlModel = Object.freeze({ TYPE, normalize, request, active, targets, policy, labels, stageLabel,
-    menu: { type: TYPE, title:'视频控制', subtitle:'ReShot · 深度 / 姿态 / 边缘', icon: ICON }, ICON });
+    menu: { type: TYPE, title:'视频控制', subtitle:'ReShot · 深度 / 姿态', icon: ICON }, ICON });
 })();

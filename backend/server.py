@@ -94,7 +94,7 @@ from .app_config import (
     save_app_settings,
     update_app_settings_section,
 )
-from .database import init_db, create_task, update_task, update_task_status, update_task_fields, get_task, get_all_tasks, delete_task, restore_task_snapshot, fail_stale_processing_tasks, recent_task_durations
+from .database import init_db, create_task, update_task, update_task_status, update_task_fields, get_task, get_all_tasks, delete_task, restore_task_snapshot, fail_stale_processing_tasks, fail_orphaned_queued_generation_tasks, recent_task_durations
 from .generation_tracking import (
     finish_generation_run,
     get_generation_events,
@@ -197,7 +197,9 @@ from .services.history_policy import (
     page_int as _policy_page_int,
     task_result_files as _policy_task_result_files,
     task_should_render as _policy_task_should_render,
+    task_should_render_display as _policy_task_should_render_display,
     task_timestamp as _policy_task_timestamp,
+    visible_task_result_files as _policy_visible_task_result_files,
 )
 from .services.history_query import (
     collect_renderable_history_tasks as _query_renderable_history_tasks,
@@ -231,6 +233,7 @@ from .prompt_skill_client import (
     analyze_prompt_video,
     assistant_chat,
     assistant_chat_stream,
+    call_prompt_model,
     discover_prompt_models,
     extract_reusable_prompt_blocks,
     extract_reusable_prompt_blocks_from_image,
@@ -368,6 +371,7 @@ from .routes import provider_account_routes as _domain_routes_provider_account_r
 
 from .services import prompt_presets as _domain_services_prompt_presets
 from .services import prompt_enrichment as _domain_services_prompt_enrichment
+from .services import prompt_pe as _domain_services_prompt_pe
 from .routes import prompt_routes as _domain_routes_prompt_routes
 
 from .routes import remote_source_routes as _domain_routes_remote_source_routes
@@ -377,6 +381,7 @@ from .services import task_tracking as _domain_services_task_tracking
 from .routes import task_control_routes as _domain_routes_task_control_routes
 
 from .services import task_retry as _domain_services_task_retry
+from .services import task_telegram_resend as _domain_services_task_telegram_resend
 from .services import task_batch as _domain_services_task_batch
 from .services import task_execution as _domain_services_task_execution
 
@@ -824,14 +829,52 @@ def _load_legacy_history_tasks():
     return _query_legacy_history_tasks(directory=DIRECTORY, safe_basename=safe_basename)
 
 
+def _history_file_is_present(task, name):
+    """Local existence only. Resolver errors do not count as a missing file."""
+    raw = str(name or '').strip()
+    if not raw:
+        return False
+    kind = str(task.get('type') or '')
+    params = task.get('params') if isinstance(task.get('params'), dict) else {}
+    is_video = kind in {H3_VIDEO_TASK_TYPE, 'cyimg-video'} or (
+        kind == 'comfy' and params.get('comfy_output_kind') == 'video')
+    if is_video or kind == 'gpt-file':
+        return True
+    try:
+        if kind in ('gpt', 'gpt-edit'):
+            root = (Path(DIRECTORY) / 'gpt_outputs').resolve()
+            direct = root / safe_basename(raw)
+            if direct.is_file():
+                return True
+            candidate = (Path(DIRECTORY) / 'gpt_outputs' / raw).resolve()
+            return str(candidate).startswith(str(root) + os.sep) and candidate.is_file()
+        return _resolve_download_file(safe_basename(raw)) is not None
+    except Exception:
+        return True
+
+
+def _history_visible_result_files(task):
+    visible, primary, _meta = _policy_visible_task_result_files(
+        task, task_result_files=_history_task_result_files, is_present=_history_file_is_present)
+    return visible, primary
+
+
+def _history_should_include_task(task, _visible_files):
+    visible, _primary, meta = _policy_visible_task_result_files(
+        task, task_result_files=_history_task_result_files, is_present=_history_file_is_present)
+    return _policy_task_should_render_display(
+        task.get('status'), visible, had_recorded_files=meta['had_recorded_files'])
+
+
 def _collect_renderable_history_tasks():
     return _query_renderable_history_tasks(
         load_database_tasks=_load_database_history_tasks,
         load_legacy_tasks=_load_legacy_history_tasks,
         task_timestamp=_history_task_timestamp,
-        task_result_files=_history_task_result_files,
+        task_result_files=_history_visible_result_files,
         should_render=_history_task_should_render,
         dedupe_key=_history_dedupe_key,
+        should_include=_history_should_include_task,
     )
 
 
@@ -843,6 +886,21 @@ def _format_history_task(task):
         public_h3_params=_public_h3_task_params,
         safe_basename=safe_basename,
     )
+
+
+def _format_history_task_for_display(task):
+    visible, primary, meta = _policy_visible_task_result_files(
+        task, task_result_files=_history_task_result_files, is_present=_history_file_is_present)
+    row = _serialize_history_task(
+        task,
+        task_result_files=lambda _task: (visible, primary),
+        h3_task_type=H3_VIDEO_TASK_TYPE,
+        public_h3_params=_public_h3_task_params,
+        safe_basename=safe_basename,
+    )
+    if meta['missing_result_files']:
+        row['missing_result_files'] = True
+    return row
 
 
 FAILED_RETRY_STATUSES = {'failed', 'telegram_failed'}
@@ -919,12 +977,50 @@ def _start_retry_thread(task_type, task_id, prompt, params):
     )
 
 
+def _task_has_trusted_archive(task):
+    return _domain_services_task_telegram_resend.task_has_trusted_archive(
+        task, task_result_files=_history_task_result_files,
+    )
+
+
+def resend_task_telegram(task_id, requested_file=None):
+    return _domain_services_task_telegram_resend.resend_task_telegram(
+        task_id,
+        DIRECTORY=DIRECTORY,
+        Path=Path,
+        _record_generation_event=_record_generation_event,
+        _resolve_archive_image_file=_resolve_archive_image_file,
+        _resolve_download_image=_resolve_download_image,
+        get_task=get_task,
+        resolve_editable_file=resolve_editable_file,
+        safe_basename=safe_basename,
+        send_telegram=send_telegram,
+        task_result_files=_history_task_result_files,
+        update_task=update_task,
+        image_archive_dir=IMAGE_ARCHIVE_DIR,
+        requested_file=requested_file,
+    )
+
+
+def mark_task_telegram_resent(task_id, filename=None):
+    task = get_task(task_id)
+    if not task or str(task.get('status') or '') != 'telegram_failed':
+        return task
+    update_task(task_id, 'succeeded', error='', stage='done', progress_text='已补发到 Telegram', transport_error_type='')
+    _record_generation_event(
+        task_id, 'telegram_resend_succeeded', '已补发到 Telegram',
+        stage='done', payload={'filenames': [filename] if filename else [], 'regenerated': False, 'via': 'history_export_tg'},
+    )
+    return get_task(task_id) or task
+
+
 def retry_failed_task(original_task):
     return _domain_services_task_retry.retry_failed_task(
         original_task, FAILED_RETRY_STATUSES=FAILED_RETRY_STATUSES, RETRYABLE_TASK_TYPES=RETRYABLE_TASK_TYPES,
         TaskRetryError=TaskRetryError, _copy_retry_params=_copy_retry_params, _make_retry_task_id=_make_retry_task_id,
         _start_retry_thread=_start_retry_thread, _validate_retry_payload=_validate_retry_payload, create_task=create_task,
-        get_task=get_task,
+        get_task=get_task, resend_task_telegram=resend_task_telegram,
+        task_has_trusted_archive=_task_has_trusted_archive,
     )
 
 
@@ -2164,10 +2260,10 @@ def _sanitize_gpt_provider_patch(data):
     )
 
 
-def _collect_prompt_skill_runtime_config(provider_id=None):
+def _collect_prompt_skill_runtime_config(provider_id=None, refresh=False):
     return _domain_services_system_settings._collect_prompt_skill_runtime_config(
         provider_id, discover_prompt_models=discover_prompt_models, get_prompt_skill_config=get_prompt_skill_config,
-        list_prompt_providers=list_prompt_providers,
+        list_prompt_providers=list_prompt_providers, refresh=refresh,
     )
 
 
@@ -2704,6 +2800,11 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
             if not self.require_auth():
                 return
             self.handle_prompt_config(parsed)
+        elif path == '/api/prompt/pe':
+            if not self.require_auth():
+                return
+            _domain_routes_prompt_routes.handle_prompt_pe_config(
+                self, prompt_pe=_domain_services_prompt_pe, get_prompt_skill_config=get_prompt_skill_config)
         elif path == '/api/prompt/models':
             if not self.require_auth():
                 return
@@ -3066,6 +3167,10 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
             if not self.require_auth():
                 return
             self.handle_prompt_safe_rewrite()
+        elif path == '/api/prompt/pe':
+            if not self.require_auth():
+                return
+            self.handle_prompt_pe()
         elif path == '/api/prompt/image-analysis':
             if not self.require_auth():
                 return
@@ -3211,6 +3316,11 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
                 return
             task_id = path.split('/')[-2]
             self.handle_task_retry(task_id)
+        elif path.startswith('/api/tasks/') and path.endswith('/resend_telegram'):
+            if not self.require_auth():
+                return
+            task_id = path.split('/')[-2]
+            self.handle_task_resend_telegram(task_id)
         elif path == '/api/layout/drafts' or path.startswith('/api/layout/drafts/'):
             if not self.require_auth():
                 return
@@ -3723,7 +3833,14 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
         return _domain_routes_prompt_routes.handle_prompt_config_save(
             self, _collect_prompt_skill_runtime_config=_collect_prompt_skill_runtime_config, _sanitize_prompt_skill_patch=_sanitize_prompt_skill_patch,
             json=json, update_app_settings_section=update_app_settings_section,
+            pe_config_key=_domain_services_prompt_pe.config_key,
         )
+
+    def handle_prompt_pe(self):
+        """Rewrite a canvas prompt with a model-specific PE profile."""
+        return _domain_routes_prompt_routes.handle_prompt_pe(
+            self, call_prompt_model=call_prompt_model, prompt_pe=_domain_services_prompt_pe,
+            get_prompt_skill_config=get_prompt_skill_config)
 
     def handle_prompt_polish(self):
         """Run the selected prompt skill and return full/compact prompt variants."""
@@ -3855,11 +3972,20 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
         )
 
     def handle_task_retry(self, task_id):
-        """从失败历史记录创建一个新的重跑任务，不修改原任务。"""
+        """从失败历史记录创建一个新的重跑任务，不修改原任务。投递失败且已有归档时改为只补发。"""
         return _domain_routes_task_control_routes.handle_task_retry(
             self, task_id, GenerationQueueFullError=GenerationQueueFullError,
             TaskRetryError=TaskRetryError, _generation_busy_payload=_generation_busy_payload, _missing_task_payload=_missing_task_payload,
             get_task=get_task, retry_failed_task=retry_failed_task,
+        )
+
+    def handle_task_resend_telegram(self, task_id):
+        """补发已保存的归档文件到 Telegram，不重新生成。"""
+        return _domain_routes_task_control_routes.handle_task_resend_telegram(
+            self, task_id,
+            TaskTelegramResendError=_domain_services_task_telegram_resend.TaskTelegramResendError,
+            _missing_task_payload=_missing_task_payload,
+            get_task=get_task, resend_task_telegram=resend_task_telegram,
         )
 
     def handle_task_batch(self):
@@ -3942,7 +4068,7 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
             _resolve_download_image=_resolve_download_image, get_task=get_task, json=json,
             os=os, random=random, resolve_editable_file=resolve_editable_file,
             safe_basename=safe_basename, send_telegram=send_telegram, tempfile=tempfile,
-            time=time,
+            time=time, mark_task_telegram_resent=mark_task_telegram_resent,
         )
 
     def handle_delete_history_item(self):
@@ -3963,7 +4089,7 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
         """Compatibility entrypoint; resolve history query dependencies per request."""
         return _handle_history(
             self, page_int=_history_page_int,
-            collect_tasks=_collect_renderable_history_tasks, format_task=_format_history_task)
+            collect_tasks=_collect_renderable_history_tasks, format_task=_format_history_task_for_display)
     
     def handle_image(self, filename):
         """处理图片请求（archive directory, with legacy fallback）"""
@@ -4244,7 +4370,7 @@ def run_server():
         APP_DATA_DIR=APP_DATA_DIR, PORT=PORT, RequestHandler=RequestHandler,
         SERVER_CONFIG=SERVER_CONFIG, SERVER_HOST=SERVER_HOST, SOURCE_IMAGE_DIR=SOURCE_IMAGE_DIR,
         STYLE_PRESETS_FILE=STYLE_PRESETS_FILE, _ensure_db_file_permissions=_ensure_db_file_permissions, _init_generation_semaphore=_init_generation_semaphore,
-        _validate_public_mode_password=_validate_public_mode_password, cancel_orphan_prompt_source_runs=cancel_orphan_prompt_source_runs, fail_stale_processing_tasks=fail_stale_processing_tasks,
+        _validate_public_mode_password=_validate_public_mode_password, cancel_orphan_prompt_source_runs=cancel_orphan_prompt_source_runs, fail_stale_processing_tasks=fail_stale_processing_tasks, fail_orphaned_queued_generation_tasks=fail_orphaned_queued_generation_tasks,
         get_agent_runtime=get_agent_runtime, init_agent_store=init_agent_store, init_asset_store=init_asset_store,
         init_db=init_db, init_layout_draft_store=init_layout_draft_store, init_prompt_library_store=init_prompt_library_store,
         recover_cyimg_tasks=_CYIMG_SERVICE.recover,

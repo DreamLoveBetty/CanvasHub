@@ -340,7 +340,11 @@ def _remove_assets_from_tasks(
             files = [primary]
         if not files:
             continue
-        remaining = [item for item in files if safe_basename(item) not in filenames]
+        from .history_policy import result_file_keys
+        removed_keys = set()
+        for name in filenames:
+            removed_keys.update(result_file_keys(name))
+        remaining = [item for item in files if not (result_file_keys(item) & removed_keys)]
         if len(remaining) == len(files):
             continue
         if not remaining:

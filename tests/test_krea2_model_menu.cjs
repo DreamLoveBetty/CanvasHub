@@ -55,7 +55,6 @@ test('Krea Base 与控制适配器选择器启用扩宽，加载前不制造未�
   assert.doesNotMatch(html,/Mixed 4\/8-bit|krea-2-turbo-alis-mlx-mixed-4-8/);
   assert.equal((html.match(/data-desk-select-width="content"/g)||[]).length,2);
   assert.match(html,/data-desk-select-width="content" data-krea2-control-adapter/);
-  assert.doesNotMatch(read('scripts/desktop-canvas-qwen21.js'),/data-desk-select-width="content"/);
   assert.match(readLegacyCss(),/body\.desk-app \.desk-select-menu\[data-select-width="content"\] \.desk-select-option\s*\{[^}]*white-space: nowrap;[^}]*text-overflow: ellipsis;/);
   assert.match(read('scripts/desktop-select.js'),/title="\$\{escapeHtml\(item.label\)\}"/);
 });

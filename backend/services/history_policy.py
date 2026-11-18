@@ -68,3 +68,44 @@ def dedupe_key(task, *, task_result_files, task_timestamp, safe_basename):
 
     prompt = str(task.get('prompt') or '')[:120]
     return ('time', task_timestamp(task), prompt)
+
+def result_file_keys(name):
+    """Comparable keys for a stored result path, URL or basename."""
+    raw = str(name or '').strip()
+    if not raw:
+        return set()
+    path = raw.split('?', 1)[0].split('#', 1)[0].rstrip('/')
+    base = path.replace('\\', '/').split('/')[-1]
+    keys = {raw, path, base}
+    try:
+        from urllib.parse import unquote
+        decoded = unquote(base)
+        if decoded:
+            keys.add(decoded)
+    except Exception:
+        pass
+    return {item for item in keys if item}
+
+
+def visible_task_result_files(task, *, task_result_files, is_present):
+    """Keep recorded names that still resolve; report when every recorded file is gone."""
+    files, primary = task_result_files(task)
+    visible = [name for name in files if is_present(task, name)]
+    if primary and primary in visible:
+        visible_primary = primary
+    elif primary and is_present(task, primary) and primary not in visible:
+        visible = [primary, *visible]
+        visible_primary = primary
+    else:
+        visible_primary = visible[0] if visible else ''
+    return visible, visible_primary, {
+        'had_recorded_files': bool(files),
+        'missing_result_files': bool(files) and not visible,
+    }
+
+
+def task_should_render_display(status, visible_files, *, had_recorded_files=False):
+    """History-panel visibility: keep rows whose files were deleted, plus the legacy rule."""
+    if visible_files or had_recorded_files:
+        return True
+    return task_should_render(status, visible_files)

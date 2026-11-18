@@ -109,7 +109,7 @@
             <label title="只调整内部控制图编码，不改变输出尺寸。768/512 为实验加速，可能影响控制精度。"><span>控制图编码</span><select class="desk-select" data-krea2-field="controlReferenceSize">${[[1024,'原始'],[768,'均衡'],[512,'预览']].map(([size,label])=>`<option value="${size}"${node.controlReferenceSize===size?' selected':''}>${size} · ${label}</option>`).join('')}</select></label>
             <label class="desk-switch desk-krea2__cache" title="冻结参考特征，可能改变画面；关闭后完整计算参考分支。缓存每张图重建，不跨任务复用。"><input type="checkbox" data-krea2-reference-kv ${node.controlReferenceKvCache?'checked':''}><span></span><em>参考 KV 加速<small>近似 · 可改变画面</small></em></label>
           </div>
-          <section class="desk-krea2__loras" aria-label="普通 LoRA"><header><div class="desk-krea2__lora-heading"><div><strong>普通 LoRA</strong><span class="desk-krea2__lora-count" data-krea2-lora-count>${M.regularLoras(node).length} / ${regularLoraLimit(node)}</span></div><small data-krea2-lora-limit>可选 · 按顺序叠加${node.mode==='edit'?' · 不含编辑适配器':node.mode==='control'?' · 不含控制适配器':''}</small></div><div class="desk-krea2__lora-add">${loraView?`<button type="button" class="desk-button desk-lora-picker-button" data-krea2-lora-picker aria-label="看图选择 LoRA">＋ 看图选择 LoRA <span>⌄</span></button>`:''}<select ${loraView?'hidden':''} class="desk-select" data-krea2-lora-add aria-label="添加普通 LoRA">${loraOptions(node)}</select></div></header>
+          <section class="desk-krea2__loras" aria-label="普通 LoRA"><header><div class="desk-krea2__lora-heading"><div><strong>已加载 LoRA</strong><span class="desk-krea2__lora-count" data-krea2-lora-count>${M.regularLoras(node).length} / ${regularLoraLimit(node)}</span><small data-krea2-lora-limit>可选 · 按顺序叠加${node.mode==='edit'?' · 不含编辑适配器':node.mode==='control'?' · 不含控制适配器':''}</small></div></div><div class="desk-krea2__lora-add">${loraView?`<button type="button" class="desk-button desk-lora-picker-button" data-krea2-lora-picker aria-label="看图选择 LoRA">＋ 看图选择 LoRA <span>⌄</span></button>`:''}<select ${loraView?'hidden':''} class="desk-select" data-krea2-lora-add aria-label="添加普通 LoRA">${loraOptions(node)}</select></div></header>
             <div data-krea2-lora-list>${loraRows(node)}</div></section>
           <footer class="desk-input-footer desk-krea2__footer">
             <div class="desk-pill-row desk-krea2__meta"><span data-krea2-inputs>画布连线 · 文本 0 · 编辑源图 0</span><span data-krea2-runtime>正在检查共享环境与模型…</span></div>
@@ -131,7 +131,8 @@
       const run=s.el.querySelector('[data-krea2-run]');run.disabled=Boolean(s.pending||s.starting)||(!busy&&preparing);run.querySelector('span').textContent=s.starting&&!s.pending?'准备中':busy?'停止生成':preparing?'准备中':node.status==='failed'?'重试生成':'开始生成';
       const images=getImageReferences?.(s.id)||[],texts=getTextNodes?.(s.id)||[];
       const sourceLabel='编辑源图';
-      s.el.querySelector('[data-krea2-inputs]').textContent=node.mode==='control'?`区域控制 · 文本 ${texts.length}${images.length?' · 原图联合编辑未开放':''}`:`画布连线 · 文本 ${texts.length} · ${sourceLabel} ${images.length}${images.length>1?'（仅允许 1 张）':''}`;
+      const inputEl=s.el.querySelector('[data-krea2-inputs]');
+      inputEl.textContent=node.mode==='control'?`区域控制 · 文本 ${texts.length}${images.length?' · 原图联合编辑未开放':''}`:`画布连线 · 文本 ${texts.length} · ${sourceLabel} ${images.length}${images.length>1?'（仅允许 1 张）':''}`;
       const prep=status?.preparation||{};let runtime='';
       if(preparing)runtime=`${prep.message||'正在准备模型'}${prep.total&&prep.downloaded?` · ${bytes(prep.downloaded)} / ${bytes(prep.total)}`:''}`;
       else if(ready)runtime=`共享环境已就绪 · ${modelMeta(node.baseModelId).name||node.baseModelId} · 安全检查${node.safetyEnabled?'开启':'关闭'}${status?.warm?' · 模型已热载入':''}`;
@@ -232,7 +233,9 @@
       if(s.pending||s.preparing||s.starting)return;if(M.active(s.node.status)){if(s.node.jobId){s.pending=true;try{await api.cancel(s.node.jobId);}finally{s.pending=false;poll(s);}}return;}
       s.progressStartedAt=Date.now();s.starting=true;paint(s);
       try{if(!status)await loadResources();if(!live(s))return;paint(s);
-        const prompt=(getTextNodes(s.id)||[]).map(node=>materializeText(node)).map(value=>String(value||'').trim()).filter(Boolean).join('\n\n');if(!prompt)throw new Error('请连接含有提示词的文本节点');
+        const sourcesForPrompt=getTextNodes(s.id)||[];
+        const prompt=sourcesForPrompt.map(node=>String(materializeText(node)||'').trim()).filter(Boolean).join('\n\n');
+        if(!prompt)throw new Error('请连接含有提示词的文本节点');
         const refs=getImageReferences(s.id)||[];if(refs.length>1)throw new Error('Krea 2 一次仅支持 1 张输入图');
         let control=null;
         if(s.node.mode==='control'){

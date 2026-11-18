@@ -160,6 +160,7 @@ class Service:
             if isinstance(body, dict) and not body.get("base_model_id"):
                 body = {**body, "base_model_id": self.models.selection()["default_model_id"]}
             spec = normalize_job(body)
+            pe = spec.pop("prompt_pe", None)
             status = self.runtime.status()
             model = self.models.resolve(spec["base_model_id"])
             vae = self.vaes.resolve()
@@ -200,6 +201,8 @@ class Service:
                                "model": {"id": model["id"], "name": model["name"],
                                          "precision": model["precision"], "path": str(model["path"])}}
                 params = {key: value for key, value in spec.items() if key != "prompt"}
+                if pe:
+                    params["prompt_pe"] = pe
                 params.update(provider=ENGINE, loras=public, main_model=f"Qwen 2.1 · {model['name']}",
                               vae_id=vae["id"], vae_name=vae["name"], vae_sha256=vae["sha256"],
                               vae_format=vae["format"],

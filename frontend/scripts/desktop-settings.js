@@ -13,6 +13,15 @@
   let mossTools = null;
   let asrTools = null;
   let loraSettings = null;
+  let modelToolsTab = 'krea2';
+  let modelToolsSlide = { from: null, to: null, at: 0 };
+  let buildingSearchIndex = false;
+  const MODEL_TOOLS_TABS = [
+    { id: 'krea2', label: 'Krea 2' },
+    { id: 'qwen21', label: 'Qwen 2.1' },
+    { id: 'moss', label: 'MOSS' },
+    { id: 'common', label: '通用工具' },
+  ];
   let pinterestAuthSessionId = window.sessionStorage?.getItem('deskPinterestAuthSessionId') || '';
   let pinterestAuthActivity = null;
   let activeTab = 'status';
@@ -1029,12 +1038,21 @@
     ], Boolean(pool.enabled));
   }
 
+  function promptProviderLabel(promptRuntime, providerId) {
+    const providers = Array.isArray(promptRuntime?.providers) ? promptRuntime.providers : [];
+    return providers.find(item => item.id === providerId)?.label || providerId || '未设置';
+  }
+
   function renderPromptSettings(promptRuntime) {
     const cfg = promptRuntime?.prompt_skill || {};
     const providers = Array.isArray(promptRuntime?.providers) ? promptRuntime.providers : [];
     const models = Array.isArray(promptRuntime?.models) ? promptRuntime.models : [];
-    const currentProvider = cfg.provider || promptRuntime?.provider || 'gpt_oauth';
-    const currentModel = cfg.model || promptRuntime?.default_model || '';
+    const currentProvider = promptRuntime?.selected_provider || cfg.provider || promptRuntime?.provider || 'gpt_oauth';
+    const savedModel = currentProvider === cfg.provider ? cfg.model : '';
+    const currentModel = models.some(item => item.id === savedModel) ? savedModel : (promptRuntime?.default_model || '');
+    const reasoningHint = currentProvider === 'google_pool'
+      ? '<p class="desk-settings-form__hint">Google OAuth 账号池按模型自带思考档位运行，推理强度仅对 GPT OAuth 生效；账号额度用尽时自动轮换下一个账号。</p>'
+      : '';
     const providerOptions = providers.length
       ? providers.map(item => optionHtml(item.id, item.label || item.id, currentProvider)).join('')
       : optionHtml(currentProvider, currentProvider, currentProvider);
@@ -1075,6 +1093,7 @@
             ${optionHtml('compact_prompt', '精简投喂版', cfg.default_output)}
           </select>
         </label>
+        ${reasoningHint}
         ${promptRuntime?.warning ? `<p class="desk-settings-form__hint">${escapeHtml(promptRuntime.warning)}</p>` : ''}
         <div class="desk-settings-form__actions">
           <button type="button" data-prompt-config-reload>刷新模型</button>
@@ -1087,7 +1106,7 @@
   function renderPromptOverview(promptRuntime) {
     const cfg = promptRuntime?.prompt_skill || {};
     return renderCard('提示词润色', [
-      renderKv('服务商', cfg.provider || promptRuntime?.provider || '未设置'),
+      renderKv('服务商', promptProviderLabel(promptRuntime, cfg.provider || promptRuntime?.provider)),
       renderKv('润色模板', cfg.skill || 'image_prompt_v7'),
       renderKv('推理模型', cfg.model || promptRuntime?.default_model || '未选择'),
       renderKv('推理强度', reasoningEffortLabel(cfg.reasoning_effort || 'medium'))
@@ -1608,9 +1627,7 @@
       {
         tab: 'model-tools',
         html: activeTab === 'model-tools'
-          ? (loraSettings?.render?.() || '') + (asrTools?.render?.() || '') + (mossTools?.render?.() || '') + (qwen21Tools?.render?.() || '') + (krea2Tools?.render?.() || renderCard('Krea 2 模型转换', [
-              '<div class="desk-settings-empty">模型工具模块未加载。</div>'
-            ], false))
+          ? renderModelToolsSettings()
           : ''
       },
       {
@@ -1627,6 +1644,42 @@
     ];
 
     return { sections };
+  }
+
+  function renderModelToolsSubtabContent(tabId) {
+    if (tabId === 'krea2') {
+      return krea2Tools?.render?.() || renderCard('Krea 2 模型转换', [
+        '<div class="desk-settings-empty">模型工具模块未加载。</div>'
+      ], false);
+    }
+    if (tabId === 'qwen21') return qwen21Tools?.render?.() || '';
+    if (tabId === 'moss') return mossTools?.render?.() || '';
+    return (loraSettings?.render?.() || '') + (asrTools?.render?.() || '');
+  }
+
+  function renderModelToolsSettings() {
+    if (buildingSearchIndex) {
+      return MODEL_TOOLS_TABS.map(item => renderModelToolsSubtabContent(item.id)).join('');
+    }
+    const index = Math.max(0, MODEL_TOOLS_TABS.findIndex(item => item.id === modelToolsTab));
+    const now = performance.now();
+    if (modelToolsSlide.to !== index) {
+      modelToolsSlide = { from: modelToolsSlide.to ?? index, to: index, at: now };
+    }
+    const elapsed = Math.round(now - modelToolsSlide.at);
+    const from = elapsed < 1000 ? modelToolsSlide.from : index;
+    const tabs = `<div class="desk-track-switch desk-model-tools-tabs" role="tablist" aria-label="本地模型工具模块" style="--track-count: ${MODEL_TOOLS_TABS.length}; --track-index: ${index}; --track-from: ${from}; --track-elapsed: ${elapsed}ms">
+      ${MODEL_TOOLS_TABS.map(item => `<button type="button" role="tab" data-model-tools-tab="${item.id}" aria-selected="${modelToolsTab === item.id}" class="${modelToolsTab === item.id ? 'is-active' : ''}">${escapeHtml(item.label)}</button>`).join('')}
+    </div>`;
+    return tabs + renderModelToolsSubtabContent(MODEL_TOOLS_TABS[index]?.id || 'krea2');
+  }
+
+  function modelToolsSubtabForCardTitle(title = '') {
+    const text = String(title || '').trim();
+    if (text.startsWith('Krea 2')) return 'krea2';
+    if (text.startsWith('Qwen 2.1')) return 'qwen21';
+    if (text.startsWith('MOSS')) return 'moss';
+    return 'common';
   }
 
   // Cards grouped under small headings: by area on the status page, by `group` elsewhere.
@@ -1951,10 +2004,11 @@
     return payload;
   }
 
-  async function reloadPromptModels(provider) {
+  async function reloadPromptModels(provider, options = {}) {
     if (!window.DesktopApi?.getPromptConfig) return;
-    const payload = await window.DesktopApi.getPromptConfig(provider || '');
-    lastPromptConfig = payload;
+    const payload = await window.DesktopApi.getPromptConfig(provider || '', { refresh: Boolean(options.refresh) });
+    // Keep the provider the user picked (not yet saved) so the form does not snap back.
+    lastPromptConfig = { ...payload, selected_provider: provider || payload?.provider || '' };
     if (lastDiagnostics) renderDiagnostics(lastDiagnostics);
   }
 
@@ -2813,21 +2867,36 @@
   function settingsSearchIndex() {
     if (!lastDiagnostics) return null;
     if (searchIndexCache?.data === lastDiagnostics) return searchIndexCache.entries;
-    const categories = settingsCategories().map(category => ({
-      ...category,
-      html: buildSections(lastDiagnostics, category.tab).sections
-        .filter(section => section.tab === category.tab)
-        .map(section => section.html)
-        .join('')
-    }));
+    buildingSearchIndex = true;
+    let categories;
+    try {
+      categories = settingsCategories().map(category => ({
+        ...category,
+        html: buildSections(lastDiagnostics, category.tab).sections
+          .filter(section => section.tab === category.tab)
+          .map(section => section.html)
+          .join('')
+      }));
+    } finally {
+      buildingSearchIndex = false;
+    }
     const entries = window.DesktopSettingsSearch?.buildIndex(categories) || [];
     searchIndexCache = { data: lastDiagnostics, entries };
     return entries;
   }
 
   function revealSearchHit(hit) {
+    if (hit.entry.tab === 'model-tools') {
+      const targetSubtab = modelToolsSubtabForCardTitle(hit.entry.title);
+      if (modelToolsTab !== targetSubtab) {
+        modelToolsTab = targetSubtab;
+        if (activeTab === 'model-tools' && lastDiagnostics) renderDiagnostics(lastDiagnostics);
+      }
+    }
     if (activeTab !== hit.entry.tab) selectTab(hit.entry.tab);
-    const card = els.deskSettingsBody?.querySelectorAll('.desk-settings-card')[hit.entry.cardIndex];
+    const cards = [...(els.deskSettingsBody?.querySelectorAll('.desk-settings-card') || [])];
+    const card = cards.find(item => item.querySelector('header h3, h3')?.textContent.trim() === hit.entry.title)
+      || cards[hit.entry.cardIndex];
     if (!card) return;
     const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
     card.scrollIntoView({ block: 'start', behavior: reduceMotion ? 'auto' : 'smooth' });
@@ -2915,6 +2984,16 @@
         delete colors[style];
         window.DesktopPreferences.setProgressPreferences({ colors });
         syncProgressSettings(progressColorReset.closest('[data-progress-settings]'));
+        return;
+      }
+      const modelToolsTabButton = event.target.closest('button[data-model-tools-tab]');
+      if (modelToolsTabButton) {
+        event.preventDefault();
+        const nextTab = modelToolsTabButton.dataset.modelToolsTab;
+        if (nextTab && MODEL_TOOLS_TABS.some(item => item.id === nextTab) && nextTab !== modelToolsTab) {
+          modelToolsTab = nextTab;
+          if (lastDiagnostics) renderDiagnostics(lastDiagnostics);
+        }
         return;
       }
       if (loraSettings?.handleClick?.(event) || asrTools?.handleClick?.(event) || mossTools?.handleClick?.(event) || qwen21Tools?.handleClick?.(event) || krea2Tools?.handleClick?.(event)) return;
@@ -3037,7 +3116,7 @@
       const reload = event.target.closest('[data-prompt-config-reload]');
       if (reload) {
         event.preventDefault();
-        runButtonAction(reload, () => reloadPromptModels(collectPromptConfigForm().provider), {
+        runButtonAction(reload, () => reloadPromptModels(collectPromptConfigForm().provider, { refresh: true }), {
           loadingText: '刷新中...',
           doneText: '已刷新',
           successMessage: '模型列表已刷新。',
@@ -3357,32 +3436,34 @@
 
   function init() {
     collectElements();
+    const rerenderModelTools = () => {
+      searchIndexCache = null;
+      if (activeTab === 'model-tools' && lastDiagnostics) renderDiagnostics(lastDiagnostics);
+    };
     loraSettings = window.DesktopLoRASettings.create({
       library: DesktopApi.lora,
-      rerender: () => { if (activeTab === 'model-tools' && lastDiagnostics) renderDiagnostics(lastDiagnostics); },
+      rerender: rerenderModelTools,
       notify: message => window.DesktopResults?.showTransientMessage?.(message)
     });
     krea2Tools = window.DesktopKrea2Tools?.create?.({
       api: window.DesktopKrea2API,
       escapeHtml,
-      rerender: () => {
-        if (activeTab === 'model-tools' && lastDiagnostics) renderDiagnostics(lastDiagnostics);
-      },
+      rerender: rerenderModelTools,
       notify: (message, tone) => window.DesktopResults?.showTransientMessage?.(message, tone)
     }) || null;
     qwen21Tools = window.DesktopQwen21Tools?.create?.({
       api: window.DesktopQwen21API, escapeHtml,
-      rerender: () => { if (activeTab === 'model-tools' && lastDiagnostics) renderDiagnostics(lastDiagnostics); },
+      rerender: rerenderModelTools,
       notify: (message, tone) => window.DesktopResults?.showTransientMessage?.(message, tone)
     }) || null;
     asrTools = window.DesktopAsrTools?.create?.({
       api: window.DesktopAsrAPI, escapeHtml,
-      rerender: () => { if (activeTab === 'model-tools' && lastDiagnostics) renderDiagnostics(lastDiagnostics); },
+      rerender: rerenderModelTools,
       notify: (message, tone) => window.DesktopResults?.showTransientMessage?.(message, tone)
     }) || null;
     mossTools = window.DesktopMossTools?.create?.({
       api: window.DesktopMossAPI, escapeHtml,
-      rerender: () => { if (activeTab === 'model-tools' && lastDiagnostics) renderDiagnostics(lastDiagnostics); },
+      rerender: rerenderModelTools,
       notify: (message, tone) => window.DesktopResults?.showTransientMessage?.(message, tone)
     }) || null;
     settingsSearch = window.DesktopSettingsSearch?.create({
@@ -3397,7 +3478,12 @@
   window.DesktopSettings = {
     init,
     open,
-    openTab: tab => open().then(() => selectTab(tab)),
+    openTab: (tab, subTab) => open().then(() => {
+      if (tab === 'model-tools' && subTab && MODEL_TOOLS_TABS.some(item => item.id === subTab)) {
+        modelToolsTab = subTab;
+      }
+      return selectTab(tab);
+    }),
     close,
     refresh
   };

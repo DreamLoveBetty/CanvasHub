@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import os
 import time
+import uuid
 from datetime import datetime
 from pathlib import Path
 from typing import Iterable
@@ -42,6 +44,48 @@ AUDIO_ARCHIVE_DIR_NAME = "audio"
 def audio_archive_dir() -> Path:
     """Return the archive subtree for generated audio (`<archive>/audio/YYYY-MM-DD/`)."""
     return IMAGE_ARCHIVE_DIR / AUDIO_ARCHIVE_DIR_NAME
+
+
+
+_SAFE_ARCHIVE_TOKEN = re.compile(r"[^A-Za-z0-9._-]+")
+
+
+def sanitize_archive_token(value: str, *, default: str = "", max_len: int = 48) -> str:
+    """Turn a task id or similar token into a filesystem-safe path fragment."""
+    text = _SAFE_ARCHIVE_TOKEN.sub("-", str(value or "")).strip(".-_")
+    return (text or default)[:max_len]
+
+
+def reserve_unique_archive_file(directory, filename_base, *, suffix=".png", task_id=None, index=None):
+    """Reserve a new archive file without overwriting an existing one.
+
+    The readable prefix stays `{model}_{YYYYMMDD_HHMMSS}`. A sanitized task id
+    (or a short random token) is appended so two tasks in the same second cannot
+    share a path. If that name is already reserved — same-task re-entry, a second
+    output, or a concurrent reservation — a numeric suffix is added. The file is
+    created with O_EXCL so the reservation itself is race-safe. Returns
+    `(path, basename)`.
+    """
+    directory = Path(directory)
+    directory.mkdir(parents=True, exist_ok=True)
+    suffix = suffix if str(suffix).startswith(".") else f".{suffix}"
+    token = sanitize_archive_token(task_id, default=uuid.uuid4().hex[:8])
+    parts = [str(filename_base), token]
+    if index not in (None, "", 0, 1, "0", "1"):
+        parts.append(str(index))
+    stem = "_".join(part for part in parts if part)
+    candidate = directory / f"{stem}{suffix}"
+    n = 2
+    while True:
+        try:
+            fd = os.open(candidate, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o644)
+            os.close(fd)
+            return candidate, candidate.name
+        except FileExistsError:
+            candidate = directory / f"{stem}_{n}{suffix}"
+            n += 1
+        if n > 10000:
+            raise OSError(f"unable to reserve a unique archive name under {directory}")
 
 
 def daily_output_dir(now: datetime | None = None) -> Path:

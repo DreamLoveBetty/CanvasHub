@@ -8,6 +8,8 @@ from pathlib import Path
 import sys
 import unittest
 
+from tests.offline_baseline import ensure_regression_isolation
+
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 TEST_ROOT = PROJECT_ROOT / "tests"
@@ -72,6 +74,9 @@ def main() -> int:
 
     if str(PROJECT_ROOT) not in sys.path:
         sys.path.insert(0, str(PROJECT_ROOT))
+    isolation = ensure_regression_isolation(PROJECT_ROOT)
+    if isolation.get("notice"):
+        print(isolation["notice"], file=sys.stderr)
     modules = _test_modules(args.scope)
     suite = _load_modules(modules)
     result = unittest.TextTestRunner(

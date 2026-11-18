@@ -133,6 +133,33 @@ class SwitchPruneTest(unittest.TestCase):
                     '2': _node('SaveImage', {'images': ['1', 0]})}
         self.assertEqual(_prepare(workflow)['1']['inputs']['image'], 'default.png')
 
+    def test_workflow_without_switches_detaches_empty_optional_media_slots(self) -> None:
+        workflow = {
+            '4': _node('LoadImage', {'image': 'default1.png'}, '[参考图1]'),
+            '38': _node('LoadImage', {'image': 'default2.png'}, '[参考图2]'),
+            '40': _node('LoadImage', {'image': 'default3.png'}, '[参考图3]'),
+            '5': _node('MiniMaxH3ImageConditioning', {
+                'prompt': 'test',
+                'images.image_1': ['4', 0],
+                'images.image_2': ['38', 0],
+                'images.image_3': ['40', 0],
+            }),
+            '9': _node('SaveImage', {'images': ['5', 0]}),
+        }
+        one_img = _prepare(workflow, images=['user1.png', '', ''])
+        self.assertIn('4', one_img)
+        self.assertEqual(one_img['4']['inputs']['image'], 'user1.png')
+        self.assertNotIn('38', one_img, 'unconnected optional reference loaders must be removed')
+        self.assertNotIn('40', one_img, 'unconnected optional reference loaders must be removed')
+        self.assertEqual(
+            sorted(k for k in one_img['5']['inputs'] if k.startswith('images.image_')),
+            ['images.image_1'],
+        )
+        no_img = _prepare(workflow, images=[])
+        for nid in ('4', '38', '40'):
+            self.assertNotIn(nid, no_img)
+        self.assertEqual([k for k in no_img['5']['inputs'] if k.startswith('images.image_')], [])
+
 
 class SeedTest(unittest.TestCase):
     def test_tagged_runs_draw_fresh_seeds_unless_fixed_by_parameter(self) -> None:

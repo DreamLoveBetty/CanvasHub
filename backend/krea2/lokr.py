@@ -12,36 +12,94 @@ from ..local_image.comfy_fp8 import read_safetensors_header
 
 
 FORMAT = "lokr-direct-v1"
+STYLE_FORMAT = "lokr-style-v1"
 _SPECIAL = {
-    "img_in": "first", "final_layer_linear": "last.linear",
-    "time_embed_linear_1": "tmlp.0", "time_embed_linear_2": "tmlp.2",
-    "time_mod_proj": "tproj.1", "txt_in_linear_1": "txtmlp.1",
-    "txt_in_linear_2": "txtmlp.3", "text_fusion_projector": "txtfusion.projector",
+    "img_in": "first", "first": "first",
+    "final_layer_linear": "last.linear", "last_linear": "last.linear",
+    "time_embed_linear_1": "tmlp.0", "tmlp_0": "tmlp.0",
+    "time_embed_linear_2": "tmlp.2", "tmlp_2": "tmlp.2",
+    "time_mod_proj": "tproj.1", "tproj_1": "tproj.1",
+    "txt_in_linear_1": "txtmlp.1", "txtmlp_1": "txtmlp.1",
+    "txt_in_linear_2": "txtmlp.3", "txtmlp_3": "txtmlp.3",
+    "text_fusion_projector": "txtfusion.projector", "txtfusion_projector": "txtfusion.projector",
 }
 _LAYER = {
-    "attn_to_q": "attn.wq", "attn_to_k": "attn.wk", "attn_to_v": "attn.wv",
-    "attn_to_out_0": "attn.wo", "attn_to_gate": "attn.gate",
-    "ff_gate": "mlp.gate", "ff_up": "mlp.up", "ff_down": "mlp.down",
+    "attn_to_q": "attn.wq", "attn_wq": "attn.wq",
+    "attn_to_k": "attn.wk", "attn_wk": "attn.wk",
+    "attn_to_v": "attn.wv", "attn_wv": "attn.wv",
+    "attn_to_out_0": "attn.wo", "attn_wo": "attn.wo",
+    "attn_to_gate": "attn.gate", "attn_gate": "attn.gate",
+    "ff_gate": "mlp.gate", "mlp_gate": "mlp.gate",
+    "ff_up": "mlp.up", "mlp_up": "mlp.up",
+    "ff_down": "mlp.down", "mlp_down": "mlp.down",
 }
+_DOTTED_PREFIXES = ("base_model.model.", "diffusion_model.", "transformer.")
+_DOTTED_TRANSLATE = (
+    ("transformer_blocks", "blocks"),
+    ("text_fusion", "txtfusion"),
+    ("final_layer.linear", "last.linear"),
+    ("img_in", "first"),
+    ("time_embed.linear_1", "tmlp.0"),
+    ("time_embed.linear_2", "tmlp.2"),
+    ("time_mod_proj", "tproj.1"),
+    ("txt_in.linear_1", "txtmlp.1"),
+    ("txt_in.linear_2", "txtmlp.3"),
+    ("attn.to_out.0", "attn.wo"),
+    ("attn.to_q", "attn.wq"),
+    ("attn.to_k", "attn.wk"),
+    ("attn.to_v", "attn.wv"),
+    ("attn.to_gate", "attn.gate"),
+    ("ff.gate", "mlp.gate"),
+    ("ff.up", "mlp.up"),
+    ("ff.down", "mlp.down"),
+)
+_VALID_TARGETS = (
+    set(_SPECIAL.values())
+    | {f"blocks.{idx}.{layer}" for idx in range(28) for layer in set(_LAYER.values())}
+    | {f"txtfusion.{sec}.{idx}.{layer}"
+       for sec in ("layerwise_blocks", "refiner_blocks")
+       for idx in range(2)
+       for layer in set(_LAYER.values())}
+)
 
 
 def target_path(name):
     """Explicit aliases avoid ambiguities from globally replacing underscores."""
-    if not name.startswith("lycoris_"):
-        raise ValueError(f"不支持的 Krea LoKr 层名：{name}")
-    name = name.removeprefix("lycoris_")
-    if name in _SPECIAL:
-        return _SPECIAL[name]
-    match = re.fullmatch(
-        r"(transformer_blocks|text_fusion_(?:layerwise|refiner)_blocks)_(\d+)_(.+)", name)
-    if match:
-        section, index, layer = match.groups()
-        maximum = 28 if section == "transformer_blocks" else 2
-        if int(index) < maximum and layer in _LAYER:
-            prefix = "blocks" if section == "transformer_blocks" else (
-                "txtfusion." + section.removeprefix("text_fusion_"))
-            return f"{prefix}.{int(index)}.{_LAYER[layer]}"
-    raise ValueError(f"不支持的 Krea LoKr 目标层：{name}")
+    raw = str(name or "")
+    if raw.startswith(("lycoris_", "lora_unet_")):
+        stem = raw.removeprefix("lycoris_").removeprefix("lora_unet_")
+        if stem in _SPECIAL:
+            return _SPECIAL[stem]
+        match = re.fullmatch(
+            r"(transformer_blocks|blocks|(?:text_fusion|txtfusion)_(?:layerwise|refiner)_blocks)_(\d+)_(.+)",
+            stem,
+        )
+        if match:
+            section, index, layer = match.groups()
+            is_main = section in {"transformer_blocks", "blocks"}
+            maximum = 28 if is_main else 2
+            if int(index) < maximum and layer in _LAYER:
+                if is_main:
+                    prefix = "blocks"
+                else:
+                    sub = section.removeprefix("text_fusion_").removeprefix("txtfusion_")
+                    prefix = f"txtfusion.{sub}"
+                return f"{prefix}.{int(index)}.{_LAYER[layer]}"
+        raise ValueError(f"不支持的 Krea LoKr 目标层：{stem}")
+    if raw.startswith(_DOTTED_PREFIXES):
+        dotted = raw
+        if dotted.startswith("base_model.model."):
+            dotted = dotted[len("base_model.model."):]
+        for pre in ("diffusion_model.", "transformer."):
+            if dotted.startswith(pre):
+                dotted = dotted[len(pre):]
+                break
+        for old, new in _DOTTED_TRANSLATE:
+            dotted = dotted.replace(old, new)
+        if dotted in _VALID_TARGETS:
+            return dotted
+        raise ValueError(f"不支持的 Krea LoKr 目标层：{raw}")
+    raise ValueError(f"不支持的 Krea LoKr 层名：{name}")
 
 
 def inspect_lokr(path):
@@ -84,5 +142,6 @@ def inspect_lokr(path):
             raise ValueError(f"LoKr 因子不完整：{target}")
         a, b = group["lokr_w1"]["shape"], group["lokr_w2"]["shape"]
         group["shape"] = [a[0] * b[0], a[1] * b[1]]
-    return {"adapter_format": FORMAT, "tensor_count": len(header.tensors),
+    adapter_format = FORMAT if all(key.startswith("lycoris_") for key in header.tensors) else STYLE_FORMAT
+    return {"adapter_format": adapter_format, "tensor_count": len(header.tensors),
             "adapter_count": len(groups), "layers": groups}

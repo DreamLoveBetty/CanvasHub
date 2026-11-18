@@ -5,6 +5,7 @@ import math
 import re
 import secrets
 
+from ..services.prompt_pe import job_trace
 from .control_profile import (normalize_control, normalize_reference_size,
                               REFERENCE_SIZES, PROFILE as CONTROL_PROFILE)
 
@@ -137,6 +138,7 @@ def normalize_job(body):
     mode = str(body.get("mode") or STANDARD_MODE).strip().lower()
     if mode not in (*MODES, "control"):
         raise ValueError("未知 Krea 2 工作模式")
+    pe = job_trace(body, prompt, text_to_image=mode == STANDARD_MODE)
     control = None
     control_reference_size = normalize_reference_size(body.get("control_reference_size", 1024))
     if mode != "control" and control_reference_size != 1024:
@@ -231,6 +233,7 @@ def normalize_job(body):
         "loras": loras,
         "safety_enabled": body.get("safety_enabled") is True,
         "telegram_enabled": body.get("telegram_enabled") is True,
+        **pe,
     }
 
 

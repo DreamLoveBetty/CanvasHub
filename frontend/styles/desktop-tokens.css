@@ -706,8 +706,6 @@ body.desk-app {
   --desk-node-text-floating-background: rgba(249, 252, 255, 0.86);
   --desk-node-text-floating-border: rgba(255, 255, 255, 0.68);
   --desk-node-text-floating-shadow: 0 16px 42px rgba(var(--desk-blue-midnight-rgb), 0.16);
-  --desk-node-text-menu-background: rgba(249, 252, 255, 0.9);
-  --desk-node-text-menu-shadow: 0 18px 46px rgba(var(--desk-blue-midnight-rgb), 0.18);
   --desk-node-text-alias-background: rgba(255, 255, 255, 0.28);
   --desk-node-text-alias-border: rgba(var(--desk-blue-secondary-rgb), 0.18);
   --desk-node-text-alias-shadow: 0 10px 22px rgba(var(--desk-blue-midnight-rgb), 0.08);
@@ -1471,10 +1469,10 @@ body.desk-app {
   --desk-settings-segment-border: rgba(85, 101, 120, 0.12);
   --desk-settings-segment-shadow: inset 0 1px 2px rgba(var(--desk-blue-midnight-rgb), 0.05);
   --desk-settings-segment-ink: rgba(72, 91, 112, 0.86);
-  --desk-settings-track-background: rgba(80, 96, 116, 0.1);
-  --desk-settings-track-shadow: inset 0 1px 2px rgba(var(--desk-blue-midnight-rgb), 0.08);
-  --desk-settings-track-thumb-background: rgba(255, 255, 255, 0.94);
-  --desk-settings-track-thumb-shadow: 0 1px 3px rgba(var(--desk-blue-midnight-rgb), 0.14), 0 0 0 0.5px rgba(var(--desk-blue-midnight-rgb), 0.08);
+  --desk-settings-track-background: linear-gradient(180deg, rgba(80, 96, 116, 0.13) 0%, rgba(80, 96, 116, 0.08) 100%);
+  --desk-settings-track-shadow: inset 0 1.5px 3px rgba(var(--desk-blue-midnight-rgb), 0.1), inset 0 -1px 0 rgba(255, 255, 255, 0.65), 0 0 0 0.5px rgba(var(--desk-blue-midnight-rgb), 0.07);
+  --desk-settings-track-thumb-background: radial-gradient(120% 140% at 50% 12%, rgba(255, 255, 255, 0.96) 0%, rgba(244, 247, 252, 0.84) 58%, rgba(255, 255, 255, 0.92) 100%);
+  --desk-settings-track-thumb-shadow: inset 0 2px 1.5px rgba(255, 255, 255, 0.98), inset 0 -2px 3px rgba(255, 255, 255, 0.72), inset 2px 0 3px rgba(125, 211, 252, 0.22), inset -2px 0 3px rgba(244, 114, 182, 0.18), 0 6px 14px -3px rgba(var(--desk-blue-midnight-rgb), 0.18), 0 2px 4px rgba(var(--desk-blue-midnight-rgb), 0.1), 0 0 0 0.5px rgba(255, 255, 255, 0.9);
   --desk-settings-path-background: rgba(255, 255, 255, 0.42);
   --desk-settings-path-border: rgba(255, 255, 255, 0.5);
   --desk-settings-path-shadow: none;
@@ -2593,8 +2591,6 @@ body.desk-app[data-theme="dark"] {
   --desk-node-text-floating-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.06),
     0 18px 42px rgba(0, 0, 0, 0.32);
-  --desk-node-text-menu-background: rgba(38, 46, 48, 0.92);
-  --desk-node-text-menu-shadow: var(--desk-node-text-floating-shadow);
   --desk-node-text-alias-background: rgba(38, 46, 48, 0.92);
   --desk-node-text-alias-border: rgba(255, 255, 255, 0.07);
   --desk-node-text-alias-shadow:
@@ -3337,10 +3333,10 @@ body.desk-app[data-theme="dark"] {
   --desk-settings-segment-border: rgba(255, 255, 255, 0.07);
   --desk-settings-segment-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.24);
   --desk-settings-segment-ink: rgba(190, 199, 201, 0.72);
-  --desk-settings-track-background: rgba(14, 19, 21, 0.5);
-  --desk-settings-track-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.28);
-  --desk-settings-track-thumb-background: rgba(255, 255, 255, 0.12);
-  --desk-settings-track-thumb-shadow: 0 1px 3px rgba(0, 0, 0, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  --desk-settings-track-background: linear-gradient(180deg, rgba(10, 14, 18, 0.58) 0%, rgba(18, 24, 28, 0.44) 100%);
+  --desk-settings-track-shadow: inset 0 1.5px 3px rgba(0, 0, 0, 0.38), inset 0 -1px 0 rgba(255, 255, 255, 0.06), 0 0 0 0.5px rgba(255, 255, 255, 0.06);
+  --desk-settings-track-thumb-background: radial-gradient(120% 140% at 50% 10%, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0.1) 60%, rgba(255, 255, 255, 0.16) 100%);
+  --desk-settings-track-thumb-shadow: inset 0 1.5px 1.5px rgba(255, 255, 255, 0.32), inset 0 -1.5px 2.5px rgba(255, 255, 255, 0.12), inset 2px 0 3px rgba(56, 189, 248, 0.18), inset -2px 0 3px rgba(244, 114, 182, 0.14), 0 6px 16px -3px rgba(0, 0, 0, 0.45), 0 2px 4px rgba(0, 0, 0, 0.28), 0 0 0 0.5px rgba(255, 255, 255, 0.18);
   --desk-settings-path-background: rgba(28, 34, 36, 0.58);
   --desk-settings-path-border: rgba(255, 255, 255, 0.07);
   --desk-settings-path-shadow:

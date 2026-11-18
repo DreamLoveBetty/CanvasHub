@@ -68,7 +68,7 @@ class GptTaskRequestEndpointTest(unittest.TestCase):
 
         self.assertEqual(merged[-1]["request_endpoint"], "images")
         deps["_finalize_generation_task"].assert_called_once()
-        self.assertEqual(deps["_finalize_generation_task"].call_args.args[1], "succeeded")
+        self.assertEqual(deps["_finalize_generation_task"].call_args.args[1], "succeeded_no_telegram")
 
     def test_edit_task_records_endpoint(self) -> None:
         merged: list[dict] = []
@@ -89,7 +89,7 @@ class GptTaskRequestEndpointTest(unittest.TestCase):
         )
 
         self.assertEqual(merged[-1]["request_endpoint"], "responses")
-        self.assertEqual(deps["_finalize_generation_task"].call_args.args[1], "succeeded")
+        self.assertEqual(deps["_finalize_generation_task"].call_args.args[1], "succeeded_no_telegram")
 
     def test_pool_result_leaves_endpoint_empty(self) -> None:
         merged: list[dict] = []

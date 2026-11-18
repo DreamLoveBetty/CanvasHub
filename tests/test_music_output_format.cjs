@@ -40,7 +40,7 @@ test('generation shows FLAC/WAV but no file buttons, preserving result data', ()
   const html = view.nodeHtml(node);
   assert.match(html, /data-music-field="audioFormat"/);
   assert.match(html, /value="wav" selected/);
-  assert.match(html, /desk-music__generation-format"><label>生成格式<select data-music-field="audioFormat"/);
+  assert.match(html, /desk-music__generation-format"><label>生成格式<select class="desk-select" data-music-field="audioFormat"/);
   const params = html.split('desk-music__generation-params">')[1].split('</div>')[0];
   assert.doesNotMatch(params, /audioFormat/);
   assert.equal([...params.matchAll(/<label>/g)].length, 8);

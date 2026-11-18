@@ -199,3 +199,71 @@ class GoogleUpstream:
                 502,
                 'google_execution_unknown',
             ) from None
+
+    def stream_text(self, account, model, request, cancelled=None):
+        payload = {
+            'project': account['project_id'],
+            'model': model,
+            'userAgent': 'antigravity',
+            'requestType': 'agent',
+            'requestId': f'agent/{int(time.time() * 1000)}/{uuid.uuid4().hex[:8]}',
+            'request': request,
+        }
+        size = len(json.dumps(payload))
+        started = time.monotonic()
+        deadline = started + self.settings.timeout
+        phase = 'connect'
+        decoder = None
+        try:
+            with self.session() as s, s.post(
+                self.settings.upstream + ':streamGenerateContent?alt=sse',
+                json=payload,
+                headers=self.headers(account['access_token']),
+                stream=True,
+                timeout=(upload_timeout(size), self.settings.timeout),
+                allow_redirects=False,
+            ) as r:
+                if not 200 <= r.status_code < 300:
+                    self.checked_json(r, 'Google LLM 推理')
+                from .wire import TextResponse
+
+                phase = 'stream'
+                decoder = TextResponse()
+                for chunk in r.iter_content(chunk_size=8192):
+                    if cancelled and cancelled.is_set():
+                        raise GoogleError(
+                            'Google 推理已取消', 499, 'cancelled'
+                        )
+                    if time.monotonic() > deadline:
+                        raise GoogleError(
+                            'Google 推理超过等待期限', 504, 'google_timeout'
+                        )
+                    for delta in decoder.feed(chunk):
+                        if delta:
+                            yield ('delta', delta)
+                result = decoder.finish()
+                yield ('done', result)
+        except requests.RequestException as e:
+            kind = type(e).__name__
+            elapsed = time.monotonic() - started
+            received = decoder.total if decoder else 0
+            logger.warning(
+                'Google LLM stream failed: %s phase=%s elapsed=%.1fs sent=%d bytes=%d '
+                'mode=%s account=%s model=%s request=%s',
+                kind, phase, elapsed, size, received, decoder.mode if decoder else None,
+                account.get('id'), model, payload['requestId'],
+            )
+            raise GoogleError(
+                f'Google LLM 连接中断或超时（{kind}，{phase}，{elapsed:.0f}s，已收 {received} 字节）',
+                502,
+                'google_network_error' if received == 0 else 'google_execution_unknown',
+            ) from None
+
+    def generate_text(self, account, model, request, cancelled=None):
+        result = None
+        for event_type, value in self.stream_text(account, model, request, cancelled=cancelled):
+            if event_type == 'done':
+                result = value
+        if result is None:
+            raise GoogleError('Google 模型未返回有效文本', 502, 'google_empty_text')
+        return result

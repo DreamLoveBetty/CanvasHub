@@ -281,10 +281,29 @@ test('resolution, quality and moderation options show localized labels over unch
   assert.doesNotMatch(model, /label: '(1k|2k|4k|auto|low|medium|high)'/);
 });
 
-test('text node drawer uses product casing and an icon for clear', () => {
+test('text node drawer renders the same decorative, theme-colored glyph before all four rewrite labels', () => {
   const editor = read('frontend/scripts/desktop-canvas-text-editor.js');
-  assert.ok(editor.includes('data-text-action="gpt-polish">GPT 润色</button>'));
-  assert.match(editor, /data-text-action="clear"[^>]*><svg viewBox="0 0 24 24" aria-hidden="true">/);
-  assert.ok(!editor.includes('❌'));
-  assert.ok(!read('frontend/scripts/desktop-canvas-generation.js').includes('Gpt 润色'));
+  const context = vm.createContext({ window: {} });
+  vm.runInContext(editor, context);
+  const doc = { segments: [{ type: 'text', text: 'A green sign.' }] };
+  const api = context.window.DesktopCanvasTextEditor.create({
+    TEXT_NODE_ALIAS_MAX_LENGTH: 24, TEXT_STYLE_PRESETS: [], ensureTextNodePromptDocument: () => doc,
+    normalizePromptDocument: () => doc, promptDocumentHasEditorContent: () => true,
+    escapeHtml: String,
+  });
+  const markup = api.textNodeHtml({ id: 't', alias: 'Text' });
+  const drawer = markup.slice(markup.indexOf('class="desk-text-node__drawer"'));
+  const buttons = [...drawer.matchAll(/<button[^>]*data-text-action="([^"]+)"[^>]*>([\s\S]*?)<\/button>/g)];
+  assert.deepEqual(buttons.map(b => b[1]), ['gpt-polish', 'moss_caption', 'qwen_t2i', 'h3_image_t2i', 'clear']);
+  const icons = buttons.slice(0, -1).map(([, , content], i) => {
+    const label = ['GPT 润色', 'MOSS 扩展', 'Qwen 2.1 扩展', 'H3 Image 扩展'][i];
+    const match = content.trim().match(/^(<svg\b[^>]*>[\s\S]*?<\/svg>)\s*<span[^>]*>([^<]+)<\/span>$/);
+    assert.ok(match, `${label}: icon must precede the label`);
+    assert.equal(match[2], label);
+    assert.match(match[1], /aria-hidden="true"/);
+    assert.match(match[1], /stroke="currentColor"/);
+    return match[1];
+  });
+  assert.equal(new Set(icons).size, 1);
+  assert.match(buttons.at(-1)[2], /<svg viewBox="0 0 24 24" aria-hidden="true">/);
 });

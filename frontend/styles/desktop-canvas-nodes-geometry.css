@@ -881,8 +881,52 @@ body.desk-app[data-theme] .desk-node .desk-generation-action svg {
   transform: translateY(0);
 }
 
-:where(body.desk-app[data-theme]) .desk-canvas.is-connecting .desk-node--text .desk-text-node__drawer,
-:where(body.desk-app[data-theme]) .desk-canvas.is-connecting .desk-node--text .desk-text-style-menu {
+:where(body.desk-app[data-theme]) .desk-text-node__rewrite-actions {
+  display: flex;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+
+:where(body.desk-app[data-theme]) .desk-text-node__drawer button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-width: 0;
+  max-width: 100%;
+  height: 30px;
+  padding: 0 8px;
+}
+
+:where(body.desk-app[data-theme]) .desk-text-node__drawer button[data-text-rewrite] {
+  flex: 1 1 auto;
+}
+
+:where(body.desk-app[data-theme]) .desk-text-node__rewrite-icon {
+  flex: 0 0 auto;
+  width: 15px;
+  height: 15px;
+}
+
+:where(body.desk-app[data-theme]) .desk-text-node__drawer [data-text-rewrite-label] {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+:where(body.desk-app[data-theme]) .desk-text-node__drawer button[data-text-action="clear"] {
+  flex: 0 0 42px;
+  padding: 0;
+}
+
+:where(body.desk-app[data-theme]) .desk-text-node__drawer button[data-text-action="clear"] svg {
+  width: 14px;
+  height: 14px;
+}
+
+:where(body.desk-app[data-theme]) .desk-canvas.is-connecting .desk-node--text .desk-text-node__drawer {
   pointer-events: none;
   visibility: hidden;
   opacity: 0;
@@ -1874,6 +1918,7 @@ body.desk-app[data-connection-swell-style="droplet"] .desk-node-settled-port--ri
 
 :where(body.desk-app[data-theme]) .desk-node-context-menu__items {
   display: grid;
+  grid-auto-rows: max-content;
   gap: 2px;
   max-height: 240px;
   overflow: auto;
@@ -1892,15 +1937,27 @@ body.desk-app[data-connection-swell-style="droplet"] .desk-node-settled-port--ri
   border-radius: 4px;
 }
 
+:where(body.desk-app[data-theme]) .desk-node-context-menu .desk-node-palette__copy {
+  min-width: 0;
+}
+
+:where(body.desk-app[data-theme]) .desk-node-context-menu button[data-add-node] :is(strong, em) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 :where(body.desk-app[data-theme]) .desk-node-context-menu button[data-add-node] strong {
   font-size: var(--desk-font-size-micro);
   font-weight: var(--desk-font-weight-semibold);
+  line-height: 1.2;
 }
 
 :where(body.desk-app[data-theme]) .desk-node-context-menu button[data-add-node] em {
-  margin-top: 0;
-  font-size: var(--desk-font-size-micro);
-  line-height: 1.15;
+  margin-top: 1px;
+  font-size: 8px;
+  font-weight: var(--desk-font-weight-regular);
+  line-height: 1.25;
 }
 
 :where(body.desk-app[data-theme]) .desk-node-context-menu__empty {

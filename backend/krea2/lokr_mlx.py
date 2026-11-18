@@ -60,12 +60,12 @@ class LoKrBinding:
                 _put(parent, name, wrapped.base)
         self._swaps.clear()
 
-    def apply(self, model, path, strength=1.0):
+    def apply(self, model, path, strength=1.0, *, min_strength=0.0, max_strength=2.0):
         if self._swaps:
             raise RuntimeError("请先卸载已有控制适配器")
         strength = float(strength)
-        if not math.isfinite(strength) or not 0 <= strength <= 2:
-            raise ValueError("LoKr 强度必须在 0–2 之间")
+        if not math.isfinite(strength) or not min_strength <= strength <= max_strength:
+            raise ValueError(f"LoKr 强度必须在 {min_strength:g}–{max_strength:g} 之间")
         report = inspect_lokr(path)
         if report is None:
             raise ValueError("控制适配器不是受支持的直接 LoKr")
@@ -78,7 +78,9 @@ class LoKrBinding:
                 base = _get(parent, name)
             except (AttributeError, KeyError, IndexError) as exc:
                 raise ValueError(f"LoKr 目标层不存在：{target}") from exc
-            linear = base.base if isinstance(base, LoRALinear) else base
+            linear = base
+            while isinstance(linear, (LoRALinear, LoKrLinear)):
+                linear = linear.base
             if isinstance(linear, nn.QuantizedLinear):
                 shape = [linear.scales.shape[0], linear.scales.shape[1] * linear.group_size]
             elif isinstance(linear, nn.Linear):

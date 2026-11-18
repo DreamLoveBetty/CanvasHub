@@ -5,10 +5,8 @@
   function create({
     activeImageEditRef,
     buildImageEditPrompt,
-    clonePromptDocument,
     closeImageEditor,
     connectNodes,
-    ensureTextNodePromptDocument,
     expectedImageOutputCount,
     exportImageEditAnnotatedDataUrl,
     findInputForResult,
@@ -22,10 +20,7 @@
     imageUrlToDataUrl,
     insertImageNode,
     isEmptyAutoOutputImageNode,
-    materializePromptDocument,
-    openTextPolishModal,
     outputImageReference,
-    promptDocumentFingerprint,
     ratioFromAspect,
     ratioToMeta,
     readUpscaleNodeConfigForReference,
@@ -36,45 +31,6 @@
     updateLinkPath,
   }) {
     let upscaleComponentInstallPromise = null;
-
-    async function runTextNodeGptPolish(node, nodeState, triggerButton) {
-    const originalDocument = clonePromptDocument(ensureTextNodePromptDocument(nodeState), nodeState.text || '');
-    const originalText = materializePromptDocument(originalDocument).trim();
-    if (!originalText) {
-      DesktopResults.showTransientMessage('先在文本节点里输入提示词片段。');
-      return;
-    }
-    if (!window.DesktopApi?.polishPromptText) {
-      throw new Error('润色 API 未加载');
-    }
-    const previousLabel = triggerButton?.textContent || '';
-    if (triggerButton) {
-      triggerButton.disabled = true;
-      triggerButton.textContent = '润色中';
-    }
-    try {
-      const result = await window.DesktopApi.polishPromptText({ text: originalText });
-      const fullPrompt = String(result.full_prompt || '').trim();
-      const compactPrompt = String(result.compact_prompt || fullPrompt).trim();
-      if (!fullPrompt) throw new Error('润色结果为空');
-      openTextPolishModal({
-        nodeId: node.dataset.nodeId,
-        originalText,
-        originalDocument,
-        sourceFingerprint: promptDocumentFingerprint(originalDocument, originalText),
-        fullPrompt,
-        compactPrompt,
-        modules: result.modules || [],
-        model: result.model || ''
-      });
-      DesktopResults.showTransientMessage('润色完成，请选择版本后应用。');
-    } finally {
-      if (triggerButton) {
-        triggerButton.disabled = false;
-        triggerButton.textContent = previousLabel || 'GPT 润色';
-      }
-    }
-  }
 
     function pruneExtraEmptyOutputImages(modelNodeId, keepCount) {
     const edges = getOutputImageEdges(modelNodeId);
@@ -331,7 +287,6 @@
   }
 
     return Object.freeze({
-      runTextNodeGptPolish,
       pruneExtraEmptyOutputImages,
       assignImageOutputSlots,
       outputNodeCenterForSlot,

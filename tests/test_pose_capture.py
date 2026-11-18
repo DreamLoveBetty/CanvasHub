@@ -32,6 +32,14 @@ from backend.routes.pose_capture_routes import create_router
 
 FLIP = np.diag([1.0, -1.0, -1.0])  # OpenCV camera frame vs a Y-up body facing the camera
 
+HAS_TORCH = importlib.util.find_spec('torch') is not None
+HAS_SCIPY = importlib.util.find_spec('scipy') is not None
+
+
+def _requires_scipy(test):
+    return unittest.skipUnless(HAS_SCIPY, 'scipy not installed')(test)
+
+
 
 def png_bytes(width=64, height=48):
     from PIL import Image
@@ -262,6 +270,7 @@ class ServiceTests(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             missing.submit({'asset_id': missing.upload(png_bytes(), 'a.png')['asset_id']})
 
+    @_requires_scipy
     def test_video_upload_submit_and_sequence_result(self):
         service = self.service()
         mp4 = b'\x00\x00\x00\x18ftypisom\x00\x00\x02\x00' + b'\x00' * 64
@@ -276,6 +285,7 @@ class ServiceTests(unittest.TestCase):
         self.assertIn('result', photo)
         with self.assertRaises(ValueError): service.upload(b'\x00\x00\x00\x18ftypisom' + b'\x00' * (200 * 1024 * 1024), 'big.mp4')
 
+    @_requires_scipy
     def test_video_evidence_follows_the_install(self):
         mp4 = b'\x00\x00\x00\x18ftypisom\x00\x00\x02\x00' + b'\x00' * 64
         for installed, asked, sent in ((False, True, False), (True, True, True), (True, False, False)):
@@ -284,6 +294,7 @@ class ServiceTests(unittest.TestCase):
             self.finished(service, service.submit({'asset_id': asset['asset_id'], 'evidence': asked}))
             self.assertIs(service.runtime.calls[0]['evidence'], sent, (installed, asked))
 
+    @_requires_scipy
     def test_video_tracker_follows_the_install(self):
         mp4 = b'\x00\x00\x00\x18ftypisom\x00\x00\x02\x00' + b'\x00' * 64
         for installed in (False, True):
@@ -323,9 +334,6 @@ class ServiceTests(unittest.TestCase):
         service.store.update(job['id'], status='running')
         service.job(job['id'])  # starting the queue recovers stale jobs
         self.assertEqual(service.store.get(job['id'])['status'], 'interrupted')
-
-
-HAS_TORCH = importlib.util.find_spec('torch') is not None
 
 
 def chain_forward(torch):
@@ -385,6 +393,7 @@ class KeypointFitTests(unittest.TestCase):
         self.assertLess(np.abs(projected[:, :2] / projected[:, 2:] - keypoints[:, :2]).max(), 6)
 
     @unittest.skipUnless(HAS_TORCH, 'torch not installed')
+    @_requires_scipy
     def test_video_fit_moves_a_misplaced_body_to_its_keypoints(self):
         # A close-up: GEM-X put the person too high and too far; rotations alone cannot move the body.
         import torch
@@ -409,6 +418,7 @@ class KeypointFitTests(unittest.TestCase):
         self.assertLess(np.abs(projected[..., :2] / projected[..., 2:] - keypoints[..., :2]).max(), 15)  # from ~150 px; the weak anchor keeps a little
 
     @unittest.skipUnless(HAS_TORCH, 'torch not installed')
+    @_requires_scipy
     def test_evidence_moves_a_joint_in_depth_and_keeps_the_2d(self):
         import torch
         single = chain_forward(torch)
@@ -504,6 +514,7 @@ class VideoSceneTests(unittest.TestCase):
         return {'fps': 30.0, 'frames': 64, 'source_frames': 300, 'truncated': True, 'width': 640, 'height': 480,
                 'people': list(people), 'backend': 'coreml'}
 
+    @_requires_scipy
     def test_sequence_contract_shapes(self):
         snap = build_sequence(self.result(video_person()), asset_id='a' * 32)
         self.assertEqual((snap['fps'], snap['frame_count'], snap['source']['kind'], snap['source']['truncated']), (30.0, 64, 'video', True))
@@ -518,6 +529,7 @@ class VideoSceneTests(unittest.TestCase):
         tracked = build_sequence({**self.result(video_person()), 'tracker': {'engine': 'comotion', 'seconds': 31.2}})
         self.assertEqual(tracked['source']['tracker'], {'engine': 'comotion', 'seconds': 31.2})
 
+    @_requires_scipy
     def test_lift_ignores_camera_bob_and_keeps_world_jumps(self):
         snap = build_sequence(self.result(video_person(bob=0.08, jump_at=30)))
         lift = np.array(snap['people'][0]['frames']['lift'])
@@ -525,6 +537,7 @@ class VideoSceneTests(unittest.TestCase):
         self.assertGreater(lift[30:35].max(), 0.15, 'a jump in the world trajectory survives')
         self.assertLess(np.abs(np.r_[lift[:30], lift[35:]]).max(), 0.03, 'the jump does not pull the frames around it down')
 
+    @_requires_scipy
     def test_a_chest_up_person_follows_the_camera_view_frame_by_frame(self):
         selfie = {**video_person(bob=0.08, jump_at=30), 'upper_body': True}   # a hand-held selfie bobs; GEM-X's world is a guess
         snap = build_sequence(self.result(selfie))
@@ -534,6 +547,7 @@ class VideoSceneTests(unittest.TestCase):
         np.testing.assert_allclose(np.diff(np.asarray(frames['transl'])[:, 0]), np.diff(selfie['incam']['joints'][:, 0, 0]), atol=2e-4)
         self.assertIs(snap['people'][0]['diagnostics']['upper_body'], True)
 
+    @_requires_scipy
     def test_hips_follow_the_camera_on_a_push_in(self):
         # The camera pushes in: the hips sink in the camera view while GEM-X's world keeps the person on its floor.
         walker = video_person()
@@ -552,6 +566,7 @@ class VideoSceneTests(unittest.TestCase):
         hips = np.array(snap['people'][0]['frames']['hips'])
         np.testing.assert_allclose(hips, lift + hips_above_feet, atol=2e-3, err_msg='hips = lift + the hips above the lowest foot')
 
+    @_requires_scipy
     def test_held_legs_lower_the_figure_and_keep_the_hips(self):
         walker = video_person()
         walker['incam']['observed_joints'] = walker['incam']['joints'].copy()
@@ -562,6 +577,7 @@ class VideoSceneTests(unittest.TestCase):
         self.assertLess(np.abs(lift[:25]).max(), 0.02, 'the floor comes from the frames that show the feet')
         self.assertLess(np.abs(lift[35:] + 0.3).max(), 0.02, 'the figure sinks by what the held legs add, the hips stay')
 
+    @_requires_scipy
     def test_floor_comes_from_planted_feet_not_feet_in_the_air(self):
         # A backflip: the feet stay in view while the body is in the air for two thirds of the clip.
         flipper = video_person()
@@ -570,6 +586,7 @@ class VideoSceneTests(unittest.TestCase):
         lift = np.array(snap['people'][0]['frames']['lift'])
         self.assertLess(np.abs(np.r_[lift[:5], lift[55:]]).max(), 0.03, 'the standing figure stays on the floor')
 
+    @_requires_scipy
     def test_people_share_the_floor_without_moving_in_the_image(self):
         snap = build_sequence(self.result(video_person(x=-0.6), {**video_person(x=0.6), 'start': 0}))
         a, b = (np.median(p['frames']['lift']) for p in snap['people'])
@@ -625,6 +642,7 @@ class UpperBodyTests(unittest.TestCase):
         conf[:30, hips[1]] = 0.8     # a half-body speaker whose hips show now and then
         self.assertFalse(upper_body_only(conf, TRUNK_NAMES))
 
+    @_requires_scipy
     def test_the_chest_keeps_its_turn_and_the_body_hangs_straight_below_it(self):
         frames = 48
         t = np.linspace(0, 1, frames)
@@ -644,6 +662,7 @@ class UpperBodyTests(unittest.TestCase):
         chest = Rotation.from_matrix(self.chest(orient, pose)).as_rotvec()
         self.assertLess(swing(out_orient), 0.5 * swing(chest))                             # the pelvis turns slowly
 
+    @_requires_scipy
     def test_a_steady_chest_straightens_the_spine(self):
         frames = 30
         orient = np.tile([0.0, 0.0, 0.0], (frames, 1))
@@ -665,6 +684,7 @@ LEG_NAMES = ['Hips'] + [f'J{i}' for i in range(1, 67)] + [side + j for side in (
                                                           for j in ('Leg', 'Shin', 'Foot', 'ToeBase', 'ToeEnd')]
 
 
+@unittest.skipUnless(HAS_SCIPY, 'scipy not installed')
 class HoldUnseenLegsTests(unittest.TestCase):
     """Leg joints whose child keypoint left the frame keep their last seen rotation (synthetic poses)."""
     knee = LEG_NAMES.index('LeftShin') - 1   # body_pose rows exclude Hips
@@ -772,6 +792,7 @@ class EvidenceTargetTests(unittest.TestCase):
         obs[2]['shape'] = None   # a frame without a usable shape does not count
         self.assertIsNone(evidence_mod.body_shape(obs), 'two frames are too few to replace GEM-X')
 
+    @_requires_scipy
     def test_the_sequence_identity_follows_the_body_shape(self):
         person = video_person()
         self.assertEqual(build_sequence(VideoSceneTests.result(None, person))['people'][0]['identity']['coeffs'], [0.0] * 45)
@@ -819,6 +840,7 @@ class EvidenceTargetTests(unittest.TestCase):
         self.assertGreater(t['used']['depth'], 0)
 
 
+@unittest.skipUnless(HAS_SCIPY, 'scipy not installed')
 class SmoothMotionTests(unittest.TestCase):
     """Keyframe keypoints are smoothed by speed and joined by smooth curves (the 12 Hz shimmer of a 24 fps clip)."""
     keys = np.arange(0, 96, 2)

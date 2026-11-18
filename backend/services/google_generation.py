@@ -23,6 +23,75 @@ def _record_native_response(task_id, response_meta, merge_params, record_event):
         print(f'⚠️ Google 响应元数据记录失败（原图已保存）：{exc}')
 
 
+
+def _finalize_saved_image_delivery(
+    *,
+    task_id,
+    run_id,
+    telegram_enabled,
+    telegram_success,
+    filename,
+    result_files,
+    image_count,
+    provider,
+    route,
+    task_type,
+    success_text,
+    skip_text,
+    failed_text,
+    error_msg=None,
+    error_type='TelegramSendFailed',
+    exception_name=None,
+    extra=None,
+    event_payload=None,
+    _finalize_generation_task,
+    _record_generation_event,
+    _translate_generation_failure,
+    send_status_notification=None,
+):
+    """Persist a generated file and a single terminal delivery status."""
+    files = list(result_files or ([filename] if filename else []))
+    payload = dict(event_payload or {})
+    payload.setdefault('provider', provider)
+    payload.setdefault('route', route)
+    payload.setdefault('image_count', image_count)
+    extra = dict(extra or {})
+    if telegram_enabled and telegram_success:
+        _finalize_generation_task(
+            task_id, 'succeeded', run_id=run_id, stage='done', progress_text=success_text,
+            result_file=filename, result_files=files, image_count=image_count,
+            provider=provider, route=route, task_type=task_type, extra=extra or None,
+        )
+        _record_generation_event(task_id, 'run_succeeded', success_text, stage='done', payload=payload)
+        if send_status_notification:
+            send_status_notification(task_id, '✅ 图片生成成功！', '🎉')
+        return 'succeeded'
+    if not telegram_enabled:
+        _finalize_generation_task(
+            task_id, 'succeeded_no_telegram', run_id=run_id, stage='done', progress_text=skip_text,
+            result_file=filename, result_files=files, image_count=image_count,
+            provider=provider, route=route, task_type=task_type, extra=extra or None,
+        )
+        payload['telegram_enabled'] = False
+        _record_generation_event(task_id, 'run_succeeded', skip_text, stage='done', payload=payload)
+        return 'succeeded_no_telegram'
+    error_msg = error_msg or 'Telegram 发送失败：send_telegram returned False'
+    error_info = _translate_generation_failure(
+        task_id, error_msg, provider='telegram', route='telegram', task_type=task_type,
+        stage='telegram_failed', exception_name=exception_name,
+    )
+    _finalize_generation_task(
+        task_id, 'telegram_failed', run_id=run_id, stage='telegram_failed',
+        progress_text=error_info.get('display_error') or failed_text or error_msg,
+        result_file=filename, result_files=files, image_count=image_count,
+        error_info=error_info, error_type=error_type,
+        provider=provider, route=route, task_type=task_type, extra=extra or None,
+    )
+    payload['telegram_enabled'] = True
+    _record_generation_event(task_id, 'telegram_send_failed', failed_text or error_msg, stage='telegram_failed', severity='error', payload=payload)
+    return 'telegram_failed'
+
+
 def process_task(
     task_id,
     prompt,
@@ -185,39 +254,18 @@ def process_task(
             result_files = _result_image_filenames(result)
             image_count = len(result_files) or len(result.get('image_paths') or [result.get('image_path')])
             filename = result_files[0] if result_files else os.path.basename(result['image_path'])
-            if telegram_success:
-                ok_text = f'GPT 图片生成成功（共 {image_count} 张）' if image_count > 1 else 'GPT 图片生成成功'
-                _finalize_generation_task(
-                    task_id,
-                    'succeeded',
-                    run_id=run_id,
-                    provider='chatgpt_pool',
-                    route='gpt_pool',
-                    task_type=task_kind,
-                    result_file=filename,
-                    stage='done',
-                    progress_text=ok_text,
-                    result_files=result_files,
-                    image_count=image_count,
-                )
-                _record_generation_event(task_id, 'run_succeeded', ok_text, stage='done', payload={'provider': 'chatgpt_pool', 'route': 'gpt_pool', 'image_count': image_count})
-                send_status_notification(task_id, '✅ GPT 图片生成成功！', '🎉')
-            else:
-                progress_text = 'GPT 图片已生成，已按节点开关跳过 Telegram' if not telegram_enabled else 'GPT 图片已生成，但 Telegram 发送失败'
-                _finalize_generation_task(
-                    task_id,
-                    'succeeded_no_telegram',
-                    run_id=run_id,
-                    provider='chatgpt_pool',
-                    route='gpt_pool',
-                    task_type=task_kind,
-                    result_file=filename,
-                    stage='done',
-                    progress_text=progress_text,
-                    result_files=result_files,
-                    image_count=image_count,
-                )
-                _record_generation_event(task_id, 'run_succeeded', progress_text, stage='done', payload={'provider': 'chatgpt_pool', 'route': 'gpt_pool', 'image_count': image_count, 'telegram_enabled': telegram_enabled})
+            _finalize_saved_image_delivery(
+                task_id=task_id, run_id=run_id, telegram_enabled=telegram_enabled,
+                telegram_success=telegram_success, filename=filename, result_files=result_files,
+                image_count=image_count, provider='chatgpt_pool', route='gpt_pool', task_type=task_kind,
+                success_text=(f'GPT 图片生成成功（共 {image_count} 张）' if image_count > 1 else 'GPT 图片生成成功'),
+                skip_text='GPT 图片已生成，已按节点开关跳过 Telegram',
+                failed_text='GPT 图片已生成，但 Telegram 发送失败',
+                _finalize_generation_task=_finalize_generation_task,
+                _record_generation_event=_record_generation_event,
+                _translate_generation_failure=_translate_generation_failure,
+                send_status_notification=send_status_notification if telegram_success else None,
+            )
             return
 
         update_task_status(task_id, 'processing', '正在调用 AI 模型...', stage='calling_api')
@@ -283,44 +331,25 @@ def process_task(
                 result_files = _result_image_filenames(fallback_result)
                 image_count = len(result_files) or len(fallback_result.get('image_paths') or [fallback_result.get('image_path')])
                 filename = result_files[0] if result_files else os.path.basename(fallback_result['image_path'])
-                if telegram_success or not telegram_enabled:
-                    ok_text = f'托底生成成功（共 {image_count} 张）' if image_count > 1 else '托底生成成功'
-                    progress_text = ok_text if telegram_enabled else '托底生成成功，已按节点开关跳过 Telegram'
-                    _finalize_generation_task(
-                        task_id,
-                        'succeeded' if telegram_enabled else 'succeeded_no_telegram',
-                        run_id=run_id,
-                        provider='chatgpt_pool',
-                        route='gpt_pool_fallback',
-                        task_type=task_kind,
-                        result_file=filename,
-                        stage='done',
-                        progress_text=progress_text,
-                        result_files=result_files,
-                        image_count=image_count,
-                        extra={'fallback_source': 'chatgpt_pool', 'primary_error': primary_error},
-                    )
-                    _record_generation_event(task_id, 'run_succeeded', progress_text, stage='done', payload={'provider': 'chatgpt_pool', 'route': 'gpt_pool_fallback', 'fallback_source': 'chatgpt_pool', 'image_count': image_count})
-                    send_status_notification(task_id, '✅ 托底生成成功！', '🎉')
-                    print(f"✅ 托底成功：{task_id} -> {filename}")
-                else:
-                    progress_text = '托底生成成功，但 Telegram 发送失败'
-                    _finalize_generation_task(
-                        task_id,
-                        'succeeded_no_telegram',
-                        run_id=run_id,
-                        provider='chatgpt_pool',
-                        route='gpt_pool_fallback',
-                        task_type=task_kind,
-                        result_file=filename,
-                        stage='done',
-                        progress_text=progress_text,
-                        result_files=result_files,
-                        image_count=image_count,
-                        extra={'fallback_source': 'chatgpt_pool', 'primary_error': primary_error},
-                    )
-                    _record_generation_event(task_id, 'run_succeeded', progress_text, stage='done', payload={'provider': 'chatgpt_pool', 'route': 'gpt_pool_fallback', 'fallback_source': 'chatgpt_pool', 'image_count': image_count, 'telegram_enabled': telegram_enabled})
+                final_status = _finalize_saved_image_delivery(
+                    task_id=task_id, run_id=run_id, telegram_enabled=telegram_enabled,
+                    telegram_success=telegram_success, filename=filename, result_files=result_files,
+                    image_count=image_count, provider='chatgpt_pool', route='gpt_pool_fallback',
+                    task_type=task_kind,
+                    success_text=(f'托底生成成功（共 {image_count} 张）' if image_count > 1 else '托底生成成功'),
+                    skip_text='托底生成成功，已按节点开关跳过 Telegram',
+                    failed_text='托底生成成功，但 Telegram 发送失败',
+                    extra={'fallback_source': 'chatgpt_pool', 'primary_error': primary_error},
+                    event_payload={'fallback_source': 'chatgpt_pool'},
+                    _finalize_generation_task=_finalize_generation_task,
+                    _record_generation_event=_record_generation_event,
+                    _translate_generation_failure=_translate_generation_failure,
+                    send_status_notification=send_status_notification if telegram_success else None,
+                )
+                if final_status == 'telegram_failed':
                     print(f"⚠️ 托底成功但 Telegram 发送失败：{task_id}")
+                else:
+                    print(f"✅ 托底成功：{task_id} -> {filename}")
                 return
 
             raise
@@ -337,6 +366,7 @@ def process_task(
         send_status_notification(task_id, '生成中... 正在保存图片...', '💾')
 
         from datetime import datetime
+        from ..storage_paths import reserve_unique_archive_file
         now = datetime.now()
         timestamp = now.strftime("%Y%m%d_%H%M%S")
         model_name = str(model).replace("gemini-", "").replace("-image-preview", "").replace("-image", "").replace(".", "")
@@ -345,9 +375,12 @@ def process_task(
         download_dir = daily_output_dir(now)
         download_dir.mkdir(parents=True, exist_ok=True)
 
-        filename_with_ext = f"{filename_base}.png"
-        filepath = str(download_dir / filename_with_ext)
-        filename = save_image(image_data, filepath)
+        filepath_obj, reserved_name = reserve_unique_archive_file(
+            download_dir, filename_base, suffix=".png", task_id=task_id,
+        )
+        filepath = str(filepath_obj)
+        filename = save_image(image_data, filepath) or reserved_name
+        filename_base = Path(filename).stem
 
         txt_path = download_dir / f"{filename_base}.txt"
         with open(txt_path, 'w', encoding='utf-8') as f:
@@ -362,6 +395,9 @@ def process_task(
         _record_native_response(task_id, response_meta, _merge_task_params, _record_generation_event)
 
         telegram_success = False
+        delivery_error = None
+        delivery_error_type = 'TelegramSendFailed'
+        delivery_exception_name = None
         if telegram_enabled:
             update_task_status(task_id, 'processing', '正在发送到 Telegram...', stage='sending_telegram')
             send_status_notification(task_id, '生成中... 正在发送图片...', '📤')
@@ -373,51 +409,46 @@ def process_task(
                 if telegram_success:
                     print(f"✅ Telegram 发送成功")
                 else:
-                    error_msg = "Telegram 发送失败：send_telegram returned False"
-                    print(f"❌ {error_msg}")
-                    error_info = _translate_generation_failure(task_id, error_msg, provider='telegram', route='telegram', task_type=task_kind, stage='telegram_failed')
-                    _finalize_generation_task(task_id, 'telegram_failed', run_id=run_id, stage='telegram_failed', progress_text=error_info.get('display_error') or error_msg, error_info=error_info, error_type='TelegramSendFailed', provider=task_provider, route=task_route, task_type=task_kind)
+                    delivery_error = "Telegram 发送失败：send_telegram returned False"
+                    print(f"❌ {delivery_error}")
                     try:
                         send_status_notification(task_id, '❌ 发送失败：请检查 bot token/网络/文件路径', '⚠️')
-                    except:
+                    except Exception:
                         pass
             except Exception as e:
-                error_msg = f"Telegram 发送失败：{str(e)}"
-                print(f"❌ {error_msg}")
-                error_info = _translate_generation_failure(task_id, error_msg, provider='telegram', route='telegram', task_type=task_kind, stage='telegram_failed', exception_name=type(e).__name__)
-                _finalize_generation_task(task_id, 'telegram_failed', run_id=run_id, stage='telegram_failed', progress_text=error_info.get('display_error') or error_msg, error_info=error_info, error_type=type(e).__name__, provider=task_provider, route=task_route, task_type=task_kind)
+                delivery_error = f"Telegram 发送失败：{str(e)}"
+                delivery_error_type = type(e).__name__
+                delivery_exception_name = type(e).__name__
+                print(f"❌ {delivery_error}")
                 try:
                     send_status_notification(task_id, f'❌ 发送失败：{str(e)[:100]}', '⚠️')
-                except:
+                except Exception:
                     pass
         else:
             update_task_status(task_id, 'processing', 'Telegram 已关闭，正在整理结果...', stage='saving')
             _record_generation_event(task_id, 'telegram_send_skipped', '已按节点开关跳过 Telegram', stage='saving')
 
-        if telegram_success:
-            ok_text = response_meta.get('output_size_warning') or '图片生成成功'
-            _finalize_generation_task(task_id, 'succeeded', run_id=run_id, stage='done', progress_text=ok_text, result_file=filename, result_files=[filename], image_count=1, provider=task_provider, route=task_route, task_type=task_kind)
-            _record_generation_event(task_id, 'run_succeeded', '图片生成成功', stage='done', payload={'provider': task_provider, 'route': task_route, 'image_count': 1})
-            send_status_notification(task_id, '✅ 图片生成成功！', '🎉')
+        ok_text = response_meta.get('output_size_warning') or '图片生成成功'
+        skip_text = '图片已保存，已按节点开关跳过 Telegram'
+        if response_meta.get('output_size_warning'):
+            skip_text += '；' + response_meta['output_size_warning']
+        final_status = _finalize_saved_image_delivery(
+            task_id=task_id, run_id=run_id, telegram_enabled=telegram_enabled,
+            telegram_success=telegram_success, filename=filename, result_files=[filename],
+            image_count=1, provider=task_provider, route=task_route, task_type=task_kind,
+            success_text=ok_text, skip_text=skip_text, failed_text='图片已保存，但 Telegram 发送失败',
+            error_msg=delivery_error, error_type=delivery_error_type,
+            exception_name=delivery_exception_name,
+            _finalize_generation_task=_finalize_generation_task,
+            _record_generation_event=_record_generation_event,
+            _translate_generation_failure=_translate_generation_failure,
+            send_status_notification=send_status_notification if telegram_success else None,
+        )
+        if final_status == 'succeeded':
             print(f"✅ 任务成功：{task_id}")
+        elif final_status == 'telegram_failed':
+            print(f"⚠️ 任务已保存但 Telegram 发送失败: {task_id}")
         else:
-            progress_text = '图片已保存，已按节点开关跳过 Telegram' if not telegram_enabled else '图片已保存，但 Telegram 发送失败'
-            if response_meta.get('output_size_warning'):
-                progress_text += '；' + response_meta['output_size_warning']
-            _finalize_generation_task(
-                task_id,
-                'succeeded_no_telegram',
-                run_id=run_id,
-                provider=task_provider,
-                route=task_route,
-                task_type=task_kind,
-                result_file=filename,
-                stage='done',
-                progress_text=progress_text,
-                result_files=[filename],
-                image_count=1,
-            )
-            _record_generation_event(task_id, 'run_succeeded', progress_text, stage='done', payload={'provider': task_provider, 'route': task_route, 'image_count': 1, 'telegram_enabled': telegram_enabled})
             print(f"⚠️ 任务完成但未发送 Telegram: {task_id}")
 
     except Exception as e:
@@ -630,44 +661,25 @@ def process_edit_task(
                 result_files = _result_image_filenames(fallback_result)
                 image_count = len(result_files) or len(fallback_result.get('image_paths') or [fallback_result.get('image_path')])
                 filename = result_files[0] if result_files else os.path.basename(fallback_result['image_path'])
-                if telegram_success or not telegram_enabled:
-                    ok_text = f'托底编辑成功（共 {image_count} 张）' if image_count > 1 else '托底编辑成功'
-                    progress_text = ok_text if telegram_enabled else '托底编辑成功，已按节点开关跳过 Telegram'
-                    _finalize_generation_task(
-                        task_id,
-                        'succeeded' if telegram_enabled else 'succeeded_no_telegram',
-                        run_id=run_id,
-                        provider='chatgpt_pool',
-                        route='gpt_pool_fallback_edit',
-                        task_type=task_kind,
-                        result_file=filename,
-                        stage='done',
-                        progress_text=progress_text,
-                        result_files=result_files,
-                        image_count=image_count,
-                        extra={'fallback_source': 'chatgpt_pool', 'primary_error': primary_error},
-                    )
-                    _record_generation_event(task_id, 'run_succeeded', progress_text, stage='done', payload={'provider': 'chatgpt_pool', 'route': 'gpt_pool_fallback_edit', 'image_count': image_count})
-                    send_status_notification(task_id, '✅ 托底编辑成功！', '🎉')
-                    print(f"✅ 编辑托底成功：{task_id} -> {filename}")
-                else:
-                    progress_text = '托底编辑成功，但 Telegram 发送失败'
-                    _finalize_generation_task(
-                        task_id,
-                        'succeeded_no_telegram',
-                        run_id=run_id,
-                        provider='chatgpt_pool',
-                        route='gpt_pool_fallback_edit',
-                        task_type=task_kind,
-                        result_file=filename,
-                        stage='done',
-                        progress_text=progress_text,
-                        result_files=result_files,
-                        image_count=image_count,
-                        extra={'fallback_source': 'chatgpt_pool', 'primary_error': primary_error},
-                    )
-                    _record_generation_event(task_id, 'run_succeeded', progress_text, stage='done', payload={'provider': 'chatgpt_pool', 'route': 'gpt_pool_fallback_edit', 'image_count': image_count, 'telegram_enabled': telegram_enabled})
+                final_status = _finalize_saved_image_delivery(
+                    task_id=task_id, run_id=run_id, telegram_enabled=telegram_enabled,
+                    telegram_success=telegram_success, filename=filename, result_files=result_files,
+                    image_count=image_count, provider='chatgpt_pool', route='gpt_pool_fallback_edit',
+                    task_type=task_kind,
+                    success_text=(f'托底编辑成功（共 {image_count} 张）' if image_count > 1 else '托底编辑成功'),
+                    skip_text='托底编辑成功，已按节点开关跳过 Telegram',
+                    failed_text='托底编辑成功，但 Telegram 发送失败',
+                    extra={'fallback_source': 'chatgpt_pool', 'primary_error': primary_error},
+                    event_payload={'fallback_source': 'chatgpt_pool'},
+                    _finalize_generation_task=_finalize_generation_task,
+                    _record_generation_event=_record_generation_event,
+                    _translate_generation_failure=_translate_generation_failure,
+                    send_status_notification=send_status_notification if telegram_success else None,
+                )
+                if final_status == 'telegram_failed':
                     print(f"⚠️ 编辑托底成功但 Telegram 发送失败：{task_id}")
+                else:
+                    print(f"✅ 编辑托底成功：{task_id} -> {filename}")
                 return
 
             raise
@@ -684,8 +696,9 @@ def process_edit_task(
         )
         send_status_notification(task_id, '编辑中... 正在保存图片...', '💾')
 
-        # 文件命名：生成模型_日期时间
+        # 文件命名：生成模型_日期时间_任务标识，避免同秒覆盖
         from datetime import datetime
+        from ..storage_paths import reserve_unique_archive_file
         now = datetime.now()
         timestamp = now.strftime("%Y%m%d_%H%M%S")
         model_name = model.replace("gemini-", "").replace("-image-preview", "").replace("-image", "").replace(".", "")
@@ -695,10 +708,12 @@ def process_edit_task(
         download_dir = daily_output_dir(now)
         download_dir.mkdir(parents=True, exist_ok=True)
 
-        # 保存图片（带扩展名）
-        filename_with_ext = f"{filename_base}.png"
-        filepath = str(download_dir / filename_with_ext)
-        filename = save_image(image_data, filepath)
+        filepath_obj, reserved_name = reserve_unique_archive_file(
+            download_dir, filename_base, suffix=".png", task_id=task_id,
+        )
+        filepath = str(filepath_obj)
+        filename = save_image(image_data, filepath) or reserved_name
+        filename_base = Path(filename).stem
 
         # 保存提示词到同名 txt 文件
         txt_path = download_dir / f"{filename_base}.txt"
@@ -714,6 +729,9 @@ def process_edit_task(
         _record_native_response(task_id, response_meta, _merge_task_params, _record_generation_event)
 
         telegram_success = False
+        delivery_error = None
+        delivery_error_type = 'TelegramSendFailed'
+        delivery_exception_name = None
         if telegram_enabled:
             # 状态 4: 发送 Telegram
             update_task_status(task_id, 'processing', '正在发送到 Telegram...', stage='sending_telegram')
@@ -727,52 +745,46 @@ def process_edit_task(
                 if telegram_success:
                     print(f"✅ Telegram 发送成功")
                 else:
-                    error_msg = "Telegram 发送失败：send_telegram returned False"
-                    print(f"❌ {error_msg}")
-                    error_info = _translate_generation_failure(task_id, error_msg, provider='telegram', route='telegram', task_type=task_kind, stage='telegram_failed')
-                    _finalize_generation_task(task_id, 'telegram_failed', run_id=run_id, stage='telegram_failed', progress_text=error_info.get('display_error') or error_msg, error_info=error_info, error_type='TelegramSendFailed', provider=task_provider, route=task_route, task_type=task_kind)
+                    delivery_error = "Telegram 发送失败：send_telegram returned False"
+                    print(f"❌ {delivery_error}")
                     try:
                         send_status_notification(task_id, '❌ 发送失败：请检查 bot token/网络/文件路径', '⚠️')
-                    except:
+                    except Exception:
                         pass
             except Exception as e:
-                error_msg = f"Telegram 发送失败：{str(e)}"
-                print(f"❌ {error_msg}")
-                error_info = _translate_generation_failure(task_id, error_msg, provider='telegram', route='telegram', task_type=task_kind, stage='telegram_failed', exception_name=type(e).__name__)
-                _finalize_generation_task(task_id, 'telegram_failed', run_id=run_id, stage='telegram_failed', progress_text=error_info.get('display_error') or error_msg, error_info=error_info, error_type=type(e).__name__, provider=task_provider, route=task_route, task_type=task_kind)
+                delivery_error = f"Telegram 发送失败：{str(e)}"
+                delivery_error_type = type(e).__name__
+                delivery_exception_name = type(e).__name__
+                print(f"❌ {delivery_error}")
                 try:
                     send_status_notification(task_id, f'❌ 发送失败：{str(e)[:100]}', '⚠️')
-                except:
+                except Exception:
                     pass
         else:
             update_task_status(task_id, 'processing', 'Telegram 已关闭，正在整理结果...', stage='saving')
             _record_generation_event(task_id, 'telegram_send_skipped', '已按节点开关跳过 Telegram', stage='saving')
 
-        # 状态 5: 完成
-        if telegram_success:
-            ok_text = response_meta.get('output_size_warning') or '图片编辑成功'
-            _finalize_generation_task(task_id, 'succeeded', run_id=run_id, stage='done', progress_text=ok_text, result_file=filename, result_files=[filename], image_count=1, provider=task_provider, route=task_route, task_type=task_kind)
-            _record_generation_event(task_id, 'run_succeeded', '图片编辑成功', stage='done', payload={'provider': task_provider, 'route': task_route, 'image_count': 1})
-            send_status_notification(task_id, '✅ 图片编辑成功！', '🎉')
+        ok_text = response_meta.get('output_size_warning') or '图片编辑成功'
+        skip_text = '图片已保存，已按节点开关跳过 Telegram'
+        if response_meta.get('output_size_warning'):
+            skip_text += '；' + response_meta['output_size_warning']
+        final_status = _finalize_saved_image_delivery(
+            task_id=task_id, run_id=run_id, telegram_enabled=telegram_enabled,
+            telegram_success=telegram_success, filename=filename, result_files=[filename],
+            image_count=1, provider=task_provider, route=task_route, task_type=task_kind,
+            success_text=ok_text, skip_text=skip_text, failed_text='图片已保存，但 Telegram 发送失败',
+            error_msg=delivery_error, error_type=delivery_error_type,
+            exception_name=delivery_exception_name,
+            _finalize_generation_task=_finalize_generation_task,
+            _record_generation_event=_record_generation_event,
+            _translate_generation_failure=_translate_generation_failure,
+            send_status_notification=send_status_notification if telegram_success else None,
+        )
+        if final_status == 'succeeded':
             print(f"✅ 编辑任务成功：{task_id}")
+        elif final_status == 'telegram_failed':
+            print(f"⚠️ 编辑结果已保存但 Telegram 发送失败: {task_id}")
         else:
-            progress_text = '图片已保存，已按节点开关跳过 Telegram' if not telegram_enabled else '图片已保存，但 Telegram 发送失败'
-            if response_meta.get('output_size_warning'):
-                progress_text += '；' + response_meta['output_size_warning']
-            _finalize_generation_task(
-                task_id,
-                'succeeded_no_telegram',
-                run_id=run_id,
-                provider=task_provider,
-                route=task_route,
-                task_type=task_kind,
-                result_file=filename,
-                stage='done',
-                progress_text=progress_text,
-                result_files=[filename],
-                image_count=1,
-            )
-            _record_generation_event(task_id, 'run_succeeded', progress_text, stage='done', payload={'provider': task_provider, 'route': task_route, 'image_count': 1, 'telegram_enabled': telegram_enabled})
             print(f"⚠️ 任务完成但未发送 Telegram: {task_id}")
 
     except Exception as e:

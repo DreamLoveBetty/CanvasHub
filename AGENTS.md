@@ -77,11 +77,20 @@ Before changing code here:
 
 ```bash
 python3 -m py_compile server.py backend/api_client_gpt.py backend/provider_gpt_codex.py
-PYTHONPATH="$PWD" python3 tests/run_regressions.py
+# Official offline stable baseline: uses .venv when present, sandboxes
+# settings/databases, scrubs inherited credentials and polluting env, then
+# runs the existing stable Python + Node suites and `npm run check`.
+python3 tests/run_offline_baseline.py
 PYTHONPATH="$PWD" python3 tests/run_regressions.py --scope local
-node tests/run_node_regressions.mjs            # stable Node suite; never glob tests/test_*.cjs by hand (pulls in *_local probes)
 node tests/run_node_regressions.mjs --scope local
-(cd frontend && npm run -s check)              # build fingerprint + asset cache keys
+(cd frontend && npm run -s check)              # build fingerprint + asset cache keys (read-only)
 (cd frontend && npm run -s assets:record)      # after bumping ?v= keys
 curl --noproxy '*' -I http://127.0.0.1:18463
 ```
+
+Do not run the official Python runner against production `settings.json` or
+`data/video-edit/jobs.sqlite3`. `tests/run_regressions.py` now auto-sandboxes
+when `CANVASHUB_TEST_SANDBOX` is unset; prefer `tests/run_offline_baseline.py`
+so the interpreter, Node suite and `npm run check` stay in one command.
+Never set `KMP_DUPLICATE_LIB_OK` to paper over OpenMP conflicts. Never run
+`npm run assets:record` as part of a check.

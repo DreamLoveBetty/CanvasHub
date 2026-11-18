@@ -81,7 +81,16 @@ def configure(component):
         "MLX_ENABLE_TF32": "0",
         "AGX_RELAX_CDM_CTXSTORE_TIMEOUT": "1",
     })
-    from krea2 import pipeline
+    from krea2 import lora as krea2_lora, pipeline
+    from backend.krea2.lokr import target_path as _krea2_target_path
+    _orig_to_mlx_path = krea2_lora._to_mlx_path
+
+    def _compat_to_mlx_path(path: str) -> str:
+        if path.startswith(("lora_unet_", "lycoris_")):
+            return _krea2_target_path(path)
+        return _orig_to_mlx_path(path)
+
+    krea2_lora._to_mlx_path = _compat_to_mlx_path
     pipeline._CACHE = str(cache)
     return component, pipeline
 
@@ -97,6 +106,7 @@ class Engine:
         self.model_signature = ""
         self.safety_classifier = None
         self.control_binding = None
+        self.lora_bindings = []
 
     @property
     def cache(self):
@@ -116,6 +126,9 @@ class Engine:
         if self.control_binding is not None:
             self.control_binding.clear()
             self.control_binding = None
+        for binding in reversed(self.lora_bindings):
+            binding.clear()
+        self.lora_bindings.clear()
         if self.pipeline is not None:
             try:
                 self.pipeline.set_loras([])
@@ -185,11 +198,14 @@ class Engine:
         try:
             return self._run(request)
         finally:
-            # Control never leaks into a later standard/Identity Edit job,
+            # Control and LoKr bindings never leak into a later job,
             # including cancellation and exceptions during conditioning.
             if self.control_binding is not None:
                 self.control_binding.clear()
                 self.control_binding = None
+            for binding in reversed(self.lora_bindings):
+                binding.clear()
+            self.lora_bindings.clear()
 
     def _run(self, request):
         total_started = time.perf_counter()
@@ -219,21 +235,34 @@ class Engine:
         pipe = self.load(spec.get("model") or str(spec.get("precision") or "8bit"), cancelled)
         model_load_seconds = time.perf_counter() - load_started
         loras = []
+        lokr_loras = []
         edit_adapter = spec.get("edit_adapter")
         if edit_adapter:
             path = Path(str(edit_adapter.get("path") or "")).resolve()
             if not path.is_file() or path.suffix.lower() != ".safetensors":
                 raise ValueError("编辑 LoRA 文件不存在或格式无效")
             loras.append((str(path), float(edit_adapter.get("scale", 1))))
+        from backend.krea2.lokr import STYLE_FORMAT as LOKR_STYLE_FORMAT
         for item in spec.get("loras") or []:
             path = Path(str(item.get("path") or "")).resolve()
             if not path.is_file() or path.suffix.lower() != ".safetensors":
                 raise ValueError("LoRA 文件不存在或格式无效")
-            loras.append((str(path), float(item.get("scale", 1))))
+            scale = float(item.get("scale", 1))
+            if item.get("adapter_format") == LOKR_STYLE_FORMAT:
+                lokr_loras.append((str(path), scale))
+            else:
+                loras.append((str(path), scale))
         if cancelled():
             raise Cancelled("任务已取消")
-        emit("progress", ratio=0.14, stage="应用 LoRA" if loras else "准备生成")
+        emit("progress", ratio=0.14, stage="应用 LoRA" if (loras or lokr_loras) else "准备生成")
         pipe.set_loras(loras)
+        if lokr_loras:
+            from backend.krea2.lokr_mlx import LoKrBinding
+            for lokr_path, lokr_scale in lokr_loras:
+                binding = LoKrBinding()
+                binding.apply(pipe.transformer, lokr_path, lokr_scale,
+                              min_strength=-20.0, max_strength=20.0)
+                self.lora_bindings.append(binding)
         if mode == "control":
             from backend.krea2.lokr_mlx import LoKrBinding
             self.control_binding = LoKrBinding()

@@ -67,7 +67,7 @@ def handle_task_retry(
         return
     try:
         retry_task = retry_failed_task(task)
-        handler.send_json(retry_task, 202)
+        handler.send_json(retry_task, 200 if retry_task.get('resent') else 202)
     except GenerationQueueFullError as e:
         payload = _generation_busy_payload()
         payload.update({"message": str(e), "task_id": task_id})
@@ -76,6 +76,31 @@ def handle_task_retry(
         handler.send_json({"ok": False, "error": str(e), "task_id": task_id}, 400)
     except Exception as e:
         print(f"❌ 重跑任务失败：{task_id} - {e}")
+        handler.send_json({"ok": False, "error": str(e), "task_id": task_id}, 500)
+
+
+
+def handle_task_resend_telegram(
+    handler,
+    task_id,
+    *,
+    TaskTelegramResendError,
+    _missing_task_payload,
+    get_task,
+    resend_task_telegram,
+):
+    """补发任务已保存的归档文件到 Telegram，不重新生成。"""
+    task = get_task(task_id)
+    if not task:
+        handler.send_json(_missing_task_payload(task_id), 404)
+        return
+    try:
+        result = resend_task_telegram(task_id)
+        handler.send_json(result, 200)
+    except TaskTelegramResendError as e:
+        handler.send_json({"ok": False, "error": str(e), "task_id": task_id, "resent": False, "regenerated": False}, e.status)
+    except Exception as e:
+        print(f"❌ 补发 Telegram 失败：{task_id} - {e}")
         handler.send_json({"ok": False, "error": str(e), "task_id": task_id}, 500)
 
 

@@ -5,6 +5,7 @@ import math
 import re
 import secrets
 
+from ..services.prompt_pe import job_trace
 from .profiles import ADAPTERS, DEFAULT_PRESET, LEGACY_PRESETS, PRESETS, TURBO_PRESET, canonical_preset
 
 REVISION = "adcbe85975760d545ca142069713781929898be0"
@@ -78,6 +79,7 @@ def normalize_job(body):
     mode = str(body.get("mode") or "text")
     if mode not in {"text", "edit"}:
         raise ValueError("未知 Qwen 工作模式")
+    pe = job_trace(body, prompt, text_to_image=mode == "text")
     requested_preset = str(body.get("preset") or DEFAULT_PRESET)
     preset = canonical_preset(requested_preset)
     if preset not in PRESETS:
@@ -125,7 +127,7 @@ def normalize_job(body):
     ratio = str(body.get("aspect_ratio") or "custom")
     if ratio not in ASPECT_RATIOS and ratio != "custom":
         raise ValueError("未知画幅比例")
-    return {"prompt": prompt, "mode": mode, "preset": preset,
+    return {"prompt": prompt, **pe, "mode": mode, "preset": preset,
             "base_model_id": normalize_model_id(body.get("base_model_id") or DEFAULT_MODEL_ID),
             "width": width, "height": height, "aspect_ratio": ratio,
             "steps": steps, "image_count": integer(body.get("image_count", 1), "张数", 1, 4),

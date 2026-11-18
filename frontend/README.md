@@ -405,7 +405,11 @@ while original event bindings and entrypoint signatures remain unchanged.
 
 Accepted canvas pointer gestures explicitly focus the viewport with
 `preventScroll`, since canceled pointerdown does not transfer focus away from
-the last node control. The viewport controller owns a one-shot release-click
+the last node control. On empty canvas, a primary drag pans and Shift +
+primary drag box-selects, including macOS three-finger drag. The viewport
+controller uses the same modifier rule for the crosshair and box selection
+without consulting the rail highlight; node and panel gestures still have
+priority. The viewport controller owns a one-shot release-click
 guard for completed primary pans: the host arms it on pointerup and consumes it
 in viewport capture phase, before node buttons/selects receive the click. A new
 pointerdown clears it immediately; keyboard/programmatic activation, cancelled
@@ -500,7 +504,7 @@ suffix:
 | `audio` | Audio material/result-node state normalization, hardware-style presentation, local playback, waveform extraction, binary input/result adapters and player cleanup. | IndexedDB belongs to `desktop-audio-assets`; graph lifecycle to `nodes`; future Provider requests to a separate generation adapter. |
 | `workflow` | Workflow schema/version normalization, portable snapshots, file naming and save/load adapters. | Applying a snapshot and replacing shared application state remains a host operation. |
 | `prompt-document` | Prompt segments/schema, image-reference semantics, materialization/fidelity, document versions/history model, generation metadata and connected-text prompt composition. | Editable DOM, selection/caret handling and Provider requests. |
-| `text-editor` | Text-node presentation/aliases/styles, contenteditable documents, tokens/mentions/caret, editing undo/redo, token migration/freezing, prompt-target adapters and polish-result presentation/application. | The polish API request belongs to `generation`; document model rules belong to `prompt-document`. |
+| `text-editor` | Text-node presentation/aliases/styles, contenteditable documents, tokens/mentions/caret, editing undo/redo, token migration/freezing, prompt-target adapters and the GPT/model-specific rewrite preview and apply lifecycle. | Wire calls use injected `DesktopApi` adapters; document model rules belong to `prompt-document`. No rewrite runs during generation. |
 | `image-group-model` | Image-group items/roles/sizes, grouping/ungrouping, edge migration, persisted item ordering, single-item deletion, node presentation and image-role prompt constraints. | Gesture timing, FLIP/proximity effects and prompt-token DOM updates. |
 | `image-group-melt` | Pairwise image melt of the incoming photo and its nearest target thumbnail (goo on colour, marble pass, seam-erase masks) in one SVG sized to the pair's bounding box; a vanilla port of liquid-gooey's image melt, explicitly injected into interaction. | No graph state, pointer/RAF lifecycle, timers, partner choice or model mutation; the controller passes geometry and the eased proximity. |
 | `image-group-interaction` | Group sorting gestures, FLIP/merge/split effects, proximity dwell/preview/release/drop and item focus interactions. | Actual group mutations are submitted through model callbacks. |
@@ -517,7 +521,18 @@ suffix:
 | `link-flow` | The set of nodes with running progress (from `desktop-progress.js`'s `onActivityChange`), which edges flow (either end running), the `.desk-link-flow` dashed overlay markup and its shared dash phase (a negative `animation-delay` on one 700 ms clock, so redraws never restart the dashes); one coalesced link redraw per frame when the set changes. Loads before `connections` and the host. | Task state, polling and progress drawing stay with the domains and `desktop-progress.js`; link geometry and the SVG rebuild stay in `connections`, which calls `overlayMarkup()` right after each link path. Styles: geometry/keyframes in `desktop-canvas-nodes-geometry.css`, colour in `desktop-canvas-nodes.css`, the in-pipe variant in `desktop-graphite.css`. |
 | `generation-config` | Generation request/output configuration adapters, including existing form synchronization, Provider normalization, reference order and expected-output counts. | Executing a request. These adapters are not pure/read-only: their existing sync calls can update node/parameter state. |
 | `collision` | Optional drag collision solving, passive-group translation and short-lived smooth position targets. | Preference persistence belongs to `desktop-preferences`; settings presentation to `desktop-settings`. No graph topology, Provider or image-group merge ownership. |
-| `generation` | Existing image-editor/video/polish/upscale execution, video polling/cancellation, output slots/result propagation and upscale chaining. | Backend Provider fallback, archive persistence, Telegram delivery or new request schemas. |
+| `generation` | Existing image-editor/video/upscale execution, video polling/cancellation, output slots/result propagation and upscale chaining. | Text rewrites, backend Provider fallback, archive persistence, Telegram delivery or new request schemas. |
+
+The text drawer offers GPT Polish and explicit MOSS, Qwen 2.1 and H3 Image
+expansion, with one theme-colored SVG. Model expansions are editable drafts until
+applied to the source node or saved as an unconnected text node. All three use
+the configured prompt LLM; H3's optional ratio is advisory. The text-node context
+menu still offers the negative role. There is no standalone PE renderer or
+controller. `workflow` migrates old `prompt_pe` nodes on session restore and
+workflow import. It keeps saved expansions as text, reconnects only results
+that still match the saved source and rule, and preserves stale output as
+unconnected text without reactivating any old model bindings. Empty PE nodes
+are dropped. Previously archived PE metadata remains readable.
 
 `desktop-canvas-nodes.js` owns the sidebar palette's image/video/audio/enhance/general
 grouping and renders the injected `NODE_MENU_ITEMS` catalog without copying node

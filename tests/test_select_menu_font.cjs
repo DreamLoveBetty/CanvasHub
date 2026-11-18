@@ -46,5 +46,5 @@ test('节点分段按钮声明字号，不继承 16px',()=>{
 });
 
 test('音乐节点的按钮样式不套到下拉选项上',()=>{
-  assert.match(read('styles/desktop-music.css'),/\.desk-music__body button:not\(\.desk-select-option\) \{/);
+  assert.match(read('styles/desktop-music.css'),/\.desk-music__body button:not\(\.desk-select-option\):not\(\.desk-stepper__button\):not\(\.desk-generation-action\) \{/);
 });

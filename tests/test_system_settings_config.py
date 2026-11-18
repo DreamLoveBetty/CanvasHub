@@ -1,11 +1,74 @@
 import json
+import os
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
 
 from backend.server import _sanitize_system_settings_patch
-from backend.app_config import BASE_DIR, get_server_config, get_storage_config, get_yunwu_api_base_url
+from backend.app_config import BASE_DIR, get_server_config, get_yunwu_api_base_url
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+
+# Inherited public-mode / password env has been shown to skip save-path validation
+# (`_server_config_from_settings_snapshot` prefers process env over the patch).
+_PUBLIC_MODE_ISOLATION_ENV = {
+    "MINIAPP_PUBLIC_MODE": "",
+    "PUBLIC_MODE": "",
+    "MINIAPP_ACCESS_PASSWORD": "",
+    "MINIAPP_AUTH_PASSWORD": "",
+}
+
+
+def _storage_config_from_isolated_import(extra_env, unset=()):
+    """Load `get_storage_config` in a child process that only imports app_config.
+
+    APP_DATA_DIR / DESKTOP_DATA_MODE are fixed at import time, so a parent process
+    that already imported backend.server (or set CANVASHUB_DATA_DIR for recover()
+    isolation) cannot observe both source-tree and desktop-data layouts itself.
+    The child never imports backend.server and never points at production data.
+    """
+    script = r"""
+import json, os, sys
+from pathlib import Path
+spec = json.loads(sys.stdin.read())
+for key in spec["unset"]:
+    os.environ.pop(key, None)
+os.environ.update(spec["env"])
+sys.path.insert(0, spec["project_root"])
+os.chdir(spec["project_root"])
+from backend.app_config import APP_DATA_DIR, BASE_DIR, DESKTOP_DATA_MODE, get_storage_config
+cfg = get_storage_config()
+json.dump({
+    "base_dir": str(BASE_DIR),
+    "app_data_dir": str(APP_DATA_DIR),
+    "desktop_data_mode": bool(DESKTOP_DATA_MODE),
+    "image_archive_dir": str(cfg["image_archive_dir"]),
+    "source_image_dir": str(cfg["source_image_dir"]),
+}, sys.stdout)
+"""
+    env = {key: value for key, value in os.environ.items() if key not in set(unset)}
+    env.update(extra_env)
+    env["PYTHONDONTWRITEBYTECODE"] = "1"
+    env["PYTHONPATH"] = str(PROJECT_ROOT)
+    # The child must not inherit a data-dir unless the test set one.
+    proc = subprocess.run(
+        [sys.executable, "-c", script],
+        input=json.dumps({"env": extra_env, "unset": list(unset), "project_root": str(PROJECT_ROOT)}),
+        cwd=str(PROJECT_ROOT),
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=30,
+        check=False,
+    )
+    if proc.returncode != 0:
+        raise AssertionError(
+            f"isolated storage import failed ({proc.returncode}): {proc.stderr[-2000:]}"
+        )
+    return json.loads(proc.stdout)
 
 
 class SystemSettingsConfigTest(unittest.TestCase):
@@ -187,16 +250,55 @@ class SystemSettingsConfigTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             settings_path = Path(tmp) / "settings.json"
             settings_path.write_text("{}", encoding="utf-8")
-            env = {
-                "APP_SETTINGS_PATH": str(settings_path),
-                "IMAGE_ARCHIVE_DIR": "",
-                "SOURCE_IMAGE_DIR": "",
-            }
-            with patch.dict("os.environ", env, clear=False):
-                cfg = get_storage_config()
+            cfg = _storage_config_from_isolated_import(
+                {
+                    "APP_SETTINGS_PATH": str(settings_path),
+                    "IMAGE_ARCHIVE_DIR": "",
+                    "SOURCE_IMAGE_DIR": "",
+                },
+                unset=(
+                    "CANVASHUB_DATA_DIR",
+                    "CANVASHUB_RESOURCE_DIR",
+                    "IMAGE_ARCHIVE_DIR",
+                    "SOURCE_IMAGE_DIR",
+                    "APP_SETTINGS_PATH",
+                ),
+            )
 
-        self.assertEqual(cfg["image_archive_dir"], BASE_DIR / "data" / "archive")
-        self.assertEqual(cfg["source_image_dir"], BASE_DIR / "data" / "source_images")
+        self.assertEqual(Path(cfg["base_dir"]), BASE_DIR)
+        self.assertFalse(cfg["desktop_data_mode"])
+        self.assertEqual(Path(cfg["app_data_dir"]), BASE_DIR)
+        self.assertEqual(Path(cfg["image_archive_dir"]), BASE_DIR / "data" / "archive")
+        self.assertEqual(Path(cfg["source_image_dir"]), BASE_DIR / "data" / "source_images")
+
+    def test_storage_defaults_follow_desktop_data_dir_layout(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            settings_path = root / "settings.json"
+            settings_path.write_text("{}", encoding="utf-8")
+            data_dir = root / "desktop-data"
+            data_dir.mkdir()
+            cfg = _storage_config_from_isolated_import(
+                {
+                    "CANVASHUB_DATA_DIR": str(data_dir),
+                    "APP_SETTINGS_PATH": str(settings_path),
+                    "IMAGE_ARCHIVE_DIR": "",
+                    "SOURCE_IMAGE_DIR": "",
+                },
+                unset=(
+                    "CANVASHUB_RESOURCE_DIR",
+                    "IMAGE_ARCHIVE_DIR",
+                    "SOURCE_IMAGE_DIR",
+                    "APP_SETTINGS_PATH",
+                ),
+            )
+
+        self.assertTrue(cfg["desktop_data_mode"])
+        self.assertEqual(Path(cfg["app_data_dir"]), data_dir.resolve())
+        self.assertEqual(Path(cfg["image_archive_dir"]), data_dir.resolve() / "archive")
+        self.assertEqual(Path(cfg["source_image_dir"]), data_dir.resolve() / "source_images")
+        self.assertNotEqual(Path(cfg["image_archive_dir"]), BASE_DIR / "data" / "archive")
+        self.assertNotEqual(Path(cfg["source_image_dir"]), BASE_DIR / "data" / "source_images")
 
     def test_server_defaults_to_localhost_even_if_host_env_is_present_without_public_mode(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -218,7 +320,8 @@ class SystemSettingsConfigTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             settings_path = Path(tmp) / "settings.json"
             settings_path.write_text("{}", encoding="utf-8")
-            with patch.dict("os.environ", {"APP_SETTINGS_PATH": str(settings_path)}, clear=False):
+            env = {"APP_SETTINGS_PATH": str(settings_path), **_PUBLIC_MODE_ISOLATION_ENV}
+            with patch.dict("os.environ", env, clear=False):
                 with self.assertRaisesRegex(ValueError, "公网模式必须先设置访问密码"):
                     _sanitize_system_settings_patch(
                         {"server": {"public_mode": True, "host": "0.0.0.0"}}
@@ -228,7 +331,8 @@ class SystemSettingsConfigTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             settings_path = Path(tmp) / "settings.json"
             settings_path.write_text("{}", encoding="utf-8")
-            with patch.dict("os.environ", {"APP_SETTINGS_PATH": str(settings_path)}, clear=False):
+            env = {"APP_SETTINGS_PATH": str(settings_path), **_PUBLIC_MODE_ISOLATION_ENV}
+            with patch.dict("os.environ", env, clear=False):
                 updated = _sanitize_system_settings_patch(
                     {
                         "miniapp_access_password": "secret",

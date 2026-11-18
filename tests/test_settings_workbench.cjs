@@ -193,3 +193,28 @@ test('Gemini Web sits in a settings card and its cookie box is a settings field'
   // Dark settings fields take the field tokens, so graphite's mapping applies in dark too.
   assert.doesNotMatch(read('frontend/styles/desktop-liquid.css'), /\[data-theme="dark"\] \.desk-settings-textarea \{/);
 });
+
+test('prompt skill settings support Google OAuth pool LLM models and group account pool chips', () => {
+  const api = read('frontend/scripts/desktop-api.js');
+  assert.match(api, /if \(options\.refresh\) query\.set\('refresh', '1'\)/);
+  const settings = read('frontend/scripts/desktop-settings.js');
+  assert.match(settings, /lastPromptConfig = \{ \.\.\.payload, selected_provider: provider \|\| payload\?\.provider \|\| '' \}/);
+  assert.match(settings, /currentProvider === 'google_pool'/);
+  assert.match(settings, /renderKv\('服务商', promptProviderLabel\(promptRuntime, cfg\.provider \|\| promptRuntime\?\.provider\)\)/);
+  const pool = read('frontend/scripts/desktop-google-pool.js');
+  assert.match(pool, /modelRow\('图像', imageModels\) \+ modelRow\('LLM', textModels\)/);
+});
+
+test('model-tools page uses a top track switch to show one model module at a time while keeping all cards searchable', () => {
+  const settings = read('frontend/scripts/desktop-settings.js');
+  assert.match(settings, /<div class="desk-track-switch desk-model-tools-tabs" role="tablist"/);
+  for (const id of ['krea2', 'qwen21', 'moss', 'common']) {
+    assert.ok(settings.includes(`{ id: '${id}'`), `model-tools stop ${id}`);
+  }
+  assert.match(settings, /if \(buildingSearchIndex\) \{\s*return MODEL_TOOLS_TABS\.map\(item => renderModelToolsSubtabContent\(item\.id\)\)\.join\(''\);\s*\}/);
+  assert.match(settings, /const targetSubtab = modelToolsSubtabForCardTitle\(hit\.entry\.title\);/);
+  const geometry = read('frontend/styles/desktop-geometry.css');
+  assert.match(geometry, /\.desk-settings__body > \.desk-model-tools-tabs,\nbody\.desk-app\[data-theme\] \.desk-settings__body > \.desk-google-pool-tabs \{/);
+  assert.match(geometry, /scale: calc\(1 - 0\.34 \* var\(--track-travel\)\) calc\(1 \+ 0\.15 \* var\(--track-travel\)\);/);
+  assert.match(geometry, /scale: calc\(1 \+ 0\.11 \* var\(--track-travel\)\) calc\(1 - 0\.09 \* var\(--track-travel\)\);/);
+});

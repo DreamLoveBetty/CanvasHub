@@ -120,8 +120,10 @@ test('节点使用标准控件、两行参数区，不暴露模型路径或另�
 test('节点尺寸和悬挂进度条遵循已有标准，不占用 LoRA 或生成按钮区域',()=>{
   const css=fs.readFileSync(path.join(frontend,'styles/desktop-qwen21.css'),'utf8');
   assert.match(css,/\.desk-node--qwen21\s*\{[^}]*width:720px;[^}]*height:500px;/);
+  assert.match(css,/desk-qwen21__grid--model\s*\{[^}]*minmax\(0,1fr\) minmax\(0,1fr\) minmax\(0,1\.6fr\)/);
   assert.match(css,/desk-qwen21__grid--params\s*\{[^}]*repeat\(4/);
   assert.match(css,/desk-qwen21__seed\s*\{[^}]*grid-column:span 2/);
+  assert.match(css,/desk-qwen21__loras > header\s*\{[^}]*grid-template-columns:minmax\(0,1fr\) minmax\(180px,240px\)/);
   assert.match(css,/desk-qwen21__footer\s*\{[^}]*min-height:72px/);
   assert.match(css,/\.desk-node--qwen21 > \.desk-qwen21__progress\s*\{[^}]*top:calc\(100% \+ 2px\)/);
   assert.match(css,/desk-qwen21__references\[hidden\]\s*\{\s*display:none/);

@@ -538,6 +538,82 @@ def fail_stale_processing_tasks(max_age_seconds=30 * 60):
         return changed
 
 
+
+# Shared online GPT/Google/custom tasks have no domain recover and are not
+# auto-resumed. Local/Cloud specialty types keep their own recover() semantics.
+ORPHANED_QUEUE_TASK_TYPES = (
+    'gpt',
+    'gpt-file',
+    'gpt-edit',
+    'google-gen',
+    'google-edit',
+    'custom',
+)
+
+
+def fail_orphaned_queued_generation_tasks():
+    """Fail leftover queued/pending online generation tasks after a restart.
+
+    Does not start workers or call providers. Types with a dedicated recover()
+    (CyImg, Krea, Qwen, MOSS, etc.) are left untouched.
+    """
+    now = int(time.time())
+    message = '服务已重启，排队中的任务已中断，请重新提交或重跑'
+    placeholders = ', '.join('?' for _ in ORPHANED_QUEUE_TASK_TYPES)
+    with get_db() as conn:
+        stale_rows = conn.execute(
+            f"""
+            SELECT task_id, last_run_id
+            FROM tasks
+            WHERE status IN ('queued', 'pending')
+              AND type IN ({placeholders})
+            """,
+            ORPHANED_QUEUE_TASK_TYPES,
+        ).fetchall()
+        conn.execute(
+            f"""
+            UPDATE tasks
+            SET status='failed',
+                stage='failed',
+                progress_text=?,
+                error=?,
+                display_error=?,
+                raw_error=?,
+                error_code='task.orphaned_queue',
+                error_category='orphaned',
+                updated_at=?,
+                heartbeat_at=?,
+                finished_at=?,
+                transport_error_type='OrphanedQueuedTask'
+            WHERE status IN ('queued', 'pending')
+              AND type IN ({placeholders})
+            """,
+            (message, message, message, message, now, now, now, *ORPHANED_QUEUE_TASK_TYPES),
+        )
+        run_ids = [str(row['last_run_id'] or '').strip() for row in stale_rows if str(row['last_run_id'] or '').strip()]
+        if run_ids:
+            run_placeholders = ', '.join('?' for _ in run_ids)
+            conn.execute(
+                f"""
+                UPDATE generation_runs
+                SET status='failed',
+                    stage='failed',
+                    error=?,
+                    display_error=?,
+                    raw_error=?,
+                    error_code='task.orphaned_queue',
+                    error_category='orphaned',
+                    finished_at=?,
+                    updated_at=?
+                WHERE run_id IN ({run_placeholders})
+                """,
+                [message, message, message, now, now, *run_ids],
+            )
+        changed = conn.total_changes
+        conn.commit()
+        return changed
+
+
 def cleanup_old_tasks(days=7):
     """清理旧任务（保留最近 7 天）"""
     cutoff = int(time.time()) - (days * 24 * 60 * 60)

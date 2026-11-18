@@ -3,6 +3,9 @@
 // No API/schema changes. Load before desktop-canvas.js; create() has no I/O or event binding.
 (function () {
   const RETIRED_VIDEO_NODE_TYPE = 'video_inference';
+  const RETIRED_PE_NODE_TYPE = 'prompt_pe';
+  const PE_TEXT_MODES = Object.freeze({ moss: 'text', qwen21: 'text', krea2: 'standard' });
+  const PE_AUTO_PROFILE = Object.freeze({ moss: 'moss_caption', qwen21: 'qwen_t2i' });
 
   function create({
     DEFAULT_COMFY_NODE_HEIGHT,
@@ -149,6 +152,61 @@
     return ids.length;
   }
 
+    // Keep usable rewrites as ordinary text. An old result that could not feed
+    // generation stays recoverable under a new id, without a model binding.
+    function migrateRetiredPromptPENodes(canvas) {
+    const original = canvas?.nodes || {};
+    const legacy = new Map(Object.entries(original).filter(([, node]) => node?.type === RETIRED_PE_NODE_TYPE));
+    if (!legacy.size) return canvas;
+    const nodes = { ...original };
+    const edges = Array.isArray(canvas.edges) ? canvas.edges : [];
+    const replacements = new Map();
+    const rewired = new Set();
+    for (const [id, old] of legacy) {
+      delete nodes[id];
+      if (typeof old.output !== 'string' || !old.output.trim()) continue;
+      const sources = edges.filter(edge => edge?.to === id).map(edge => original[edge.from])
+        .filter(node => node?.type === 'text' && node.promptRole !== 'negative')
+        .map(node => normalizePromptDocument(node.promptDocument, node.text || ''));
+      const hasImageReference = sources.some(doc => doc.segments.some(segment => segment.type === 'image_reference'));
+      const source = hasImageReference ? '' : sources.map(doc => materializePromptDocument(doc).trim()).filter(Boolean).join('\n\n');
+      const outgoing = edges.filter(edge => edge?.from === id);
+      const targets = outgoing.map(edge => original[edge.to]);
+      const types = [...new Set(targets.map(node => node?.type))];
+      const profile = Object.values(PE_AUTO_PROFILE).includes(old.profile) ? old.profile
+        : types.length === 1 ? PE_AUTO_PROFILE[types[0]] : '';
+      const keepLinks = Boolean(source && old.sourceText === source && profile && old.outputProfile === profile
+        && old.configKey && old.status !== 'failed' && targets.length
+        && targets.every(node => node && Object.hasOwn(PE_TEXT_MODES, node.type)
+          && (!node.mode || node.mode === PE_TEXT_MODES[node.type])));
+      let textId = id;
+      if (keepLinks) {
+        outgoing.forEach(edge => rewired.add(edge));
+      } else {
+        textId = id + '_saved_text';
+        for (let index = 2; Object.hasOwn(original, textId) || Object.hasOwn(nodes, textId); index++) {
+          textId = id + '_saved_text_' + index;
+        }
+      }
+      const { x = 56, y = 72, width = 440, height = 420, groupId } = old;
+      nodes[textId] = { id: textId, type: 'text', x, y, width, height, text: old.output };
+      if (groupId) nodes[textId].groupId = groupId;
+      replacements.set(id, textId);
+    }
+    const selectionId = id => legacy.has(id) ? replacements.get(id) || '' : id;
+    return {
+      ...canvas,
+      nodes,
+      // The old Qwen/Krea readers appended PE after ordinary text. Keep that order.
+      edges: edges.filter(edge => edge && !legacy.has(edge.from) && !legacy.has(edge.to))
+        .concat(edges.filter(edge => rewired.has(edge))),
+      selectedNodeId: selectionId(canvas.selectedNodeId),
+      ...(Array.isArray(canvas.selectedNodeIds) && {
+        selectedNodeIds: canvas.selectedNodeIds.map(selectionId).filter(Boolean),
+      }),
+    };
+  }
+
     function normalizeWorkflowNode(node, nodeId) {
     const clean = jsonClone(node, {});
     if (!clean || typeof clean !== 'object') return null;
@@ -157,7 +215,7 @@
     clean.id = id;
     topazDefinition?.migrate(clean);
     // MiniMax H3 left the canvas; without this the unknown type would become an image model node.
-    if (clean.type === RETIRED_VIDEO_NODE_TYPE) return null;
+    if (clean.type === RETIRED_VIDEO_NODE_TYPE || clean.type === RETIRED_PE_NODE_TYPE) return null;
     clean.type = normalizeNodeMenuType(clean.type || (id === 'input' ? 'input' : 'image'));
     // Old Mixamo/Director pose nodes are dropped, not migrated; their edges go with them.
     if (poseDefinition?.isLegacy(clean)) return null;
@@ -292,7 +350,7 @@
   }
 
     function normalizeWorkflowCanvas(canvas = {}) {
-    const source = canvas && typeof canvas === 'object' ? canvas : {};
+    const source = migrateRetiredPromptPENodes(canvas && typeof canvas === 'object' ? canvas : {});
     const sourceNodes = source.nodes && typeof source.nodes === 'object' ? source.nodes : {};
     const nodes = Object.entries(sourceNodes).reduce((acc, [nodeId, node]) => {
       const clean = normalizeWorkflowNode(node, nodeId);
@@ -542,6 +600,7 @@
       normalizeWorkflowParams,
       normalizeWorkflowNode,
       purgeRetiredVideoNodes,
+      migrateRetiredPromptPENodes,
       normalizeWorkflowCanvas,
       normalizeWorkflowOutput,
       normalizeWorkflowOutputs,

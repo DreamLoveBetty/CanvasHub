@@ -575,12 +575,17 @@ def _collect_prompt_skill_runtime_config(
     discover_prompt_models,
     get_prompt_skill_config,
     list_prompt_providers,
+    refresh=False,
 ):
     config = get_prompt_skill_config()
-    models_payload = discover_prompt_models(provider_id or config.get("provider"))
+    selected = provider_id or config.get("provider")
+    models_payload = (
+        discover_prompt_models(selected, refresh=True) if refresh else discover_prompt_models(selected)
+    )
     return {
         "ok": True,
         "prompt_skill": config,
+        "provider": models_payload.get("provider") or selected or "",
         "providers": list_prompt_providers(),
         "models": models_payload.get("models") or [],
         "default_model": models_payload.get("default_model") or "",

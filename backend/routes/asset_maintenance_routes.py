@@ -84,6 +84,7 @@ def handle_history_export_tg(
     send_telegram,
     tempfile,
     time,
+    mark_task_telegram_resent=None,
 ):
     """把历史记录中的本机原图通过 Telegram sendDocument 发送出去。"""
     temp_path = None
@@ -170,6 +171,12 @@ def handle_history_export_tg(
         sent = send_telegram(None, str(file_path), caption[:900])
         if not sent:
             raise RuntimeError('Telegram 发送失败')
+
+        if task_id and callable(mark_task_telegram_resent):
+            try:
+                mark_task_telegram_resent(task_id, filename or raw_output_file)
+            except Exception as exc:
+                print(f"⚠️ history export_tg status update skipped: {exc}")
 
         handler.send_json({"ok": True, "message": "原图已发送到 Telegram"})
     except Exception as e:

@@ -49,12 +49,15 @@ def create_view(source, configs, target, files, links=None):
 
 def make_pipeline(view, cache_dir, loras):
     """Upstream pipeline with only the two native-format readers replaced; both load strictly."""
+    from backend.moss.lora_compat import ensure_loralinear_weight
     import mlx.core as mx
     from mlx_lm.models.qwen3_5 import Qwen3_5TextModel, TextModelArgs
     from moss_image_mlx.pipeline import MOSSImagePipeline
     from moss_image_mlx.text_encoder import TextEncoder, _use_reference_layers, sanitize
     from moss_image_mlx.vae import VAEDecoder
     from transformers import AutoTokenizer
+
+    ensure_loralinear_weight()
 
     def read_shards(path):
         tensors = {}

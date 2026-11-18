@@ -730,8 +730,10 @@
       'deskGalleryPreviewTitle',
       'deskGalleryPreviewPrompt',
       'deskGalleryPreviewPromptCompareBtn',
+      'deskGalleryPreviewCopyPromptBtn',
       'deskGalleryPreviewRevisedBlock',
       'deskGalleryPreviewRevisedPrompt',
+      'deskGalleryPreviewRevisedTitle',
       'deskGalleryPreviewCopyRevisedBtn',
       'deskGalleryPreviewNegativeDivider',
       'deskGalleryPreviewNegativeBlock',
@@ -1207,6 +1209,7 @@
 
   function flattenHistoryItems(items) {
     return (items || []).flatMap(item => {
+      if (isVideoHistoryItem(item) || isFileHistoryItem(item)) return [];
       const resultFiles = Array.isArray(item.result_files) && item.result_files.length
         ? item.result_files
         : (Array.isArray(item.output_files) ? item.output_files : []);
@@ -1283,15 +1286,45 @@
   }
 
   function isVideoHistoryItem(item) {
+    if (window.DesktopHistoryResults && typeof DesktopHistoryResults.isVideoHistoryItem === 'function') {
+      return DesktopHistoryResults.isVideoHistoryItem(item);
+    }
     const type = String(item?.type || '').toLowerCase();
-    return type === 'minimax-h3-video' || type.includes('h3-video');
+    if (type === 'minimax-h3-video' || type.includes('h3-video') || type === 'cyimg-video') return true;
+    const params = item?.params && typeof item.params === 'object' ? item.params : {};
+    if (type === 'comfy' && String(params.comfy_output_kind || '').toLowerCase() === 'video') return true;
+    return !!(item?.video_path || (Array.isArray(item?.video_paths) && item.video_paths.length));
+  }
+
+  let sessionRemovedHistoryFiles = new Set();
+  let lastDeleteHistoryFileKeys = [];
+
+  function historyItemsForDisplay(items) {
+    const source = Array.isArray(items) ? items : [];
+    if (!window.DesktopHistoryResults) return source;
+    return DesktopHistoryResults.applyRemovedHistoryItems(source, sessionRemovedHistoryFiles);
+  }
+
+  function rememberRemovedHistoryFiles(values) {
+    if (!window.DesktopHistoryResults) return;
+    DesktopHistoryResults.fileKeysFrom(values).forEach(key => sessionRemovedHistoryFiles.add(key));
   }
 
   function shouldShowHistoryItem(item) {
     // Video history will get a dedicated player view; never feed MP4 files into
     // the image-card pipeline in the meantime.
     if (isFileHistoryItem(item) || isVideoHistoryItem(item)) return false;
-    if (flattenHistoryItems([item]).length) return true;
+    const patched = window.DesktopHistoryResults
+      ? DesktopHistoryResults.applyRemovedHistoryFiles(item, sessionRemovedHistoryFiles)
+      : item;
+    const hasVisibleImage = flattenHistoryItems([patched]).length > 0;
+    if (window.DesktopHistoryResults) {
+      return DesktopHistoryResults.shouldShowHistoryRow(patched, {
+        hasVisibleImage,
+        isInFlight: DesktopState.isInFlight(patched?.status)
+      });
+    }
+    if (hasVisibleImage) return true;
     return DesktopState.isInFlight(item?.status);
   }
 
@@ -1428,7 +1461,7 @@
 
   function renderHistory(items) {
     const list = els.deskHistoryList;
-    const visibleItems = (Array.isArray(items) ? items : [])
+    const visibleItems = historyItemsForDisplay(items)
       .filter(shouldShowHistoryItem)
       .sort((a, b) => historySortTime(b) - historySortTime(a));
     DesktopState.state.history = visibleItems;
@@ -1472,7 +1505,7 @@
           </button>
           ${hasActions ? `<span class="desk-history-row__actions">
             ${editable ? `<button type="button" class="desk-history-edit" data-history-edit="${escapeHtml(item.task_id || '')}" title="继续编辑" aria-label="继续编辑"><span class="desk-icon desk-icon--edit" aria-hidden="true"></span></button>` : ''}
-            ${retryable ? `<button type="button" class="desk-history-retry" data-history-retry="${escapeHtml(item.task_id || '')}" title="创建新的重跑任务">重跑</button>` : ''}
+            ${retryable ? `<button type="button" class="desk-history-retry" data-history-retry="${escapeHtml(item.task_id || '')}" title="${String(item.status || '') === 'telegram_failed' ? '仅补发已保存的图片，不重新生成' : '创建新的重跑任务'}">${String(item.status || '') === 'telegram_failed' ? '补发' : '重跑'}</button>` : ''}
           </span>` : ''}
         </div>
       `;
@@ -1881,6 +1914,103 @@
     });
   }
 
+
+  function previewProviderKey(asset, params = {}) {
+    return String(asset?.provider || params.provider || asset?.type || '').toLowerCase();
+  }
+
+  function assetCanRecordLoras(asset, params = {}) {
+    const key = previewProviderKey(asset, params);
+    return key.includes('moss') || key.includes('qwen21') || key.includes('krea2');
+  }
+
+  function isDisabledLoraEntry(item) {
+    if (!item || typeof item !== 'object' || Array.isArray(item)) return true;
+    if (item.enabled === false || item.active === false || item.on === false) return true;
+    if (item.disabled === true || item.skipped === true) return true;
+    return false;
+  }
+
+  function looksLikeFilesystemPath(value) {
+    const text = String(value || '').trim();
+    if (!text) return false;
+    if (/^[a-zA-Z]:[\\/]/.test(text) || text.startsWith('\\\\')) return true;
+    if (text.startsWith('/') && text.includes('/', 1)) return true;
+    if (text.includes('\\') && /\.(safetensors|sft|pt|ckpt|bin|gguf)$/i.test(text)) return true;
+    return false;
+  }
+
+  function previewLoraDisplayName(item, role = '') {
+    const raw = [item?.name, item?.title, item?.label, item?.lora_name, item?.model_name]
+      .map(value => String(value ?? '').trim())
+      .find(value => value && !looksLikeFilesystemPath(value)) || '';
+    let name = raw || 'LoRA';
+    if (role === 'edit') name = `${name} · 编辑适配器`;
+    if (role === 'control') name = `${name} · 控制适配器`;
+    return name;
+  }
+
+  function previewLoraScale(item) {
+    if (!item || typeof item !== 'object') return undefined;
+    for (const key of ['scale', 'weight', 'strength']) {
+      if (!Object.prototype.hasOwnProperty.call(item, key)) continue;
+      const value = item[key];
+      if (value === undefined || value === null || value === '') continue;
+      return value;
+    }
+    return undefined;
+  }
+
+  function formatPreviewLoraScale(value) {
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      if (value === 0) return '0';
+      return String(value);
+    }
+    return String(value);
+  }
+
+  function formatPreviewLoraEntry(item, role = '') {
+    const name = previewLoraDisplayName(item, role);
+    const scale = previewLoraScale(item);
+    if (scale === undefined) return name;
+    return `${name} (${formatPreviewLoraScale(scale)})`;
+  }
+
+  function collectPreviewLoraEntries(params = {}) {
+    const items = [];
+    if (Array.isArray(params.loras)) {
+      for (const item of params.loras) {
+        if (isDisabledLoraEntry(item)) continue;
+        items.push(formatPreviewLoraEntry(item));
+      }
+    }
+    if (params.edit_adapter && !isDisabledLoraEntry(params.edit_adapter)) {
+      items.push(formatPreviewLoraEntry(params.edit_adapter, 'edit'));
+    }
+    if (params.control_adapter && !isDisabledLoraEntry(params.control_adapter)) {
+      items.push(formatPreviewLoraEntry(params.control_adapter, 'control'));
+    }
+    return items;
+  }
+
+  function getPreviewLoraRow(asset) {
+    const params = asset?.params && typeof asset.params === 'object' ? asset.params : {};
+    const hasRecord = Array.isArray(params.loras)
+      || (params.edit_adapter && typeof params.edit_adapter === 'object')
+      || (params.control_adapter && typeof params.control_adapter === 'object');
+    if (!hasRecord) return assetCanRecordLoras(asset, params) ? '未记录' : '';
+    const items = collectPreviewLoraEntries(params);
+    return items.length ? items.join('\n') : '未使用';
+  }
+
+  function previewPromptText(asset = previewAsset) {
+    return asset ? String(asset.prompt ?? '') : '';
+  }
+
+  function hasPreviewPrompt(asset = previewAsset) {
+    return !!previewPromptText(asset).trim();
+  }
+
   function getPreviewMetaRows(asset) {
     const params = asset?.params && typeof asset.params === 'object' ? asset.params : {};
     const routeTrace = Array.isArray(params.route_trace)
@@ -1948,6 +2078,7 @@
       ['线路', routeLabel],
       ['路由轨迹', routeTrace],
       ['主模型', viaImagesApi ? '' : (params.main_model || asset?.mainModel || '')],
+      ['LoRA', getPreviewLoraRow(asset)],
       ['推理强度', viaImagesApi ? '' : (params.reasoning_effort || asset?.reasoningEffort || '')],
       ['提示词模式', params.prompt_mode || ''],
       ['类型', asset?.providerLabel || providerLabel(asset)],
@@ -1970,12 +2101,16 @@
       ['生成时间', formatPreviewTime(asset?.createdAt)],
       ...timingRows
     ].filter(([, value]) => String(value || '').trim());
-    return rows.map(([label, value]) => `
+    return rows.map(([label, value]) => {
+      const lora = label === 'LoRA';
+      const safe = escapeHtml(value);
+      return `
       <div class="desk-gallery-preview__meta-row">
         <span>${escapeHtml(label)}</span>
-        <strong>${escapeHtml(value)}</strong>
+        <strong${lora ? ` class="desk-gallery-preview__meta-lora" title="${safe}"` : ''}>${safe}</strong>
       </div>
-    `).join('');
+    `;
+    }).join('');
   }
 
   function updatePreviewCounter() {
@@ -2091,21 +2226,30 @@
     if (els.deskGalleryPreviewZoomInBtn) els.deskGalleryPreviewZoomInBtn.disabled = previewZoom >= PREVIEW_ZOOM_MAX;
   }
 
-  function getPreviewRevisedPrompt(asset) {
+  function getPreviewPromptComparison(asset) {
     const params = asset?.params && typeof asset.params === 'object' ? asset.params : {};
+    const pe = Array.isArray(params.prompt_pe) ? params.prompt_pe.filter(item => item?.source_text && item?.rewritten_prompt) : [];
+    if (pe.length) {
+      const text = pe.map(item => [
+        [item.profile, item.model, item.edited ? '手动修改' : ''].filter(Boolean).join(' · '),
+        `原文\n${item.source_text}`,
+        `改写结果\n${item.rewritten_prompt}`
+      ].join('\n\n')).join('\n\n——\n\n');
+      return { title: 'PE 改写对照', text };
+    }
     const revised = asset?.revisedPrompt || asset?.revised_prompt || params.revised_prompt || '';
-    if (revised) return String(revised);
     const list = Array.isArray(params.revised_prompts) ? params.revised_prompts : [];
-    return String(list.find(Boolean) || '');
+    return { title: 'Revised Prompt', text: String(revised || list.find(Boolean) || '') };
   }
 
   function renderPromptCompare(asset = previewAsset) {
-    const revisedPrompt = getPreviewRevisedPrompt(asset);
-    const hasRevised = !!revisedPrompt.trim();
+    const {title, text} = getPreviewPromptComparison(asset);
+    const hasRevised = !!text.trim();
     const open = previewPromptCompareOpen && hasRevised;
     els.deskGalleryPreviewModal?.classList.toggle('is-prompt-compare', open);
+    if (els.deskGalleryPreviewRevisedTitle) els.deskGalleryPreviewRevisedTitle.textContent = title;
     if (els.deskGalleryPreviewRevisedPrompt) {
-      els.deskGalleryPreviewRevisedPrompt.textContent = revisedPrompt || '无 revised_prompt';
+      els.deskGalleryPreviewRevisedPrompt.textContent = text;
     }
     if (els.deskGalleryPreviewRevisedBlock) {
       els.deskGalleryPreviewRevisedBlock.hidden = !open;
@@ -2114,10 +2258,14 @@
       els.deskGalleryPreviewPromptCompareBtn.disabled = !hasRevised;
       els.deskGalleryPreviewPromptCompareBtn.classList.toggle('is-active', open);
       els.deskGalleryPreviewPromptCompareBtn.setAttribute('aria-pressed', open ? 'true' : 'false');
-      els.deskGalleryPreviewPromptCompareBtn.title = hasRevised ? (open ? '收起 revised_prompt' : '对比 revised_prompt') : '当前图片没有 revised_prompt';
+      const label = hasRevised ? (open ? '收起 ' : '查看 ') + title : '当前图片没有提示词改写记录';
+      els.deskGalleryPreviewPromptCompareBtn.title = label;
+      els.deskGalleryPreviewPromptCompareBtn.setAttribute('aria-label', label);
     }
     if (els.deskGalleryPreviewCopyRevisedBtn) {
       els.deskGalleryPreviewCopyRevisedBtn.disabled = !hasRevised;
+      els.deskGalleryPreviewCopyRevisedBtn.title = '复制 ' + title;
+      els.deskGalleryPreviewCopyRevisedBtn.setAttribute('aria-label', '复制 ' + title);
     }
     requestAnimationFrame(applyPreviewZoom);
   }
@@ -2146,7 +2294,14 @@
     if (els.deskGalleryPreviewNegativeDivider) els.deskGalleryPreviewNegativeDivider.hidden = !negativePrompt;
     if (els.deskGalleryPreviewMeta) els.deskGalleryPreviewMeta.innerHTML = getPreviewMetaRows(asset);
     renderPreviewLineage(asset);
-    if (els.deskGalleryPreviewCopyBtn) els.deskGalleryPreviewCopyBtn.disabled = !asset.prompt;
+    const canCopyPrompt = hasPreviewPrompt(asset);
+    if (els.deskGalleryPreviewCopyBtn) els.deskGalleryPreviewCopyBtn.disabled = !canCopyPrompt;
+    if (els.deskGalleryPreviewCopyPromptBtn) {
+      els.deskGalleryPreviewCopyPromptBtn.disabled = !canCopyPrompt;
+      const label = canCopyPrompt ? '复制提示词' : '当前图片没有提示词';
+      els.deskGalleryPreviewCopyPromptBtn.title = label;
+      els.deskGalleryPreviewCopyPromptBtn.setAttribute('aria-label', label);
+    }
     renderPromptCompare(asset);
     updatePreviewCounter();
     renderPreviewActions(asset);
@@ -2194,22 +2349,51 @@
     previewDrag = null;
   }
 
-  async function copyPreviewPrompt() {
-    const prompt = previewAsset?.prompt || '';
-    if (!prompt) return;
-    await navigator.clipboard.writeText(prompt);
-    DesktopResults.showTransientMessage('提示词已复制。');
+  async function copyGalleryText(text, successMessage, button) {
+    const value = String(text ?? '');
+    if (!value) return 'empty';
+    const copyText = window.DesktopCanvas?.copyTextToClipboardLocal;
+    const setButtonState = window.DesktopCanvas?.setPolishCopyButtonState;
+    if (typeof copyText !== 'function') {
+      DesktopResults.showTransientMessage('复制失败，请重试。');
+      return 'failed';
+    }
+    if (setButtonState && button) setButtonState(button, 'copying');
+    try {
+      const status = await copyText(value, successMessage);
+      if (setButtonState && button) setButtonState(button, status || 'failed');
+      if (status !== 'copied' && status !== 'manual' && status !== 'empty') {
+        DesktopResults.showTransientMessage('复制失败，请重试。');
+        return 'failed';
+      }
+      return status || 'failed';
+    } catch (error) {
+      if (setButtonState && button) setButtonState(button, 'failed');
+      DesktopResults.showTransientMessage('复制失败，请重试。');
+      throw error;
+    }
   }
 
-  async function copyPreviewRevisedPrompt() {
-    const prompt = getPreviewRevisedPrompt(previewAsset);
-    if (!prompt) return;
-    await navigator.clipboard.writeText(prompt);
-    DesktopResults.showTransientMessage('revised_prompt 已复制。');
+  async function copyPreviewPrompt(event) {
+    event?.preventDefault?.();
+    event?.stopPropagation?.();
+    const prompt = previewPromptText(previewAsset);
+    if (!prompt.trim()) return 'empty';
+    const button = event?.currentTarget || els.deskGalleryPreviewCopyPromptBtn || els.deskGalleryPreviewCopyBtn;
+    return copyGalleryText(prompt, '提示词已复制。', button);
+  }
+
+  async function copyPreviewRevisedPrompt(event) {
+    event?.preventDefault?.();
+    event?.stopPropagation?.();
+    const { title, text } = getPreviewPromptComparison(previewAsset);
+    if (!text) return 'empty';
+    const button = event?.currentTarget || els.deskGalleryPreviewCopyRevisedBtn;
+    return copyGalleryText(text, `${title} 已复制。`, button);
   }
 
   function togglePreviewPromptCompare() {
-    const hasRevised = !!getPreviewRevisedPrompt(previewAsset).trim();
+    const hasRevised = !!getPreviewPromptComparison(previewAsset).text.trim();
     if (!hasRevised) return;
     previewPromptCompareOpen = !previewPromptCompareOpen;
     renderPromptCompare(previewAsset);
@@ -3815,17 +3999,22 @@
       button.classList.add('is-loading');
       button.textContent = '提交中';
     }
+    const originalLabel = button?.textContent || '重跑';
     try {
       const task = await DesktopApi.retryTask(taskId);
-      DesktopResults.trackRetriedTask?.(task);
-      DesktopResults.showTransientMessage('重跑任务已提交。', 'success');
+      const resent = task?.resent === true;
+      if (!resent) DesktopResults.trackRetriedTask?.(task);
+      DesktopResults.showTransientMessage(
+        task?.message || (resent ? '已补发到 Telegram，未重新生成。' : '重跑任务已提交。'),
+        'success'
+      );
       await loadHistory().catch(() => {});
       return task;
     } finally {
       if (button && button.isConnected) {
         button.disabled = false;
         button.classList.remove('is-loading');
-        button.textContent = '重跑';
+        button.textContent = originalLabel;
       }
     }
   }
@@ -3847,7 +4036,7 @@
 
   async function loadHistory(limit = 60) {
     const data = await DesktopApi.getHistory(limit, 0);
-    const items = Array.isArray(data.history) ? data.history : [];
+    const items = historyItemsForDisplay(Array.isArray(data.history) ? data.history : []);
     DesktopState.state.history = items;
     renderHistory(items);
     return items;
@@ -4500,7 +4689,18 @@
       if (batchId) batchIds.push(batchId);
       lastDeleteBatchIds = batchIds;
       lastDeleteCount = deletedIds.length;
+      const removedNames = [
+        ...targets.map(asset => asset.file),
+        ...targets.map(asset => asset.imageUrl),
+        ...targets.map(asset => asset.imagePath),
+        ...(Array.isArray(result.deleted_files) ? result.deleted_files : [])
+      ];
+      lastDeleteHistoryFileKeys = window.DesktopHistoryResults
+        ? [...DesktopHistoryResults.fileKeysFrom(removedNames)]
+        : [];
+      rememberRemovedHistoryFiles(removedNames);
       removeAssetsFromGalleryState(deletedIds);
+      renderHistory(DesktopState.state.history);
       await Promise.all([
         loadHistory(80),
         loadGalleryAssets(),
@@ -4635,6 +4835,8 @@
       if (!result?.ok) throw new Error(result?.error || result?.errors?.join('；') || '撤销失败');
       lastDeleteBatchIds = [];
       lastDeleteCount = 0;
+      lastDeleteHistoryFileKeys.forEach(key => sessionRemovedHistoryFiles.delete(key));
+      lastDeleteHistoryFileKeys = [];
       await Promise.all([
         loadHistory(80),
         loadGalleryAssets(),
@@ -4893,12 +5095,15 @@
     });
     galleryPinterest.bindModalEvents();
 
-    els.deskGalleryPreviewCopyBtn?.addEventListener('click', () => {
-      copyPreviewPrompt().catch(error => DesktopResults.showError(error));
+    els.deskGalleryPreviewCopyBtn?.addEventListener('click', event => {
+      copyPreviewPrompt(event).catch(error => DesktopResults.showError(error));
+    });
+    els.deskGalleryPreviewCopyPromptBtn?.addEventListener('click', event => {
+      copyPreviewPrompt(event).catch(error => DesktopResults.showError(error));
     });
     els.deskGalleryPreviewPromptCompareBtn?.addEventListener('click', togglePreviewPromptCompare);
-    els.deskGalleryPreviewCopyRevisedBtn?.addEventListener('click', () => {
-      copyPreviewRevisedPrompt().catch(error => DesktopResults.showError(error));
+    els.deskGalleryPreviewCopyRevisedBtn?.addEventListener('click', event => {
+      copyPreviewRevisedPrompt(event).catch(error => DesktopResults.showError(error));
     });
     els.deskGalleryPreviewApplyBtn?.addEventListener('click', applyPreviewAssetToInput);
     els.deskGalleryPreviewCanvasBtn?.addEventListener('click', sendPreviewAssetToCanvas);
@@ -5027,6 +5232,7 @@
     init,
     loadHistory,
     renderHistory,
+    historyItemsForDisplay,
     selectHistoryItem,
     setHistoryCollapsed,
     syncWorkbenchYield,

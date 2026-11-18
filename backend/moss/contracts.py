@@ -6,6 +6,8 @@ import json
 import re
 import secrets
 
+from ..services.prompt_pe import job_trace
+
 TASK_TYPE = "moss-image"
 ENGINE = "moss-image-mlx"
 DEFAULT_MODEL_ID = "moss-image-sft-mflux-bf16"
@@ -45,7 +47,7 @@ PRESETS = {
 }
 CUSTOM_PRESET = "custom"
 CUSTOM_LIMITS = {"steps": (1, 100), "cfg": (1, 15), "shift": (0.5, 20)}
-JOB_FIELDS = {"mode", "base_model_id", "preset", "width", "height", "seed", "prompt", "negative_prompt", "layout_draft", "loras",
+JOB_FIELDS = {"mode", "base_model_id", "preset", "width", "height", "seed", "prompt", "negative_prompt", "layout_draft", "loras", "prompt_pe",
               "telegram_enabled", "draw_grid", "split_panels", "text_sources", "input_fingerprint", "sampler_params"}
 COMPILE_FIELDS = {"mode", "base_model_id", "preset", "width", "height", "prompt", "negative_prompt", "layout_draft",
                   "input_fingerprint", "draft_json"}
@@ -257,7 +259,8 @@ def normalize_job(body):
     # At CFG 1 the sampler skips the unconditional branch, so the negative has no effect there.
     sampler = {**copy.deepcopy(preset["sampler"]), **_sampler_params(body, result["preset"]),
                "negative_prompt": result["negative_prompt"]}
-    return {**result, "seed": _seed(body.get("seed")), "loras": _loras(body.get("loras", [])),
+    return {**result, **job_trace(body, result["prompt"], text_to_image=result["mode"] == "text"),
+            "seed": _seed(body.get("seed")), "loras": _loras(body.get("loras", [])),
             "telegram_enabled": _flag(body, "telegram_enabled"), "draw_grid": draw_grid,
             "split_panels": split_panels and storyboard, "text_sources": _text_sources(body.get("text_sources", [])),
             "input_fingerprint": _fingerprint(body), "sampler": sampler,

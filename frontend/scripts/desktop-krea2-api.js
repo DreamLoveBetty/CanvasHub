@@ -2,6 +2,7 @@
 (function () {
   const get=path=>api.json('/api/krea2/'+path);
   const post=(path,body)=>api.json('/api/krea2/'+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body||{})});
+  const submit=body=>post('generate',body);
   async function rawUpload(path,blob,filename,maximum){
     if(!(blob instanceof Blob)||!blob.size||blob.size>maximum)throw new Error(`文件须小于 ${Math.ceil(maximum/1024/1024)} MB`);
     const response=await api.request('/api/krea2/'+path+'?name='+encodeURIComponent(filename||'source'),{
@@ -18,7 +19,7 @@
     return (await DesktopApi.importImageUrl(url.href)).blob;
   }
   let client;
-  const getClient=()=>client||=DesktopTasks.createClient({domain:'krea2',submit:body=>post('generate',body),
+  const getClient=()=>client||=DesktopTasks.createClient({domain:'krea2',submit,
     progress:id=>DesktopApi.getStatus(id),cancel:id=>post('cancel',{task_id:id})});
   const tasks=Object.freeze({submit:(...args)=>getClient().submit(...args),progress:(...args)=>getClient().progress(...args),
     cancel:(...args)=>getClient().cancel(...args),result:(...args)=>getClient().result(...args)});
@@ -31,7 +32,7 @@
     deleteModel:modelId=>post('model-delete',{model_id:modelId}),
     importLora:(blob,filename)=>rawUpload('lora-import',blob,filename,2*1024*1024*1024),
     uploadImage:(blob,filename)=>rawUpload('upload',blob,filename,32*1024*1024),
-    submit:body=>post('generate',body),cancel:taskId=>post('cancel',{task_id:taskId}),
+    submit,cancel:taskId=>post('cancel',{task_id:taskId}),
     job:id=>DesktopApi.getStatus(id),sourceBlob,tasks
   });
 })();

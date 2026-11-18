@@ -176,5 +176,5 @@
   }
   const ICON='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="m12 3 9 5-9 13L3 8 12 3Z M3 8h18M8 8l4 13 4-13"/></svg>';
   window.DesktopTopazModel=Object.freeze({TYPE,MODELS,defaults,ranges,choices,minScale,normalize,migrate,targets,policy,ICON,
-    menu:{type:TYPE,title:'Topaz Gigapixel',subtitle:'原生图像增强 · 独立模型与尺寸控制',icon:ICON}});
+    menu:{type:TYPE,title:'Topaz Gigapixel',subtitle:'原生图像超分增强',icon:ICON}});
 })();
