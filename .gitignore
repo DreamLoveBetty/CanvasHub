@@ -31,6 +31,7 @@ memory/
 RELEASE_BOUNDARY.md
 design/
 docs/
+/backend/GOOGLE_WEB_QUOTA_HANDOFF_2026-11-21.md
 
 *.pyc
 __pycache__/
