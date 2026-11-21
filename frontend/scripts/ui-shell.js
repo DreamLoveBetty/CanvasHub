@@ -244,15 +244,21 @@
   }
 
   function openWorkspace(view) {
-    applyLayoutMode('classic', true);
-    switchView(view);
+    if (view === 'comfy' && typeof openCinematicComfyWorkbench === 'function') {
+      openCinematicComfyWorkbench();
+      setMainMenuOpen(false);
+      return;
+    }
+    if (view === 'gpt' && typeof selectCinematicProvider === 'function') {
+      selectCinematicProvider('gpt');
+    } else if ((view === 'google' || view === 'gen' || view === 'edit') && typeof selectCinematicProvider === 'function') {
+      selectCinematicProvider('google');
+    }
     setMainMenuOpen(false);
   }
 
   function switchToClassicFromCinematicMenu() {
-    applyLayoutMode('classic', true);
     setCinematicQuickMenuOpen(false);
-    showStatusMessage('已切回 Classic 工作台。', 'success');
   }
 
   function setCinematicColorScheme(scheme) {

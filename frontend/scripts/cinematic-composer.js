@@ -146,7 +146,7 @@
 
   function setCinematicMenu(nextMenu) {
     currentCinematicMenu = nextMenu;
-    ['provider', 'model', 'quality', 'ratio', 'gptQuality', 'gptCount', 'gptModeration'].forEach((key) => {
+    ['provider', 'model', 'quality', 'ratio', 'gptQuality', 'gptCount', 'gptModeration', 'gptRoute', 'editFeature'].forEach((key) => {
       const { wrap, button, menu } = getCinematicMenuParts(key);
       const shouldOpen = Boolean(wrap && !wrap.hidden && menu && key === currentCinematicMenu);
       if (menu) menu.hidden = !shouldOpen;
@@ -272,6 +272,22 @@
     syncCinematicComposerUi();
   }
 
+  function selectCinematicGptRoute(route, event) {
+    if (event) event.stopPropagation();
+    if (normalizeCinematicProvider(currentCinematicProvider) !== 'gpt') return;
+    pickProviderRouteGpt(route);
+    closeCinematicMenus();
+    syncCinematicComposerUi();
+  }
+
+  function selectCinematicEditFeature(feature, event) {
+    if (event) event.stopPropagation();
+    if (normalizeCinematicProvider(currentCinematicProvider) !== 'google') return;
+    pickFeature(feature);
+    closeCinematicMenus();
+    syncCinematicComposerUi();
+  }
+
   function getCinematicGoogleModelKey() {
     const model = typeof normalizeGoogleModel === 'function'
       ? normalizeGoogleModel(genState.model)
@@ -326,6 +342,8 @@
       : provider === 'gpt'
         ? cinematicRevealState.quality
         : false;
+    const showGptRoute = provider === 'gpt';
+    const showEditFeature = usingEditFlow;
 
     if (providerBtn) {
       const providerLabelMap = {
@@ -336,6 +354,38 @@
       setCinematicPillLabel(providerBtn, providerLabelMap[provider] || 'Google');
       providerWrap.hidden = !showProvider;
       syncCinematicMenuSelection(document.getElementById('cinematicProviderMenu'), '[data-provider]', provider);
+    }
+
+    const gptRouteBtn = document.getElementById('cinematicGptRouteBtn');
+    const gptRouteWrap = document.getElementById('cinematicGptRouteWrap');
+    if (gptRouteBtn) {
+      const route = (typeof normalizeGptProviderRouteForUi === 'function'
+        ? normalizeGptProviderRouteForUi(gptState.gptProviderRoute)
+        : (gptState.gptProviderRoute || 'codex'));
+      const routeLabelMap = {
+        codex: '本地 Codex',
+        chatgpt_pool: '账号池 API',
+        third_party_image_api: '第三方 API'
+      };
+      if (gptRouteWrap) gptRouteWrap.hidden = !showGptRoute;
+      setCinematicPillLabel(gptRouteBtn, routeLabelMap[route] || '本地 Codex');
+      syncCinematicMenuSelection(document.getElementById('cinematicGptRouteMenu'), '[data-gpt-route]', route);
+    }
+
+    const editFeatureBtn = document.getElementById('cinematicEditFeatureBtn');
+    const editFeatureWrap = document.getElementById('cinematicEditFeatureWrap');
+    if (editFeatureBtn) {
+      const feature = editState.feature || 'edit';
+      const featureLabelMap = {
+        edit: '基础编辑',
+        remove_bg: '智能抠图',
+        upscale: '无损放大',
+        face_fix: '面部修复',
+        style_transfer: '风格迁移'
+      };
+      if (editFeatureWrap) editFeatureWrap.hidden = !showEditFeature;
+      setCinematicPillLabel(editFeatureBtn, featureLabelMap[feature] || '基础编辑');
+      syncCinematicMenuSelection(document.getElementById('cinematicEditFeatureMenu'), '[data-edit-feature]', feature);
     }
 
     if (modelBtn) {
@@ -657,8 +707,38 @@
     textarea.focus();
   }
 
+  function isCinematicComfyWorkbenchOpen() {
+    const bench = document.getElementById('cinematicComfyWorkbench');
+    return !!(bench && bench.classList.contains('is-open'));
+  }
+
+  function openCinematicComfyWorkbench() {
+    const bench = document.getElementById('cinematicComfyWorkbench');
+    const view = document.getElementById('view-comfy');
+    document.body.classList.add('is-cinematic-comfy-workbench');
+    if (bench) {
+      bench.hidden = false;
+      bench.classList.add('is-open');
+      bench.setAttribute('aria-hidden', 'false');
+    }
+    if (view) view.classList.add('is-cinematic-workbench');
+    if (typeof setCinematicQuickMenuOpen === 'function') setCinematicQuickMenuOpen(false);
+    if (typeof switchTab === 'function') switchTab('comfy');
+  }
+
+  function closeCinematicComfyWorkbench() {
+    const bench = document.getElementById('cinematicComfyWorkbench');
+    const view = document.getElementById('view-comfy');
+    document.body.classList.remove('is-cinematic-comfy-workbench');
+    if (bench) {
+      bench.hidden = true;
+      bench.classList.remove('is-open');
+      bench.setAttribute('aria-hidden', 'true');
+    }
+    if (view) view.classList.remove('is-cinematic-workbench');
+  }
+
   function openClassicEditFromCinematic() {
-    applyLayoutMode('classic', true);
     openGoogleSubview('edit');
     const prompt = document.getElementById('cinematicPrompt')?.value || '';
     if (prompt) setTextareaValue('editPrompt', prompt);
@@ -699,8 +779,6 @@
       return;
     }
 
-    applyLayoutMode('classic', true);
-    switchTab('comfy');
     setTextareaValue('comfyPrompt', prompt);
     if (uploadedImages.length > 0 && typeof comfyImageData !== 'undefined') {
       comfyImageData = uploadedImages[0].base64;
@@ -714,5 +792,16 @@
       if (placeholder) placeholder.style.display = 'none';
       if (removeBtn) removeBtn.style.display = 'block';
     }
-    showStatusMessage('已切到 ComfyUI 工作台，请先选择工作流。', 'info');
+    openCinematicComfyWorkbench();
+    showStatusMessage('已打开 ComfyUI 工作台，请先选择工作流。', 'info');
   }
+
+  window.switchCinematicSection = switchCinematicSection;
+  window.syncCinematicComposerUi = syncCinematicComposerUi;
+  window.syncCinematicReferenceState = syncCinematicReferenceState;
+  window.updateCinematicViewportMetrics = updateCinematicViewportMetrics;
+  window.openCinematicComfyWorkbench = openCinematicComfyWorkbench;
+  window.closeCinematicComfyWorkbench = closeCinematicComfyWorkbench;
+  window.isCinematicComfyWorkbenchOpen = isCinematicComfyWorkbenchOpen;
+  window.selectCinematicGptRoute = selectCinematicGptRoute;
+  window.selectCinematicEditFeature = selectCinematicEditFeature;

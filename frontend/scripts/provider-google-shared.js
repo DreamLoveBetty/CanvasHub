@@ -204,6 +204,50 @@
     }
   }
 
+
+  function describeGoogleSharedTerminalStatus(task = {}) {
+    const status = String(task.status || '').toLowerCase();
+    const reason = String(task.display_error || task.error || '').trim();
+    if (status === 'succeeded' || status === 'success') {
+      return {
+        toast: '✅ 生成成功！',
+        toastType: 'success',
+        stageText: '生成完成，作品已进入历史记录。',
+        stageTone: 'success',
+        state: 'success'
+      };
+    }
+    if (status === 'succeeded_no_telegram') {
+      return {
+        toast: '✅ 生成成功！',
+        toastType: 'success',
+        stageText: '生成完成，作品已保存。',
+        stageTone: 'success',
+        state: 'success'
+      };
+    }
+    if (status === 'telegram_failed') {
+      const detail = reason || '尚未发送到 Telegram。';
+      return {
+        toast: `已生成，未发送：${detail}`,
+        toastType: 'info',
+        stageText: `已生成，未发送：${detail}`,
+        stageTone: 'warn',
+        state: 'warn'
+      };
+    }
+    if (status === 'failed') {
+      return {
+        toast: '❌ 生成失败：' + (reason || '未知错误'),
+        toastType: 'error',
+        stageText: reason || '生成失败，请稍后重试。',
+        stageTone: 'error',
+        state: 'error'
+      };
+    }
+    return null;
+  }
+
   function pollTaskStatus(taskId, btn, stageKey = 'gen') {
     pollingTaskIds[stageKey] = taskId;
     if (pollingTimers[stageKey]) {
@@ -236,22 +280,21 @@
             setStageStatusText(stageKey, message || '正在生成中...', 'busy');
             setStageState(stageKey, { busy: true, statusVisible: true, state: 'busy' });
             setSubmitButtonState(btn, { busy: true, label: '⏳ 生成中...' });
-          } else if (status === 'succeeded' || status === 'succeeded_no_telegram') {
-            showStatusMessage('✅ 生成成功！', 'success');
-            setStageStatusText(stageKey, status === 'succeeded_no_telegram' ? '图片已生成，但 Telegram 发送失败。' : '生成完成，作品已进入历史记录。', 'success');
-            setStageState(stageKey, { busy: false, statusVisible: true, state: 'success' });
-            setSubmitButtonState(btn, { busy: false });
-            pollingTaskIds[stageKey] = null;
-            clearRememberedStageTask(stageKey);
-            loadHistory();
-          } else if (status === 'failed' || status === 'telegram_failed') {
-            showStatusMessage('❌ 生成失败：' + (task.error || '未知错误'), 'error');
-            setStageStatusText(stageKey, task.error || '生成失败，请稍后重试。', 'error');
-            setStageState(stageKey, { busy: false, statusVisible: true, state: 'error' });
-            setSubmitButtonState(btn, { busy: false });
-            clearPendingHistoryRecord(taskId);
-            pollingTaskIds[stageKey] = null;
-            clearRememberedStageTask(stageKey);
+          } else {
+            const delivery = describeGoogleSharedTerminalStatus(task);
+            if (delivery) {
+              showStatusMessage(delivery.toast, delivery.toastType);
+              setStageStatusText(stageKey, delivery.stageText, delivery.stageTone);
+              setStageState(stageKey, { busy: false, statusVisible: true, state: delivery.state });
+              setSubmitButtonState(btn, { busy: false });
+              pollingTaskIds[stageKey] = null;
+              clearRememberedStageTask(stageKey);
+              if (status === 'failed' || status === 'telegram_failed') {
+                clearPendingHistoryRecord(taskId);
+              } else {
+                loadHistory();
+              }
+            }
           }
 
           if (isTaskInFlight(status)) {

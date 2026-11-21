@@ -98,3 +98,10 @@
       if (textarea) textarea.focus();
     });
   }
+
+  window.updateModalActions = updateModalActions;
+  window.closeModal = closeModal;
+  window.downloadModalImage = downloadModalImage;
+  window.retryFromModal = retryFromModal;
+  window.reusePromptFromModal = reusePromptFromModal;
+  window.continueEditFromModal = continueEditFromModal;

@@ -561,6 +561,7 @@
           placeholder: auth?.miniapp_access_password_configured ? '留空则不修改' : '公网模式必须设置访问密码'
         })}
         <p class="desk-settings-form__hint">默认本机模式会强制绑定 127.0.0.1；公网模式保存后需要重启服务生效，且必须配置访问密码。</p>
+        <p class="desk-settings-form__hint desk-settings-restart-hint" data-restart-required-hint ${server?.restart_required ? '' : 'hidden'}>已保存，重启后生效。监听地址或端口的更改不会自动重启服务，请手动重启后再使用新配置。</p>
         ${renderSystemSaveButton('system', '保存系统配置')}
       </div>`
     ], !publicMode || Boolean(auth?.miniapp_access_password_configured));
@@ -2165,15 +2166,63 @@
     return payload;
   }
 
+
+  function isRestartRequiredFromSettingsSave(result) {
+    if (!result || result.ok === false) return false;
+    const settings = result.settings && typeof result.settings === 'object' ? result.settings : result;
+    return Boolean(settings?.server?.restart_required);
+  }
+
+  function systemSettingsSaveNotice(result) {
+    return isRestartRequiredFromSettingsSave(result) ? '已保存，重启后生效' : '系统配置已保存。';
+  }
+
+  function applySystemSettingsSaveResult(result, options = {}) {
+    const restartRequired = isRestartRequiredFromSettingsSave(result);
+    const notice = systemSettingsSaveNotice(result);
+    options.notify?.(notice, 'success');
+    const hint = options.card?.querySelector?.(options.hintSelector || '[data-restart-required-hint]');
+    if (hint) hint.hidden = !restartRequired;
+    return { restartRequired, notice };
+  }
+
+
+  async function copyModelToolsDirectoryPath(pathValue, emptyMessage, options = {}) {
+    const value = String(pathValue || '').trim();
+    const notify = options.notify || ((message, tone) => window.DesktopResults?.showTransientMessage?.(message, tone));
+    if (!value) {
+      notify(emptyMessage || '目录路径尚未提供。请将 .safetensors 文件放到对应模型目录后再复制路径。', 'warning');
+      return 'empty';
+    }
+    const copy = options.copyText || window.DesktopCanvas?.copyTextToClipboardLocal;
+    if (typeof copy !== 'function') {
+      notify('复制不可用。', 'error');
+      return 'failed';
+    }
+    try {
+      const result = await copy(value, '完整路径已复制。');
+      if (result === 'failed') notify('复制失败。', 'error');
+      return result || 'copied';
+    } catch (error) {
+      notify(error?.message || '复制失败。', 'error');
+      return 'failed';
+    }
+  }
+
   async function saveSystemSettings(button) {
     if (!window.DesktopApi?.saveSystemSettings) throw new Error('系统设置 API 未加载');
     const card = button?.closest('[data-system-settings-card]');
     const payload = collectSystemSettingsForm(card);
-    await window.DesktopApi.saveSystemSettings(payload);
+    const result = await window.DesktopApi.saveSystemSettings(payload);
+    if (result?.ok) lastSystemSettings = result;
     settingsDrafts.forget(card);
     await refresh();
     if (payload.cyimg) window.dispatchEvent(new CustomEvent('desktop:cyimg-settings-updated'));
-    window.DesktopResults?.showTransientMessage?.('系统配置已保存。', 'success');
+    const visibleCard = els.deskSettingsBody?.querySelector('[data-system-settings-card="system"]') || card;
+    applySystemSettingsSaveResult(result, {
+      notify: (message, tone) => window.DesktopResults?.showTransientMessage?.(message, tone || 'success'),
+      card: visibleCard
+    });
   }
 
   async function verifyPinterestAuth(button) {
@@ -2996,6 +3045,12 @@
         }
         return;
       }
+      const copyPathButton = event.target.closest('[data-copy-model-path]');
+      if (copyPathButton) {
+        event.preventDefault();
+        copyModelToolsDirectoryPath(copyPathButton.dataset.modelToolsPath, copyPathButton.dataset.modelToolsEmpty).catch(error => showSettingsFeedback(error, '复制失败'));
+        return;
+      }
       if (loraSettings?.handleClick?.(event) || asrTools?.handleClick?.(event) || mossTools?.handleClick?.(event) || qwen21Tools?.handleClick?.(event) || krea2Tools?.handleClick?.(event)) return;
       if (googlePoolSettings.handleClick(event)) return;
       const themeStyleButton = event.target.closest('button[data-theme-style]');
@@ -3477,6 +3532,10 @@
 
   window.DesktopSettings = {
     init,
+    isRestartRequiredFromSettingsSave,
+    systemSettingsSaveNotice,
+    applySystemSettingsSaveResult,
+    copyModelToolsDirectoryPath,
     open,
     openTab: (tab, subTab) => open().then(() => {
       if (tab === 'model-tools' && subTab && MODEL_TOOLS_TABS.some(item => item.id === subTab)) {

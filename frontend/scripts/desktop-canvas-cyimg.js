@@ -43,7 +43,7 @@
           <label class="desk-cyimg__model"><span>在线模型</span><select class="desk-select" data-cyimg-model>${modelOptions(node)}</select></label>
           <div class="desk-cyimg__fields" data-cyimg-fields>${fields(node)}</div>
           <div class="desk-cyimg__inputs" data-cyimg-source-hint>连接文本节点作为提示词，连接素材节点作为参考</div>
-          <footer class="desk-cyimg__footer"><div><small data-cyimg-credit>模型积分以绘栾结算为准</small><label class="desk-cyimg__telegram"><input type="checkbox" data-cyimg-telegram ${node.telegramEnabled?'checked':''}>发送到 Telegram</label></div><button type="button" class="desk-generation-action desk-cyimg__run" data-cyimg-run title="开始生成" aria-label="开始生成"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m13.5 2-9 12h6l-1 8 10-13h-7z"></path></svg><span class="desk-generation-action__label">开始生成</span></button></footer>
+          <footer class="desk-cyimg__footer"><div><small data-cyimg-credit>模型积分以绘栾结算为准</small><label class="desk-cyimg__telegram"><input type="checkbox" data-cyimg-telegram ${node.telegramEnabled?'checked':''}>发送到 Telegram</label></div><button type="button" class="desk-generation-action desk-cyimg__run" data-cyimg-run title="开始生成" aria-label="开始生成"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m13.5 2-9 12h6l-1 8 10-13h-7z"></path></svg><span class="desk-generation-action__label">开始生成</span></button><button type="button" class="desk-button" data-cyimg-resend hidden>补发</button></footer>
         </div><div class="desk-progress-float desk-cyimg__progress" data-cyimg-progress hidden role="status"><div class="desk-progress-float__panel"><div class="desk-progress-float__bar"><span data-cyimg-bar></span><strong class="desk-progress-float__percent" data-cyimg-percent>处理中</strong></div><span data-cyimg-stage>绘栾任务进行中</span></div></div>
       </section>`;
     }
@@ -53,11 +53,12 @@
     function paint(s) {
       if(!live(s)) return;
       const node=s.node, busy=Boolean(s.pending)||M.active(node.status), item=selected(node), badge=s.el.querySelector('[data-cyimg-status]');
-      const statusText={idle:'就绪',submitting:'提交中',queued:'处理中',processing:'处理中',running:'处理中',succeeded:'已完成',succeeded_no_telegram:'已归档',telegram_failed:'已归档',failed:'失败',canceled:'已停止'};
+      const statusText={idle:'就绪',submitting:'提交中',queued:'处理中',processing:'处理中',running:'处理中',succeeded:'已完成',succeeded_no_telegram:'已归档',telegram_failed:'已生成，未发送',failed:'失败',canceled:'已停止'};
       badge.textContent=busy?statusText[node.status]||'处理中':catalogError?'目录错误':!catalog?'目录加载中':!item?'选择模型':!catalog.api_key_configured?'待配置':statusText[node.status]||'就绪';
       badge.classList.toggle('is-success',!busy && ['idle','succeeded','succeeded_no_telegram'].includes(node.status) && !!item && !!catalog?.api_key_configured);
       const button=s.el.querySelector('[data-cyimg-run]');button.disabled=busy||!item;
-      button.setAttribute('aria-busy',String(busy));button.querySelector('span').textContent=busy?'生成中':node.status==='failed'?'重试生成':'开始生成';
+      button.setAttribute('aria-busy',String(busy));button.querySelector('span').textContent=busy?'生成中':node.status==='telegram_failed'?'再次生成':node.status==='failed'?'重试生成':'开始生成';
+      const resendBtn=s.el.querySelector('[data-cyimg-resend]');if(resendBtn){resendBtn.hidden=node.status!=='telegram_failed';resendBtn.disabled=Boolean(busy||s.pending||s.starting);}
       const hint=s.el.querySelector('[data-cyimg-source-hint]');
       const textCount=getTextNodes(s.id).length,imageCount=getImageReferences(s.id).length;
       const videoCount=incoming(s,'video').filter(n=>n.mediaUrl).length,audioCount=incoming(s,'audio').length;
@@ -183,7 +184,18 @@
     function mount(node) {
       const el=getNodeElement(node.id);if(!el||sessions.has(node.id))return;
       M.normalize(node);const s={id:node.id,node,el,abort:new AbortController()};sessions.set(node.id,s);
-      el.addEventListener('click',event=>{if(event.target.closest('[data-cyimg-run]'))run(s.id);},{signal:s.abort.signal});
+      el.addEventListener('click',event=>{
+        if(event.target.closest('[data-cyimg-resend]')){
+          const taskId=s.node.jobId||s.node.resultJobId||s.job?.task_id||s.job?.id;
+          if(!taskId){feedback(s,'没有可补发的任务。','error');return;}
+          const resendBtn=s.el.querySelector('[data-cyimg-resend]');if(resendBtn)resendBtn.disabled=true;
+          const done=DesktopResults?.resendArchivedTelegram?.(taskId);
+          if(!done){feedback(s,'补发接口不可用','error');paint(s);return;}
+          Promise.resolve(done).then(task=>{if(task?.skipped==='busy')return;if(task?.resent){s.node.status=task.status||'succeeded';if(s.job)s.job={...s.job,...task,status:s.node.status};}}).catch(error=>feedback(s,error.message,'error')).finally(()=>{if(live(s))paint(s);});
+          return;
+        }
+        if(event.target.closest('[data-cyimg-run]'))run(s.id);
+      },{signal:s.abort.signal});
       el.addEventListener('change',event=>{
         const input=event.target;
         if(input.matches('[data-cyimg-model]')){node.modelId=input.value;renderCatalog(s);saveState();return;}

@@ -275,3 +275,7 @@
       fallbackCopy(text, done);
     }
   }
+
+  window.openDetailModal = openDetailModal;
+  window.copyModalPrompt = copyModalPrompt;
+  window.copyTextToClipboard = copyTextToClipboard;

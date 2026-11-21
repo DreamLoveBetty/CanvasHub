@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Google OAuth 分组额度 · 四主题对照夹具</title>
+  <style>
+    body { margin: 0; padding: 24px; font: 14px/1.5 sans-serif; color: #222; background: #f3f3f0; }
+    .fixture-note { margin: 0 0 16px; max-width: 72rem; }
+    .theme-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+    figure { margin: 0; display: grid; gap: 8px; }
+    figcaption { font-weight: 600; }
+    iframe { width: 100%; min-height: 760px; border: 1px solid #c9c9c3; background: #fff; }
+    a { color: inherit; }
+    @media (max-width: 900px) { .theme-grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <p class="fixture-note">只读视觉夹具，供后续对照画布项目的四个工作台主题：浅色/深色 × 液态/石墨。设置工作台与画布共用 <code>data-theme</code> 与 <code>data-desk-style</code>。各面板把额度卡放在与生产相同的 <code>.desk-settings.desk-settings--workbench</code> 祖先内，以便深色液态走设置文字 token（<code>--desk-settings-ink</code> / <code>--desk-settings-muted-ink</code>），而不是 body 默认的浅色墨色。不另建配色。全部账号与额度都是合成数据，不含真实邮箱、token、cookie 或项目 ID。请直接打开本文件查看四个 iframe，不要从自动化 Shell 驱动浏览器。单独面板也可打开：<a href="google-pool-quota-theme-light-liquid.html">浅色 · 液态 — 分组额度主题夹具</a>、<a href="google-pool-quota-theme-dark-liquid.html">深色 · 液态 — 分组额度主题夹具</a>、<a href="google-pool-quota-theme-light-graphite.html">浅色 · 石墨 — 分组额度主题夹具</a>、<a href="google-pool-quota-theme-dark-graphite.html">深色 · 石墨 — 分组额度主题夹具</a>。</p>
+  <div class="theme-grid">
+    <figure>
+      <figcaption>浅色 · 液态（默认）</figcaption>
+      <iframe src="google-pool-quota-theme-light-liquid.html" title="浅色液态额度夹具"></iframe>
+    </figure>
+    <figure>
+      <figcaption>深色 · 液态</figcaption>
+      <iframe src="google-pool-quota-theme-dark-liquid.html" title="深色液态额度夹具"></iframe>
+    </figure>
+    <figure>
+      <figcaption>浅色 · 石墨</figcaption>
+      <iframe src="google-pool-quota-theme-light-graphite.html" title="浅色石墨额度夹具"></iframe>
+    </figure>
+    <figure>
+      <figcaption>深色 · 石墨</figcaption>
+      <iframe src="google-pool-quota-theme-dark-graphite.html" title="深色石墨额度夹具"></iframe>
+    </figure>
+  </div>
+</body>
+</html>

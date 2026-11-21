@@ -40,10 +40,10 @@
   }
 
   function updateSkinControls() {
-    const select = document.getElementById('skinSelect');
-    if (select && select.value !== currentSkin) {
-      select.value = currentSkin;
-    }
+    ['skinSelect', 'cinematicSkinSelect'].forEach((id) => {
+      const select = document.getElementById(id);
+      if (select && select.value !== currentSkin) select.value = currentSkin;
+    });
   }
 
   function updateLayoutControls() {
@@ -137,9 +137,7 @@
       if (!raw) return;
       const parsed = JSON.parse(raw);
       if (parsed && typeof parsed === 'object') {
-        if (typeof parsed.theme === 'string') {
-          currentSkin = resolveStoredSkin(parsed.theme, parsed.themeVersion);
-        }
+        currentSkin = DEFAULT_SKIN;
         if (typeof parsed.layoutMode === 'string') {
           currentLayoutMode = normalizeLayoutMode(parsed.layoutMode);
         }

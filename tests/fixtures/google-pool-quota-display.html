@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Google OAuth 分组额度展示夹具（合成数据）</title>
+  <link rel="stylesheet" href="../../frontend/styles/desktop-tokens.css">
+  <link rel="stylesheet" href="../../frontend/styles/desktop-liquid.css">
+  <link rel="stylesheet" href="../../frontend/styles/desktop-layout.css">
+  <link rel="stylesheet" href="../../frontend/styles/desktop-settings-auth.css">
+  <link rel="stylesheet" href="../../frontend/styles/desktop-graphite.css">
+  <style>
+    body { margin: 0; padding: 20px; }
+    .fixture-note { margin: 0 0 16px; color: var(--desk-muted); font-size: 13px; line-height: 1.5; }
+    .desk-google-pool { width: 100%; max-width: none; }
+    /* Fixture-only: reuse the production .desk-settings token remap, but do not
+       mount the full-screen settings overlay (visibility/position live in liquid + geometry). */
+    .desk-settings.desk-settings--workbench {
+      position: static;
+      inset: auto;
+      transform: none;
+      display: block;
+      min-height: 0;
+      padding: 12px;
+      overflow: auto;
+    }
+  </style>
+</head>
+<body class="desk-app">
+  <section class="desk-settings desk-settings--workbench is-open" aria-label="设置工作台额度夹具">
+  <p class="fixture-note">只读视觉夹具，供后续浏览器截图验收。全部账号与额度都是合成数据，不含真实邮箱、token、cookie 或项目 ID。展示按 Cockpit Tools v1.4.2 精确 bucketId 映射到 Claude / Gemini / Argon / Carbon 家族，分数和重置取该官方桶；没有对应官方桶的家族不占位、不伪造数值。目录里的普通 Gemini 收成一张「目录汇总」卡，标明非官方共享池；分数与重置完全相同时去重显示共同数值，不同时在同一张卡内展示范围而不绘制误导性单条。若官方摘要已返回但没有 Argon 桶，则诚实提示未返回 Argon，不把 hydrogen 或普通 Gemini 改名为 Argon。倒计时按冻结时刻 2026-11-20 21:59:32（Asia/Shanghai，UTC+8；对应 13:59:32Z）计算，本文件无动态计时器，这不是业务缺陷。真实页面不必每秒重绘，在「刷新状态」「刷新额度」或重新进入时按当时时间计算，例如 6天23小时57分、4小时57分；整段剩余如刚好 7 天则显示 7天，不伪造分钟。真实设置中心里 .desk-google-pool 没有独立 max-width，随设置表单 100% 铺开；本夹具也不再给账号池额外限宽，且未改全局布局。配色、字体、卡片与状态色沿用本项目工作台主题 token（浅色/深色 × 液态/石墨），不复制 Cockpit 视觉，也不另建配色。本文件默认浅色·液态，内容放在与生产相同的 .desk-settings 工作台祖先内以便主题文字 token 生效；四主题对照见 google-pool-quota-themes.html。请直接打开本文件，不要从自动化 Shell 驱动浏览器。</p>
+  <div class="desk-track-switch desk-google-pool-tabs" role="tablist" aria-label="账号池类型" style="--track-count: 2; --track-index: 1; --track-from: 1; --track-elapsed: 0ms">
+        <button type="button" role="tab" data-google-pool-provider="gpt" aria-selected="false" class="">GPT 账号池</button><button type="button" role="tab" data-google-pool-provider="google" aria-selected="true" class="is-active">Google OAuth</button>
+      </div><section><h1>Google 账号</h1><div class="desk-settings-form desk-google-pool" data-google-pool-panel aria-busy="false">
+        <div class="desk-google-pool-toolbar">
+          <span class="desk-google-pool-note">已启用 · 6 个账号</span>
+          <div class="desk-settings-form__actions">
+            <button type="button" data-google-pool-action="config" title="启用或关闭 Google 账号池">关闭</button>
+            <button type="button" data-google-pool-action="status" title="读取账号状态，不请求上游改写额度缓存">刷新状态</button>
+            <button type="button" data-google-pool-action="oauth-start" class="is-primary">添加授权</button>
+          </div>
+        </div>
+        
+        <p class="desk-google-pool-note">画布线路选择「Google OAuth」即可使用。</p>
+        
+        <section class="desk-google-pool-import"><strong>导入 JSON</strong>
+          <div class="desk-google-pool-import__body">
+            <p class="desk-google-pool-note">支持 Antigravity Tools 导出，保存后不回显。</p>
+            <textarea class="desk-settings-textarea" data-google-pool-import rows="3" autocomplete="off" spellcheck="false" aria-label="Google 授权 JSON" placeholder="粘贴账号 JSON"></textarea>
+            <div class="desk-settings-form__actions"><button type="button" data-google-pool-action="accounts-import" >导入</button></div>
+          </div>
+        </section>
+        <div class="desk-google-pool-accounts"><div class="desk-google-pool-account">
+          <div class="desk-google-pool-account__head">
+            <strong title="person-a@example.test">person-a@example.test</strong>
+            <div class="desk-settings-form__actions">
+              <button type="button" data-google-pool-action="account-refresh" data-google-pool-id="fixture-a" title="刷新授权与额度">刷新额度</button>
+              <button type="button" data-google-pool-action="account-update" data-google-pool-id="fixture-a" data-google-pool-enabled="false">停用</button>
+              <button type="button" data-google-pool-action="account-delete" data-google-pool-id="fixture-a">删除</button>
+            </div>
+          </div>
+          <p class="desk-google-pool-note">已启用 · 自动续期 · 成功 2</p>
+          <div class="desk-google-pool-quota"><p class="desk-google-pool-note">本次分组额度未返回 Argon</p><div class="desk-google-pool-quota-group">
+        <div class="desk-google-pool-quota-group__head">
+          <strong title="Claude">Claude</strong>
+          
+        </div>
+        <div class="desk-google-pool-quota-grid"><div class="desk-google-pool-quota-card" title="Claude · Claude and GPT models · Models within this group: Claude Sonnet 4.6, GPT-OSS 120B · Five Hour Limit Remaining · 3p-5h · 5h · 100% · 5小时">
+        <div class="desk-google-pool-quota-card__top">
+          <span class="desk-google-pool-quota-label">Five Hour Limit Remaining</span>
+          <b>100%</b>
+        </div>
+        <div class="desk-google-pool-quota-track"><span class="desk-google-pool-quota-bar" style="width: 100%"></span></div>
+        <span class="desk-google-pool-quota-reset">5小时</span>
+      </div><div class="desk-google-pool-quota-card" title="Claude · Claude and GPT models · Models within this group: Claude Sonnet 4.6, GPT-OSS 120B · Weekly Limit Remaining · 3p-weekly · weekly · 100% · 7天">
+        <div class="desk-google-pool-quota-card__top">
+          <span class="desk-google-pool-quota-label">Weekly Limit Remaining</span>
+          <b>100%</b>
+        </div>
+        <div class="desk-google-pool-quota-track"><span class="desk-google-pool-quota-bar" style="width: 100%"></span></div>
+        <span class="desk-google-pool-quota-reset">7天</span>
+      </div></div>
+      </div><div class="desk-google-pool-quota-group">
+        <div class="desk-google-pool-quota-group__head">
+          <strong title="Gemini 额度（目录汇总）">Gemini 额度（目录汇总）</strong>
+          <span class="desk-google-pool-note" title="模型汇总，非官方共享池">模型汇总，非官方共享池</span>
+        </div>
+        <div class="desk-google-pool-quota-grid"><div class="desk-google-pool-quota-card" title="模型汇总，非官方共享池 · 1 个模型 · Flash 3.1">
+        <div class="desk-google-pool-quota-card__top">
+          <span class="desk-google-pool-quota-label">1 个模型</span>
+          <b>70%</b>
+        </div>
+        <div class="desk-google-pool-quota-track"><span class="desk-google-pool-quota-bar" style="width: 70%"></span></div>
+        <span class="desk-google-pool-quota-reset">5小时</span>
+      </div></div>
+      </div><div class="desk-google-pool-quota-group">
+        <div class="desk-google-pool-quota-group__head">
+          <strong title="其他模型额度">其他模型额度</strong>
+          
+        </div>
+        <div class="desk-google-pool-quota-grid"><div class="desk-google-pool-quota-card" title="gemini-4-argon · 重置 2026-11-20T18:59:32Z · 55% · 5小时">
+        <div class="desk-google-pool-quota-card__top">
+          <span class="desk-google-pool-quota-label">gemini-4-argon</span>
+          <b>55%</b>
+        </div>
+        <div class="desk-google-pool-quota-track"><span class="desk-google-pool-quota-bar" style="width: 55%"></span></div>
+        <span class="desk-google-pool-quota-reset">5小时</span>
+      </div></div>
+      </div></div>
+          
+        </div><div class="desk-google-pool-account">
+          <div class="desk-google-pool-account__head">
+            <strong title="person-b@example.test">person-b@example.test</strong>
+            <div class="desk-settings-form__actions">
+              <button type="button" data-google-pool-action="account-refresh" data-google-pool-id="fixture-b" title="刷新授权与额度">刷新额度</button>
+              <button type="button" data-google-pool-action="account-update" data-google-pool-id="fixture-b" data-google-pool-enabled="false">停用</button>
+              <button type="button" data-google-pool-action="account-delete" data-google-pool-id="fixture-b">删除</button>
+            </div>
+          </div>
+          <p class="desk-google-pool-note">已启用 · 自动续期 · 成功 4</p>
+          <div class="desk-google-pool-quota"><div class="desk-google-pool-quota-group">
+        <div class="desk-google-pool-quota-group__head">
+          <strong title="Claude">Claude</strong>
+          
+        </div>
+        <div class="desk-google-pool-quota-grid"><div class="desk-google-pool-quota-card" title="Claude · Shared official source · Synthetic mix for family mapping review · Five Hour Limit Remaining · 3p-5h · 5h · 40% · 5小时">
+        <div class="desk-google-pool-quota-card__top">
+          <span class="desk-google-pool-quota-label">Five Hour Limit Remaining</span>
+          <b>40%</b>
+        </div>
+        <div class="desk-google-pool-quota-track"><span class="desk-google-pool-quota-bar is-warn" style="width: 40%"></span></div>
+        <span class="desk-google-pool-quota-reset">5小时</span>
+      </div><div class="desk-google-pool-quota-card" title="Claude · Shared official source · Synthetic mix for family mapping review · Weekly Limit Remaining · 3p-weekly · weekly · 80% · 7天">
+        <div class="desk-google-pool-quota-card__top">
+          <span class="desk-google-pool-quota-label">Weekly Limit Remaining</span>
+          <b>80%</b>
+        </div>
+        <div class="desk-google-pool-quota-track"><span class="desk-google-pool-quota-bar" style="width: 80%"></span></div>
+        <span class="desk-google-pool-quota-reset">7天</span>
+      </div></div>
+      </div><div class="desk-google-pool-quota-group">
+        <div class="desk-google-pool-quota-group__head">
+          <strong title="Gemini">Gemini</strong>
+          
+        </div>
+        <div class="desk-google-pool-quota-grid"><div class="desk-google-pool-quota-card" title="Gemini · Shared official source · Synthetic mix for family mapping review · Five Hour Limit Remaining · gemini-5h · 5h · 60% · 5小时">
+        <div class="desk-google-pool-quota-card__top">
+          <span class="desk-google-pool-quota-label">Five Hour Limit Remaining</span>
+          <b>60%</b>
+        </div>
+        <div class="desk-google-pool-quota-track"><span class="desk-google-pool-quota-bar" style="width: 60%"></span></div>
+        <span class="desk-google-pool-quota-reset">5小时</span>
+      </div><div class="desk-google-pool-quota-card" title="Gemini · Shared official source · Synthetic mix for family mapping review · Weekly Limit Remaining · gemini-weekly · weekly · 80% · 7天">
+        <div class="desk-google-pool-quota-card__top">
+          <span class="desk-google-pool-quota-label">Weekly Limit Remaining</span>
+          <b>80%</b>
+        </div>
+        <div class="desk-google-pool-quota-track"><span class="desk-google-pool-quota-bar" style="width: 80%"></span></div>
+        <span class="desk-google-pool-quota-reset">7天</span>
+      </div></div>
+      </div><div class="desk-google-pool-quota-group">
+        <div class="desk-google-pool-quota-group__head">
+          <strong title="Argon">Argon</strong>
+          
+        </div>
+        <div class="desk-google-pool-quota-grid"><div class="desk-google-pool-quota-card" title="Argon · Shared official source · Synthetic mix for family mapping review · Five Hour Limit Remaining · argon:5h · 5h · 15% · 5小时">
+        <div class="desk-google-pool-quota-card__top">
+          <span class="desk-google-pool-quota-label">Five Hour Limit Remaining</span>
+          <b>15%</b>
+        </div>
+        <div class="desk-google-pool-quota-track"><span class="desk-google-pool-quota-bar is-low" style="width: 15%"></span></div>
+        <span class="desk-google-pool-quota-reset">5小时</span>
+      </div><div class="desk-google-pool-quota-card" title="Argon · Shared official source · Synthetic mix for family mapping review · Weekly Limit Remaining · argon:weekly · weekly · 90% · 7天">
+        <div class="desk-google-pool-quota-card__top">
+          <span class="desk-google-pool-quota-label">Weekly Limit Remaining</span>
+          <b>90%</b>
+        </div>
+        <div class="desk-google-pool-quota-track"><span class="desk-google-pool-quota-bar" style="width: 90%"></span></div>
+        <span class="desk-google-pool-quota-reset">7天</span>
+      </div></div>
+      </div><div class="desk-google-pool-quota-group">
+        <div class="desk-google-pool-quota-group__head">
+          <strong title="Carbon">Carbon</strong>
+          
+        </div>
+        <div class="desk-google-pool-quota-grid"><div class="desk-google-pool-quota-card" title="Carbon · Shared official source · Synthetic mix for family mapping review · Weekly Limit Remaining · carbon:weekly · weekly · 64% · 7天">
+        <div class="desk-google-pool-quota-card__top">
+          <span class="desk-google-pool-quota-label">Weekly Limit Remaining</span>
+          <b>64%</b>
+        </div>
+        <div class="desk-google-pool-quota-track"><span class="desk-google-pool-quota-bar" style="width: 64%"></span></div>
+        <span class="desk-google-pool-quota-reset">7天</span>
+      </div></div>
+      </div><div class="desk-google-pool-quota-group">
+        <div class="desk-google-pool-quota-group__head">
+          <strong title="其他额度">其他额度</strong>
+          
+        </div>
+        <div class="desk-google-pool-quota-grid"><div class="desk-google-pool-quota-card" title="其他额度 · Shared official source · Synthetic mix for family mapping review · Daily · family-daily · daily · 25% · 10小时">
+        <div class="desk-google-pool-quota-card__top">
+          <span class="desk-google-pool-quota-label">Daily</span>
+          <b>25%</b>
+        </div>
+        <div class="desk-google-pool-quota-track"><span class="desk-google-pool-quota-bar is-warn" style="width: 25%"></span></div>
+        <span class="desk-google-pool-quota-reset">10小时</span>
+      </div></div>
+      </div></div>
+          
+        </div><div class="desk-google-pool-account">
+          <div class="desk-google-pool-account__head">
+            <strong title="person-c@example.test">person-c@example.test</strong>
+            <div class="desk-settings-form__actions">
+              <button type="button" data-google-pool-action="account-refresh" data-google-pool-id="fixture-c" title="刷新授权与额度">刷新额度</button>
+              <button type="button" data-google-pool-action="account-update" data-google-pool-id="fixture-c" data-google-pool-enabled="false">停用</button>
+              <button type="button" data-google-pool-action="account-delete" data-google-pool-id="fixture-c">删除</button>
+            </div>
+          </div>
+          <p class="desk-google-pool-note">已启用 · 自动续期 · 成功 1</p>
+          <div class="desk-google-pool-quota"><p class="desk-google-pool-note">本次未返回分组，显示上次缓存</p><p class="desk-google-pool-note">本次分组额度未返回 Argon</p><div class="desk-google-pool-quota-group">
+        <div class="desk-google-pool-quota-group__head">
+          <strong title="Claude">Claude</strong>
+          
+        </div>
+        <div class="desk-google-pool-quota-grid"><div class="desk-google-pool-quota-card" title="Claude · Claude and GPT models · Models within this group: Claude Sonnet 4.6, GPT-OSS 120B · Weekly Limit Remaining · 3p-weekly · weekly · 25% · 7天">
+        <div class="desk-google-pool-quota-card__top">
+          <span class="desk-google-pool-quota-label">Weekly Limit Remaining</span>
+          <b>25%</b>
+        </div>
+        <div class="desk-google-pool-quota-track"><span class="desk-google-pool-quota-bar is-warn" style="width: 25%"></span></div>
+        <span class="desk-google-pool-quota-reset">7天</span>
+      </div></div>
+      </div></div>
+          
+        </div><div class="desk-google-pool-account">
+          <div class="desk-google-pool-account__head">
+            <strong title="person-d@example.test">person-d@example.test</strong>
+            <div class="desk-settings-form__actions">
+              <button type="button" data-google-pool-action="account-refresh" data-google-pool-id="fixture-d" title="刷新授权与额度">刷新额度</button>
+              <button type="button" data-google-pool-action="account-update" data-google-pool-id="fixture-d" data-google-pool-enabled="false">停用</button>
+              <button type="button" data-google-pool-action="account-delete" data-google-pool-id="fixture-d">删除</button>
+            </div>
+          </div>
+          <p class="desk-google-pool-note">已启用 · 自动续期 · 成功 0</p>
+          <p class="desk-google-pool-note">分组额度获取失败</p><div class="desk-google-pool-models"><span class="desk-google-pool-note">额度未读取</span></div>
+          
+        </div><div class="desk-google-pool-account">
+          <div class="desk-google-pool-account__head">
+            <strong title="person-e@example.test">person-e@example.test</strong>
+            <div class="desk-settings-form__actions">
+              <button type="button" data-google-pool-action="account-refresh" data-google-pool-id="fixture-e" title="刷新授权与额度">刷新额度</button>
+              <button type="button" data-google-pool-action="account-update" data-google-pool-id="fixture-e" data-google-pool-enabled="false">停用</button>
+              <button type="button" data-google-pool-action="account-delete" data-google-pool-id="fixture-e">删除</button>
+            </div>
+          </div>
+          <p class="desk-google-pool-note">已启用 · 自动续期 · 成功 0</p>
+          <p class="desk-google-pool-note">暂无分组额度</p><div class="desk-google-pool-models"><span class="desk-google-pool-note">额度未读取</span></div>
+          
+
+        </div><div class="desk-google-pool-account">
+          <div class="desk-google-pool-account__head">
+            <strong title="person-f@example.test">person-f@example.test</strong>
+            <div class="desk-settings-form__actions">
+              <button type="button" data-google-pool-action="account-refresh" data-google-pool-id="fixture-f" title="刷新授权与额度">刷新额度</button>
+              <button type="button" data-google-pool-action="account-update" data-google-pool-id="fixture-f" data-google-pool-enabled="false">停用</button>
+              <button type="button" data-google-pool-action="account-delete" data-google-pool-id="fixture-f">删除</button>
+            </div>
+          </div>
+          <p class="desk-google-pool-note">已启用 · 自动续期 · 成功 1</p>
+          <div class="desk-google-pool-quota"><p class="desk-google-pool-note">分组额度尚未获取</p>
+          <div class="desk-google-pool-quota-group">
+        <div class="desk-google-pool-quota-group__head">
+          <strong title="Gemini 额度（目录汇总）">Gemini 额度（目录汇总）</strong>
+          <span class="desk-google-pool-note" title="模型汇总，非官方共享池">模型汇总，非官方共享池</span>
+        </div>
+        <div class="desk-google-pool-quota-grid">
+              <div class="desk-google-pool-quota-card" title="模型汇总，非官方共享池 · 10 个模型 · Pro 3、Flash 3.1、gemini-3-pro-image、gemini-2.5-pro、gemini-2.5-flash、gemini-2.0-flash、gemini-2.0-pro、gemini-2.5-flash-image、gemini-exp-image、gemini-3-flash-image">
+                <div class="desk-google-pool-quota-card__top"><span class="desk-google-pool-quota-label">10 个模型</span><b>100%</b></div>
+                <div class="desk-google-pool-quota-track"><span class="desk-google-pool-quota-bar" style="width: 100%"></span></div>
+                <span class="desk-google-pool-quota-reset">2小时20分</span>
+              </div>
+        </div>
+      </div><div class="desk-google-pool-quota-group">
+        <div class="desk-google-pool-quota-group__head">
+          <strong title="其他模型额度">其他模型额度</strong>
+          
+        </div>
+        <div class="desk-google-pool-quota-grid">
+              <div class="desk-google-pool-quota-card" title="claude-sonnet-4-6 · 100% · 2小时20分">
+                <div class="desk-google-pool-quota-card__top"><span class="desk-google-pool-quota-label">claude-sonnet-4-6</span><b>100%</b></div>
+                <div class="desk-google-pool-quota-track"><span class="desk-google-pool-quota-bar" style="width: 100%"></span></div>
+                <span class="desk-google-pool-quota-reset">2小时20分</span>
+              </div>
+              <div class="desk-google-pool-quota-card" title="claude-sonnet-4-5 · 100% · 2小时20分">
+                <div class="desk-google-pool-quota-card__top"><span class="desk-google-pool-quota-label">claude-sonnet-4-5</span><b>100%</b></div>
+                <div class="desk-google-pool-quota-track"><span class="desk-google-pool-quota-bar" style="width: 100%"></span></div>
+                <span class="desk-google-pool-quota-reset">2小时20分</span>
+              </div>
+              <div class="desk-google-pool-quota-card" title="claude-haiku-4-5 · 100% · 2小时20分">
+                <div class="desk-google-pool-quota-card__top"><span class="desk-google-pool-quota-label">claude-haiku-4-5</span><b>100%</b></div>
+                <div class="desk-google-pool-quota-track"><span class="desk-google-pool-quota-bar" style="width: 100%"></span></div>
+                <span class="desk-google-pool-quota-reset">2小时20分</span>
+              </div>
+              <div class="desk-google-pool-quota-card" title="claude-opus-4-6 · 100% · 2小时20分">
+                <div class="desk-google-pool-quota-card__top"><span class="desk-google-pool-quota-label">claude-opus-4-6</span><b>100%</b></div>
+                <div class="desk-google-pool-quota-track"><span class="desk-google-pool-quota-bar" style="width: 100%"></span></div>
+                <span class="desk-google-pool-quota-reset">2小时20分</span>
+              </div>
+              <div class="desk-google-pool-quota-card" title="claude-opus-4-5 · 100% · 2小时20分">
+                <div class="desk-google-pool-quota-card__top"><span class="desk-google-pool-quota-label">claude-opus-4-5</span><b>100%</b></div>
+                <div class="desk-google-pool-quota-track"><span class="desk-google-pool-quota-bar" style="width: 100%"></span></div>
+                <span class="desk-google-pool-quota-reset">2小时20分</span>
+              </div>
+              <div class="desk-google-pool-quota-card" title="claude-sonnet-4 · 100% · 2小时20分">
+                <div class="desk-google-pool-quota-card__top"><span class="desk-google-pool-quota-label">claude-sonnet-4</span><b>100%</b></div>
+                <div class="desk-google-pool-quota-track"><span class="desk-google-pool-quota-bar" style="width: 100%"></span></div>
+                <span class="desk-google-pool-quota-reset">2小时20分</span>
+              </div>
+              <div class="desk-google-pool-quota-card" title="gpt-oss-120b · 100% · 2小时20分">
+                <div class="desk-google-pool-quota-card__top"><span class="desk-google-pool-quota-label">gpt-oss-120b</span><b>100%</b></div>
+                <div class="desk-google-pool-quota-track"><span class="desk-google-pool-quota-bar" style="width: 100%"></span></div>
+                <span class="desk-google-pool-quota-reset">2小时20分</span>
+              </div>
+        </div>
+      </div></div>
+          
+        </div></div>
+        <div class="desk-google-pool-account">
+          <div class="desk-google-pool-account__head">
+            <strong title="person-g@example.test">person-g@example.test</strong>
+            <div class="desk-settings-form__actions">
+              <button type="button" data-google-pool-action="account-refresh" data-google-pool-id="fixture-g" title="刷新授权与额度">刷新额度</button>
+              <button type="button" data-google-pool-action="account-update" data-google-pool-id="fixture-g" data-google-pool-enabled="false">停用</button>
+              <button type="button" data-google-pool-action="account-delete" data-google-pool-id="fixture-g">删除</button>
+            </div>
+          </div>
+          <p class="desk-google-pool-note">已启用 · 自动续期 · 成功 1</p>
+          <div class="desk-google-pool-quota"><p class="desk-google-pool-note">本次分组额度未返回 Argon</p>
+            <div class="desk-google-pool-quota-group">
+              <div class="desk-google-pool-quota-group__head">
+                <strong title="Claude">Claude</strong>
+              </div>
+              <div class="desk-google-pool-quota-grid">
+                <div class="desk-google-pool-quota-card" title="Claude · Five Hour Limit Remaining · 3p-5h · 5h · 100% · 5小时">
+                  <div class="desk-google-pool-quota-card__top"><span class="desk-google-pool-quota-label">Five Hour Limit Remaining</span><b>100%</b></div>
+                  <div class="desk-google-pool-quota-track"><span class="desk-google-pool-quota-bar" style="width: 100%"></span></div>
+                  <span class="desk-google-pool-quota-reset">5小时</span>
+                </div>
+              </div>
+            </div>
+            <div class="desk-google-pool-quota-group">
+              <div class="desk-google-pool-quota-group__head">
+                <strong title="Gemini 额度（目录汇总）">Gemini 额度（目录汇总）</strong>
+                <span class="desk-google-pool-note" title="模型汇总，非官方共享池">模型汇总，非官方共享池</span>
+              </div>
+              <div class="desk-google-pool-quota-grid">
+                <div class="desk-google-pool-quota-card" title="模型汇总，非官方共享池 · 2 个模型 · Flash 3.1、gemini-2.5-pro · 40%–100% · 重置时间不一">
+                  <div class="desk-google-pool-quota-card__top"><span class="desk-google-pool-quota-label">2 个模型</span><b>40%–100%</b></div>
+                  <span class="desk-google-pool-quota-reset">重置时间不一 · 范围 2小时20分–1天</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div></section>
+  </section>
+</body>
+</html>

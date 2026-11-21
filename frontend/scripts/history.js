@@ -118,23 +118,19 @@
 
   function handleHistoryThumbError(img, taskId, timestamp) {
     if (!img) return;
-    if (img.dataset.fallback && img.dataset.fallback !== img.src) {
-      img.src = img.dataset.fallback;
-      img.dataset.fallback = '';
+    const fallback = img.dataset.fallback || '';
+    img.dataset.fallback = '';
+    const heavy = typeof isHeavyHistoryMediaUrl === 'function' && isHeavyHistoryMediaUrl(fallback);
+    if (fallback && fallback !== img.src && !heavy) {
+      img.src = fallback;
       return;
     }
 
-    const item = markHistoryAssetMissingByIdentity(taskId, timestamp);
     const wrap = img.parentElement;
     img.style.display = 'none';
     if (wrap) {
-      wrap.classList.add('is-empty', 'is-missing');
-      if (!wrap.querySelector('.history-missing-copy')) {
-        const note = document.createElement('span');
-        note.className = 'history-missing-copy';
-        note.textContent = getHistoryAssetMissingText(item);
-        wrap.appendChild(note);
-      }
+      wrap.classList.add('is-empty');
+      wrap.classList.remove('is-pending');
     }
   }
 
@@ -381,44 +377,205 @@
     };
   }
 
-  function getHistoryThumbMeta(item) {
-    if (!item) return { src: '', fallback: '' };
+  function thumbUrlForMediaUrl(url, size) {
+    const raw = String(url || '').trim();
+    if (!raw || raw.startsWith('data:') || raw.startsWith('blob:') || /^https?:\/\//i.test(raw)) return raw;
+    let path = raw.split('?')[0].split('#')[0];
+    if (!path.startsWith('/')) path = '/' + path.replace(/^\/+/, '');
+    const parsed = Number(size);
+    const safeSize = Math.max(96, Math.min(1024, Number.isFinite(parsed) && parsed > 0 ? parsed : 420));
+    return '/thumb/' + encodeURIComponent(path) + '.webp?w=' + safeSize;
+  }
 
-    if ((item.type === 'gpt' || item.type === 'gpt-edit') && item.output_file) {
+  function isHeavyHistoryMediaUrl(url) {
+    const path = String(url || '').split('?')[0];
+    if (!path || path.startsWith('/thumb/')) return false;
+    if (/\/google_outputs\/thumb_/i.test(path)) return false;
+    if (/_(thumb|preview)\.(png|jpe?g|webp)$/i.test(path)) return false;
+    if (path.startsWith('/api/comfy/image')) return true;
+    if (path.startsWith('/image/') || path.startsWith('/video/') || path.startsWith('/archive_image/')) return true;
+    if (path.startsWith('/gpt_outputs/')) return true;
+    return /\.(mp4|webm|mov|m4v)$/i.test(path);
+  }
+
+  function isHistoryVideoItem(item) {
+    const output = String(item?.output_file || item?.result_file || item?.video_path || '');
+    const params = item?.params || {};
+    if (params.comfy_output_kind === 'video') return true;
+    if (Array.isArray(item?.video_paths) && item.video_paths.some(Boolean)) return true;
+    if (item?.video_path) return true;
+    return /\.(mp4|webm|mov|m4v)$/i.test(output);
+  }
+
+  const HISTORY_VIDEO_FILE_RE = /\.(mp4|webm|mov|m4v)(?:$|[?#])/i;
+  const HISTORY_AUDIO_FILE_RE = /\.(flac|wav|mp3|m4a|ogg|opus|aac)(?:$|[?#])/i;
+  const HISTORY_IMAGE_FILE_RE = /\.(png|jpe?g|webp|gif|bmp|tif?f)(?:$|[?#])/i;
+
+  function historyMediaPath(url) {
+    return String(url || '').trim().split('?')[0].split('#')[0];
+  }
+
+  function isHistoryVideoMediaUrl(url) {
+    const path = historyMediaPath(url);
+    if (!path) return false;
+    if (path.startsWith('/video/')) return true;
+    return HISTORY_VIDEO_FILE_RE.test(path);
+  }
+
+  function isHistoryAudioMediaUrl(url) {
+    const path = historyMediaPath(url);
+    if (!path) return false;
+    if (path.startsWith('/audio/')) return true;
+    return HISTORY_AUDIO_FILE_RE.test(path);
+  }
+
+  function isHistoryImageMediaUrl(url) {
+    const path = historyMediaPath(url);
+    if (!path || isHistoryVideoMediaUrl(path) || isHistoryAudioMediaUrl(path)) return false;
+    if (path.startsWith('/image/') || path.startsWith('/archive_image/') || path.startsWith('/gpt_outputs/') || path.startsWith('/google_outputs/')) return true;
+    return HISTORY_IMAGE_FILE_RE.test(path);
+  }
+
+  function historyImageUrlForFile(name, item) {
+    const raw = String(name || '').trim();
+    if (!raw || isHistoryVideoMediaUrl(raw) || isHistoryAudioMediaUrl(raw)) return '';
+    if (raw.startsWith('/')) return isHistoryImageMediaUrl(raw) ? raw.split('?')[0] : '';
+    if (!HISTORY_IMAGE_FILE_RE.test(raw)) return '';
+    const type = String(item?.type || '');
+    if (type === 'gpt' || type === 'gpt-edit') return '/gpt_outputs/' + raw;
+    return '/image/' + raw;
+  }
+
+  function collectHistoryImageResultUrls(item) {
+    if (!item) return [];
+    const urls = [];
+    const push = (url) => {
+      const normalized = historyMediaPath(url);
+      if (!normalized || !isHistoryImageMediaUrl(normalized) || urls.includes(normalized)) return;
+      urls.push(normalized);
+    };
+    if (Array.isArray(item.image_paths)) item.image_paths.forEach(push);
+    const files = [];
+    const pushFile = (name) => {
+      const raw = String(name || '').trim();
+      if (raw && !files.includes(raw)) files.push(raw);
+    };
+    if (Array.isArray(item.output_files)) item.output_files.forEach(pushFile);
+    if (Array.isArray(item.result_files)) item.result_files.forEach(pushFile);
+    if (item.output_file) pushFile(item.output_file);
+    if (item.result_file) pushFile(item.result_file);
+    files.forEach((name) => push(historyImageUrlForFile(name, item)));
+    if (typeof getHistoryImageSource === 'function') push(getHistoryImageSource(item));
+    return urls;
+  }
+
+  function isCompletedNonImageHistoryResult(item) {
+    if (!item) return false;
+    if (collectHistoryImageResultUrls(item).length) return false;
+    const type = String(item.type || '').toLowerCase();
+    const params = item.params && typeof item.params === 'object' ? item.params : {};
+    const artifact = String(item.artifact_type || item.kind || params.artifact_type || params.task_type || '').toLowerCase();
+    const kind = String(params.comfy_output_kind || params.output_kind || '').toLowerCase();
+    if (type === 'minimax-h3-video' || type.includes('h3-video') || type === 'cyimg-video') return true;
+    if (type === 'audio' || type === 'music' || type.endsWith('-audio') || type.includes('audio')) return true;
+    if (kind === 'video' || kind === 'audio') return true;
+    if (artifact === 'video' || artifact === 'audio') return true;
+    if (Array.isArray(item.video_paths) && item.video_paths.some(Boolean)) return true;
+    if (item.video_path) return true;
+    const names = []
+      .concat(Array.isArray(item.output_files) ? item.output_files : [])
+      .concat(Array.isArray(item.result_files) ? item.result_files : [])
+      .concat(item.output_file ? [item.output_file] : [])
+      .concat(item.result_file ? [item.result_file] : []);
+    if (names.length && names.every((name) => isHistoryVideoMediaUrl(name) || isHistoryAudioMediaUrl(name))) return true;
+    return false;
+  }
+
+  function shouldShowMobileHistoryImageCard(item) {
+    if (!item) return false;
+    if (isPendingHistoryRecord(item)) return true;
+    if (collectHistoryImageResultUrls(item).length) return true;
+    return !isCompletedNonImageHistoryResult(item);
+  }
+
+  function mobileHistoryImageDetailItem(item) {
+    const images = collectHistoryImageResultUrls(item);
+    if (!item || !images.length) return item;
+    const first = images[0];
+    const filename = decodeURIComponent(first.slice(first.lastIndexOf('/') + 1));
+    return {
+      ...item,
+      params: { ...(item.params || {}), comfy_output_kind: 'image' },
+      video_paths: [],
+      video_path: '',
+      output_file: filename || item.output_file,
+      output_files: filename ? [filename] : (item.output_files || []),
+      result_files: filename ? [filename] : (item.result_files || []),
+      image_paths: [first],
+    };
+  }
+
+  function getLiveComfyMediaUrl(item) {
+    const comfyImage = item?.params?.comfy_image || {};
+    if (!comfyImage.filename) return '';
+    const q = new URLSearchParams({
+      filename: comfyImage.filename,
+      subfolder: comfyImage.subfolder || '',
+      type: comfyImage.type || 'output'
+    });
+    return '/api/comfy/image?' + q.toString();
+  }
+
+  function firstPresentPath(values) {
+    if (!Array.isArray(values)) return '';
+    const found = values.find((value) => String(value || '').trim());
+    return found ? String(found).trim() : '';
+  }
+
+  function getHistoryMediaRef(item) {
+    if (!item) return { kind: '', src: '', fallback: '', original: '' };
+
+    if (item.type === 'gpt' || item.type === 'gpt-edit') {
+      if (!item.output_file) return { kind: 'image', src: '', fallback: '', original: '' };
+      const original = '/gpt_outputs/' + item.output_file;
       return {
-        src: '/gpt_outputs/' + item.output_file.replace('.png', '_thumb.png'),
-        fallback: '/gpt_outputs/' + item.output_file
+        kind: 'image',
+        src: '/gpt_outputs/' + String(item.output_file).replace('.png', '_thumb.png'),
+        fallback: original,
+        original,
       };
     }
 
-    if (item.type && item.type.startsWith('google') && item.output_file) {
+    if (item.type && String(item.type).startsWith('google') && item.output_file) {
+      const original = '/image/' + item.output_file;
       return {
+        kind: 'image',
         src: '/google_outputs/thumb_' + item.output_file,
-        fallback: '/image/' + item.output_file
+        fallback: original,
+        original,
       };
     }
 
     if (item.type === 'comfy') {
-      const comfyImage = item.params?.comfy_image || {};
-      if (comfyImage.filename) {
-        const q = new URLSearchParams({
-          filename: comfyImage.filename,
-          subfolder: comfyImage.subfolder || '',
-          type: comfyImage.type || 'output'
-        });
-        const url = '/api/comfy/image?' + q.toString();
-        return { src: url, fallback: url };
+      if (isHistoryVideoItem(item)) {
+        const original = firstPresentPath(item.video_paths) || item.video_path || (item.output_file ? '/video/' + item.output_file : '');
+        return { kind: 'video', src: original ? thumbUrlForMediaUrl(original) : '', fallback: '', original };
       }
+      const original = firstPresentPath(item.image_paths) || (item.output_file ? '/image/' + item.output_file : '');
+      return { kind: 'image', src: original ? thumbUrlForMediaUrl(original) : '', fallback: '', original };
     }
 
     if (item.output_file) {
-      return {
-        src: '/image/' + item.output_file,
-        fallback: '/image/' + item.output_file
-      };
+      const original = '/image/' + item.output_file;
+      return { kind: 'image', src: thumbUrlForMediaUrl(original), fallback: '', original };
     }
 
-    return { src: '', fallback: '' };
+    return { kind: '', src: '', fallback: '', original: '' };
+  }
+
+  function getHistoryThumbMeta(item) {
+    const ref = getHistoryMediaRef(item);
+    return { src: ref.src || '', fallback: ref.fallback || '', kind: ref.kind || '' };
   }
 
   function buildHistoryThumbMarkup(item, typeName, statusMeta) {
@@ -479,7 +636,7 @@
 
   function renderHistoryList() {
     const list = document.getElementById('sidebarHistoryList');
-    const filtered = applyHistoryFilters(historyRecords);
+    const filtered = applyHistoryFilters(historyRecords).filter((item) => shouldShowMobileHistoryImageCard(item));
 
     const count = document.getElementById('historyCount');
     if (count) count.textContent = `${filtered.length} / ${historyRecords.length}`;

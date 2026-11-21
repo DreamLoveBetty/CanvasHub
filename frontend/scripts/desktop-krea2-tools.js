@@ -53,7 +53,8 @@
       </article>`).join('')}</div>`;}
     function render(){
       if(!state.loaded)return card('Krea 2 模型转换',`<div class="desk-settings-empty">${state.loading?'正在读取模型工具状态…':'打开页面后读取本地模型目录。'}</div>`,false);
-      const paths=`<div class="desk-krea2-tools__paths"><div><span>Base 权重目录</span><strong title="${esc(state.data?.base_model_directory||'')}">${esc(state.data?.base_model_directory||'')}</strong></div><div><span>模型导入目录</span><strong title="${esc(state.data?.import_directory||'')}">${esc(state.data?.import_directory||'')}</strong></div></div>`;
+      const pathRow=(label,value,emptyMsg)=>`<div><span>${esc(label)}</span><strong title="${esc(value||'')}">${esc(value||'')}</strong><button type="button" class="desk-button" data-copy-model-path data-model-tools-path="${esc(value||'')}" data-model-tools-empty="${esc(emptyMsg)}" title="复制完整路径" aria-label="复制完整路径">复制路径</button></div>`;
+      const paths=`<div class="desk-krea2-tools__paths">${pathRow('Base 权重目录',state.data?.base_model_directory,'Base 权重目录路径尚未提供。请将转换后的 .safetensors 权重放到该 Base 权重目录后再复制路径。')}${pathRow('模型导入目录',state.data?.import_directory,'模型导入目录路径尚未提供。请将源 .safetensors 文件放到该导入目录后再刷新。')}</div>`;
       return card('Krea 2 模型转换',paths+formHtml(),state.data?.conversion?.status!=='failed')+card('Base 权重模型库',modelsHtml(),(state.data?.models||[]).some(item=>item.ready));
     }
     async function inspect(){if(!state.draft.sourcePath.trim())throw new Error('请填写本地 .safetensors 模型路径');state.busy=true;rerender?.();try{const reply=await api.inspectModel(state.draft.sourcePath.trim());state.inspection=reply.inspection;if(!state.draft.modelName.trim())state.draft.modelName=reply.inspection?.suggested_name||'';tell(reply.inspection?.message||'模型文件头检查完成',reply.inspection?.compatible_candidate?'success':'warning');}finally{state.busy=false;rerender?.();}}

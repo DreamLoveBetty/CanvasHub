@@ -32,7 +32,7 @@
     succeeded_no_telegram: '已保存',
     canceled: '已取消',
     failed: '失败',
-    telegram_failed: '发送失败'
+    telegram_failed: '已生成，未发送'
   };
 
   const providerLabels = {

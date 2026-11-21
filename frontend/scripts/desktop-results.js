@@ -163,6 +163,9 @@
       grid: node.querySelector('[data-result-grid]') || (resultNodeId === 'output' ? els.deskResultGrid : null),
       sendOriginal: node.querySelector('[data-send-original]') || (resultNodeId === 'output' ? els.deskSendOriginalBtn : null),
       copyPrompt: node.querySelector('[data-copy-prompt]'),
+      batchControls: node.querySelector('[data-batch-controls]'),
+      batchPause: node.querySelector('[data-batch-pause]'),
+      batchCancel: node.querySelector('[data-batch-cancel]'),
       pills: node.querySelector('[data-output-pills]') || (resultNodeId === 'output' ? els.deskOutputPills : null)
     };
   }
@@ -667,7 +670,8 @@
     };
   }
 
-  function renderOutputStatusChips(params = {}, status = '') {
+  function renderOutputStatusChips(params = {}, status = '', output = null) {
+    const chipOutput = output && typeof output === 'object' ? output : getOutputState();
     const normalizedStatus = String(status || '').toLowerCase();
     const controls = globalOutputControlParams(params);
     const archiveEnabled = controls.archiveEnabled !== false;
@@ -679,10 +683,10 @@
     }
     if (els.deskTelegramStatus) {
       const telegramFailed = normalizedStatus === 'telegram_failed';
-      els.deskTelegramStatus.textContent = telegramFailed ? 'Telegram 失败' : (telegramEnabled ? 'Telegram 开启' : 'Telegram 关闭');
-      setStatusChipTone(els.deskTelegramStatus, telegramFailed ? 'error' : (telegramEnabled ? 'ok' : 'warn'));
+      els.deskTelegramStatus.textContent = telegramFailed ? DesktopState.getStatusLabel('telegram_failed') : (telegramEnabled ? 'Telegram 开启' : 'Telegram 关闭');
+      setStatusChipTone(els.deskTelegramStatus, telegramFailed ? 'warn' : (telegramEnabled ? 'ok' : 'warn'));
       els.deskTelegramStatus.title = telegramFailed
-        ? 'Telegram 发送失败'
+        ? (chipOutput.displayError || chipOutput.error || chipOutput.progressText || '结果已生成，尚未发送到 Telegram。点击查看详情。')
         : (telegramEnabled ? '结果会发送到 Telegram' : '当前任务关闭 Telegram 发送');
     }
   }
@@ -1039,41 +1043,108 @@
     });
   }
 
+  function isBatchActive(output = {}) {
+    return Boolean(output.batchId && !['completed', 'missing'].includes(String(output.batchStatus || '')));
+  }
+
+  function batchScope(output = {}) {
+    const counts = output.batchCounts || {};
+    const total = Number(counts.total || 0);
+    const finished = (Number(counts.succeeded || 0) + Number(counts.failed || 0) + Number(counts.canceled || 0));
+    const remaining = Number(counts.queued || 0) + Number(counts.processing || 0) + Number(counts.running || 0);
+    return { total, finished, remaining: remaining || Math.max(0, total - finished) };
+  }
+
+  function confirmCancelBatch(output, confirmFn = window.confirm) {
+    const scope = batchScope(output);
+    const totalLabel = scope.total || '未知';
+    const message = `确认取消当前批量？将停止剩余 ${scope.remaining} 个未完成任务（共 ${totalLabel} 个，已完成 ${scope.finished} 个）。已生成的结果会保留。`;
+    return Boolean(confirmFn(message));
+  }
+
+  function describeStopAllScope(entries = []) {
+    const outputs = Object.values(DesktopState.state.outputs || {});
+    let single = 0;
+    let batches = 0;
+    let batchRemaining = 0;
+    for (const entry of entries) {
+      const key = String(entry.key || '');
+      const marker = 'batch:';
+      if (key.includes(marker)) {
+        batches += 1;
+        const batchId = key.slice(key.lastIndexOf(marker) + marker.length);
+        const output = outputs.find(item => item?.batchId === batchId);
+        const scope = batchScope(output || {});
+        batchRemaining += scope.remaining || 1;
+      } else {
+        single += 1;
+      }
+    }
+    return { total: single + batchRemaining, single, batches, batchRemaining, entryCount: entries.length };
+  }
+
+  function confirmStopAllTasks(entries, confirmFn = window.confirm) {
+    const scope = describeStopAllScope(entries);
+    const countLabel = scope.total || scope.entryCount;
+    const detail = scope.batches
+      ? `（单任务 ${scope.single} 个，批量 ${scope.batches} 组剩余 ${scope.batchRemaining} 个）`
+      : '';
+    const message = `确认停止全部正在进行的任务？将影响 ${countLabel} 个任务${detail}。已生成的结果会保留。`;
+    return Boolean(confirmFn(message));
+  }
+
+  function syncExportAndBatchActions(resultEls = {}, output = {}, options = {}) {
+    const batchActive = isBatchActive(output);
+    const hasSelection = (options.selectedCount ?? (Array.isArray(output.selectedFiles) ? output.selectedFiles.length : 0) ?? 0) > 0
+      || (Array.isArray(output.files) && output.files.length > 0 && options.selectedCount == null);
+    const promptText = options.prompt ?? output.prompt ?? '';
+    if (resultEls.sendOriginal) {
+      delete resultEls.sendOriginal.dataset.batchAction;
+      if (!resultEls.sendOriginal.dataset.busy) {
+        resultEls.sendOriginal.textContent = '手动发送';
+      }
+      resultEls.sendOriginal.disabled = Boolean(resultEls.sendOriginal.dataset.busy) || !hasSelection;
+    }
+    if (resultEls.copyPrompt) {
+      delete resultEls.copyPrompt.dataset.batchAction;
+      resultEls.copyPrompt.textContent = '复制提示词';
+      resultEls.copyPrompt.disabled = !promptText;
+    }
+    if (resultEls.batchPause) {
+      resultEls.batchPause.hidden = !batchActive;
+      resultEls.batchPause.disabled = !batchActive;
+      resultEls.batchPause.textContent = output.batchStatus === 'paused' ? '继续批量' : '暂停批量';
+      if (batchActive) {
+        resultEls.batchPause.dataset.batchAction = output.batchStatus === 'paused' ? 'resume' : 'pause';
+      } else {
+        delete resultEls.batchPause.dataset.batchAction;
+      }
+    }
+    if (resultEls.batchCancel) {
+      resultEls.batchCancel.hidden = !batchActive;
+      resultEls.batchCancel.disabled = !batchActive;
+      resultEls.batchCancel.textContent = '取消批量';
+      if (batchActive) resultEls.batchCancel.dataset.batchAction = 'cancel';
+      else delete resultEls.batchCancel.dataset.batchAction;
+    }
+    if (resultEls.batchControls) {
+      resultEls.batchControls.hidden = !batchActive;
+    }
+    return resultEls;
+  }
+
   function renderActions(resultNodeId = DEFAULT_RESULT_NODE_ID) {
     const resultEls = getResultEls(resultNodeId);
     const output = getOutputState(resultNodeId);
-    const batchActive = output.batchId && !['completed', 'missing'].includes(String(output.batchStatus || ''));
-    const allFiles = uniqueFiles(output.files);
+    if (resultEls.sendOriginal && window.DesktopFileResults?.isFileResultNode?.(resultNodeId)) {
+      window.DesktopFileResults.renderActions(resultNodeId, output, resultEls);
+      return;
+    }
     const selectedFiles = getExportFiles(resultNodeId);
-    const hasSelection = selectedFiles.length > 0;
-    if (resultEls.sendOriginal) {
-      if (window.DesktopFileResults?.isFileResultNode?.(resultNodeId)) {
-        window.DesktopFileResults.renderActions(resultNodeId, output, resultEls);
-        return;
-      }
-      if (batchActive) {
-        resultEls.sendOriginal.disabled = false;
-        resultEls.sendOriginal.textContent = output.batchStatus === 'paused' ? '继续批量' : '暂停批量';
-        resultEls.sendOriginal.dataset.batchAction = output.batchStatus === 'paused' ? 'resume' : 'pause';
-      } else {
-        delete resultEls.sendOriginal.dataset.batchAction;
-        resultEls.sendOriginal.disabled = !hasSelection;
-        if (!resultEls.sendOriginal.dataset.busy) {
-          resultEls.sendOriginal.textContent = '手动发送';
-        }
-      }
-    }
-    if (resultEls.copyPrompt) {
-      if (batchActive) {
-        resultEls.copyPrompt.disabled = false;
-        resultEls.copyPrompt.textContent = '取消批量';
-        resultEls.copyPrompt.dataset.batchAction = 'cancel';
-      } else {
-        delete resultEls.copyPrompt.dataset.batchAction;
-        resultEls.copyPrompt.textContent = '复制提示词';
-        resultEls.copyPrompt.disabled = !output.prompt && !DesktopState.state.prompt;
-      }
-    }
+    syncExportAndBatchActions(resultEls, output, {
+      selectedCount: selectedFiles.length,
+      prompt: output.prompt || DesktopState.state.prompt || ''
+    });
   }
 
   function renderPills(task, resultNodeId = DEFAULT_RESULT_NODE_ID) {
@@ -1133,7 +1204,7 @@
       : (Array.isArray(task?.output_files) ? task.output_files : []);
     const imagePaths = normalizeTaskImagePaths(task, resultFiles);
     const params = getTaskParams(task);
-    renderOutputStatusChips(params, status);
+    renderOutputStatusChips(params, status, output);
     syncSelectedFiles(output, resultFiles);
     const nowSeconds = Math.floor(Date.now() / 1000);
     const incomingStartedAt = Number(task?.started_at || task?.created_at || 0);
@@ -1608,19 +1679,32 @@
     return results;
   }
 
-  async function controlBatch(resultNodeId, action) {
+  const batchControlInflight = new Map();
+
+  async function controlBatch(resultNodeId, action, options = {}) {
     const output = getOutputState(resultNodeId);
     if (!output.batchId) throw new Error('没有正在跟踪的批量任务');
-    const summary = await DesktopApi.controlBatch(output.batchId, action);
-    applyBatchSummary(summary, resultNodeId);
-    showTransientMessage(summary.message || '批量状态已更新。', action === 'cancel' ? 'error' : 'success');
-    if (summary.status !== 'completed' && summary.status !== 'missing') {
-      scheduleBatchPoll(resultNodeId, output.batchId, 1200);
-    } else {
-      stopBatchPolling(resultNodeId);
-      DesktopHistory.loadHistory().catch(() => {});
+    if (action === 'cancel') {
+      const confirmFn = options.confirm || (message => window.confirm(message));
+      if (!confirmCancelBatch(output, confirmFn)) return { skipped: 'dismissed' };
     }
-    return summary;
+    const key = `${resultNodeId}:${action}`;
+    if (batchControlInflight.has(key)) return { skipped: 'busy' };
+    batchControlInflight.set(key, true);
+    try {
+      const summary = await DesktopApi.controlBatch(output.batchId, action);
+      applyBatchSummary(summary, resultNodeId);
+      showTransientMessage(summary.message || '批量状态已更新。', action === 'cancel' ? 'error' : 'success');
+      if (summary.status !== 'completed' && summary.status !== 'missing') {
+        scheduleBatchPoll(resultNodeId, output.batchId, 1200);
+      } else {
+        stopBatchPolling(resultNodeId);
+        DesktopHistory.loadHistory().catch(() => {});
+      }
+      return summary;
+    } finally {
+      batchControlInflight.delete(key);
+    }
   }
 
   async function submitAndTrack() {
@@ -1774,14 +1858,29 @@
     }, 3600);
   }
 
-  async function cancelActiveTasks() {
-    const {total, failed} = await DesktopCanvas.getTaskRegistry().cancelAll();
-    if (!total) { showTransientMessage('没有正在生成的任务。'); return; }
-    // Domain cancellation callbacks own pollers. A failed request must keep polling
-    // and remain retryable; never stop every module's timers from the status UI.
-    if (failed) showTransientMessage(`${total - failed}/${total} 个任务已发送停止请求，${failed} 个取消失败。`);
-    else showTransientMessage(total > 1 ? `${total} 个任务已发送停止请求。` : '任务已发送停止请求。');
-    DesktopHistory.loadHistory().catch(() => {});
+  let cancelAllInflight = false;
+
+  async function cancelActiveTasks(options = {}) {
+    const registry = DesktopCanvas.getTaskRegistry();
+    const entries = registry.listCancelable();
+    const listed = entries.length;
+    if (!listed) { showTransientMessage('没有正在生成的任务。'); return { skipped: 'empty', total: 0 }; }
+    const confirmFn = options.confirm || (message => window.confirm(message));
+    if (!confirmStopAllTasks(entries, confirmFn)) return { skipped: 'dismissed', total: listed };
+    if (cancelAllInflight) return { skipped: 'busy' };
+    cancelAllInflight = true;
+    try {
+      const {total, failed} = await DesktopCanvas.getTaskRegistry().cancelAll();
+      if (!total) { showTransientMessage('没有正在生成的任务。'); return { skipped: 'empty', total: 0 }; }
+      // Domain cancellation callbacks own pollers. A failed request must keep polling
+      // and remain retryable; never stop every module's timers from the status UI.
+      if (failed) showTransientMessage(`${total - failed}/${total} 个任务已发送停止请求，${failed} 个取消失败。`);
+      else showTransientMessage(total > 1 ? `${total} 个任务已发送停止请求。` : '任务已发送停止请求。');
+      DesktopHistory.loadHistory().catch(() => {});
+      return { total, failed };
+    } finally {
+      cancelAllInflight = false;
+    }
   }
 
   function bindActions() {
@@ -1827,15 +1926,22 @@
     });
 
     document.addEventListener('click', async event => {
+      const batchButton = event.target.closest('[data-batch-pause], [data-batch-cancel]');
+      if (batchButton) {
+        const node = batchButton.closest('.desk-node[data-node-id]');
+        const resultNodeId = node?.dataset.nodeId || DEFAULT_RESULT_NODE_ID;
+        const batchAction = batchButton.dataset.batchAction || (batchButton.matches('[data-batch-cancel]') ? 'cancel' : 'pause');
+        batchButton.disabled = true;
+        controlBatch(resultNodeId, batchAction)
+          .catch(error => showError(error, resultNodeId))
+          .finally(() => renderActions(resultNodeId));
+        return;
+      }
+
       const sendButton = event.target.closest('[data-send-original], #deskSendOriginalBtn');
       if (sendButton) {
         const node = sendButton.closest('.desk-node[data-node-id]');
-        const resultNodeId = node?.dataset.nodeId || 'output';
-        const batchAction = sendButton.dataset.batchAction;
-        if (batchAction) {
-          controlBatch(resultNodeId, batchAction).catch(error => showError(error, resultNodeId));
-          return;
-        }
+        const resultNodeId = node?.dataset.nodeId || DEFAULT_RESULT_NODE_ID;
         try {
           const files = getExportFiles(resultNodeId);
           if (!files.length) throw new Error('没有可发送的原图');
@@ -1865,12 +1971,7 @@
       const copyButton = event.target.closest('[data-copy-prompt]');
       if (copyButton) {
         const node = copyButton.closest('.desk-node[data-node-id]');
-        const resultNodeId = node?.dataset.nodeId || 'output';
-        const batchAction = copyButton.dataset.batchAction;
-        if (batchAction) {
-          controlBatch(resultNodeId, batchAction).catch(error => showError(error, resultNodeId));
-          return;
-        }
+        const resultNodeId = node?.dataset.nodeId || DEFAULT_RESULT_NODE_ID;
         try {
           await navigator.clipboard.writeText(getOutputState(resultNodeId).prompt || DesktopState.state.prompt || '');
           showTransientMessage('提示词已复制。');
@@ -1909,6 +2010,33 @@
     startSidecarStatusPolling();
   }
 
+
+  const telegramResendInflight = new Set();
+
+  async function resendArchivedTelegram(taskId, options = {}) {
+    const id = String(taskId || '').trim();
+    if (!id) throw new Error('缺少 task_id');
+    const retryTask = options.retryTask || DesktopApi.retryTask?.bind(DesktopApi);
+    const notify = options.notify || ((message, tone) => showTransientMessage(message, tone || 'info'));
+    if (!retryTask) throw new Error('补发接口不可用');
+    if (telegramResendInflight.has(id)) return { skipped: 'busy', task_id: id };
+    telegramResendInflight.add(id);
+    try {
+      const task = await retryTask(id);
+      if (task?.resent === true) {
+        notify(task.message || '已补发到 Telegram，未重新生成。', 'success');
+        DesktopHistory?.loadHistory?.().catch(() => {});
+        return task;
+      }
+      throw new Error(task?.message || '补发未完成，未重新生成。');
+    } catch (error) {
+      notify(error?.message || '补发失败。', 'error');
+      throw error;
+    } finally {
+      telegramResendInflight.delete(id);
+    }
+  }
+
   window.DesktopResults = {
     init,
     submitAndTrack,
@@ -1926,6 +2054,11 @@
     resetOutput,
     renderIdleProviderHint,
     applyTask,
-    trackRetriedTask
+    trackRetriedTask,
+    resendArchivedTelegram,
+    renderActions,
+    syncExportAndBatchActions,
+    controlBatch,
+    cancelActiveTasks
   };
 })();

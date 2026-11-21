@@ -46,10 +46,7 @@
       .then((base64) => {
         uploadedImages = [{ id: Date.now(), base64 }];
         renderGrid();
-        openGoogleSubview('edit');
-        setTextareaValue('editPrompt', item.prompt || '');
-        if (item.params?.ratio) pickRatioEdit(item.params.ratio);
-        hydrateCinematicPrompt(item.prompt || '');
+        enterGoogleEditComposer(item);
         syncCinematicComposerUi();
         if (notify) {
           showStatusMessage('作品已带入 Edit，可以继续调整。', 'success');
@@ -61,6 +58,92 @@
           markHistoryAssetMissing(item);
           if (fallbackToParamsOnly) {
             return refillGoogleEditWithoutImage(item, { notify });
+          }
+          showStatusMessage('这条记录的图片文件已丢失，暂时无法继续编辑。', 'error');
+          return { missingAsset: true };
+        }
+        showStatusMessage('图片暂时没加载出来，稍后再试。', 'error');
+      });
+  }
+
+  function enterGoogleEditComposer(item) {
+    if (typeof closeCinematicComfyWorkbench === 'function') {
+      closeCinematicComfyWorkbench();
+    }
+    currentCinematicProvider = 'google';
+    cinematicRevealState.provider = true;
+    cinematicRevealState.model = true;
+    cinematicRevealState.quality = true;
+    openGoogleSubview('edit');
+    setTextareaValue('editPrompt', item?.prompt || '');
+    if (item?.params?.ratio) pickRatioEdit(item.params.ratio);
+    if (item?.params?.feature) pickFeature(item.params.feature);
+    if (item?.params?.quality) pickQuality(item.params.quality);
+    if (item?.params?.model) pickModel('edit', item.params.model);
+    hydrateCinematicPrompt(item?.prompt || '');
+  }
+
+  function restoreGptProviderRouteFromHistory(item) {
+    const params = item && item.params;
+    if (!params || typeof params !== 'object') return;
+    if (Object.prototype.hasOwnProperty.call(params, 'gpt_provider_route')) {
+      pickProviderRouteGpt(params.gpt_provider_route);
+      return;
+    }
+    if (params.use_third_party_api === true) {
+      pickProviderRouteGpt('third_party_image_api');
+    }
+  }
+
+  function refillGptEditWithoutImage(item, options = {}) {
+    const { notify = true } = options;
+    if (!item) return Promise.resolve({ missingAsset: true });
+
+    markHistoryAssetMissing(item);
+    if (uploadedImages.length) {
+      uploadedImages = [];
+      renderGrid();
+    } else {
+      syncCinematicComposerUi();
+    }
+
+    return applyGptItemToComposer(item).then(() => {
+      if (notify) {
+        showStatusMessage('原始图片文件已丢失，已回填提示词和参数，请重新上传参考图。', 'info');
+      }
+      return { missingAsset: true };
+    });
+  }
+
+  function continueGptEditFromItem(item, options = {}) {
+    const { notify = true, fallbackToParamsOnly = false } = options;
+    if (!item) return Promise.resolve();
+    const imageUrl = getHistoryImageSource(item);
+    if (!imageUrl) {
+      showStatusMessage('这条记录还没有可继续编辑的图片。', 'info');
+      return Promise.resolve();
+    }
+
+    showStatusMessage('正在把作品带到编辑区...', 'info');
+    return loadImageAsDataUrl(imageUrl)
+      .then((base64) => {
+        uploadedImages = [{ id: Date.now(), base64 }];
+        renderGrid();
+        return applyGptItemToComposer(item).then(() => {
+          if (typeof closeCinematicComfyWorkbench === 'function') {
+            closeCinematicComfyWorkbench();
+          }
+          if (notify) {
+            showStatusMessage('作品已带入 GPT 编辑，可以继续调整。', 'success');
+          }
+        });
+      })
+      .catch((error) => {
+        const failedByMissingFile = String(error?.message || '').includes('HTTP 404');
+        if (failedByMissingFile) {
+          markHistoryAssetMissing(item);
+          if (fallbackToParamsOnly) {
+            return refillGptEditWithoutImage(item, { notify });
           }
           showStatusMessage('这条记录的图片文件已丢失，暂时无法继续编辑。', 'error');
           return { missingAsset: true };
@@ -97,15 +180,20 @@
     if (item.params?.quality) pickQualityGpt(item.params.quality);
     if (item.params?.image_count) pickImageCountGpt(item.params.image_count);
     if (item.params?.moderation) pickModerationGpt(item.params.moderation);
+    restoreGptProviderRouteFromHistory(item);
     return Promise.resolve();
   }
 
   function applyComfyItemToComposer(item) {
-    switchTab('comfy');
     setTextareaValue('comfyPrompt', item.prompt || '');
     if (item.params?.ratio) pickRatioComfy(item.params.ratio);
     if (item.params?.workflow) {
       pickComfyWorkflow(item.params.workflow);
+    }
+    if (typeof openCinematicComfyWorkbench === 'function') {
+      openCinematicComfyWorkbench();
+    } else {
+      switchTab('comfy');
     }
     return loadComfyWorkflows().then(() => {
       const sel = document.getElementById('comfyWorkflow');
@@ -179,6 +267,7 @@
       if (item.params?.quality) pickQualityGpt(item.params.quality);
       if (item.params?.image_count) pickImageCountGpt(item.params.image_count);
       if (item.params?.moderation) pickModerationGpt(item.params.moderation);
+      restoreGptProviderRouteFromHistory(item);
       return;
     }
 
@@ -232,12 +321,18 @@
 
   function retryCinematicHistoryItem(item) {
     if (!item) return;
-    const wantsEdit = item.type === 'google-edit' && getHistoryImageSource(item);
-    const runner = wantsEdit
+    const imageSource = getHistoryImageSource(item);
+    const wantsGoogleEdit = item.type === 'google-edit' && imageSource;
+    const wantsGptEdit = item.type === 'gpt-edit' && imageSource;
+    const runner = wantsGoogleEdit
       ? (isHistoryAssetMissing(item)
         ? refillGoogleEditWithoutImage(item, { notify: false })
         : continueEditFromItem(item, { notify: false, fallbackToParamsOnly: true }))
-      : applyItemToComposer(item);
+      : wantsGptEdit
+        ? (isHistoryAssetMissing(item)
+          ? refillGptEditWithoutImage(item, { notify: false })
+          : continueGptEditFromItem(item, { notify: false, fallbackToParamsOnly: true }))
+        : applyItemToComposer(item);
     return Promise.resolve(runner).then((result) => {
       const missingAsset = !!result?.missingAsset;
       syncCinematicComposerFromHistoryItem(item);
@@ -265,19 +360,17 @@
   }
 
   function getHistoryImageSource(item) {
+    if (typeof getHistoryMediaRef === 'function') {
+      const ref = getHistoryMediaRef(item);
+      return (ref && (ref.original || ref.src)) || '';
+    }
     if (!item || !item.output_file) return '';
     if (item.type === 'gpt' || item.type === 'gpt-edit') return '/gpt_outputs/' + item.output_file;
     if (item.type === 'comfy') {
-      const comfyImage = item.params?.comfy_image || {};
-      if (comfyImage.filename) {
-        const q = new URLSearchParams({
-          filename: comfyImage.filename,
-          subfolder: comfyImage.subfolder || '',
-          type: comfyImage.type || 'output'
-        });
-        return '/api/comfy/image?' + q.toString();
+      if (item.params?.comfy_output_kind === 'video' || /\.(mp4|webm|mov|m4v)$/i.test(item.output_file)) {
+        return '/video/' + item.output_file;
       }
-      return '';
+      return '/image/' + item.output_file;
     }
     return '/image/' + item.output_file;
   }

@@ -567,3 +567,7 @@ body.desk-app[data-theme] .auth-title {
 body.desk-app[data-theme] .auth-message {
   color: var(--desk-auth-message-ink);
 }
+
+body.desk-app[data-theme] .desk-settings-restart-hint {
+  color: var(--desk-settings-summary-warn-ink);
+}

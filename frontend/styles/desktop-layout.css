@@ -1564,5 +1564,27 @@
 .desk-app .desk-google-pool-model b { flex: none; white-space: nowrap; color: var(--desk-ink); }
 .desk-app .desk-google-pool-error { color: var(--desk-red, #b42348); font-size: var(--desk-font-size-micro); }
 .desk-app .desk-google-pool-empty { padding: 8px 0 2px; color: var(--desk-muted); font-size: var(--desk-font-size-caption); }
+.desk-app .desk-google-pool-quota { display: grid; gap: 8px; min-width: 0; }
+.desk-app .desk-google-pool-quota-families { display: flex; flex-wrap: wrap; align-items: stretch; gap: 6px; min-width: 0; }
+.desk-app .desk-google-pool-quota-family { display: grid; gap: 4px; box-sizing: border-box; flex: 1 1 10.5rem; min-width: min(100%, 10.5rem); max-width: 16rem; padding: 6px 7px; border: 1px solid var(--desk-settings-pool-chip-border, var(--desk-line)); border-radius: 7px; background: var(--desk-settings-account-background, transparent); }
+.desk-app .desk-google-pool-quota-family > strong { min-width: 0; overflow-wrap: anywhere; white-space: normal; font-size: var(--desk-font-size-caption); color: var(--desk-ink); }
+.desk-app .desk-google-pool-quota-family__row { display: grid; gap: 2px; min-width: 0; }
+.desk-app .desk-google-pool-quota-group { display: grid; gap: 5px; min-width: 0; }
+.desk-app .desk-google-pool-quota-group__head { display: grid; gap: 2px; min-width: 0; }
+.desk-app .desk-google-pool-quota-group__head strong { min-width: 0; overflow-wrap: anywhere; white-space: normal; font-size: var(--desk-font-size-caption); color: var(--desk-ink); }
+.desk-app .desk-google-pool-quota-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 10.5rem), 1fr)); gap: 6px; }
+.desk-app .desk-google-pool-quota-card { display: grid; gap: 4px; min-width: 0; padding: 6px 7px; border: 1px solid var(--desk-settings-pool-chip-border, var(--desk-line)); border-radius: 7px; background: var(--desk-settings-account-background, transparent); }
+.desk-app .desk-google-pool-quota-card__top { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; min-width: 0; }
+.desk-app .desk-google-pool-quota-meta { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 6px; min-width: 0; flex: 1 1 auto; }
+.desk-app .desk-google-pool-quota-label { min-width: 0; overflow-wrap: anywhere; color: var(--desk-muted); font-size: var(--desk-font-size-micro); }
+.desk-app .desk-google-pool-quota-card b { flex: none; color: var(--desk-ink); font-size: var(--desk-font-size-micro); }
+.desk-app .desk-google-pool-quota-family b { flex: none; color: var(--desk-ink); font-size: var(--desk-font-size-micro); }
+.desk-app .desk-google-pool-quota-family .desk-google-pool-quota-label { white-space: normal; overflow-wrap: anywhere; overflow: visible; text-overflow: unset; }
+.desk-app .desk-google-pool-quota-track { height: 4px; overflow: hidden; border-radius: 999px; background: var(--desk-file-progress-background, var(--desk-line)); }
+.desk-app .desk-google-pool-quota-bar { display: block; height: 100%; border-radius: inherit; background: var(--desk-status-live-dot); }
+.desk-app .desk-google-pool-quota-bar.is-warn { background: var(--desk-status-warning-dot); }
+.desk-app .desk-google-pool-quota-bar.is-low { background: var(--desk-status-error-dot); }
+.desk-app .desk-google-pool-quota-reset { color: var(--desk-muted); font-size: var(--desk-font-size-micro); overflow-wrap: anywhere; min-width: 0; }
+
 
 .desk-app .desk-param-grid > label:has([data-field="googleProviderRoute"]) { grid-column: span 2; }

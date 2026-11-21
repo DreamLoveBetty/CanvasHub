@@ -397,7 +397,14 @@
             <label class="desk-switch"><input type="checkbox" ${telegramChecked ? 'checked' : ''} data-output-telegram><span></span><em>发送到 Telegram</em></label>
             <label class="desk-switch"><input type="checkbox" ${batchChecked ? 'checked' : ''} data-field="batchMode"><span></span><em>批量</em></label>
           </div>
-          <button type="button" class="desk-button desk-button--primary desk-manual-send" data-send-original disabled>手动发送</button>
+          <div class="desk-export-actions">
+            <button type="button" class="desk-button desk-button--primary desk-manual-send" data-send-original disabled>手动发送</button>
+            <button type="button" class="desk-button" data-copy-prompt disabled>复制提示词</button>
+          </div>
+          <div class="desk-batch-controls" data-batch-controls hidden>
+            <button type="button" class="desk-button" data-batch-pause>暂停批量</button>
+            <button type="button" class="desk-button desk-button--danger" data-batch-cancel>取消批量</button>
+          </div>
           <div class="desk-action-row">
             <button type="button" class="desk-generation-action" data-result-run title="开始生成" aria-label="开始生成">
               <svg viewBox="0 0 24 24" aria-hidden="true">

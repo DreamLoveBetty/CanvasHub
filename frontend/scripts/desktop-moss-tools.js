@@ -26,6 +26,7 @@
     }
     const card=(title,body,ok)=>`<section class="desk-settings-card ${ok?'is-ok':'is-warn'} desk-moss-tools"><header><span class="desk-settings-dot" aria-hidden="true"></span><h3>${esc(title)}</h3></header><div class="desk-settings-card__body">${body}</div></section>`;
     const row=(label,value)=>`<div class="desk-moss-tools__row"><span>${esc(label)}</span><strong title="${esc(value)}">${esc(value)}</strong></div>`;
+    const pathRow=(label,value,emptyMsg)=>`<div><span>${esc(label)}</span><strong title="${esc(value||'')}">${esc(value||'')}</strong><button type="button" class="desk-button" data-copy-model-path data-model-tools-path="${esc(value||'')}" data-model-tools-empty="${esc(emptyMsg)}" title="复制完整路径" aria-label="复制完整路径">复制路径</button></div>`;
     function render(){
       if(!state.loaded)return card('MOSS 环境',`<div class="desk-settings-empty">${state.loading?'正在读取 MOSS 状态…':'打开页面后读取 MOSS 状态。'}</div>`,false);
       const data=state.data,model=data.model||{},operation=data.preparation||{},versions=data.versions||{},isRunning=running(),locked=isRunning||state.busy;
@@ -46,7 +47,7 @@
     function renderBases(){
       const tools=state.tools||{},imports=tools.import_models||[],locked=converting()||state.busy,selected=state.draft.sourceName,invalid=state.inspection&&!state.inspection.compatible_candidate;
       const options=imports.map(item=>`<option value="${esc(item.source_name)}"${item.source_name===selected?' selected':''}>${esc(item.source_name)} · ${bytes(item.file_size)}</option>`).join('');
-      return card('MOSS 模型转换',`<div class="desk-qwen21-tools__paths"><div><span>Base 权重目录</span><strong title="${esc(tools.base_model_directory||'')}">${esc(tools.base_model_directory||'')}</strong></div><div><span>模型导入目录</span><strong title="${esc(tools.import_directory||'')}">${esc(tools.import_directory||'')}</strong></div></div>
+      return card('MOSS 模型转换',`<div class="desk-qwen21-tools__paths">${pathRow('Base 权重目录',tools.base_model_directory,'Base 权重目录路径尚未提供。请将转换后的 .safetensors 权重放到该 Base 权重目录后再复制路径。')}${pathRow('模型导入目录',tools.import_directory,'模型导入目录路径尚未提供。请将源 .safetensors 文件放到该导入目录后再刷新。')}</div>
         <div class="desk-qwen21-tools__form"><label class="desk-qwen21-tools__wide"><span>源模型</span><select class="desk-select" data-moss-base-field="sourceName" ${locked?'disabled':''}><option value="">${imports.length?'选择导入目录内的模型…':'导入目录内暂无模型'}</option>${options}</select></label>
         <label class="desk-qwen21-tools__wide"><span>转换后显示名称</span><input class="desk-input" type="text" maxlength="120" data-moss-base-field="modelName" value="${esc(state.draft.modelName)}" placeholder="检查后自动读取，也可手动修改" ${locked?'disabled':''}></label>
         ${inspectionHtml()}<div class="desk-settings-form__actions desk-qwen21-tools__actions"><button type="button" data-moss-model-refresh ${locked?'disabled':''}>刷新目录</button><button type="button" data-moss-model-inspect ${locked||!selected?'disabled':''}>检查兼容性</button><button type="button" class="is-primary" data-moss-model-convert ${locked||!selected||invalid?'disabled':''}>开始转换</button></div></div>

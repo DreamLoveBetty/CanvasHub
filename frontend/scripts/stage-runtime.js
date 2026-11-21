@@ -116,7 +116,19 @@
       };
     }
 
-    if (['succeeded', 'succeeded_no_telegram', 'success'].includes(rawStatus)) {
+    const delivery = typeof describeGoogleSharedTerminalStatus === 'function'
+      ? describeGoogleSharedTerminalStatus(task)
+      : null;
+    if (rawStatus === 'succeeded_no_telegram') {
+      return {
+        state: 'success',
+        tone: 'success',
+        message: delivery?.stageText || '生成完成，作品已保存。',
+        buttonLabel: SUBMIT_BUTTON_DEFAULTS[STAGE_BUTTON_IDS[key]],
+        buttonBusy: false
+      };
+    }
+    if (['succeeded', 'success'].includes(rawStatus)) {
       const successText = progressText || (
         key === 'gpt'
           ? '后台任务已完成，图片会自动发送到 Telegram。'
@@ -133,7 +145,17 @@
       };
     }
 
-    if (['failed', 'telegram_failed'].includes(rawStatus)) {
+    if (rawStatus === 'telegram_failed') {
+      return {
+        state: delivery?.state || 'warn',
+        tone: delivery?.stageTone || 'warn',
+        message: delivery?.stageText || ('已生成，未发送' + (errorText && errorText !== '任务处理失败，请稍后重试。' ? '：' + errorText : '')),
+        buttonLabel: SUBMIT_BUTTON_DEFAULTS[STAGE_BUTTON_IDS[key]],
+        buttonBusy: false
+      };
+    }
+
+    if (rawStatus === 'failed') {
       return {
         state: 'error',
         tone: 'error',

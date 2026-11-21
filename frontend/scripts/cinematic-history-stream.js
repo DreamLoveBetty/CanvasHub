@@ -43,9 +43,11 @@
     if (!img) return;
     img.__onMissing = onMissing;
     img.onerror = function onThumbError() {
-      if (this.dataset.fallback && this.dataset.fallback !== this.src) {
-        this.src = this.dataset.fallback;
-        this.dataset.fallback = '';
+      const fallback = this.dataset.fallback || '';
+      this.dataset.fallback = '';
+      const heavy = typeof isHeavyHistoryMediaUrl === 'function' && isHeavyHistoryMediaUrl(fallback);
+      if (fallback && fallback !== this.src && !heavy) {
+        this.src = fallback;
         return;
       }
       if (typeof this.__onMissing === 'function') this.__onMissing();
@@ -72,6 +74,9 @@
   }
 
   function getCinematicHistoryImageUrls(item) {
+    if (typeof collectHistoryImageResultUrls === 'function') {
+      return collectHistoryImageResultUrls(item);
+    }
     if (!item) return [];
     const urls = [];
     const pushUrl = (url) => {
@@ -90,7 +95,7 @@
 
     const primary = getHistoryImageSource(item);
     if (primary) pushUrl(primary);
-    return urls;
+    return urls.filter((url) => typeof isHistoryImageMediaUrl !== 'function' || isHistoryImageMediaUrl(url));
   }
 
   function getCinematicGptFilenameFromUrl(url) {
@@ -105,7 +110,36 @@
     if (path.includes('/gpt_outputs/') && path.toLowerCase().endsWith('.png') && !path.toLowerCase().endsWith('_thumb.png')) {
       return `${path.slice(0, -4)}_thumb.png${query ? `?${query}` : ''}`;
     }
+    if (typeof isHeavyHistoryMediaUrl === 'function' && isHeavyHistoryMediaUrl(path) && typeof thumbUrlForMediaUrl === 'function') {
+      return thumbUrlForMediaUrl(path);
+    }
     return rawUrl;
+  }
+
+  function cinematicCardThumbMeta(item) {
+    const imageUrls = getCinematicHistoryImageUrls(item);
+    const original = imageUrls[0] || '';
+    const detailItem = (original && typeof mobileHistoryImageDetailItem === 'function')
+      ? mobileHistoryImageDetailItem(item)
+      : item;
+    const thumb = typeof getHistoryThumbMeta === 'function' ? getHistoryThumbMeta(detailItem) : { src: '', fallback: '', kind: '' };
+    let src = thumb.src || '';
+    if (src && typeof isHistoryVideoMediaUrl === 'function' && isHistoryVideoMediaUrl(src)) src = '';
+    if (src && typeof isHistoryAudioMediaUrl === 'function' && isHistoryAudioMediaUrl(src)) src = '';
+    if (!src && original && typeof thumbUrlForMediaUrl === 'function') src = thumbUrlForMediaUrl(original);
+    if (typeof isHeavyHistoryMediaUrl === 'function' && isHeavyHistoryMediaUrl(src) && typeof thumbUrlForMediaUrl === 'function') {
+      src = thumbUrlForMediaUrl(src);
+    }
+    if (src && (typeof isHistoryVideoMediaUrl === 'function' && isHistoryVideoMediaUrl(src))) src = '';
+    let fallback = thumb.fallback || '';
+    if (typeof isHeavyHistoryMediaUrl === 'function' && isHeavyHistoryMediaUrl(fallback)) fallback = '';
+    if (typeof isHistoryVideoMediaUrl === 'function' && isHistoryVideoMediaUrl(fallback)) fallback = '';
+    return { kind: original ? 'image' : (thumb.kind || ''), src, fallback };
+  }
+
+  function cinematicHistoryOpenItem(item) {
+    if (typeof mobileHistoryImageDetailItem === 'function') return mobileHistoryImageDetailItem(item);
+    return item;
   }
 
   function openCinematicHistoryImage(item, url) {
@@ -114,7 +148,7 @@
       openDetailModal({ ...item, output_file: getCinematicGptFilenameFromUrl(url) });
       return;
     }
-    openDetailModal(item);
+    openDetailModal(cinematicHistoryOpenItem(item));
   }
 
   function createCinematicHistoryCard(item) {
@@ -125,21 +159,29 @@
     const extraImageUrls = (!isPendingTask && (item.type === 'gpt' || item.type === 'gpt-edit')) ? imageUrls.slice(1) : [];
     const canFlipImages = extraImageUrls.length > 0;
 
-    const thumbMeta = getHistoryThumbMeta(item);
+    const thumbMeta = cinematicCardThumbMeta(item);
     const media = document.createElement('button');
-    const applyMissingState = () => {
-      markHistoryAssetMissing(item);
-      media.classList.add('is-empty', 'is-missing');
-      media.innerHTML = '<span>FILE MISSING</span>';
-      source.classList.add('is-missing');
-      sourceThumb.innerHTML = '<span>!</span>';
-      sourceText.textContent = '原始图片文件已丢失';
+    const applyPreviewFailure = (confirmedMissing) => {
+      media.classList.add('is-empty');
+      media.classList.remove('is-pending');
+      if (confirmedMissing) {
+        markHistoryAssetMissing(item);
+        media.classList.add('is-missing');
+        media.innerHTML = '<span>FILE MISSING</span>';
+        source.classList.add('is-missing');
+        sourceThumb.innerHTML = '<span>!</span>';
+        sourceText.textContent = '原始图片文件已丢失';
+        return;
+      }
+      media.classList.remove('is-missing');
+      media.innerHTML = '<span>NO PREVIEW</span>';
     };
+    const applyMissingState = () => applyPreviewFailure(!!item.missing_result_files);
 
     media.type = 'button';
     media.className = `cinematic-record-media${thumbMeta.src ? ' is-pending' : ' is-empty'}${isHistoryAssetMissing(item) ? ' is-missing' : ''}${isPendingTask ? ' is-generating' : ''}`;
     if (!isPendingTask) {
-      media.addEventListener('click', () => openDetailModal(item));
+      media.addEventListener('click', () => openDetailModal(cinematicHistoryOpenItem(item)));
     }
     if (isPendingTask) {
       media.disabled = true;
@@ -147,7 +189,7 @@
     } else if (thumbMeta.src) {
       const img = document.createElement('img');
       img.alt = getCinematicTypeLabel(item);
-      img.loading = 'eager';
+      img.loading = 'lazy';
       img.dataset.src = thumbMeta.src;
       img.dataset.loaded = 'false';
       img.dataset.fallback = thumbMeta.fallback || '';
@@ -158,7 +200,7 @@
       media.appendChild(img);
       queueCinematicDeferredThumb(img, applyMissingState);
     } else {
-      media.innerHTML = `<span>${isHistoryAssetMissing(item) ? 'FILE MISSING' : 'NO PREVIEW'}</span>`;
+      media.innerHTML = `<span>${item.missing_result_files || isHistoryAssetMissing(item) ? 'FILE MISSING' : 'NO PREVIEW'}</span>`;
     }
 
     const body = document.createElement('div');
@@ -166,7 +208,7 @@
     body.addEventListener('click', () => {
       if (isPendingTask) return;
       if (!canFlipImages) {
-        openDetailModal(item);
+        openDetailModal(cinematicHistoryOpenItem(item));
         return;
       }
       body.classList.toggle('is-flipped');
@@ -225,7 +267,7 @@
     sourceThumb.className = 'cinematic-record-source-thumb';
     if (isPendingTask) {
       sourceThumb.innerHTML = '<span class="cinematic-pending-dot"></span>';
-    } else if (isHistoryAssetMissing(item)) {
+    } else if (isHistoryAssetMissing(item) && item.missing_result_files) {
       sourceThumb.innerHTML = '<span>!</span>';
     } else if (thumbMeta.src) {
       const sourceImg = document.createElement('img');
@@ -235,21 +277,25 @@
       sourceImg.dataset.loaded = 'false';
       sourceImg.dataset.fallback = thumbMeta.fallback || '';
       sourceImg.onerror = () => {
-        source.classList.add('is-missing');
-        sourceThumb.innerHTML = '<span>!</span>';
-        sourceText.textContent = '原始图片文件已丢失';
+        if (item.missing_result_files) {
+          source.classList.add('is-missing');
+          sourceThumb.innerHTML = '<span>!</span>';
+          sourceText.textContent = '原始图片文件已丢失';
+        }
       };
       sourceThumb.appendChild(sourceImg);
       queueCinematicDeferredThumb(sourceImg, () => {
-        source.classList.add('is-missing');
-        sourceThumb.innerHTML = '<span>!</span>';
-        sourceText.textContent = '原始图片文件已丢失';
+        if (item.missing_result_files) {
+          source.classList.add('is-missing');
+          sourceThumb.innerHTML = '<span>!</span>';
+          sourceText.textContent = '原始图片文件已丢失';
+        }
       });
     } else {
       sourceThumb.textContent = '•';
     }
     const sourceText = document.createElement('span');
-    sourceText.textContent = isPendingTask ? (item.__pendingText || item.progress_text || '任务已提交，等待结果回传') : (isHistoryAssetMissing(item) ? '原始图片文件已丢失' : getCinematicSourceLabel(item));
+    sourceText.textContent = isPendingTask ? (item.__pendingText || item.progress_text || '任务已提交，等待结果回传') : ((isHistoryAssetMissing(item) && item.missing_result_files) ? '原始图片文件已丢失' : getCinematicSourceLabel(item));
     source.appendChild(sourceThumb);
     source.appendChild(sourceText);
 
@@ -293,14 +339,16 @@
 
         const img = document.createElement('img');
         img.alt = `GPT 结果 ${index + 2}`;
-        img.loading = 'eager';
+        img.loading = 'lazy';
         img.src = previewUrl || url;
-        if (previewUrl && previewUrl !== url) {
-          img.dataset.fallback = url;
+        const galleryFallback = (previewUrl && previewUrl !== url) ? url : '';
+        if (galleryFallback && !(typeof isHeavyHistoryMediaUrl === 'function' && isHeavyHistoryMediaUrl(galleryFallback))) {
+          img.dataset.fallback = galleryFallback;
           img.onerror = function onGalleryThumbError() {
-            if (this.dataset.fallback && this.src !== this.dataset.fallback) {
-              this.src = this.dataset.fallback;
-              this.dataset.fallback = '';
+            const fallback = this.dataset.fallback || '';
+            this.dataset.fallback = '';
+            if (fallback && this.src !== fallback && !(typeof isHeavyHistoryMediaUrl === 'function' && isHeavyHistoryMediaUrl(fallback))) {
+              this.src = fallback;
             }
           };
         }
@@ -339,6 +387,8 @@
 
     const fragment = document.createDocumentFragment();
     [...historyRecords]
+      .filter((item) => !item?.deleted)
+      .filter((item) => typeof shouldShowMobileHistoryImageCard !== 'function' || shouldShowMobileHistoryImageCard(item))
       .sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0))
       .forEach(item => fragment.appendChild(createCinematicHistoryCard(item)));
 
@@ -354,3 +404,7 @@
       });
     }
   }
+
+  window.renderCinematicHistoryStream = renderCinematicHistoryStream;
+  window.openCinematicHistoryImage = openCinematicHistoryImage;
+  window.createCinematicHistoryCard = createCinematicHistoryCard;

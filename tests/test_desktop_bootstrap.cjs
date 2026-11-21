@@ -27,9 +27,15 @@ function boot({ failing = [] } = {}) {
     DesktopI18n: module('DesktopI18n', 'apply'),
     DesktopSelect: module('DesktopSelect', 'init'),
   };
+  const keydownListeners = [];
   const context = vm.createContext({
     window,
-    document: { readyState: 'complete', addEventListener() {} },
+    document: {
+      readyState: 'complete',
+      addEventListener(type, handler) {
+        if (type === 'keydown') keydownListeners.push(handler);
+      },
+    },
     console: { error: (...args) => errors.push(args) },
     DesktopState: module('DesktopState', 'loadSettings', 'restoreCanvasBackup', 'loadDraft', 'loadLastTask'),
     DesktopResults: module('DesktopResults', 'init', 'stopPolling'),
@@ -39,7 +45,7 @@ function boot({ failing = [] } = {}) {
     waitForMiniappAuthReady: () => new Promise(() => {}),
   });
   vm.runInContext(source, context, { filename: 'desktop-bootstrap.js' });
-  return { calls, errors };
+  return { calls, errors, keydownListeners };
 }
 
 const settle = () => new Promise(resolve => setTimeout(resolve, 0));
@@ -61,4 +67,24 @@ test('startup keeps its order and reports nothing when every module succeeds', a
   assert.deepEqual(errors, []);
   assert.ok(calls.indexOf('DesktopState.restoreCanvasBackup') < calls.indexOf('DesktopCanvas.init'));
   assert.ok(calls.indexOf('DesktopCanvas.init') < calls.indexOf('DesktopHistory.init'));
+});
+
+
+function fireEscape(listeners) {
+  const event = { key: 'Escape', defaultPrevented: false, preventDefault() { this.defaultPrevented = true; }, stopPropagation() {}, stopImmediatePropagation() {} };
+  for (const handler of listeners) handler(event);
+  return event;
+}
+
+test('Escape while closing panels does not stop task polling', async () => {
+  const { calls, errors, keydownListeners } = boot();
+  await settle();
+  assert.deepEqual(errors, []);
+  const before = calls.filter(name => name === 'DesktopResults.stopPolling').length;
+  fireEscape(keydownListeners);
+  assert.equal(
+    calls.filter(name => name === 'DesktopResults.stopPolling').length,
+    before,
+    'closing a panel with Escape must not call stopPolling'
+  );
 });

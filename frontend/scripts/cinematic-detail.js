@@ -10,6 +10,7 @@
     return {
       page: document.getElementById('cinematicViewerPage'),
       image: document.getElementById('cinematicViewerImg'),
+      video: document.getElementById('cinematicViewerVideo'),
       empty: document.getElementById('cinematicViewerEmpty'),
       loading: document.getElementById('cinematicViewerLoading'),
       status: document.getElementById('cinematicViewerStatus'),
@@ -41,6 +42,24 @@
     if (edit) edit.disabled = shouldDisable;
   }
 
+  function releaseCinematicViewerVideo() {
+    const { video } = getCinematicViewerElements();
+    if (!video) return;
+    try { video.pause(); } catch (error) {}
+    const ownSrc = Object.getOwnPropertyDescriptor(video, 'src');
+    const ownPoster = Object.getOwnPropertyDescriptor(video, 'poster');
+    video.removeAttribute('src');
+    video.removeAttribute('poster');
+    if (ownSrc && ownSrc.writable) {
+      try { video.src = ''; } catch (error) {}
+    }
+    if (ownPoster && ownPoster.writable) {
+      try { video.poster = ''; } catch (error) {}
+    }
+    try { video.load(); } catch (error) {}
+    video.hidden = true;
+  }
+
   function resetCinematicViewerStage() {
     const { image, empty, loading } = getCinematicViewerElements();
     if (image) {
@@ -48,6 +67,7 @@
       image.classList.remove('is-preview-blur');
       image.removeAttribute('src');
     }
+    releaseCinematicViewerVideo();
     if (empty) {
       empty.hidden = true;
       empty.textContent = '这条记录暂时没有可查看的图片。';
@@ -71,9 +91,29 @@
   function showCinematicViewerImage(src, options = {}) {
     const { image, empty } = getCinematicViewerElements();
     if (!image || !src) return;
+    releaseCinematicViewerVideo();
     image.src = src;
     image.classList.toggle('is-preview-blur', !!options.preview);
     image.hidden = false;
+    if (empty) empty.hidden = true;
+  }
+
+  function showCinematicViewerVideo(src, options = {}) {
+    const { image, video, empty } = getCinematicViewerElements();
+    if (!video || !src) return;
+    if (image) {
+      image.hidden = true;
+      image.classList.remove('is-preview-blur');
+      image.removeAttribute('src');
+    }
+    if (options.poster) video.poster = options.poster;
+    else video.removeAttribute('poster');
+    video.preload = 'metadata';
+    video.controls = true;
+    video.playsInline = true;
+    video.setAttribute('playsinline', '');
+    video.src = src;
+    video.hidden = false;
     if (empty) empty.hidden = true;
   }
 
@@ -83,6 +123,7 @@
       image.hidden = true;
       image.removeAttribute('src');
     }
+    releaseCinematicViewerVideo();
     if (loading) loading.hidden = true;
     if (empty) {
       empty.hidden = false;
@@ -110,9 +151,13 @@
     const previewMeta = getHistoryThumbMeta(item);
     const originalUrl = getHistoryImageSource(item);
     const displayUrl = getCinematicViewerDisplayUrl(item, originalUrl);
-    const previewUrl = previewMeta.src || previewMeta.fallback || displayUrl || originalUrl;
+    const lightPreview = (previewMeta.src && !(typeof isHeavyHistoryMediaUrl === 'function' && isHeavyHistoryMediaUrl(previewMeta.src)))
+      ? previewMeta.src
+      : '';
+    const previewUrl = lightPreview || '';
     const hasPreviewFallback = !!(previewUrl && displayUrl && previewUrl !== displayUrl);
     const requestToken = ++currentCinematicViewerRequestToken;
+    const isVideo = typeof isHistoryVideoItem === 'function' && isHistoryVideoItem(item);
 
     currentCinematicViewerItem = item;
     currentCinematicViewerDownloadUrl = '';
@@ -127,13 +172,40 @@
     setCinematicViewerOpen(true);
 
     if (!originalUrl) {
-      showCinematicViewerEmpty('这条记录没有可查看的图片。');
+      showCinematicViewerEmpty(isVideo ? '这条记录没有可查看的视频。' : '这条记录没有可查看的图片。');
       setCinematicViewerStatus('NO IMAGE SOURCE');
       return;
     }
 
     currentCinematicViewerDownloadUrl = originalUrl;
     setCinematicViewerActionState(true);
+
+    if (isVideo) {
+      if (loading) loading.hidden = false;
+      setCinematicViewerLoadingProgress(null);
+      setCinematicViewerStatus('LOADING ORIGINAL VIDEO');
+      showCinematicViewerVideo(originalUrl, { poster: previewUrl });
+      const video = getCinematicViewerElements().video;
+      if (video) {
+        const onReady = () => {
+          if (requestToken !== currentCinematicViewerRequestToken) return;
+          if (loading) loading.hidden = true;
+          clearHistoryAssetMissing(item);
+          setCinematicViewerActionState(true);
+          setCinematicViewerStatus('ORIGINAL VIDEO');
+        };
+        const onFail = () => {
+          if (requestToken !== currentCinematicViewerRequestToken) return;
+          if (loading) loading.hidden = true;
+          setCinematicViewerActionState(true);
+          setCinematicViewerStatus('VIDEO FAILED · EXPORT ORIGINAL');
+        };
+        video.addEventListener('loadeddata', onReady, { once: true });
+        video.addEventListener('error', onFail, { once: true });
+      }
+      return;
+    }
+
     if (loading) loading.hidden = false;
     setCinematicViewerLoadingProgress(null);
     setCinematicViewerStatus(hasPreviewFallback ? 'LOADING 2K PREVIEW' : 'LOADING PREVIEW');
@@ -356,3 +428,9 @@
       hintEl.textContent = '预览图 · 点击查看原图';
     }
   }
+
+  window.openCinematicViewer = openCinematicViewer;
+  window.closeCinematicViewer = closeCinematicViewer;
+  window.openCinematicViewerOptions = openCinematicViewerOptions;
+  window.downloadCinematicViewerImage = downloadCinematicViewerImage;
+  window.continueEditFromCinematicViewer = continueEditFromCinematicViewer;

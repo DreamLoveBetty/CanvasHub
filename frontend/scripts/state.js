@@ -15,7 +15,7 @@
   let gptState = { ratio: '9:16', resolution: '1k', quality: 'auto', imageCount: 1, moderation: 'auto', gptProviderRoute: 'codex' };
   let comfyState = { ratio: '1:1', workflow: '' };
   const DEFAULT_SKIN = 'skeuo-tech';
-  const DEFAULT_LAYOUT_MODE = 'classic';
+  const DEFAULT_LAYOUT_MODE = 'cinematic';
   const DEFAULT_CINEMATIC_COLOR_SCHEME = 'aether-gold';
   const LEGACY_DEFAULT_SKIN = 'cassette-light';
   const THEME_SCHEMA_VERSION = 2;
@@ -43,7 +43,7 @@
   let currentSettingsPanel = null;
   const SETTINGS_STORAGE_KEY = 'miniapp_ui_settings_v1';
   const AVAILABLE_SKINS = ['skeuo-tech', 'cassette-light', 'garden', 'midnight', 'paper'];
-  const AVAILABLE_LAYOUT_MODES = ['classic', 'cinematic'];
+  const AVAILABLE_LAYOUT_MODES = ['cinematic'];
   const AVAILABLE_CINEMATIC_COLOR_SCHEMES = ['aether-gold', 'production-suite', 'cinematic-lens'];
   const AVAILABLE_CINEMATIC_SECTIONS = ['records', 'discover', 'spell'];
   const AVAILABLE_CINEMATIC_PROVIDERS = ['google', 'comfyui', 'gpt'];

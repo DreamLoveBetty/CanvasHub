@@ -8,14 +8,14 @@
   <link rel="stylesheet" href="styles/desktop-tokens.css?v=20261116-text-rewrite1">
   <link rel="stylesheet" href="styles/desktop-liquid.css?v=20261116-text-rewrite1">
   <link rel="stylesheet" href="styles/desktop-shell-geometry.css?v=20261111-type-scale1">
-  <link rel="stylesheet" href="styles/desktop-settings-auth-geometry.css?v=20261111-type-scale1">
+  <link rel="stylesheet" href="styles/desktop-settings-auth-geometry.css?v=20261119-uxseq4">
   <link rel="stylesheet" href="styles/desktop-prompt-assistant-geometry.css?v=20261116-text-rewrite1">
-  <link rel="stylesheet" href="styles/desktop-canvas-nodes-geometry.css?v=20261116-text-rewrite1">
+  <link rel="stylesheet" href="styles/desktop-canvas-nodes-geometry.css?v=20261119-uxseq1">
   <link rel="stylesheet" href="styles/desktop-gallery-geometry.css?v=20261117-gallery-prompt-lora1">
   <link rel="stylesheet" href="styles/desktop-video.css?v=20261111-type-scale1">
   <link rel="stylesheet" href="styles/desktop-google-web-geometry.css?v=20261112-cookie-field2">
   <link rel="stylesheet" href="styles/desktop-google-web.css?v=20261112-chrome-keys1">
-  <link rel="stylesheet" href="styles/desktop-layout.css?v=20261111-type-scale1">
+  <link rel="stylesheet" href="styles/desktop-layout.css?v=20261121-quota-row2">
   <link rel="stylesheet" href="styles/desktop-file-results.css?v=20261111-type-scale1">
   <link rel="stylesheet" href="styles/desktop-prompt-library.css?v=20261118-nav-indent1">
   <link rel="stylesheet" href="styles/desktop-color-bloom.css?v=20261111-type-scale1">
@@ -26,7 +26,7 @@
   <link rel="stylesheet" href="styles/desktop-image-group-interaction.css?v=20261101-image-group-item-delete1">
   <link rel="stylesheet" href="styles/desktop-prompt-assistant.css?v=20261030-panels-polish2">
   <link rel="stylesheet" href="styles/desktop-gallery.css?v=20261109-undo-delete1">
-  <link rel="stylesheet" href="styles/desktop-settings-auth.css?v=20261111-text-nav1">
+  <link rel="stylesheet" href="styles/desktop-settings-auth.css?v=20261121-quota-auth1">
   <link rel="stylesheet" href="styles/desktop-creation-tools.css?v=20261102-h3-removal1">
   <link rel="stylesheet" href="styles/desktop-controls.css?v=20261114-track-jelly2">
   <link rel="stylesheet" href="styles/desktop-geometry.css?v=20261118-nav-indent1">
@@ -49,7 +49,7 @@
   <link rel="stylesheet" href="styles/desktop-krea2.css?v=20261113-local-node-layout1">
   <link rel="stylesheet" href="styles/desktop-lora.css?v=20261111-type-scale1">
   <link rel="stylesheet" href="styles/desktop-gallery-audio.css?v=20261111-type-scale1">
-  <link rel="stylesheet" href="styles/desktop-qwen21.css?v=20261113-local-node-layout1">
+  <link rel="stylesheet" href="styles/desktop-qwen21.css?v=20261119-uxseq1">
   <link rel="stylesheet" href="styles/desktop-moss-geometry.css?v=20261113-local-node-layout1">
   <link rel="stylesheet" href="styles/desktop-moss.css?v=20261111-type-scale1">
   <link rel="stylesheet" href="styles/desktop-compare.css?v=20261111-type-scale1">
@@ -618,7 +618,14 @@
               <em>批量</em>
             </label>
           </div>
-          <button type="button" class="desk-button desk-button--primary desk-manual-send" id="deskSendOriginalBtn" data-send-original disabled>手动发送</button>
+          <div class="desk-export-actions">
+            <button type="button" class="desk-button desk-button--primary desk-manual-send" id="deskSendOriginalBtn" data-send-original disabled>手动发送</button>
+            <button type="button" class="desk-button" data-copy-prompt disabled>复制提示词</button>
+          </div>
+          <div class="desk-batch-controls" data-batch-controls hidden>
+            <button type="button" class="desk-button" data-batch-pause>暂停批量</button>
+            <button type="button" class="desk-button desk-button--danger" data-batch-cancel>取消批量</button>
+          </div>
           <div class="desk-action-row">
             <button type="button" class="desk-generation-action" data-result-run id="deskNodeGenerateBtn" title="开始生成" aria-label="开始生成">
               <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -1850,11 +1857,11 @@
     <input id="deskLayoutImageInput" type="file" accept="image/*" hidden>
   </div>
 
-  <script src="scripts/desktop-i18n.js?v=20261117-gallery-prompt-lora1"></script>
+  <script src="scripts/desktop-i18n.js?v=20261121-quota-row1"></script>
   <script src="scripts/auth-api.js?v=20260824-auth-debug-clean1"></script>
   <script src="vendor/fabric.min.js?v=5.3.0"></script>
   <script src="vendor/fabric-eraser.mixin.js?v=20260628-image-editor-pin16"></script>
-  <script src="scripts/desktop-state.js?v=20261023-google-web2"></script>
+  <script src="scripts/desktop-state.js?v=20261119-uxseq1"></script>
   <script src="scripts/desktop-progress-model.js?v=20261029-cloud-stage1"></script>
   <script src="scripts/desktop-progress-materials.js?v=20261007-node-progress4"></script>
   <script src="scripts/desktop-progress-renderer.js?v=20261030-ui-polish1"></script>
@@ -1881,23 +1888,23 @@
   <script src="scripts/desktop-krea2-control.js?v=20261030-ui-polish1"></script>
   <script src="scripts/desktop-krea2-model.js?v=20261113-context-menu-sub2"></script>
   <script src="scripts/desktop-krea2-api.js?v=20261116-retire-pe1"></script>
-  <script src="scripts/desktop-krea2-tools.js?v=20261006-bf16-transformer1"></script>
-  <script src="scripts/desktop-canvas-krea2.js?v=20261116-retire-pe1"></script>
+  <script src="scripts/desktop-krea2-tools.js?v=20261119-uxseq1"></script>
+  <script src="scripts/desktop-canvas-krea2.js?v=20261119-uxseq1"></script>
   <script src="scripts/desktop-qwen21-model.js?v=20261113-context-menu-sub2"></script>
   <script src="scripts/desktop-qwen21-api.js?v=20261116-retire-pe1"></script>
-  <script src="scripts/desktop-qwen21-tools.js?v=20261011-qwen-turbo8"></script>
-  <script src="scripts/desktop-canvas-qwen21.js?v=20261116-retire-pe1"></script>
+  <script src="scripts/desktop-qwen21-tools.js?v=20261119-uxseq2"></script>
+  <script src="scripts/desktop-canvas-qwen21.js?v=20261119-uxseq1"></script>
   <script src="scripts/desktop-moss-model.js?v=20261116-retire-pe1"></script>
   <script src="scripts/desktop-moss-api.js?v=20261116-retire-pe1"></script>
   <script src="scripts/desktop-moss-layout.js?v=20261031-moss-layout5"></script>
   <script src="scripts/desktop-moss-grid.js?v=20261101-moss-grid1"></script>
   <script src="scripts/desktop-asr-api.js?v=20261111-asr1"></script>
   <script src="scripts/desktop-asr-tools.js?v=20261111-asr2"></script>
-  <script src="scripts/desktop-moss-tools.js?v=20261101-moss-base3"></script>
-  <script src="scripts/desktop-canvas-moss.js?v=20261116-retire-pe1"></script>
+  <script src="scripts/desktop-moss-tools.js?v=20261119-uxseq1"></script>
+  <script src="scripts/desktop-canvas-moss.js?v=20261119-uxseq1"></script>
   <script src="scripts/desktop-cyimg-model.js?v=20261113-context-menu-sub2"></script>
   <script src="scripts/desktop-cyimg-api.js?v=20260927-cyimg2"></script>
-  <script src="scripts/desktop-canvas-cyimg.js?v=20261030-ui-polish1"></script>
+  <script src="scripts/desktop-canvas-cyimg.js?v=20261119-uxseq1"></script>
   <script src="scripts/desktop-audio-assets.js?v=20260915-audio-node1"></script>
   <script src="scripts/desktop-audio-meter.js?v=20260915-audio-meter1"></script>
   <script src="scripts/desktop-canvas-audio.js?v=20261030-ui-polish1"></script>
@@ -1958,7 +1965,7 @@
   <script src="scripts/desktop-canvas-comfy-layout.js?v=20261107-comfy-list1"></script>
   <script src="scripts/desktop-canvas-nodes.js?v=20261116-retire-pe1"></script>
   <script src="scripts/desktop-google-web-controls.js?v=20261024-google-web-2k-prompt1"></script>
-  <script src="scripts/desktop-canvas-model-nodes.js?v=20261110-video-edit1"></script>
+  <script src="scripts/desktop-canvas-model-nodes.js?v=20261119-uxseq1"></script>
   <script src="scripts/desktop-canvas-port-plates.js?v=20261116-yue-shell1"></script>
   <script src="scripts/desktop-canvas-link-flow.js?v=20261109-link-flow1"></script>
   <script src="scripts/desktop-canvas-connections.js?v=20261116-text-rewrite1"></script>
@@ -1972,7 +1979,7 @@
   <script type="module" src="scripts/desktop-pose-editor.js?v=20261023-pose-track-visible1"></script>
   <script src="scripts/desktop-layout-editor.js?v=20260908-layout-fonts2"></script>
   <script src="scripts/desktop-file-results.js?v=20260711-file-board-list3"></script>
-  <script src="scripts/desktop-results.js?v=20261103-comfy-video2"></script>
+  <script src="scripts/desktop-results.js?v=20261119-uxseq2"></script>
   <script src="scripts/desktop-compare-viewport.js?v=20260922-compare-zoom2"></script>
   <script src="scripts/desktop-genie-fx.js?v=20261016-genie-fx1"></script>
   <script src="scripts/desktop-gallery-pinterest.js?v=20261019-pinterest-switch1"></script>
@@ -1983,10 +1990,10 @@
   <script src="scripts/desktop-history-results.js?v=20261116-history-comfyvideo1"></script>
   <script src="scripts/desktop-history.js?v=20261117-gallery-prompt-lora2"></script>
   <script src="scripts/desktop-google-web.js?v=20261112-chrome-keys1"></script>
-  <script src="scripts/desktop-google-pool.js?v=20261114-google-llm1"></script>
+  <script src="scripts/desktop-google-pool.js?v=20261121-quota-row2"></script>
   <script src="scripts/desktop-settings-search.js?v=20261101-secret-mask1"></script>
   <script src="scripts/desktop-settings-drafts.js?v=20261030-settings-drafts1"></script>
-  <script src="scripts/desktop-settings.js?v=20261116-retire-pe1"></script>
+  <script src="scripts/desktop-settings.js?v=20261119-uxseq1"></script>
   <script src="scripts/desktop-prompt-media.js?v=20260929-prompt-video1"></script>
   <script src="scripts/desktop-prompt-editor.js?v=20260929-prompt-video1"></script>
   <script src="scripts/desktop-prompt-drawer.js?v=20261102-h3-removal1"></script>
@@ -1994,6 +2001,6 @@
   <script src="scripts/desktop-color-extractor.js?v=20260719-color-image-analysis10"></script>
   <script src="scripts/desktop-prompt-library.js?v=20261111-text-nav1"></script>
   <script src="scripts/desktop-prompt-insert.js?v=20260827-agent-references-fix1"></script>
-  <script src="scripts/desktop-bootstrap.js?v=20261113-init-isolation1"></script>
+  <script src="scripts/desktop-bootstrap.js?v=20261119-uxseq1"></script>
 </body>
 </html>

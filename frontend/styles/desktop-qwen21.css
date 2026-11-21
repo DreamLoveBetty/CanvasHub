@@ -186,3 +186,29 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+
+/* Path rows keep a copy-full-path control; the visible path may ellipsize. */
+.desk-app :is(.desk-krea2-tools__paths, .desk-qwen21-tools__paths) > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4px 8px;
+  align-items: center;
+  min-width: 0;
+}
+
+.desk-app :is(.desk-krea2-tools__paths, .desk-qwen21-tools__paths) > div > span {
+  grid-column: 1 / -1;
+}
+
+.desk-app :is(.desk-krea2-tools__paths, .desk-qwen21-tools__paths) > div > strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.desk-app :is(.desk-krea2-tools__paths, .desk-qwen21-tools__paths) > div > .desk-button {
+  flex: 0 0 auto;
+  justify-self: end;
+}

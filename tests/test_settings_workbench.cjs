@@ -202,7 +202,8 @@ test('prompt skill settings support Google OAuth pool LLM models and group accou
   assert.match(settings, /currentProvider === 'google_pool'/);
   assert.match(settings, /renderKv\('服务商', promptProviderLabel\(promptRuntime, cfg\.provider \|\| promptRuntime\?\.provider\)\)/);
   const pool = read('frontend/scripts/desktop-google-pool.js');
-  assert.match(pool, /modelRow\('图像', imageModels\) \+ modelRow\('LLM', textModels\)/);
+  assert.match(pool, /Gemini 额度（目录汇总）/);
+  assert.match(pool, /renderAccountQuota\(account\)/);
 });
 
 test('model-tools page uses a top track switch to show one model module at a time while keeping all cards searchable', () => {

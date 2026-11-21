@@ -599,3 +599,7 @@ body.desk-app[data-theme="dark"] .desk-settings-canvas-interaction__segment butt
     transform: rotate(360deg);
   }
 }
+
+:where(body.desk-app[data-theme]) .desk-settings-restart-hint[hidden] {
+  display: none;
+}

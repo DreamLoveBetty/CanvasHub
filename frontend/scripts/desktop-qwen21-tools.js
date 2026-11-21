@@ -2,6 +2,7 @@
 (function () {
   function create({api,escapeHtml,rerender,notify}={}){
     const esc=escapeHtml||((value)=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char])));
+    const pathRow=(label,value,emptyMsg)=>`<div><span>${esc(label)}</span><strong title="${esc(value||'')}">${esc(value||'')}</strong><button type="button" class="desk-button" data-copy-model-path data-model-tools-path="${esc(value||'')}" data-model-tools-empty="${esc(emptyMsg)}" title="复制完整路径" aria-label="复制完整路径">复制路径</button></div>`;
     const state={loaded:false,loading:false,busy:false,data:null,inspection:null,
       draft:{sourcePath:'',modelName:'',precision:'8bit',vaeSource:'',vaeId:''},vaeDirty:false,timer:0,active:false,lastStatus:''};
     const terminal=value=>['succeeded','failed','canceled','idle'].includes(String(value||'idle'));
@@ -54,7 +55,7 @@
       </article>`).join('')}</div>`;}
     function render(){
       if(!state.loaded)return card('Qwen 2.1 模型转换',`<div class="desk-settings-empty">${state.loading?'正在读取模型工具状态…':'打开页面后读取本地模型目录。'}</div>`,false);
-      const paths=`<div class="desk-qwen21-tools__paths"><div><span>Base 权重目录</span><strong title="${esc(state.data?.base_model_directory||'')}">${esc(state.data?.base_model_directory||'')}</strong></div><div><span>模型导入目录</span><strong title="${esc(state.data?.import_directory||'')}">${esc(state.data?.import_directory||'')}</strong></div></div>`;
+      const paths=`<div class="desk-qwen21-tools__paths">${pathRow('Base 权重目录',state.data?.base_model_directory,'Base 权重目录路径尚未提供。请将转换后的 .safetensors 权重放到该 Base 权重目录后再复制路径。')}${pathRow('模型导入目录',state.data?.import_directory,'模型导入目录路径尚未提供。请将源 .safetensors 文件放到该导入目录后再刷新。')}</div>`;
       return card('Qwen 2.1 模型转换',paths+prepareHtml()+formHtml(),state.data?.conversion?.status!=='failed')+vaeHtml()+card('Base 权重模型库',modelsHtml(),(state.data?.models||[]).some(item=>item.ready));
     }
     function vaeHtml(){
@@ -62,7 +63,7 @@
       const selected=(data.models||[]).find(item=>item.id===data.selected_id);
       const options=(data.models||[]).map(item=>`<option value="${esc(item.id)}"${item.id===state.draft.vaeId?' selected':''}>${esc(item.name)} · ${item.format==='diffusers'?'自动布局适配':'MLX 原生'}</option>`).join('');
       const sources=(data.imports||[]).map(item=>`<option value="${esc(item.source_name)}"${item.source_name===state.draft.vaeSource?' selected':''}>${esc(item.source_name)} · ${bytes(item.file_size)}</option>`).join('');
-      return card('Qwen 2.1 · VAE',`<div class="desk-qwen21-tools__paths"><div><span>VAE 导入目录</span><strong>${esc(data.import_directory||'')}</strong></div></div>
+      return card('Qwen 2.1 · VAE',`<div class="desk-qwen21-tools__paths">${pathRow('VAE 导入目录',data.import_directory,'VAE 导入目录路径尚未提供。请将 .safetensors VAE 文件放到该导入目录后再刷新。')}</div>
         <div class="desk-qwen21-tools__form">
           <label class="desk-qwen21-tools__wide"><span>生成使用的 VAE</span><select class="desk-select" data-qwen21-tool-field="vaeId" ${state.busy?'disabled':''}><option value="" disabled${!state.draft.vaeId?' selected':''}>请选择可用 VAE</option>${options}</select></label>
           <p class="desk-settings-form__hint desk-qwen21-tools__wide">当前：${esc(selected?.name||'所选 VAE 不可用')}。</p>

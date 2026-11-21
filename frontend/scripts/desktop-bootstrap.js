@@ -33,13 +33,8 @@
     DesktopResults.restoreLastTask().catch(() => {});
   }
 
-  function bindGlobalKeys() {
-    document.addEventListener('keydown', event => {
-      if (event.key === 'Escape') {
-        DesktopResults.stopPolling();
-      }
-    });
-  }
+  // Escape is reserved for closing panels and tips. It must not stop single-task
+  // or batch progress polling; cancellation stays on explicit stop/cancel controls.
 
   // Each startup step runs on its own: one module throwing (say, on a saved canvas node it
   // cannot render) must not leave history, settings and the rest uninitialised, and the
@@ -70,7 +65,6 @@
       await initStep('DesktopPromptInsert.init', () => window.DesktopPromptInsert?.init?.());
       await initStep('DesktopI18n.apply', () => window.DesktopI18n?.apply?.());
       await initStep('DesktopSelect.init', () => window.DesktopSelect?.init?.());
-      bindGlobalKeys();
 
       window.loadHistory = function () {
         return DesktopHistory.loadHistory()

@@ -114,7 +114,7 @@
           <footer class="desk-input-footer desk-krea2__footer">
             <div class="desk-pill-row desk-krea2__meta"><span data-krea2-inputs>画布连线 · 文本 0 · 编辑源图 0</span><span data-krea2-runtime>正在检查共享环境与模型…</span></div>
             <div class="desk-output-controls desk-output-controls--input"><label class="desk-switch"><input type="checkbox" data-krea2-safety ${node.safetyEnabled?'checked':''}><span></span><em>NSFW 安全检查</em></label><label class="desk-switch"><input type="checkbox" data-krea2-telegram ${node.telegramEnabled?'checked':''}><span></span><em>发送到 Telegram</em></label></div>
-            <div class="desk-action-row"><button type="button" class="desk-generation-action desk-krea2__run" data-krea2-run title="开始生成" aria-label="开始生成"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m13.5 2-9 12h6l-1 8 10-13h-7z"></path></svg><span class="desk-generation-action__label">开始生成</span></button></div>
+            <div class="desk-action-row"><button type="button" class="desk-generation-action desk-krea2__run" data-krea2-run title="开始生成" aria-label="开始生成"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m13.5 2-9 12h6l-1 8 10-13h-7z"></path></svg><span class="desk-generation-action__label">开始生成</span></button><button type="button" class="desk-button" data-krea2-resend hidden>补发</button></div>
           </footer>
         </div><div class="desk-progress-float desk-krea2__progress" data-krea2-progress hidden role="status"><div class="desk-progress-float__panel"><div class="desk-progress-float__bar"><span data-progress-bar data-krea2-bar></span><strong class="desk-progress-float__percent" data-krea2-percent>处理中</strong></div><span class="desk-progress-float__stage" data-krea2-stage>Krea 2 任务进行中</span></div></div>
       </section>`;
@@ -122,13 +122,14 @@
     function paint(s){
       if(!live(s))return;if(syncMode(s.node)){renderLoraControls(s);renderMode(s);}
       const node=s.node,busy=Boolean(s.pending||s.starting)||M.active(node.status),ready=readyFor(node),serverPreparing=status?.preparation?.status==='running',preparing=Boolean(s.preparing)||serverPreparing;
-      const label={idle:'就绪',submitting:'提交中',queued:'排队中',processing:'生成中',running:'生成中',succeeded:'已完成',succeeded_no_telegram:'已归档',telegram_failed:'已归档',failed:'失败',canceled:'已停止'};
+      const label={idle:'就绪',submitting:'提交中',queued:'排队中',processing:'生成中',running:'生成中',succeeded:'已完成',succeeded_no_telegram:'已归档',telegram_failed:'已生成，未发送',failed:'失败',canceled:'已停止'};
       const badge=s.el.querySelector('[data-krea2-status]');badge.textContent=s.starting&&!s.pending?'准备中':busy?(label[node.status]||'处理中'):preparing?'准备中':ready?(label[node.status]||'就绪'):node.status==='failed'?'失败':'待首次生成';
-      badge.classList.toggle('is-success',ready&&!busy&&!['failed','canceled'].includes(node.status));
+      badge.classList.toggle('is-success',ready&&!busy&&!['failed','canceled','telegram_failed'].includes(node.status));
       badge.classList.toggle('is-busy',busy||preparing);
       badge.classList.toggle('is-error',node.status==='failed');
       badge.classList.toggle('is-canceled',node.status==='canceled');
-      const run=s.el.querySelector('[data-krea2-run]');run.disabled=Boolean(s.pending||s.starting)||(!busy&&preparing);run.querySelector('span').textContent=s.starting&&!s.pending?'准备中':busy?'停止生成':preparing?'准备中':node.status==='failed'?'重试生成':'开始生成';
+      const run=s.el.querySelector('[data-krea2-run]');run.disabled=Boolean(s.pending||s.starting)||(!busy&&preparing);run.querySelector('span').textContent=s.starting&&!s.pending?'准备中':busy?'停止生成':preparing?'准备中':node.status==='telegram_failed'?'再次生成':node.status==='failed'?'重试生成':'开始生成';
+      const resendBtn=s.el.querySelector('[data-krea2-resend]');if(resendBtn){resendBtn.hidden=node.status!=='telegram_failed';resendBtn.disabled=Boolean(s.pending||s.starting);}
       const images=getImageReferences?.(s.id)||[],texts=getTextNodes?.(s.id)||[];
       const sourceLabel='编辑源图';
       const inputEl=s.el.querySelector('[data-krea2-inputs]');
@@ -284,7 +285,7 @@
     }
     function mount(node){
       const el=getNodeElement(node.id);if(!el||sessions.has(node.id))return;M.normalize(node);const s={id:node.id,node,el,abort:new AbortController()};sessions.set(node.id,s);
-      el.addEventListener('click',event=>{if(event.target.closest('[data-krea2-lora-picker]')){if(canEdit(node.id))loraView?.openPicker(node.id,'krea2');return;}const detail=event.target.closest('[data-krea2-lora-detail]');if(detail){loraView?.openDetailForNode(detail.dataset.krea2LoraDetail,node.id,'krea2').catch(error=>feedback(s,error.message,'error'));return;}const remove=event.target.closest('[data-krea2-lora-remove]');if(remove){if(!canEdit(node.id))return;node.loras.splice(Number(remove.dataset.krea2LoraRemove),1);renderLoras(s);saveState();return;}if(event.target.closest('[data-krea2-run]'))run(s);},{signal:s.abort.signal});
+      el.addEventListener('click',event=>{if(event.target.closest('[data-krea2-lora-picker]')){if(canEdit(node.id))loraView?.openPicker(node.id,'krea2');return;}const detail=event.target.closest('[data-krea2-lora-detail]');if(detail){loraView?.openDetailForNode(detail.dataset.krea2LoraDetail,node.id,'krea2').catch(error=>feedback(s,error.message,'error'));return;}const remove=event.target.closest('[data-krea2-lora-remove]');if(remove){if(!canEdit(node.id))return;node.loras.splice(Number(remove.dataset.krea2LoraRemove),1);renderLoras(s);saveState();return;}if(event.target.closest('[data-krea2-resend]')){const taskId=s.node.jobId||s.node.resultJobId||s.job?.task_id||s.job?.id;if(!taskId){feedback(s,'没有可补发的任务。','error');return;}const resendBtn=s.el.querySelector('[data-krea2-resend]');if(resendBtn)resendBtn.disabled=true;const done=DesktopResults?.resendArchivedTelegram?.(taskId);if(!done){feedback(s,'补发接口不可用','error');paint(s);return;}Promise.resolve(done).then(task=>{if(task?.skipped==='busy')return;if(task?.resent){s.node.status=task.status||'succeeded';if(s.job)s.job={...s.job,...task,status:s.node.status};}}).catch(error=>feedback(s,error.message,'error')).finally(()=>{if(live(s))paint(s);});return;}if(event.target.closest('[data-krea2-run]'))run(s);},{signal:s.abort.signal});
       el.addEventListener('pointerdown',event=>{if(event.target.closest('.desk-krea2__lora-add .desk-select-trigger, .desk-krea2__edit-adapter .desk-select-trigger, .desk-krea2__grid--control .desk-select-trigger'))refreshLoras(s).catch(()=>{});},{signal:s.abort.signal});
       el.addEventListener('change',event=>change(s,event.target),{signal:s.abort.signal});
       if(node.status==='submitting'&&!node.jobId)node.status='failed';renderMode(s);renderLoras(s);if(node.jobId)poll(s);if(!status)loadResources().catch(()=>{});

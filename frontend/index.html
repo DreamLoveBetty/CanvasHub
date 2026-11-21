@@ -6,6 +6,31 @@
   <title>Image Studio Pro</title>
   <script>
     (function () {
+      function bootErrorLocation(event) {
+        if (!event) return '';
+        var file = '';
+        try { file = String(event.filename || event.sourceURI || ''); } catch (_) {}
+        var line = event.lineno;
+        var col = event.colno;
+        var loc = file;
+        if (line) loc += (loc ? ':' : '') + line + (col ? ':' + col : '');
+        return loc;
+      }
+      function describeBootError(event) {
+        var message = (event && event.message) || 'Unknown script error';
+        var loc = bootErrorLocation(event);
+        return loc ? (message + ' @ ' + loc) : message;
+      }
+      function mountBootErrorBox(box) {
+        if (!box || box.parentNode) return;
+        if (document.body) {
+          document.body.appendChild(box);
+          return;
+        }
+        document.addEventListener('DOMContentLoaded', function () {
+          if (!box.parentNode && document.body) document.body.appendChild(box);
+        }, { once: true });
+      }
       function showBootError(message) {
         try {
           var box = document.getElementById('bootErrorBox');
@@ -13,19 +38,27 @@
             box = document.createElement('div');
             box.id = 'bootErrorBox';
             box.style.cssText = 'position:fixed;left:12px;right:12px;bottom:12px;z-index:9999;padding:12px 14px;border-radius:12px;background:#3a1111;color:#fff;font:12px/1.45 -apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;box-shadow:0 12px 28px rgba(0,0,0,.28);white-space:pre-wrap;word-break:break-word;';
-            document.addEventListener('DOMContentLoaded', function () {
-              document.body.appendChild(box);
-            }, { once: true });
           }
-          box.textContent = '启动错误：' + message;
+          mountBootErrorBox(box);
+          var next = '启动错误：' + message;
+          var previous = box.getAttribute('data-boot-errors') || '';
+          var combined = previous ? (previous + '\n' + next) : next;
+          box.setAttribute('data-boot-errors', combined);
+          box.textContent = combined;
         } catch (_) {}
       }
       window.addEventListener('error', function (event) {
-        showBootError(event.message || 'Unknown script error');
+        showBootError(describeBootError(event));
       });
       window.addEventListener('unhandledrejection', function (event) {
         var reason = event.reason;
-        showBootError((reason && (reason.message || reason.stack)) || String(reason || 'Unhandled promise rejection'));
+        var message = (reason && (reason.message || reason.stack)) || String(reason || 'Unhandled promise rejection');
+        showBootError(describeBootError({
+          message: message,
+          filename: reason && (reason.fileName || reason.filename),
+          lineno: reason && (reason.lineNumber || reason.lineno),
+          colno: reason && (reason.columnNumber || reason.colno)
+        }));
       });
     })();
   </script>
@@ -33,11 +66,8 @@
   <script>
     (function () {
       const defaultSkin = 'skeuo-tech';
-      const defaultLayoutMode = 'classic';
-      const legacyDefaultSkin = 'cassette-light';
-      const themeSchemaVersion = 2;
-      const validSkins = ['skeuo-tech', 'cassette-light', 'garden', 'midnight', 'paper'];
-      const validLayoutModes = ['classic', 'cinematic'];
+      const defaultLayoutMode = 'cinematic';
+      const validLayoutModes = ['cinematic'];
       try {
         const raw = localStorage.getItem('miniapp_ui_settings_v1');
         if (!raw) {
@@ -46,18 +76,11 @@
           return;
         }
         const parsed = JSON.parse(raw);
-        let nextSkin = defaultSkin;
         let nextLayoutMode = defaultLayoutMode;
-        if (parsed && typeof parsed.theme === 'string' && parsed.theme) {
-          nextSkin = parsed.theme;
-          if ((parsed.themeVersion == null || parsed.themeVersion < themeSchemaVersion) && nextSkin === legacyDefaultSkin) {
-            nextSkin = defaultSkin;
-          }
-        }
         if (parsed && typeof parsed.layoutMode === 'string' && parsed.layoutMode) {
           nextLayoutMode = parsed.layoutMode;
         }
-        document.documentElement.dataset.skin = validSkins.includes(nextSkin) ? nextSkin : defaultSkin;
+        document.documentElement.dataset.skin = defaultSkin;
         document.documentElement.dataset.layout = validLayoutModes.includes(nextLayoutMode) ? nextLayoutMode : defaultLayoutMode;
       } catch (e) {
         document.documentElement.dataset.skin = defaultSkin;
@@ -67,7 +90,7 @@
   </script>
   <link rel="stylesheet" href="styles/base.css?v=20260617-thirdparty2">
   <link rel="stylesheet" href="styles/theme-tokens.css?v=20260522-welib-remove-2">
-  <link rel="stylesheet" href="styles/cinematic-shell-stream.css?v=20260426-4">
+  <link rel="stylesheet" href="styles/cinematic-shell-stream.css?v=20261121-comfy-workbench1">
   <link rel="stylesheet" href="styles/cinematic-discover.css?v=20261011-cache-key1">
   <link rel="stylesheet" href="styles/cinematic-composer.css?v=20260425-1">
   <link rel="stylesheet" href="styles/cinematic-responsive.css?v=20260424-1">
@@ -126,42 +149,6 @@
           <span>查看生成历史</span>
         </div>
       </button>
-      <div class="menu-divider"></div>
-      <div class="menu-section">
-        <div class="menu-section-label">布局模式</div>
-        <div class="layout-mode-row">
-          <span class="layout-mode-icon" aria-hidden="true">◫</span>
-          <div class="layout-mode-copy">
-            <strong>界面架构</strong>
-            <span>Classic 工作台 / Cinematic 创作流</span>
-          </div>
-          <div class="layout-mode-select-wrap">
-            <select id="layoutModeSelect" class="style-select layout-mode-select" onchange="setLayoutMode(this.value)" aria-label="选择布局模式">
-              <option value="classic">Classic</option>
-              <option value="cinematic">Cinematic</option>
-            </select>
-            <div class="select-arrow">▼</div>
-          </div>
-        </div>
-        <div class="menu-section-label">界面风格</div>
-        <div class="menu-skin-row">
-          <span class="menu-skin-icon" aria-hidden="true">✦</span>
-          <div class="menu-skin-copy">
-            <strong>风格皮肤</strong>
-            <span>切换整套视觉质感</span>
-          </div>
-          <div class="menu-skin-select-wrap">
-            <select id="skinSelect" class="style-select menu-skin-select" onchange="setSkin(this.value)" aria-label="选择界面风格">
-              <option value="skeuo-tech">Skeuo Tech</option>
-              <option value="cassette-light">Cassette Light</option>
-              <option value="garden">Garden</option>
-              <option value="midnight">Midnight</option>
-              <option value="paper">Paper</option>
-            </select>
-            <div class="select-arrow">▼</div>
-          </div>
-        </div>
-      </div>
     </div>
   </div>
 
@@ -966,6 +953,32 @@
                 </div>
               </div>
 
+              <div id="cinematicGptRouteWrap" class="cinematic-menu-wrap" hidden>
+                <button id="cinematicGptRouteBtn" type="button" class="cinematic-pill" onclick="toggleCinematicMenu('gptRoute', event)">
+                  <span class="cinematic-pill-value">本地 Codex</span>
+                  <span class="cinematic-pill-caret">⌃</span>
+                </button>
+                <div id="cinematicGptRouteMenu" class="cinematic-pop-menu" hidden>
+                  <button type="button" class="cinematic-pop-option" data-gpt-route="codex" onclick="selectCinematicGptRoute('codex', event)">本地 Codex</button>
+                  <button type="button" class="cinematic-pop-option" data-gpt-route="chatgpt_pool" onclick="selectCinematicGptRoute('chatgpt_pool', event)">账号池 API</button>
+                  <button type="button" class="cinematic-pop-option" data-gpt-route="third_party_image_api" onclick="selectCinematicGptRoute('third_party_image_api', event)">第三方 API</button>
+                </div>
+              </div>
+
+              <div id="cinematicEditFeatureWrap" class="cinematic-menu-wrap" hidden>
+                <button id="cinematicEditFeatureBtn" type="button" class="cinematic-pill" onclick="toggleCinematicMenu('editFeature', event)">
+                  <span class="cinematic-pill-value">基础编辑</span>
+                  <span class="cinematic-pill-caret">⌃</span>
+                </button>
+                <div id="cinematicEditFeatureMenu" class="cinematic-pop-menu" hidden>
+                  <button type="button" class="cinematic-pop-option" data-edit-feature="edit" onclick="selectCinematicEditFeature('edit', event)">基础编辑</button>
+                  <button type="button" class="cinematic-pop-option" data-edit-feature="remove_bg" onclick="selectCinematicEditFeature('remove_bg', event)">智能抠图</button>
+                  <button type="button" class="cinematic-pop-option" data-edit-feature="upscale" onclick="selectCinematicEditFeature('upscale', event)">无损放大</button>
+                  <button type="button" class="cinematic-pop-option" data-edit-feature="face_fix" onclick="selectCinematicEditFeature('face_fix', event)">面部修复</button>
+                  <button type="button" class="cinematic-pop-option" data-edit-feature="style_transfer" onclick="selectCinematicEditFeature('style_transfer', event)">风格迁移</button>
+                </div>
+              </div>
+
               <div id="cinematicModelWrap" class="cinematic-menu-wrap">
                 <button id="cinematicModelBtn" type="button" class="cinematic-pill" onclick="toggleCinematicMenu('model', event)">
                   <span class="cinematic-pill-value">Pro</span>
@@ -1078,6 +1091,13 @@
     </div>
   </div>
 
+  <div id="cinematicComfyWorkbench" class="cinematic-workbench" hidden aria-hidden="true">
+    <div class="cinematic-workbench-bar">
+      <button type="button" class="cinematic-workbench-back" onclick="closeCinematicComfyWorkbench()" aria-label="返回创作流">返回</button>
+      <strong class="cinematic-workbench-title">ComfyUI 工作台</strong>
+    </div>
+  </div>
+
   <div id="cinematicMenuOverlay" class="sidebar-overlay" onclick="toggleCinematicQuickMenu()"></div>
   <div id="cinematicMenu" class="main-start-menu" role="dialog" aria-modal="true" aria-label="Cinematic 菜单">
     <div class="main-menu-panel">
@@ -1092,22 +1112,12 @@
         </div>
       </div>
 
-      <div class="main-menu-stack" aria-label="Cinematic 菜单操作">
-        <button class="menu-card main-menu-row main-menu-primary" onclick="switchToClassicFromCinematicMenu()">
-          <span class="menu-icon">◫</span>
-          <div class="menu-copy">
-            <strong>切回 Classic</strong>
-            <span>返回原有工作台布局</span>
-          </div>
-        </button>
-      </div>
-
       <div class="main-menu-section" aria-label="Cinematic 配色系统">
         <div class="main-menu-section-head">
           <strong>配色系统</strong>
           <span id="cinematicColorSystemCurrent">琥珀片场</span>
         </div>
-        <div class="main-menu-section-note">只作用于 Cinematic，不影响 Classic 工作台。</div>
+        <div class="main-menu-section-note">只作用于当前 Cinematic 创作流。</div>
 
         <div class="cinematic-color-list">
           <button
@@ -1250,6 +1260,7 @@
       <section class="cinematic-viewer-stage" aria-live="polite">
         <div id="cinematicViewerCanvas" class="cinematic-viewer-canvas">
           <img id="cinematicViewerImg" class="cinematic-viewer-img" alt="作品预览" hidden>
+          <video id="cinematicViewerVideo" class="cinematic-viewer-img cinematic-viewer-video" controls playsinline hidden></video>
           <div id="cinematicViewerEmpty" class="cinematic-viewer-empty">这条记录暂时没有可查看的图片。</div>
           <div id="cinematicViewerLoading" class="cinematic-viewer-loading" hidden>正在加载原图...</div>
         </div>
@@ -1281,27 +1292,27 @@
   </div>
 
   <script src="scripts/auth-api.js?v=20260824-auth-debug-clean1"></script>
-  <script src="scripts/state.js?v=20260626-google-model-rename1"></script>
-  <script src="scripts/preferences.js?v=20260626-mobile-bootfix1"></script>
-  <script src="scripts/ui-shell.js?v=20260522-welib-remove-2"></script>
-  <script src="scripts/stage-runtime.js?v=20260427-fallback2"></script>
+  <script src="scripts/state.js?v=20261120-cinematic-only1"></script>
+  <script src="scripts/preferences.js?v=20261120-cinematic-theme1"></script>
+  <script src="scripts/ui-shell.js?v=20261120-cinematic-only1"></script>
+  <script src="scripts/stage-runtime.js?v=20261119-google-copy1"></script>
   <script src="scripts/input-helpers.js?v=20261011-cache-key1"></script>
-  <script src="scripts/cinematic-composer.js?v=20260626-google-model-rename1"></script>
-  <script src="scripts/cinematic-history-stream.js?v=20260426-4"></script>
-  <script src="scripts/cinematic-detail.js?v=20260426-6"></script>
+  <script src="scripts/cinematic-composer.js?v=20261120-cinematic-only1"></script>
+  <script src="scripts/cinematic-history-stream.js?v=20261121-history-media1"></script>
+  <script src="scripts/cinematic-detail.js?v=20261120-archive-thumb1"></script>
   <script src="scripts/cinematic-style-vault.js?v=20260624-google-flash1"></script>
-  <script src="scripts/history.js?v=20260427-1"></script>
-  <script src="scripts/history-routing.js?v=20260425-2"></script>
+  <script src="scripts/history.js?v=20261120-mobile-image-cards1"></script>
+  <script src="scripts/history-routing.js?v=20261120-comfy-archive1"></script>
   <script src="scripts/history-mutations.js?v=20261011-cache-key1"></script>
-  <script src="scripts/modal-actions.js?v=20260425-2"></script>
-  <script src="scripts/modal-view.js?v=20260501-1"></script>
+  <script src="scripts/modal-actions.js?v=20261121-cinematic-exports1"></script>
+  <script src="scripts/modal-view.js?v=20261121-cinematic-exports1"></script>
   <script src="scripts/provider-comfy.js?v=20260426-2"></script>
   <script src="scripts/provider-gpt.js?v=20260623-codex-auto-auth1"></script>
-  <script src="scripts/provider-google-shared.js?v=20260626-google-model-rename1"></script>
+  <script src="scripts/provider-google-shared.js?v=20261119-google-copy1"></script>
   <script src="scripts/provider-google-generate.js?v=20260626-google-model-rename1"></script>
   <script src="scripts/provider-google-edit.js?v=20260427-fallback2"></script>
   <script src="scripts/cinematic-spell.js?v=20261011-cache-key1"></script>
-  <script src="scripts/bootstrap.js?v=20261011-cache-key1"></script>
+  <script src="scripts/bootstrap.js?v=20261120-cinematic-only1"></script>
 
 </body>
 </html>

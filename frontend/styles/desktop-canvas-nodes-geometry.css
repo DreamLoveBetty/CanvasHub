@@ -1458,6 +1458,27 @@ body.desk-app[data-theme="dark"] .desk-image-editor {
   text-rendering: geometricPrecision;
 }
 
+:where(body.desk-app[data-theme]) .desk-export-actions,
+:where(body.desk-app[data-theme]) .desk-batch-controls {
+  display: flex;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  gap: 6px 8px;
+  align-items: center;
+  min-width: 0;
+  max-width: 100%;
+}
+
+:where(body.desk-app[data-theme]) .desk-batch-controls[hidden] {
+  display: none;
+}
+
+:where(body.desk-app[data-theme]) .desk-export-actions .desk-button,
+:where(body.desk-app[data-theme]) .desk-batch-controls .desk-button {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
 :where(body.desk-app[data-theme]) .desk-manual-send {
   flex: 0 0 auto;
   min-width: 92px;
