@@ -16,30 +16,90 @@ COOKIE_NAMES = {
     '__Secure-3PSIDRTS', '__Secure-3PSIDRCC', 'NID', 'SID', 'HSID', 'SSID',
     'APISID', 'SAPISID', 'COMPASS', '__Secure-STRP', 'AEC',
 }
+APEX_COOKIE_NAMES = COOKIE_NAMES - {'COMPASS', '__Secure-STRP'}
+GEMINI_COOKIE_NAMES = {'COMPASS', '__Secure-STRP'}
 
 
-def normalize_cookies(value):
+def cookie_domain_kind(domain):
+    host = str(domain or '.google.com').lstrip('.').lower()
+    if host == 'google.com':
+        return 'google_apex'
+    if host == 'gemini.google.com' or host.endswith('.gemini.google.com'):
+        return 'gemini_host'
+    if host == 'google.com' or host.endswith('.google.com'):
+        return 'other_google'
+    return 'other'
+
+
+def cookie_domain_score(name, kind):
+    if name in GEMINI_COOKIE_NAMES:
+        return {'gemini_host': 3, 'google_apex': 2, 'other_google': 1}.get(kind, 0)
+    if name in APEX_COOKIE_NAMES:
+        return {'google_apex': 3, 'other_google': 2, 'gemini_host': 1}.get(kind, 0)
+    return {'google_apex': 2, 'gemini_host': 2, 'other_google': 1}.get(kind, 0)
+
+
+def _cookie_items(value):
     if isinstance(value, dict) and 'cookies' in value:
         value = value['cookies']
     if isinstance(value, list):
-        cookies = {}
-        for item in value:
-            if not isinstance(item, dict):
-                raise WebError('Cookie JSON 格式无效', 400, 'invalid_cookies')
-            domain = str(item.get('domain') or '.google.com').lstrip('.').lower()
-            if domain != 'google.com' and not domain.endswith('.google.com'):
+        return value
+    if isinstance(value, dict):
+        return [{'name': key, 'value': val, 'domain': '.google.com'} for key, val in value.items()]
+    raise WebError('需要有效 Cookie JSON', 400, 'invalid_cookies')
+
+
+def cookie_source_stats(value):
+    counts = {}
+    input_rows = 0
+    for item in _cookie_items(value):
+        if not isinstance(item, dict):
+            continue
+        domain = str(item.get('domain') or '.google.com')
+        host = domain.lstrip('.').lower()
+        if host != 'google.com' and not host.endswith('.google.com'):
+            continue
+        name = item.get('name')
+        if name not in COOKIE_NAMES:
+            continue
+        input_rows += 1
+        kind = cookie_domain_kind(domain)
+        names = counts.setdefault(name, {})
+        names[kind] = names.get(kind, 0) + 1
+    duplicates = {name: kinds for name, kinds in counts.items() if sum(kinds.values()) > 1}
+    return {
+        'input_rows': input_rows,
+        'kept_names': len(counts),
+        'duplicate_names': duplicates,
+    }
+
+
+def normalize_cookies(value):
+    items = _cookie_items(value)
+    cookies = {}
+    scores = {}
+    for item in items:
+        if not isinstance(item, dict):
+            raise WebError('Cookie JSON 格式无效', 400, 'invalid_cookies')
+        domain = str(item.get('domain') or '.google.com')
+        host = domain.lstrip('.').lower()
+        if host != 'google.com' and not host.endswith('.google.com'):
+            continue
+        expiry = item.get('expirationDate', item.get('expires'))
+        try:
+            if expiry and float(expiry) > 0 and float(expiry) < time.time():
                 continue
-            expiry = item.get('expirationDate', item.get('expires'))
-            try:
-                if expiry and float(expiry) > 0 and float(expiry) < time.time():
-                    continue
-            except (ValueError, TypeError):
-                pass
-            cookies[item.get('name')] = item.get('value')
-    elif isinstance(value, dict):
-        cookies = value
-    else:
-        raise WebError('需要有效 Cookie JSON', 400, 'invalid_cookies')
+        except (ValueError, TypeError):
+            pass
+        name = item.get('name')
+        kind = cookie_domain_kind(domain)
+        score = cookie_domain_score(name, kind)
+        if name in cookies and score < scores[name]:
+            continue
+        if name in cookies and score == scores[name]:
+            continue
+        cookies[name] = item.get('value')
+        scores[name] = score
     result = {}
     for key, value in cookies.items():
         if key not in COOKIE_NAMES:
@@ -50,6 +110,49 @@ def normalize_cookies(value):
     if not result.get('__Secure-1PSID'):
         raise WebError('Cookie 缺少有效的 __Secure-1PSID', 400, 'invalid_cookies')
     return result
+
+
+def sanitize_cookie_records(value):
+    records = []
+    for item in value or []:
+        if not isinstance(item, dict):
+            continue
+        name, val = item.get('name'), item.get('value')
+        if (not isinstance(name, str) or not name or len(name) > 256 or ' ' in name
+                or not isinstance(val, str) or not val or len(val) > 32768 or '\n' in name or '\r' in name
+                or '\n' in val or '\r' in val):
+            continue
+        domain = str(item.get('domain') or '.google.com')
+        host = domain.lstrip('.').lower()
+        if host != 'google.com' and not host.endswith('.google.com'):
+            continue
+        rec = {'name': name, 'value': val, 'domain': domain, 'path': str(item.get('path') or '/') or '/'}
+        expiry = item.get('expires', item.get('expirationDate'))
+        if expiry is not None:
+            rec['expires'] = expiry
+        records.append(rec)
+    return records
+
+
+def cookie_records_from_jar(jar):
+    records = []
+    for cookie in jar or []:
+        domain = str(getattr(cookie, 'domain', None) or '.google.com')
+        host = domain.lstrip('.').lower()
+        if host != 'google.com' and not host.endswith('.google.com'):
+            continue
+        expired = getattr(cookie, 'is_expired', None)
+        if callable(expired) and expired():
+            continue
+        records.extend(sanitize_cookie_records([{
+            'name': getattr(cookie, 'name', None),
+            'value': getattr(cookie, 'value', None),
+            'domain': domain,
+            'path': getattr(cookie, 'path', None) or '/',
+            'expires': getattr(cookie, 'expires', None),
+        }]))
+    return records
+
 
 
 class WebStore:
@@ -129,10 +232,45 @@ class WebStore:
     def list_public(self):
         return [self.public(account) for account in self.private_accounts()]
 
+
+    def preview_import(self, items):
+        if not isinstance(items, list) or not 1 <= len(items) <= 50:
+            raise WebError('需要 1–50 个 Web 账号', 400, 'invalid_account')
+        fingerprints, snapshot_names = set(), set()
+        for item in items:
+            if not isinstance(item, dict):
+                raise WebError('账号必须为 JSON 对象', 400, 'invalid_account')
+            cookies = normalize_cookies(item.get('cookies', item))
+            fingerprints.add(self.fingerprint(cookies))
+            for record in sanitize_cookie_records(item.get('cookie_records')):
+                if record.get('name'):
+                    snapshot_names.add(record['name'])
+            snapshot_names.update(name for name in cookies)
+        if len(fingerprints) != 1:
+            raise WebError('同一浏览器会话的 Cookie 不一致，请统一后导入', 400, 'invalid_account')
+        fingerprint = next(iter(fingerprints))
+        with self.db() as db:
+            row = db.execute('SELECT id FROM web_credentials WHERE fingerprint=?', (fingerprint,)).fetchone()
+            session_count = db.execute('SELECT COUNT(*) FROM web_credentials').fetchone()[0]
+            account_count = db.execute('SELECT COUNT(*) FROM web_accounts').fetchone()[0]
+        matched = row[0] if row else None
+        return {
+            'ok': True,
+            'discovered': len(items),
+            'fingerprint_matches_existing': bool(matched),
+            'would_create_new_session': not bool(matched),
+            'matched_credential': (matched[:8] + '…') if matched else None,
+            'current_sessions': session_count,
+            'current_accounts': account_count,
+            'snapshot_name_count': len(snapshot_names),
+            'snapshot_names': sorted(snapshot_names),
+            'names_outside_legacy_allowlist': sorted(snapshot_names - COOKIE_NAMES),
+        }
+
     def import_accounts(self, items, *, source_credential_id=None):
         if not isinstance(items, list) or not 1 <= len(items) <= 50:
             raise WebError('需要 1–50 个 Web 账号', 400, 'invalid_account')
-        values, groups = [], {}
+        values, groups, group_records = [], {}, {}
         for item in items:
             if not isinstance(item, dict):
                 raise WebError('账号必须为 JSON 对象', 400, 'invalid_account')
@@ -152,6 +290,9 @@ class WebStore:
             if fingerprint in groups and groups[fingerprint] != cookies:
                 raise WebError('同一浏览器会话的 Cookie 不一致，请统一后导入', 400, 'invalid_account')
             groups[fingerprint] = cookies
+            records = sanitize_cookie_records(item.get('cookie_records'))
+            if records and fingerprint not in group_records:
+                group_records[fingerprint] = records
             values.append((fingerprint, label.strip(), slot, email.strip(), name.strip(), profile.strip()))
         results = []
         with self.db() as db:
@@ -166,8 +307,11 @@ class WebStore:
                     row = db.execute('SELECT id,data FROM web_credentials WHERE id=?', (source_credential_id,)).fetchone()
                 credential_id = row[0] if row else uuid.uuid4().hex
                 revision = json.loads(row[1])['revision'] + 1 if row else 1
+                payload = {'cookies': cookies, 'revision': revision}
+                if group_records.get(fingerprint):
+                    payload['cookie_records'] = group_records[fingerprint]
                 db.execute('INSERT OR REPLACE INTO web_credentials VALUES (?,?,?)',
-                           (credential_id, fingerprint, json.dumps({'cookies': cookies, 'revision': revision})))
+                           (credential_id, fingerprint, json.dumps(payload)))
                 credentials[fingerprint] = credential_id
             for fingerprint, label, slot, email, name, profile in values:
                 credential_id = credentials[fingerprint]
@@ -225,7 +369,7 @@ class WebStore:
                            checked_at=int(time.time()), requires_relogin=False)
             db.execute('UPDATE web_accounts SET identity=?,data=? WHERE id=?', (key, json.dumps(account), account_id))
 
-    def persist_cookies(self, account_id, cookies, expected_revision=None):
+    def persist_cookies(self, account_id, cookies, expected_revision=None, records=None):
         try:
             with self.db() as db:
                 row = db.execute('SELECT data FROM web_accounts WHERE id=?', (account_id,)).fetchone()
@@ -235,8 +379,17 @@ class WebStore:
                 if expected_revision is not None and current['revision'] != expected_revision:
                     return None
                 merged = normalize_cookies(dict(current['cookies'], **cookies))
+                payload = {'cookies': merged, 'revision': current['revision']}
+                stored = sanitize_cookie_records(records if records is not None else current.get('cookie_records'))
+                if records is None and stored and cookies:
+                    stored = [{**item, 'value': cookies[item['name']]} if item['name'] in cookies else item for item in stored]
+                    for name, value in cookies.items():
+                        if not any(item['name'] == name for item in stored):
+                            stored.extend(sanitize_cookie_records([{'name': name, 'value': value, 'domain': '.google.com', 'path': '/'}]))
+                if stored:
+                    payload['cookie_records'] = stored
                 db.execute('UPDATE web_credentials SET fingerprint=?,data=? WHERE id=?',
-                    (self.fingerprint(merged), json.dumps({'cookies': merged, 'revision': current['revision']}), current['credential_id']))
+                    (self.fingerprint(merged), json.dumps(payload), current['credential_id']))
                 return merged
         except (WebError, sqlite3.Error, OSError):
             pass  # A deleted account must never be recreated by a late refresh.

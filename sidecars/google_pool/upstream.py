@@ -5,11 +5,19 @@ Single POST per generation: a timeout/disconnect never triggers a blind retry.
 
 from __future__ import annotations
 import json
+import platform
 import logging
+import re
 import time
 import uuid
 import requests
 from .errors import GoogleError
+
+# Structured Google RPC symbols only; never treat reason/message as free text.
+_SAFE_REASON_RE = re.compile(r'^[A-Z][A-Z0-9._-]{0,63}$')
+_ERROR_BODY_LIMIT = 8192
+_MAX_REASONS = 2
+_MAX_DETAILS = 8
 
 logger = logging.getLogger(__name__)
 CONNECT_TIMEOUT = 15
@@ -24,6 +32,182 @@ def upload_timeout(size):
 
 TOKEN_URL = 'https://oauth2.googleapis.com/token'
 PROFILE_URL = 'https://www.googleapis.com/oauth2/v2/userinfo'
+
+
+PLACEHOLDER_CLOUD_CODE_PROJECT = 'aicode-consumers'
+OFFICIAL_DAILY_UPSTREAM = 'https://daily-cloudcode-pa.googleapis.com/v1internal'
+OFFICIAL_PROD_UPSTREAM = 'https://cloudcode-pa.googleapis.com/v1internal'
+DEFAULT_CLOUD_CODE_IDE_VERSION = '2.25.0'
+CLOUD_CODE_CL = '1003475615'
+CLOUD_CODE_IDE_VERSION = '2.33.0'
+
+
+def valid_cloud_code_project_id(project):
+    if not isinstance(project, str):
+        return None
+    value = project.strip()
+    if not value or value == PLACEHOLDER_CLOUD_CODE_PROJECT:
+        return None
+    return value
+
+
+def quota_request_payload(project=None):
+    value = valid_cloud_code_project_id(project)
+    return {'project': value} if value else {}
+
+
+def quota_upstream_url(project=None, is_gcp_tos=None):
+    if is_gcp_tos is True and valid_cloud_code_project_id(project):
+        return OFFICIAL_PROD_UPSTREAM
+    return OFFICIAL_DAILY_UPSTREAM
+
+def _parse_semver_tuple(version):
+    if not isinstance(version, str):
+        return None
+    parts = []
+    current = ''
+    for char in version.strip().lstrip('v'):
+        if char.isdigit():
+            current += char
+        elif current:
+            parts.append(current)
+            current = ''
+        if len(parts) == 3:
+            break
+    if current and len(parts) < 3:
+        parts.append(current)
+    if not parts:
+        return None
+    try:
+        numbers = [int(parts[0]), int(parts[1]) if len(parts) > 1 else 0, int(parts[2]) if len(parts) > 2 else 0]
+    except ValueError:
+        return None
+    return tuple(numbers)
+
+
+def resolve_cloud_code_ide_version(version=None):
+    raw = DEFAULT_CLOUD_CODE_IDE_VERSION if version is None else str(version)
+    detected = _parse_semver_tuple(raw)
+    minimum = _parse_semver_tuple(DEFAULT_CLOUD_CODE_IDE_VERSION)
+    if detected and minimum and detected >= minimum:
+        return raw.strip()
+    return DEFAULT_CLOUD_CODE_IDE_VERSION
+
+
+def cloud_code_os_name(value=None):
+    raw = (value or platform.system() or '').strip().lower()
+    if raw in ('darwin', 'macos', 'osx', 'mac'):
+        return 'darwin'
+    if raw in ('windows', 'win32', 'win'):
+        return 'windows'
+    if raw == 'linux':
+        return 'linux'
+    return 'darwin'
+
+
+def cloud_code_arch(value=None):
+    raw = (value or platform.machine() or '').strip().lower()
+    if raw in ('x86_64', 'amd64', 'x64'):
+        return 'amd64'
+    if raw in ('aarch64', 'arm64'):
+        return 'arm64'
+    return 'arm64'
+
+
+def build_cloud_code_user_agent(ide_version=None, os_name=None, arch=None):
+    version = resolve_cloud_code_ide_version(
+        CLOUD_CODE_IDE_VERSION if ide_version is None else ide_version
+    )
+    os_value = cloud_code_os_name(os_name)
+    arch_value = cloud_code_arch(arch)
+    return (
+        f'antigravity/{version} (aidev_client; os_type={os_value}; '
+        f'arch={arch_value}; cl={CLOUD_CODE_CL})'
+    )
+
+
+
+
+
+def _safe_reason(value):
+    if not isinstance(value, str):
+        return None
+    symbol = value.strip()
+    return symbol if _SAFE_REASON_RE.fullmatch(symbol) else None
+
+
+def _bounded_error_bytes(response, limit=_ERROR_BODY_LIMIT):
+    buf = bytearray()
+    iterator = getattr(response, 'iter_content', None)
+    if not callable(iterator):
+        return b''
+    try:
+        stream = iterator(chunk_size=min(1024, limit))
+    except TypeError:
+        try:
+            stream = iterator()
+        except Exception:
+            return b''
+    try:
+        for chunk in stream:
+            if not chunk:
+                continue
+            if isinstance(chunk, str):
+                chunk = chunk.encode('utf-8', 'replace')
+            elif not isinstance(chunk, (bytes, bytearray)):
+                continue
+            remaining = limit - len(buf)
+            if remaining <= 0:
+                break
+            buf.extend(chunk[:remaining])
+            if len(buf) >= limit:
+                break
+    except Exception:
+        pass
+    return bytes(buf)
+
+
+def _parse_error_payload(raw):
+    if not raw:
+        return None
+    try:
+        value = json.loads(raw.decode('utf-8', 'replace'))
+    except (UnicodeError, ValueError, TypeError):
+        return None
+    return value if isinstance(value, dict) else None
+
+
+def _safe_upstream_reasons(payload):
+    reasons = []
+
+    def add(value):
+        symbol = _safe_reason(value)
+        if symbol and symbol not in reasons:
+            reasons.append(symbol)
+
+    if not isinstance(payload, dict):
+        return reasons
+    error = payload.get('error')
+    if not isinstance(error, dict):
+        return reasons
+    details = error.get('details')
+    if isinstance(details, list):
+        for item in details[:_MAX_DETAILS]:
+            if not isinstance(item, dict):
+                continue
+            add(item.get('reason'))
+            info = item.get('errorInfo')
+            if isinstance(info, dict):
+                add(info.get('reason'))
+            if len(reasons) >= _MAX_REASONS:
+                return reasons[:_MAX_REASONS]
+    # status/code are fallbacks only when details did not yield a safe reason.
+    if not reasons:
+        add(error.get('status'))
+        code = error.get('code')
+        if isinstance(code, str):
+            add(code)
+    return reasons[:_MAX_REASONS]
 
 
 class GoogleUpstream:
@@ -50,11 +234,17 @@ class GoogleUpstream:
             )
             if response.status_code == 429:
                 code = 'google_quota_exhausted'
-            # Do not echo OAuth/upstream error bodies (may contain credentials/prompt).
+            # Bounded, allowlisted reason symbols only. Never echo body/headers/message.
+            reasons = _safe_upstream_reasons(_parse_error_payload(_bounded_error_bytes(response)))
+            detail = f'（HTTP {response.status_code}）'
+            if reasons:
+                detail = f'（HTTP {response.status_code}，{"，".join(reasons)}）'
             raise GoogleError(
-                f'{operation}失败（HTTP {response.status_code}）',
+                f'{operation}失败{detail}',
                 response.status_code if 400 <= response.status_code < 600 else 502,
                 code,
+                reasons=reasons,
+                http_status_rejection=True,
             )
         try:
             value = response.json()
@@ -112,14 +302,26 @@ class GoogleUpstream:
         except requests.RequestException:
             raise GoogleError('Google 账号信息网络请求失败') from None
 
-    def metadata(self, access, method, payload):
+    def metadata(self, access, method, payload, *, is_gcp_tos=None):
         if method not in ('loadCodeAssist', 'fetchAvailableModels'):
             raise ValueError('Unsupported metadata operation')
+        body = payload
+        if method == 'fetchAvailableModels':
+            project = payload.get('project') if isinstance(payload, dict) else None
+            body = quota_request_payload(project)
+            url = quota_upstream_url(project=body.get('project'), is_gcp_tos=is_gcp_tos)
+        else:
+            url = self.settings.upstream
+        request_headers = (
+            self.quota_headers(access)
+            if method == 'fetchAvailableModels'
+            else self.headers(access)
+        )
         try:
             with self.session() as s, s.post(
-                self.settings.upstream + ':' + method,
-                json=payload,
-                headers=self.headers(access),
+                url + ':' + method,
+                json=body,
+                headers=request_headers,
                 timeout=(15, 45),
                 allow_redirects=False,
             ) as r:
@@ -127,12 +329,36 @@ class GoogleUpstream:
         except requests.RequestException:
             raise GoogleError('Google 模型信息网络请求失败') from None
 
+    def quota_summary(self, access, project=None, *, is_gcp_tos=None):
+        payload = quota_request_payload(project)
+        url = quota_upstream_url(project=payload.get('project'), is_gcp_tos=is_gcp_tos)
+        try:
+            with self.session() as s, s.post(
+                url + ':retrieveUserQuotaSummary',
+                json=payload,
+                headers=self.quota_headers(access),
+                timeout=(15, 45),
+                allow_redirects=False,
+            ) as r:
+                return self.checked_json(r, 'Google 分组额度')
+        except requests.RequestException:
+            raise GoogleError('Google 分组额度网络请求失败') from None
+
     @staticmethod
     def headers(access):
         return {
             'Authorization': 'Bearer ' + access,
             'User-Agent': 'antigravity',
             'x-client-name': 'antigravity',
+            'Content-Type': 'application/json',
+        }
+
+    def quota_headers(self, access):
+        version = getattr(self.settings, 'cloud_code_ide_version', None) or CLOUD_CODE_IDE_VERSION
+        return {
+            'Authorization': 'Bearer ' + access,
+            'User-Agent': build_cloud_code_user_agent(ide_version=version),
+            'Accept-Encoding': 'gzip',
             'Content-Type': 'application/json',
         }
 

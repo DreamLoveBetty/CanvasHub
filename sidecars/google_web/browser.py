@@ -3,7 +3,7 @@ import importlib.util
 from pathlib import Path
 import sys
 from .errors import WebError
-from .store import normalize_cookies
+from .store import cookie_source_stats, normalize_cookies
 
 CHROME_ROOT = Path.home() / 'Library/Application Support/Google/Chrome'
 
@@ -32,7 +32,11 @@ def import_profile(profile):
     cookie_file = next(p for p in (directory / 'Cookies', directory / 'Network/Cookies') if p.is_file())
     try:
         jar = browser_cookie3.chrome(cookie_file=str(cookie_file), domain_name='google.com')
-        cookies = normalize_cookies([{'name': c.name, 'value': c.value, 'domain': c.domain, 'expires': c.expires} for c in jar])
+        raw = [{'name': c.name, 'value': c.value, 'domain': c.domain, 'expires': c.expires,
+                'path': getattr(c, 'path', None) or '/'} for c in jar]
+        stats = cookie_source_stats(raw)
+        cookies = normalize_cookies(raw)
     except Exception:
         raise WebError('无法读取服务端 Chrome 登录态，请在服务端电脑完成系统授权或改用 JSON 导入', 409, 'browser_permission_required') from None
-    return {'label': 'Chrome · ' + profile, 'source_profile': profile, 'cookies': cookies}
+    return {'label': 'Chrome · ' + profile, 'source_profile': profile, 'cookies': cookies,
+            'cookie_records': raw, 'cookie_stats': stats}

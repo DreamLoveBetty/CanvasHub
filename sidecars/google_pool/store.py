@@ -12,6 +12,8 @@ from contextlib import contextmanager
 from pathlib import Path
 
 from .errors import GoogleError
+from .quota_groups import sanitize_quota_groups
+from .upstream import valid_cloud_code_project_id
 
 
 class GoogleStore:
@@ -75,7 +77,7 @@ class GoogleStore:
 
     @staticmethod
     def public(a):
-        return {
+        public = {
             k: a.get(k)
             for k in (
                 'id',
@@ -89,11 +91,18 @@ class GoogleStore:
                 'success_count',
                 'failure_count',
                 'requires_relogin',
+                'quota_groups_updated_at',
+                'quota_groups_last_attempt_at',
+                'quota_groups_status',
             )
         } | {
             'refreshable': bool(a.get('refresh_token')),
-            'project_configured': bool(a.get('project_id')),
+            'project_configured': bool(valid_cloud_code_project_id(a.get('project_id'))),
+            'quota_groups': sanitize_quota_groups(a.get('quota_groups')),
         }
+        if not public.get('quota_groups_status'):
+            public['quota_groups_status'] = 'ok' if public['quota_groups'] else 'missing'
+        return public
 
     def list_public(self):
         return [self.public(a) for a in self.private_accounts()]
@@ -159,6 +168,10 @@ class GoogleStore:
                     models_checked_at=old.get('models_checked_at', 0),
                     success_count=old.get('success_count', 0),
                     failure_count=old.get('failure_count', 0),
+                    quota_groups=old.get('quota_groups', []),
+                    quota_groups_updated_at=old.get('quota_groups_updated_at', 0),
+                    quota_groups_last_attempt_at=old.get('quota_groups_last_attempt_at', 0),
+                    quota_groups_status=old.get('quota_groups_status', 'missing'),
                 )
                 db.execute(
                     'INSERT OR REPLACE INTO google_accounts VALUES (?,?,?)',

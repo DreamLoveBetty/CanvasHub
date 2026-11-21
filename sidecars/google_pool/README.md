@@ -9,7 +9,7 @@
 - `oauth.py`：10 分钟授权会话、PKCE、单次 code 交换、state / callback 匹配。进程重启后未完成的会话失效。
 - `upstream.py`：Google OAuth / Cloud Code HTTP 适配，不管理账号库。
 - `wire.py`：Gemini `contents` / `inlineData` 与 JSON/SSE 图片协议、大小和 MIME 校验。
-- `pool.py`：账号刷新、项目解析、模型额度、每账号一个请求的 lease、只在发送生成请求前切换账号。
+- `pool.py`：账号刷新、项目解析、模型额度、每账号一个请求的 lease；新图像任务在同一进程内对可用账号顺序轮换；同任务仅在可证明安全时换号，明确政策限制立即停止。
 - `api.py`：Google FastAPI router / runtime；依赖注入宿主鉴权，后台线程只在启用时续期。
 - `../account_service.py`：组合根。先挂 Google router，再挂原 GPT app；显式启动和关闭两个生命周期。Google 包不反向导入 GPT 包。
 
@@ -24,14 +24,14 @@
 
 Google 账号池默认关闭，启用状态写入自己的 DB；不与 GPT `enabled` 绑定。不读取 Antigravity Tools 本机文件，也不主动导入任何账号。
 导入支持单个 Tools 账号结构 `{"email":"…","token":{"refresh_token":"…","access_token":"…","expiry_timestamp":…,"project_id":"…"}}`，由前端包装成 `accounts` 数组；也支持 Token 字段直接位于账号对象顶层。
-导入不联网，不信任外部传入的模型额度；点击刷新后读取真实目录。只导入 access token 时需带有效到期时间，过期后无法自动续期。
+导入不联网，不信任外部传入的模型额度。工具栏「刷新状态」只读取本地缓存，不请求上游改写分组额度。账号行「刷新额度」会按需刷新授权，并重新读取模型目录与分组额度摘要；分组额度属于尽力获取：失败或本次未返回分组时保留上次缓存并标明陈旧，不更新缓存时间，也不影响目录或账号可用性。首次未返回分组时明确显示暂无分组额度。设置中心按 Cockpit Tools v1.4.2 `summary_bucket_family` 的精确 bucketId 把官方桶映射到 Claude / Gemini / Argon / Carbon 家族并按官方 5h、weekly 窗口展示；分数和重置时间取该桶本身，不把 Claude 桶改名为 Argon，没有对应官方 Argon 桶就不显示 Argon 家族数值。未映射的桶保留在「其他额度」。不根据套餐或模型名猜测窗口，不把缺值填成 0%。只导入 access token 时需带有效到期时间，过期后无法自动续期。
 凭据存于本地权限受限 SQLite，不是 OS Keychain 加密存储。
 
 ## 使用
 
 1. 主后端和 sidecar 都需重启到新代码；当前旧进程不会自动加载新路由。
 2. 设置中心 → 账号池 → Google OAuth → 添加 Google 授权，点击生成的授权链接；本机回调保存完成后点击读取账号。
-3. 也可主动粘贴授权 JSON 导入；刷新授权 / 额度后查看该账号可用模型。
+3. 也可主动粘贴授权 JSON 导入；用账号行「刷新额度」查看该账号可用模型与分组额度，工具栏「刷新状态」只重读本地缓存。
 4. 启用 Google 账号池；画布切到 Google → 线路选择 Google OAuth。
 5. 原线路“第三方 API”不变。老工作流默认第三方；新线路保存在节点、工作流、批量参数与任务重试中。
 
@@ -63,12 +63,14 @@ sidecar 上的同名管理路由及以下兼容 API 需要 `Authorization: Beare
 
 兼容范围为 Gemini 图片请求的 `contents`（text / inlineData）、`generationConfig.imageConfig.aspectRatio / imageSize`。
 每个请求返回一张原图；不实现文字 chat、工具调用、远程 fileData 或 OpenAI Images。`/v1/*` 仍完全归原 GPT 服务，避免两种账号混用。
-管理 API 不回显 Token、client secret、本地 auth key 或 project_id。返回图片可附加 `google_pool` 的 requested_model / resolved_model / account_id 元数据。
+管理 API 不回显 Token、client secret、本地 auth key 或 project_id。返回图片可附加 `google_pool` 的 requested_model / resolved_model / account_id / attempt 元数据；失败时同样只回匿名 account_id 与 attempt，不回显 Token、email 或 project_id。
 
 ## 路由和失败语义
 
 Cloud Code 调用使用 `project/model/request` envelope、`requestType=image_gen` 和原生 SSE；Pro/Flash 分别在自身 3 / 3.1 家族内按目录匹配，不自动跨档。
-额度为零或账号忙碌时不会强制提交。仅前置凭据/额度检查可以继续选下一个账号；生成 POST 一旦发出，超时、断流、5xx、429 都不会自动重放。
+额度为零或账号忙碌时不会强制提交。新图像任务在同一 sidecar 进程内按账号 id 顺序轮换。游标是该进程 `GooglePool` 实例上的内存状态，与 lease 同一把锁推进，不写入账号库；重启 sidecar 后游标复位，下一任务从当时 eligible 集合按 id 排序重新开始。跨进程或多实例不保证严格公平。同一次任务对每个账号最多尝试一次，并有总次数上限。
+TOS_VIOLATION 等明确服务/政策限制（含无法安全分类的 403）只停止并提示当前任务，预检阶段也不换号试探。不会自动禁用、清空或给该账号加冷却；该账号仍保持 eligible，后续新任务轮换仍可能再次选到它。不存在为规避限制而改选其他号的策略。
+仅在可证明尚未提交生成 POST（例如预检无可用模型、预检授权失效），或图像生成接口本身在 SSE 开始前以完整 HTTP 状态明确拒绝（HTTP 429 且 `google_quota_exhausted`，或 HTTP 401 且 `google_auth_expired`，由该次 `streamGenerateContent` 响应状态判定）时，才换下一个账号继续。不能把 SSE 已开始后的嵌套 error.status、部分输出、或仅凭错误码猜测当作未扣费的证据。读超时、连接断开、已发出 POST 但结果不明、SSE 已开始或已有输出、以及不能安全判定的 5xx，都不会自动重发或换号。
 取消会中止下游等待并阻止新的提交；已发送的 Google 请求无法保证撤销，上游读取可能持续到返回或超时，期间 lease 不复用。
 没有自动 Google → GPT fallback。
 

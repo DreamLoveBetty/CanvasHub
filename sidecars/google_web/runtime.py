@@ -43,6 +43,13 @@ class WebRuntime:
         elif action == 'browser-profiles':
             from .browser import profiles
             return {'ok': True, 'items': profiles()}
+        elif action == 'browser-preview':
+            if self.pool.inflight or self.pool.maintenance:
+                raise WebError('Web 任务运行中，请稍后导入 Cookie', 409, 'account_busy')
+            from .browser import import_profile
+            item = await asyncio.to_thread(import_profile, body.get('profile'))
+            items = await self.upstream.discover_accounts(item)
+            return dict(self.store.preview_import(items), profile=body.get('profile') or '')
         elif action in ('accounts-import', 'browser-import', 'account-expand'):
             if self.pool.inflight or self.pool.maintenance:
                 raise WebError('Web 任务运行中，请稍后导入 Cookie', 409, 'account_busy')

@@ -1,9 +1,12 @@
 """Google-only account leases, token refresh and per-model availability."""
 
 from __future__ import annotations
+import re
 import threading
 import time
 from .errors import GoogleError
+from .quota_groups import has_usable_quota_groups, normalize_quota_summary, sanitize_quota_groups
+from .upstream import quota_request_payload, valid_cloud_code_project_id
 from .wire import (
     is_image_model,
     is_text_model,
@@ -14,6 +17,65 @@ from .wire import (
 )
 
 
+
+MAX_IMAGE_ACCOUNT_ATTEMPTS = 3
+_SAFE_REASON = re.compile(r'[A-Z][A-Z0-9._-]{0,63}')
+POLICY_REASONS = frozenset(
+    {
+        'TOS_VIOLATION',
+        'TERMS_OF_SERVICE',
+        'USER_TOS_VIOLATION',
+        'ACCOUNT_SUSPENDED',
+        'SERVICE_DISABLED',
+    }
+)
+SAFE_SWITCH_CODES = frozenset(
+    {
+        'google_quota_exhausted',
+        'google_model_unavailable',
+        'google_auth_expired',
+        'google_project_unavailable',
+    }
+)
+
+
+def _error_reasons(error):
+    values = []
+    for item in getattr(error, 'reasons', ()) or ():
+        if isinstance(item, str):
+            values.append(item)
+    for item in _SAFE_REASON.findall(str(error)):
+        values.append(item)
+    return tuple(dict.fromkeys(values))
+
+
+def is_policy_restriction(error):
+    return any(reason in POLICY_REASONS or 'TOS' in reason for reason in _error_reasons(error))
+
+
+def can_retry_other_account(error, *, submitted):
+    if not isinstance(error, GoogleError):
+        return False
+    if error.code in ('cancelled', 'google_pool_disabled'):
+        return False
+    if is_policy_restriction(error):
+        return False
+    if error.status == 403 and error.code not in SAFE_SWITCH_CODES:
+        return False
+    if not submitted:
+        return True
+    # After the generate POST is issued, only a complete HTTP status rejection
+    # from that endpoint — before SSE starts and before any output — can switch.
+    # Nested error.status / mid-stream 429 or 401 is not proof that nothing billed.
+    if not getattr(error, 'http_status_rejection', False):
+        return False
+    if error.status == 429 and error.code == 'google_quota_exhausted':
+        return True
+    if error.status == 401 and error.code == 'google_auth_expired':
+        return True
+    return False
+
+
 class GooglePool:
     def __init__(self, store, upstream):
         self.store, self.upstream = store, upstream
@@ -21,12 +83,13 @@ class GooglePool:
         self.account_locks = {}
         self.inflight = set()
         self.cooldowns = {}
+        self._rr_after_id = None
 
     def account_lock(self, account_id):
         with self.lock:
             return self.account_locks.setdefault(account_id, threading.RLock())
 
-    def credentials(self, account_id, force=False):
+    def ensure_token(self, account_id, force=False):
         with self.account_lock(account_id):
             a = self.store.get(account_id)
             if not a.get('enabled'):
@@ -68,6 +131,11 @@ class GooglePool:
                         'last_error': '',
                     },
                 )
+            return a
+
+    def credentials(self, account_id, force=False):
+        with self.account_lock(account_id):
+            a = self.ensure_token(account_id, force)
             if not a.get('project_id'):
                 info = self.upstream.metadata(
                     a['access_token'],
@@ -88,9 +156,12 @@ class GooglePool:
 
     def refresh(self, account_id, force=False):
         with self.account_lock(account_id):
-            a = self.credentials(account_id, force)
+            a = self.ensure_token(account_id, force)
             info = self.upstream.metadata(
-                a['access_token'], 'fetchAvailableModels', {'project': a['project_id']}
+                a['access_token'],
+                'fetchAvailableModels',
+                quota_request_payload(a.get('project_id')),
+                is_gcp_tos=a.get('is_gcp_tos'),
             )
             models = []
             raw = info.get('models')
@@ -130,7 +201,59 @@ class GooglePool:
                     'last_error': '',
                 },
             )
+            a = self._refresh_quota_groups(account_id, a)
             return self.store.public(a)
+
+
+    def _refresh_quota_groups(self, account_id, account):
+        # Best-effort grouped buckets. Failures must not undo a successful catalog
+        # refresh, invent 0% bars, or change account eligibility.
+        now = int(time.time())
+        previous = sanitize_quota_groups(account.get('quota_groups'))
+        had_cache = has_usable_quota_groups(previous)
+
+        def keep(status):
+            return self.store.patch(
+                account_id,
+                {
+                    'quota_groups_status': status,
+                    'quota_groups_last_attempt_at': now,
+                },
+            )
+
+        try:
+            raw = self.upstream.quota_summary(
+                account.get('access_token'),
+                valid_cloud_code_project_id(account.get('project_id')),
+                is_gcp_tos=account.get('is_gcp_tos'),
+            )
+            normalized = normalize_quota_summary(raw)
+            if normalized is None:
+                raise GoogleError('Google 分组额度格式无效', 502, 'google_upstream_error')
+            groups = normalized['groups']
+            if not has_usable_quota_groups(groups):
+                if had_cache:
+                    return keep('stale_empty')
+                return self.store.patch(
+                    account_id,
+                    {
+                        'quota_groups': [],
+                        'quota_groups_updated_at': now,
+                        'quota_groups_last_attempt_at': now,
+                        'quota_groups_status': 'empty',
+                    },
+                )
+            return self.store.patch(
+                account_id,
+                {
+                    'quota_groups': groups,
+                    'quota_groups_updated_at': now,
+                    'quota_groups_last_attempt_at': now,
+                    'quota_groups_status': 'ok',
+                },
+            )
+        except (GoogleError, TypeError, ValueError):
+            return keep('stale' if had_cache else 'error')
 
     @staticmethod
     def resolve_model(model, account):
@@ -278,6 +401,54 @@ class GooglePool:
             raise GoogleError('Google 模型未返回有效文本', 502, 'google_empty_text')
         return result
 
+    def _acquire_image_account(self, model, tried):
+        with self.lock:
+            eligible = [
+                a
+                for a in self.store.private_accounts()
+                if a.get('enabled')
+                and not a.get('requires_relogin')
+                and a['id'] not in self.inflight
+                and a['id'] not in tried
+                and self.cooldowns.get((a['id'], model), 0) <= time.monotonic()
+            ]
+            eligible.sort(key=lambda a: a['id'])
+            if not eligible:
+                return None
+            chosen = eligible[0]
+            cursor = self._rr_after_id
+            if cursor:
+                for account in eligible:
+                    if account['id'] > cursor:
+                        chosen = account
+                        break
+            self.inflight.add(chosen['id'])
+            self._rr_after_id = chosen['id']
+            return chosen
+
+    def _record_image_failure(self, account_id, error, model):
+        try:
+            account = self.store.get(account_id)
+            self.store.patch(
+                account_id,
+                {
+                    'last_error': str(error),
+                    'failure_count': account.get('failure_count', 0) + 1,
+                    'requires_relogin': error.code == 'google_auth_expired',
+                },
+            )
+        except GoogleError:
+            pass
+        if error.status == 429:
+            with self.lock:
+                self.cooldowns[(account_id, model)] = time.monotonic() + 60
+
+    @staticmethod
+    def _annotate_image_error(error, account_id, attempt):
+        error.account_id = account_id
+        error.attempt = attempt
+        return error
+
     def generate(self, model, body, cancelled=None):
         if is_text_model(model):
             return self.generate_text(model, body, cancelled=cancelled)
@@ -285,23 +456,16 @@ class GooglePool:
             raise GoogleError('Google OAuth 账号池未启用', 503, 'google_pool_disabled')
         model = normalize_model(model)
         request = prepare_request(body)
-        with self.lock:
-            candidates = [
-                a
-                for a in self.store.private_accounts()
-                if a.get('enabled')
-                and not a.get('requires_relogin')
-                and a['id'] not in self.inflight
-                and self.cooldowns.get((a['id'], model), 0) <= time.monotonic()
-            ]
-            candidates.sort(key=lambda a: a.get('last_used_at') or 0)
         last = None
-        for candidate in candidates:
+        tried = set()
+        attempts = 0
+        while attempts < MAX_IMAGE_ACCOUNT_ATTEMPTS:
+            candidate = self._acquire_image_account(model, tried)
+            if candidate is None:
+                break
             account_id = candidate['id']
-            with self.lock:
-                if account_id in self.inflight:
-                    continue
-                self.inflight.add(account_id)
+            tried.add(account_id)
+            attempts += 1
             submitted = False
             try:
                 if cancelled and cancelled.is_set():
@@ -339,28 +503,15 @@ class GooglePool:
                     'requested_model': model,
                     'resolved_model': resolved,
                     'account_id': account_id,
+                    'attempt': attempts,
                 }
                 return result
             except GoogleError as e:
-                last = e
-                try:
-                    a = self.store.get(account_id)
-                    self.store.patch(
-                        account_id,
-                        {
-                            'last_error': str(e),
-                            'failure_count': a.get('failure_count', 0) + 1,
-                            'requires_relogin': e.code == 'google_auth_expired',
-                        },
-                    )
-                except GoogleError:
-                    pass
-                if e.status == 429:
-                    with self.lock:
-                        self.cooldowns[(account_id, model)] = time.monotonic() + 60
-                # Only preflight can try another account. Never resubmit a generation POST.
-                if submitted or e.code in ('cancelled', 'google_pool_disabled'):
-                    raise
+                last = self._annotate_image_error(e, account_id, attempts)
+                self._record_image_failure(account_id, e, model)
+                # Policy limits and uncertain post-submit results stop immediately.
+                if not can_retry_other_account(e, submitted=submitted):
+                    raise last
             finally:
                 with self.lock:
                     self.inflight.discard(account_id)

@@ -124,6 +124,24 @@ def _error_code(prefix: str, suffix: str) -> str:
     return prefix or suffix or "generation.unknown"
 
 
+
+_SAFE_UPSTREAM_REASON_RE = re.compile(r"^[A-Z][A-Z0-9._-]{0,63}$")
+
+
+def _safe_http_403_reasons(text: str) -> list[str]:
+    """Copy allowlisted reason symbols already present after HTTP 403."""
+    reasons: list[str] = []
+    match = re.search(r"HTTP\s+403\b(.*)$", text, flags=re.I | re.S)
+    if not match:
+        return reasons
+    for token in re.findall(r"[A-Z][A-Z0-9._-]{0,63}", match.group(1)):
+        if _SAFE_UPSTREAM_REASON_RE.fullmatch(token) and token not in reasons:
+            reasons.append(token)
+        if len(reasons) >= 2:
+            break
+    return reasons
+
+
 def translate_generation_error(
     raw_error: Any,
     *,
@@ -243,6 +261,17 @@ def translate_generation_error(
         or "forbidden" in lower and "quota" not in lower
         or "auth" in lower and "refresh" in lower
     ):
+        if provider_key.startswith("google_pool") and "http 403" in lower:
+            reasons = _safe_http_403_reasons(text)
+            display = "Google OAuth 账号池被上游拒绝（HTTP 403）"
+            if reasons:
+                display = f"Google OAuth 账号池被上游拒绝（HTTP 403，{'，'.join(reasons)}）"
+            return {
+                "error_code": _error_code(provider_key or "google_pool", "upstream_rejected"),
+                "error_category": "upstream",
+                "display_error": display,
+                "raw_error": text,
+            }
         display = "授权已失效或没有访问权限，请重新登录/刷新授权"
         if "chatgpt_pool" in provider_key or "pool" in provider_key:
             display = "ChatGPT 账号池鉴权失败，请检查 sidecar 或重新登录"
@@ -328,6 +357,15 @@ def translate_generation_error(
         return {
             "error_code": _error_code(provider_key or "transport", "connection_error"),
             "error_category": "transport",
+            "display_error": display,
+            "raw_error": text,
+        }
+
+    if "未返回图片" in text or "未返回有效图片" in text:
+        display = _first_meaningful_line(text) or "模型没有返回可用图片数据，请稍后重试"
+        return {
+            "error_code": _error_code(provider_key or "generation", "no_image"),
+            "error_category": "output",
             "display_error": display,
             "raw_error": text,
         }

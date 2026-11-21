@@ -46,6 +46,7 @@ class GoogleSettings:
     upstream: str = 'https://daily-cloudcode-pa.sandbox.googleapis.com/v1internal'
     timeout: int = 900
     proxy_url: str = ""
+    cloud_code_ide_version: str = "2.33.0"
 
 
 def load_settings(callback_port=18080) -> GoogleSettings:
@@ -71,4 +72,7 @@ def load_settings(callback_port=18080) -> GoogleSettings:
         os.environ.get('GOOGLE_POOL_REDIRECT_URI')
         or f'http://localhost:{int(callback_port)}/oauth-callback',
         proxy_url=os.environ.get('GOOGLE_POOL_PROXY_URL', '').strip(),
+        cloud_code_ide_version=(
+            os.environ.get('GOOGLE_POOL_CLOUD_CODE_IDE_VERSION', '').strip() or '2.33.0'
+        ),
     )

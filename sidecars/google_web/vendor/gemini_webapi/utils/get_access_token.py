@@ -1,5 +1,6 @@
 """CanvasHub isolation patch: use only explicitly selected account cookies."""
 import re
+from urllib.parse import urlparse
 from curl_cffi.requests import AsyncSession, Cookies
 from ..constants import Endpoint, Headers
 from ..exceptions import AuthError
@@ -16,6 +17,9 @@ async def get_access_token(base_cookies, proxy=None, verbose=False, verify=True,
                 client.cookies.set(name, value, domain='.google.com')
         response = await client.get(Endpoint.INIT, params={'authuser': authuser}, headers=Headers.GEMINI.value)
         response.raise_for_status()
+        host = (urlparse(str(getattr(response, 'url', '') or '')).hostname or '').lower()
+        if host == 'accounts.google.com' or host.startswith('accounts.google.'):
+            raise AuthError('Gemini login session is unavailable')
         def field(key):
             match = re.search(r'"' + key + r'":\s*"(.*?)"', response.text)
             return match.group(1) if match else None

@@ -7,6 +7,8 @@ no account-token handling, and no writes to the GPT or Google account database.
 from __future__ import annotations
 import base64
 import io
+import re
+import sys
 import time
 from urllib.parse import quote
 import requests
@@ -14,6 +16,23 @@ from PIL import Image
 from .gemini_image_response import GeminiImageResponse
 from .gemini_request_parts import labeled_reference_parts
 from .image_resolution import build_resolution_metadata
+
+_ANONYMOUS_ACCOUNT_ID = re.compile(r'^[0-9a-fA-F-]{6,64}$')
+
+
+def _reraise_with_pool_attempt(route, route_meta):
+    exc = sys.exc_info()[1]
+    account_id = str(route_meta.get('account_id') or '')
+    if route != 'google_pool' or not _ANONYMOUS_ACCOUNT_ID.fullmatch(account_id):
+        raise
+    suffix = f'（account_id={account_id}'
+    attempt = route_meta.get('attempt')
+    if attempt not in (None, ''):
+        suffix += f'，attempt={attempt}'
+    suffix += '）'
+    if suffix in str(exc):
+        raise
+    raise type(exc)(f'{exc}{suffix}') from exc
 
 
 class GooglePoolProvider:
@@ -100,13 +119,11 @@ class GooglePoolProvider:
                 return
             info = document.get('google_pool')
             if isinstance(info, dict):
-                route_meta.update(
-                    {
-                        key: str(info[key])[:160]
-                        for key in ('requested_model', 'resolved_model', 'account_id')
-                        if key in info
-                    }
-                )
+                for key in ('requested_model', 'resolved_model', 'account_id', 'attempt'):
+                    if key not in info:
+                        continue
+                    value = info[key]
+                    route_meta[key] = value if key == 'attempt' and isinstance(value, int) else str(value)[:160]
                 if self.route == 'google_web' and info.get('web_image_source') in ('original_rpc', 'preview_fallback'):
                     route_meta.update({'web_image_source': info['web_image_source'],
                         'web_original_verified': info['web_image_source'] == 'original_rpc' and info.get('web_original_verified') is True})
@@ -131,8 +148,13 @@ class GooglePoolProvider:
                 ) as r:
                     if not 200 <= r.status_code < 300:
                         try:
-                            error = r.json().get('error')
+                            payload = r.json()
                         except ValueError:
+                            payload = None
+                        if isinstance(payload, dict):
+                            capture_document(payload)
+                            error = payload.get('error')
+                        else:
                             error = None
                         raise RuntimeError(error or f'Google账号池HTTP {r.status_code}')
                     for chunk in r.iter_content(chunk_size=None):
@@ -154,7 +176,12 @@ class GooglePoolProvider:
             raise RuntimeError(
                 'Google账号池连接中断；执行状态未知，未重新提交'
             ) from None
-        image = decoder.finish()
+        except Exception:
+            _reraise_with_pool_attempt(self.route, route_meta)
+        try:
+            image = decoder.finish()
+        except Exception:
+            _reraise_with_pool_attempt(self.route, route_meta)
         with Image.open(io.BytesIO(image)) as picture:
             width, height = picture.size
         metadata = build_resolution_metadata(size, [{'width': width, 'height': height}])

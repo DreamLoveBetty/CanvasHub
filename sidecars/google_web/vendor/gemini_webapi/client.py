@@ -634,6 +634,7 @@ class GeminiClient(ChatMixin, GemMixin, ResearchMixin):
                 "is_queueing": False,
             }
             output = None
+            kept_images = {}
             async for output in self._generate(
                 prompt=prompt,
                 req_file_data=file_data,
@@ -646,12 +647,21 @@ class GeminiClient(ChatMixin, GemMixin, ResearchMixin):
                 pro_image=pro_image,
                 **kwargs,
             ):
-                pass
+                if output is None:
+                    continue
+                for candidate in getattr(output, 'candidates', None) or []:
+                    if getattr(candidate, 'generated_images', None):
+                        kept_images[candidate.rcid] = candidate.generated_images
 
             if output is None:
                 raise GeminiError(
                     "Failed to generate contents. No output data found in response."
                 )
+
+            if kept_images:
+                for candidate in getattr(output, 'candidates', None) or []:
+                    if not getattr(candidate, 'generated_images', None) and candidate.rcid in kept_images:
+                        candidate.generated_images = kept_images[candidate.rcid]
 
             if isinstance(chat, ChatSession):
                 output.metadata = chat.metadata

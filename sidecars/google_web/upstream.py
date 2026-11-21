@@ -5,9 +5,30 @@ import importlib.util
 import io
 import time
 from .errors import WebError
-from .accounts import require_identity, discover_accounts
+from .accounts import apply_cookie_records, require_identity, discover_accounts
+from .store import cookie_records_from_jar
 from .images import download_generated_image
 from .download_diagnostics import DownloadDiagnostics
+
+
+
+def _no_image_details(output):
+    """Credential-free structure counts for a successful reply with no generated image."""
+    candidates = list(getattr(output, 'candidates', None) or [])
+    chosen = getattr(output, 'chosen', 0) or 0
+    selected = candidates[chosen] if 0 <= chosen < len(candidates) else (candidates[0] if candidates else None)
+    text = getattr(selected, 'text', '') or ''
+    thoughts = getattr(selected, 'thoughts', '') or ''
+    return {
+        'candidate_count': len(candidates),
+        'chosen': chosen,
+        'text_len': len(text),
+        'thoughts_len': len(thoughts),
+        'web_image_count': len(getattr(selected, 'web_images', None) or []),
+        'generated_image_count': len(getattr(selected, 'generated_images', None) or []),
+        'video_count': len(getattr(selected, 'generated_videos', None) or []),
+        'media_count': len(getattr(selected, 'generated_media', None) or []),
+    }
 
 
 class GeminiWebUpstream:
@@ -29,16 +50,21 @@ class GeminiWebUpstream:
         entry = self.sessions.get(account_id)
         if not entry or entry['client'] is not client:
             return
-        cookies = {cookie.name: cookie.value for cookie in client.cookies.jar
-                   if str(cookie.domain or '').lstrip('.').endswith('google.com') and not cookie.is_expired()}
+        records = cookie_records_from_jar(client.cookies.jar)
+        cookies = {item['name']: item['value'] for item in records} or {
+            cookie.name: cookie.value for cookie in client.cookies.jar
+            if str(cookie.domain or '').lstrip('.').endswith('google.com') and not cookie.is_expired()}
         snapshot = entry.get('cookie_snapshot', {})
         changes = {key: value for key, value in cookies.items() if snapshot.get(key) != value}
-        canonical = self.persist_cookies(account_id, changes, entry['revision']) if changes else None
+        canonical = self.persist_cookies(account_id, changes, entry['revision'], records=records or None) if changes else None
         if canonical:
             group = entry.get('credential_id') or account_id
             for other_id, other in self.sessions.items():
                 if (other.get('credential_id') or other_id) == group:
-                    other['client'].cookies = canonical
+                    if records:
+                        apply_cookie_records(other['client'], records)
+                    else:
+                        other['client'].cookies = canonical
                     other['cookie_snapshot'] = dict(canonical)
         else:
             entry['cookie_snapshot'] = cookies
@@ -81,7 +107,11 @@ class GeminiWebUpstream:
                               proxy=self.settings.proxy_url or None, verify=True,
                               authuser=account.get('authuser', 0),
                               on_bootstrap=lambda html: identity.update(require_identity(html, account.get('authuser', 0), account.get('expected_email') or '')))
-        client.cookies = cookies
+        records = account.get('cookie_records')
+        if isinstance(records, list) and records:
+            apply_cookie_records(client, records)
+        else:
+            client.cookies = cookies
         try:
             await client.init(timeout=self.settings.timeout, auto_refresh=False, refresh_interval=600,
                               watchdog_timeout=120, verbose=False)
@@ -128,7 +158,8 @@ class GeminiWebUpstream:
                 output = await client.generate_content(prompt, files=files or None, pro_image=True, temporary=True)
                 images = [image for image in output.images if isinstance(image, GeneratedImage)]
                 if not images:
-                    raise WebError('Gemini Web 未返回图片，未重新提交', 502, 'web_no_image')
+                    raise WebError('Gemini Web 未返回图片，未重新提交', 502, 'web_no_image',
+                                  details=_no_image_details(output))
                 if cancelled and cancelled.is_set():
                     raise WebError('任务已取消，未重新提交', 499, 'cancelled')
                 trace = self.download_diagnostics.begin(account_id, images[0], ratio=ratio, size=size,
