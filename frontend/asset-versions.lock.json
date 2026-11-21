@@ -383,8 +383,8 @@
     "sha256": "458aed2e112bf3517234e4f63cf9498769af57fdab6996a2101c6587194d320c"
    },
    "scripts/desktop-preferences.js": {
-    "v": "20261118-release2661b",
-    "sha256": "1d3eb1a86dd977e2a4957866fc840f7565d50437693d10bd067f2049c2a5c159"
+    "v": "20261121-release2662",
+    "sha256": "3fc75b43e091b859bf96d33b4772ec9fa2b36d4e95d1855ca1fa64920ea26dc0"
    },
    "scripts/desktop-progress-materials.js": {
     "v": "20261007-node-progress4",
