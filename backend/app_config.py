@@ -370,6 +370,56 @@ def get_cyimg_config() -> dict[str, Any]:
     }
 
 
+def _load_easycolab_local_session() -> dict[str, Any]:
+    session_path_str = _as_str(os.environ.get("EASYCOLAB_SESSION_FILE"))
+    session_path = Path(session_path_str).expanduser() if session_path_str else (
+        Path.home() / ".config" / "colab-minimax-h3" / "session.json"
+    )
+    if not session_path.is_file():
+        return {}
+    try:
+        raw = json.loads(session_path.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+    if not isinstance(raw, dict) or raw.get("sleeping") is True:
+        return {}
+    url = _as_str(raw.get("url")).rstrip("/")
+    if not url:
+        return {}
+    return {"url": url, "password": _as_str(raw.get("password"))}
+
+
+def get_easycolab_config() -> dict[str, Any]:
+    """EasyColab MiniMax-H3 connection config with optional local session fallback."""
+    section = load_app_settings().get("easycolab") or {}
+    if not isinstance(section, dict):
+        section = {}
+    base_url = _as_str(os.environ.get("EASYCOLAB_URL") or section.get("base_url")).rstrip("/")
+    password = _as_str(os.environ.get("EASYCOLAB_PASSWORD") or section.get("password"))
+    use_local_session = _as_bool(section.get("use_local_session"), True)
+    auto_load_model = _as_bool(section.get("auto_load_model"), True)
+    timeout = _as_int(
+        os.environ.get("EASYCOLAB_TIMEOUT_SECONDS") or section.get("task_timeout_seconds"),
+        3600,
+        minimum=60,
+    )
+    session = _load_easycolab_local_session() if use_local_session else {}
+    effective_base_url = base_url or _as_str(session.get("url")).rstrip("/")
+    effective_password = password or _as_str(session.get("password"))
+    return {
+        "base_url": base_url,
+        "password": password,
+        "password_configured": bool(password),
+        "password_length": len(password),
+        "effective_base_url": effective_base_url,
+        "effective_password": effective_password,
+        "session_detected": bool(session.get("url")),
+        "use_local_session": use_local_session,
+        "auto_load_model": auto_load_model,
+        "task_timeout_seconds": min(timeout, 7200),
+    }
+
+
 def get_comfy_config() -> dict[str, Any]:
     """Return ComfyUI connection settings with environment overrides."""
     settings = load_app_settings()

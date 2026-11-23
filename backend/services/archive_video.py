@@ -181,7 +181,12 @@ def _archive_video_task_map(*, H3_VIDEO_TASK_TYPE, Path, get_all_tasks, _ARCHIVE
     return {name: task for name, task in mapping.items() if task}
 
 
-_VIDEO_PROVIDER_LABELS = {'minimax-h3-video': 'MiniMax H3', 'cyimg-video': 'Cyimg', 'comfy': 'ComfyUI'}
+_VIDEO_PROVIDER_LABELS = {
+    'minimax-h3-video': 'MiniMax H3',
+    'easycolab-h3-video': 'EasyColab H3',
+    'cyimg-video': 'Cyimg',
+    'comfy': 'ComfyUI',
+}
 
 
 def _archive_video_provider_label(task):

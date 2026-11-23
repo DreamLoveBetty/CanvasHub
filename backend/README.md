@@ -57,6 +57,7 @@ flowchart TD
 | 姿态识别（GEM-X 精简版） | `routes/pose_capture_routes.py` | `pose_capture/` 固定 GEM-X 源码与模型、常驻 CPU worker（照片识别）、场景转换（重力、机位、地面）、视频识别（`video.py`，CoreML 加速在 `accel.py`）、识别体型 GLB（`bodies.py`）、任务队列；HTTP 进程不导入推理依赖；见 `pose_capture/README.md` |
 | 姿态参考（SOMA 人偶） | `routes/pose_routes.py` | `pose_scene/` 固定 SOMA 与 Anny 资产、安装时子进程生成中性 / 女性 / 男性人偶 GLB、姿态视频 ffmpeg 编码（`video_export.py`，成品进图片归档）、导出图与场景快照存放；不依赖识别、图像 Provider 或其他本地模型；见 `pose_scene/README.md` |
 | 绘栾图像/视频 | `routes/cyimg_routes.py` | `provider_cyimg.py` 对接官方 API 与动态目录；`services/cyimg_generation.py` 校验、任务恢复、轮询、原件归档和 Telegram 投递 |
+| EasyColab MiniMax H3 图像/视频 | `routes/easycolab_h3_routes.py` | `provider_easycolab_h3.py` 对接 EasyColab `/minimax_api/*` 与 4 款 H3 模型目录（10Eros-Max / Sulphur-3 / MiniMax-H3 / H3-Image 4K）；`services/easycolab_h3_generation.py` 负责参考图/音频暂存、自动加载显存、轮询、归档与 Telegram 原文件投递 |
 | Krea 2 本地图像 | `routes/krea2_routes.py` | `krea2/` 固定源码/模型准备、内容寻址 LoRA、Base 模型目录与离线量化转换、串行队列、共享 `.venv` 子进程与归档；见 `krea2/README.md` |
 | Qwen 2.1 本地图像 | `routes/qwen21_routes.py` | `qwen21/` 独立固定源码/模型、文生图与有序多参考编辑、按版本/秩选择 Viggle 且步数可调、普通 LoRA、Base 转换/发布；共享 `.venv` 与本地加速器租约；`negative_prompt` 仅标准预设且 CFG > 1 生效；见 `qwen21/README.md` |
 | MOSS 本地图像 | `routes/moss_routes.py` | `moss/` 独立 venv、只读权重绑定、Layout/分镜编译、第三方 LoRA 规范化、整图与切图归档；可选 `negative_prompt`（两种预设都经 CFG 分支读取，计入 token 预算，写入 sidecar）；MLX 只在 worker 内 |

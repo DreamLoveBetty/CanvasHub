@@ -844,7 +844,7 @@
     window.DesktopSelect?.refresh?.(reasoningSelect);
   }
 
-  function renderThirdPartyImageSettings(config, nanoConfig = {}, cyimgConfig = {}) {
+  function renderThirdPartyImageSettings(config, nanoConfig = {}, cyimgConfig = {}, easycolabConfig = {}) {
     const api = config || {};
     const nano = nanoConfig || {};
     const nanoCard = renderCard('Nano Banana API', [
@@ -902,7 +902,26 @@
     ], Boolean(cyimgConfig.api_key_configured), {
       actions: renderSecretClear('绘栾 API Key', 'cyimg.api_key', cyimgConfig.api_key_configured)
     });
-    return nanoCard + gptImageCard + cyimgCard;
+    const easycolabReady = Boolean(easycolabConfig.effective_base_url || easycolabConfig.base_url);
+    const easycolabCard = renderCard('EasyColab MiniMax H3', [
+      `<div class="desk-settings-form" data-system-settings-card="third-party-easycolab">
+        <p class="desk-settings-form__hint">连接 Google Colab 上的 EasyColab 服务，供画布上的 MiniMax H3 图像（4K）与视频（10Eros-Max / Sulphur-3 / 原生 33B）节点使用。留空地址时可自动读取本机 EasyColab 会话。</p>
+        ${renderInput('EasyColab 服务地址', 'easycolab.base_url', easycolabConfig.base_url || '', {
+          placeholder: easycolabConfig.session_detected ? `已检测到本机会话：${easycolabConfig.effective_base_url}` : 'https://xxxx.gradio.live'
+        })}
+        ${renderSecretInput('EasyColab 管理密码', 'easycolab.password', easycolabConfig.password_configured, {
+          length: easycolabConfig.password_length,
+          placeholder: easycolabConfig.password_configured ? '留空则不修改' : '填写 EasyColab Basic Auth 密码（可选）'
+        })}
+        ${renderCheckbox('地址留空时自动读取本机 EasyColab 会话', 'easycolab.use_local_session', easycolabConfig.use_local_session !== false)}
+        ${renderCheckbox('提交任务时若模型未加载则自动加载到显存', 'easycolab.auto_load_model', easycolabConfig.auto_load_model !== false)}
+        ${renderInput('任务等待上限（秒）', 'easycolab.task_timeout_seconds', easycolabConfig.task_timeout_seconds || 3600, { type: 'number', min: 60, max: 7200, step: 60 })}
+        ${renderSystemSaveButton('third-party-easycolab', '保存 EasyColab 连接')}
+      </div>`
+    ], easycolabReady, {
+      actions: renderSecretClear('EasyColab 管理密码', 'easycolab.password', easycolabConfig.password_configured)
+    });
+    return nanoCard + gptImageCard + cyimgCard + easycolabCard;
   }
 
   function comfyWorkflowPlaceholder() {
@@ -1475,6 +1494,7 @@
       ...(setting('third_party_image_api', {}) || {})
     };
     const cyimg = { ...(data.cyimg || {}), ...(setting('cyimg', {}) || {}) };
+    const easycolab = { ...(data.easycolab || {}), ...(setting('easycolab', {}) || {}) };
     const auth = data.auth || {};
     const server = data.server || {};
     const promptRuntime = lastPromptConfig || { prompt_skill: data.prompt_skill || {} };
@@ -1485,7 +1505,7 @@
     const editablePool = { ...pool, ...(setting('chatgpt_pool', {}) || {}) };
     const comfyConfig = { ...(data.comfy || {}), ...(setting('comfy', {}) || {}) };
     const pinterest = setting('pinterest', {});
-    const thirdPartyReady = Boolean(nanoBanana.api_key_configured || thirdParty.api_key_configured || cyimg.api_key_configured);
+    const thirdPartyReady = Boolean(nanoBanana.api_key_configured || thirdParty.api_key_configured || cyimg.api_key_configured || easycolab.effective_base_url || easycolab.base_url);
     const providerNeedsRelogin = Boolean(provider.requires_relogin);
     const providerReady = Boolean(provider.configured) && !providerNeedsRelogin;
     const managedReloginCount = Number(managedCodex?.stats?.requires_relogin || managedCodex?.accounts?.stats?.requires_relogin || 0);
@@ -1591,7 +1611,7 @@
       {
         tab: 'third-party',
         area: '生成线路',
-        html: activeTab === 'third-party' ? renderThirdPartyImageSettings(thirdParty, nanoBanana, cyimg) : renderCard('第三方 API', [
+        html: activeTab === 'third-party' ? renderThirdPartyImageSettings(thirdParty, nanoBanana, cyimg, easycolab) : renderCard('第三方 API', [
           renderKv('Nano Banana Key', nanoBanana.api_key_configured, { boolean: true }),
           renderKv('Nano Banana URL', nanoBanana.base_url || ''),
           renderKv('GPT Image 2 Key', thirdParty.api_key_configured, { boolean: true }),
@@ -1599,7 +1619,8 @@
           renderKv('生成接口', thirdParty.generate_path || '/v1/images/generations'),
           renderKv('编辑接口', thirdParty.edit_path || '/v1/images/edits'),
           renderKv('模型', thirdParty.model || 'gpt-image-2'),
-          renderKv('绘栾 API Key', cyimg.api_key_configured, { boolean: true })
+          renderKv('绘栾 API Key', cyimg.api_key_configured, { boolean: true }),
+          renderKv('EasyColab H3', easycolab.effective_base_url || easycolab.base_url || '')
         ], thirdPartyReady, { goto: 'third-party' })
       },
       {
@@ -2218,6 +2239,7 @@
     settingsDrafts.forget(card);
     await refresh();
     if (payload.cyimg) window.dispatchEvent(new CustomEvent('desktop:cyimg-settings-updated'));
+    if (payload.easycolab) window.dispatchEvent(new CustomEvent('desktop:easycolab-h3-settings-updated'));
     const visibleCard = els.deskSettingsBody?.querySelector('[data-system-settings-card="system"]') || card;
     applySystemSettingsSaveResult(result, {
       notify: (message, tone) => window.DesktopResults?.showTransientMessage?.(message, tone || 'success'),

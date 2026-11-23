@@ -78,7 +78,7 @@
       if (style === 'classic') {
         removeMaterial(entry);
         if (colors.classic) {
-          const bar = entry.root.querySelector('[data-progress-bar], [data-cyimg-bar]');
+          const bar = entry.root.querySelector('[data-progress-bar], [data-cyimg-bar], [data-easycolab-h3-bar]');
           if (bar) {
             entry.classicBar = bar;
             entry.classicBackground = bar.style.background;

@@ -1600,3 +1600,7 @@ load order is unchanged; both changed scripts use `20261002-qwen21-vae1`.
 `control_reference_size`。只有 control 模式使用所选值，标准／Identity Edit 发送 1024，
 避免切换连线后遗留选项误入其他模式。它只调整内部参考编码，不改变输出宽高、画幅或语义识图。
 布局仍由 `desktop-krea2.css` 所有，沿用现有 `desk-select` 与 `desk-switch`，未新增宿主逻辑或加载依赖。
+
+## EasyColab MiniMax H3 独立画布节点（2026-11-23）
+
+`desktop-easycolab-h3-model.js` 拥有图像/视频节点 schema、`17k+5` 帧数对齐与连线策略；`desktop-easycolab-h3-api.js` 经认证接口访问 `/api/easycolab_h3/{catalog,upload,load_model,submit}` 与既有任务状态/取消接口；`desktop-canvas-easycolab-h3.js` 拥有 4 款 H3 模型参数展示、显存加载触发、画布连线素材上传、进度与结果回流；`desktop-easycolab-h3.css` 仅使用 `desk-` 类和既有画布 tokens。主提示词与图片/音频参考来自画布连线；EasyColab 密码保存在服务端设置中，不进入前端。加载顺序位于 `desktop-canvas.js` 之前，按 model → API → controller 装配。

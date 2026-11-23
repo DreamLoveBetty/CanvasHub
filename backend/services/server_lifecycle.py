@@ -33,6 +33,7 @@ def run_server(
     socketserver,
     recover_qwen21_tasks=lambda: None,
     recover_moss_tasks=lambda: None,
+    recover_easycolab_h3_tasks=lambda: None,
 ):
     """启动服务器"""
     _validate_public_mode_password(server_config=SERVER_CONFIG)
@@ -47,6 +48,7 @@ def run_server(
         print(f"⚠️ 已标记 {queued_count} 个重启后遗留的排队任务为失败，可手动重跑")
     _init_generation_semaphore()
     recover_cyimg_tasks()
+    recover_easycolab_h3_tasks()
     recover_krea2_tasks()
     recover_qwen21_tasks()
     recover_moss_tasks()

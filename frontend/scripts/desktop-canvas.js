@@ -314,6 +314,7 @@
     window.DesktopQwen21Model.MENU_ITEM,
     window.DesktopMossModel.MENU_ITEM,
     ...window.DesktopCyimgModel.MENU_ITEMS,
+    ...window.DesktopEasyColabH3Model.MENU_ITEMS,
     {
       type: 'input',
       title: '模型输入',
@@ -5216,6 +5217,25 @@
     saveState:()=>DesktopState.saveSettings({criticalCanvas:true}),
     reportStatus:feedback=>taskRegistry.report('cyimg',feedback),
   });
+  const canvasEasyColabH3 = window.DesktopCanvasEasyColabH3.create({
+    progressView: canvasProgress,
+    model: window.DesktopEasyColabH3Model,
+    api: window.DesktopEasyColabH3API,
+    getCanvas: () => DesktopState.state.canvas,
+    getNodeState,
+    getNodeElement,
+    getImageReferences: getConnectedImageReferences,
+    getTextNodes: getConnectedTextNodes,
+    getNegativeTextNodes: getConnectedNegativeTextNodes,
+    materializeText: materializeTextNode,
+    audioAssets: window.DesktopAudioAssets,
+    addNode,
+    connectNodes,
+    setImageFromResult: setImageNodeFromResult,
+    refreshVideoNode,
+    saveState: () => DesktopState.saveSettings({ criticalCanvas: true }),
+    reportStatus: feedback => taskRegistry.report('easycolab_h3', feedback),
+  });
   const canvasLoRA = window.DesktopCanvasLoRA.create({
     getCanvas: () => DesktopState.state.canvas, getNodeState, getNodeElement,
     getTextNodes: getConnectedTextNodes, materializeText: materializeTextNode,
@@ -5389,6 +5409,8 @@
     listCancelable: canvasVideoCompose.getCancelableTasks, showStatus: canvasVideoCompose.showStatus});
   taskRegistry.register('cyimg', {client: () => window.DesktopCyimgAPI.tasks,
     showStatus: canvasCyimg.showStatus});
+  taskRegistry.register('easycolab_h3', {client: () => window.DesktopEasyColabH3API.tasks,
+    listCancelable: canvasEasyColabH3.getCancelableTasks, showStatus: canvasEasyColabH3.showStatus});
   taskRegistry.register('krea2', {client: () => window.DesktopKrea2API.tasks,
     listCancelable: canvasKrea2.getCancelableTasks, showStatus: canvasKrea2.showStatus});
   taskRegistry.register('qwen21', {client: () => window.DesktopQwen21API.tasks,
@@ -5427,6 +5449,7 @@
     musicNodeDefinition: window.DesktopMusicModel,
     topazDefinition: window.DesktopTopazModel,
     cyimgDefinition: window.DesktopCyimgModel,
+    easycolabH3Definition: window.DesktopEasyColabH3Model,
     krea2Definition: window.DesktopKrea2Model,
     krea2ControlDefinition: window.DesktopKrea2Control,
     qwen21Definition: window.DesktopQwen21Model,
@@ -5773,6 +5796,7 @@
     musicNode: canvasMusic,
     topazNode: canvasTopaz,
     cyimgNode: canvasCyimg,
+    easycolabH3Node: canvasEasyColabH3,
     krea2Node: canvasKrea2,
     krea2ControlNode: canvasKrea2Control,
     qwen21Node: canvasQwen21,
@@ -5785,6 +5809,7 @@
     musicNodeDefinition: window.DesktopMusicModel,
     topazDefinition: window.DesktopTopazModel,
     cyimgDefinition: window.DesktopCyimgModel,
+    easycolabH3Definition: window.DesktopEasyColabH3Model,
     krea2Definition: window.DesktopKrea2Model,
     krea2ControlDefinition: window.DesktopKrea2Control,
     qwen21Definition: window.DesktopQwen21Model,
@@ -5894,7 +5919,7 @@
 
   const canvasConnections = window.DesktopCanvasConnections.create({
     imageGroupContentBounds: node => canvasImageGroupModel.imageGroupContentBounds(node),
-    domainConnections: window.DesktopCanvasConnections.combineDomains(canvasMusic.connections, canvasVideoControl.connections, canvasVideoCompose.connections, canvasTopazVideo.connections, canvasVideoEdit.connections, canvasTopaz.connections, canvasCyimg.connections, canvasKrea2.connections, canvasKrea2Control.connections, canvasQwen21.connections, canvasMoss.connections, canvasComfyVideo.connections, canvasComfyAudio.connections),
+    domainConnections: window.DesktopCanvasConnections.combineDomains(canvasMusic.connections, canvasVideoControl.connections, canvasVideoCompose.connections, canvasTopazVideo.connections, canvasVideoEdit.connections, canvasTopaz.connections, canvasCyimg.connections, canvasEasyColabH3.connections, canvasKrea2.connections, canvasKrea2Control.connections, canvasQwen21.connections, canvasMoss.connections, canvasComfyVideo.connections, canvasComfyAudio.connections),
     IMAGE_GROUP_LIQUID_VISIBLE_OUTSET_PX,
     LINK_VIEWBOX,
     NODE_MENU_ITEMS,

@@ -147,7 +147,7 @@ test('every 72px generate key is on the shared notch list, except already docume
   assert.ok(!classes.includes('.desk-node--music'));
 
   // Known 72px keys that are not part of the graphite generate-notch family.
-  const allowedUnnotched = new Set(['.desk-node--cyimg']);
+  const allowedUnnotched = new Set(['.desk-node--cyimg', '.desk-node--easycolab-h3']);
   const { model, view } = loadMusicView();
   const rendered = classListOf(view.nodeHtml(model.createState('g', 'music_generate', {})))
     .filter(name => name.startsWith('desk-node--'))
