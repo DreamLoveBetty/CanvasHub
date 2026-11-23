@@ -72,6 +72,7 @@ from .app_config import (
     get_chatgpt_pool_public_config,
     get_comfy_config,
     get_cyimg_config,
+    get_easycolab_config,
     get_managed_codex_oauth_public_config,
     get_allowed_cors_origins,
     get_max_concurrent_tasks,
@@ -119,6 +120,8 @@ from .pose_capture.runtime import Runtime as PoseCaptureRuntime
 from .routes.pose_capture_routes import create_router as create_pose_capture_router
 from .routes.cyimg_routes import create_router as create_cyimg_router
 from .services.cyimg_generation import CyimgService
+from .routes.easycolab_h3_routes import create_router as create_easycolab_h3_router
+from .services.easycolab_h3_generation import EasyColabH3Service
 from .krea2.runtime import Runtime as Krea2Runtime
 from .krea2.service import Service as Krea2Service
 from .routes.krea2_routes import create_router as create_krea2_router
@@ -836,7 +839,7 @@ def _history_file_is_present(task, name):
         return False
     kind = str(task.get('type') or '')
     params = task.get('params') if isinstance(task.get('params'), dict) else {}
-    is_video = kind in {H3_VIDEO_TASK_TYPE, 'cyimg-video'} or (
+    is_video = kind in {H3_VIDEO_TASK_TYPE, 'cyimg-video', 'easycolab-h3-video'} or (
         kind == 'comfy' and params.get('comfy_output_kind') == 'video')
     if is_video or kind == 'gpt-file':
         return True
@@ -2184,7 +2187,7 @@ def _collect_system_diagnostics():
         PORT=PORT, SERVER_HOST=SERVER_HOST, TELEGRAM_AUTH_ALLOWED_IDS=TELEGRAM_AUTH_ALLOWED_IDS,
         TELEGRAM_AUTH_BOT_TOKEN=TELEGRAM_AUTH_BOT_TOKEN, _auth_enabled=_auth_enabled, _collect_chatgpt_pool_status=_collect_chatgpt_pool_status,
         _collect_comfy_workflows=_collect_comfy_workflows, _path_diagnostics=_path_diagnostics, archive_scan_roots=archive_scan_roots,
-        get_comfy_config=get_comfy_config, get_cyimg_config=get_cyimg_config, get_database_path=get_database_path,
+        get_comfy_config=get_comfy_config, get_cyimg_config=get_cyimg_config, get_easycolab_config=get_easycolab_config, get_database_path=get_database_path,
         get_gpt_provider_auth_status=get_gpt_provider_auth_status, get_managed_codex_oauth_status=get_managed_codex_oauth_status, get_miniapp_access_password=get_miniapp_access_password,
         get_nano_banana_api_base_url=get_nano_banana_api_base_url, get_nano_banana_api_key=get_nano_banana_api_key, get_prompt_skill_config=get_prompt_skill_config,
         get_server_config=get_server_config, get_storage_config=get_storage_config, get_telegram_config=get_telegram_config,
@@ -2207,7 +2210,7 @@ def _collect_system_settings():
     return _domain_services_system_settings._collect_system_settings(
         PORT=PORT, SERVER_HOST=SERVER_HOST, TELEGRAM_AUTH_ALLOWED_IDS=TELEGRAM_AUTH_ALLOWED_IDS,
         archive_scan_roots=archive_scan_roots, ensure_pinterest_auth_storage=ensure_pinterest_auth_storage, get_chatgpt_pool_public_config=get_chatgpt_pool_public_config,
-        get_comfy_config=get_comfy_config, get_cyimg_config=get_cyimg_config, get_database_path=get_database_path, get_gpt_provider_config=get_gpt_provider_config,
+        get_comfy_config=get_comfy_config, get_cyimg_config=get_cyimg_config, get_easycolab_config=get_easycolab_config, get_database_path=get_database_path, get_gpt_provider_config=get_gpt_provider_config,
         get_managed_codex_oauth_public_config=get_managed_codex_oauth_public_config, get_miniapp_access_password=get_miniapp_access_password, get_nano_banana_api_base_url=get_nano_banana_api_base_url,
         get_nano_banana_api_key=get_nano_banana_api_key, get_pinterest_browser_login_capability=get_pinterest_browser_login_capability, get_pinterest_config=get_pinterest_config,
         get_prompt_skill_config=get_prompt_skill_config, get_proxy_config=get_proxy_config, get_server_config=get_server_config,
@@ -2496,6 +2499,12 @@ _CYIMG_SERVICE = CyimgService(
     update_task_fields=update_task_fields, daily_output_dir=daily_output_dir,
     send_document=send_tg_document)
 _CYIMG_ROUTES = create_cyimg_router(_CYIMG_SERVICE)
+_EASYCOLAB_H3_SERVICE = EasyColabH3Service(
+    get_config=get_easycolab_config, create_task=create_task, get_task=get_task,
+    get_all_tasks=get_all_tasks, update_task=update_task, update_task_status=update_task_status,
+    update_task_fields=update_task_fields, daily_output_dir=daily_output_dir,
+    send_document=send_tg_document, probe_video_metadata=_probe_archive_video_metadata)
+_EASYCOLAB_H3_ROUTES = create_easycolab_h3_router(_EASYCOLAB_H3_SERVICE)
 _KREA2_SERVICE = Krea2Service(
     APP_DATA_DIR / 'data' / 'krea2', APP_DATA_DIR / 'components' / 'krea2',
     Krea2Runtime(APP_DATA_DIR / 'components' / 'krea2'),
@@ -2712,6 +2721,8 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
         if _POSE_CAPTURE_ROUTES.dispatch(self, 'GET', path):
             return
         if _CYIMG_ROUTES.dispatch(self, 'GET', path):
+            return
+        if _EASYCOLAB_H3_ROUTES.dispatch(self, 'GET', path):
             return
         if _KREA2_ROUTES.dispatch(self, 'GET', path):
             return
@@ -3011,6 +3022,8 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
         if _POSE_CAPTURE_ROUTES.dispatch(self, 'POST', path):
             return
         if _CYIMG_ROUTES.dispatch(self, 'POST', path):
+            return
+        if _EASYCOLAB_H3_ROUTES.dispatch(self, 'POST', path):
             return
         if _KREA2_ROUTES.dispatch(self, 'POST', path):
             return
@@ -4377,6 +4390,7 @@ def run_server():
         get_agent_runtime=get_agent_runtime, init_agent_store=init_agent_store, init_asset_store=init_asset_store,
         init_db=init_db, init_layout_draft_store=init_layout_draft_store, init_prompt_library_store=init_prompt_library_store,
         recover_cyimg_tasks=_CYIMG_SERVICE.recover,
+        recover_easycolab_h3_tasks=_EASYCOLAB_H3_SERVICE.recover,
         recover_krea2_tasks=_KREA2_SERVICE.recover,
         recover_qwen21_tasks=_QWEN21_SERVICE.recover,
         recover_moss_tasks=_MOSS_SERVICE.recover,

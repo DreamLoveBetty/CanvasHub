@@ -20,6 +20,7 @@ def _collect_system_diagnostics(
     get_comfy_config,
     get_cyimg_config,
     get_database_path,
+    get_easycolab_config=lambda: {},
     get_gpt_provider_auth_status,
     get_managed_codex_oauth_status,
     get_miniapp_access_password,
@@ -41,6 +42,7 @@ def _collect_system_diagnostics(
     prompt_skill_cfg = get_prompt_skill_config()
     third_party_cfg = get_third_party_image_config()
     cyimg_cfg = get_cyimg_config()
+    easycolab_cfg = get_easycolab_config() or {}
     managed_codex_cfg = get_managed_codex_oauth_status()
     comfy_cfg = get_comfy_config()
 
@@ -91,6 +93,14 @@ def _collect_system_diagnostics(
         "cyimg": {
             "api_key_configured": bool(cyimg_cfg.get("api_key_configured")),
             "task_timeout_seconds": cyimg_cfg.get("task_timeout_seconds", 3600),
+        },
+        "easycolab": {
+            "base_url": easycolab_cfg.get("base_url", ""),
+            "effective_base_url": easycolab_cfg.get("effective_base_url", ""),
+            "password_configured": bool(easycolab_cfg.get("password_configured")),
+            "session_detected": bool(easycolab_cfg.get("session_detected")),
+            "auto_load_model": bool(easycolab_cfg.get("auto_load_model", True)),
+            "task_timeout_seconds": easycolab_cfg.get("task_timeout_seconds", 3600),
         },
         "comfy": {
             "base_url": comfy_cfg.get("base_url", ""),
@@ -161,6 +171,7 @@ def _collect_system_settings(
     get_comfy_config,
     get_cyimg_config,
     get_database_path,
+    get_easycolab_config=lambda: {},
     get_gpt_provider_config,
     get_managed_codex_oauth_public_config,
     get_miniapp_access_password,
@@ -189,6 +200,7 @@ def _collect_system_settings(
     prompt_cfg = get_prompt_skill_config()
     third_party_cfg = get_third_party_image_config()
     cyimg_cfg = get_cyimg_config()
+    easycolab_cfg = get_easycolab_config() or {}
     proxy_cfg = get_proxy_config()
     prompt_source_proxy_cfg = get_proxy_config("prompt_source")
     comfy_cfg = get_comfy_config()
@@ -242,6 +254,16 @@ def _collect_system_settings(
                 "api_key_configured": bool(cyimg_cfg.get("api_key_configured")),
                 "api_key_length": cyimg_cfg.get("api_key_length", 0),
                 "task_timeout_seconds": cyimg_cfg.get("task_timeout_seconds", 3600),
+            },
+            "easycolab": {
+                "base_url": easycolab_cfg.get("base_url", ""),
+                "effective_base_url": easycolab_cfg.get("effective_base_url", ""),
+                "password_configured": bool(easycolab_cfg.get("password_configured")),
+                "password_length": easycolab_cfg.get("password_length", 0),
+                "session_detected": bool(easycolab_cfg.get("session_detected")),
+                "use_local_session": bool(easycolab_cfg.get("use_local_session", True)),
+                "auto_load_model": bool(easycolab_cfg.get("auto_load_model", True)),
+                "task_timeout_seconds": easycolab_cfg.get("task_timeout_seconds", 3600),
             },
             "comfy": {
                 "base_url": comfy_cfg.get("base_url", ""),
@@ -455,6 +477,26 @@ def _sanitize_system_settings_patch(
             pass
     if cyimg_data:
         settings["cyimg"] = cyimg
+
+    easycolab = _settings_dict(settings.get("easycolab")).copy()
+    easycolab_data = _settings_dict(data.get("easycolab"))
+    _patch_text(easycolab, easycolab_data, "base_url", max_len=2048)
+    if "base_url" in easycolab_data:
+        easycolab["base_url"] = str(easycolab.get("base_url") or "").strip().rstrip("/")
+    _patch_secret(easycolab, easycolab_data, "password")
+    if "use_local_session" in easycolab_data:
+        easycolab["use_local_session"] = bool(easycolab_data["use_local_session"])
+    if "auto_load_model" in easycolab_data:
+        easycolab["auto_load_model"] = bool(easycolab_data["auto_load_model"])
+    if "task_timeout_seconds" in easycolab_data:
+        try:
+            easycolab["task_timeout_seconds"] = max(
+                60, min(7200, int(easycolab_data["task_timeout_seconds"]))
+            )
+        except (TypeError, ValueError):
+            pass
+    if easycolab_data:
+        settings["easycolab"] = easycolab
 
     comfy = _settings_dict(settings.get("comfy")).copy()
     comfy_data = _settings_dict(data.get("comfy"))
