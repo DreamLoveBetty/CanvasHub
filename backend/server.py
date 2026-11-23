@@ -1197,6 +1197,7 @@ def save_prompt_version(data):
 COMFY_CLIENT_ID = os.environ.get('COMFY_CLIENT_ID', f"tg-mini-app-{uuid.uuid4().hex[:12]}")
 COMFY_WORKFLOW_DIR = PROJECT_ROOT / 'workflows'
 COMFY_PREVIEW_DIR = APP_DATA_DIR / 'data' / 'comfy' / 'previews'
+COMFY_OBJECT_INFO_CACHE_FILE = APP_DATA_DIR / 'data' / 'comfy' / 'object_info_cache.json'
 UPSCALE_MODEL_DIR = Path(
     os.environ.get('UPSCALE_MODEL_DIR')
     or (APP_DATA_DIR / 'components' / 'upscale' / 'current' / 'models' if os.environ.get('CANVASHUB_DATA_DIR') else default_upscale_model_dir(PROJECT_ROOT))
@@ -1504,7 +1505,9 @@ def _comfy_ratio_from_size(width, height):
     return _domain_services_comfy_workflows._comfy_ratio_from_size(width, height, _normalize_comfy_dimension=_normalize_comfy_dimension, math=math)
 
 
-_COMFY_OPTION_LOOKUP = _domain_services_comfy_object_info.ComfyOptionLookup(lambda: _new_comfy_session(), get_comfy_config)
+_COMFY_OPTION_LOOKUP = _domain_services_comfy_object_info.ComfyOptionLookup(
+    lambda: _new_comfy_session(), get_comfy_config, cache_path=COMFY_OBJECT_INFO_CACHE_FILE
+)
 
 
 def _repair_comfy_choices(workflow):

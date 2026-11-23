@@ -57,7 +57,10 @@
     if (!bar) return;
 
     const activeKey = getActiveViewKey();
-    const shouldHide = !activeKey || currentLayoutMode === 'cinematic';
+    const isCinematicComfy = currentLayoutMode === 'cinematic'
+      && document.body?.classList.contains('is-cinematic-comfy-workbench')
+      && activeKey === 'comfy';
+    const shouldHide = !activeKey || (currentLayoutMode === 'cinematic' && !isCinematicComfy);
 
     bar.classList.toggle('is-hidden', shouldHide);
     bar.querySelectorAll('.submit-action').forEach(button => {

@@ -101,6 +101,7 @@ test('统一下拉菜单留在当前原生模态层，不改变普通页面和�
   assert.equal(ports.menuContainer({closest:selector=>selector==='dialog'?dialog:null}),dialog);
   assert.equal(ports.menuContainer({closest:selector=>selector==='dialog'?nested:null}),nested);
   assert.equal(ports.usesAnchoredMenu({closest:selector=>selector==='.desk-canvas-world .desk-node'?{}:null}),true);
+  assert.equal(ports.usesAnchoredMenu({closest:selector=>selector==='.desk-canvas-world .desk-node'||selector==='.desk-comfy-parameter-scroll'?{}:null}),false);
   const regular={id:'',closest:()=>null,classList:{contains:()=>false}};
   assert.equal(ports.inferVariant(regular),'default');
   assert.equal(ports.inferVariant({...regular,closest:selector=>selector==='.desk-lora-library, .desk-lora-dialog'?{}:null}),'gallery');

@@ -265,7 +265,7 @@ class NavGroupTitleTypeTest(unittest.TestCase):
         self.assertEqual(_token_name(settings_title), TITLE_TOKEN)
         self.assertEqual(_token_name(prompt_title), TITLE_TOKEN)
         self.assertEqual(_token_name(settings_item), "--desk-settings-control-font")
-        self.assertEqual(_token_name(prompt_item), "--desk-font-size-micro")
+        self.assertEqual(_token_name(prompt_item), "--desk-font-size-caption")
 
         title_px = _resolved_px(settings_title)
         settings_item_px = _resolved_px(settings_item)
@@ -277,8 +277,8 @@ class NavGroupTitleTypeTest(unittest.TestCase):
         self.assertLessEqual(title_px - settings_item_px, 2)
         self.assertGreaterEqual(prompt_title_px, prompt_item_px)
         self.assertEqual(title_px, 13)
-        self.assertEqual(settings_item_px, 12)
-        self.assertEqual(prompt_item_px, 10)
+        self.assertEqual(settings_item_px, 11.5)
+        self.assertEqual(prompt_item_px, 11.5)
 
         self.assertEqual(_weight_token(GEOMETRY, SETTINGS_TITLE), "var(--desk-font-weight-semibold)")
         self.assertEqual(_weight_token(PROMPT, PROMPT_TITLE), "var(--desk-font-weight-semibold)")

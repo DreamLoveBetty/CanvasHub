@@ -917,7 +917,7 @@
     }
     return `<div class="desk-comfy-settings-workflows" role="listbox" aria-label="ComfyUI 工作流库">${items.map(item => `
       <button type="button" class="desk-comfy-settings-workflow${item.id === activeComfyWorkflowId ? ' is-selected' : ''}${item.enabled ? '' : ' is-disabled'}" data-comfy-workflow-edit="${escapeHtml(item.id)}" role="option" aria-selected="${item.id === activeComfyWorkflowId ? 'true' : 'false'}">
-        <span class="desk-comfy-settings-workflow__thumb">${item.thumbnail_url ? `<img src="${escapeHtml(item.thumbnail_url)}" alt="">` : comfyWorkflowPlaceholder()}</span>
+        <span class="desk-comfy-settings-workflow__thumb">${item.thumbnail_url ? `<img src="${escapeHtml(item.thumbnail_url)}" alt="" loading="lazy" decoding="async">` : comfyWorkflowPlaceholder()}</span>
         <span class="desk-comfy-settings-workflow__copy"><strong>${escapeHtml(item.label || item.id)}</strong><small>${escapeHtml(item.summary || item.id)}</small></span>
         <span class="desk-comfy-settings-workflow__state">${item.enabled ? (item.is_default ? '默认' : '启用') : '停用'}</span>
       </button>
@@ -1095,7 +1095,7 @@
           </select>
         </label>
         ${reasoningHint}
-        ${promptRuntime?.warning ? `<p class="desk-settings-form__hint">${escapeHtml(promptRuntime.warning)}</p>` : ''}
+        ${promptRuntime?.warning ? `<p class="desk-settings-form__hint desk-settings-form__hint--warn">${escapeHtml(promptRuntime.warning)}</p>` : ''}
         <div class="desk-settings-form__actions">
           <button type="button" data-prompt-config-reload>刷新模型</button>
           <button type="button" class="is-primary" data-prompt-config-save>保存润色配置</button>
@@ -1214,7 +1214,7 @@
         </div>
         <div class="desk-settings-form__actions desk-settings-form__actions--compact">
           <button type="button" data-managed-codex-oauth-refresh-all>刷新全部 AT</button>
-          <button type="button" data-managed-codex-oauth-logout>清空全部</button>
+          <button type="button" class="desk-button--danger desk-settings-action--danger-separated" data-managed-codex-oauth-logout>清空全部</button>
         </div>
       </div>
     `;
@@ -1592,10 +1592,10 @@
         tab: 'third-party',
         area: '生成线路',
         html: activeTab === 'third-party' ? renderThirdPartyImageSettings(thirdParty, nanoBanana, cyimg) : renderCard('第三方 API', [
-          renderKv('nano banana API Key', nanoBanana.api_key_configured, { boolean: true }),
-          renderKv('nano banana API URL', nanoBanana.base_url || ''),
-          renderKv('Gpt-image-2 API Key', thirdParty.api_key_configured, { boolean: true }),
-          renderKv('Gpt-image-2 API URL', thirdParty.base_url || ''),
+          renderKv('Nano Banana Key', nanoBanana.api_key_configured, { boolean: true }),
+          renderKv('Nano Banana URL', nanoBanana.base_url || ''),
+          renderKv('GPT Image 2 Key', thirdParty.api_key_configured, { boolean: true }),
+          renderKv('GPT Image 2 URL', thirdParty.base_url || ''),
           renderKv('生成接口', thirdParty.generate_path || '/v1/images/generations'),
           renderKv('编辑接口', thirdParty.edit_path || '/v1/images/edits'),
           renderKv('模型', thirdParty.model || 'gpt-image-2'),
@@ -1613,9 +1613,9 @@
         tab: 'paths',
         area: '系统与访问',
         html: activeTab === 'paths' ? renderPathSettings(storage, database) : renderCard('路径与存储', [
-        renderPath('Image Archive', storage.image_archive_dir),
-        renderPath('Source Image', storage.source_image_dir),
-        renderPath('Tasks DB', database.tasks_db)
+        renderPath('图片归档', storage.image_archive_dir),
+        renderPath('参考图目录', storage.source_image_dir),
+        renderPath('任务数据库', database.tasks_db)
         ], Boolean(storage.image_archive_dir?.exists && storage.source_image_dir?.exists && database.tasks_db?.exists), { goto: 'paths' })
       },
       {
@@ -2813,15 +2813,19 @@
 
   async function open() {
     if (window.DesktopPromptLibrary?.close?.() === false) return false;
+    if (window.DesktopHistory?.closeGallery?.() === false || (window.DesktopHistory?.closeGallery && document.getElementById('deskGalleryPanel')?.classList.contains('is-open'))) return false;
     els.deskSettingsPanel?.classList.add('is-open');
     els.deskSettingsPanel?.setAttribute('aria-hidden', 'false');
     document.body.classList.add('desk-settings-open');
     updateTabs();
     // Focus moves into the drawer; search is the most useful first stop.
     els.deskSettingsSearchInput?.focus({ preventScroll: true });
-    const gallery = document.getElementById('deskGalleryPanel');
-    gallery?.classList.remove('is-open');
-    gallery?.setAttribute('aria-hidden', 'true');
+    if (!window.DesktopHistory?.closeGallery) {
+      const gallery = document.getElementById('deskGalleryPanel');
+      gallery?.classList.remove('is-open');
+      gallery?.setAttribute('aria-hidden', 'true');
+    }
+    window.DesktopCanvas?.syncRailActiveTool?.();
     window.DesktopHistory?.syncWorkbenchYield?.();
     try {
       if (!lastDiagnostics) {
@@ -2854,6 +2858,7 @@
     els.deskSettingsPanel?.classList.remove('is-open');
     els.deskSettingsPanel?.setAttribute('aria-hidden', 'true');
     document.body.classList.remove('desk-settings-open');
+    window.DesktopCanvas?.syncRailActiveTool?.();
     window.DesktopHistory?.syncWorkbenchYield?.();
     settingsSearch?.close();
     progressPreview?.release();
@@ -2864,6 +2869,7 @@
     asrTools?.deactivate?.();
     loraSettings?.deactivate?.();
     closeSettingsInfoTip();
+    return true;
   }
 
   function updateTabs() {

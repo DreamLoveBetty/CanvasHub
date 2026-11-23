@@ -266,12 +266,11 @@
   gap: 8px;
   align-items: center;
   margin: -2px 0 10px;
-  padding: 7px 8px;
+  padding: 8px;
   color: #0f766e;
   background: rgba(20, 184, 166, 0.09);
-  border: 1px solid rgba(20, 184, 166, 0.2);
+  border: 1px solid rgba(20, 184, 166, 0.28);
   border-radius: 8px;
-  box-shadow: inset 2px 0 0 rgba(20, 184, 166, 0.62);
 }
 
 .desk-layout-isolation-bar[hidden] {
@@ -464,7 +463,7 @@
 .desk-layout-page-item strong {
   font-size: var(--desk-font-size-body);
   font-weight: var(--desk-font-weight-semibold);
-  line-height: 1.12;
+  line-height: var(--desk-line-height-caption);
 }
 
 .desk-layout-page-name-input {
@@ -486,7 +485,7 @@
   font-size: var(--desk-font-size-caption);
   font-style: normal;
   font-weight: var(--desk-font-weight-semibold);
-  line-height: 1.12;
+  line-height: var(--desk-line-height-caption);
 }
 
 #deskLayoutLayerList {
@@ -567,8 +566,7 @@
 .desk-layout-layer.is-active {
   color: var(--desk-blue);
   background: rgba(8, 79, 189, 0.1);
-  border-color: rgba(8, 79, 189, 0.3);
-  box-shadow: inset 2px 0 0 rgba(8, 79, 189, 0.62);
+  border-color: rgba(8, 79, 189, 0.36);
 }
 
 .desk-layout-layer.is-hidden {
@@ -590,8 +588,7 @@
 .desk-layout-layer.is-isolated {
   color: #0f766e;
   background: rgba(20, 184, 166, 0.1);
-  border-color: rgba(20, 184, 166, 0.28);
-  box-shadow: inset 2px 0 0 rgba(20, 184, 166, 0.62);
+  border-color: rgba(20, 184, 166, 0.36);
 }
 
 .desk-layout-layer.is-isolated-child {
@@ -722,7 +719,7 @@
   overflow: hidden;
   font-size: var(--desk-font-size-caption);
   font-weight: var(--desk-font-weight-semibold);
-  line-height: 1.15;
+  line-height: var(--desk-line-height-caption);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1461,10 +1458,9 @@
 .desk-layout-template i {
   width: 42px;
   height: 42px;
-  background: linear-gradient(135deg, rgba(8, 79, 189, 0.12), #fff 58%), #f8fafc;
-  border: 1px solid rgba(8, 79, 189, 0.18);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--template-accent) 18%, transparent), #fff 62%), #f8fafc;
+  border: 1px solid color-mix(in srgb, var(--template-accent) 34%, transparent);
   border-radius: 8px;
-  box-shadow: inset 4px 0 0 var(--template-accent);
 }
 
 .desk-layout-template span {

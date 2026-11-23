@@ -19,17 +19,18 @@
 
     .cinematic-discover-hero strong {
       display: block;
-      font-family: 'Cormorant Garamond', serif;
-      font-size: 26px;
-      font-style: italic;
-      line-height: 0.98;
+      font-family: var(--font);
+      font-size: 22px;
+      font-style: normal;
+      font-weight: 700;
+      line-height: 1.25;
       color: #e3c56a;
       margin-bottom: 6px;
     }
 
     .cinematic-discover-hero p {
-      color: rgba(237, 232, 216, 0.72);
-      font-size: 12px;
+      color: rgba(237, 232, 216, 0.78);
+      font-size: 13px;
       line-height: 1.55;
     }
 
@@ -47,31 +48,33 @@
     .cinematic-style-search {
       flex: 1;
       min-width: 0;
-      height: 36px;
+      min-height: 44px;
       border-radius: 14px;
-      border: 1px solid rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.1);
       background: rgba(255,255,255,0.03);
       color: #f2f0e6;
       padding: 0 12px;
-      font-size: 12px;
+      font-size: 16px;
       outline: none;
     }
 
     .cinematic-style-search::placeholder {
-      color: rgba(233, 230, 219, 0.34);
+      color: rgba(233, 230, 219, 0.54);
     }
 
     .cinematic-style-create {
-      height: 36px;
-      padding: 0 12px;
+      min-height: 44px;
+      padding: 0 14px;
       border-radius: 14px;
-      border: 1px solid rgba(212, 175, 55, 0.18);
-      background: rgba(212, 175, 55, 0.08);
-      color: #d8b34c;
-      font-size: 11px;
-      font-weight: 800;
+      border: 1px solid rgba(212, 175, 55, 0.22);
+      background: rgba(212, 175, 55, 0.1);
+      color: #e2be4b;
+      font-size: 13px;
+      font-weight: 700;
       cursor: pointer;
       white-space: nowrap;
+      user-select: none;
+      -webkit-user-select: none;
     }
 
     .cinematic-style-vault-head {
@@ -213,13 +216,13 @@
       top: 10px;
       display: inline-flex;
       align-items: center;
-      min-height: 22px;
+      min-height: 24px;
       padding: 0 8px;
       border-radius: 999px;
       border: 1px solid rgba(255,255,255,0.12);
-      background: rgba(8, 9, 8, 0.44);
-      color: rgba(243, 240, 228, 0.88);
-      font-size: 10px;
+      background: rgba(8, 9, 8, 0.56);
+      color: rgba(243, 240, 228, 0.92);
+      font-size: 11px;
       font-weight: 700;
     }
 
@@ -227,27 +230,27 @@
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      min-height: 22px;
+      min-height: 24px;
       padding: 0 9px;
       border-radius: 999px;
-      border: 1px solid rgba(212, 175, 55, 0.18);
-      background: rgba(212, 175, 55, 0.08);
-      color: #d8b34c;
-      font-size: 10px;
+      border: 1px solid rgba(212, 175, 55, 0.22);
+      background: rgba(212, 175, 55, 0.1);
+      color: #e2be4b;
+      font-size: 11px;
       font-weight: 700;
     }
 
     .cinematic-style-edit {
-      width: 28px;
-      height: 28px;
-      border-radius: 10px;
-      border: 1px solid rgba(255,255,255,0.08);
-      background: rgba(255,255,255,0.03);
-      color: rgba(233, 230, 219, 0.5);
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.1);
+      background: rgba(255,255,255,0.04);
+      color: rgba(233, 230, 219, 0.74);
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      font-size: 13px;
+      font-size: 15px;
       cursor: pointer;
       flex: 0 0 auto;
     }
@@ -321,35 +324,40 @@
     }
 
     .cinematic-style-editor-title {
-      font-family: 'Cormorant Garamond', serif;
-      font-size: 28px;
-      font-style: italic;
-      line-height: 1;
+      font-family: var(--font);
+      font-size: 20px;
+      font-style: normal;
+      font-weight: 700;
+      line-height: 1.25;
       color: #e3c56a;
     }
 
     .cinematic-style-editor-subtitle {
       margin-top: 6px;
-      color: rgba(233, 230, 219, 0.56);
-      font-size: 12px;
+      color: rgba(233, 230, 219, 0.68);
+      font-size: 13px;
       line-height: 1.5;
     }
 
     .cinematic-style-editor-close {
-      width: 34px;
-      height: 34px;
-      flex: 0 0 34px;
+      width: 44px;
+      height: 44px;
+      flex: 0 0 44px;
       border-radius: 12px;
-      border: 1px solid rgba(255,255,255,0.08);
-      background: rgba(255,255,255,0.03);
-      color: rgba(233, 230, 219, 0.56);
-      font-size: 15px;
+      border: 1px solid rgba(255,255,255,0.1);
+      background: rgba(255,255,255,0.04);
+      color: rgba(233, 230, 219, 0.76);
+      font-size: 16px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
       cursor: pointer;
     }
 
     .cinematic-style-editor-body {
       flex: 1;
       overflow-y: auto;
+      overscroll-behavior: contain;
       padding: 16px 18px 8px;
       display: flex;
       flex-direction: column;
@@ -378,19 +386,19 @@
     .cinematic-style-textarea,
     .cinematic-style-select {
       width: 100%;
-      border: 1px solid rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.1);
       border-radius: 14px;
-      background: rgba(255,255,255,0.03);
+      background: rgba(255,255,255,0.04);
       color: #f2f0e6;
       outline: none;
       font: inherit;
-      font-size: 13px;
+      font-size: 16px;
       box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
     }
 
     .cinematic-style-input,
     .cinematic-style-select {
-      height: 40px;
+      min-height: 44px;
       padding: 0 12px;
     }
 
@@ -407,7 +415,7 @@
 
     .cinematic-style-input::placeholder,
     .cinematic-style-textarea::placeholder {
-      color: rgba(233, 230, 219, 0.28);
+      color: rgba(233, 230, 219, 0.54);
     }
 
     .cinematic-style-select-wrap {
@@ -439,12 +447,12 @@
     }
 
     .cinematic-style-editor-btn {
-      min-width: 92px;
-      height: 38px;
-      padding: 0 14px;
+      min-width: 96px;
+      min-height: 44px;
+      padding: 0 16px;
       border-radius: 14px;
-      font-size: 12px;
-      font-weight: 800;
+      font-size: 13px;
+      font-weight: 700;
       cursor: pointer;
     }
 
@@ -493,7 +501,7 @@
     html[data-layout="cinematic"] .cinematic-style-search::placeholder,
     html[data-layout="cinematic"] .cinematic-style-input::placeholder,
     html[data-layout="cinematic"] .cinematic-style-textarea::placeholder {
-      color: rgba(var(--cinematic-text-rgb), 0.3);
+      color: rgba(var(--cinematic-text-rgb), 0.54);
     }
 
     html[data-layout="cinematic"] .cinematic-style-create,

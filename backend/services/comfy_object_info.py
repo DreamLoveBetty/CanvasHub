@@ -12,6 +12,9 @@ File pickers (uploads, model lists) are never repaired: their choices change as 
 """
 from __future__ import annotations
 
+import json
+import os
+from pathlib import Path
 import re
 import threading
 import time
@@ -20,6 +23,7 @@ from urllib.parse import quote
 SUCCESS_TTL = 600.0
 FAILURE_TTL = 60.0
 LOOKUP_TIMEOUT = 3.0
+_CACHE_VERSION = 1
 
 
 def combo_choices(spec):
@@ -99,17 +103,100 @@ def repair_invalid_choices(workflow, class_specs):
     return repairs
 
 
+def _normalize_cached_specs(raw):
+    if not isinstance(raw, dict):
+        return {}
+    specs = {}
+    for name, item in raw.items():
+        if not isinstance(item, dict):
+            continue
+        choices = item.get('choices')
+        if not isinstance(choices, list) or not choices or not all(isinstance(v, str) for v in choices):
+            continue
+        default = item.get('default')
+        specs[str(name)] = {
+            'choices': list(choices),
+            'default': default if isinstance(default, str) and default in choices else choices[0],
+            'files': bool(item.get('files')),
+        }
+    return specs
+
+
 class ComfyOptionLookup:
     """lookup(class_type, input_name) -> list of choices, or None when unknown or offline.
 
     class_specs(class_type) -> {input: combo_spec} feeds repair_invalid_choices().
+    When cache_path is provided, successfully fetched COMBO specs are persisted to disk so
+    dropdown choices survive restarts and temporary ComfyUI downtime while still refreshing
+    from live /object_info/<class> whenever ComfyUI is reachable.
     """
 
-    def __init__(self, new_session, get_config, *, clock=time.monotonic):
+    def __init__(self, new_session, get_config, *, clock=time.monotonic, cache_path=None):
         self.new_session, self.get_config, self.clock = new_session, get_config, clock
+        self._cache_path = Path(cache_path) if cache_path else None
+        self._cache_loaded = False
         self._lock = threading.Lock()
+        self._io_lock = threading.Lock()
         self._classes = {}  # (base_url, class_type) -> (expires_at, {input: combo_spec})
         self._offline = {}  # base_url -> expires_at; one failed request skips the host for a while
+
+    def _load_disk_cache_locked(self):
+        if self._cache_loaded or not self._cache_path:
+            return
+        self._cache_loaded = True
+        try:
+            payload = json.loads(self._cache_path.read_text(encoding='utf-8'))
+        except Exception:
+            return
+        hosts = payload.get('hosts') if isinstance(payload, dict) else None
+        if not isinstance(hosts, dict):
+            return
+        for raw_host, classes in hosts.items():
+            host = str(raw_host or '').rstrip('/')
+            if not host or not isinstance(classes, dict):
+                continue
+            for raw_class, raw_specs in classes.items():
+                class_type = str(raw_class or '').strip()
+                if not class_type or (host, class_type) in self._classes:
+                    continue
+                specs = _normalize_cached_specs(raw_specs)
+                if specs:
+                    # Seed as stale so live ComfyUI refreshes on first online request, while
+                    # offline lookups immediately recover the previously known dropdown choices.
+                    self._classes[(host, class_type)] = (float('-inf'), specs)
+
+    def _persist_disk_cache(self):
+        if not self._cache_path:
+            return
+        with self._lock:
+            hosts = {}
+            for (host, class_type), (_expires, specs) in self._classes.items():
+                if not specs:
+                    continue
+                hosts.setdefault(host, {})[class_type] = {
+                    name: {
+                        'choices': list(spec['choices']),
+                        'default': spec['default'],
+                        'files': bool(spec['files']),
+                    }
+                    for name, spec in specs.items()
+                }
+        data = {'version': _CACHE_VERSION, 'hosts': hosts}
+        with self._io_lock:
+            tmp_path = None
+            try:
+                self._cache_path.parent.mkdir(parents=True, exist_ok=True)
+                tmp_path = self._cache_path.with_name(
+                    f'.{self._cache_path.name}.{os.getpid()}.{threading.get_ident()}.tmp'
+                )
+                tmp_path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding='utf-8')
+                os.replace(tmp_path, self._cache_path)
+            except Exception:
+                if tmp_path is not None:
+                    try:
+                        tmp_path.unlink(missing_ok=True)
+                    except Exception:
+                        pass
 
     def __call__(self, class_type, input_name):
         specs = self.class_specs(class_type)
@@ -125,11 +212,13 @@ class ComfyOptionLookup:
             return None
         now = self.clock()
         with self._lock:
+            self._load_disk_cache_locked()
             cached = self._classes.get((base_url, class_type))
+            stale = cached[1] if cached else None
             if cached and cached[0] > now:
                 return cached[1]
-            if self._offline.get(base_url, 0) > now:
-                return None
+            if self._offline.get(base_url, float('-inf')) > now:
+                return stale
         try:
             timeout = min(LOOKUP_TIMEOUT, float(config.get('timeout_seconds') or LOOKUP_TIMEOUT))
             with self.new_session() as session:
@@ -139,8 +228,11 @@ class ComfyOptionLookup:
         except Exception:
             with self._lock:
                 self._offline[base_url] = now + FAILURE_TTL
-            return None
+            return stale
         specs = class_combo_specs(info, class_type)
         with self._lock:
             self._classes[(base_url, class_type)] = (now + SUCCESS_TTL, specs)
+            self._offline.pop(base_url, None)
+        if specs:
+            self._persist_disk_cache()
         return specs

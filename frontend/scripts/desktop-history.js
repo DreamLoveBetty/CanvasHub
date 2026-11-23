@@ -754,6 +754,8 @@
       'deskGalleryPreviewCompareBtn',
       'deskGalleryPreviewLayoutBtn',
       'deskGalleryPreviewSendBtn',
+      'deskGalleryPreviewMoreBtn',
+      'deskGalleryPreviewMoreMenu',
       'deskGalleryPreviewCloseBtn',
       'deskGalleryPreviewPrevBtn',
       'deskGalleryPreviewNextBtn',
@@ -982,6 +984,9 @@
     document.body.classList.toggle('desk-workbench-open', open);
     if (open) setHistoryCollapsed(true, false);
     else restoreHistoryCollapsedState();
+    if (open && document.getElementById('deskPromptDrawer')?.classList.contains('is-open')) {
+      window.DesktopPromptDrawer?.setOpen?.(false, false);
+    }
   }
 
   function getLayoutTopWithin(element, ancestor) {
@@ -1355,6 +1360,13 @@
       setFooterStatusTone(els.deskQueueCount, queueCount > 0 ? 'warn' : 'ok');
       els.deskQueueCount.title = queueCount > 0 ? '有任务正在排队或生成' : '当前没有排队任务';
     }
+    const stopBtn = document.getElementById('deskStopBtn');
+    if (stopBtn) {
+      const hasActive = queueCount > 0;
+      stopBtn.classList.toggle('is-active', hasActive);
+      stopBtn.dataset.active = hasActive ? 'true' : 'false';
+      stopBtn.title = hasActive ? '取消正在生成的任务' : '当前无进行中任务';
+    }
   }
 
   function makeDragPayload(asset) {
@@ -1459,11 +1471,33 @@
     }
   }
 
+  let lastTopHistoryKey = '';
+  let windchimeRingTimer = 0;
+
+  function triggerWindchimeRing() {
+    const button = els.deskHistoryExpandBtn;
+    if (!button) return;
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches) return;
+    button.classList.remove('is-chime-ringing');
+    void button.offsetWidth;
+    button.classList.add('is-chime-ringing');
+    if (windchimeRingTimer) window.clearTimeout(windchimeRingTimer);
+    windchimeRingTimer = window.setTimeout(() => {
+      button.classList.remove('is-chime-ringing');
+      windchimeRingTimer = 0;
+    }, 2050);
+  }
+
   function renderHistory(items) {
     const list = els.deskHistoryList;
     const visibleItems = historyItemsForDisplay(items)
       .filter(shouldShowHistoryItem)
       .sort((a, b) => historySortTime(b) - historySortTime(a));
+    const nextTopKey = visibleItems[0] ? String(visibleItems[0].task_id || visibleItems[0].id || '') : '';
+    if (lastTopHistoryKey && nextTopKey && nextTopKey !== lastTopHistoryKey) {
+      triggerWindchimeRing();
+    }
+    if (nextTopKey) lastTopHistoryKey = nextTopKey;
     DesktopState.state.history = visibleItems;
     const historyAssets = flattenHistoryItems(visibleItems);
     if (!galleryAssetsFromIndex || !isGalleryOpen()) {
@@ -2143,10 +2177,13 @@
     }
     if (els.deskGalleryPreviewHideBtn) {
       const active = !!asset?.hidden;
+      const hideLabel = active ? '取消隐藏' : '隐藏';
       els.deskGalleryPreviewHideBtn.disabled = !hasAsset || isRemote;
       els.deskGalleryPreviewHideBtn.setAttribute('aria-pressed', active ? 'true' : 'false');
-      els.deskGalleryPreviewHideBtn.title = active ? '取消隐藏' : '隐藏';
-      els.deskGalleryPreviewHideBtn.setAttribute('aria-label', active ? '取消隐藏' : '隐藏');
+      els.deskGalleryPreviewHideBtn.title = hideLabel;
+      els.deskGalleryPreviewHideBtn.setAttribute('aria-label', hideLabel);
+      const hideText = els.deskGalleryPreviewHideBtn.querySelector?.('.desk-gallery-preview__more-label');
+      if (hideText) hideText.textContent = hideLabel;
     }
     if (els.deskGalleryPreviewTagBtn) els.deskGalleryPreviewTagBtn.disabled = !hasAsset || isRemote;
     if (els.deskGalleryPreviewApplyBtn) els.deskGalleryPreviewApplyBtn.disabled = !hasConfig;
@@ -2162,6 +2199,12 @@
       els.deskGalleryPreviewCompareBtn.setAttribute('aria-pressed', queued ? 'true' : 'false');
       els.deskGalleryPreviewCompareBtn.title = label;
       els.deskGalleryPreviewCompareBtn.setAttribute('aria-label', label);
+      const compareText = els.deskGalleryPreviewCompareBtn.querySelector?.('.desk-gallery-preview__more-label');
+      if (compareText) compareText.textContent = label;
+    }
+    if (els.deskGalleryPreviewMoreBtn) {
+      const hasMoreActive = Boolean(asset?.hidden || previewCompareQueue.some(item => item.id === asset?.id));
+      els.deskGalleryPreviewMoreBtn.classList.toggle('has-active-state', hasMoreActive);
     }
   }
 
@@ -2319,8 +2362,27 @@
     });
   }
 
+  function isPreviewMoreMenuOpen() {
+    return Boolean(els.deskGalleryPreviewMoreMenu && !els.deskGalleryPreviewMoreMenu.hidden);
+  }
+
+  function setPreviewMoreMenuOpen(open, options = {}) {
+    const menu = els.deskGalleryPreviewMoreMenu;
+    const toggle = els.deskGalleryPreviewMoreBtn;
+    if (!menu || !toggle) return;
+    const next = Boolean(open);
+    menu.hidden = !next;
+    toggle.setAttribute('aria-expanded', next ? 'true' : 'false');
+    if (next && options.focusFirst) {
+      menu.querySelector('button:not(:disabled)')?.focus?.({ preventScroll: true });
+    } else if (!next && options.restoreFocus) {
+      toggle.focus?.({ preventScroll: true });
+    }
+  }
+
   function openPreview(asset) {
     if (!asset) return;
+    setPreviewMoreMenuOpen(false);
     hydratePreviewAsset(asset);
     setPreviewAsset(asset, true);
     els.deskGalleryPreviewModal?.classList.add('is-open');
@@ -2328,6 +2390,7 @@
   }
 
   function closePreview() {
+    setPreviewMoreMenuOpen(false);
     els.deskGalleryPreviewModal?.classList.remove('is-open');
     els.deskGalleryPreviewModal?.classList.remove('is-prompt-compare');
     els.deskGalleryPreviewModal?.setAttribute('aria-hidden', 'true');
@@ -2406,6 +2469,7 @@
   }
 
   async function navigatePreview(direction) {
+    setPreviewMoreMenuOpen(false);
     let assets = getPreviewAssets();
     if (!previewAsset || !assets.length) return;
     let currentIndex = getPreviewIndex();
@@ -2518,6 +2582,9 @@
     const resolutionLabel = galleryAssetResolutionLabel(activeAsset, params);
     const summaryLine = isPinterest
       ? (asset.title || 'Pinterest Pin')
+      : [ratioLabel, resolutionLabel].filter(Boolean).join(' · ');
+    const summaryTitle = isPinterest
+      ? summaryLine
       : `比例 ${ratioLabel} · 分辨率 ${resolutionLabel}`;
     const detailLine = isPinterest
       ? [sourceBadge, asset.localCached ? '已同步到本地' : '远程', asset.dimensions || '', asset.format].filter(Boolean).join(' · ')
@@ -2540,7 +2607,7 @@
             <div class="desk-gallery-card__meta-head">
               <strong title="${escapeHtml(modelLabel)}">${escapeHtml(modelLabel)}</strong>
             </div>
-            <span class="desk-gallery-card__description" title="${escapeHtml(summaryLine)}">${escapeHtml(summaryLine)}</span>
+            <span class="desk-gallery-card__description" title="${escapeHtml(summaryTitle)}">${escapeHtml(summaryLine)}</span>
             <em title="${escapeHtml(detailLine)}">${escapeHtml(detailLine)}</em>
           </div>
           <div class="desk-gallery-card__meta-actions${isPinterest ? ' is-pinterest' : ''}" aria-label="图片操作">
@@ -3011,7 +3078,7 @@
     const firstPage = Array.isArray(preview.pages) ? preview.pages[0] : null;
     const imageUrl = file?.previewUrl || preview.image_url || preview.imageUrl || firstPage?.url || '';
     if (imageUrl) {
-      return `<img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(file?.title || '文件预览')}">`;
+      return `<img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(file?.title || '文件预览')}" loading="lazy" decoding="async">`;
     }
     if (preview.pdf_url || preview.pdfUrl) {
       return `<iframe src="${escapeHtml(preview.pdf_url || preview.pdfUrl)}" title="PPT PDF 预览"></iframe>`;
@@ -3054,7 +3121,7 @@
       els.deskFilePreviewLayers.innerHTML = layers.map((layer, position) => `
         <div class="desk-file-preview-modal__layer" data-file-layer-row="${position}" role="listitem">
           <a class="desk-file-preview-modal__layer-link" href="${escapeHtml(layer.url)}" target="_blank" rel="noopener" title="${escapeHtml(layer.name)}">
-            <img src="${escapeHtml(layer.url)}" alt="">
+            <img src="${escapeHtml(layer.url)}" alt="" loading="lazy" decoding="async">
             <span class="desk-file-preview-modal__layer-copy">
               <strong>${escapeHtml(layer.name)}</strong>
               <em>第 ${String(layer.index).padStart(2, '0')} 层</em>
@@ -4332,6 +4399,7 @@
     window.DesktopSettings?.close?.();
     els.deskGalleryPanel?.classList.add('is-open');
     els.deskGalleryPanel?.setAttribute('aria-hidden', 'false');
+    window.DesktopCanvas?.syncRailActiveTool?.();
     syncWorkbenchYield();
     resetGalleryRenderLimit();
     renderGallery();
@@ -4390,7 +4458,9 @@
     }
     els.deskGalleryPanel?.classList.remove('is-open');
     els.deskGalleryPanel?.setAttribute('aria-hidden', 'true');
+    window.DesktopCanvas?.syncRailActiveTool?.();
     syncWorkbenchYield();
+    return true;
   }
 
   function normalizeCompareValue(value) {
@@ -5124,6 +5194,16 @@
     els.deskGalleryPreviewSendBtn?.addEventListener('click', () => {
       sendPreviewAssetToTelegram().catch(error => DesktopResults.showError(error));
     });
+    els.deskGalleryPreviewMoreBtn?.addEventListener('click', event => {
+      event.stopPropagation();
+      const willOpen = !isPreviewMoreMenuOpen();
+      setPreviewMoreMenuOpen(willOpen, { focusFirst: willOpen && event.detail === 0 });
+    });
+    els.deskGalleryPreviewMoreMenu?.addEventListener('click', event => {
+      if (event.target.closest('button:not(:disabled)')) {
+        setPreviewMoreMenuOpen(false);
+      }
+    });
     els.deskGalleryPreviewCloseBtn?.addEventListener('click', closePreview);
     els.deskGalleryPreviewPrevBtn?.addEventListener('click', () => navigatePreview(-1));
     els.deskGalleryPreviewNextBtn?.addEventListener('click', () => navigatePreview(1));
@@ -5135,6 +5215,9 @@
     els.deskGalleryPreviewStage?.addEventListener('pointerup', endPreviewDrag);
     els.deskGalleryPreviewStage?.addEventListener('pointercancel', endPreviewDrag);
     els.deskGalleryPreviewModal?.addEventListener('click', event => {
+      if (isPreviewMoreMenuOpen() && !event.target.closest('.desk-gallery-preview__more-wrap')) {
+        setPreviewMoreMenuOpen(false);
+      }
       if (event.target === els.deskGalleryPreviewModal) closePreview();
     });
     window.addEventListener('resize', () => {
@@ -5180,6 +5263,10 @@
         return;
       }
       if (previewOpen) {
+        if (isPreviewMoreMenuOpen()) {
+          setPreviewMoreMenuOpen(false, { restoreFocus: true });
+          return;
+        }
         closePreview();
         return;
       }

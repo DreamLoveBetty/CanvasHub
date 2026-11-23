@@ -249,7 +249,7 @@ body.desk-app[data-theme] .desk-prompt-image-switch input:checked + span {
   border-color: var(--desk-prompt-assistant-toggle-checked-border);
 }
 
-body.desk-app[data-theme] .desk-prompt-drawer.is-open button:not(.desk-prompt-drawer__handle):not(.desk-select-trigger):not(:disabled):not(.desk-agent-task-card):not(.desk-agent-task-secondary):not(.desk-prompt-mode-button) {
+body.desk-app[data-theme] .desk-prompt-drawer.is-open button:not(.desk-prompt-drawer__handle):not(.desk-select-trigger):not(:disabled):not(.desk-agent-task-card):not(.desk-agent-task-secondary):not(.desk-prompt-mode-button):not([role="radio"]):not(.desk-prompt-expand-btn):not(.desk-prompt-btn--secondary):not(.desk-prompt-btn--ghost) {
   color: var(--desk-prompt-assistant-button-ink);
   background: var(--desk-prompt-assistant-button-background);
   background-position: var(--desk-prompt-assistant-material-position);
@@ -259,7 +259,7 @@ body.desk-app[data-theme] .desk-prompt-drawer.is-open button:not(.desk-prompt-dr
   box-shadow: var(--desk-prompt-assistant-button-shadow);
 }
 
-body.desk-app[data-theme] .desk-prompt-drawer.is-open button:not(.desk-prompt-drawer__handle):not(.desk-select-trigger):not(:disabled):not(.desk-agent-task-card):not(.desk-agent-task-secondary):not(.desk-prompt-mode-button):hover {
+body.desk-app[data-theme] .desk-prompt-drawer.is-open button:not(.desk-prompt-drawer__handle):not(.desk-select-trigger):not(:disabled):not(.desk-agent-task-card):not(.desk-agent-task-secondary):not(.desk-prompt-mode-button):hover:not([role="radio"]):not(.desk-prompt-expand-btn):not(.desk-prompt-btn--secondary):not(.desk-prompt-btn--ghost) {
   color: var(--desk-prompt-assistant-button-ink);
   background-image: var(--desk-prompt-assistant-button-hover-background);
   background-position: var(--desk-prompt-assistant-material-position-hover);
@@ -267,7 +267,7 @@ body.desk-app[data-theme] .desk-prompt-drawer.is-open button:not(.desk-prompt-dr
   box-shadow: var(--desk-prompt-assistant-button-hover-shadow);
 }
 
-body.desk-app[data-theme] .desk-prompt-drawer.is-open button:not(.desk-prompt-drawer__handle):not(.desk-select-trigger):not(:disabled):not(.desk-agent-task-card):not(.desk-agent-task-secondary):not(.desk-prompt-mode-button).is-active {
+body.desk-app[data-theme] .desk-prompt-drawer.is-open button:not(.desk-prompt-drawer__handle):not(.desk-select-trigger):not(:disabled):not(.desk-agent-task-card):not(.desk-agent-task-secondary):not(.desk-prompt-mode-button):not([role="radio"]):not(.desk-prompt-expand-btn):not(.desk-prompt-btn--secondary):not(.desk-prompt-btn--ghost).is-active {
   color: var(--desk-prompt-assistant-button-ink);
   background-image: var(--desk-prompt-assistant-button-active-background);
   background-position: var(--desk-prompt-assistant-material-position-active);
@@ -275,7 +275,46 @@ body.desk-app[data-theme] .desk-prompt-drawer.is-open button:not(.desk-prompt-dr
   box-shadow: var(--desk-prompt-assistant-button-active-shadow);
 }
 
-body.desk-app[data-theme] .desk-prompt-drawer.is-open button:not(.desk-prompt-drawer__handle):not(.desk-select-trigger):not(.desk-agent-task-card):not(.desk-agent-task-secondary):not(.desk-prompt-mode-button):disabled {
+body.desk-app[data-theme] .desk-prompt-drawer.is-open button:not(.desk-prompt-drawer__handle):not(.desk-select-trigger):not(.desk-agent-task-card):not(.desk-agent-task-secondary):not(.desk-prompt-mode-button):not([role="radio"]):not(.desk-prompt-expand-btn):not(.desk-prompt-btn--secondary):not(.desk-prompt-btn--ghost):disabled {
+  color: var(--desk-prompt-assistant-disabled-ink);
+  background: var(--desk-prompt-assistant-button-disabled-background);
+  border-color: var(--desk-prompt-assistant-button-disabled-border);
+  box-shadow: none;
+}
+
+body.desk-app[data-theme] .desk-prompt-drawer.is-open :is(
+  button.desk-prompt-expand-btn,
+  button.desk-prompt-btn--secondary,
+  button.desk-prompt-btn--ghost
+):not(:disabled) {
+  color: var(--desk-prompt-assistant-secondary-ink);
+  background: var(--desk-prompt-assistant-secondary-background);
+  border-color: var(--desk-prompt-assistant-secondary-border);
+  box-shadow: none;
+}
+
+body.desk-app[data-theme] .desk-prompt-drawer.is-open :is(
+  button.desk-prompt-expand-btn,
+  button.desk-prompt-btn--secondary
+):hover:not(:disabled) {
+  color: var(--desk-prompt-assistant-secondary-hover-ink);
+  background: var(--desk-prompt-assistant-secondary-hover-background);
+  border-color: var(--desk-prompt-assistant-secondary-hover-border);
+  box-shadow: none;
+}
+
+body.desk-app[data-theme] .desk-prompt-drawer.is-open button.desk-prompt-btn--ghost:hover:not(:disabled) {
+  color: var(--desk-prompt-assistant-danger-hover-ink);
+  background: var(--desk-prompt-assistant-danger-hover-background);
+  border-color: var(--desk-prompt-assistant-danger-hover-border);
+  box-shadow: none;
+}
+
+body.desk-app[data-theme] .desk-prompt-drawer.is-open :is(
+  button.desk-prompt-expand-btn,
+  button.desk-prompt-btn--secondary,
+  button.desk-prompt-btn--ghost
+):disabled {
   color: var(--desk-prompt-assistant-disabled-ink);
   background: var(--desk-prompt-assistant-button-disabled-background);
   border-color: var(--desk-prompt-assistant-button-disabled-border);

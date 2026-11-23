@@ -354,6 +354,11 @@ body.desk-app[data-theme] .desk-node-context-menu.is-open {
   }
 }
 
+@keyframes desk-reduced-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   body.desk-app[data-theme] .desk-state-icon__layer {
     /* Also beat the active layer and legacy universal duration override. */
@@ -366,18 +371,69 @@ body.desk-app[data-theme] .desk-node-context-menu.is-open {
     animation: none !important;
   }
 
-  body.desk-app[data-theme] :where(
+  /* Replace harsh 0.01ms cuts with displacement-free 120ms opacity cross-fades
+     on overlays, workspaces, menus, and drawers while keeping spatial motion at 0. */
+  body.desk-app[data-theme] :is(
+    .desk-gallery,
+    .desk-settings,
+    .desk-prompt-library,
+    .desk-text-polish-modal,
+    .desk-text-polish-modal__panel,
+    .desk-gallery-preview,
+    .desk-compare,
+    .desk-pinterest-analysis-modal,
+    .desk-pinterest-analysis-modal__panel,
+    .desk-pinterest-split-modal,
+    .desk-pinterest-split-modal__panel,
+    .desk-workflow-dock-panel,
+    .desk-progress-float,
     .desk-select-menu,
     .desk-node-palette,
     .desk-node-context-menu,
     .desk-agent-task-drawer,
-    .desk-agent-task-drawer-backdrop,
-    .desk-agent-task-card-menu,
-    .desk-agent-task-dialog,
-    .desk-agent-task-dialog-backdrop
+    .desk-agent-task-drawer-backdrop
   ) {
-    transition-duration: 0.01ms;
-    transition-delay: 0s;
-    animation-duration: 0.01ms;
+    transition:
+      opacity 120ms ease,
+      visibility 0s linear 120ms;
+    transition-delay: 0s, 120ms;
+  }
+
+  body.desk-app[data-theme] :is(
+    .desk-gallery.is-open,
+    .desk-settings.is-open,
+    .desk-prompt-library.is-open,
+    .desk-text-polish-modal.is-open,
+    .desk-text-polish-modal.is-open .desk-text-polish-modal__panel,
+    .desk-gallery-preview.is-open,
+    .desk-compare.is-open,
+    .desk-pinterest-analysis-modal.is-open,
+    .desk-pinterest-analysis-modal.is-open .desk-pinterest-analysis-modal__panel,
+    .desk-pinterest-split-modal.is-open,
+    .desk-pinterest-split-modal.is-open .desk-pinterest-split-modal__panel,
+    .desk-workflow-dock-panel.is-open,
+    .desk-progress-float.is-visible,
+    .desk-select-menu.is-open,
+    .desk-node-palette.is-open,
+    .desk-node-context-menu.is-open,
+    .desk-agent-task-drawer.is-open,
+    .desk-agent-task-drawer-backdrop.is-open
+  ) {
+    transition:
+      opacity 120ms ease,
+      visibility 0s linear 0s;
+    transition-delay: 0s, 0s;
+  }
+
+  body.desk-app[data-theme] .desk-agent-task-drawer {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+
+  body.desk-app[data-theme] :is(
+    .desk-agent-task-card-menu.is-open,
+    .desk-agent-task-dialog.is-open,
+    .desk-agent-task-dialog-backdrop:not([hidden])
+  ) {
+    animation: desk-reduced-fade-in 120ms ease both;
   }
 }

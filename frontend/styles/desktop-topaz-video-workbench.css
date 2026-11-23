@@ -173,6 +173,7 @@ body.desk-app .desk-topaz-video-workbench__timeline-shade.is-before {left:0;}
 body.desk-app .desk-topaz-video-workbench__timeline-shade.is-after {right:0;}
 body.desk-app .desk-topaz-video-workbench__selection {position:absolute;z-index:2;top:0;bottom:0;border:2px solid var(--desk-color-accent);box-sizing:border-box;pointer-events:none;}
 body.desk-app .desk-topaz-video-workbench__selection button {position:absolute;top:-2px;bottom:-2px;width:11px;padding:0;border:0;border-radius:2px;background:var(--desk-color-accent);cursor:ew-resize;pointer-events:auto;touch-action:none;}
+body.desk-app .desk-topaz-video-workbench__selection button::before {content:"";position:absolute;inset:0 -7px;}
 body.desk-app .desk-topaz-video-workbench__selection button::after {content:"";position:absolute;top:50%;left:50%;width:2px;height:20px;transform:translate(-50%,-50%);border-left:1px solid rgba(255,255,255,.9);border-right:1px solid rgba(255,255,255,.9);}
 body.desk-app .desk-topaz-video-workbench__selection button.is-start {left:-7px;}
 body.desk-app .desk-topaz-video-workbench__selection button.is-end {right:-7px;}

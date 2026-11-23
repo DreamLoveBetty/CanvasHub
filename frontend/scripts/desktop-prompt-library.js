@@ -851,7 +851,7 @@
     const controlsDisabled = colorAnalysisSourceLocked(analysis) ? 'disabled' : '';
     const sourceLabel = analysis.sourceKind === 'clipboard' ? '剪贴板图片' : '本地图片';
     const preview = hasSource
-      ? `<img src="${escapeHtml(analysis.previewUrl)}" alt="待分析图片预览"><span><strong>${escapeHtml(sourceLabel)}</strong><small>${escapeHtml(analysis.fileName || '待分析图片')}</small></span>`
+      ? `<img src="${escapeHtml(analysis.previewUrl)}" alt="待分析图片预览" decoding="async"><span><strong>${escapeHtml(sourceLabel)}</strong><small>${escapeHtml(analysis.fileName || '待分析图片')}</small></span>`
       : '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"></rect><circle cx="9" cy="10" r="2"></circle><path d="m3 17 5-5 4 4 3-3 6 6"></path></svg><span><strong>选择图片</strong><small>点击、拖入或粘贴</small></span>';
     const modes = [
       { id: 'balanced', label: '均衡', title: '兼顾像素占比与颜色差异' },
@@ -1690,7 +1690,7 @@
       : `<label class="desk-prompt-field"><span>适用类型</span><select name="extract_primary_type" ${extractor.busy ? 'disabled' : ''}>${typeOptions(extractor.primaryType, true)}</select></label>`;
     return `<div class="desk-prompt-extractor__body">
       <div class="desk-prompt-extractor__scope">${scope}</div>
-      ${isImage ? `<label class="desk-prompt-extractor__drop ${extractor.imageData ? 'has-image' : ''} ${extractor.busy ? 'is-disabled' : ''}" data-prompt-image-drop role="button" tabindex="${extractor.busy ? '-1' : '0'}" aria-disabled="${extractor.busy ? 'true' : 'false'}"><input type="file" name="extract_image" accept="image/png,image/jpeg,image/webp" ${extractor.busy ? 'disabled' : ''} hidden>${extractor.imageData ? `<img src="${escapeHtml(extractor.imageData)}" alt="上传预览"><span>${escapeHtml(extractor.imageName)}</span>` : '<strong>选择或拖入图片</strong><span>PNG、JPG、WebP</span>'}</label><label class="desk-prompt-field"><span>补充要求</span><textarea name="extract_direction" placeholder="可选，例如：重点拆分服装、妆发和光线" ${extractor.busy ? 'disabled' : ''}>${escapeHtml(extractor.direction)}</textarea></label>` : `<label class="desk-prompt-field desk-prompt-extractor__text"><span>完整提示词</span><textarea name="extract_text" placeholder="粘贴需要拆分的完整提示词" ${extractor.busy ? 'disabled' : ''}>${escapeHtml(extractor.text)}</textarea></label>`}
+      ${isImage ? `<label class="desk-prompt-extractor__drop ${extractor.imageData ? 'has-image' : ''} ${extractor.busy ? 'is-disabled' : ''}" data-prompt-image-drop role="button" tabindex="${extractor.busy ? '-1' : '0'}" aria-disabled="${extractor.busy ? 'true' : 'false'}"><input type="file" name="extract_image" accept="image/png,image/jpeg,image/webp" ${extractor.busy ? 'disabled' : ''} hidden>${extractor.imageData ? `<img src="${escapeHtml(extractor.imageData)}" alt="上传预览" decoding="async"><span>${escapeHtml(extractor.imageName)}</span>` : '<strong>选择或拖入图片</strong><span>PNG、JPG、WebP</span>'}</label><label class="desk-prompt-field"><span>补充要求</span><textarea name="extract_direction" placeholder="可选，例如：重点拆分服装、妆发和光线" ${extractor.busy ? 'disabled' : ''}>${escapeHtml(extractor.direction)}</textarea></label>` : `<label class="desk-prompt-field desk-prompt-extractor__text"><span>完整提示词</span><textarea name="extract_text" placeholder="粘贴需要拆分的完整提示词" ${extractor.busy ? 'disabled' : ''}>${escapeHtml(extractor.text)}</textarea></label>`}
       ${extractor.error ? `<div class="desk-prompt-extractor__error">${escapeHtml(extractor.error)}</div>` : ''}
     </div><div class="desk-prompt-extractor__footer"><button type="button" data-extractor-action="close" ${extractor.busy ? 'disabled' : ''}>返回手动新建</button><button type="button" class="is-primary" data-extractor-action="run" ${extractor.busy ? 'disabled' : ''}>${extractor.busy ? (isImage ? '正在解析…' : '正在拆分…') : (isImage ? '解析图片' : '开始拆分')}</button></div>`;
   }
@@ -1920,10 +1920,12 @@
   }
 
   async function open() {
-    window.DesktopHistory?.closeGallery?.(); window.DesktopSettings?.close?.();
+    if (window.DesktopHistory?.closeGallery?.() === false || document.getElementById('deskGalleryPanel')?.classList.contains('is-open')) return false;
+    window.DesktopSettings?.close?.();
     els.deskPromptLibraryPanel?.classList.add('is-open'); els.deskPromptLibraryPanel?.setAttribute('aria-hidden', 'false');
     window.DesktopHistory?.syncWorkbenchYield?.();
     document.querySelector('.desk-rail__item[data-tool="prompts"]')?.setAttribute('aria-expanded', 'true');
+    window.DesktopCanvas?.syncRailActiveTool?.();
     try { await loadAll(); } catch (error) { state.loading = false; render(); reportError(error, '提示词素材库读取失败'); }
   }
   function close() {
@@ -1945,6 +1947,7 @@
     els.deskPromptLibraryPanel?.classList.remove('is-open'); els.deskPromptLibraryPanel?.setAttribute('aria-hidden', 'true');
     window.DesktopHistory?.syncWorkbenchYield?.();
     document.querySelector('.desk-rail__item[data-tool="prompts"]')?.setAttribute('aria-expanded', 'false');
+    window.DesktopCanvas?.syncRailActiveTool?.();
     return true;
   }
 

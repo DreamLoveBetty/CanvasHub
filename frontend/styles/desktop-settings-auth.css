@@ -326,8 +326,22 @@ body.desk-app[data-theme] .desk-settings :is(
 
 body.desk-app[data-theme] .desk-settings-pool-toolbar {
   background: transparent;
-  border-color: transparent;
+  border-bottom-color: var(--desk-settings-nav-divider);
   box-shadow: none;
+}
+
+body.desk-app[data-theme] .desk-settings-form__actions button.desk-button--danger {
+  color: var(--desk-settings-danger-control-ink);
+  background: var(--desk-settings-danger-control-background);
+  border-color: var(--desk-settings-danger-control-border);
+  box-shadow: var(--desk-settings-danger-control-shadow);
+}
+
+body.desk-app[data-theme] .desk-settings-form__actions button.desk-button--danger:hover:not(:disabled) {
+  color: var(--desk-settings-danger-control-hover-ink);
+  background: var(--desk-settings-danger-control-hover-background);
+  border-color: var(--desk-settings-danger-control-hover-border);
+  box-shadow: var(--desk-settings-danger-control-hover-shadow);
 }
 
 body.desk-app[data-theme] .desk-settings-pool-summary span {
@@ -568,6 +582,7 @@ body.desk-app[data-theme] .auth-message {
   color: var(--desk-auth-message-ink);
 }
 
-body.desk-app[data-theme] .desk-settings-restart-hint {
+body.desk-app[data-theme] .desk-settings-restart-hint,
+body.desk-app[data-theme] .desk-settings-form__hint--warn {
   color: var(--desk-settings-summary-warn-ink);
 }

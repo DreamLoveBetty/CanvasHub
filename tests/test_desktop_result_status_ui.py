@@ -832,7 +832,7 @@ class DesktopResultStatusUiTest(unittest.TestCase):
         self.assertRegex(css, r"\.desk-gallery-card__lineage\s*\{[^}]*position:\s*static;")
         self.assertRegex(css, r"\.desk-gallery-card__switcher\s*\{[^}]*top:\s*auto;[^}]*left:\s*8px;[^}]*bottom:\s*8px;")
         self.assertRegex(css, r"\.desk-gallery-card__meta strong\s*\{[^}]*font-size:\s*var\(--desk-font-size-micro\);")
-        self.assertRegex(css, r"\.desk-gallery-card__description\s*\{[^}]*font-size:\s*8px;[^}]*-webkit-line-clamp:\s*1;")
+        self.assertRegex(css, r"\.desk-gallery-card__description\s*\{[^}]*font-size:\s*var\(--desk-font-size-micro\);[^}]*-webkit-line-clamp:\s*1;")
         self.assertRegex(css, r"\.desk-gallery-card:hover,[^}]*\.desk-gallery-set:hover,[^}]*\.desk-gallery-card\.is-selected,[^}]*\.desk-gallery-card\.is-focus-active,[^}]*\.desk-gallery-card:focus-visible\s*\{")
         self.assertRegex(css, r"\.desk-gallery-card:hover \.desk-gallery-card__image img,[^}]*\.desk-gallery-card\.is-hover-active \.desk-gallery-card__image img,[^}]*\.desk-gallery-card\.is-focus-active \.desk-gallery-card__image img,[^}]*\.desk-gallery-card:focus-visible \.desk-gallery-card__image img\s*\{[^}]*transform:\s*scale\(1\.1\);")
         self.assertRegex(css, r"\.desk-gallery-card:hover,[^}]*\.desk-gallery-set:hover,[^}]*\.desk-gallery-card\.is-hover-active,[^}]*\.desk-gallery-set\.is-hover-active\s*\{[^}]*transform:\s*none;")
@@ -1604,7 +1604,7 @@ class DesktopResultStatusUiTest(unittest.TestCase):
             r"@media \(prefers-reduced-motion: reduce\)\s*\{[\s\S]*?"
             r"\.desk-agent-task-drawer,[\s\S]*?"
             r"\.desk-agent-task-drawer-backdrop[\s\S]*?"
-            r"transition-duration:\s*0\.01ms;",
+            r"opacity 120ms ease",
         )
 
     def test_desktop_light_theme_uses_powder_to_ink_blue_scale(self):

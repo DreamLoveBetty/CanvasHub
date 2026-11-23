@@ -107,7 +107,7 @@ export function camerasHtml(scene) {
 }
 
 export function libraryHtml(thumbs) {
-  const preset = p => `<button type="button" class="desk-pose-editor__preset" data-pe-preset="${p.id}"${p.facing == null ? '' : ' title="按当前机位转向"'}>${thumbs?.get(p.id) ? `<img src="${thumbs.get(p.id)}" alt="">` : '<span class="desk-pose-editor__preset-placeholder"></span>'}${esc(p.label)}</button>`;
+  const preset = p => `<button type="button" class="desk-pose-editor__preset" data-pe-preset="${p.id}"${p.facing == null ? '' : ' title="按当前机位转向"'}>${thumbs?.get(p.id) ? `<img src="${thumbs.get(p.id)}" alt="" loading="lazy" decoding="async">` : '<span class="desk-pose-editor__preset-placeholder"></span>'}${esc(p.label)}</button>`;
   return model.PRESET_GROUPS.map(group => `<h4 class="desk-pose-editor__library-group">${esc(group)}</h4>${model.PRESETS.filter(p => p.group === group).map(preset).join('')}`).join('');
 }
 

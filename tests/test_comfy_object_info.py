@@ -1,4 +1,6 @@
 """COMBO choices from ComfyUI /object_info turn exported dropdown values back into selects."""
+from pathlib import Path
+import tempfile
 import unittest
 
 from backend.services import comfy_object_info as info
@@ -38,15 +40,17 @@ class FakeSession:
         self.owner.calls.append((url, timeout))
         if self.owner.fail:
             raise ConnectionError('offline')
-        return FakeResponse(RESOLUTION)
+        return FakeResponse(self.owner.payload)
 
 
 class Harness:
-    def __init__(self, fail=False):
+    def __init__(self, fail=False, cache_path=None):
         self.calls, self.fail, self.now = [], fail, 100.0
+        self.payload = RESOLUTION
         self.lookup = info.ComfyOptionLookup(lambda: FakeSession(self),
                                              lambda: {'base_url': 'http://comfy:8188/', 'timeout_seconds': 30},
-                                             clock=lambda: self.now)
+                                             clock=lambda: self.now,
+                                             cache_path=cache_path)
 
 
 class ComboChoicesTests(unittest.TestCase):
@@ -73,6 +77,50 @@ class ComboChoicesTests(unittest.TestCase):
         h.now += info.FAILURE_TTL + 1
         h.fail = False
         self.assertEqual(h.lookup('ResolutionSelector', 'mode'), ['fast', 'slow'])
+
+    def test_stale_choices_survive_ttl_expiry_when_comfy_goes_offline(self):
+        h = Harness()
+        self.assertEqual(h.lookup('ResolutionSelector', 'aspect_ratio'), ['1:1 (Square)', '9:16 (Portrait Widescreen)'])
+        h.now += info.SUCCESS_TTL + 1
+        h.fail = True
+        self.assertEqual(h.lookup('ResolutionSelector', 'aspect_ratio'), ['1:1 (Square)', '9:16 (Portrait Widescreen)'])
+        self.assertEqual(len(h.calls), 2)
+        # Subsequent lookups during FAILURE_TTL reuse stale choices without hitting network again.
+        self.assertEqual(h.lookup('ResolutionSelector', 'mode'), ['fast', 'slow'])
+        self.assertEqual(len(h.calls), 2)
+
+    def test_disk_cache_persists_choices_across_restarts_and_refreshes_when_online(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            cache_path = Path(tmp) / 'comfy' / 'object_info_cache.json'
+            first = Harness(cache_path=cache_path)
+            self.assertEqual(first.lookup('ResolutionSelector', 'aspect_ratio'),
+                             ['1:1 (Square)', '9:16 (Portrait Widescreen)'])
+            self.assertTrue(cache_path.is_file())
+
+            # Fresh process while ComfyUI is offline still recovers the dropdown choices from disk.
+            restarted_offline = Harness(fail=True, cache_path=cache_path)
+            self.assertEqual(restarted_offline.lookup('ResolutionSelector', 'aspect_ratio'),
+                             ['1:1 (Square)', '9:16 (Portrait Widescreen)'])
+            self.assertEqual(len(restarted_offline.calls), 1)
+            self.assertEqual(restarted_offline.lookup('ResolutionSelector', 'mode'), ['fast', 'slow'])
+            self.assertEqual(len(restarted_offline.calls), 1)
+
+            # Once ComfyUI comes back online, disk-seeded entries refresh to live choices.
+            restarted_online = Harness(fail=False, cache_path=cache_path)
+            restarted_online.payload = {'ResolutionSelector': {'input': {'required': {
+                'aspect_ratio': ['COMBO', {'default': '3:4 (Portrait Standard)',
+                                           'options': ['1:1 (Square)', '3:4 (Portrait Standard)', '9:16 (Portrait Widescreen)']}]
+            }}}}
+            self.assertEqual(restarted_online.lookup('ResolutionSelector', 'aspect_ratio'),
+                             ['1:1 (Square)', '3:4 (Portrait Standard)', '9:16 (Portrait Widescreen)'])
+            self.assertEqual(len(restarted_online.calls), 1)
+
+    def test_corrupt_disk_cache_degrades_safely(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            cache_path = Path(tmp) / 'broken.json'
+            cache_path.write_text('{not valid json', encoding='utf-8')
+            h = Harness(fail=True, cache_path=cache_path)
+            self.assertIsNone(h.lookup('ResolutionSelector', 'aspect_ratio'))
 
 
 class ExtractionTests(unittest.TestCase):

@@ -18,7 +18,7 @@
 
 :where(body.desk-app[data-theme]) .desk-video-edit__actions {
   border: 1px solid var(--desk-color-popover-border);
-  border-radius: var(--desk-radius-pill);
+  border-radius: var(--desk-radius-popover);
   background: var(--desk-color-popover-bg);
   box-shadow: var(--desk-shadow-control);
 }
@@ -26,7 +26,7 @@
 :where(body.desk-app[data-theme]) .desk-video-edit__actions button,
 body.desk-app :is(.desk-video-frames, .desk-video-compose-bench, .desk-video-compose__actions) button {
   border: 1px solid var(--desk-color-control-border);
-  border-radius: var(--desk-radius-pill);
+  border-radius: var(--desk-radius-control);
   background: var(--desk-color-control-bg);
   color: var(--desk-color-control-ink);
   font-family: var(--desk-font-family-sans);

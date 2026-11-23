@@ -421,9 +421,16 @@
       const go = moveEvent => onSeek(clamp((moveEvent.clientX - ruler.getBoundingClientRect().left) / pps, 0, total()));
       ruler.setPointerCapture(event.pointerId);
       go(event);
-      const up = () => { ruler.removeEventListener('pointermove', go); ruler.removeEventListener('pointerup', up); };
+      const up = () => {
+        ruler.removeEventListener('pointermove', go);
+        ruler.removeEventListener('pointerup', up);
+        ruler.removeEventListener('pointercancel', up);
+        ruler.removeEventListener('lostpointercapture', up);
+      };
       ruler.addEventListener('pointermove', go);
       ruler.addEventListener('pointerup', up);
+      ruler.addEventListener('pointercancel', up);
+      ruler.addEventListener('lostpointercapture', up);
     });
     const observer = new ResizeObserver(() => { if (!frozen && root.isConnected && tracks.clientWidth) render(view); });
     observer.observe(tracks);

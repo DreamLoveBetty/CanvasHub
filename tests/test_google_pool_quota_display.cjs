@@ -794,7 +794,7 @@ test('each workbench theme remaps the semantic tokens quota cards consume', () =
   assert.match(cssVar(light, '--desk-file-progress-background'), /rgba\(255, 255, 255, 0\.46\)/);
 
   assert.equal(cssVar(dark, '--desk-status-success-dot'), '#46b77b');
-  assert.equal(cssVar(dark, '--desk-status-warning-dot'), '#ffad52');
+  assert.equal(cssVar(dark, '--desk-status-warning-dot'), '#facc15');
   assert.equal(cssVar(dark, '--desk-status-error-dot'), '#e16088');
   assert.match(cssVar(dark, '--desk-settings-account-background'), /rgba\(28, 34, 36, 0\.58\)/);
   assert.match(cssVar(dark, '--desk-file-progress-background'), /linear-gradient/);

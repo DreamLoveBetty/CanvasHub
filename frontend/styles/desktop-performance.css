@@ -44,10 +44,6 @@ body.desk-app .desk-canvas:is(.is-panning, .is-wheel-transforming) .desk-canvas-
   will-change: transform;
 }
 
-body.desk-app .desk-canvas .desk-node:is(.is-dragging, .is-resizing) {
-  will-change: left, top, width, height;
-}
-
 body.desk-app .desk-node--image-group.is-sorting .desk-image-group__item,
 body.desk-app .desk-image-group__item.is-dragging .desk-image-group__thumb {
   will-change: transform;

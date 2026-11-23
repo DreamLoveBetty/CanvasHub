@@ -607,7 +607,7 @@
     return `
       <article class="desk-image-group__item" tabindex="0" data-node-drag-ignore data-image-group-item="${escapeHtml(item.itemId)}" data-image-group-label="${label}" data-role="${escapeHtml(role)}" aria-haspopup="menu" aria-label="${label}：${escapeHtml(item.imageName || '')}" aria-description="参考用途：${escapeHtml(roleItem?.label || '参考')}">
         <div class="desk-image-group__thumb" data-image-group-sort-handle title="点击选择参考用途，拖拽调整顺序">
-          <img src="${source}" alt="${escapeHtml(item.imageName || label)}" draggable="false">
+          <img src="${source}" alt="${escapeHtml(item.imageName || label)}" draggable="false" loading="lazy" decoding="async">
           <strong aria-label="${label}">${index + 1}</strong>
         </div>
         <span class="desk-image-group__role" data-image-group-role-label aria-hidden="true">${escapeHtml(roleItem?.short || '参考')}</span>

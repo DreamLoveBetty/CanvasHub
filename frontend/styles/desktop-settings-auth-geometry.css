@@ -173,7 +173,7 @@
 :where(body.desk-app[data-theme]) .desk-settings-kv,
 :where(body.desk-app[data-theme]) .desk-settings-path {
   display: grid;
-  grid-template-columns: minmax(104px, 0.45fr) minmax(0, 1fr);
+  grid-template-columns: minmax(112px, 0.46fr) minmax(0, 1fr);
   gap: 6px;
   align-items: center;
   min-height: 20px;
@@ -357,11 +357,16 @@
 
 :where(body.desk-app[data-theme]) .desk-settings-pool-toolbar {
   display: grid;
-  gap: 6px;
+  gap: 8px;
   min-width: 0;
-  padding: 6px;
-  border: 1px solid rgba(255, 255, 255, 0.5);
-  border-radius: 8px;
+  padding: 0 0 8px;
+  border: 0;
+  border-bottom: 1px solid var(--desk-settings-nav-divider, rgba(90, 110, 130, 0.14));
+  border-radius: 0;
+}
+
+:where(body.desk-app[data-theme]) .desk-settings-action--danger-separated {
+  margin-left: auto;
 }
 
 :where(body.desk-app[data-theme]) .desk-settings-pool-activity {
@@ -428,6 +433,8 @@
   display: none;
   align-items: center;
   justify-content: center;
+  -webkit-backdrop-filter: blur(24px) saturate(1.1);
+  backdrop-filter: blur(24px) saturate(1.1);
 }
 
 :where(body.desk-app[data-theme]) .auth-title {
@@ -529,7 +536,7 @@ body.desk-app[data-theme="dark"] .desk-settings-canvas-interaction__segment butt
   padding: 7px;
   margin: 0;
   overflow: auto;
-  font: 9px/1.45 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font: var(--desk-font-size-label)/1.5 var(--desk-font-family-mono);
   white-space: pre-wrap;
   word-break: break-word;
   border: 1px solid rgba(203, 213, 225, 0.52);

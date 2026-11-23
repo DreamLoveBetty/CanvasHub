@@ -61,11 +61,15 @@
     observer.observe(img);
   }
 
-  function createCinematicActionButton(label, className, handler) {
+  function createCinematicActionButton(label, className, handler, accessibleName = '') {
     const button = document.createElement('button');
     button.type = 'button';
     button.className = `cinematic-record-action ${className || ''}`.trim();
     button.textContent = label;
+    if (accessibleName) {
+      button.setAttribute('aria-label', accessibleName);
+      button.title = accessibleName;
+    }
     button.addEventListener('click', (event) => {
       event.stopPropagation();
       handler();
@@ -180,6 +184,7 @@
 
     media.type = 'button';
     media.className = `cinematic-record-media${thumbMeta.src ? ' is-pending' : ' is-empty'}${isHistoryAssetMissing(item) ? ' is-missing' : ''}${isPendingTask ? ' is-generating' : ''}`;
+    media.setAttribute('aria-label', isPendingTask ? '正在生成作品' : `查看 ${getCinematicTypeLabel(item)} 详情`);
     if (!isPendingTask) {
       media.addEventListener('click', () => openDetailModal(cinematicHistoryOpenItem(item)));
     }
@@ -205,13 +210,26 @@
 
     const body = document.createElement('div');
     body.className = `cinematic-record-body${canFlipImages ? ' has-gallery-flip' : ''}`;
-    body.addEventListener('click', () => {
+    if (!isPendingTask) {
+      body.setAttribute('role', 'button');
+      body.setAttribute('tabindex', '0');
+      body.setAttribute('aria-label', canFlipImages ? '切换查看多图结果' : `打开 ${getCinematicTypeLabel(item)} 详情`);
+    }
+    const activateBody = () => {
       if (isPendingTask) return;
       if (!canFlipImages) {
         openDetailModal(cinematicHistoryOpenItem(item));
         return;
       }
       body.classList.toggle('is-flipped');
+    };
+    body.addEventListener('click', activateBody);
+    body.addEventListener('keydown', (event) => {
+      if (event.target && event.target.closest && event.target.closest('button, a, input, textarea, select')) return;
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        activateBody();
+      }
     });
 
     const frontFace = document.createElement('div');
@@ -307,9 +325,9 @@
       pendingChip.textContent = '生成中';
       actions.appendChild(pendingChip);
     } else {
-      actions.appendChild(createCinematicActionButton('↺', '', () => retryCinematicHistoryItem(item)));
-      actions.appendChild(createCinematicActionButton('⎘', '', () => copyHistoryPromptToCinematic(item)));
-      actions.appendChild(createCinematicActionButton('⌫', 'is-danger', () => deleteHistoryItemByIdentity(item.task_id, item.timestamp)));
+      actions.appendChild(createCinematicActionButton('↺', '', () => retryCinematicHistoryItem(item), '重试本次生成'));
+      actions.appendChild(createCinematicActionButton('⎘', '', () => copyHistoryPromptToCinematic(item), '复制提示词'));
+      actions.appendChild(createCinematicActionButton('⌫', 'is-danger', () => deleteHistoryItemByIdentity(item.task_id, item.timestamp), '删除记录'));
     }
 
     foot.appendChild(source);

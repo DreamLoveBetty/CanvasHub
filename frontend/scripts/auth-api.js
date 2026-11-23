@@ -9,6 +9,9 @@
   function setAuthState(state) {
     const previousState = AUTH_STATE;
     AUTH_STATE = state;
+    if (typeof document !== 'undefined' && document.documentElement) {
+      document.documentElement.dataset.authState = state;
+    }
     const isResolvedState = state === 'authenticated' || state === 'unauthenticated';
     if (isResolvedState) {
       while (AUTH_STATE_WAITERS.length) {

@@ -229,10 +229,8 @@
 .desk-file-result-empty__kicker {
   margin-bottom: 4px;
   color: var(--desk-file-accent);
-  font-size: var(--desk-font-size-micro);
+  font-size: var(--desk-font-size-caption);
   font-weight: var(--desk-font-weight-semibold);
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
 }
 
 .desk-file-result-empty strong,
@@ -556,7 +554,7 @@
 .desk-file-layer__copy strong {
   overflow: hidden;
   color: var(--desk-ink);
-  font-size: var(--desk-font-size-micro);
+  font-size: var(--desk-font-size-caption);
   font-weight: var(--desk-font-weight-semibold);
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -565,7 +563,7 @@
 .desk-file-layer__copy em,
 .desk-file-layer > i {
   color: var(--desk-muted);
-  font-size: 9px;
+  font-size: var(--desk-font-size-micro);
   font-style: normal;
   font-weight: var(--desk-font-weight-semibold);
 }

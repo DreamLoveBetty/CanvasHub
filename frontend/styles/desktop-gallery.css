@@ -30,17 +30,27 @@ body.desk-app[data-theme] .desk-gallery__header h2 {
 }
 
 body.desk-app[data-theme] :is(
+  .desk-gallery-tab-groups,
   .desk-gallery-tabs,
   .desk-gallery-video-source,
   .desk-gallery-search,
   .desk-gallery-filter,
   .desk-gallery-tag-filter,
-  .desk-gallery-facets__toggle,
-  .desk-gallery-stats :is(span, button)
+  .desk-gallery-facets__toggle
 ) {
   background: var(--desk-gallery-toolbar-background);
   border-color: var(--desk-gallery-toolbar-border);
   box-shadow: var(--desk-gallery-toolbar-shadow);
+}
+
+body.desk-app[data-theme] .desk-gallery-tab-groups > .desk-gallery-tabs {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+body.desk-app[data-theme] .desk-gallery-tab-groups > .desk-gallery-tabs--models::before {
+  background: var(--desk-gallery-tab-group-divider);
 }
 
 body.desk-app[data-theme] :is(
@@ -93,9 +103,17 @@ body.desk-app[data-theme] .desk-gallery-filter option {
 
 body.desk-app[data-theme] .desk-gallery-stats :is(span, button) {
   color: var(--desk-gallery-stat-ink);
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
 }
 
-body.desk-app[data-theme] .desk-gallery-stats button:hover:not(:disabled),
+body.desk-app[data-theme] .desk-gallery-stats button:hover:not(:disabled) {
+  color: var(--desk-gallery-accent-ink);
+  background: var(--desk-gallery-toolbar-background);
+  border-color: var(--desk-gallery-toolbar-border);
+}
+
 body.desk-app[data-theme] .desk-gallery-facets__toggle:hover,
 body.desk-app[data-theme] .desk-gallery-facets__toggle.is-active {
   color: var(--desk-gallery-accent-ink);
@@ -661,7 +679,8 @@ body.desk-app[data-theme] :is(
 
 body.desk-app[data-theme] :is(
   .desk-gallery-preview__mini-btn,
-  .desk-gallery-preview__toolbar button
+  .desk-gallery-preview__toolbar > button,
+  .desk-gallery-preview__more-toggle
 ) {
   color: var(--desk-gallery-preview-button-ink);
   background: var(--desk-gallery-preview-button-background);
@@ -672,7 +691,8 @@ body.desk-app[data-theme] :is(
 body.desk-app[data-theme] :is(
   .desk-gallery-preview__mini-btn,
   .desk-gallery-preview__corner-close,
-  .desk-gallery-preview__toolbar button
+  .desk-gallery-preview__toolbar > button,
+  .desk-gallery-preview__more-toggle
 ):hover:not(:disabled) {
   color: var(--desk-gallery-preview-button-hover-ink);
   background: var(--desk-gallery-preview-button-hover-background);
@@ -681,11 +701,8 @@ body.desk-app[data-theme] :is(
 
 body.desk-app[data-theme] :is(
   .desk-gallery-preview__mini-btn.is-active,
-  #deskGalleryPreviewApplyBtn,
   #deskGalleryPreviewCanvasBtn,
   #deskGalleryPreviewEditBtn,
-  #deskGalleryPreviewCompareBtn,
-  #deskGalleryPreviewLayoutBtn,
   #deskGalleryPreviewSendBtn
 ) {
   color: var(--desk-gallery-preview-command-ink);
@@ -694,11 +711,57 @@ body.desk-app[data-theme] :is(
   box-shadow: var(--desk-gallery-preview-command-shadow);
 }
 
-body.desk-app[data-theme] .desk-gallery-preview__toolbar button:disabled {
+body.desk-app[data-theme] :is(
+  .desk-gallery-preview__toolbar > button,
+  .desk-gallery-preview__more-toggle
+):disabled {
   color: var(--desk-gallery-preview-disabled-ink);
   background: var(--desk-gallery-preview-disabled-background);
   border-color: var(--desk-gallery-preview-disabled-border);
   box-shadow: none;
+}
+
+body.desk-app[data-theme] .desk-gallery-preview__more-toggle.has-active-state::after {
+  background: var(--desk-gallery-preview-menu-dot);
+}
+
+body.desk-app[data-theme] .desk-gallery-preview__more-menu {
+  color: var(--desk-gallery-preview-menu-ink);
+  background: var(--desk-gallery-preview-menu-background);
+  border-color: var(--desk-gallery-preview-menu-border);
+  box-shadow: var(--desk-gallery-preview-menu-shadow);
+}
+
+body.desk-app[data-theme] .desk-gallery-preview__more-menu > button {
+  color: var(--desk-gallery-preview-menu-ink);
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+body.desk-app[data-theme] .desk-gallery-preview__more-menu > button:hover:not(:disabled),
+body.desk-app[data-theme] .desk-gallery-preview__more-menu > button:focus-visible:not(:disabled) {
+  background: var(--desk-gallery-preview-menu-hover-background);
+  outline: none;
+}
+
+body.desk-app[data-theme] .desk-gallery-preview__more-menu > button[aria-pressed="true"] {
+  color: var(--desk-gallery-preview-menu-active-ink);
+  background: var(--desk-gallery-preview-menu-active-background);
+}
+
+body.desk-app[data-theme] .desk-gallery-preview__more-menu > #deskGalleryPreviewHideBtn[aria-pressed="true"] {
+  color: var(--desk-gallery-preview-menu-danger-ink);
+  background: var(--desk-gallery-preview-menu-danger-background);
+}
+
+body.desk-app[data-theme] .desk-gallery-preview__more-menu > button:disabled {
+  color: var(--desk-gallery-preview-disabled-ink);
+  background: transparent;
+}
+
+body.desk-app[data-theme] .desk-gallery-preview__more-divider {
+  background: var(--desk-gallery-preview-divider);
 }
 
 body.desk-app[data-theme] .desk-gallery-preview__counter {

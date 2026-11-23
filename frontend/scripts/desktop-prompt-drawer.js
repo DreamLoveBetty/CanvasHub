@@ -608,8 +608,8 @@
         const videoSrc = typeof window.miniappMediaUrl === 'function' ? window.miniappMediaUrl(node.mediaUrl || node.videoUrl || node.url || '') : (node.mediaUrl || node.videoUrl || node.url || '');
         const poster = typeof window.miniappMediaUrl === 'function' ? window.miniappMediaUrl(node.posterUrl || node.previewUrl || '') : (node.posterUrl || node.previewUrl || '');
         const preview = kind === 'video'
-          ? (poster ? `<img src="${escapeHtml(poster)}" alt="">` : `<video src="${escapeHtml(videoSrc)}" muted playsinline preload="metadata"></video>`)
-          : `<img src="${escapeHtml(node.imageData || node.imageUrl || node.url)}" alt="">`;
+          ? (poster ? `<img src="${escapeHtml(poster)}" alt="" loading="lazy" decoding="async">` : `<video src="${escapeHtml(videoSrc)}" muted playsinline preload="metadata"></video>`)
+          : `<img src="${escapeHtml(node.imageData || node.imageUrl || node.url)}" alt="" loading="lazy" decoding="async">`;
         return `
         <button type="button" data-prompt-pick-media-node="${escapeHtml(node.nodeId)}" data-media-kind="${kind}" aria-label="引用${kind === 'video' ? '视频' : '图片'}节点" title="引用${kind === 'video' ? '视频（用于分析）' : '图片'}节点">
           ${preview}
@@ -924,7 +924,7 @@
     const modeCopy = taskModeCopy();
     let createButton = '';
     if (!hasTextTarget()) {
-      createButton = '<button type="button" data-prompt-create-text title="在画布上新建一个文本节点，结果可直接写入">新建文本节点</button>';
+      createButton = '<button type="button" class="desk-prompt-btn--secondary" data-prompt-create-text title="在画布上新建一个文本节点，结果可直接写入">新建文本节点</button>';
     }
     els.deskPromptChatMessages.innerHTML = `
       <div class="desk-prompt-chat__empty">
@@ -1058,10 +1058,10 @@
         ${candidateAdapterMetaHtml(item)}
         <p class="desk-prompt-candidate__prompt" data-prompt-language="${escapeHtml(displayLanguage)}">${escapeHtml(displayText)}</p>
         <div>
-          ${alwaysExpanded ? '' : `<button type="button" data-candidate-action="toggle" data-candidate-index="${index}" aria-expanded="${expanded ? 'true' : 'false'}">${expanded ? '收起' : '展开'}</button>`}
+          ${alwaysExpanded ? '' : `<button type="button" class="desk-prompt-btn--secondary" data-candidate-action="toggle" data-candidate-index="${index}" aria-expanded="${expanded ? 'true' : 'false'}">${expanded ? '收起' : '展开'}</button>`}
           <button type="button" data-candidate-action="apply-text" data-candidate-index="${index}" ${canApply ? '' : 'disabled'}>${applyLabel}</button>
-          <button type="button" data-candidate-action="copy" data-candidate-index="${index}" data-candidate-view-language="${escapeHtml(displayLanguage)}">复制</button>
-          <button type="button" data-candidate-action="save-style" data-candidate-index="${index}">另存风格</button>
+          <button type="button" class="desk-prompt-btn--secondary" data-candidate-action="copy" data-candidate-index="${index}" data-candidate-view-language="${escapeHtml(displayLanguage)}">复制</button>
+          <button type="button" class="desk-prompt-btn--secondary" data-candidate-action="save-style" data-candidate-index="${index}">另存风格</button>
         </div>
       </article>
     `;

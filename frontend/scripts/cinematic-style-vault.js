@@ -230,11 +230,20 @@
     grid.hidden = styles.length === 0;
 
     styles.forEach((item) => {
-      const card = document.createElement('button');
-      card.type = 'button';
+      const card = document.createElement('div');
+      card.setAttribute('role', 'button');
+      card.setAttribute('tabindex', '0');
+      card.setAttribute('aria-label', `应用风格：${item.title}`);
       card.className = 'cinematic-style-card';
       card.dataset.style = item.engineStyle || item.id || 'raw';
       card.addEventListener('click', () => applyCinematicDiscoverStyle(item.id));
+      card.addEventListener('keydown', (event) => {
+        if (event.target && event.target.closest && event.target.closest('button')) return;
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          applyCinematicDiscoverStyle(item.id);
+        }
+      });
 
       const preview = document.createElement('div');
       preview.className = 'cinematic-style-preview';
@@ -258,6 +267,7 @@
       editBtn.className = 'cinematic-style-edit';
       editBtn.textContent = '✎';
       editBtn.title = '编辑风格';
+      editBtn.setAttribute('aria-label', `编辑风格：${item.title}`);
       editBtn.addEventListener('click', (event) => {
         event.stopPropagation();
         editCinematicDiscoverStyle(item.id);

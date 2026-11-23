@@ -175,6 +175,12 @@ body.desk-app[data-theme] :is(
   letter-spacing: 0;
 }
 
+body.desk-app[data-theme] .desk-status-tip__raw {
+  font-family: var(--desk-font-family-mono);
+  font-size: var(--desk-font-size-label);
+  line-height: var(--desk-line-height-normal);
+}
+
 body.desk-app[data-theme] :is(
   .desk-release__panel,
   .desk-language-menu,
@@ -310,7 +316,7 @@ body.desk-app[data-theme] .desk-prompt-editor__media-icon {
   flex-grow: 0;
   flex-shrink: 0;
   place-items: center;
-  font-size: 8px;
+  font-size: var(--desk-font-size-micro);
   border-radius: 5px;
 }
 
@@ -341,6 +347,7 @@ body.desk-app[data-theme] .desk-prompt-editor__remove {
 }
 
 body.desk-app[data-theme] .desk-prompt-chat__input {
+  grid-template-columns: minmax(0, 1fr) minmax(108px, auto);
   grid-template-rows: 74px;
   height: 74px;
 }
@@ -436,9 +443,19 @@ body.desk-app[data-theme] .desk-prompt-image-menu video {
   border-radius: calc(var(--desk-radius-control) - 1px);
 }
 
-/* Agent workbench: replace 7-9px text without clipping the fixed rows. */
+/* Agent workbench: replace 7-9px text without clipping the fixed rows,
+   and keep clear horizontal clearance from the bottom-right zoom controls. */
 body.desk-app[data-theme] .desk-prompt-drawer.is-open.is-agent {
+  width: clamp(760px, min(68vw, calc(100vw - 476px)), 1120px);
   height: min(608px, calc(100dvh - 92px));
+}
+
+@media (max-width: 1239px) {
+  body.desk-app[data-theme] .desk-prompt-drawer.is-open.is-agent {
+    bottom: 84px;
+    width: min(92vw, 960px);
+    height: min(540px, calc(100dvh - 142px));
+  }
 }
 
 body.desk-app[data-theme] .desk-prompt-drawer.is-agent .desk-prompt-drawer__body {
@@ -1316,6 +1333,16 @@ body.desk-app[data-theme] :is(
   height: var(--desk-control-height-sm);
 }
 
+body.desk-app[data-theme] :is(
+  .desk-prompt-library__search input,
+  .desk-prompt-field input,
+  .desk-prompt-field select,
+  .desk-prompt-field .desk-select-trigger
+) {
+  font-size: var(--desk-font-size-body);
+  line-height: var(--desk-line-height-caption);
+}
+
 body.desk-app[data-theme] .desk-prompt-library-row {
   min-height: 72px;
   border-radius: var(--desk-radius-surface);
@@ -1323,6 +1350,39 @@ body.desk-app[data-theme] .desk-prompt-library-row {
 
 body.desk-app[data-theme] .desk-prompt-library-row__title strong,
 body.desk-app[data-theme] .desk-prompt-section-title strong {
+  font-size: var(--desk-font-size-body);
+  line-height: var(--desk-line-height-caption);
+}
+
+body.desk-app[data-theme] :is(
+  .desk-prompt-library__list-head strong,
+  .desk-prompt-library__empty,
+  .desk-prompt-library__load-more,
+  .desk-prompt-editor-pane__head p,
+  .desk-prompt-field > span,
+  .desk-prompt-section-title > span,
+  .desk-prompt-help,
+  .desk-prompt-create__modes button,
+  .desk-prompt-editor-pane__head-actions button,
+  .desk-prompt-editor-actions button,
+  .desk-prompt-template__create,
+  .desk-prompt-rule-builder > header strong,
+  .desk-prompt-rule-builder > header button,
+  .desk-prompt-extractor__rule strong,
+  .desk-prompt-color-draft__section-head strong,
+  .desk-prompt-color-draft__image-action,
+  .desk-prompt-color-draft__generate,
+  .desk-prompt-color-formula-grid strong,
+  .desk-prompt-color-draft__rules strong,
+  .desk-prompt-color-analysis__drop > span strong,
+  .desk-prompt-color-analysis__intro strong,
+  .desk-prompt-color-analysis__status strong,
+  .desk-prompt-color-analysis__empty strong,
+  .desk-prompt-color-analysis__status button,
+  .desk-prompt-extractor__drop strong,
+  .desk-prompt-extractor__result-head button,
+  .desk-prompt-extractor__footer button
+) {
   font-size: var(--desk-font-size-label);
 }
 
@@ -1352,8 +1412,8 @@ body.desk-app[data-theme] :is(
 }
 
 body.desk-app[data-theme] .desk-prompt-field textarea {
-  font-size: var(--desk-font-size-label);
-  line-height: var(--desk-line-height-normal);
+  font-size: var(--desk-font-size-body-strong);
+  line-height: var(--desk-line-height-relaxed);
 }
 
 body.desk-app[data-theme] :is(.desk-prompt-help, .desk-prompt-template__stats div) {
@@ -1827,16 +1887,17 @@ body.desk-app[data-theme] .desk-settings-tabs button.is-active {
   font-weight: var(--desk-font-weight-semibold);
 }
 
-/* The active category carries a short accent bar on its leading edge. */
+/* The active category carries a short accent bar tucked cleanly inside its leading edge. */
 body.desk-app[data-theme] .desk-settings-tabs button.is-active::before {
   position: absolute;
-  top: 7px;
-  bottom: 7px;
-  left: 0;
+  top: 8px;
+  bottom: 8px;
+  left: 5px;
   width: 2px;
   content: "";
   background: currentColor;
-  border-radius: 1px;
+  border-radius: 999px;
+  opacity: 0.72;
 }
 
 /* Inset paint supplies the track outline without adding to its height. Keep
@@ -2146,6 +2207,8 @@ body.desk-app[data-theme] .desk-settings .desk-settings-theme-speed.is-collapsed
 
 body.desk-app[data-theme] .desk-settings .desk-settings-theme-speed > div {
   min-height: 0;
+  margin: 0 -10px;
+  padding: 0 10px;
   overflow: hidden;
 }
 
@@ -2199,7 +2262,7 @@ body.desk-app .desk-runner-slider__ms {
 body.desk-app .desk-runner-slider__track {
   position: relative;
   height: 14px;
-  margin-top: 18px;
+  margin-top: 26px;
   border-radius: 7px;
 }
 
@@ -2237,9 +2300,9 @@ body.desk-app .desk-runner-slider__mark.is-recommended {
 
 body.desk-app .desk-runner-slider__runner {
   position: absolute;
-  bottom: -1px;
+  bottom: -2px;
   width: 48px;
-  height: 32px;
+  height: 37px;
   pointer-events: none;
 }
 
@@ -2584,6 +2647,69 @@ body.desk-app .desk-canvas-world[data-zoom-tier="overview"] :is(
 ) {
   visibility: hidden;
   pointer-events: none;
+}
+
+/* Keep live counters, timers, percentages, and numeric inputs aligned across updates. */
+body.desk-app[data-theme] :where(
+  .desk-progress-float__percent,
+  .desk-progress-float__timer,
+  [data-progress-percent],
+  [data-progress-timer],
+  .desk-zoom-label,
+  .desk-zoom-row span,
+  .desk-zoom-presets button,
+  #deskSelectionCount,
+  .desk-status-chip,
+  .desk-status-feedback-trigger,
+  .desk-google-pool-model b,
+  .desk-google-pool-quota-card b,
+  .desk-google-pool-quota-family b,
+  .desk-google-pool-quota-reset,
+  .desk-gallery-stats :is(span, button),
+  .desk-gallery-preview__counter,
+  #deskGalleryPreviewCounter,
+  .desk-gallery-video-folder__case b,
+  .desk-prompt-library__nav-count,
+  .desk-prompt-template__stats strong,
+  .desk-prompt-inspiration-preview__counter,
+  .desk-number,
+  .desk-stepper > input[type="number"],
+  input[type="number"]
+) {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Expand compact (<24px) desktop micro-buttons' transparent hit area to >= 24x24px
+   without enlarging their visual footprint. */
+body.desk-app[data-theme] :where(
+  .desk-prompt-editor__remove,
+  .desk-gallery-card__switcher button,
+  .desk-gallery-card__meta-actions button,
+  .desk-text-node__alias button,
+  .desk-prompt-expand-btn,
+  .desk-gallery-stats button
+) {
+  position: relative;
+}
+
+body.desk-app[data-theme] :where(
+  .desk-prompt-editor__remove,
+  .desk-gallery-card__switcher button,
+  .desk-gallery-card__image button,
+  .desk-gallery-card__meta-actions button,
+  .desk-text-node__alias button,
+  .desk-prompt-expand-btn,
+  .desk-gallery-stats button
+)::before {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  min-width: 24px;
+  min-height: 24px;
+  width: 100%;
+  height: 100%;
+  content: "";
+  transform: translate(-50%, -50%);
 }
 
 @media (max-width: 760px) {

@@ -81,10 +81,34 @@ class GalleryPreviewBackdropTest(unittest.TestCase):
         self.assertIn('body.desk-app:not([data-theme="dark"]) .desk-gallery-preview__info', css)
         self.assertIn("rgba(27, 41, 56, 0.9)", css)
         self.assertIn("rgba(250, 253, 255, 0.56)", css)
-        self.assertIn("rgba(250, 253, 255, 0.58)", css)
-        self.assertIn('body.desk-app:not([data-theme="dark"]) #deskGalleryPreviewApplyBtn', css)
+        self.assertIn("rgba(250, 253, 255, 0.9)", css)
+        self.assertIn('body.desk-app:not([data-theme="dark"]) #deskGalleryPreviewCanvasBtn', css)
         self.assertIn("rgba(37, 99, 235, 0.88)", css)
         self.assertIn('body.desk-app:not([data-theme="dark"]) #deskGalleryPreviewDeleteBtn', css)
+
+    def test_preview_toolbar_groups_secondary_actions_in_more_menu(self) -> None:
+        html = read_text("desktop.html")
+        js = read_history_js()
+        gallery_css = read_text("styles/desktop-gallery.css")
+
+        self.assertIn('id="deskGalleryPreviewMoreBtn"', html)
+        self.assertIn('id="deskGalleryPreviewMoreMenu"', html)
+        self.assertIn('aria-controls="deskGalleryPreviewMoreMenu"', html)
+        menu_start = html.index('id="deskGalleryPreviewMoreMenu"')
+        menu_end = html.index('</div>\n          </div>\n        </div>', menu_start)
+        menu_html = html[menu_start:menu_end]
+        for secondary_id in (
+            'deskGalleryPreviewOpenBtn',
+            'deskGalleryPreviewCopyBtn',
+            'deskGalleryPreviewApplyBtn',
+            'deskGalleryPreviewCompareBtn',
+            'deskGalleryPreviewLayoutBtn',
+            'deskGalleryPreviewTagBtn',
+            'deskGalleryPreviewHideBtn',
+        ):
+            self.assertIn(f'id="{secondary_id}"', menu_html)
+        self.assertIn('function setPreviewMoreMenuOpen', js)
+        self.assertIn('.desk-gallery-preview__more-menu', gallery_css)
 
     def test_compare_modal_matches_preview_board_shell(self) -> None:
         html = read_text("desktop.html")

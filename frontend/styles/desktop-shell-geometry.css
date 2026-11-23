@@ -246,7 +246,6 @@
   width: 1440px;
   height: 820px;
   transform-origin: 0 0;
-  will-change: transform;
 }
 
 :where(body.desk-app[data-theme]) .desk-zoom-controls:hover,

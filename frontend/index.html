@@ -1,9 +1,11 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>Image Studio Pro</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
+  <meta name="theme-color" content="#0d0f0c">
+  <meta name="color-scheme" content="dark">
+  <title>CanvasHub · Image Studio</title>
   <script>
     (function () {
       function bootErrorLocation(event) {
@@ -68,6 +70,7 @@
       const defaultSkin = 'skeuo-tech';
       const defaultLayoutMode = 'cinematic';
       const validLayoutModes = ['cinematic'];
+      document.documentElement.dataset.authState = 'checking';
       try {
         const raw = localStorage.getItem('miniapp_ui_settings_v1');
         if (!raw) {
@@ -88,22 +91,22 @@
       }
     })();
   </script>
-  <link rel="stylesheet" href="styles/base.css?v=20260617-thirdparty2">
-  <link rel="stylesheet" href="styles/theme-tokens.css?v=20260522-welib-remove-2">
-  <link rel="stylesheet" href="styles/cinematic-shell-stream.css?v=20261121-comfy-workbench1">
-  <link rel="stylesheet" href="styles/cinematic-discover.css?v=20261011-cache-key1">
-  <link rel="stylesheet" href="styles/cinematic-composer.css?v=20260425-1">
-  <link rel="stylesheet" href="styles/cinematic-responsive.css?v=20260424-1">
-  <link rel="stylesheet" href="styles/theme-overrides.css?v=20260522-welib-remove-2">
+  <link rel="stylesheet" href="styles/base.css?v=20261123-b6-polish2">
+  <link rel="stylesheet" href="styles/theme-tokens.css?v=20261122-b4-mobile2">
+  <link rel="stylesheet" href="styles/cinematic-shell-stream.css?v=20261123-b6-polish4">
+  <link rel="stylesheet" href="styles/cinematic-discover.css?v=20261122-b4-mobile1">
+  <link rel="stylesheet" href="styles/cinematic-composer.css?v=20261122-b4-mobile1">
+  <link rel="stylesheet" href="styles/cinematic-responsive.css?v=20261122-b4-mobile2">
+  <link rel="stylesheet" href="styles/theme-overrides.css?v=20261123-b6-polish2">
 </head>
 <body>
 
-  <div id="authOverlay" class="auth-overlay">
+  <div id="authOverlay" class="auth-overlay" role="dialog" aria-modal="true" aria-labelledby="authTitle">
     <div class="auth-card">
-      <div class="auth-title">需要身份验证</div>
+      <div id="authTitle" class="auth-title">需要身份验证</div>
       <div id="authMessage" class="auth-message">请在 Telegram 中打开，或输入访问密码。</div>
-      <div id="authInputRow" style="margin-top:16px; display:none; flex-direction:column; gap:10px;">
-        <input type="password" id="authPassword" class="auth-password-input" placeholder="输入访问密码">
+      <div id="authInputRow" class="auth-input-row" style="display:none;">
+        <input type="password" id="authPassword" class="auth-password-input" placeholder="输入访问密码" aria-label="访问密码" autocomplete="current-password" enterkeyhint="go">
         <button type="button" class="auth-submit-btn" onclick="handleManualAuth()">验证并登录</button>
       </div>
     </div>
@@ -117,7 +120,7 @@
     <div class="sidebar-header">
       <div class="sidebar-title">🏠 主菜单</div>
       <div class="sidebar-header-actions">
-        <div class="sidebar-close" onclick="toggleMainMenu()">×</div>
+        <button type="button" class="sidebar-close" onclick="toggleMainMenu()" aria-label="关闭主菜单">×</button>
       </div>
     </div>
     <div class="menu-stack">
@@ -158,8 +161,8 @@
     <div class="sidebar-header">
       <div class="sidebar-title">历史记录</div>
       <div class="sidebar-header-actions">
-        <button class="btn-danger-mini" onclick="deleteFailedHistory()">删失败</button>
-        <div class="sidebar-close" onclick="toggleSidebar()">×</div>
+        <button type="button" class="btn-danger-mini" onclick="deleteFailedHistory()">删失败</button>
+        <button type="button" class="sidebar-close" onclick="toggleSidebar()" aria-label="关闭历史记录">×</button>
       </div>
     </div>
 
@@ -216,12 +219,12 @@
     <div class="modal">
       <div class="modal-header">
         <div id="modalTitle">任务详情</div>
-        <div class="modal-close" onclick="closeModal()">×</div>
+        <button type="button" class="modal-close" onclick="closeModal()" aria-label="关闭任务详情">×</button>
       </div>
       <div class="modal-body">
         <div id="modalStage" class="modal-stage">
           <div id="modalImageHint" class="modal-image-hint" style="display:none">预览图 · 点击查看原图</div>
-          <img id="modalImg" class="modal-img" style="display:none">
+          <img id="modalImg" class="modal-img" alt="生成结果预览" style="display:none">
           <div id="modalImgEmpty" class="modal-empty">这条记录暂时没有可预览的图片。</div>
           <div id="modalImgLoading" class="modal-loading-pill" style="display:none">正在加载原图...</div>
           <div id="modalCinematicActions" class="modal-cinematic-actions">
@@ -423,16 +426,16 @@
   <div id="view-comfy" class="view">
     <div class="prompt-box">
       <div class="prompt-wrapper">
-        <textarea id="comfyPrompt" class="prompt-area prompt-area-plain" placeholder="输入提示词 ({{PROMPT}})..."></textarea>
+        <textarea id="comfyPrompt" class="prompt-area prompt-area-plain" placeholder="输入 ComfyUI 工作流提示词..." aria-label="ComfyUI 提示词"></textarea>
       </div>
       <div class="prompt-footer prompt-footer-inline">
         <div class="prompt-footer-main">
           <div class="prompt-tips">
-            <span onclick="insertExample('portrait', 'comfyPrompt')">👤 人像</span>
-            <span onclick="insertExample('landscape', 'comfyPrompt')">🏔️ 风景</span>
-            <span onclick="insertExample('cyberpunk', 'comfyPrompt')">🌃 赛博</span>
+            <button type="button" onclick="insertExample('portrait', 'comfyPrompt')">👤 人像</button>
+            <button type="button" onclick="insertExample('landscape', 'comfyPrompt')">🏔️ 风景</button>
+            <button type="button" onclick="insertExample('cyberpunk', 'comfyPrompt')">🌃 赛博</button>
           </div>
-          <button type="button" class="prompt-action-btn prompt-clear-inline" title="清空" onclick="clearPrompt('comfyPrompt')">✕</button>
+          <button type="button" class="prompt-action-btn prompt-clear-inline" title="清空" aria-label="清空提示词" onclick="clearPrompt('comfyPrompt')">✕</button>
         </div>
         <div class="char-count"><span id="comfyCharCount">0</span>/10000</div>
       </div>
@@ -441,13 +444,13 @@
     <!-- Image Upload Area -->
     <div class="section-header">
       <div class="section-title">参考图片 (可选)</div>
-      <div class="section-sub" onclick="document.getElementById('comfyInput').click()" style="color:var(--primary);cursor:pointer">上传</div>
+      <button type="button" class="section-sub section-sub-btn" onclick="document.getElementById('comfyInput').click()">上传</button>
     </div>
-    <div id="comfyUploadArea" class="upload-panel" style="background:#fff;border:2px dashed #e2e8f0;border-radius:12px;padding:12px;text-align:center;margin-bottom:20px;cursor:pointer" onclick="document.getElementById('comfyInput').click()">
+    <div id="comfyUploadArea" class="upload-panel comfy-upload-panel" onclick="document.getElementById('comfyInput').click()">
       <input type="file" id="comfyInput" style="display:none" accept="image/*" onchange="handleComfyUpload(this)">
-      <div id="comfyUploadPlaceholder" style="color:#64748b;font-size:14px">点击上传图片 ({{IMAGE}})</div>
-      <img id="comfyPreview" style="max-width:100%;max-height:200px;border-radius:8px;display:none;margin:0 auto">
-      <div id="comfyRemoveImg" style="color:#ef4444;font-size:12px;margin-top:8px;display:none" onclick="clearComfyImage(event)">清除图片</div>
+      <div id="comfyUploadPlaceholder" class="comfy-upload-placeholder">点击上传参考图</div>
+      <img id="comfyPreview" class="comfy-upload-preview" alt="ComfyUI 参考图预览" style="display:none">
+      <button type="button" id="comfyRemoveImg" class="comfy-remove-img-btn" style="display:none" onclick="clearComfyImage(event)">清除图片</button>
     </div>
 
     <button type="button" class="settings-trigger" data-settings-key="comfy" onclick="openSettings('comfy')">
@@ -484,46 +487,46 @@
           <div class="ratio-row">
             <div class="ratio-cat">竖屏</div>
             <div class="ratio-opts">
-              <div class="r-btn" onclick="pickRatioComfy('9:16')">9:16</div>
-              <div class="r-btn" onclick="pickRatioComfy('9:21')">9:21</div>
-              <div class="r-btn" onclick="pickRatioComfy('3:4')">3:4</div>
-              <div class="r-btn" onclick="pickRatioComfy('2:3')">2:3</div>
-              <div class="r-btn" onclick="pickRatioComfy('4:5')">4:5</div>
+              <button type="button" class="r-btn" onclick="pickRatioComfy('9:16')">9:16</button>
+              <button type="button" class="r-btn" onclick="pickRatioComfy('9:21')">9:21</button>
+              <button type="button" class="r-btn" onclick="pickRatioComfy('3:4')">3:4</button>
+              <button type="button" class="r-btn" onclick="pickRatioComfy('2:3')">2:3</button>
+              <button type="button" class="r-btn" onclick="pickRatioComfy('4:5')">4:5</button>
             </div>
           </div>
           <div class="ratio-row">
             <div class="ratio-cat">横屏</div>
             <div class="ratio-opts">
-              <div class="r-btn" onclick="pickRatioComfy('16:9')">16:9</div>
-              <div class="r-btn" onclick="pickRatioComfy('21:9')">21:9</div>
-              <div class="r-btn" onclick="pickRatioComfy('4:3')">4:3</div>
-              <div class="r-btn" onclick="pickRatioComfy('3:2')">3:2</div>
+              <button type="button" class="r-btn" onclick="pickRatioComfy('16:9')">16:9</button>
+              <button type="button" class="r-btn" onclick="pickRatioComfy('21:9')">21:9</button>
+              <button type="button" class="r-btn" onclick="pickRatioComfy('4:3')">4:3</button>
+              <button type="button" class="r-btn" onclick="pickRatioComfy('3:2')">3:2</button>
             </div>
           </div>
           <div class="ratio-row">
             <div class="ratio-cat">正方</div>
             <div class="ratio-opts">
-              <div class="r-btn selected" onclick="pickRatioComfy('1:1')">1:1</div>
-              <div class="r-btn" onclick="pickRatioComfy('5:4')">5:4</div>
+              <button type="button" class="r-btn selected" onclick="pickRatioComfy('1:1')">1:1</button>
+              <button type="button" class="r-btn" onclick="pickRatioComfy('5:4')">5:4</button>
             </div>
           </div>
         </div>
       </div>
     </div>
 
-    <div id="comfyResult" class="result-stage" style="margin-top: 20px; text-align: center;">
+    <div id="comfyResult" class="result-stage comfy-result-stage">
       <div class="result-stage-head">
         <div>
           <div class="result-stage-title">结果舞台</div>
           <div id="comfyStageHint" class="result-stage-sub">提交任务后，作品会在这里出现。</div>
         </div>
       </div>
-      <div id="comfyStatus" class="result-status" style="color: #64748b; font-size: 14px; display: none;">等待中...</div>
+      <div id="comfyStatus" class="result-status comfy-result-status" style="display: none;">等待中...</div>
       <div id="comfyEmptyState" class="result-empty">提交任务后，图片会显示在这里，完成后你可以直接在这里预览。</div>
       <div class="result-stage-actions">
         <button id="comfyStageAction" class="result-stage-action" type="button" onclick="openRecentStageResult('comfy')">查看最近任务</button>
       </div>
-      <img id="comfyImage" class="result-image" style="max-width: 100%; border-radius: 12px; display: none; margin-top: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);" />
+      <img id="comfyImage" class="result-image comfy-result-image" alt="ComfyUI 生成结果" style="display: none;" />
     </div>
   </div>
 
@@ -700,7 +703,7 @@
       <div class="settings-panel-header">
         <div>
           <div class="settings-panel-title">编辑参数</div>
-          <div class="settings-panel-subtitle">参考图保持在首屏，复杂参数收进这里，移动端会更轻松。</div>
+          <div class="settings-panel-subtitle">调整编辑模型、功能模式、画质与输出比例。</div>
         </div>
         <button type="button" class="settings-close" onclick="closeSettings()">✕</button>
       </div>
@@ -830,7 +833,7 @@
             </div>
             <div class="cinematic-style-vault">
               <div class="cinematic-style-toolbar">
-                <input id="cinematicStyleSearch" class="cinematic-style-search" type="search" placeholder="搜索风格..." oninput="handleCinematicStyleSearch(this.value)">
+                <input id="cinematicStyleSearch" class="cinematic-style-search" type="search" placeholder="搜索风格..." aria-label="搜索风格" enterkeyhint="search" oninput="handleCinematicStyleSearch(this.value)">
                 <button type="button" class="cinematic-style-create" onclick="createCinematicDiscoverStyle()">创建风格</button>
               </div>
               <div class="cinematic-style-vault-head">
@@ -847,14 +850,13 @@
           <div class="cinematic-spell-page">
             <div class="cinematic-spell-hero">
               <strong>把一句想法，炼成可直接出图的结构化提示词。</strong>
-              <p>输入一句简短主题、几个关键词，或者一个模糊概念。咒术会按完整模块展开成可用于 `gemini-3-image-pro` 的结构化提示词。</p>
+              <p>输入主题、关键词或画面构想，自动拆解为可直接用于生图的结构化提示词与 JSON。</p>
             </div>
 
             <div class="cinematic-spell-grid">
               <section class="cinematic-spell-panel">
                 <div class="cinematic-spell-panel-head">
                   <strong>提示词生成</strong>
-                  <span>第一个功能先做完整：从短句到结构化 JSON。</span>
                 </div>
                 <label class="cinematic-spell-label" for="cinematicSpellSeed">主题种子</label>
                 <textarea id="cinematicSpellSeed" class="cinematic-spell-input" placeholder="例如：地铁里低头看手机的东亚女偶像肖像；或者：冷白皮、马尾、制服、电影感地铁车厢。"></textarea>
@@ -867,7 +869,6 @@
               <section class="cinematic-spell-panel">
                 <div class="cinematic-spell-panel-head">
                   <strong>结构化结果</strong>
-                  <span>优先展示完整 JSON，同时提供正向与负向块的快速复制。</span>
                 </div>
                 <div class="cinematic-spell-output-actions">
                   <button type="button" class="cinematic-spell-copy" onclick="copyCinematicSpellJson()">复制 JSON</button>
@@ -877,15 +878,15 @@
                 <div class="cinematic-spell-result-stack">
                   <div class="cinematic-spell-result-block">
                     <div class="cinematic-spell-result-title">正向提示</div>
-                    <pre id="cinematicSpellPositiveOutput" class="cinematic-spell-result">等待施法...</pre>
+                    <pre id="cinematicSpellPositiveOutput" class="cinematic-spell-result">尚未生成提示词</pre>
                   </div>
                   <div class="cinematic-spell-result-block">
                     <div class="cinematic-spell-result-title">负向约束</div>
-                    <pre id="cinematicSpellNegativeOutput" class="cinematic-spell-result">等待施法...</pre>
+                    <pre id="cinematicSpellNegativeOutput" class="cinematic-spell-result">尚未生成提示词</pre>
                   </div>
                   <div class="cinematic-spell-result-block">
                     <div class="cinematic-spell-result-title">完整 JSON</div>
-                    <pre id="cinematicSpellJsonOutput" class="cinematic-spell-json">等待施法...</pre>
+                    <pre id="cinematicSpellJsonOutput" class="cinematic-spell-json">尚未生成提示词</pre>
                   </div>
                 </div>
               </section>
@@ -922,21 +923,26 @@
               id="cinematicRefClearBtn"
               type="button"
               class="cinematic-ref-clear"
-              aria-label="删除参考图"
-              title="单击删除最近一张，长按 3 秒清空全部参考图"
+              aria-label="删除最近一张参考图"
+              title="删除最近一张参考图"
               onclick="handleCinematicRefClearClick(event)"
-              onpointerdown="startCinematicRefClearHold(event)"
-              onpointerup="cancelCinematicRefClearHold()"
-              onpointerleave="cancelCinematicRefClearHold()"
-              onpointercancel="cancelCinematicRefClearHold()"
-              oncontextmenu="event.preventDefault()"
             >
               ✕
+            </button>
+            <button
+              id="cinematicRefClearAllBtn"
+              type="button"
+              class="cinematic-ref-clear-all"
+              aria-label="清空全部参考图"
+              hidden
+              onclick="handleCinematicRefClearAllClick(event)"
+            >
+              清空全部
             </button>
           </div>
           <div class="cinematic-composer-mid">
             <div class="cinematic-composer-text">
-              <textarea id="cinematicPrompt" class="cinematic-prompt" placeholder="默认文生图模式，上传图片自动转为图像编辑，请开始你的创意：" oninput="syncCinematicPromptState()"></textarea>
+              <textarea id="cinematicPrompt" class="cinematic-prompt" aria-label="输入生图或编辑提示词" placeholder="默认文生图模式，上传图片自动转为图像编辑，请开始你的创意：" enterkeyhint="send" oninput="syncCinematicPromptState()"></textarea>
             </div>
           </div>
           <div class="cinematic-composer-bottom">
@@ -1064,7 +1070,7 @@
             <div class="cinematic-submit-side">
               <button id="cinematicClearPromptChip" type="button" class="cinematic-utility-chip is-clear" hidden onclick="clearCurrentCinematicPrompt()">清空</button>
               <button id="cinematicStyleChip" type="button" class="cinematic-style-chip" hidden onclick="clearPinnedCinematicStyle()">Real</button>
-              <button id="cinematicSubmitBtn" type="button" class="cinematic-submit-btn" onclick="submitCinematicComposer()" aria-label="提交生成">✎</button>
+              <button id="cinematicSubmitBtn" type="button" class="cinematic-submit-btn" onclick="submitCinematicComposer()" aria-label="提交生成"><span class="cinematic-submit-icon" aria-hidden="true">✦</span><span class="cinematic-submit-label">生成</span></button>
             </div>
           </div>
         </div>
@@ -1102,22 +1108,19 @@
   <div id="cinematicMenu" class="main-start-menu" role="dialog" aria-modal="true" aria-label="Cinematic 菜单">
     <div class="main-menu-panel">
       <div class="main-menu-hero">
-        <div class="main-menu-kicker">Cinematic Menu</div>
         <div class="main-menu-hero-row">
           <div class="main-menu-hero-copy">
-            <div class="main-menu-title">菜单</div>
-            <p class="main-menu-subtitle">只服务于 Cinematic 布局的快速控制。</p>
+            <div class="main-menu-title">外观与偏好</div>
           </div>
-          <button type="button" class="main-menu-close" onclick="toggleCinematicQuickMenu()" aria-label="关闭 Cinematic 菜单">✕</button>
+          <button type="button" class="main-menu-close" onclick="toggleCinematicQuickMenu()" aria-label="关闭菜单">✕</button>
         </div>
       </div>
 
-      <div class="main-menu-section" aria-label="Cinematic 配色系统">
+      <div class="main-menu-section" aria-label="配色系统">
         <div class="main-menu-section-head">
           <strong>配色系统</strong>
           <span id="cinematicColorSystemCurrent">琥珀片场</span>
         </div>
-        <div class="main-menu-section-note">只作用于当前 Cinematic 创作流。</div>
 
         <div class="cinematic-color-list">
           <button
@@ -1176,7 +1179,7 @@
           <div id="cinematicStyleEditorTitle" class="cinematic-style-editor-title">创建风格</div>
           <div class="cinematic-style-editor-subtitle">保存一张属于你的风格卡，随时回到创作区调用。</div>
         </div>
-        <button type="button" class="cinematic-style-editor-close" onclick="closeCinematicStyleEditor()">✕</button>
+        <button type="button" class="cinematic-style-editor-close" onclick="closeCinematicStyleEditor()" aria-label="关闭风格编辑">✕</button>
       </div>
       <div class="cinematic-style-editor-body">
         <label class="cinematic-style-field">
@@ -1291,16 +1294,16 @@
     <button id="btnEdit" class="btn-submit submit-action" onclick="submitEdit()">✏️ 立即生成</button>
   </div>
 
-  <script src="scripts/auth-api.js?v=20260824-auth-debug-clean1"></script>
-  <script src="scripts/state.js?v=20261120-cinematic-only1"></script>
+  <script src="scripts/auth-api.js?v=20261122-b4-mobile1"></script>
+  <script src="scripts/state.js?v=20261122-b4-mobile1"></script>
   <script src="scripts/preferences.js?v=20261120-cinematic-theme1"></script>
-  <script src="scripts/ui-shell.js?v=20261120-cinematic-only1"></script>
+  <script src="scripts/ui-shell.js?v=20261123-b6-polish1"></script>
   <script src="scripts/stage-runtime.js?v=20261119-google-copy1"></script>
-  <script src="scripts/input-helpers.js?v=20261011-cache-key1"></script>
-  <script src="scripts/cinematic-composer.js?v=20261120-cinematic-only1"></script>
-  <script src="scripts/cinematic-history-stream.js?v=20261121-history-media1"></script>
+  <script src="scripts/input-helpers.js?v=20261122-b4-mobile1"></script>
+  <script src="scripts/cinematic-composer.js?v=20261123-b6-polish1"></script>
+  <script src="scripts/cinematic-history-stream.js?v=20261122-b4-mobile1"></script>
   <script src="scripts/cinematic-detail.js?v=20261120-archive-thumb1"></script>
-  <script src="scripts/cinematic-style-vault.js?v=20260624-google-flash1"></script>
+  <script src="scripts/cinematic-style-vault.js?v=20261122-b4-mobile1"></script>
   <script src="scripts/history.js?v=20261120-mobile-image-cards1"></script>
   <script src="scripts/history-routing.js?v=20261120-comfy-archive1"></script>
   <script src="scripts/history-mutations.js?v=20261011-cache-key1"></script>
@@ -1308,10 +1311,10 @@
   <script src="scripts/modal-view.js?v=20261121-cinematic-exports1"></script>
   <script src="scripts/provider-comfy.js?v=20260426-2"></script>
   <script src="scripts/provider-gpt.js?v=20260623-codex-auto-auth1"></script>
-  <script src="scripts/provider-google-shared.js?v=20261119-google-copy1"></script>
+  <script src="scripts/provider-google-shared.js?v=20261122-b4-mobile2"></script>
   <script src="scripts/provider-google-generate.js?v=20260626-google-model-rename1"></script>
   <script src="scripts/provider-google-edit.js?v=20260427-fallback2"></script>
-  <script src="scripts/cinematic-spell.js?v=20261011-cache-key1"></script>
+  <script src="scripts/cinematic-spell.js?v=20261122-b4-mobile1"></script>
   <script src="scripts/bootstrap.js?v=20261120-cinematic-only1"></script>
 
 </body>

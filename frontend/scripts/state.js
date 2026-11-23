@@ -33,12 +33,12 @@
   let currentCinematicStyleEditorId = null;
   let currentCinematicStyleEditorBuiltin = false;
   let cinematicRevealState = {
-    provider: false,
-    model: false,
-    quality: false,
-    gptQuality: false,
-    gptCount: false,
-    gptModeration: false
+    provider: true,
+    model: true,
+    quality: true,
+    gptQuality: true,
+    gptCount: true,
+    gptModeration: true
   };
   let currentSettingsPanel = null;
   const SETTINGS_STORAGE_KEY = 'miniapp_ui_settings_v1';

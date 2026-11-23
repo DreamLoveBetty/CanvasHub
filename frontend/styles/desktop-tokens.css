@@ -54,26 +54,26 @@ body.desk-app {
   --desk-color-control-bg-hover: rgba(255, 255, 255, 0.82);
   --desk-color-control-bg-active: rgba(232, 241, 250, 0.94);
   --desk-color-control-bg-disabled: rgba(226, 235, 245, 0.88);
-  --desk-color-control-border: rgba(255, 255, 255, 0.68);
-  --desk-color-control-border-hover: rgba(var(--desk-blue-royal-rgb), 0.26);
-  --desk-color-control-border-active: rgba(var(--desk-blue-royal-rgb), 0.42);
+  --desk-color-control-border: rgba(var(--desk-blue-secondary-rgb), 0.26);
+  --desk-color-control-border-hover: rgba(var(--desk-blue-royal-rgb), 0.34);
+  --desk-color-control-border-active: rgba(var(--desk-blue-royal-rgb), 0.48);
   --desk-color-control-border-disabled: rgba(var(--desk-blue-secondary-rgb), 0.18);
   --desk-color-control-ink: var(--desk-blue-ink);
   --desk-color-popover-bg: rgba(250, 252, 255, 0.96);
   --desk-color-popover-border: rgba(var(--desk-blue-secondary-rgb), 0.16);
   --desk-color-accent: var(--desk-blue-royal);
   --desk-color-accent-soft: rgba(var(--desk-blue-royal-rgb), 0.14);
-  --desk-color-focus-border: rgba(var(--desk-blue-royal-rgb), 0.56);
-  --desk-color-focus-ring: rgba(var(--desk-blue-royal-rgb), 0.1);
+  --desk-color-focus-border: rgba(var(--desk-blue-royal-rgb), 0.78);
+  --desk-color-focus-ring: rgba(var(--desk-blue-royal-rgb), 0.14);
   /* Semantic status palette. Saturated surfaces use the reference swatches as
      satin endpoints; larger panels consume the matching soft material. */
   --desk-status-material-background-size: 148% 170%, 215% 190%, 100% 100%;
   --desk-status-material-position: 4% 0%, 8% 50%, 0 0;
   --desk-status-material-position-hover: 34% 8%, 72% 44%, 0 0;
   --desk-status-material-position-active: 54% 18%, 58% 64%, 0 0;
-  --desk-status-material-lustre: rgba(255, 255, 255, 0.38);
-  --desk-status-material-fold: rgba(255, 255, 255, 0.17);
-  --desk-status-material-soft: rgba(255, 255, 255, 0.075);
+  --desk-status-material-lustre: rgba(255, 255, 255, 0.12);
+  --desk-status-material-fold: rgba(255, 255, 255, 0.08);
+  --desk-status-material-soft: rgba(255, 255, 255, 0.04);
 
   --desk-status-success-base: #207f55;
   --desk-status-success-top: #207f55;
@@ -631,7 +631,7 @@ body.desk-app {
   --desk-canvas-menu-search-ink: var(--desk-blue-ink);
   --desk-canvas-menu-item-hover-ink: var(--desk-blue-ink);
   --desk-canvas-menu-item-hover-background: var(--desk-canvas-flow-soft);
-  --desk-canvas-menu-item-meta-ink: rgba(72, 86, 100, 0.58);
+  --desk-canvas-menu-item-meta-ink: rgba(72, 86, 100, 0.84);
   --desk-canvas-edge-menu-background: rgba(250, 252, 254, 0.98);
   --desk-canvas-edge-menu-shadow:
     0 10px 24px rgba(var(--desk-blue-midnight-rgb), 0.14),
@@ -700,7 +700,7 @@ body.desk-app {
     inset 0 1px 0 rgba(255, 255, 255, 0.52),
     inset 0 -1px 0 rgba(115, 130, 144, 0.08);
   --desk-node-text-input-ink: var(--desk-blue-ink);
-  --desk-node-text-input-placeholder: rgba(91, 108, 128, 0.58);
+  --desk-node-text-input-placeholder: rgba(68, 84, 102, 0.82);
   --desk-node-text-input-caret: var(--desk-blue-royal);
   --desk-node-text-input-scrollbar: rgba(82, 107, 135, 0.28);
   --desk-node-text-floating-background: rgba(249, 252, 255, 0.86);
@@ -780,7 +780,7 @@ body.desk-app {
   --desk-prompt-assistant-accent-soft: rgba(var(--desk-blue-royal-rgb), 0.14);
   --desk-prompt-assistant-accent-emphasis-ink: var(--desk-blue-royal);
   --desk-prompt-assistant-on-accent-ink: #ffffff;
-  --desk-prompt-assistant-disabled-ink: rgba(255, 255, 255, 0.62);
+  --desk-prompt-assistant-disabled-ink: rgba(var(--desk-blue-ink-rgb), 0.56);
   --desk-prompt-assistant-jewel: var(--desk-action-primary);
   --desk-prompt-assistant-jewel-top: var(--desk-action-primary-top);
   --desk-prompt-assistant-jewel-bottom: var(--desk-action-primary-bottom);
@@ -820,6 +820,56 @@ body.desk-app {
   --desk-prompt-assistant-handle-eye-hover-shadow:
     0 1px 0 rgba(255, 255, 255, 0.4),
     0 0 10px rgba(var(--desk-blue-periwinkle-rgb), 0.4);
+  --desk-prompt-block-token-ink: #1454a0;
+  --desk-prompt-block-token-border: rgba(var(--desk-blue-royal-rgb), 0.28);
+  --desk-prompt-block-token-surface: rgba(232, 243, 255, 0.92);
+  --desk-prompt-block-token-module-ink: #075bc8;
+  --desk-prompt-block-token-module-border: rgba(var(--desk-blue-royal-rgb), 0.22);
+  --desk-prompt-block-token-module-surface: rgba(255, 255, 255, 0.64);
+  --desk-prompt-block-token-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.66);
+  --desk-prompt-block-token-hover-ink: #0c4287;
+  --desk-prompt-block-token-hover-surface: rgba(220, 238, 255, 0.98);
+  --desk-prompt-block-token-hover-border: rgba(var(--desk-blue-royal-rgb), 0.48);
+  --desk-prompt-block-token-hover-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.76),
+    0 3px 10px rgba(var(--desk-blue-royal-rgb), 0.14);
+  --desk-prompt-block-token-focus-border: rgba(var(--desk-blue-royal-rgb), 0.66);
+  --desk-prompt-block-token-focus-shadow:
+    0 0 0 2px rgba(var(--desk-blue-royal-rgb), 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.76);
+  --desk-prompt-slash-replace-border: rgba(var(--desk-blue-royal-rgb), 0.36);
+  --desk-prompt-slash-replace-shadow:
+    0 18px 48px rgba(24, 37, 54, 0.2),
+    0 0 0 1px rgba(var(--desk-blue-royal-rgb), 0.08);
+  --desk-prompt-slash-replace-heading-ink: var(--desk-blue-royal);
+  --desk-canvas-port-background: rgba(255, 255, 255, 0.82);
+  --desk-canvas-port-border: rgba(var(--desk-blue-royal-rgb), 0.62);
+  --desk-canvas-port-shadow:
+    0 0 0 4px rgba(var(--desk-blue-royal-rgb), 0.08),
+    0 8px 18px rgba(31, 45, 62, 0.16);
+  --desk-canvas-port-active-background: var(--desk-blue-royal);
+  --desk-canvas-port-active-border: rgba(255, 255, 255, 0.9);
+  --desk-canvas-port-active-shadow:
+    0 0 0 6px rgba(var(--desk-blue-royal-rgb), 0.16),
+    0 12px 24px rgba(31, 45, 62, 0.22);
+  --desk-windchime-hover-background: rgba(var(--desk-blue-navy-rgb), 0.1);
+  --desk-windchime-cord-background: linear-gradient(
+    to bottom,
+    rgba(var(--desk-blue-navy-rgb), 0.18),
+    rgba(var(--desk-blue-navy-rgb), 0.78)
+  );
+  --desk-windchime-cap-shadow:
+    0 3px 8px rgba(var(--desk-blue-midnight-rgb), 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.34);
+  --desk-windchime-bell-sheen: linear-gradient(125deg, rgba(255, 255, 255, 0.28) 0%, transparent 46%);
+  --desk-windchime-glint-opacity: 0.62;
+  --desk-windchime-bell-shadow:
+    0 5px 12px rgba(var(--desk-blue-midnight-rgb), 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.28);
+  --desk-windchime-clapper-background: rgba(var(--desk-blue-navy-rgb), 0.74);
+  --desk-windchime-sail-shadow:
+    0 4px 10px rgba(var(--desk-blue-midnight-rgb), 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.22);
   --desk-prompt-assistant-panel-background:
     linear-gradient(158deg, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0.22) 52%, rgba(232, 242, 251, 0.32)),
     rgba(255, 255, 255, 0.14);
@@ -895,9 +945,17 @@ body.desk-app {
   --desk-prompt-assistant-button-active-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.22),
     0 0 0 1px rgba(var(--desk-blue-periwinkle-rgb), 0.58);
-  --desk-prompt-assistant-button-disabled-background:
-    linear-gradient(180deg, rgba(var(--desk-blue-navy-rgb), 0.36), rgba(var(--desk-blue-navy-rgb), 0.3));
-  --desk-prompt-assistant-button-disabled-border: rgba(var(--desk-blue-periwinkle-rgb), 0.18);
+  --desk-prompt-assistant-button-disabled-background: rgba(var(--desk-blue-secondary-rgb), 0.14);
+  --desk-prompt-assistant-button-disabled-border: rgba(var(--desk-blue-secondary-rgb), 0.16);
+  --desk-prompt-assistant-secondary-ink: var(--desk-blue-ink);
+  --desk-prompt-assistant-secondary-background: rgba(255, 255, 255, 0.62);
+  --desk-prompt-assistant-secondary-border: rgba(var(--desk-blue-secondary-rgb), 0.22);
+  --desk-prompt-assistant-secondary-hover-ink: var(--desk-blue-royal);
+  --desk-prompt-assistant-secondary-hover-background: rgba(255, 255, 255, 0.88);
+  --desk-prompt-assistant-secondary-hover-border: rgba(var(--desk-blue-royal-rgb), 0.34);
+  --desk-prompt-assistant-danger-hover-ink: var(--desk-status-error-soft-ink);
+  --desk-prompt-assistant-danger-hover-background: var(--desk-status-error-soft-background);
+  --desk-prompt-assistant-danger-hover-border: var(--desk-status-error-soft-border);
   --desk-prompt-assistant-modal-background: rgba(255, 255, 255, 0.2);
   --desk-prompt-assistant-modal-border: rgba(255, 255, 255, 0.28);
   --desk-prompt-assistant-modal-shadow:
@@ -1075,8 +1133,8 @@ body.desk-app {
   /* Typography. Canvas labels will receive a separate zoom-aware scale. */
   --desk-font-family-sans: -apple-system, BlinkMacSystemFont, "SF Pro Display", "PingFang SC", "Hiragino Sans GB", "Segoe UI", sans-serif;
   --desk-font-family-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  --desk-font-size-micro: 10px;
-  --desk-font-size-caption: 12px;
+  --desk-font-size-micro: 11px;
+  --desk-font-size-caption: 11.5px;
   --desk-font-size-label: 12px;
   --desk-font-size-body: 13px;
   --desk-font-size-body-strong: 14px;
@@ -1156,6 +1214,7 @@ body.desk-app {
   --desk-gallery-toolbar-background: rgba(255, 255, 255, 0.4);
   --desk-gallery-toolbar-border: rgba(var(--desk-blue-secondary-rgb), 0.16);
   --desk-gallery-toolbar-shadow: none;
+  --desk-gallery-tab-group-divider: rgba(var(--desk-blue-secondary-rgb), 0.22);
   --desk-gallery-field-ink: var(--desk-color-text-primary);
   --desk-gallery-field-placeholder-ink: var(--desk-color-text-placeholder);
   --desk-gallery-native-option-ink: var(--desk-color-text-primary);
@@ -1266,7 +1325,7 @@ body.desk-app {
   --desk-gallery-set-asset-shadow: 0 10px 24px rgba(var(--desk-blue-midnight-rgb), 0.06);
   --desk-gallery-set-selected-border: rgba(var(--desk-blue-royal-rgb), 0.42);
   --desk-gallery-set-selected-shadow: 0 12px 28px rgba(var(--desk-blue-royal-rgb), 0.1);
-  --desk-gallery-inspector-background: rgba(250, 253, 255, 0.74);
+  --desk-gallery-inspector-background: rgba(250, 253, 255, 0.9);
   --desk-gallery-inspector-border: rgba(var(--desk-blue-secondary-rgb), 0.18);
   --desk-gallery-inspector-shadow:
     0 18px 42px rgba(var(--desk-blue-midnight-rgb), 0.1),
@@ -1296,7 +1355,7 @@ body.desk-app {
   --desk-gallery-source-control-ink: var(--desk-color-text-secondary);
   --desk-gallery-source-control-background: rgba(255, 255, 255, 0.18);
   --desk-gallery-source-control-border: rgba(255, 255, 255, 0.24);
-  --desk-gallery-source-muted-ink: rgba(var(--desk-blue-secondary-rgb), 0.72);
+  --desk-gallery-source-muted-ink: rgba(var(--desk-blue-secondary-rgb), 0.92);
   --desk-gallery-source-progress-background: rgba(var(--desk-blue-secondary-rgb), 0.1);
   --desk-gallery-source-progress-fill: linear-gradient(90deg, var(--desk-blue-cornflower), var(--desk-blue-denim));
   --desk-gallery-source-progress-done-fill: linear-gradient(90deg, #39c6a3, #7ccf6f);
@@ -1330,10 +1389,22 @@ body.desk-app {
   --desk-gallery-preview-missing-ink: rgba(190, 18, 60, 0.84);
   --desk-gallery-preview-missing-background: rgba(254, 226, 226, 0.72);
   --desk-gallery-preview-toolbar-ink: rgba(32, 47, 63, 0.92);
-  --desk-gallery-preview-toolbar-background: rgba(250, 253, 255, 0.58);
+  --desk-gallery-preview-toolbar-background: rgba(250, 253, 255, 0.9);
   --desk-gallery-preview-toolbar-shadow:
     0 12px 30px rgba(40, 56, 76, 0.16),
     inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  --desk-gallery-preview-menu-background: rgba(252, 254, 255, 0.96);
+  --desk-gallery-preview-menu-border: rgba(91, 116, 139, 0.2);
+  --desk-gallery-preview-menu-shadow:
+    0 16px 40px rgba(15, 28, 44, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  --desk-gallery-preview-menu-ink: rgba(24, 38, 54, 0.92);
+  --desk-gallery-preview-menu-hover-background: rgba(37, 99, 235, 0.08);
+  --desk-gallery-preview-menu-active-ink: #1d4ed8;
+  --desk-gallery-preview-menu-active-background: rgba(37, 99, 235, 0.12);
+  --desk-gallery-preview-menu-danger-ink: rgba(185, 28, 28, 0.92);
+  --desk-gallery-preview-menu-danger-background: rgba(254, 226, 226, 0.78);
+  --desk-gallery-preview-menu-dot: #2563eb;
   --desk-gallery-preview-button-ink: rgba(39, 55, 72, 0.9);
   --desk-gallery-preview-button-background: rgba(42, 57, 73, 0.06);
   --desk-gallery-preview-button-border: transparent;
@@ -1433,7 +1504,7 @@ body.desk-app {
   --desk-settings-action-border: rgba(78, 103, 131, 0.14);
   --desk-settings-action-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.78);
   --desk-settings-tabs-ink: rgba(72, 91, 112, 0.92);
-  --desk-settings-tabs-group-ink: rgba(72, 91, 112, 0.6);
+  --desk-settings-tabs-group-ink: rgba(72, 91, 112, 0.84);
   --desk-settings-nav-divider: rgba(60, 78, 100, 0.1);
   --desk-settings-search-background: rgba(255, 255, 255, 0.86);
   --desk-settings-search-border: rgba(60, 78, 100, 0.16);
@@ -1483,7 +1554,7 @@ body.desk-app {
   --desk-settings-badge-warn-background: var(--desk-status-warning-silk-background);
   --desk-settings-field-ink: var(--desk-blue-ink);
   --desk-settings-field-background: rgba(255, 255, 255, 0.66);
-  --desk-settings-field-border: rgba(78, 103, 131, 0.14);
+  --desk-settings-field-border: rgba(78, 103, 131, 0.24);
   --desk-settings-field-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
   --desk-settings-checkbox-accent: var(--desk-blue-royal);
   --desk-settings-danger-control-ink: var(--desk-status-error-soft-ink);
@@ -1494,7 +1565,7 @@ body.desk-app {
   --desk-settings-danger-control-hover-background: var(--desk-status-error-silk-background);
   --desk-settings-danger-control-hover-border: var(--desk-status-error-silk-border);
   --desk-settings-danger-control-hover-shadow: var(--desk-status-error-silk-shadow);
-  --desk-settings-hint-ink: var(--desk-status-warning-soft-ink);
+  --desk-settings-hint-ink: var(--desk-settings-muted-ink);
   --desk-settings-pinterest-warn-ink: var(--desk-status-warning-soft-ink);
   --desk-settings-pinterest-warn-background: var(--desk-status-warning-soft-background);
   --desk-settings-pinterest-warn-border: var(--desk-status-warning-soft-border);
@@ -1581,8 +1652,8 @@ body.desk-app {
     linear-gradient(90deg, rgba(255, 255, 255, 0.3), transparent 14%),
     linear-gradient(165deg, rgba(255, 255, 255, 0.22), transparent 42%);
   --desk-settings-info-heading-ink: rgba(14, 22, 38, 0.94);
-  --desk-settings-info-muted-ink: rgba(91, 107, 122, 0.74);
-  --desk-settings-info-summary-label-ink: rgba(91, 107, 122, 0.72);
+  --desk-settings-info-muted-ink: rgba(72, 88, 104, 0.9);
+  --desk-settings-info-summary-label-ink: rgba(72, 88, 104, 0.9);
   --desk-settings-info-section-heading-ink: rgba(14, 22, 38, 0.9);
   --desk-settings-info-control-ink: rgba(62, 75, 92, 0.82);
   --desk-settings-info-control-background: rgba(255, 255, 255, 0.28);
@@ -1600,9 +1671,9 @@ body.desk-app {
   --desk-settings-info-body-ink: rgba(62, 75, 92, 0.84);
   --desk-settings-info-bullet: rgba(var(--desk-blue-royal-rgb), 0.58);
   --desk-auth-color-scheme: light;
-  --desk-auth-overlay-background: rgba(238, 244, 248, 0.64);
+  --desk-auth-overlay-background: rgba(234, 241, 247, 0.92);
   --desk-auth-card-ink: var(--desk-blue-ink);
-  --desk-auth-card-background: rgba(255, 255, 255, 0.48);
+  --desk-auth-card-background: rgba(255, 255, 255, 0.86);
   --desk-auth-card-border: rgba(255, 255, 255, 0.54);
   --desk-auth-card-shadow: var(--desk-shadow-panel);
   --desk-auth-message-ink: var(--desk-blue-secondary);
@@ -1977,7 +2048,7 @@ body.desk-app[data-theme="dark"] {
   --desk-color-text-primary: #edf2f3;
   --desk-color-text-secondary: rgba(190, 199, 201, 0.68);
   --desk-color-text-inverse: #171b22;
-  --desk-color-text-placeholder: rgba(190, 199, 201, 0.52);
+  --desk-color-text-placeholder: rgba(190, 199, 201, 0.66);
   --desk-color-text-disabled: #a0aaad;
   --desk-color-border-faint: rgba(255, 255, 255, 0.09);
   --desk-color-border-glass: rgba(255, 255, 255, 0.08);
@@ -1989,20 +2060,20 @@ body.desk-app[data-theme="dark"] {
   --desk-color-control-bg-hover: rgba(42, 50, 52, 0.82);
   --desk-color-control-bg-active: rgba(52, 61, 63, 0.94);
   --desk-color-control-bg-disabled: rgba(42, 49, 51, 0.88);
-  --desk-color-control-border: rgba(255, 255, 255, 0.08);
-  --desk-color-control-border-hover: rgba(255, 106, 34, 0.28);
-  --desk-color-control-border-active: rgba(255, 106, 34, 0.44);
-  --desk-color-control-border-disabled: rgba(255, 255, 255, 0.07);
+  --desk-color-control-border: rgba(255, 255, 255, 0.15);
+  --desk-color-control-border-hover: rgba(255, 106, 34, 0.34);
+  --desk-color-control-border-active: rgba(255, 106, 34, 0.5);
+  --desk-color-control-border-disabled: rgba(255, 255, 255, 0.08);
   --desk-color-control-ink: #edf2f3;
   --desk-color-popover-bg: rgba(28, 34, 36, 0.97);
   --desk-color-popover-border: rgba(255, 255, 255, 0.08);
   --desk-color-accent: #ff5a1f;
   --desk-color-accent-soft: rgba(255, 90, 31, 0.18);
-  --desk-color-focus-border: rgba(255, 106, 34, 0.52);
-  --desk-color-focus-ring: rgba(255, 90, 31, 0.12);
-  --desk-status-material-lustre: rgba(255, 255, 255, 0.3);
-  --desk-status-material-fold: rgba(255, 255, 255, 0.14);
-  --desk-status-material-soft: rgba(255, 255, 255, 0.06);
+  --desk-color-focus-border: rgba(255, 126, 64, 0.78);
+  --desk-color-focus-ring: rgba(255, 90, 31, 0.16);
+  --desk-status-material-lustre: rgba(255, 255, 255, 0.16);
+  --desk-status-material-fold: rgba(255, 255, 255, 0.11);
+  --desk-status-material-soft: rgba(255, 255, 255, 0.055);
   --desk-status-success-soft-ink: #8ee0b2;
   --desk-status-success-soft-fill: rgba(32, 127, 85, 0.2);
   --desk-status-success-soft-background:
@@ -2019,22 +2090,30 @@ body.desk-app[data-theme="dark"] {
   --desk-status-success-soft-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 5px 12px rgba(0, 0, 0, 0.18);
   --desk-status-success-dot: #46b77b;
   --desk-status-success-dot-shadow: 0 0 0 4px rgba(70, 183, 123, 0.14), 0 0 11px rgba(70, 183, 123, 0.3);
-  --desk-status-warning-soft-ink: #ffd0a0;
-  --desk-status-warning-soft-fill: rgba(228, 107, 11, 0.2);
+  --desk-status-warning-base: #eab308;
+  --desk-status-warning-top: #facc15;
+  --desk-status-warning-bottom: #ca8a04;
+  --desk-status-warning-on-fill: #1c1917;
+  --desk-status-warning-soft-ink: #fde047;
+  --desk-status-warning-soft-fill: rgba(234, 179, 8, 0.2);
+  --desk-status-warning-silk-background:
+    radial-gradient(ellipse 74% 82% at 18% 2%, rgba(255, 255, 255, 0.24), rgba(254, 249, 195, 0.06) 28%, transparent 62%),
+    linear-gradient(116deg, transparent 9%, rgba(66, 32, 6, 0.2) 23%, transparent 32%, rgba(254, 252, 232, 0.06) 40%, rgba(254, 249, 195, 0.14) 47%, rgba(255, 255, 255, 0.24) 51%, rgba(254, 249, 195, 0.12) 56%, transparent 66%, rgba(66, 32, 6, 0.18) 83%, transparent 94%),
+    linear-gradient(180deg, var(--desk-status-warning-top), var(--desk-status-warning-bottom));
   --desk-status-warning-soft-background:
-    radial-gradient(ellipse 74% 82% at 18% 2%, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.035) 30%, transparent 64%),
-    linear-gradient(116deg, transparent 12%, rgba(83, 35, 0, 0.2) 27%, transparent 38%, rgba(255, 255, 255, 0.1) 51%, transparent 67%, rgba(83, 35, 0, 0.15) 84%, transparent 94%),
-    linear-gradient(180deg, rgba(255, 173, 82, 0.28), rgba(228, 107, 11, 0.18));
-  --desk-status-warning-silk-border: rgba(255, 184, 105, 0.68);
-  --desk-status-warning-soft-border: rgba(255, 173, 82, 0.34);
+    radial-gradient(ellipse 74% 82% at 18% 2%, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.03) 30%, transparent 64%),
+    linear-gradient(116deg, transparent 12%, rgba(66, 32, 6, 0.2) 27%, transparent 38%, rgba(255, 255, 255, 0.08) 51%, transparent 67%, rgba(66, 32, 6, 0.15) 84%, transparent 94%),
+    linear-gradient(180deg, rgba(250, 204, 21, 0.24), rgba(202, 138, 4, 0.16));
+  --desk-status-warning-silk-border: rgba(250, 204, 21, 0.68);
+  --desk-status-warning-soft-border: rgba(250, 204, 21, 0.34);
   --desk-status-warning-silk-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.34),
-    inset 0 -1px 0 rgba(83, 35, 0, 0.42),
+    inset 0 -1px 0 rgba(66, 32, 6, 0.42),
     0 7px 17px rgba(0, 0, 0, 0.26),
-    0 0 14px rgba(228, 107, 11, 0.14);
-  --desk-status-warning-soft-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.13), 0 5px 12px rgba(0, 0, 0, 0.18);
-  --desk-status-warning-dot: #ffad52;
-  --desk-status-warning-dot-shadow: 0 0 0 4px rgba(255, 173, 82, 0.16), 0 0 11px rgba(255, 173, 82, 0.28);
+    0 0 14px rgba(234, 179, 8, 0.16);
+  --desk-status-warning-soft-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 5px 12px rgba(0, 0, 0, 0.18);
+  --desk-status-warning-dot: #facc15;
+  --desk-status-warning-dot-shadow: 0 0 0 4px rgba(250, 204, 21, 0.16), 0 0 11px rgba(250, 204, 21, 0.28);
   --desk-status-error-soft-ink: #ffb0c6;
   --desk-status-error-soft-fill: rgba(205, 59, 106, 0.2);
   --desk-status-error-soft-background:
@@ -2063,6 +2142,8 @@ body.desk-app[data-theme="dark"] {
   --desk-color-danger-soft-hover: var(--desk-status-error-soft-background);
   --desk-color-danger-border: var(--desk-status-error-soft-border);
   --desk-color-danger-border-hover: var(--desk-status-error-silk-border);
+  --desk-color-save: #ff8a4d;
+  --desk-color-save-ink: #ff9f6e;
   --desk-color-info: #91caff;
   --desk-action-primary: #9f310f;
   --desk-action-primary-top: #b13c12;
@@ -2425,21 +2506,21 @@ body.desk-app[data-theme="dark"] {
   --desk-canvas-selection-action-border: rgba(255, 106, 34, 0.28);
   --desk-canvas-selection-action-shadow: 0 8px 18px rgba(0, 0, 0, 0.24);
   --desk-canvas-selection-action-active-ink: #fff3ec;
-  --desk-canvas-selection-action-active-background: #d84f1b;
+  --desk-canvas-selection-action-active-background: #b83c0e;
   --desk-canvas-selection-action-active-border: #f06a32;
-  --desk-canvas-selection-action-hover-background: #b83e13;
+  --desk-canvas-selection-action-hover-background: #9e320b;
   --desk-canvas-selection-action-hover-border: #d84f1b;
-  --desk-canvas-toolbar-button-ink: rgba(190, 199, 201, 0.68);
-  --desk-canvas-toolbar-button-background: rgba(255, 255, 255, 0.42);
-  --desk-canvas-toolbar-button-border: rgba(255, 255, 255, 0.46);
-  --desk-canvas-toolbar-button-hover-ink: #ff5a1f;
-  --desk-canvas-toolbar-button-hover-background: rgba(255, 255, 255, 0.72);
-  --desk-canvas-toolbar-separator: rgba(92, 112, 132, 0.16);
+  --desk-canvas-toolbar-button-ink: #dfe5e7;
+  --desk-canvas-toolbar-button-background: rgba(255, 255, 255, 0.08);
+  --desk-canvas-toolbar-button-border: rgba(255, 255, 255, 0.14);
+  --desk-canvas-toolbar-button-hover-ink: #ff965e;
+  --desk-canvas-toolbar-button-hover-background: rgba(255, 255, 255, 0.14);
+  --desk-canvas-toolbar-separator: rgba(255, 255, 255, 0.14);
   --desk-canvas-toolbar-group-ink: #ff9b65;
   --desk-canvas-toolbar-group-background: rgba(217, 87, 31, 0.18);
   --desk-canvas-toolbar-group-border: rgba(255, 138, 77, 0.24);
   --desk-canvas-toolbar-group-active-ink: #ffffff;
-  --desk-canvas-toolbar-group-active-background: #d9571f;
+  --desk-canvas-toolbar-group-active-background: #b83c0e;
   --desk-canvas-toolbar-group-active-border: #ff8a4d;
 
   --desk-canvas-zoom-ink: #edf2f3;
@@ -2514,7 +2595,7 @@ body.desk-app[data-theme="dark"] {
   --desk-canvas-menu-search-ink: rgba(242, 245, 246, 0.92);
   --desk-canvas-menu-item-hover-ink: rgba(255, 247, 242, 0.98);
   --desk-canvas-menu-item-hover-background: rgba(255, 106, 34, 0.13);
-  --desk-canvas-menu-item-meta-ink: rgba(201, 210, 212, 0.54);
+  --desk-canvas-menu-item-meta-ink: rgba(201, 210, 212, 0.68);
   --desk-canvas-edge-menu-background: rgba(28, 33, 35, 0.98);
   --desk-canvas-edge-menu-shadow:
     0 18px 42px rgba(0, 0, 0, 0.38),
@@ -2583,7 +2664,7 @@ body.desk-app[data-theme="dark"] {
     inset 0 1px 0 rgba(255, 255, 255, 0.04),
     inset 0 -1px 0 rgba(0, 0, 0, 0.28);
   --desk-node-text-input-ink: #edf2f3;
-  --desk-node-text-input-placeholder: rgba(190, 199, 201, 0.42);
+  --desk-node-text-input-placeholder: rgba(190, 199, 201, 0.66);
   --desk-node-text-input-caret: #ff8f5b;
   --desk-node-text-input-scrollbar: rgba(255, 154, 104, 0.38);
   --desk-node-text-floating-background: rgba(38, 46, 48, 0.92);
@@ -2634,10 +2715,10 @@ body.desk-app[data-theme="dark"] {
   --desk-image-group-node-action-background: rgba(48, 55, 57, 0.9);
   --desk-image-group-node-action-border: rgba(255, 255, 255, 0.08);
   --desk-image-group-node-action-hover-ink: #ffffff;
-  --desk-image-group-node-action-hover-background: #d9571f;
+  --desk-image-group-node-action-hover-background: #b83c0e;
   --desk-image-group-node-action-hover-border: #ff8a4d;
   --desk-image-group-node-danger-hover-ink: #ffffff;
-  --desk-image-group-node-danger-hover-background: #d9571f;
+  --desk-image-group-node-danger-hover-background: #b83c0e;
   --desk-image-group-node-danger-hover-border: #ff8a4d;
 
   --desk-image-group-dwell-filter: drop-shadow(0 7px 13px rgba(17, 38, 42, 0.2));
@@ -2662,7 +2743,7 @@ body.desk-app[data-theme="dark"] {
   --desk-prompt-assistant-accent-soft: rgba(255, 90, 31, 0.18);
   --desk-prompt-assistant-accent-emphasis-ink: #ffb089;
   --desk-prompt-assistant-on-accent-ink: #ffffff;
-  --desk-prompt-assistant-disabled-ink: rgba(255, 255, 255, 0.62);
+  --desk-prompt-assistant-disabled-ink: rgba(214, 224, 227, 0.58);
   --desk-prompt-assistant-jewel: var(--desk-action-primary);
   --desk-prompt-assistant-jewel-top: var(--desk-action-primary-top);
   --desk-prompt-assistant-jewel-bottom: var(--desk-action-primary-bottom);
@@ -2709,6 +2790,57 @@ body.desk-app[data-theme="dark"] {
   --desk-prompt-assistant-handle-eye-hover-shadow:
     0 1px 0 rgba(255, 255, 255, 0.28),
     0 0 10px rgba(255, 106, 34, 0.3);
+  --desk-prompt-block-token-ink: #ffc0a2;
+  --desk-prompt-block-token-border: rgba(255, 137, 82, 0.28);
+  --desk-prompt-block-token-surface: rgba(255, 106, 34, 0.13);
+  --desk-prompt-block-token-module-ink: #ffd2bd;
+  --desk-prompt-block-token-module-border: rgba(255, 148, 92, 0.28);
+  --desk-prompt-block-token-module-surface: rgba(255, 111, 42, 0.16);
+  --desk-prompt-block-token-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  --desk-prompt-block-token-hover-ink: #fff3ec;
+  --desk-prompt-block-token-hover-surface: rgba(255, 106, 34, 0.22);
+  --desk-prompt-block-token-hover-border: rgba(255, 148, 92, 0.5);
+  --desk-prompt-block-token-hover-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 4px 12px rgba(0, 0, 0, 0.2);
+  --desk-prompt-block-token-focus-border: rgba(255, 148, 92, 0.66);
+  --desk-prompt-block-token-focus-shadow:
+    0 0 0 2px rgba(255, 90, 31, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  --desk-prompt-slash-replace-border: rgba(255, 148, 92, 0.38);
+  --desk-prompt-slash-replace-shadow:
+    0 18px 48px rgba(0, 0, 0, 0.48),
+    0 0 0 1px rgba(255, 106, 34, 0.08);
+  --desk-prompt-slash-replace-heading-ink: #ffb089;
+  --desk-canvas-port-background: #252c2e;
+  --desk-canvas-port-border: rgba(255, 106, 34, 0.72);
+  --desk-canvas-port-shadow:
+    0 0 0 4px rgba(255, 90, 31, 0.09),
+    0 10px 20px rgba(0, 0, 0, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  --desk-canvas-port-active-background: #ff5a1f;
+  --desk-canvas-port-active-border: rgba(255, 238, 228, 0.92);
+  --desk-canvas-port-active-shadow:
+    0 0 0 7px rgba(255, 90, 31, 0.16),
+    0 14px 28px rgba(0, 0, 0, 0.34);
+  --desk-windchime-hover-background: rgba(255, 90, 31, 0.12);
+  --desk-windchime-cord-background: linear-gradient(
+    to bottom,
+    rgba(255, 106, 34, 0.18),
+    rgba(255, 106, 34, 0.76)
+  );
+  --desk-windchime-cap-shadow:
+    0 3px 8px rgba(0, 0, 0, 0.32),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  --desk-windchime-bell-sheen: linear-gradient(125deg, rgba(255, 232, 218, 0.24) 0%, transparent 46%);
+  --desk-windchime-glint-opacity: 0.45;
+  --desk-windchime-bell-shadow:
+    0 5px 12px rgba(0, 0, 0, 0.34),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  --desk-windchime-clapper-background: rgba(255, 154, 104, 0.76);
+  --desk-windchime-sail-shadow:
+    0 4px 10px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.16);
   --desk-prompt-assistant-panel-background:
     linear-gradient(180deg, rgba(48, 56, 58, 0.86), rgba(31, 37, 39, 0.92)),
     rgba(32, 38, 40, 0.84);
@@ -2789,8 +2921,17 @@ body.desk-app[data-theme="dark"] {
   --desk-prompt-assistant-button-active-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.22),
     0 0 0 1px rgba(255, 117, 64, 0.44);
-  --desk-prompt-assistant-button-disabled-background: var(--desk-action-primary-gradient-disabled);
-  --desk-prompt-assistant-button-disabled-border: var(--desk-action-primary-disabled-border);
+  --desk-prompt-assistant-button-disabled-background: rgba(255, 255, 255, 0.08);
+  --desk-prompt-assistant-button-disabled-border: rgba(255, 255, 255, 0.09);
+  --desk-prompt-assistant-secondary-ink: #edf2f3;
+  --desk-prompt-assistant-secondary-background: rgba(255, 255, 255, 0.07);
+  --desk-prompt-assistant-secondary-border: rgba(255, 255, 255, 0.12);
+  --desk-prompt-assistant-secondary-hover-ink: #ffffff;
+  --desk-prompt-assistant-secondary-hover-background: rgba(255, 255, 255, 0.14);
+  --desk-prompt-assistant-secondary-hover-border: rgba(255, 255, 255, 0.22);
+  --desk-prompt-assistant-danger-hover-ink: var(--desk-status-error-soft-ink);
+  --desk-prompt-assistant-danger-hover-background: var(--desk-status-error-soft-background);
+  --desk-prompt-assistant-danger-hover-border: var(--desk-status-error-soft-border);
   --desk-prompt-assistant-modal-background:
     radial-gradient(circle at 88% 0%, rgba(255, 106, 34, 0.08), transparent 30%),
     linear-gradient(180deg, rgba(48, 56, 58, 0.97), rgba(27, 32, 34, 0.98));
@@ -3014,8 +3155,9 @@ body.desk-app[data-theme="dark"] {
   --desk-gallery-toolbar-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.05),
     0 10px 24px rgba(0, 0, 0, 0.16);
+  --desk-gallery-tab-group-divider: rgba(255, 255, 255, 0.14);
   --desk-gallery-field-ink: var(--desk-color-text-primary);
-  --desk-gallery-field-placeholder-ink: rgba(190, 199, 201, 0.42);
+  --desk-gallery-field-placeholder-ink: rgba(190, 199, 201, 0.66);
   --desk-gallery-native-option-ink: #edf2f3;
   --desk-gallery-native-option-background: #202628;
   --desk-gallery-stat-ink: rgba(214, 220, 221, 0.76);
@@ -3204,8 +3346,20 @@ body.desk-app[data-theme="dark"] {
   --desk-gallery-preview-missing-ink: rgba(248, 113, 113, 0.9);
   --desk-gallery-preview-missing-background: rgba(248, 113, 113, 0.12);
   --desk-gallery-preview-toolbar-ink: rgba(248, 250, 252, 0.92);
-  --desk-gallery-preview-toolbar-background: rgba(24, 27, 28, 0.22);
-  --desk-gallery-preview-toolbar-shadow: 0 10px 28px rgba(0, 0, 0, 0.12);
+  --desk-gallery-preview-toolbar-background: rgba(20, 24, 28, 0.86);
+  --desk-gallery-preview-toolbar-shadow: 0 12px 30px rgba(0, 0, 0, 0.28);
+  --desk-gallery-preview-menu-background: rgba(24, 28, 33, 0.96);
+  --desk-gallery-preview-menu-border: rgba(255, 255, 255, 0.14);
+  --desk-gallery-preview-menu-shadow:
+    0 18px 42px rgba(0, 0, 0, 0.44),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  --desk-gallery-preview-menu-ink: rgba(241, 245, 249, 0.92);
+  --desk-gallery-preview-menu-hover-background: rgba(255, 255, 255, 0.1);
+  --desk-gallery-preview-menu-active-ink: #93c5fd;
+  --desk-gallery-preview-menu-active-background: rgba(59, 130, 246, 0.18);
+  --desk-gallery-preview-menu-danger-ink: rgba(252, 165, 165, 0.96);
+  --desk-gallery-preview-menu-danger-background: rgba(239, 68, 68, 0.18);
+  --desk-gallery-preview-menu-dot: #60a5fa;
   --desk-gallery-preview-button-ink: rgba(248, 250, 252, 0.9);
   --desk-gallery-preview-button-background: rgba(255, 255, 255, 0.06);
   --desk-gallery-preview-button-border: rgba(255, 255, 255, 0.08);
@@ -3295,7 +3449,7 @@ body.desk-app[data-theme="dark"] {
   --desk-settings-action-border: rgba(255, 255, 255, 0.1);
   --desk-settings-action-shadow: none;
   --desk-settings-tabs-ink: rgba(190, 199, 201, 0.68);
-  --desk-settings-tabs-group-ink: rgba(190, 199, 201, 0.48);
+  --desk-settings-tabs-group-ink: rgba(190, 199, 201, 0.68);
   --desk-settings-nav-divider: rgba(255, 255, 255, 0.06);
   --desk-settings-search-background: rgba(24, 29, 31, 0.72);
   --desk-settings-search-border: rgba(255, 255, 255, 0.09);
@@ -3362,7 +3516,7 @@ body.desk-app[data-theme="dark"] {
   --desk-settings-danger-control-hover-background: var(--desk-status-error-silk-background);
   --desk-settings-danger-control-hover-border: var(--desk-status-error-silk-border);
   --desk-settings-danger-control-hover-shadow: var(--desk-status-error-silk-shadow);
-  --desk-settings-hint-ink: var(--desk-status-warning-soft-ink);
+  --desk-settings-hint-ink: var(--desk-settings-muted-ink);
   --desk-settings-pinterest-warn-ink: var(--desk-status-warning-soft-ink);
   --desk-settings-pinterest-warn-background: var(--desk-status-warning-soft-background);
   --desk-settings-pinterest-warn-border: var(--desk-status-warning-soft-border);
@@ -3492,7 +3646,7 @@ body.desk-app[data-theme="dark"] {
   --desk-settings-info-body-ink: rgba(214, 220, 221, 0.74);
   --desk-settings-info-bullet: rgba(255, 176, 137, 0.72);
   --desk-auth-color-scheme: dark;
-  --desk-auth-overlay-background: rgba(7, 10, 12, 0.72);
+  --desk-auth-overlay-background: rgba(11, 15, 18, 0.94);
   --desk-auth-card-ink: #edf2f3;
   --desk-auth-card-background:
     linear-gradient(180deg, rgba(48, 56, 58, 0.94), rgba(31, 37, 39, 0.96)),
@@ -3675,7 +3829,7 @@ body.desk-app[data-theme="dark"] {
   --desk-layout-group-border: rgba(255, 255, 255, 0.08);
   --desk-layout-isolation-badge-background: rgba(20, 184, 166, 0.18);
   --desk-layout-isolation-badge-border: rgba(116, 227, 213, 0.24);
-  --desk-layout-grab-ink: rgba(190, 199, 201, 0.48);
+  --desk-layout-grab-ink: rgba(190, 199, 201, 0.66);
   --desk-layout-action-hover-background: rgba(255, 255, 255, 0.07);
   --desk-layout-stage-background: linear-gradient(rgba(255, 255, 255, 0.045) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.045) 1px, transparent 1px), #202628;
   --desk-layout-toolbar-shadow: 0 14px 30px rgba(0, 0, 0, 0.3);
@@ -3693,7 +3847,7 @@ body.desk-app[data-theme="dark"] {
   --desk-layout-selection-border: rgba(255, 122, 51, 0.92);
   --desk-layout-selection-shadow: 0 0 0 1px rgba(18, 23, 25, 0.92), inset 0 0 0 1px rgba(255, 90, 31, 0.18);
   --desk-layout-selection-label-ink: #fff7f0;
-  --desk-layout-selection-label-background: rgba(255, 106, 34, 0.96);
+  --desk-layout-selection-label-background: #b83c0e;
   --desk-layout-selection-label-shadow: 0 6px 14px rgba(196, 54, 14, 0.3);
   --desk-layout-locked-selection-background: rgba(190, 199, 201, 0.04);
   --desk-layout-locked-selection-border: rgba(190, 199, 201, 0.7);

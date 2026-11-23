@@ -109,8 +109,9 @@ class DesktopWorkflowFileTest(unittest.TestCase):
 
     def test_workflow_controls_are_styled(self):
         css = read_legacy_css()
+        shell_css = self.read("styles/desktop-shell.css")
 
-        self.assertIn(".desk-workflow-dock-toggle", css)
+        self.assertIn(".desk-workflow-dock-toggle", shell_css)
         self.assertIn(".desk-workflow-dock-panel", css)
         self.assertIn("width: 240px", css)
         self.assertIn("height: 24px", css)

@@ -1420,8 +1420,8 @@
           const videoSrc = typeof window.miniappMediaUrl === 'function' ? window.miniappMediaUrl(node.mediaUrl || node.videoUrl || node.url || '') : (node.mediaUrl || node.videoUrl || node.url || '');
           const poster = typeof window.miniappMediaUrl === 'function' ? window.miniappMediaUrl(node.posterUrl || node.previewUrl || '') : (node.posterUrl || node.previewUrl || '');
           const preview = kind === 'video'
-            ? (poster ? `<img src="${escapeHtml(poster)}" alt="">` : `<video src="${escapeHtml(videoSrc)}" muted playsinline preload="metadata"></video>`)
-            : `<img src="${escapeHtml(node.imageData || node.imageUrl || node.url)}" alt="">`;
+            ? (poster ? `<img src="${escapeHtml(poster)}" alt="" loading="lazy" decoding="async">` : `<video src="${escapeHtml(videoSrc)}" muted playsinline preload="metadata"></video>`)
+            : `<img src="${escapeHtml(node.imageData || node.imageUrl || node.url)}" alt="" loading="lazy" decoding="async">`;
           return `
           <button type="button" data-agent-pick-media-node="${escapeHtml(node.nodeId)}" data-media-kind="${kind}" aria-label="引用 ${escapeHtml(node.label || (kind === 'video' ? '视频节点' : '图片节点'))}" title="引用 ${escapeHtml(node.label || (kind === 'video' ? '视频节点（用于分析）' : '图片节点'))}">
             ${preview}

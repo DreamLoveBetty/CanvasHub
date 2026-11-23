@@ -79,7 +79,7 @@
       const thumb = document.createElement('div');
       thumb.className = 'cinematic-ref-thumb';
       thumb.innerHTML = `
-        <img src="${item.base64}" alt="参考图 ${index + 1}">
+        <img src="${item.base64}" alt="参考图 ${index + 1}" decoding="async">
         <span class="cinematic-ref-thumb-index">${index + 1}</span>
       `;
       strip.appendChild(thumb);
@@ -169,12 +169,6 @@
   function selectCinematicProvider(provider, event) {
     if (event) event.stopPropagation();
     currentCinematicProvider = normalizeCinematicProvider(provider);
-    cinematicRevealState.provider = true;
-    cinematicRevealState.model = false;
-    cinematicRevealState.quality = false;
-    cinematicRevealState.gptQuality = false;
-    cinematicRevealState.gptCount = false;
-    cinematicRevealState.gptModeration = false;
     closeCinematicMenus();
     syncCinematicComposerUi();
     saveUiSettings();
@@ -186,8 +180,6 @@
     const nextModel = modelKey === 'flash' ? CINEMATIC_MODEL_MAP.fast : CINEMATIC_MODEL_MAP.pro;
     pickModel('gen', nextModel);
     pickModel('edit', nextModel);
-    cinematicRevealState.model = true;
-    cinematicRevealState.quality = false;
     closeCinematicMenus();
     syncCinematicComposerUi();
   }
@@ -200,13 +192,9 @@
       pickQuality(quality === '1k' ? 'standard' : 'hd');
     } else if (provider === 'gpt') {
       pickResolutionGpt(quality);
-      cinematicRevealState.gptQuality = false;
-      cinematicRevealState.gptCount = false;
-      cinematicRevealState.gptModeration = false;
     } else {
       return;
     }
-    cinematicRevealState.quality = true;
     closeCinematicMenus();
     syncCinematicComposerUi();
   }
@@ -215,9 +203,6 @@
     if (event) event.stopPropagation();
     if (normalizeCinematicProvider(currentCinematicProvider) !== 'gpt') return;
     pickQualityGpt(quality);
-    cinematicRevealState.gptQuality = true;
-    cinematicRevealState.gptCount = uploadedImages.length === 0;
-    cinematicRevealState.gptModeration = true;
     closeCinematicMenus();
     syncCinematicComposerUi();
   }
@@ -226,8 +211,6 @@
     if (event) event.stopPropagation();
     if (normalizeCinematicProvider(currentCinematicProvider) !== 'gpt') return;
     pickImageCountGpt(count);
-    cinematicRevealState.gptCount = true;
-    cinematicRevealState.gptModeration = true;
     closeCinematicMenus();
     syncCinematicComposerUi();
   }
@@ -235,8 +218,6 @@
   function setCinematicGptCountFromSlider(count, shouldSave = false) {
     if (normalizeCinematicProvider(currentCinematicProvider) !== 'gpt') return;
     pickImageCountGpt(count);
-    cinematicRevealState.gptCount = true;
-    cinematicRevealState.gptModeration = true;
     syncCinematicComposerUi();
     if (shouldSave) saveUiSettings();
   }
@@ -245,7 +226,6 @@
     if (event) event.stopPropagation();
     if (normalizeCinematicProvider(currentCinematicProvider) !== 'gpt') return;
     pickModerationGpt(moderation);
-    cinematicRevealState.gptModeration = true;
     closeCinematicMenus();
     syncCinematicComposerUi();
   }
@@ -262,9 +242,6 @@
       }
     } else if (provider === 'gpt') {
       pickRatioGpt(ratio);
-      cinematicRevealState.gptQuality = true;
-      cinematicRevealState.gptCount = false;
-      cinematicRevealState.gptModeration = false;
     } else {
       pickRatioComfy(ratio);
     }
@@ -326,22 +303,15 @@
     const styleChip = document.getElementById('cinematicStyleChip');
     const clearPromptChip = document.getElementById('cinematicClearPromptChip');
     const clearBtn = document.getElementById('cinematicRefClearBtn');
+    const clearAllBtn = document.getElementById('cinematicRefClearAllBtn');
     const modelKey = getCinematicGoogleModelKey();
     const showProvider = true;
-    const showModel = usingGoogle && cinematicRevealState.provider;
-    const showQuality = usingGoogle
-      ? (cinematicRevealState.provider && cinematicRevealState.model)
-      : provider === 'gpt'
-        ? cinematicRevealState.provider
-        : false;
-    const showGptQuality = provider === 'gpt' && cinematicRevealState.gptQuality;
-    const showGptCount = provider === 'gpt' && !usingGptEditFlow && cinematicRevealState.gptCount;
-    const showGptModeration = provider === 'gpt' && cinematicRevealState.gptModeration;
-    const showRatio = usingGoogle
-      ? (cinematicRevealState.provider && cinematicRevealState.model && cinematicRevealState.quality)
-      : provider === 'gpt'
-        ? cinematicRevealState.quality
-        : false;
+    const showModel = usingGoogle;
+    const showQuality = usingGoogle || provider === 'gpt';
+    const showGptQuality = provider === 'gpt';
+    const showGptCount = provider === 'gpt' && !usingGptEditFlow;
+    const showGptModeration = provider === 'gpt';
+    const showRatio = usingGoogle || provider === 'gpt';
     const showGptRoute = provider === 'gpt';
     const showEditFeature = usingEditFlow;
 
@@ -444,17 +414,26 @@
     }
 
     if (submitBtn) {
+      let submitGlyph = '✦';
+      let submitLabel = '生成';
+      let submitTitle = '提交 Google 生成';
       if (provider === 'google') {
-        submitBtn.textContent = usingEditFlow ? '✎' : '✦';
-        submitBtn.title = usingEditFlow ? '提交 Google 编辑' : '提交 Google 生成';
+        submitGlyph = usingEditFlow ? '✎' : '✦';
+        submitLabel = usingEditFlow ? '编辑' : '生成';
+        submitTitle = usingEditFlow ? '提交 Google 编辑' : '提交 Google 生成';
       } else if (provider === 'gpt') {
-        submitBtn.textContent = 'G';
-        submitBtn.title = usingGptEditFlow ? '提交 GPT 编辑任务' : '提交 GPT 生成任务';
+        submitGlyph = usingGptEditFlow ? '✎' : '✦';
+        submitLabel = usingGptEditFlow ? '编辑' : '生成';
+        submitTitle = usingGptEditFlow ? '提交 GPT 编辑任务' : '提交 GPT 生成任务';
       } else {
-        submitBtn.textContent = '◈';
-        submitBtn.title = '打开 ComfyUI 工作台';
+        submitGlyph = '◈';
+        submitLabel = '工作台';
+        submitTitle = '打开 ComfyUI 工作台';
       }
-      submitBtn.classList.toggle('is-letter', provider === 'gpt');
+      submitBtn.innerHTML = `<span class="cinematic-submit-icon" aria-hidden="true">${submitGlyph}</span><span class="cinematic-submit-label">${submitLabel}</span>`;
+      submitBtn.title = submitTitle;
+      submitBtn.setAttribute('aria-label', submitTitle);
+      submitBtn.classList.remove('is-letter');
     }
 
     if (styleChip) {
@@ -475,7 +454,15 @@
       clearBtn.disabled = uploadedImages.length === 0;
       clearBtn.title = uploadedImages.length === 0
         ? '暂无参考图'
-        : '单击删除最近一张，长按 3 秒清空全部参考图';
+        : '删除最近一张参考图';
+      clearBtn.setAttribute('aria-label', clearBtn.title);
+    }
+
+    if (clearAllBtn) {
+      clearAllBtn.hidden = uploadedImages.length < 2;
+      if (uploadedImages.length < 2 && typeof resetCinematicRefClearAllConfirm === 'function') {
+        resetCinematicRefClearAllConfirm();
+      }
     }
 
     if (promptEl && !promptEl.dataset.userEdited) {
@@ -604,12 +591,6 @@
   function cycleCinematicProvider() {
     const currentIndex = AVAILABLE_CINEMATIC_PROVIDERS.indexOf(normalizeCinematicProvider(currentCinematicProvider));
     currentCinematicProvider = AVAILABLE_CINEMATIC_PROVIDERS[(currentIndex + 1 + AVAILABLE_CINEMATIC_PROVIDERS.length) % AVAILABLE_CINEMATIC_PROVIDERS.length];
-    cinematicRevealState.provider = true;
-    cinematicRevealState.model = false;
-    cinematicRevealState.quality = false;
-    cinematicRevealState.gptQuality = false;
-    cinematicRevealState.gptCount = false;
-    cinematicRevealState.gptModeration = false;
     syncCinematicComposerUi();
     saveUiSettings();
   }
@@ -633,13 +614,9 @@
       const idx = CINEMATIC_GEN_QUALITY_OPTIONS.indexOf(gptState.resolution || '1k');
       const next = CINEMATIC_GEN_QUALITY_OPTIONS[(idx + 1 + CINEMATIC_GEN_QUALITY_OPTIONS.length) % CINEMATIC_GEN_QUALITY_OPTIONS.length];
       pickResolutionGpt(next);
-      cinematicRevealState.gptQuality = false;
-      cinematicRevealState.gptCount = false;
-      cinematicRevealState.gptModeration = false;
     } else {
       return;
     }
-    cinematicRevealState.quality = true;
     syncCinematicComposerUi();
   }
 
@@ -662,9 +639,6 @@
       }
     } else if (provider === 'gpt') {
       pickRatioGpt(next);
-      cinematicRevealState.gptQuality = true;
-      cinematicRevealState.gptCount = false;
-      cinematicRevealState.gptModeration = false;
     } else {
       pickRatioComfy(next);
     }
@@ -736,6 +710,7 @@
       bench.setAttribute('aria-hidden', 'true');
     }
     if (view) view.classList.remove('is-cinematic-workbench');
+    if (typeof syncFloatingSubmitBar === 'function') syncFloatingSubmitBar();
   }
 
   function openClassicEditFromCinematic() {

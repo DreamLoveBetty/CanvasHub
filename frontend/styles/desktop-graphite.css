@@ -20,7 +20,7 @@ body.desk-app[data-desk-style="graphite"] {
   --desk-graphite-raised-shadow: 0 1px 2px rgba(20, 20, 18, 0.12);
   --desk-graphite-ink: #262624;
   --desk-graphite-muted: #63635e;
-  --desk-graphite-faint: #92928c;
+  --desk-graphite-faint: #6b6b66;
   --desk-graphite-dot: rgba(38, 38, 36, 0.13);
   --desk-graphite-line: rgba(38, 38, 36, 0.08);
   --desk-graphite-primary: #262624;
@@ -30,6 +30,7 @@ body.desk-app[data-desk-style="graphite"] {
   --desk-graphite-accent-ink: #17786a;
   --desk-graphite-accent-soft: rgba(31, 143, 124, 0.14);
   --desk-graphite-lift: 0 10px 24px -14px rgba(20, 20, 18, 0.28);
+  --desk-graphite-auth-backdrop: rgba(230, 230, 226, 0.98);
 
   --desk-radius-node: 14px;
 
@@ -110,8 +111,8 @@ body.desk-app[data-desk-style="graphite"][data-theme="dark"] {
   --desk-graphite-popover-shadow: 0 1px 0 rgba(0, 0, 0, 0.2), 0 14px 30px -14px rgba(0, 0, 0, 0.6);
   --desk-graphite-raised-shadow: 0 1px 2px rgba(0, 0, 0, 0.36);
   --desk-graphite-ink: #ececec;
-  --desk-graphite-muted: #a3a3a3;
-  --desk-graphite-faint: #8b8b8b;
+  --desk-graphite-muted: #aeaeaa;
+  --desk-graphite-faint: #9e9e98;
   --desk-graphite-dot: rgba(236, 236, 236, 0.08);
   --desk-graphite-line: rgba(236, 236, 236, 0.08);
   --desk-graphite-primary: #e6e6e6;
@@ -121,6 +122,7 @@ body.desk-app[data-desk-style="graphite"][data-theme="dark"] {
   --desk-graphite-accent-ink: #5ec4b0;
   --desk-graphite-accent-soft: rgba(94, 196, 176, 0.18);
   --desk-graphite-lift: 0 10px 24px -14px rgba(0, 0, 0, 0.6);
+  --desk-graphite-auth-backdrop: rgba(20, 20, 20, 0.99);
 
   --desk-radius-node: 14px;
 
@@ -227,6 +229,8 @@ body.desk-app[data-desk-style="graphite"][data-theme] {
   --desk-color-popover-border: transparent;
   --desk-color-accent: var(--desk-graphite-ink);
   --desk-color-accent-soft: var(--desk-graphite-inset-hover);
+  --desk-color-save: var(--desk-graphite-accent);
+  --desk-color-save-ink: var(--desk-graphite-accent-ink);
   --desk-color-focus-border: var(--desk-graphite-accent);
   --desk-color-focus-ring: var(--desk-graphite-accent-soft);
   --desk-shadow-control: none;
@@ -255,6 +259,8 @@ body.desk-app[data-desk-style="graphite"][data-theme] {
   --desk-action-primary-disabled: var(--desk-graphite-chip);
   --desk-action-primary-disabled-ink: var(--desk-graphite-faint);
   --desk-action-primary-disabled-border: transparent;
+  --desk-action-primary-gradient: var(--desk-graphite-primary);
+  --desk-action-primary-gradient-hover: var(--desk-graphite-primary-hover);
   --desk-action-primary-gradient-disabled: linear-gradient(var(--desk-graphite-chip), var(--desk-graphite-chip));
   --desk-jewel: var(--desk-graphite-primary);
   --desk-jewel-top: var(--desk-graphite-primary);
@@ -265,8 +271,41 @@ body.desk-app[data-desk-style="graphite"][data-theme] {
   --desk-jewel-hover-border: transparent;
   --desk-jewel-shadow: transparent;
   --desk-jewel-shadow-strong: transparent;
+  --desk-jewel-gradient: var(--desk-graphite-primary);
+  --desk-jewel-gradient-hover: var(--desk-graphite-primary-hover);
   --desk-jewel-gloss: var(--desk-graphite-primary);
   --desk-jewel-gloss-hover: var(--desk-graphite-primary-hover);
+  --desk-windchime-hover-background: var(--desk-graphite-inset-hover);
+  --desk-windchime-cord-background: var(--desk-graphite-ink-2);
+  --desk-windchime-cap-shadow: none;
+  --desk-windchime-bell-sheen: none;
+  --desk-windchime-glint-opacity: 0;
+  --desk-windchime-bell-shadow: none;
+  --desk-windchime-clapper-background: var(--desk-graphite-ink-2);
+  --desk-windchime-sail-background: var(--desk-graphite-accent);
+  --desk-windchime-sail-shadow: none;
+  --desk-prompt-block-token-ink: var(--desk-graphite-accent-ink);
+  --desk-prompt-block-token-border: var(--desk-graphite-accent);
+  --desk-prompt-block-token-surface: var(--desk-graphite-accent-soft);
+  --desk-prompt-block-token-module-ink: var(--desk-graphite-ink);
+  --desk-prompt-block-token-module-border: var(--desk-graphite-line);
+  --desk-prompt-block-token-module-surface: var(--desk-graphite-card);
+  --desk-prompt-block-token-shadow: none;
+  --desk-prompt-block-token-hover-ink: var(--desk-graphite-ink);
+  --desk-prompt-block-token-hover-surface: var(--desk-graphite-inset-hover);
+  --desk-prompt-block-token-hover-border: var(--desk-graphite-accent);
+  --desk-prompt-block-token-hover-shadow: none;
+  --desk-prompt-block-token-focus-border: var(--desk-graphite-accent);
+  --desk-prompt-block-token-focus-shadow: 0 0 0 2px var(--desk-graphite-accent-soft);
+  --desk-prompt-slash-replace-border: var(--desk-graphite-accent);
+  --desk-prompt-slash-replace-shadow: var(--desk-graphite-popover-shadow);
+  --desk-prompt-slash-replace-heading-ink: var(--desk-graphite-accent-ink);
+  --desk-canvas-port-background: var(--desk-graphite-card);
+  --desk-canvas-port-border: var(--desk-graphite-accent);
+  --desk-canvas-port-shadow: none;
+  --desk-canvas-port-active-background: var(--desk-graphite-accent);
+  --desk-canvas-port-active-border: var(--desk-graphite-card);
+  --desk-canvas-port-active-shadow: 0 0 0 4px var(--desk-graphite-accent-soft);
   --desk-prompt-assistant-handle-ink: var(--desk-graphite-primary-ink);
   --desk-prompt-assistant-handle-shadow: none;
   --desk-prompt-assistant-handle-hover-shadow: none;
@@ -471,8 +510,10 @@ body.desk-app[data-desk-style="graphite"][data-theme] {
   --desk-settings-summary-background: var(--desk-graphite-inset);
   --desk-settings-summary-border: transparent;
   --desk-settings-summary-shadow: none;
+  --desk-settings-summary-ok-ink: var(--desk-graphite-accent-ink);
   --desk-settings-summary-ok-background: var(--desk-graphite-inset);
   --desk-settings-summary-ok-border: transparent;
+  --desk-settings-summary-warn-ink: var(--desk-status-warning-soft-ink);
   --desk-settings-summary-warn-background: var(--desk-graphite-inset);
   --desk-settings-summary-warn-border: transparent;
   --desk-settings-card-background: var(--desk-graphite-inset);
@@ -550,6 +591,14 @@ body.desk-app[data-desk-style="graphite"][data-theme] {
   --desk-settings-info-section-background: var(--desk-graphite-inset);
   --desk-settings-info-section-border: transparent;
   --desk-settings-info-section-shadow: none;
+
+  /* Desktop auth gate: pure neutral matte stone, no liquid blue-slate cast. */
+  --desk-auth-overlay-background: var(--desk-graphite-auth-backdrop);
+  --desk-auth-card-ink: var(--desk-graphite-ink);
+  --desk-auth-card-background: var(--desk-graphite-card);
+  --desk-auth-card-border: var(--desk-graphite-line);
+  --desk-auth-card-shadow: var(--desk-graphite-popover-shadow);
+  --desk-auth-message-ink: var(--desk-graphite-muted);
 
   /* Status bar: inset chips; success/warning/error keep their meaning as ink only. */
   --desk-status-separator: var(--desk-graphite-line);
@@ -629,6 +678,7 @@ body.desk-app[data-desk-style="graphite"][data-theme] {
   --desk-gallery-toolbar-background: var(--desk-graphite-inset);
   --desk-gallery-toolbar-border: transparent;
   --desk-gallery-toolbar-shadow: none;
+  --desk-gallery-tab-group-divider: var(--desk-graphite-line);
   --desk-gallery-field-placeholder-ink: var(--desk-graphite-faint);
   --desk-gallery-native-option-ink: var(--desk-graphite-ink);
   --desk-gallery-native-option-background: var(--desk-graphite-card);
@@ -819,6 +869,7 @@ body.desk-app[data-desk-style="graphite"][data-theme] {
   --desk-prompt-assistant-toggle-checked-background: var(--desk-graphite-accent);
   --desk-prompt-assistant-toggle-checked-border: transparent;
   --desk-prompt-assistant-toggle-thumb-shadow: none;
+  --desk-prompt-assistant-disabled-ink: var(--desk-graphite-muted);
   --desk-prompt-assistant-button-ink: var(--desk-graphite-primary-ink);
   --desk-prompt-assistant-button-background: var(--desk-graphite-primary);
   --desk-prompt-assistant-button-border: transparent;
@@ -831,6 +882,15 @@ body.desk-app[data-desk-style="graphite"][data-theme] {
   --desk-prompt-assistant-button-active-shadow: none;
   --desk-prompt-assistant-button-disabled-background: var(--desk-graphite-chip);
   --desk-prompt-assistant-button-disabled-border: transparent;
+  --desk-prompt-assistant-secondary-ink: var(--desk-graphite-ink);
+  --desk-prompt-assistant-secondary-background: var(--desk-graphite-card);
+  --desk-prompt-assistant-secondary-border: var(--desk-graphite-line);
+  --desk-prompt-assistant-secondary-hover-ink: var(--desk-graphite-ink);
+  --desk-prompt-assistant-secondary-hover-background: var(--desk-graphite-chip);
+  --desk-prompt-assistant-secondary-hover-border: var(--desk-graphite-line);
+  --desk-prompt-assistant-danger-hover-ink: var(--desk-status-error-soft-ink);
+  --desk-prompt-assistant-danger-hover-background: var(--desk-status-error-soft-background);
+  --desk-prompt-assistant-danger-hover-border: transparent;
   --desk-prompt-assistant-modal-background: var(--desk-graphite-card);
   --desk-prompt-assistant-modal-border: transparent;
   --desk-prompt-assistant-modal-shadow: var(--desk-graphite-popover-shadow);
@@ -1467,6 +1527,8 @@ body.desk-app[data-desk-style="graphite"][data-theme] :is(.desk-rail, .desk-node
   --desk-jewel-hover-border: transparent;
   --desk-jewel-shadow: transparent;
   --desk-jewel-shadow-strong: transparent;
+  --desk-jewel-gradient: var(--desk-graphite-primary);
+  --desk-jewel-gradient-hover: var(--desk-graphite-primary-hover);
 }
 
 body.desk-app[data-desk-style="graphite"][data-theme] :is(.desk-rail, .desk-node-palette:not(.desk-node-context-menu), .desk-history:not(.is-collapsed), .desk-zoom-controls) {
@@ -1576,19 +1638,44 @@ body.desk-app[data-desk-style="graphite"][data-theme] :is(.desk-status-chip, .de
   backdrop-filter: none;
 }
 
-body.desk-app[data-desk-style="graphite"][data-theme] .desk-prompt-drawer__handle {
-  background: var(--desk-graphite-primary);
-  box-shadow: none;
+body.desk-app[data-desk-style="graphite"][data-theme] .auth-overlay {
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
 }
 
-body.desk-app[data-desk-style="graphite"][data-theme] .desk-prompt-drawer__handle:hover {
-  background: var(--desk-graphite-primary-hover);
+/* Keep slime runner glossy 3D obsidian black in Graphite; align light halo with matte card surface. */
+body.desk-app[data-desk-style="graphite"][data-theme="light"] .desk-runner-slider {
+  --desk-runner-halo: var(--desk-graphite-card);
+}
+
+body.desk-app[data-desk-style="graphite"][data-theme] .desk-prompt-drawer__handle {
+  color: var(--desk-graphite-ink-2);
+  background: var(--desk-graphite-card);
+  border-color: color-mix(in srgb, var(--desk-graphite-ink) 14%, transparent);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+body.desk-app[data-desk-style="graphite"][data-theme] .desk-prompt-drawer__handle::before {
+  background: var(--desk-graphite-muted);
   box-shadow: none;
 }
 
-body.desk-app[data-desk-style="graphite"][data-theme] .desk-prompt-drawer__handle::before,
+body.desk-app[data-desk-style="graphite"][data-theme] .desk-prompt-drawer.is-open .desk-prompt-drawer__handle,
+body.desk-app[data-desk-style="graphite"][data-theme] .desk-prompt-drawer__handle:is(:hover, :focus-visible) {
+  color: var(--desk-graphite-primary-ink);
+  background: var(--desk-graphite-primary);
+  border-color: transparent;
+  box-shadow: none;
+}
+
+body.desk-app[data-desk-style="graphite"][data-theme] .desk-prompt-drawer.is-open .desk-prompt-drawer__handle:hover {
+  background: var(--desk-graphite-primary-hover);
+}
+
+body.desk-app[data-desk-style="graphite"][data-theme] .desk-prompt-drawer__handle:is(:hover, :focus-visible)::before,
+body.desk-app[data-desk-style="graphite"][data-theme] .desk-prompt-drawer.is-open .desk-prompt-drawer__handle::before,
 body.desk-app[data-desk-style="graphite"][data-theme] .desk-prompt-drawer__handle-eye {
   background: var(--desk-graphite-primary-ink);
   box-shadow: none;

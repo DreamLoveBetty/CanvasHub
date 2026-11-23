@@ -189,7 +189,7 @@
     const title = image?.title || image?.name || `参考图 ${index + 1}`;
     item.className = 'desk-thumb';
     item.innerHTML = `
-      <img src="${escapeHtml(url)}" alt="${escapeHtml(title)}">
+      <img src="${escapeHtml(url)}" alt="${escapeHtml(title)}" loading="lazy" decoding="async">
       <span class="desk-thumb__badge">${escapeHtml(referenceSourceLabel(image))}</span>
       <div class="desk-thumb__actions">
         <button type="button" data-ref-action="open" title="打开原图" aria-label="打开原图">↗</button>

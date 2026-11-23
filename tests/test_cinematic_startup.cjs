@@ -2131,3 +2131,69 @@ test('cinematic history hides explicitly deleted tasks and keeps mixed or unattr
   if (mixedSrc) assert.equal(mixedSrc, expectedHistoryThumbUrl('/image/comfy_archived_ok.png'));
   assert.equal(snap.stored, 6);
 });
+
+test('Batch 4 mobile composer shows all active provider pills immediately, clear submit labels, and 2-tap clear-all confirm', () => {
+  const html = readIndex();
+  assert.doesNotMatch(html, /user-scalable=no/i);
+  assert.match(html, /viewport-fit=cover/i);
+  assert.doesNotMatch(html, /第一个功能先做完整/);
+  assert.doesNotMatch(html, /等待施法/);
+  assert.doesNotMatch(fs.readFileSync(path.join(ROOT, 'frontend/styles/base.css'), 'utf8'), /fonts\.googleapis\.com/);
+
+  const { ctx } = bootCinematicApp();
+  const initialGoogle = vm.runInContext(`({
+    modelHidden: document.getElementById('cinematicModelWrap').hidden,
+    qualityHidden: document.getElementById('cinematicQualityWrap').hidden,
+    ratioHidden: document.getElementById('cinematicRatioWrap').hidden,
+    submitHtml: document.getElementById('cinematicSubmitBtn').innerHTML,
+    submitAria: document.getElementById('cinematicSubmitBtn').getAttribute('aria-label'),
+    clearAllHidden: document.getElementById('cinematicRefClearAllBtn').hidden,
+    spellPlaceholder: getCinematicSpellPlaceholder('json'),
+  })`, ctx);
+  assert.equal(initialGoogle.modelHidden, false);
+  assert.equal(initialGoogle.qualityHidden, false);
+  assert.equal(initialGoogle.ratioHidden, false);
+  assert.match(initialGoogle.submitHtml, /生成/);
+  assert.match(initialGoogle.submitAria || '', /Google/);
+  assert.equal(initialGoogle.clearAllHidden, true);
+  assert.equal(initialGoogle.spellPlaceholder, '尚未生成提示词');
+
+  const afterGptAndTwoRefs = vm.runInContext(`(function () {
+    selectCinematicProvider('gpt');
+    uploadedImages = [{ id: 1, base64: 'data:image/png;base64,AAA' }, { id: 2, base64: 'data:image/png;base64,BBB' }];
+    renderGrid();
+    const beforeArm = {
+      routeHidden: document.getElementById('cinematicGptRouteWrap').hidden,
+      qualityHidden: document.getElementById('cinematicQualityWrap').hidden,
+      ratioHidden: document.getElementById('cinematicRatioWrap').hidden,
+      gptQualityHidden: document.getElementById('cinematicGptQualityWrap').hidden,
+      gptModerationHidden: document.getElementById('cinematicGptModerationWrap').hidden,
+      clearAllHidden: document.getElementById('cinematicRefClearAllBtn').hidden,
+      submitHtml: document.getElementById('cinematicSubmitBtn').innerHTML,
+    };
+    handleCinematicRefClearAllClick();
+    const armed = {
+      count: uploadedImages.length,
+      text: document.getElementById('cinematicRefClearAllBtn').textContent,
+      confirming: document.getElementById('cinematicRefClearAllBtn').classList.contains('is-confirming'),
+    };
+    handleCinematicRefClearAllClick();
+    const cleared = {
+      count: uploadedImages.length,
+      clearAllHidden: document.getElementById('cinematicRefClearAllBtn').hidden,
+    };
+    return { beforeArm, armed, cleared };
+  })()`, ctx);
+  assert.equal(afterGptAndTwoRefs.beforeArm.routeHidden, false);
+  assert.equal(afterGptAndTwoRefs.beforeArm.qualityHidden, false);
+  assert.equal(afterGptAndTwoRefs.beforeArm.ratioHidden, false);
+  assert.equal(afterGptAndTwoRefs.beforeArm.gptQualityHidden, false);
+  assert.equal(afterGptAndTwoRefs.beforeArm.gptModerationHidden, false);
+  assert.equal(afterGptAndTwoRefs.beforeArm.clearAllHidden, false);
+  assert.match(afterGptAndTwoRefs.beforeArm.submitHtml, /编辑/);
+  assert.equal(afterGptAndTwoRefs.armed.count, 2);
+  assert.equal(afterGptAndTwoRefs.armed.text, '确认清空');
+  assert.equal(afterGptAndTwoRefs.armed.confirming, true);
+  assert.equal(afterGptAndTwoRefs.cleared.count, 0);
+  assert.equal(afterGptAndTwoRefs.cleared.clearAllHidden, true);
+});

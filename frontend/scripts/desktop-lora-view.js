@@ -228,8 +228,8 @@
       const footer=detailDialog.querySelector('.desk-lora-dialog__footer');
       detailDialog.setAttribute('aria-label', item.name);
       host.innerHTML=`<div class="desk-lora-detail"><section class="desk-lora-detail__visual" aria-label="效果示例与文件">
-        <div class="desk-lora-hero">${item.cover?`<img src="${media(item.cover.url)}" alt="LoRA 效果示例" data-lora-hero>`:'<span>尚无示例图</span>'}</div>
-        <div class="desk-lora-thumbs">${pictures.map((p,index)=>`<div><button type="button" data-lora-preview="${p.id}" title="${esc(p.caption||'查看示例')}"><img src="${media(p.thumb_url)}" alt="示例 ${index+1}"></button><div>${button('cover','★',`data-id="${p.id}" aria-label="将示例 ${index+1} 设为封面" title="设为封面"`)}${button('move-preview','←',`data-id="${p.id}" ${index===0?'disabled':''} aria-label="前移示例 ${index+1}" title="前移"`)}${button('remove-preview','×',`data-id="${p.id}" aria-label="删除示例 ${index+1}" title="删除"`)}</div></div>`).join('')}</div>
+        <div class="desk-lora-hero">${item.cover?`<img src="${media(item.cover.url)}" alt="LoRA 效果示例" decoding="async" data-lora-hero>`:'<span>尚无示例图</span>'}</div>
+        <div class="desk-lora-thumbs">${pictures.map((p,index)=>`<div><button type="button" data-lora-preview="${p.id}" title="${esc(p.caption||'查看示例')}"><img src="${media(p.thumb_url)}" alt="示例 ${index+1}" loading="lazy" decoding="async"></button><div>${button('cover','★',`data-id="${p.id}" aria-label="将示例 ${index+1} 设为封面" title="设为封面"`)}${button('move-preview','←',`data-id="${p.id}" ${index===0?'disabled':''} aria-label="前移示例 ${index+1}" title="前移"`)}${button('remove-preview','×',`data-id="${p.id}" aria-label="删除示例 ${index+1}" title="删除"`)}</div></div>`).join('')}</div>
         <div class="desk-lora-actions">${button('upload','上传示例')}${button('asset-image','从资产库选择')}</div><input type="file" accept="image/png,image/jpeg,image/webp,image/avif,image/gif" data-lora-upload hidden>
         <small>示例独立保存，不修改权重；远端示例可能包含其他模型。</small>
         <details class="desk-lora-disclosure desk-lora-source"><summary>Civitai 资料</summary><div class="desk-lora-disclosure__body">

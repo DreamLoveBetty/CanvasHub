@@ -95,7 +95,7 @@ function fixture(options = {}) {
   return { Slider, slider, frames, cancelledCount, parts, svg, container, changes, saved: () => saved };
 }
 
-test('the gait walks at the slow end and runs with a flight phase at the fast end', () => {
+test('the gait walks at the slow end with sticky drag and sprints airborne with whipped slime at the fast end', () => {
   const { Slider } = load();
   const walk = Slider.gait(0);
   const sprint = Slider.gait(1);
@@ -103,6 +103,8 @@ test('the gait walks at the slow end and runs with a flight phase at the fast en
   assert.ok(sprint.kneeMax > walk.kneeMax * 2, 'the heel kicks up when running');
   assert.ok(sprint.elbow > walk.elbow * 4, 'running arms are bent');
   assert.ok(sprint.lean > walk.lean * 4, 'the runner leans forward');
+  assert.ok(walk.sticky > 0.9 && sprint.sticky < 0.05, 'slow end is sticky; fast end breaks free');
+  assert.ok(sprint.whip > 0.9 && walk.whip < 0.05, 'fast end whips slime backward; slow end does not');
   const lowest = q => Math.max(q.nearLeg.foot[1], q.nearLeg.toe[1], q.farLeg.foot[1], q.farLeg.toe[1]);
   for (let k = 0; k < 16; k += 1) {
     assert.ok(Math.abs(lowest(Slider.pose(0, (k / 16) * Math.PI * 2))) < 1e-9, 'a walker always has a foot on the ground');
@@ -125,8 +127,17 @@ test('the slider renders its stops, value and accessible text from the presets',
 test('keyboard steps commit a stop, drags snap on release, and release stops the clock', () => {
   const { slider, parts, svg, container, changes, frames, cancelledCount } = fixture();
   slider.mount(container);
-  assert.equal(svg.children.length, 9, 'three speed lines, the halo pair and the figure');
-  assert.ok(svg.children.some(node => (node.attributes.d || '').startsWith('M')), 'the figure is drawn on mount');
+  const walkAll = node => [node, ...(node.children || []).flatMap(walkAll)];
+  const nodes = walkAll(svg);
+  assert.ok(nodes.some(node => node.name === 'filter' && (node.attributes.id || '').startsWith('desk-runner-goo-')), 'metaball goo filter is mounted');
+  assert.ok(nodes.some(node => node.name === 'feSpecularLighting'), '3D specular lighting filter is mounted');
+  assert.ok(nodes.some(node => node.name === 'linearGradient'), '3D body/limb/trail linear gradients are mounted');
+  assert.ok(nodes.some(node => node.name === 'radialGradient'), '3D head/droplet radial gradients are mounted');
+  assert.ok(nodes.some(node => node.attributes.class === 'desk-runner-slider__puddle'), 'ground slime puddle exists');
+  assert.ok(nodes.some(node => node.attributes.class === 'desk-runner-slider__slime-trail'), 'whipped slime ribbons exist');
+  assert.ok(nodes.some(node => node.attributes.class === 'desk-runner-slider__slime-drop'), 'flying slime droplets exist');
+  assert.ok(nodes.some(node => node.attributes.class === 'desk-runner-slider__eye'), 'expressive eye exists');
+  assert.ok(nodes.some(node => (node.attributes.d || '').startsWith('M')), 'the sculpted slime figure is drawn on mount');
   assert.equal(parts.marks.innerHTML.match(/desk-runner-slider__mark/g).length, 5);
   assert.match(parts.marks.innerHTML, /is-recommended" style="left:210\.0px"/);
   assert.equal(parts.recommended.style.left, '210.0px');
@@ -180,6 +191,8 @@ test('settings host the slider in the theme style card and fold it with the swit
   assert.match(geometry, /body\.desk-app \.desk-runner-slider__runner \{[^}]*width: 48px;/);
   const liquid = read('frontend/styles/desktop-liquid.css');
   assert.match(liquid, /\.desk-runner-slider \{[^}]*--desk-runner-ink: var\(--desk-color-text-primary\);[^}]*--desk-runner-accent: var\(--desk-color-accent\);/);
+  const graphite = read('frontend/styles/desktop-graphite.css');
+  assert.doesNotMatch(graphite, /--desk-runner-slime[^;]*--desk-graphite-accent/, 'graphite keeps 3D obsidian black slime instead of green accent');
 
   const html = read('frontend/desktop.html');
   assert.ok(hasCacheKey(html, 'scripts/desktop-runner-slider.js'));

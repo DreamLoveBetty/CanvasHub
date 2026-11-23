@@ -107,7 +107,7 @@
     if (imageUrl) {
       return `
         <div class="desk-file-preview">
-          <img src="${escapeHtml(imageUrl)}" alt="文件预览">
+          <img src="${escapeHtml(imageUrl)}" alt="文件预览" loading="lazy" decoding="async">
           <span class="desk-file-preview__badge">${escapeHtml(kind)} 预览</span>
         </div>
       `;
@@ -152,7 +152,7 @@
         <div class="desk-file-layer-list" role="list">
           ${items.slice(0, 12).map((item, index) => `
           <a class="desk-file-layer" href="${escapeHtml(item.url)}" target="_blank" rel="noopener" role="listitem" title="${escapeHtml(item.name)}">
-            <img src="${escapeHtml(item.url)}" alt="${escapeHtml(item.name)}">
+            <img src="${escapeHtml(item.url)}" alt="${escapeHtml(item.name)}" loading="lazy" decoding="async">
             <span class="desk-file-layer__copy">
               <strong>${escapeHtml(item.name)}</strong>
               <em>${escapeHtml(item.itemType)}</em>

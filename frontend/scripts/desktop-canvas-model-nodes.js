@@ -381,13 +381,12 @@
           <div class="desk-prompt-panel desk-prompt-panel--references">
             <span class="desk-panel-title">输入参考</span>
             <div class="desk-reference-strip">
-              <button type="button" class="desk-upload desk-upload--square" data-upload-drop title="上传参考图">
+              <button type="button" class="desk-upload desk-upload--square" data-upload-drop title="上传参考图，或连接图片、姿态或排版节点作为参考图。">
                 <span>+</span>
                 <small>参考图</small>
               </button>
               <div class="desk-thumb-row" data-reference-thumbs aria-label="参考图缩略图"></div>
             </div>
-            <div class="desk-node-hint">连接文本节点作为提示词，手动上传图片或连接图片、姿态或排版节点作为参考图。</div>
           </div>
         </div>
         <div class="desk-input-footer">
@@ -427,7 +426,7 @@
     }
     return visible.map(item => `
       <button type="button" class="desk-comfy-workflow-card${item.id === selectedWorkflow ? ' is-selected' : ''}${item.enabled ? '' : ' is-disabled'}" data-comfy-workflow="${escapeHtml(item.id)}" role="option" aria-selected="${item.id === selectedWorkflow ? 'true' : 'false'}">
-        <span class="desk-comfy-workflow-card__thumb">${item.thumbnail_url ? `<img src="${escapeHtml(item.thumbnail_url)}" alt="">` : '<i></i><i></i><i></i>'}</span>
+        <span class="desk-comfy-workflow-card__thumb">${item.thumbnail_url ? `<img src="${escapeHtml(item.thumbnail_url)}" alt="" loading="lazy" decoding="async">` : '<i></i><i></i><i></i>'}</span>
         <span class="desk-comfy-workflow-card__copy"><strong>${escapeHtml(item.label || item.id)}</strong><small>${escapeHtml(item.summary || item.id)}</small></span>
         <span class="desk-comfy-workflow-card__check" aria-hidden="true">✓</span>
       </button>
@@ -871,8 +870,8 @@
       <section class="desk-node desk-node--upscale desk-glass" data-node-id="${node.id}" aria-label="高清放大节点" data-i18n-aria="upscaleNodeAria">
         <div class="desk-node__header" data-node-drag-handle>
           <div>
-            <p class="desk-node__eyebrow" data-i18n="upscaleEyebrow">高清放大</p>
-            <h2 data-i18n="upscaleTitle">本地高清放大</h2>
+            <p class="desk-node__eyebrow" data-i18n="upscaleEyebrow">图像增强</p>
+            <h2 data-i18n="upscaleTitle">4x 超分放大</h2>
           </div>
           <div class="desk-node-tools">
             <span class="desk-status-pill" data-output-status>空闲</span>

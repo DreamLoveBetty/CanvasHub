@@ -187,14 +187,19 @@
     const msgEl = document.createElement('div');
     msgEl.id = 'statusMessage';
     msgEl.className = 'status-toast ' + type;
+    if (typeof msgEl.setAttribute === 'function') {
+      msgEl.setAttribute('role', type === 'error' ? 'alert' : 'status');
+    }
     msgEl.textContent = message;
-    const color = type === 'error'
-      ? { bg: 'linear-gradient(180deg, rgba(255,249,248,0.96), rgba(255,236,233,0.96))', text: '#b95d55' }
-      : type === 'success'
-        ? { bg: 'linear-gradient(180deg, rgba(248,255,250,0.96), rgba(231,245,236,0.96))', text: '#3f7a56' }
-        : { bg: 'linear-gradient(180deg, rgba(252,255,253,0.96), rgba(236,245,239,0.96))', text: '#43695a' };
-    msgEl.style.background = color.bg;
-    msgEl.style.color = color.text;
+    if (document.documentElement?.dataset?.layout !== 'cinematic') {
+      const color = type === 'error'
+        ? { bg: 'linear-gradient(180deg, rgba(255,249,248,0.96), rgba(255,236,233,0.96))', text: '#b95d55' }
+        : type === 'success'
+          ? { bg: 'linear-gradient(180deg, rgba(248,255,250,0.96), rgba(231,245,236,0.96))', text: '#3f7a56' }
+          : { bg: 'linear-gradient(180deg, rgba(252,255,253,0.96), rgba(236,245,239,0.96))', text: '#43695a' };
+      msgEl.style.background = color.bg;
+      msgEl.style.color = color.text;
+    }
     document.body.appendChild(msgEl);
 
     if (type !== 'error') {

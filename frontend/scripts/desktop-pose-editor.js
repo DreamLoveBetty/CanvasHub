@@ -776,6 +776,7 @@ function bind() {
   const viewer = $('[data-pe-viewer]');
   let down = null;
   viewer.addEventListener('pointerdown', event => { down = event.target.matches('[data-pe-canvas]') ? {x: event.clientX, y: event.clientY, button: event.button} : null; });
+  viewer.addEventListener('pointercancel', () => { down = null; });
   viewer.addEventListener('pointerup', event => {
     const start = down; down = null;
     if (!gl || !start || start.button !== 0 || Math.hypot(event.clientX - start.x, event.clientY - start.y) > 4 || gl.gizmo.dragging || gl.gizmo.axis) return;

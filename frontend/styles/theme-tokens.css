@@ -115,8 +115,8 @@
       --cinematic-chip-bg: rgba(var(--cinematic-accent-rgb), 0.08);
       --cinematic-chip-border: rgba(var(--cinematic-accent-rgb), 0.18);
       --cinematic-chip-text: #d8b34c;
-      --cinematic-button-gradient: linear-gradient(135deg, #d4af37 0%, #b8860b 100%);
-      --cinematic-button-text: #171814;
+      --cinematic-button-gradient: linear-gradient(135deg, #e2be4b 0%, #c69518 100%);
+      --cinematic-button-text: #141510;
       --cinematic-button-shadow: 0 12px 24px rgba(var(--cinematic-accent-rgb), 0.18);
       --cinematic-menu-panel-bg:
         linear-gradient(180deg, rgba(255,255,255,0.05), transparent 14%),
@@ -669,7 +669,6 @@
     .google-drawer,
     .modal,
     .sidebar,
-    .auth-card,
     .settings-panel {
       background: var(--panel-bg) !important;
       border: 1px solid var(--panel-border) !important;
@@ -680,8 +679,7 @@
     .ratio-section,
     .note-box,
     .upload-panel,
-    .result-stage,
-    .auth-card {
+    .result-stage {
       border-radius: var(--radius-panel) !important;
       box-shadow: var(--stage-shadow) !important;
     }
@@ -692,8 +690,7 @@
     .result-stage::before,
     .upload-panel::before,
     .settings-trigger::before,
-    .modal-stage::before,
-    #statusMessage::before {
+    .modal-stage::before {
       background: var(--surface-gloss) !important;
     }
 
@@ -712,14 +709,14 @@
     .btn-mini,
     .btn-copy,
     #mainMenu button,
-    .history-detail-btn,
-    .auth-submit-btn {
+    .history-detail-btn {
       background: var(--ghost-button-bg) !important;
       color: var(--ghost-button-text) !important;
       box-shadow: var(--control-shadow) !important;
     }
 
     .prompt-tips span,
+    .prompt-tips button,
     .drawer-option,
     .style-chip,
     .result-stage-action,
@@ -732,15 +729,15 @@
       border: 1px solid var(--panel-border) !important;
     }
 
-    .prompt-tips span {
+    .prompt-tips span,
+    .prompt-tips button {
       background: var(--pill-bg) !important;
       box-shadow: none !important;
     }
 
     .style-select,
     .history-filter-control,
-    .history-search,
-    .auth-password-input {
+    .history-search {
       background: var(--input-shell-bg) !important;
       border: 1px solid var(--input-shell-border) !important;
       box-shadow: var(--control-shadow) !important;
@@ -750,8 +747,7 @@
 
     .style-select:focus,
     .history-filter-control:focus,
-    .history-search:focus,
-    .auth-password-input:focus {
+    .history-search:focus {
       border-color: var(--primary) !important;
       box-shadow: var(--focus-ring), var(--control-shadow) !important;
     }
@@ -831,8 +827,7 @@
     }
 
     .submit-bar .btn-submit,
-    .modal-actions .btn-submit,
-    .auth-submit-btn {
+    .modal-actions .btn-submit {
       background: var(--cta-bg) !important;
       box-shadow: var(--cta-shadow) !important;
       color: #fff !important;
@@ -842,8 +837,7 @@
     }
 
     .submit-bar .btn-submit:active,
-    .modal-actions .btn-submit:active,
-    .auth-submit-btn:active {
+    .modal-actions .btn-submit:active {
       box-shadow: var(--cta-shadow-active) !important;
     }
 
@@ -1025,20 +1019,10 @@
     }
 
     #statusMessage {
-      background: var(--panel-bg) !important;
-      color: var(--text) !important;
-      box-shadow: var(--panel-shadow) !important;
-      border-radius: var(--radius-card) !important;
-    }
-
-    .auth-card {
-      border-radius: var(--radius-panel) !important;
-    }
-
-    .auth-password-input {
-      padding: 10px;
-      font-size: 14px;
-      outline: none;
+      background: var(--panel-bg);
+      color: var(--text);
+      box-shadow: var(--panel-shadow);
+      border-radius: var(--radius-card);
     }
 
     .auth-submit-btn {

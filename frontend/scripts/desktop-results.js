@@ -966,7 +966,7 @@
       const isSelected = !!file && selected.has(file);
       return `
       <div class="desk-result-card${displayPaths.length === 1 ? ' is-primary' : ''}${isSelected ? ' is-selected' : ''}" data-result-card data-file="${escapeHtml(file)}">
-        <img src="${escapeHtml(path)}" alt="生成结果 ${index + 1}">
+        <img src="${escapeHtml(path)}" alt="生成结果 ${index + 1}" loading="lazy" decoding="async">
         ${requestedCount > 1 ? `<span class="desk-result-index">${index + 1}/${requestedCount}</span>` : ''}
         ${file ? `
           <button type="button" class="desk-result-select" data-select-file="${escapeHtml(file)}" aria-pressed="${isSelected ? 'true' : 'false'}" title="${isSelected ? '取消选择' : '选择图片'}" aria-label="${isSelected ? '取消选择' : '选择'}生成结果 ${index + 1}">

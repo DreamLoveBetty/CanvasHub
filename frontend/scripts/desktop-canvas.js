@@ -1190,8 +1190,46 @@
     return canvasNodes.migrateLegacyPromptDraftToTextNode();
   }
 
+  function getOpenWorkspaceTool() {
+    if (document.getElementById('deskGalleryPanel')?.classList.contains('is-open')) return 'gallery';
+    if (document.getElementById('deskPromptLibraryPanel')?.classList.contains('is-open')) return 'prompts';
+    if (document.getElementById('deskSettingsPanel')?.classList.contains('is-open')) return 'settings';
+    return '';
+  }
+
+  function syncRailActiveTool(preferredTool = '') {
+    const openWorkspace = getOpenWorkspaceTool();
+    const paletteOpen = Boolean(els.deskNodePalette?.classList.contains('is-open'));
+    const activeTool = openWorkspace
+      || (paletteOpen ? 'node' : (preferredTool === 'select' || preferredTool === 'node' ? preferredTool : 'select'));
+    document.querySelectorAll('.desk-rail__item[data-tool]').forEach(item => {
+      const tool = item.dataset.tool;
+      item.classList.toggle('is-active', tool === activeTool);
+      if (tool === 'gallery' || tool === 'prompts' || tool === 'settings') {
+        item.setAttribute('aria-expanded', tool === openWorkspace ? 'true' : 'false');
+      }
+    });
+    return activeTool;
+  }
+
+  function closeOpenWorkspacePanels(options = {}) {
+    const except = options.except || '';
+    if (except !== 'prompts' && document.getElementById('deskPromptLibraryPanel')?.classList.contains('is-open')) {
+      if (window.DesktopPromptLibrary?.close?.() === false) return false;
+    }
+    if (except !== 'gallery' && document.getElementById('deskGalleryPanel')?.classList.contains('is-open')) {
+      if (window.DesktopHistory?.closeGallery?.() === false || document.getElementById('deskGalleryPanel')?.classList.contains('is-open')) return false;
+    }
+    if (except !== 'settings' && document.getElementById('deskSettingsPanel')?.classList.contains('is-open')) {
+      if (window.DesktopSettings?.close?.() === false) return false;
+    }
+    return true;
+  }
+
   function setNodePaletteOpen(open) {
-    return canvasNodes.setNodePaletteOpen(open);
+    const result = canvasNodes.setNodePaletteOpen(open);
+    syncRailActiveTool();
+    return result;
   }
 
   function nodeMenuButtonHtml(item) {
@@ -4022,39 +4060,51 @@
     document.querySelectorAll('.desk-rail__item[data-tool]').forEach(button => {
       button.addEventListener('click', () => {
         clearSelectedEdge();
-        document.querySelectorAll('.desk-rail__item[data-tool]').forEach(item => item.classList.toggle('is-active', item === button));
         const tool = button.dataset.tool;
+        const openWorkspace = getOpenWorkspaceTool();
         if (tool === 'select') {
+          if (!closeOpenWorkspacePanels()) {
+            syncRailActiveTool();
+            return;
+          }
           setNodePaletteOpen(false);
           selectNode('');
+          syncRailActiveTool('select');
           return;
         }
         if (tool === 'node') {
+          if (openWorkspace) {
+            if (!closeOpenWorkspacePanels()) {
+              syncRailActiveTool();
+              return;
+            }
+            setNodePaletteOpen(true);
+            syncRailActiveTool('node');
+            return;
+          }
           setNodePaletteOpen(!els.deskNodePalette?.classList.contains('is-open'));
+          syncRailActiveTool();
           return;
         }
-        if (tool === 'gallery') {
+        if (tool === 'gallery' || tool === 'prompts' || tool === 'settings') {
           setNodePaletteOpen(false);
-          if (window.DesktopPromptLibrary?.close?.() === false) {
-            document.querySelectorAll('.desk-rail__item[data-tool]').forEach(item => item.classList.toggle('is-active', item.dataset.tool === 'prompts'));
+          if (openWorkspace === tool) {
+            closeOpenWorkspacePanels();
+            syncRailActiveTool('select');
             return;
           }
-          window.DesktopSettings?.close?.();
-          window.DesktopHistory?.openGallery?.().catch(error => DesktopResults.showError(error));
-          return;
-        }
-        if (tool === 'prompts') {
-          setNodePaletteOpen(false);
-          window.DesktopPromptLibrary?.open?.().catch(error => DesktopResults.showError(error));
-          return;
-        }
-        if (tool === 'settings') {
-          setNodePaletteOpen(false);
-          if (window.DesktopPromptLibrary?.close?.() === false) {
-            document.querySelectorAll('.desk-rail__item[data-tool]').forEach(item => item.classList.toggle('is-active', item.dataset.tool === 'prompts'));
+          if (!closeOpenWorkspacePanels({ except: tool })) {
+            syncRailActiveTool();
             return;
           }
-          window.openDesktopSettingsPanel?.();
+          if (tool === 'gallery') {
+            window.DesktopHistory?.openGallery?.().catch(error => DesktopResults.showError(error));
+          } else if (tool === 'prompts') {
+            window.DesktopPromptLibrary?.open?.().catch(error => DesktopResults.showError(error));
+          } else if (tool === 'settings') {
+            window.openDesktopSettingsPanel?.();
+          }
+          syncRailActiveTool();
         }
       });
     });
@@ -6032,6 +6082,7 @@
     addNode,
     removeNode,
     selectNode,
+    syncRailActiveTool,
     getPromptTargetInfo,
     getPromptTargetText,
     fillPromptTarget,

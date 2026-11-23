@@ -109,6 +109,47 @@
     return true;
   }
 
+  let cinematicRefClearAllTimer = null;
+  let cinematicRefClearAllArmed = false;
+
+  function resetCinematicRefClearAllConfirm() {
+    if (cinematicRefClearAllTimer) {
+      clearTimeout(cinematicRefClearAllTimer);
+      cinematicRefClearAllTimer = null;
+    }
+    cinematicRefClearAllArmed = false;
+    const btn = document.getElementById('cinematicRefClearAllBtn');
+    if (btn) {
+      btn.classList.remove('is-confirming');
+      btn.textContent = '清空全部';
+      btn.setAttribute('aria-label', '清空全部参考图');
+    }
+  }
+
+  function handleCinematicRefClearAllClick(event) {
+    if (event) event.preventDefault();
+    if (!uploadedImages.length) {
+      resetCinematicRefClearAllConfirm();
+      return;
+    }
+    const btn = document.getElementById('cinematicRefClearAllBtn');
+    if (!cinematicRefClearAllArmed) {
+      cinematicRefClearAllArmed = true;
+      if (btn) {
+        btn.classList.add('is-confirming');
+        btn.textContent = '确认清空';
+        btn.setAttribute('aria-label', '再次点击确认清空全部参考图');
+      }
+      if (cinematicRefClearAllTimer) clearTimeout(cinematicRefClearAllTimer);
+      cinematicRefClearAllTimer = window.setTimeout(resetCinematicRefClearAllConfirm, 3500);
+      return;
+    }
+    resetCinematicRefClearAllConfirm();
+    if (clearAllCinematicReferences()) {
+      showStatusMessage('已清空全部参考图。', 'success');
+    }
+  }
+
   function cancelCinematicRefClearHold() {
     if (cinematicRefClearHoldTimer) {
       clearTimeout(cinematicRefClearHoldTimer);
@@ -139,6 +180,7 @@
       return;
     }
     cancelCinematicRefClearHold();
+    resetCinematicRefClearAllConfirm();
     if (removeLatestCinematicReference()) {
       showStatusMessage('已删除最近上传的一张参考图。', 'info');
     }

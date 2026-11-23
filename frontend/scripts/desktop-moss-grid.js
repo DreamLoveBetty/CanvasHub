@@ -142,7 +142,7 @@
       else if(key==='enter'&&selected){event.preventDefault();beginEdit(selected);}
     }
     const signal={signal:abort.signal};
-    host.addEventListener('pointerdown',pointerDown,signal);host.addEventListener('pointerup',pointerUp,signal);
+    host.addEventListener('pointerdown',pointerDown,signal);host.addEventListener('pointerup',pointerUp,signal);host.addEventListener('pointercancel',pointerUp,signal);
     host.addEventListener('mousedown',event=>{if(event.target.closest('[data-moss-board]')&&!event.target.closest('textarea'))event.preventDefault();},signal);
     host.addEventListener('click',click,signal);host.addEventListener('change',changed,signal);host.addEventListener('keydown',keydown,signal);
     host.addEventListener('dblclick',event=>{const cell=event.target.closest('[data-moss-cell]');if(cell&&!event.target.closest('textarea'))beginEdit(cell.dataset.mossCell);},signal);

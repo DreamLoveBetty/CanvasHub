@@ -1177,7 +1177,7 @@
       <div class="desk-text-node__image-mention-list">
         ${candidates.length ? candidates.map((candidate, index) => `
           <button type="button" data-text-image-mention-pick="${index}" role="option" aria-selected="${index === activeIndex ? 'true' : 'false'}" class="${index === activeIndex ? 'is-active' : ''}">
-            <span class="desk-text-node__image-mention-thumb">${candidate.source ? `<img src="${escapeHtml(candidate.source)}" alt="" draggable="false">` : '<i aria-hidden="true">图</i>'}</span>
+            <span class="desk-text-node__image-mention-thumb">${candidate.source ? `<img src="${escapeHtml(candidate.source)}" alt="" draggable="false" loading="lazy" decoding="async">` : '<i aria-hidden="true">图</i>'}</span>
             <span class="desk-text-node__image-mention-copy">
               <strong>@图片${candidate.imageNumber}<em>${escapeHtml(candidate.roleLabel)}</em></strong>
               <small>${escapeHtml(candidate.name)}</small>

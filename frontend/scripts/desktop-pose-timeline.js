@@ -143,7 +143,10 @@ export function createTimeline(root, {onFrame, onKey, onUnkey, onRange}) {
     pendingX = event.clientX;
     if (first) requestAnimationFrame(() => { if (pendingX !== null) go(frameAt(pendingX)); pendingX = null; });
   }, {signal: abort.signal});
-  track.addEventListener('pointerup', () => { dragging = false; }, {signal: abort.signal});
+  const stopDrag = () => { dragging = false; };
+  track.addEventListener('pointerup', stopDrag, {signal: abort.signal});
+  track.addEventListener('pointercancel', stopDrag, {signal: abort.signal});
+  track.addEventListener('lostpointercapture', stopDrag, {signal: abort.signal});
   const resize = new ResizeObserver(draw);
   resize.observe(track);
 

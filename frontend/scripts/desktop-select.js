@@ -77,7 +77,8 @@
   }
 
   function usesAnchoredMenu(select) {
-    return !!select?.closest?.('.desk-canvas-world .desk-node');
+    return !!select?.closest?.('.desk-canvas-world .desk-node')
+      && !select?.closest?.('.desk-comfy-parameter-scroll');
   }
 
   function menuContainer(select) {
@@ -488,7 +489,7 @@
     menu.id = `${id}-menu`;
     menu.dataset.selectVariant = variant;
     menu.dataset.menuMode = menuMode;
-    menu.dataset.selectWidth = select.dataset.deskSelectWidth || '';
+    menu.dataset.selectWidth = select.dataset.deskSelectWidth || (select.closest?.('.desk-comfy-parameter-scroll') ? 'content' : '');
     menu.hidden = true;
     menu.setAttribute('role', 'listbox');
     if (menuMode === 'anchored') {

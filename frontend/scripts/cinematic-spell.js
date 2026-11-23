@@ -3,11 +3,11 @@
 
   function getCinematicSpellPlaceholder(kind) {
     const placeholders = {
-      positive: '等待施法...',
-      negative: '等待施法...',
-      json: '等待施法...'
+      positive: '尚未生成提示词',
+      negative: '尚未生成提示词',
+      json: '尚未生成提示词'
     };
-    return placeholders[kind] || '等待施法...';
+    return placeholders[kind] || '尚未生成提示词';
   }
 
   function setCinematicSpellOutput(id, value, fallbackKind) {
@@ -60,14 +60,14 @@
 
     if (!topic) {
       seedEl?.focus();
-      showStatusMessage('先写一句主题、关键词或概念，再开始施法。', 'info');
+      showStatusMessage('先输入主题、关键词或画面想法，再生成提示词。', 'info');
       return;
     }
 
     const previousLabel = btn?.textContent || '生成结构化提示词';
     if (btn) {
       btn.disabled = true;
-      btn.textContent = '施法中...';
+      btn.textContent = '生成中...';
     }
 
     try {
@@ -82,7 +82,7 @@
       showStatusMessage('结构化提示词已生成。', 'success');
     } catch (error) {
       renderCinematicSpellResult(null);
-      showStatusMessage(error.message || '咒术生成失败，请稍后再试。', 'error');
+      showStatusMessage(error.message || '提示词生成失败，请稍后再试。', 'error');
     } finally {
       if (btn) {
         btn.disabled = false;

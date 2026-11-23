@@ -1,7 +1,15 @@
 /* Base layout, classic UI, shared components */
-    @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Cormorant+Garamond:wght@600;700&display=swap');
-
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+    html {
+      -webkit-tap-highlight-color: transparent;
+      -webkit-text-size-adjust: 100%;
+      overscroll-behavior: none;
+    }
+
+    button, a, [role="button"] {
+      touch-action: manipulation;
+    }
 
     :root{
       --bg:       #f4f6f8;
@@ -64,7 +72,7 @@
       cursor: pointer;
       border: 1px solid var(--border);
       flex-shrink: 0;
-      transition: all 0.2s;
+      transition: transform 0.2s ease, background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
     }
     .home-menu-btn:active { transform: scale(0.95); }
     
@@ -74,7 +82,7 @@
       background: rgba(0,0,0,0.4);
       z-index: 200;
       opacity: 0; visibility: hidden;
-      transition: all 0.3s;
+      transition: opacity 0.3s ease, visibility 0.3s ease;
       backdrop-filter: blur(2px);
     }
     .sidebar-overlay.open { opacity: 1; visibility: visible; }
@@ -114,7 +122,7 @@
       cursor: pointer;
       line-height: 1;
     }
-    .sidebar-close { font-size: 24px; color: var(--muted); cursor: pointer; }
+    .sidebar-close { font-size: 24px; color: var(--muted); cursor: pointer; border: 0; background: transparent; padding: 0; min-width: 44px; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; }
     
     .history-filters {
       display: flex;
@@ -205,7 +213,7 @@
     .modal-overlay {
       position: fixed; top: 0; left: 0; width: 100%; height: 100%;
       background: rgba(0,0,0,0.6); z-index: 300;
-      opacity: 0; visibility: hidden; transition: all 0.2s;
+      opacity: 0; visibility: hidden; transition: opacity 0.2s ease, visibility 0.2s ease;
       backdrop-filter: blur(4px);
       display: flex; align-items: center; justify-content: center;
       padding: 20px;
@@ -218,7 +226,7 @@
       border-radius: 16px;
       box-shadow: 0 10px 40px rgba(0,0,0,0.2);
       overflow: hidden;
-      transform: scale(0.95); transition: all 0.2s;
+      transform: scale(0.95); transition: transform 0.2s ease, opacity 0.2s ease;
       display: flex; flex-direction: column;
       max-height: 80vh;
     }
@@ -229,7 +237,7 @@
       display: flex; justify-content: space-between; align-items: center;
       font-weight: 700; font-size: 1rem;
     }
-    .modal-close { cursor: pointer; font-size: 24px; color: var(--muted); line-height: 1; }
+    .modal-close { cursor: pointer; font-size: 24px; color: var(--muted); line-height: 1; border: 0; background: transparent; padding: 0; min-width: 44px; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; }
     
     .modal-body {
       padding: 20px;
@@ -296,7 +304,7 @@
       color: var(--muted);
       border-radius: 8px;
       cursor: pointer;
-      transition: all 0.2s;
+      transition: background-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
     }
     .tab.active {
       background: #fff;
@@ -333,7 +341,7 @@
       font-size: 0.85rem;
       color: var(--muted);
       cursor: pointer;
-      transition: all 0.15s;
+      transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
       border-left: 3px solid transparent;
       background: rgba(255, 255, 255, 0.3);
       margin: 6px 10px;
@@ -398,7 +406,7 @@
       align-items: center;
       justify-content: center;
       font-size: 14px;
-      transition: all 0.2s;
+      transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, transform 0.2s ease;
       flex-shrink: 0;
     }
     .prompt-action-btn:hover {
@@ -423,12 +431,28 @@
       color: var(--muted);
     }
     
-    .prompt-tips span {
+    .prompt-tips span,
+    .prompt-tips button {
       margin-right: 10px;
       cursor: pointer;
+      font: inherit;
+      color: inherit;
+      border: 0;
+      background: transparent;
     }
-    
-    .prompt-tips span:hover {
+
+    .section-sub-btn,
+    .comfy-remove-img-btn {
+      border: 0;
+      background: transparent;
+      padding: 6px 8px;
+      font: inherit;
+      color: var(--primary);
+      cursor: pointer;
+    }
+
+    .prompt-tips span:hover,
+    .prompt-tips button:hover {
       color: var(--primary);
     }
     
@@ -466,7 +490,7 @@
       border: 2px solid #e2e8f0;
       border-radius: 12px;
       cursor: pointer;
-      transition: all 0.2s;
+      transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
       position: relative;
     }
     .model-option input[type="radio"] {
@@ -512,7 +536,7 @@
       justify-content: center;
       cursor: pointer;
       position: relative;
-      transition: all 0.2s;
+      transition: background-color 0.2s ease, border-color 0.2s ease;
     }
     .ref-slot:active { background: #f1f5f9; border-color: var(--primary); }
     .ref-slot .num-badge {
@@ -560,7 +584,7 @@
       font-size: 0.85rem; font-family: var(--font); color: var(--text);
       font-weight: 500;
       box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-      transition: all 0.2s;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -630,7 +654,7 @@
       font-weight: 600;
       white-space: nowrap;
       cursor: pointer;
-      transition: all 0.2s;
+      transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
       scroll-snap-align: start;
       user-select: none;
     }
@@ -657,7 +681,7 @@
       font-size: 0.85rem;
       font-weight: 600;
       color: var(--text);
-      transition: all 0.2s;
+      transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
       cursor: pointer;
     }
     .q-btn.selected {
@@ -705,7 +729,7 @@
       border: 1px solid #e2e8f0;
       border-radius: 8px;
       font-size: 0.75rem; font-weight: 600; color: var(--text);
-      transition: all 0.2s;
+      transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
     }
     .r-btn.selected {
       background: var(--surface);
@@ -762,7 +786,9 @@
     .auth-overlay {
       position: fixed;
       inset: 0;
-      background: #f8fafc;
+      min-height: 100vh;
+      min-height: 100dvh;
+      background: #0d0f0c;
       display: none;
       align-items: center;
       justify-content: center;
@@ -770,23 +796,54 @@
       padding: 24px;
     }
     .auth-card {
-      background: #fff;
-      border: 1px solid var(--border);
-      border-radius: 16px;
+      background: #1a1c17;
+      border: 1px solid rgba(255, 239, 182, 0.14);
+      border-radius: 20px;
       padding: 24px;
-      max-width: 420px;
+      width: min(100%, 360px);
       text-align: center;
-      box-shadow: 0 12px 30px rgba(15,23,42,0.1);
+      color: #ede7d2;
+      box-shadow: 0 24px 56px rgba(0, 0, 0, 0.42);
     }
     .auth-title {
-      font-size: 1.05rem;
+      font-size: 1.15rem;
       font-weight: 700;
       margin-bottom: 8px;
     }
     .auth-message {
       font-size: 0.9rem;
-      color: var(--muted);
-      line-height: 1.5;
+      color: rgba(237, 231, 210, 0.78);
+      line-height: 1.55;
+    }
+    .auth-input-row {
+      margin-top: 18px;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .auth-password-input {
+      width: 100%;
+      min-height: 44px;
+      padding: 10px 14px;
+      border-radius: 14px;
+      border: 1px solid rgba(255, 239, 182, 0.18);
+      background: rgba(8, 9, 8, 0.48);
+      color: #f3f0e4;
+      font: inherit;
+      font-size: 16px;
+      outline: none;
+    }
+    .auth-submit-btn {
+      width: 100%;
+      min-height: 44px;
+      padding: 10px 16px;
+      border: 0;
+      border-radius: 14px;
+      background: linear-gradient(135deg, #e5c458 0%, #c8981c 100%);
+      color: #141510;
+      font: inherit;
+      font-size: 15px;
+      font-weight: 800;
+      cursor: pointer;
     }
 
     /* ── Skeuo Fresh Theme Override ─────────────── */
@@ -1270,7 +1327,8 @@
       min-width: 0;
     }
 
-    .prompt-tips span {
+    .prompt-tips span,
+    .prompt-tips button {
       display: inline-flex;
       align-items: center;
       gap: 6px;
@@ -1284,7 +1342,8 @@
       font-weight: 700;
     }
 
-    .prompt-footer-inline .prompt-tips span {
+    .prompt-footer-inline .prompt-tips span,
+    .prompt-footer-inline .prompt-tips button {
       margin-right: 0;
       margin-bottom: 0;
     }
@@ -1791,15 +1850,65 @@
     .settings-trigger {
       display: none;
       position: relative;
+      width: 100%;
       align-items: center;
       gap: 14px;
       padding: 16px 18px;
       margin: 2px 0 20px;
+      text-align: left;
       border-radius: 28px;
       background: linear-gradient(180deg, rgba(248,252,249,0.98), rgba(232,242,236,0.98));
       box-shadow: 0 18px 28px rgba(135, 160, 146, 0.16), inset 0 1px 0 rgba(255,255,255,0.96);
       cursor: pointer;
       overflow: hidden;
+    }
+
+    .comfy-upload-panel {
+      background: #fff;
+      border: 2px dashed #e2e8f0;
+      border-radius: 12px;
+      padding: 12px;
+      text-align: center;
+      margin-bottom: 20px;
+      cursor: pointer;
+    }
+
+    .comfy-upload-placeholder {
+      color: #64748b;
+      font-size: 14px;
+    }
+
+    .comfy-upload-preview {
+      max-width: 100%;
+      max-height: 200px;
+      border-radius: 8px;
+      margin: 0 auto;
+    }
+
+    .comfy-remove-img-btn {
+      color: #ef4444;
+      font-size: 12px;
+      margin-top: 8px;
+      background: transparent;
+      border: 0;
+      cursor: pointer;
+    }
+
+    .comfy-result-stage {
+      margin-top: 20px;
+      text-align: center;
+    }
+
+    .comfy-result-status {
+      color: #64748b;
+      font-size: 14px;
+    }
+
+    .comfy-result-image {
+      max-width: 100%;
+      border-radius: 12px;
+      margin-top: 10px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
     }
 
     .settings-trigger::before {
@@ -2534,11 +2643,11 @@
     }
 
     .upload-panel {
-      padding: 16px !important;
-      border-radius: 28px !important;
-      border: 1px solid rgba(210, 223, 214, 0.96) !important;
-      box-shadow: var(--shadow-card) !important;
-      background: linear-gradient(180deg, #fbfefc 0%, #eef6f0 100%) !important;
+      padding: 16px;
+      border-radius: var(--radius-panel, 28px);
+      border: 1px solid var(--panel-border, rgba(210, 223, 214, 0.96));
+      box-shadow: var(--stage-shadow, var(--shadow-card));
+      background: var(--panel-bg, linear-gradient(180deg, #fbfefc 0%, #eef6f0 100%));
     }
 
     #comfyUploadPlaceholder {

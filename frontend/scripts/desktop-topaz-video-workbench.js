@@ -98,9 +98,9 @@
               <div class="desk-topaz-video-workbench__timeline">
                 <div class="desk-topaz-video-workbench__timeline-head">
                   <div class="desk-topaz-video-workbench__trim-tools" role="group" aria-label="选区工具">
-                    <button type="button" data-tvwb-mark="start" title="在播放头设置入点（I）">[</button>
-                    <button type="button" data-tvwb-mark="end" title="在播放头设置出点（O）">]</button>
-                    <button type="button" data-tvwb-mark="clear" title="清除选区">×</button>
+                    <button type="button" data-tvwb-mark="start" title="在播放头设置入点（I）" aria-label="在播放头设置入点">[</button>
+                    <button type="button" data-tvwb-mark="end" title="在播放头设置出点（O）" aria-label="在播放头设置出点">]</button>
+                    <button type="button" data-tvwb-mark="clear" title="清除选区" aria-label="清除选区">×</button>
                   </div>
                   <strong>预览选区</strong><span>入点 <input type="number" min="0" step="0.01" data-stepper="off" data-tvwb-start-number> 秒</span><span>出点 <input type="number" min="0" step="0.01" data-stepper="off" data-tvwb-end-number> 秒</span><em data-tvwb-selection-length>5.00 秒</em>
                   <label class="desk-topaz-video-workbench__timeline-zoom"><span>缩放</span><input type="range" min="1" max="4" step="1" value="1" data-tvwb-timeline-zoom><output data-tvwb-timeline-zoom-label>1×</output></label>

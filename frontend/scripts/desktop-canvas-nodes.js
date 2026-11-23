@@ -599,7 +599,7 @@
     const name = escapeHtml(node.imageName || '图片节点');
     return `
       <section class="desk-node desk-node--image ${rawSrc ? 'has-image' : 'is-empty'}" data-node-id="${node.id}" data-node-drag-handle aria-label="图片节点">
-        ${src ? `<img src="${src}" alt="${name}" draggable="false">` : imageNodePlaceholderHtml()}
+        ${src ? `<img src="${src}" alt="${name}" draggable="false" loading="lazy" decoding="async">` : imageNodePlaceholderHtml()}
         ${imageNodeToolsHtml(node)}
         <button type="button" class="desk-port desk-port--in desk-port--image-in" data-port="in" data-node-id="${node.id}" title="连接模型输出到这里" aria-label="连接图片输入"></button>
         <button type="button" class="desk-port desk-port--out" data-port="out" data-node-id="${node.id}" title="连接到可接入图片的节点" aria-label="连接图片输出"></button>
@@ -626,7 +626,7 @@
         <button type="button" class="desk-port desk-port--in desk-port--layout-in" data-port="in" data-node-id="${node.id}" title="连接图片节点到排版" aria-label="连接图片输入"></button>
         <button type="button" class="desk-port desk-port--out" data-port="out" data-node-id="${node.id}" title="连接到可接入图片的节点" aria-label="连接排版输出"></button>
         <div class="desk-layout-node-preview" data-layout-preview>
-          ${preview ? `<img src="${preview}" alt="排版预览">` : '<span>尚未排版</span>'}
+          ${preview ? `<img src="${preview}" alt="排版预览" loading="lazy" decoding="async">` : '<span>尚未排版</span>'}
         </div>
         <div class="desk-layout-node-actions">
           <button type="button" class="desk-key is-primary" data-layout-open>打开排版</button>
@@ -893,7 +893,7 @@
     const preview = el.querySelector('[data-layout-preview]');
     if (!preview) return;
     const src = node.layoutPreview || node.layoutExport || '';
-    preview.innerHTML = src ? `<img src="${escapeHtml(src)}" alt="排版预览">` : '<span>尚未排版</span>';
+    preview.innerHTML = src ? `<img src="${escapeHtml(src)}" alt="排版预览" loading="lazy" decoding="async">` : '<span>尚未排版</span>';
     updateLayoutInputCount(nodeId);
     renderMiniMap();
   }
@@ -950,7 +950,7 @@
         existingImage.src = src;
         existingImage.alt = node.imageName || '图片节点';
       } else {
-        existingPlaceholder?.insertAdjacentHTML('beforebegin', `<img src="${escapeHtml(src)}" alt="${escapeHtml(node.imageName || '图片节点')}" draggable="false">`);
+        existingPlaceholder?.insertAdjacentHTML('beforebegin', `<img src="${escapeHtml(src)}" alt="${escapeHtml(node.imageName || '图片节点')}" draggable="false" loading="lazy" decoding="async">`);
         existingPlaceholder?.remove();
       }
     } else if (existingPlaceholder) {

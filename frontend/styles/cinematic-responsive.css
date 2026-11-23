@@ -1,7 +1,7 @@
 /* Cinematic mobile responsive adjustments */
     @media (max-width: 768px) {
       .cinematic-header {
-        padding: 8px 14px 6px;
+        padding: calc(8px + env(safe-area-inset-top, 0px)) 16px 8px;
       }
 
       .cinematic-brand-title {
@@ -9,7 +9,7 @@
       }
 
       .cinematic-top-nav {
-        gap: 14px;
+        display: none;
       }
 
       .cinematic-main {
@@ -22,11 +22,11 @@
       }
 
       .cinematic-spell-hero strong {
-        font-size: 22px;
+        font-size: 20px;
       }
 
       .cinematic-spell-hero p {
-        font-size: 11px;
+        font-size: 13px;
       }
 
       .cinematic-spell-grid {
@@ -39,24 +39,24 @@
       }
 
       .cinematic-spell-input {
-        min-height: 148px;
+        min-height: 140px;
         border-radius: 14px;
-        font-size: 13px;
+        font-size: 16px;
         padding: 12px 13px;
       }
 
       .cinematic-spell-primary,
       .cinematic-spell-secondary,
       .cinematic-spell-copy {
-        min-height: 32px;
-        border-radius: 11px;
-        font-size: 10px;
+        min-height: 44px;
+        border-radius: 12px;
+        font-size: 13px;
       }
 
       .cinematic-spell-result,
       .cinematic-spell-json {
         border-radius: 14px;
-        font-size: 10px;
+        font-size: 12px;
         min-height: 64px;
       }
 
@@ -67,12 +67,12 @@
 
       .cinematic-record-media,
       .cinematic-record-body {
-        min-height: 114px;
+        min-height: 144px;
       }
 
       .cinematic-record-media {
-        width: 82px;
-        height: 114px;
+        width: 86px;
+        height: 144px;
         border-radius: 18px;
       }
 
@@ -126,8 +126,8 @@
       }
 
       .cinematic-viewer-action-label {
-        font-size: 8px;
-        letter-spacing: 0.1em;
+        font-size: 11px;
+        letter-spacing: 0.06em;
       }
 
       .cinematic-record-body {
@@ -137,16 +137,16 @@
       }
 
       .cinematic-record-title {
-        font-size: 13px;
+        font-size: 14px;
       }
 
       .cinematic-record-prompt {
-        font-size: 10px;
-        min-height: 28px;
+        font-size: 12px;
+        min-height: 34px;
       }
 
       .cinematic-record-source {
-        max-width: 92px;
+        max-width: 108px;
       }
 
       .cinematic-record-source-thumb {
@@ -156,9 +156,9 @@
       }
 
       .cinematic-record-action {
-        width: 32px;
-        height: 32px;
-        font-size: 13px;
+        width: 44px;
+        height: 44px;
+        font-size: 15px;
       }
 
       .cinematic-style-grid {
@@ -166,15 +166,22 @@
       }
 
       .cinematic-style-toolbar {
-        gap: 6px;
+        gap: 8px;
         margin-bottom: 10px;
       }
 
       .cinematic-style-search,
       .cinematic-style-create {
-        height: 32px;
+        min-height: 44px;
         border-radius: 12px;
-        font-size: 10px;
+      }
+
+      .cinematic-style-search {
+        font-size: 16px;
+      }
+
+      .cinematic-style-create {
+        font-size: 13px;
       }
 
       .cinematic-style-editor-overlay {
@@ -184,7 +191,7 @@
 
       .cinematic-style-editor {
         width: 100%;
-        max-height: min(88svh, 780px);
+        max-height: min(88dvh, 780px);
         border-radius: 26px 26px 18px 18px;
       }
 
@@ -193,7 +200,7 @@
       }
 
       .cinematic-style-editor-title {
-        font-size: 24px;
+        font-size: 20px;
       }
 
       .cinematic-style-editor-body {
@@ -207,17 +214,17 @@
 
       .cinematic-style-input,
       .cinematic-style-select {
-        height: 36px;
-        font-size: 12px;
+        min-height: 44px;
+        font-size: 16px;
       }
 
       .cinematic-style-textarea {
-        min-height: 78px;
-        font-size: 12px;
+        min-height: 84px;
+        font-size: 16px;
       }
 
       .cinematic-style-textarea.is-tall {
-        min-height: 108px;
+        min-height: 112px;
       }
 
       .cinematic-style-editor-actions {
@@ -229,27 +236,27 @@
       }
 
       .cinematic-discover-hero strong {
-        font-size: 22px;
+        font-size: 20px;
         margin-bottom: 5px;
       }
 
       .cinematic-discover-hero p {
-        font-size: 11px;
-        line-height: 1.45;
+        font-size: 13px;
+        line-height: 1.5;
       }
 
       .cinematic-composer-dock {
-        bottom: 66px;
+        bottom: calc(var(--cinematic-bottom-nav-offset, 68px) + 8px);
         padding: 0 9px;
       }
 
       .cinematic-bottom-nav {
         gap: 5px;
-        padding: 6px 10px 8px;
+        padding: 6px 10px calc(8px + env(safe-area-inset-bottom, 0px));
       }
 
       .cinematic-spell-sheet {
-        bottom: 70px;
+        bottom: calc(var(--cinematic-bottom-nav-offset, 68px) + 8px);
         width: min(calc(100% - 18px), 520px);
         border-radius: 18px;
       }
@@ -263,7 +270,7 @@
       }
 
       .cinematic-spell-head span {
-        font-size: 10px;
+        font-size: 12px;
       }
 
       .cinematic-spell-actions {
@@ -279,44 +286,45 @@
       }
 
       .cinematic-spell-action strong {
-        font-size: 13px;
+        font-size: 14px;
       }
 
       .cinematic-spell-action span {
-        font-size: 9px;
+        font-size: 12px;
       }
 
       .cinematic-bottom-action {
-        min-height: 40px;
+        min-height: 48px;
         border-radius: 12px;
         padding: 4px 0 3px;
-        font-size: 9px;
+        font-size: 11px;
       }
 
       .cinematic-bottom-action strong {
-        font-size: 15px;
+        font-size: 16px;
       }
 
       html[data-layout="cinematic"] #cinematicMenu {
-        bottom: calc(var(--cinematic-bottom-nav-offset, 66px) + 4px);
+        bottom: calc(var(--cinematic-bottom-nav-offset, 68px) + 6px);
         right: 8px;
-        width: min(248px, calc(50vw - 12px));
-        min-width: 188px;
-        max-height: min(52vh, 420px);
+        width: min(268px, calc(74vw - 12px));
+        min-width: 212px;
+        max-height: min(54vh, 440px);
+        max-height: min(54dvh, 440px);
       }
 
       html[data-layout="cinematic"] #cinematicMenu .main-menu-panel {
-        padding: 9px;
-        gap: 7px;
-        border-radius: 16px;
+        padding: 10px;
+        gap: 8px;
+        border-radius: 18px;
       }
 
       html[data-layout="cinematic"] #cinematicMenu .main-menu-title {
-        font-size: 22px;
+        font-size: 17px;
       }
 
       html[data-layout="cinematic"] #cinematicMenu .main-menu-subtitle {
-        font-size: 10px;
+        font-size: 12px;
       }
 
       html[data-layout="cinematic"] #cinematicMenu .main-menu-row {
@@ -329,33 +337,36 @@
         gap: 7px;
       }
 
-      html[data-layout="cinematic"] #cinematicMenu .main-menu-section-head strong,
+      html[data-layout="cinematic"] #cinematicMenu .main-menu-section-head strong {
+        font-size: 12px;
+      }
+
       html[data-layout="cinematic"] #cinematicMenu .main-menu-section-head span,
       html[data-layout="cinematic"] #cinematicMenu .main-menu-section-note {
-        font-size: 9px;
+        font-size: 11px;
       }
 
       html[data-layout="cinematic"] #cinematicMenu .cinematic-color-option {
-        min-height: 46px;
-        padding: 8px 9px;
-        grid-template-columns: 24px minmax(0, 1fr) auto;
-        gap: 8px;
+        min-height: 48px;
+        padding: 8px 10px;
+        grid-template-columns: 26px minmax(0, 1fr) auto;
+        gap: 9px;
       }
 
       html[data-layout="cinematic"] #cinematicMenu .cinematic-color-swatch {
-        width: 24px;
-        height: 24px;
+        width: 26px;
+        height: 26px;
         border-radius: 8px;
       }
 
       html[data-layout="cinematic"] #cinematicMenu .cinematic-color-badge {
-        font-size: 7px;
-        padding: 4px 5px;
+        font-size: 11px;
+        padding: 4px 7px;
       }
 
       html[data-layout="cinematic"] #cinematicMenu .menu-icon {
-        width: 24px;
-        height: 24px;
+        width: 26px;
+        height: 26px;
         border-radius: 8px;
         font-size: 13px;
       }
@@ -363,46 +374,53 @@
       html[data-layout="cinematic"] #cinematicMenu .main-menu-pill {
         right: 10px;
         top: 10px;
-        font-size: 8px;
+        font-size: 11px;
         padding: 4px 6px;
       }
 
       .cinematic-composer-top {
         gap: 6px;
-        padding: 8px 9px 6px;
+        padding: 7px 9px 6px;
       }
 
       .cinematic-ref-upload {
-        width: 30px;
-        min-height: 30px;
-        flex-basis: 30px;
-        border-radius: 10px;
+        min-width: 44px;
+        min-height: 44px;
+        padding: 0 10px;
+        border-radius: 12px;
       }
 
       .cinematic-ref-thumb {
-        width: 30px;
-        height: 30px;
-        border-radius: 9px;
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
       }
 
       .cinematic-ref-strip {
-        gap: 4px;
-        min-height: 30px;
+        gap: 5px;
+        min-height: 44px;
       }
 
       .cinematic-ref-clear {
-        width: 30px;
-        min-height: 30px;
-        flex-basis: 30px;
-        border-radius: 10px;
-        font-size: 13px;
+        width: 44px;
+        min-height: 44px;
+        flex-basis: 44px;
+        border-radius: 12px;
+        font-size: 15px;
+      }
+
+      .cinematic-ref-clear-all {
+        min-height: 44px;
+        padding: 0 10px;
+        border-radius: 12px;
+        font-size: 12px;
       }
 
       .cinematic-ref-empty {
-        min-height: 30px;
+        min-height: 44px;
         padding: 0 10px;
         border-radius: 12px;
-        font-size: 9px;
+        font-size: 12px;
       }
 
       .cinematic-composer-mid {
@@ -410,13 +428,13 @@
       }
 
       .cinematic-prompt {
-        min-height: 108px;
+        min-height: 88px;
         font-size: 16px;
       }
 
       .cinematic-composer-bottom {
         gap: 6px;
-        padding: 1px 9px 5px;
+        padding: 6px 9px 7px;
       }
 
       .cinematic-pill-row {
@@ -426,56 +444,53 @@
       }
 
       .cinematic-submit-side {
-        gap: 4px;
+        gap: 5px;
       }
 
       .cinematic-utility-chip,
       .cinematic-style-chip {
-        min-height: 24px;
-        padding: 0 8px;
-        font-size: 9px;
+        min-height: 38px;
+        padding: 0 10px;
+        font-size: 12px;
       }
 
       .cinematic-style-edit {
-        width: 24px;
-        height: 24px;
-        border-radius: 8px;
-        font-size: 11px;
+        width: 44px;
+        height: 44px;
+        border-radius: 12px;
+        font-size: 14px;
       }
 
       .cinematic-pill {
-        min-height: 28px;
+        min-height: 44px;
         padding: 0 8px 0 9px;
-        border-radius: 10px;
-        font-size: 9px;
-        gap: 5px;
+        border-radius: 11px;
+        font-size: 12px;
+        gap: 4px;
       }
 
       .cinematic-pill-caret {
-        font-size: 8px;
+        font-size: 11px;
       }
 
       .cinematic-pop-menu {
         bottom: calc(100% + 6px);
-        padding: 4px;
-        border-radius: 12px;
+        padding: 6px;
+        border-radius: 14px;
       }
 
       .cinematic-pop-option {
-        min-height: 28px;
-        padding: 0 9px;
-        border-radius: 8px;
-        font-size: 10px;
+        min-height: 44px;
+        padding: 0 10px;
+        border-radius: 10px;
+        font-size: 12px;
       }
 
       .cinematic-submit-btn {
-        width: 58px;
-        height: 32px;
+        min-width: 76px;
+        min-height: 44px;
+        padding: 0 13px;
         border-radius: 12px;
-        font-size: 15px;
-      }
-
-      .cinematic-submit-btn.is-letter {
-        font-size: 18px;
+        font-size: 14px;
       }
     }

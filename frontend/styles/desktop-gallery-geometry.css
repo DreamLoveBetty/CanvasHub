@@ -130,14 +130,14 @@
 
 :where(body.desk-app[data-theme]) .desk-history-retry:hover,
 :where(body.desk-app[data-theme]) .desk-history-edit:hover {
-  background: rgba(226, 242, 255, 0.94);
-  border-color: rgba(30, 136, 229, 0.42);
+  background: var(--desk-color-control-bg-hover);
+  border-color: var(--desk-color-control-border-hover);
 }
 
 :where(body.desk-app[data-theme]) .desk-history-edit:hover {
   color: var(--desk-blue);
-  background: rgba(255, 255, 255, 0.48);
-  border-color: rgba(8, 79, 189, 0.2);
+  background: var(--desk-color-control-bg-hover);
+  border-color: var(--desk-color-control-border-hover);
 }
 
 :where(body.desk-app[data-theme]) .desk-history-edit .desk-icon {
@@ -175,7 +175,7 @@ body.desk-workbench-open.desk-app[data-theme] :is(.desk-history, .desk-zoom-cont
 
 :where(body.desk-app[data-theme]) .desk-history-windchime-button:hover {
   color: var(--desk-jewel-hover-top);
-  background: rgba(6, 52, 111, 0.1);
+  background: var(--desk-windchime-hover-background);
 }
 
 :where(body.desk-app[data-theme]) .desk-history-windchime-button--dock:hover {
@@ -196,18 +196,20 @@ body.desk-workbench-open.desk-app[data-theme] :is(.desk-history, .desk-zoom-cont
   position: absolute;
   top: 0;
   left: 50%;
-  width: 1px;
-  height: 24px;
-  background: linear-gradient(to bottom, rgba(6, 52, 111, 0.16), rgba(6, 52, 111, 0.78));
+  width: 1.5px;
+  height: 22px;
+  background: var(--desk-windchime-cord-background);
   border-radius: 999px;
+  transform: translateX(-50%);
 }
 
 :where(body.desk-app[data-theme]) .desk-history-windchime__body {
   position: absolute;
-  top: 21px;
+  top: 20px;
   left: 50%;
   width: 34px;
-  height: 42px;
+  height: 46px;
+  transform: translateX(-50%);
 }
 
 :where(body.desk-app[data-theme]) .desk-history-windchime__cap,
@@ -221,42 +223,81 @@ body.desk-workbench-open.desk-app[data-theme] :is(.desk-history, .desk-zoom-cont
 
 :where(body.desk-app[data-theme]) .desk-history-windchime__cap {
   top: 0;
-  width: 22px;
-  height: 7px;
+  width: 14px;
+  height: 4px;
   background: var(--desk-jewel-gradient);
   border: 1px solid var(--desk-jewel-border);
-  border-radius: 9px 9px 4px 4px;
-  box-shadow: 0 3px 8px rgba(2, 31, 79, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.34);
+  border-radius: 6px 6px 2px 2px;
+  box-shadow: var(--desk-windchime-cap-shadow);
 }
 
 :where(body.desk-app[data-theme]) .desk-history-windchime__bell {
-  top: 5px;
-  width: 28px;
-  height: 19px;
-  background: radial-gradient(circle at 34% 24%, rgba(255, 255, 255, 0.62), transparent 33%),
+  top: 3px;
+  width: 26px;
+  height: 18px;
+  overflow: visible;
+  background: var(--desk-windchime-bell-sheen),
     linear-gradient(145deg, var(--desk-jewel-top), var(--desk-jewel-bottom));
   border: 1px solid var(--desk-jewel-border);
-  border-radius: 13px 13px 8px 8px;
-  clip-path: polygon(18% 0, 82% 0, 100% 100%, 0 100%);
-  box-shadow: 0 5px 12px rgba(2, 31, 79, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.28);
+  border-radius: 13px 13px 5px 5px / 15px 15px 4px 4px;
+  box-shadow: var(--desk-windchime-bell-shadow);
+}
+
+:where(body.desk-app[data-theme]) .desk-history-windchime__bell::after {
+  position: absolute;
+  bottom: -1px;
+  left: 50%;
+  width: 28px;
+  height: 2px;
+  content: "";
+  background: var(--desk-jewel-bottom);
+  border-radius: 999px;
+  opacity: 0.72;
+  transform: translateX(-50%);
+}
+
+:where(body.desk-app[data-theme]) .desk-history-windchime__glint {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.72);
+  stroke-linecap: round;
+  stroke-width: 1.4;
+  opacity: var(--desk-windchime-glint-opacity, 0.55);
+  pointer-events: none;
 }
 
 :where(body.desk-app[data-theme]) .desk-history-windchime__clapper {
-  top: 23px;
-  width: 2px;
-  height: 13px;
-  background: rgba(6, 52, 111, 0.74);
+  top: 21px;
+  width: 1.5px;
+  height: 12px;
+  background: var(--desk-windchime-clapper-background);
   border-radius: 999px;
 }
 
+:where(body.desk-app[data-theme]) .desk-history-windchime__clapper::after {
+  position: absolute;
+  bottom: -1px;
+  left: 50%;
+  width: 4px;
+  height: 4px;
+  content: "";
+  background: var(--desk-windchime-clapper-background);
+  border-radius: 999px;
+  transform: translateX(-50%);
+}
+
 :where(body.desk-app[data-theme]) .desk-history-windchime__sail {
-  top: 36px;
-  width: 12px;
-  height: 15px;
-  background: linear-gradient(180deg, var(--desk-jewel-hover-top), var(--desk-jewel-bottom));
+  top: 33px;
+  width: 9px;
+  height: 16px;
+  background: var(--desk-windchime-sail-background, linear-gradient(180deg, var(--desk-jewel-hover-top), var(--desk-jewel-bottom)));
   border: 1px solid var(--desk-jewel-border);
-  border-radius: 5px 5px 7px 7px;
-  box-shadow: 0 4px 10px rgba(2, 31, 79, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  border-radius: 2px 2px 3px 3px;
+  box-shadow: var(--desk-windchime-sail-shadow);
 }
 
 :where(body.desk-app[data-theme]) .desk-history__rail {
@@ -298,6 +339,10 @@ body.desk-workbench-open.desk-app[data-theme] :is(.desk-history, .desk-zoom-cont
   animation: desk-windchime-sail 2.9s ease-in-out infinite;
 }
 
+:where(body.desk-app[data-theme]) .desk-history-windchime-button--hang:is(:hover, .is-chime-ringing) .desk-history-windchime {
+  animation: desk-windchime-ring 2s cubic-bezier(0.22, 1, 0.36, 1) 1;
+}
+
 :where(body.desk-app[data-theme]) .desk-history-windchime-button--dock {
   height: 30px;
   background: transparent;
@@ -308,7 +353,7 @@ body.desk-workbench-open.desk-app[data-theme] :is(.desk-history, .desk-zoom-cont
 :where(body.desk-app[data-theme]) .desk-history-windchime-button--dock .desk-history-windchime {
   width: 28px;
   height: 28px;
-  animation: desk-windchime-dock-in 360ms cubic-bezier(0.18, 1.14, 0.3, 1) both;
+  animation: desk-windchime-dock-in 360ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 :where(body.desk-app[data-theme]) .desk-history-windchime-button--dock .desk-history-windchime__cord {
@@ -316,7 +361,7 @@ body.desk-workbench-open.desk-app[data-theme] :is(.desk-history, .desk-zoom-cont
 }
 
 :where(body.desk-app[data-theme]) .desk-history-windchime-button--dock .desk-history-windchime__body {
-  top: 1px;
+  top: 4px;
   transform: translateX(-50%) scale(0.72);
 }
 
@@ -333,17 +378,41 @@ body.desk-workbench-open.desk-app[data-theme] :is(.desk-history, .desk-zoom-cont
 :where(body.desk-app[data-theme]) .desk-gallery-tab-groups {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 0;
+  height: 30px;
+  min-height: 30px;
+  padding: 2px;
+  border-width: 1px;
+  border-style: solid;
+  border-radius: 10px;
   min-width: 0;
   max-width: 100%;
 }
 
 :where(body.desk-app[data-theme]) .desk-gallery-tab-groups > .desk-gallery-tabs {
+  height: auto;
+  min-height: 0;
   min-width: 0;
+  padding: 0;
+  border-width: 0;
+  border-radius: 0;
 }
 
 :where(body.desk-app[data-theme]) .desk-gallery-tab-groups > .desk-gallery-tabs--models {
+  position: relative;
   flex-shrink: 0;
+  margin-left: 6px;
+  padding-left: 7px;
+}
+
+:where(body.desk-app[data-theme]) .desk-gallery-tab-groups > .desk-gallery-tabs--models::before {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 1px;
+  height: 14px;
+  content: "";
+  transform: translateY(-50%);
 }
 
 :where(body.desk-app[data-theme]) .desk-gallery-video-source {
@@ -651,8 +720,8 @@ body.desk-app[data-lang="en"] .desk-gallery-tabs button[data-gallery-view="sets"
 
 :where(body.desk-app[data-theme]) .desk-pinterest-download-board:hover:not(:disabled) {
   color: var(--pinterest-sync-accent);
-  background: rgba(255, 255, 255, 0.88);
-  border-color: rgba(8, 79, 189, 0.28);
+  background: var(--desk-color-control-bg-hover);
+  border-color: color-mix(in srgb, var(--pinterest-sync-accent) 34%, transparent);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8),
     0 7px 16px rgba(31, 45, 62, 0.14);
   transform: translateY(-1px);
@@ -983,7 +1052,7 @@ body.desk-app[data-lang="en"] .desk-gallery-tabs button[data-gallery-view="sets"
 
 :where(body.desk-app[data-theme]) .desk-gallery-card__description {
   display: -webkit-box;
-  font-size: 8px;
+  font-size: var(--desk-font-size-micro);
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 1;
 }
@@ -1103,7 +1172,7 @@ body.desk-app[data-lang="en"] .desk-gallery-tabs button[data-gallery-view="sets"
 }
 
 :where(body.desk-app[data-theme]) .desk-gallery-video.is-expanded .desk-gallery-video-folder__case i {
-  font-size: 5px;
+  font-size: 10px;
 }
 
 :where(body.desk-app[data-theme]) .desk-gallery-video.is-expanded .desk-gallery-video-folder__case b {
@@ -1123,7 +1192,7 @@ body.desk-app[data-lang="en"] .desk-gallery-tabs button[data-gallery-view="sets"
   justify-self: end;
   padding: 5px 7px;
   color: var(--desk-muted);
-  font-size: 9px;
+  font-size: var(--desk-font-size-micro);
   font-weight: var(--desk-font-weight-semibold);
   line-height: 1;
   background: rgba(255, 255, 255, 0.58);
@@ -1480,8 +1549,8 @@ body.desk-app[data-lang="en"] .desk-gallery-tabs button[data-gallery-view="sets"
 }
 
 :where(body.desk-app[data-theme]) .desk-gallery-set-asset.is-selected {
-  border-color: rgba(8, 79, 189, 0.42);
-  box-shadow: 0 12px 28px rgba(8, 79, 189, 0.1);
+  border-color: var(--desk-gallery-set-selected-border);
+  box-shadow: var(--desk-gallery-set-selected-shadow);
 }
 
 :where(body.desk-app[data-theme]) .desk-gallery-set-asset__meta {
@@ -1815,9 +1884,85 @@ body.desk-app[data-lang="en"] .desk-gallery-tabs button[data-gallery-view="sets"
   height: 46px;
   padding: 0 8px;
   border-radius: 999px;
-  backdrop-filter: blur(8px) saturate(1.02);
   transform: translateX(-50%);
   z-index: 3;
+}
+
+:where(body.desk-app[data-theme]) .desk-gallery-preview__more-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+:where(body.desk-app[data-theme]) .desk-gallery-preview__more-toggle {
+  position: relative;
+}
+
+:where(body.desk-app[data-theme]) .desk-gallery-preview__more-toggle.has-active-state::after {
+  content: "";
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  pointer-events: none;
+}
+
+:where(body.desk-app[data-theme]) .desk-gallery-preview__more-menu {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 10px);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 176px;
+  padding: 6px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  z-index: 6;
+}
+
+:where(body.desk-app[data-theme]) .desk-gallery-preview__more-menu[hidden] {
+  display: none;
+}
+
+:where(body.desk-app[data-theme]) .desk-gallery-preview__more-menu > button {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  min-height: 34px;
+  padding: 0 10px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  font-size: var(--desk-font-size-label);
+  font-weight: var(--desk-font-weight-medium);
+  line-height: 1.2;
+  text-align: left;
+  white-space: nowrap;
+}
+
+:where(body.desk-app[data-theme]) .desk-gallery-preview__more-menu > button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+:where(body.desk-app[data-theme]) .desk-gallery-preview__more-menu > button svg {
+  width: 15px;
+  height: 15px;
+  flex: 0 0 auto;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
+:where(body.desk-app[data-theme]) .desk-gallery-preview__more-divider {
+  display: block;
+  height: 1px;
+  margin: 4px 6px;
 }
 
 :where(body.desk-app[data-theme]) .desk-gallery-preview__corner-close:hover {
@@ -1903,20 +2048,6 @@ body.desk-app[data-theme="dark"] .desk-history-edit:disabled {
   opacity: 0.56;
 }
 
-body.desk-app[data-theme="dark"] .desk-history__header .desk-history-windchime-button--dock:hover {
-  color: #ffb089;
-  background: transparent;
-  border-color: transparent;
-  box-shadow: none;
-}
-
-body.desk-app[data-theme="dark"] .desk-history.is-collapsed .desk-history__rail {
-  color: #ff6a22;
-  background: transparent;
-  border: 0;
-  box-shadow: none;
-}
-
 body.desk-app[data-theme="dark"] .desk-pinterest-download-board {
   --pinterest-sync-accent: #e60023;
   --pinterest-sync-track: rgba(230, 0, 35, 0.2);
@@ -1973,7 +2104,7 @@ body.desk-app:not([data-theme="dark"]) .desk-gallery-lineage-chip.is-missing:hov
   height: 16px;
   min-height: 16px;
   padding: 0 5px;
-  color: #084fbd;
+  color: var(--desk-color-accent);
   font-size: var(--desk-font-size-micro);
   font-weight: var(--desk-font-weight-semibold);
   line-height: 1;
