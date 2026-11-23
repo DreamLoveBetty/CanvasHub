@@ -3,7 +3,6 @@
 set -e
 
 PORT=18463
-SIDECAR_PORT="${CHATGPT_POOL_PORT:-18080}"
 PUBLIC_URL="${MINIAPP_PUBLIC_URL:-}"
 DIR="$(cd "$(dirname "$0")" && pwd)"
 SIDECAR_RUN="$DIR/sidecars/chatgpt_pool/run.sh"
@@ -23,6 +22,32 @@ if [ -z "$PYTHON_BIN" ]; then
         PYTHON_BIN="python3"
     fi
 fi
+
+resolve_sidecar_port() {
+    if [ -n "${CHATGPT_POOL_PORT:-}" ]; then
+        printf '%s\n' "$CHATGPT_POOL_PORT"
+        return
+    fi
+    "$PYTHON_BIN" - "${APP_SETTINGS_PATH:-$DIR/settings.json}" <<'PY' 2>/dev/null || echo "18080"
+import json, sys
+from urllib.parse import urlparse
+
+port = None
+try:
+    with open(sys.argv[1], "r", encoding="utf-8") as f:
+        pool = (json.load(f) or {}).get("chatgpt_pool") or {}
+    if isinstance(pool, dict):
+        if pool.get("port"):
+            port = int(pool["port"])
+        elif pool.get("base_url"):
+            port = urlparse(str(pool["base_url"])).port
+except Exception:
+    port = None
+print(port if port and 1 <= port <= 65535 else 18080)
+PY
+}
+SIDECAR_PORT="$(resolve_sidecar_port)"
+export CHATGPT_POOL_PORT="$SIDECAR_PORT"
 
 is_sidecar_healthy() {
     "$PYTHON_BIN" - "$SIDECAR_PORT" <<'PY' >/dev/null 2>&1

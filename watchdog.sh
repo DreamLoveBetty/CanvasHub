@@ -28,7 +28,31 @@ SIDECAR_PID_FILE="$DIR/chatgpt_pool.pid"
 SIDECAR_LOG_DIR="$DIR/data/chatgpt_pool"
 WATCHDOG_LOCK_DIR="$DIR/.watchdog.lock"
 PORT=18463
-SIDECAR_PORT="${CHATGPT_POOL_PORT:-18080}"
+resolve_sidecar_port() {
+    if [ -n "${CHATGPT_POOL_PORT:-}" ]; then
+        printf '%s\n' "$CHATGPT_POOL_PORT"
+        return
+    fi
+    "$PY" - "${APP_SETTINGS_PATH:-$DIR/settings.json}" <<'PY' 2>/dev/null || echo "18080"
+import json, sys
+from urllib.parse import urlparse
+
+port = None
+try:
+    with open(sys.argv[1], "r", encoding="utf-8") as f:
+        pool = (json.load(f) or {}).get("chatgpt_pool") or {}
+    if isinstance(pool, dict):
+        if pool.get("port"):
+            port = int(pool["port"])
+        elif pool.get("base_url"):
+            port = urlparse(str(pool["base_url"])).port
+except Exception:
+    port = None
+print(port if port and 1 <= port <= 65535 else 18080)
+PY
+}
+SIDECAR_PORT="$(resolve_sidecar_port)"
+export CHATGPT_POOL_PORT="$SIDECAR_PORT"
 SERVER_MAX_AGE_SECONDS="${SERVER_MAX_AGE_SECONDS:-0}"
 LAUNCHD_LABEL="${LAUNCHD_LABEL:-com.user.tg-mini-app-img-gen.server}"
 LAUNCHD_SERVICE="gui/$(id -u)/${LAUNCHD_LABEL}"
