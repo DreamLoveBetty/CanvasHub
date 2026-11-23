@@ -23,7 +23,7 @@ function fixture(items) {
   vm.createContext(context);
   // Use actual domain menu declarations and the host's injected catalog, not a
   // second list of labels that can silently drift when new node types are added.
-  for (const name of ['topaz-model', 'krea2-control', 'krea2-model', 'qwen21-model', 'moss-model', 'cyimg-model',
+  for (const name of ['topaz-model', 'krea2-control', 'krea2-model', 'qwen21-model', 'moss-model', 'cyimg-model', 'easycolab-h3-model',
     'canvas-audio', 'video-control-model', 'video-compose-subtitles', 'video-compose-model', 'topaz-video-pipeline', 'topaz-video-model', 'pose-model', 'music-model', 'canvas-nodes']) {
     vm.runInContext(read(`scripts/desktop-${name}.js`), context);
   }
@@ -71,15 +71,15 @@ test('all registered nodes appear once in five semantic groups', () => {
   const before = JSON.stringify(h.catalog);
   h.api.renderNodePaletteItems();
   const expected = {
-    image: ['image', 'input', 'krea2', 'krea2_control', 'qwen21', 'moss', 'cyimg_image', 'pose'],
-    video: ['video', 'cyimg_video', 'video_control', 'video_compose'],
+    image: ['image', 'input', 'krea2', 'krea2_control', 'qwen21', 'moss', 'cyimg_image', 'easycolab_h3_image', 'pose'],
+    video: ['video', 'cyimg_video', 'easycolab_h3_video', 'video_control', 'video_compose'],
     audio: ['audio', 'music_generate', 'music_transcribe', 'music_abc', 'music_score', 'music_compare'],
     enhance: ['upscale', 'topaz', 'topaz_video'],
     general: ['text', 'comfy', 'file_output', 'layout']
   };
   assert.deepEqual(Object.fromEntries(h.palette.groups.map(g => [g.dataset.nodeMenuGroup, g.types])), expected);
   const types = h.palette.buttons.map(b => b.type);
-  assert.equal(types.length, 25);
+  assert.equal(types.length, 27);
   assert.equal(new Set(types).size, types.length);
   assert.deepEqual(types.sort(), Array.from(h.catalog, item => item.type).sort());
   assert.equal(JSON.stringify(h.catalog), before, 'catalog/model objects must not be mutated');
