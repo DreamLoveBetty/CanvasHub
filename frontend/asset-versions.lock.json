@@ -147,8 +147,8 @@
     "sha256": "ddec133a2cb433008822c4d1a42b479c404b90965fb8c64138604e16ccf13b43"
    },
    "scripts/desktop-canvas-port-plates.js": {
-    "v": "20261123-video-understand1",
-    "sha256": "36d9a6bd66b66137dfabb50f51b5136a25dbbc1e84671eda9b8f175bd0cb1472"
+    "v": "20261124-easycolab-notch1",
+    "sha256": "3aafb294d86624431407375580a87bc6a1516ed085e97f7da4f693069fe7f0a6"
    },
    "scripts/desktop-canvas-pose.js": {
     "v": "20261022-pose-evidence1",
@@ -647,8 +647,8 @@
     "sha256": "3d5a921dfaff8d1b97b0794260c80ef2d94a364f838364c917037a2c50094431"
    },
    "styles/desktop-easycolab-h3.css": {
-    "v": "20261123-easycolab-h3-2",
-    "sha256": "ac69becdc55fb97ec6103620db9125630783f1e61610cf8412fe6c5c8892b563"
+    "v": "20261124-easycolab-notch1",
+    "sha256": "43a3e3204023e839f11089b9b7ec8f0ce1f6bbf4f15a500bed0fcefc17a0eff6"
    },
    "styles/desktop-file-results.css": {
     "v": "20261122-b2-type1",
@@ -679,8 +679,8 @@
     "sha256": "043f2d20008eae5a6fd8fcee52ac6c088e89bb054e9e6697d5c8d12f5eb175aa"
    },
    "styles/desktop-graphite.css": {
-    "v": "20261123-video-understand1",
-    "sha256": "c9bafefca3298446f06457748340f551d3f2acb613b0db7bba11197de2495e10"
+    "v": "20261124-easycolab-notch1",
+    "sha256": "5c2a0b8288ca42c06b4582e0d5eeab3cbc9fa32ea45855dd352cbfe39586d6e9"
    },
    "styles/desktop-image-group-geometry.css": {
     "v": "20261111-type-scale1",
