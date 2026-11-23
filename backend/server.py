@@ -150,6 +150,9 @@ from .routes.video_edit_routes import create_router as create_video_edit_router
 from .routes.asr_routes import create_router as create_asr_router
 from .asr.runtime import Runtime as AsrRuntime
 from .asr.service import AsrService
+from .routes.video_understand_routes import create_router as create_video_understand_router
+from .video_understand.runtime import Runtime as VideoUnderstandRuntime
+from .video_understand.service import VideoUnderstandService
 from .video_edit.transcribe import TranscribeService as VideoTranscribeService
 from .video_edit.compose import ComposeService as VideoComposeService
 from .video_edit.service import VideoEditService
@@ -2596,6 +2599,14 @@ _VIDEO_COMPOSE_SERVICE = VideoComposeService(
 _ASR_SERVICE = AsrService(APP_DATA_DIR / 'components' / 'asr', runtime=AsrRuntime(
     APP_DATA_DIR / 'components' / 'asr', before_load=_LOCAL_IMAGE_MEMORY.release_all))
 _ASR_ROUTES = create_asr_router(_ASR_SERVICE)
+_VIDEO_UNDERSTAND_SERVICE = VideoUnderstandService(
+    APP_DATA_DIR / 'components' / 'video-understand',
+    APP_DATA_DIR / 'data' / 'video-understand',
+    resolver=VideoEditSources(archive_video=_resolve_public_video_file, stores={
+        'topaz_video': _TOPAZ_VIDEO_SERVICE.store, 'video_control': _VIDEO_CONTROL_SERVICE.store}),
+    runtime=VideoUnderstandRuntime(
+        APP_DATA_DIR / 'components' / 'video-understand', before_load=_LOCAL_IMAGE_MEMORY.release_all))
+_VIDEO_UNDERSTAND_ROUTES = create_video_understand_router(_VIDEO_UNDERSTAND_SERVICE)
 _VIDEO_TRANSCRIBE_SERVICE = VideoTranscribeService(compose=_VIDEO_COMPOSE_SERVICE, asr=_ASR_SERVICE)
 _VIDEO_EDIT_ROUTES = create_video_edit_router(_VIDEO_EDIT_SERVICE, _VIDEO_COMPOSE_SERVICE, _VIDEO_TRANSCRIBE_SERVICE)
 
@@ -2735,6 +2746,8 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
         if _TOPAZ_VIDEO_ROUTES.dispatch(self, 'GET', path):
             return
         if _ASR_ROUTES.dispatch(self, 'GET', path):
+            return
+        if _VIDEO_UNDERSTAND_ROUTES.dispatch(self, 'GET', path):
             return
         if _AUDIO_ROUTES.dispatch(self, 'GET', path):
             return
@@ -3036,6 +3049,8 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
         if _TOPAZ_VIDEO_ROUTES.dispatch(self, 'POST', path):
             return
         if _ASR_ROUTES.dispatch(self, 'POST', path):
+            return
+        if _VIDEO_UNDERSTAND_ROUTES.dispatch(self, 'POST', path):
             return
         if _AUDIO_ROUTES.dispatch(self, 'POST', path):
             return

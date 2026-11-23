@@ -1,0 +1,120 @@
+/* Paint, surfaces, and typography for the WeMM-Video understanding node. */
+body.desk-app .desk-node--video-understand {
+  border: 1px solid var(--desk-node-stroke);
+  border-radius: var(--desk-node-radius);
+  background: var(--desk-node-sheen-background), var(--desk-node-glass-background);
+  color: var(--desk-node-ink);
+  box-shadow: var(--desk-node-glass-shadow);
+}
+
+body.desk-app .desk-node--video-understand::before {
+  display: none;
+}
+
+body.desk-app .desk-node--video-understand.is-selected {
+  border-color: var(--desk-node-selection-stroke);
+}
+
+body.desk-app .desk-video-understand__header {
+  border-bottom: 1px solid var(--desk-color-border-faint);
+}
+
+body.desk-app .desk-video-understand__header strong {
+  font-size: var(--desk-font-size-panel-title);
+}
+
+body.desk-app .desk-video-understand__header small {
+  font-size: var(--desk-font-size-micro);
+  color: var(--desk-node-muted-ink);
+}
+
+body.desk-app .desk-video-understand__icon {
+  border-radius: 12px;
+  background: var(--desk-color-accent-soft);
+  color: var(--desk-color-accent);
+}
+
+body.desk-app .desk-video-understand__body {
+  font-size: var(--desk-font-size-label);
+}
+
+body.desk-app .desk-video-understand__banner {
+  border-radius: 8px;
+  border: 1px solid var(--desk-color-warning-border, var(--desk-color-border-faint));
+  background: var(--desk-color-warning-soft, var(--desk-color-accent-soft));
+  color: var(--desk-node-ink);
+  font-size: var(--desk-font-size-caption);
+}
+
+body.desk-app .desk-video-understand__body label {
+  color: var(--desk-node-muted-ink);
+  font-size: var(--desk-font-size-caption);
+}
+
+body.desk-app .desk-video-understand__body :is(select, input[type="number"], textarea) {
+  border-radius: 8px;
+  background: var(--desk-node-glass-background);
+  border: 1px solid var(--desk-color-border-faint);
+  color: var(--desk-node-ink);
+  font: inherit;
+  font-size: var(--desk-font-size-label);
+}
+
+body.desk-app .desk-video-understand__prompt:disabled {
+  opacity: 0.6;
+}
+
+body.desk-app .desk-video-understand__prompt-chip {
+  border-radius: 8px;
+  border: 1px solid var(--desk-color-border-faint);
+  background: var(--desk-color-accent-soft);
+  color: var(--desk-node-ink);
+  font-size: var(--desk-font-size-caption);
+}
+
+body.desk-app .desk-video-understand__input {
+  color: var(--desk-node-muted-ink);
+}
+
+body.desk-app .desk-video-understand__input button,
+body.desk-app .desk-video-understand__adv-toggle,
+body.desk-app .desk-video-understand__banner button {
+  border: 1px solid var(--desk-color-border-faint);
+  border-radius: 8px;
+  background: var(--desk-node-sheen-background), var(--desk-node-glass-background);
+  color: var(--desk-node-ink);
+  cursor: pointer;
+}
+
+body.desk-app .desk-video-understand__footer {
+  color: var(--desk-node-muted-ink);
+}
+
+body.desk-app .desk-video-understand__progress {
+  border-radius: 10px;
+  background: var(--desk-node-sheen-background), var(--desk-node-glass-background);
+  box-shadow: var(--desk-node-glass-shadow);
+  font-size: var(--desk-font-size-caption);
+  color: var(--desk-node-muted-ink);
+}
+
+body.desk-app .desk-video-understand__progress > div {
+  background: var(--desk-color-accent-soft);
+  border-radius: 4px;
+}
+
+body.desk-app .desk-video-understand__progress i {
+  background: var(--desk-color-accent);
+  animation: desk-video-understand-progress 1.5s ease-in-out infinite alternate;
+}
+
+@keyframes desk-video-understand-progress {
+  from { left: 0; }
+  to { left: 70%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body.desk-app .desk-video-understand__progress i {
+    animation: none;
+  }
+}

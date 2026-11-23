@@ -135,8 +135,8 @@
     "sha256": "b93826e20d41af49a57ea9a60668e489908347b5b7fce3995ca57d40230a1f3e"
    },
    "scripts/desktop-canvas-nodes.js": {
-    "v": "20261123-easycolab-h3-1",
-    "sha256": "03cb260ffb8c47ac099511c630fcf0dd540bb8ba4c4ccff117d056eb4699c149"
+    "v": "20261124-merge-sync1",
+    "sha256": "48fe5fa78f30cf8a03c3af3b0a2f026bfaf4d56719e8aa980dbd871dcb421380"
    },
    "scripts/desktop-canvas-port-geometry.js": {
     "v": "20260911-canvas-port-geometry1",
@@ -147,8 +147,8 @@
     "sha256": "ddec133a2cb433008822c4d1a42b479c404b90965fb8c64138604e16ccf13b43"
    },
    "scripts/desktop-canvas-port-plates.js": {
-    "v": "20261116-yue-shell1",
-    "sha256": "acae47d3202c6f595dea6aa596dfe1e28309cd1b2975b98337255fb88968f127"
+    "v": "20261123-video-understand1",
+    "sha256": "36d9a6bd66b66137dfabb50f51b5136a25dbbc1e84671eda9b8f175bd0cb1472"
    },
    "scripts/desktop-canvas-pose.js": {
     "v": "20261022-pose-evidence1",
@@ -198,17 +198,21 @@
     "v": "20261110-recipe1",
     "sha256": "1f4a3c224777c7fbccb61eb9312e6224b0fdb0b8e256eb9612373ed3d631f223"
    },
+   "scripts/desktop-canvas-video-understand.js": {
+    "v": "20261123-video-understand1",
+    "sha256": "bc85db2faeabaa0328f462180cdd301021b42f68f4646916c514ca54572b6a4d"
+   },
    "scripts/desktop-canvas-viewport.js": {
     "v": "20261115-shift-marquee1",
     "sha256": "14f1e37ddcb0a3b33b735f9cfdb27191670f7a4ecada2a424579d2231b554b66"
    },
    "scripts/desktop-canvas-workflow.js": {
-    "v": "20261123-easycolab-h3-1",
-    "sha256": "a26b0ff03456264e9441bc80ca1ed3d720343cd9ed7985079c833271517f01d3"
+    "v": "20261124-merge-sync1",
+    "sha256": "854838e629c2239821acdedef8357bfc4b0fedd3e78ab2f833ff68c41b93fe61"
    },
    "scripts/desktop-canvas.js": {
-    "v": "20261123-easycolab-h3-1",
-    "sha256": "b5a0e96cd9283fd752afde166f93cf911affff6cf46603432a85f0692071002b"
+    "v": "20261124-merge-sync1",
+    "sha256": "241d9d03a3f80597d1f76f6d0fc6768b74eae7582caaad2c3c52718e7f9cfacb"
    },
    "scripts/desktop-color-bloom.js": {
     "v": "20261019-color-drag1",
@@ -475,8 +479,8 @@
     "sha256": "43e81dc5525b3de0c5613d1e35cf12222c76d74610a18f3f9eb899bac8922cf7"
    },
    "scripts/desktop-settings.js": {
-    "v": "20261123-easycolab-h3-1",
-    "sha256": "02c46cadbe8fe042fb6e467992ecec272842646dc066c7f6ba763a34dd2ecd2c"
+    "v": "20261124-merge-sync1",
+    "sha256": "32020760a2e1a41ffce9da1f3abcfdcd9465e9a48ae14fadacd4fe9aa1e83fbf"
    },
    "scripts/desktop-state-icon.js": {
     "v": "20261004-state-icons1",
@@ -543,8 +547,8 @@
     "sha256": "23690297cf5200c16acbd9cc5aaa33aa027e5961d8df7fb414da59998a8e9eeb"
    },
    "scripts/desktop-video-compose-model.js": {
-    "v": "20261111-beats1",
-    "sha256": "573c3e8e2d48bef78e7eb5ae9082ba7c22aa1ca45150aec68973862dd1b1e073"
+    "v": "20261123-video-understand1",
+    "sha256": "7f2b19a5056a9359d908cf9c4b5d08bfd22d12cbf82411d08631804f4cbebfde"
    },
    "scripts/desktop-video-compose-player.js": {
     "v": "20261110-phase3a1",
@@ -585,6 +589,22 @@
    "scripts/desktop-video-frames.js": {
     "v": "20261110-video-frames1",
     "sha256": "1d6399ab558da2b282cdd116e7c99309c449bdcdb007bb9b97a47c35ffe6b80d"
+   },
+   "scripts/desktop-video-understand-api.js": {
+    "v": "20261123-video-understand1",
+    "sha256": "6b59daad16c559f9b692775695485105aa082d3fa2fd3d7d26e436fb9ae2a975"
+   },
+   "scripts/desktop-video-understand-model.js": {
+    "v": "20261124-video-understand-h3",
+    "sha256": "27d5deddbb6fc2c6941f27c59caafe928f24f09e767b468cd1b1a3e4cda67d58"
+   },
+   "scripts/desktop-video-understand-tools.js": {
+    "v": "20261123-video-understand1",
+    "sha256": "483b1b599273dcdfaf19d6d5d975215ab635df32d1a400cba8e1576ff73bb85d"
+   },
+   "scripts/desktop-video-understand-view.js": {
+    "v": "20261123-video-understand1",
+    "sha256": "4332d9a4e3e1404d02427dfcad960e11617acc12a9fe3bfab96e2b014e873d27"
    },
    "styles/desktop-ambient-controls.css": {
     "v": "20261018-segment-norail1",
@@ -659,8 +679,8 @@
     "sha256": "043f2d20008eae5a6fd8fcee52ac6c088e89bb054e9e6697d5c8d12f5eb175aa"
    },
    "styles/desktop-graphite.css": {
-    "v": "20261123-slime-obsidian1",
-    "sha256": "781e0cc6e90fbb7b76c0630643d3ed1c2af2650257f03fa7df969e40d000306e"
+    "v": "20261123-video-understand1",
+    "sha256": "c9bafefca3298446f06457748340f551d3f2acb613b0db7bba11197de2495e10"
    },
    "styles/desktop-image-group-geometry.css": {
     "v": "20261111-type-scale1",
@@ -797,6 +817,14 @@
    "styles/desktop-video-edit.css": {
     "v": "20261122-b3-craft1",
     "sha256": "7c034a729121cf29b7357c2973fe152d403ed901b80489f1b7e91c2e4be6f141"
+   },
+   "styles/desktop-video-understand-geometry.css": {
+    "v": "20261123-video-understand1",
+    "sha256": "af94dc39d8fe39dc5c21fbfdb3a45abb3696259923bd478067a09c2af49aeb20"
+   },
+   "styles/desktop-video-understand.css": {
+    "v": "20261123-video-understand1",
+    "sha256": "1e608a7c6c7cc0adb1ba9b472efc114a23984d015f1963bf550c317fd8a9d99e"
    },
    "styles/desktop-video.css": {
     "v": "20261111-type-scale1",

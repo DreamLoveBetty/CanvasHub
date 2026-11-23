@@ -153,3 +153,6 @@ diagrams/
 
 # Installed GEM-X checkout, recognition models, caches and receipt; source lives in backend/pose_capture.
 /components/pose-capture/
+
+# Installed WeMM-Video MLX isolated venv, source checkout, model weights and receipt.
+/components/video-understand/

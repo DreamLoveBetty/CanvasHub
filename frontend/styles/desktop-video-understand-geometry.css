@@ -1,0 +1,200 @@
+/* Layout and geometry for the WeMM-Video understanding node. */
+body.desk-app .desk-node--video-understand {
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+  box-sizing: border-box;
+  overflow: visible;
+}
+
+body.desk-app .desk-video-understand__header {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding-bottom: 12px;
+}
+
+body.desk-app .desk-video-understand__header > div {
+  flex: 1;
+  min-width: 0;
+}
+
+body.desk-app .desk-video-understand__header small {
+  display: block;
+  margin-top: 3px;
+}
+
+body.desk-app .desk-video-understand__icon {
+  width: 40px;
+  height: 40px;
+  padding: 8px;
+  box-sizing: border-box;
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+body.desk-app .desk-video-understand__body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 12px;
+  min-height: 0;
+}
+
+body.desk-app .desk-video-understand__banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 7px 10px;
+}
+
+body.desk-app .desk-video-understand__banner span {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body.desk-app .desk-video-understand__controls {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+body.desk-app .desk-video-understand__mode {
+  flex: 1 1 210px;
+  min-width: 190px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+body.desk-app .desk-video-understand__toggles {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 34px;
+}
+
+body.desk-app .desk-video-understand__toggles label {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+body.desk-app .desk-video-understand__adv-toggle {
+  height: 34px;
+  padding: 0 12px;
+  box-sizing: border-box;
+  white-space: nowrap;
+}
+
+body.desk-app .desk-video-understand__advanced {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+body.desk-app .desk-video-understand__advanced label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+body.desk-app .desk-video-understand__body :is(select, input[type="number"]) {
+  width: 100%;
+  height: 34px;
+  padding: 6px 10px;
+  box-sizing: border-box;
+}
+
+body.desk-app .desk-video-understand__prompt-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+body.desk-app .desk-video-understand__prompt-chip {
+  padding: 5px 10px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body.desk-app .desk-video-understand__prompt {
+  width: 100%;
+  min-height: 58px;
+  max-height: 92px;
+  padding: 8px 10px;
+  box-sizing: border-box;
+  resize: none;
+}
+
+body.desk-app .desk-video-understand__input {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+body.desk-app .desk-video-understand__input span {
+  flex: 1;
+  min-width: 0;
+  max-width: 520px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body.desk-app .desk-video-understand__input button {
+  padding: 7px 12px;
+  flex: 0 0 auto;
+}
+
+body.desk-app .desk-video-understand__footer {
+  margin-top: auto;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  min-height: 72px;
+}
+
+body.desk-app .desk-video-understand__footer small {
+  padding-right: 16px;
+}
+
+body.desk-app .desk-video-understand__progress {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  width: 100%;
+  padding: 8px 12px;
+  box-sizing: border-box;
+}
+
+body.desk-app .desk-video-understand__progress > div {
+  height: 4px;
+  position: relative;
+  margin-top: 6px;
+  overflow: hidden;
+}
+
+body.desk-app .desk-video-understand__progress i {
+  display: block;
+  position: absolute;
+  width: 30%;
+  height: 100%;
+}
+
+body.desk-app .desk-node--video-understand [hidden] {
+  display: none;
+}

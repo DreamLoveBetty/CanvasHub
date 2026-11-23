@@ -330,7 +330,7 @@ test('every generate node with a 72px key is notched, in the stylesheet and the 
     ':is(.desk-node--input, .desk-node--krea2, .desk-node--moss, .desk-node--qwen21, .desk-node--music-generate) .desk-input-footer .desk-action-row {\n  right: -6px;\n  bottom: -6px;'
   ), 'music generate key uses the shared 14px-padding action-row notch offset');
   assert.ok(css.includes(
-    ':is(.desk-node--topaz, .desk-node--pose, .desk-node--topaz-video, .desk-node--video-control) .desk-generation-action {\n  translate: 8px 8px;'
+    ':is(.desk-node--topaz, .desk-node--pose, .desk-node--topaz-video, .desk-node--video-control, .desk-node--video-understand) .desk-generation-action {\n  translate: 8px 8px;'
   ), '16px-padding flow-footer keys keep the translate offset');
   assert.equal(css.includes('.desk-node--music-generate) .desk-generation-action {\n  translate: 8px 8px;'), false);
 });

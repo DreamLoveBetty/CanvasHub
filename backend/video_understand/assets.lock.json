@@ -1,0 +1,117 @@
+{
+  "schema_version": 1,
+  "source": {
+    "repo": "vanch007/mlx-wemm-video",
+    "revision": "8e422f0e326c53266271b6ed44ead6e98802ab2c",
+    "license": "Apache-2.0",
+    "files": {
+      "LICENSE": {
+        "size": 25380,
+        "sha256": "bac4d42ddebadb11e405fc4de2335579e67676362ac870108012ab4899ef1e5b"
+      },
+      "mlx_wemm_video/__init__.py": {
+        "size": 424,
+        "sha256": "c9b32f0a521d726fdcf7f3adce5aa041670969084019969d499b71b3e85e94d0"
+      },
+      "mlx_wemm_video/audio.py": {
+        "size": 9549,
+        "sha256": "1bbf65e38b092cced1cfb18702bea9a05d878f0c8a94a98d21170300faf5df48"
+      },
+      "mlx_wemm_video/config.py": {
+        "size": 5060,
+        "sha256": "6dc41944245903b42f7fa2b86cb3ef90b1c4d0bff98772b2c657aafb02844e52"
+      },
+      "mlx_wemm_video/generate.py": {
+        "size": 10768,
+        "sha256": "fd4892b686b7a50a0ff4fae0708360d0dffdccc67b9e64e2458a851b267c243a"
+      },
+      "mlx_wemm_video/media.py": {
+        "size": 25611,
+        "sha256": "f40aa6659f62222b749a9a2f395eeedb8e950523e5fb539601e40b053411645e"
+      },
+      "mlx_wemm_video/model.py": {
+        "size": 19442,
+        "sha256": "7b63733be154b101157ab46a6f563a3035193020dca59746ffd1f33f0f5c62e8"
+      },
+      "mlx_wemm_video/processing_wemm.py": {
+        "size": 27056,
+        "sha256": "1ebcc7bfebba4a52cd9b9cae6fb8acbba94a9c2dab330613004fa6ec8ee4ede0"
+      }
+    }
+  },
+  "model": {
+    "key": "wemm-video-35ba3b-mlx-6bit",
+    "repo": "vanch007/WeMM-Video-35BA3B-mlx-6bit",
+    "revision": "6f0947e0a7ba9303b9a4a3e4702d5e0abf032644",
+    "files": {
+      "LICENSE": {
+        "size": 25380,
+        "blob_id": "6f299faf36be071bee2109d532a130b359696d29"
+      },
+      "chat_template.jinja": {
+        "size": 8098,
+        "blob_id": "d078c64ebd2e875bc5075775a59c038559a08050"
+      },
+      "config.json": {
+        "size": 58329,
+        "blob_id": "12dc1540a86960e07f4c44c8c15d95d57680da55"
+      },
+      "generation_config.json": {
+        "size": 213,
+        "blob_id": "a0d4001bad40ed354df8a2fd3a4fd30676635bce"
+      },
+      "model-00001-of-00007.safetensors": {
+        "size": 4682439629,
+        "sha256": "5cd1d912af4461c584845a4eed2d72871e0c85a0c76e9ca4d13953e0c304026d"
+      },
+      "model-00002-of-00007.safetensors": {
+        "size": 4788849668,
+        "sha256": "d736a1d672ee7bf302d1accb2eb03cef8073274d7f81bd93d6208b6a95235398"
+      },
+      "model-00003-of-00007.safetensors": {
+        "size": 4783565852,
+        "sha256": "f7858ebafa434571e967db4d6dd3d635a2b5ae9de7201d9265550dc54f461702"
+      },
+      "model-00004-of-00007.safetensors": {
+        "size": 4783566047,
+        "sha256": "4cb734adcaaf7697ec13e0418e5d75146a243cdfd10c908d3c9c3f99fb308ec5"
+      },
+      "model-00005-of-00007.safetensors": {
+        "size": 4783565995,
+        "sha256": "4f95196feea7ac4a87457a1f0aad2d00345748053dbefb1234374d2c6c3f74a7"
+      },
+      "model-00006-of-00007.safetensors": {
+        "size": 4788850060,
+        "sha256": "9fb514d7c87ee6aafd74f86fa48203127b8cc10bf7b747346ca18a7a06a1f21b"
+      },
+      "model-00007-of-00007.safetensors": {
+        "size": 3195709163,
+        "sha256": "1b86f1c8bc4458c82db243af48546f5fb348937ef5beb0dc39e360805bb5d58b"
+      },
+      "model.safetensors.index.json": {
+        "size": 253930,
+        "blob_id": "239cb9b77f4e48ffa6a7175f9286b4111780c923"
+      },
+      "preprocessor_config.json": {
+        "size": 390,
+        "blob_id": "2ea84a437d448ff71b08df68fdd949d5cc4ebb64"
+      },
+      "processor_config.json": {
+        "size": 2612,
+        "blob_id": "5f3067d8ff148191f9c1aecaed655c57015ce615"
+      },
+      "tokenizer.json": {
+        "size": 19989343,
+        "sha256": "510fd6ff51823f6b1c820595b5eed750b8ff0ee85961d2f330623b3cf5ff4019"
+      },
+      "tokenizer_config.json": {
+        "size": 1098,
+        "blob_id": "e15d4cc343e26fd4b2fdc18ffecfc256b90a547b"
+      },
+      "video_preprocessor_config.json": {
+        "size": 385,
+        "blob_id": "3ba673a5ad7d4d13f54155ecd38b2a94a6dac8fe"
+      }
+    }
+  }
+}

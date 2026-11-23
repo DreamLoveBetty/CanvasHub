@@ -12,6 +12,7 @@
   let qwen21Tools = null;
   let mossTools = null;
   let asrTools = null;
+  let videoUnderstandTools = null;
   let loraSettings = null;
   let modelToolsTab = 'krea2';
   let modelToolsSlide = { from: null, to: null, at: 0 };
@@ -1676,7 +1677,7 @@
     }
     if (tabId === 'qwen21') return qwen21Tools?.render?.() || '';
     if (tabId === 'moss') return mossTools?.render?.() || '';
-    return (loraSettings?.render?.() || '') + (asrTools?.render?.() || '');
+    return (loraSettings?.render?.() || '') + (asrTools?.render?.() || '') + (videoUnderstandTools?.render?.() || '');
   }
 
   function renderModelToolsSettings() {
@@ -2855,7 +2856,7 @@
       } else {
         renderDiagnostics(lastDiagnostics);
       }
-      if (activeTab === 'model-tools') await Promise.all([krea2Tools?.activate?.(),qwen21Tools?.activate?.(),mossTools?.activate?.(),asrTools?.activate?.(),loraSettings?.activate?.()]);
+      if (activeTab === 'model-tools') await Promise.all([krea2Tools?.activate?.(),qwen21Tools?.activate?.(),mossTools?.activate?.(),asrTools?.activate?.(),videoUnderstandTools?.activate?.(),loraSettings?.activate?.()]);
     } catch (error) {
       if (els.deskSettingsSummary) {
         els.deskSettingsSummary.innerHTML = '<span class="desk-settings__status is-warn">诊断读取失败</span>';
@@ -2889,6 +2890,7 @@
     qwen21Tools?.deactivate?.();
     mossTools?.deactivate?.();
     asrTools?.deactivate?.();
+    videoUnderstandTools?.deactivate?.();
     loraSettings?.deactivate?.();
     closeSettingsInfoTip();
     return true;
@@ -2915,13 +2917,14 @@
     }
     updateTabs();
     if (lastDiagnostics) renderDiagnostics(lastDiagnostics);
-    if (previousTab === 'model-tools' && activeTab !== 'model-tools') {krea2Tools?.deactivate?.();qwen21Tools?.deactivate?.();mossTools?.deactivate?.();asrTools?.deactivate?.();loraSettings?.deactivate?.();}
+    if (previousTab === 'model-tools' && activeTab !== 'model-tools') {krea2Tools?.deactivate?.();qwen21Tools?.deactivate?.();mossTools?.deactivate?.();asrTools?.deactivate?.();videoUnderstandTools?.deactivate?.();loraSettings?.deactivate?.();}
     if (activeTab === 'model-tools') {
       loraSettings?.activate?.().catch(error => showSettingsFeedback(error, 'LoRA 连接设置读取失败'));
       krea2Tools?.activate?.().catch(error => showSettingsFeedback(error, '模型工具状态读取失败'));
       qwen21Tools?.activate?.().catch(error => showSettingsFeedback(error, 'Qwen 模型工具状态读取失败'));
       mossTools?.activate?.().catch(error => showSettingsFeedback(error, 'MOSS 状态读取失败'));
       asrTools?.activate?.().catch(error => showSettingsFeedback(error, '语音识别状态读取失败'));
+      videoUnderstandTools?.activate?.().catch(error => showSettingsFeedback(error, '视频理解状态读取失败'));
     }
     if (activeTab === 'chatgpt-pool' && googlePoolSettings.isGoogle()) {
       void googlePoolSettings.refresh();
@@ -3079,7 +3082,7 @@
         copyModelToolsDirectoryPath(copyPathButton.dataset.modelToolsPath, copyPathButton.dataset.modelToolsEmpty).catch(error => showSettingsFeedback(error, '复制失败'));
         return;
       }
-      if (loraSettings?.handleClick?.(event) || asrTools?.handleClick?.(event) || mossTools?.handleClick?.(event) || qwen21Tools?.handleClick?.(event) || krea2Tools?.handleClick?.(event)) return;
+      if (loraSettings?.handleClick?.(event) || videoUnderstandTools?.handleClick?.(event) || asrTools?.handleClick?.(event) || mossTools?.handleClick?.(event) || qwen21Tools?.handleClick?.(event) || krea2Tools?.handleClick?.(event)) return;
       if (googlePoolSettings.handleClick(event)) return;
       const themeStyleButton = event.target.closest('button[data-theme-style]');
       if (themeStyleButton) {
@@ -3541,6 +3544,11 @@
     }) || null;
     asrTools = window.DesktopAsrTools?.create?.({
       api: window.DesktopAsrAPI, escapeHtml,
+      rerender: rerenderModelTools,
+      notify: (message, tone) => window.DesktopResults?.showTransientMessage?.(message, tone)
+    }) || null;
+    videoUnderstandTools = window.DesktopVideoUnderstandTools?.create?.({
+      api: window.DesktopVideoUnderstandAPI, escapeHtml,
       rerender: rerenderModelTools,
       notify: (message, tone) => window.DesktopResults?.showTransientMessage?.(message, tone)
     }) || null;

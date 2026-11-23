@@ -5,7 +5,7 @@
   // Sidebar presentation only: the shared catalog and connection picker stay flat.
   const NODE_PALETTE_GROUPS = [
     { id: 'image', title: '图像节点', types: ['image', 'input', 'krea2', 'krea2_control', 'qwen21', 'moss', 'cyimg_image', 'easycolab_h3_image', 'pose'] },
-    { id: 'video', title: '视频节点', types: ['video', 'cyimg_video', 'easycolab_h3_video', 'video_control', 'video_compose'] },
+    { id: 'video', title: '视频节点', types: ['video', 'cyimg_video', 'easycolab_h3_video', 'video_control', 'video_understand', 'video_compose'] },
     { id: 'audio', title: '音频节点', types: ['audio', 'music_generate', 'music_transcribe', 'music_abc', 'music_score', 'music_compare'] },
     { id: 'enhance', title: '增强放大节点', types: ['upscale', 'topaz', 'topaz_video'] },
     { id: 'general', title: '通用节点', types: ['text', 'comfy', 'file_output', 'layout'] }
@@ -70,6 +70,8 @@
     mossDefinition,
     videoControlNode,
     videoControlDefinition,
+    videoUnderstandNode,
+    videoUnderstandDefinition,
     videoComposeNode,
     videoComposeDefinition,
     topazVideoNode,
@@ -147,6 +149,7 @@
     if (nodeState.type === qwen21Definition?.TYPE) qwen21Definition.normalize(nodeState);
     if (nodeState.type === mossDefinition?.TYPE) mossDefinition.normalize(nodeState);
     if (nodeState.type === videoControlDefinition?.TYPE) videoControlDefinition.normalize(nodeState);
+    if (nodeState.type === videoUnderstandDefinition?.TYPE) videoUnderstandDefinition.normalize(nodeState);
     if (nodeState.type === videoComposeDefinition?.TYPE) videoComposeDefinition.normalize(nodeState);
     if (nodeState.type === topazVideoDefinition?.TYPE) topazVideoDefinition.normalize(nodeState);
     if (nodeState.type === poseDefinition?.TYPE) poseDefinition.normalize(nodeState);
@@ -415,7 +418,7 @@
   }
 
     function nextNodeId(type) {
-    const prefix = type === topazDefinition?.TYPE ? type : type === krea2Definition?.TYPE ? type : type === krea2ControlDefinition?.TYPE ? type : type === qwen21Definition?.TYPE ? type : type === mossDefinition?.TYPE ? type : cyimgDefinition?.TYPES.includes(type) ? type : easycolabH3Definition?.TYPES.includes(type) ? type : type === videoControlDefinition?.TYPE ? type : type === videoComposeDefinition?.TYPE ? type : type === topazVideoDefinition?.TYPE ? type : musicNodeDefinition?.TYPES.includes(type) ? type : type === 'audio' ? 'audio' : type === 'file_output'
+    const prefix = type === topazDefinition?.TYPE ? type : type === krea2Definition?.TYPE ? type : type === krea2ControlDefinition?.TYPE ? type : type === qwen21Definition?.TYPE ? type : type === mossDefinition?.TYPE ? type : cyimgDefinition?.TYPES.includes(type) ? type : easycolabH3Definition?.TYPES.includes(type) ? type : type === videoControlDefinition?.TYPE ? type : type === videoUnderstandDefinition?.TYPE ? type : type === videoComposeDefinition?.TYPE ? type : type === topazVideoDefinition?.TYPE ? type : musicNodeDefinition?.TYPES.includes(type) ? type : type === 'audio' ? 'audio' : type === 'file_output'
       ? 'file_output'
       : (type === 'image_group'
         ? 'image_group'
@@ -471,6 +474,7 @@
     if (type === qwen21Definition?.TYPE) qwen21Definition.normalize(node);
     if (type === mossDefinition?.TYPE) mossDefinition.normalize(node);
     if (type === videoControlDefinition?.TYPE) videoControlDefinition.normalize(node);
+    if (type === videoUnderstandDefinition?.TYPE) videoUnderstandDefinition.normalize(node);
     if (type === videoComposeDefinition?.TYPE) videoComposeDefinition.normalize(node);
     if (type === topazVideoDefinition?.TYPE) topazVideoDefinition.normalize(node);
     if (type === poseDefinition?.TYPE) Object.assign(node, poseDefinition.createState());
@@ -651,6 +655,7 @@
     if (cyimgDefinition?.TYPES.includes(node.type)) return cyimgNode.nodeHtml(node);
     if (easycolabH3Definition?.TYPES.includes(node.type)) return easycolabH3Node.nodeHtml(node);
     if (node.type === videoControlDefinition?.TYPE) return videoControlNode.nodeHtml(node);
+    if (node.type === videoUnderstandDefinition?.TYPE) return videoUnderstandNode.nodeHtml(node);
     if (node.type === videoComposeDefinition?.TYPE) return videoComposeNode.nodeHtml(node);
     if (node.type === topazVideoDefinition?.TYPE) return topazVideoNode.nodeHtml(node);
     if (musicNodeDefinition?.TYPES.includes(node.type)) return musicNode.nodeHtml(node);
@@ -688,6 +693,7 @@
     audioNode.reconcile();
     musicNode?.reconcile();
     videoControlNode?.reconcile();
+    videoUnderstandNode?.reconcile();
     videoComposeNode?.reconcile();
     topazVideoNode?.reconcile();
     poseNode?.reconcile();
@@ -705,6 +711,7 @@
     progressView?.clear();
     musicNode?.disposeAll();
     videoControlNode?.disposeAll(true);
+    videoUnderstandNode?.disposeAll(true);
     videoComposeNode?.disposeAll(true);
     topazVideoNode?.disposeAll(true);
     poseNode?.disposeAll();
@@ -790,6 +797,7 @@
 
     function normalizeNodeMenuType(type) {
     if (type === videoControlDefinition?.TYPE) return type;
+    if (type === videoUnderstandDefinition?.TYPE) return type;
     if (type === videoComposeDefinition?.TYPE) return type;
     if (type === topazVideoDefinition?.TYPE) return type;
     if (type === topazDefinition?.TYPE) return type;
@@ -837,6 +845,7 @@
     const node = DesktopState.state.canvas.nodes[nodeId];
     if (!node) return;
     if (node.type === videoControlDefinition?.TYPE) videoControlNode.dispose(nodeId, true);
+    if (node.type === videoUnderstandDefinition?.TYPE) videoUnderstandNode.dispose(nodeId, true);
     if (node.type === videoComposeDefinition?.TYPE) videoComposeNode.dispose(nodeId, true);
     if (node.type === topazVideoDefinition?.TYPE) topazVideoNode.dispose(nodeId, true);
     if (node.type === poseDefinition?.TYPE) poseNode.dispose(nodeId);

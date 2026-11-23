@@ -32,6 +32,8 @@
   <link rel="stylesheet" href="styles/desktop-geometry.css?v=20261123-slime-runner3">
   <link rel="stylesheet" href="styles/desktop-motion.css?v=20261122-b5-perf2">
   <link rel="stylesheet" href="styles/desktop-video-control.css?v=20261111-type-scale1">
+  <link rel="stylesheet" href="styles/desktop-video-understand-geometry.css?v=20261123-video-understand1">
+  <link rel="stylesheet" href="styles/desktop-video-understand.css?v=20261123-video-understand1">
   <link rel="stylesheet" href="styles/desktop-topaz-video.css?v=20261111-type-scale1">
   <link rel="stylesheet" href="styles/desktop-topaz-video-workbench.css?v=20261122-b3-craft1">
   <link rel="stylesheet" href="styles/desktop-video-edit-geometry.css?v=20261111-type-scale1">
@@ -58,7 +60,7 @@
   <link rel="stylesheet" href="styles/desktop-ambient-controls.css?v=20261018-segment-norail1">
   <link rel="stylesheet" href="styles/desktop-control-material.css?v=20261112-graphite-keys2">
   <link rel="stylesheet" href="styles/desktop-number-stepper.css?v=20261011-stepper-panels1">
-  <link rel="stylesheet" href="styles/desktop-graphite.css?v=20261123-slime-obsidian1">
+  <link rel="stylesheet" href="styles/desktop-graphite.css?v=20261123-video-understand1">
 </head>
 <body id="deskApp" class="desk-app" data-theme="light" data-app-version="V26.6.3">
   <script>
@@ -1934,11 +1936,16 @@
   <script src="scripts/desktop-video-control-api.js?v=20260925-topaz-video1"></script>
   <script src="scripts/desktop-video-control-view.js?v=20261030-ui-polish1"></script>
   <script src="scripts/desktop-canvas-video-control.js?v=20261110-compose1"></script>
+  <script src="scripts/desktop-video-understand-model.js?v=20261124-video-understand-h3"></script>
+  <script src="scripts/desktop-video-understand-api.js?v=20261123-video-understand1"></script>
+  <script src="scripts/desktop-video-understand-tools.js?v=20261123-video-understand1"></script>
+  <script src="scripts/desktop-video-understand-view.js?v=20261123-video-understand1"></script>
+  <script src="scripts/desktop-canvas-video-understand.js?v=20261123-video-understand1"></script>
   <script src="scripts/desktop-video-edit-api.js?v=20261111-beats1"></script>
   <script src="scripts/desktop-video-frames.js?v=20261110-video-frames1"></script>
   <script src="scripts/desktop-canvas-video-edit.js?v=20261110-recipe1"></script>
   <script src="scripts/desktop-video-compose-subtitles.js?v=20261110-phase3b1"></script>
-  <script src="scripts/desktop-video-compose-model.js?v=20261111-beats1"></script>
+  <script src="scripts/desktop-video-compose-model.js?v=20261123-video-understand1"></script>
   <script src="scripts/desktop-video-compose-beatfit.js?v=20261111-beatfit1"></script>
   <script src="scripts/desktop-video-compose-player.js?v=20261110-phase3a1"></script>
   <script src="scripts/desktop-video-compose-timeline.js?v=20261122-b3-craft1"></script>
@@ -1973,7 +1980,7 @@
   <script src="scripts/desktop-canvas-port-geometry.js?v=20260911-canvas-port-geometry1"></script>
   <script src="scripts/desktop-canvas-selection.js?v=20261010-marquee-frame1"></script>
   <script src="scripts/desktop-canvas-viewport.js?v=20261115-shift-marquee1"></script>
-  <script src="scripts/desktop-canvas-workflow.js?v=20261123-easycolab-h3-1"></script>
+  <script src="scripts/desktop-canvas-workflow.js?v=20261124-merge-sync1"></script>
   <script src="scripts/desktop-canvas-prompt-document.js?v=20261116-retire-pe1"></script>
   <script src="scripts/desktop-canvas-text-editor.js?v=20261122-b5-perf1"></script>
   <script src="scripts/desktop-canvas-image-group-model.js?v=20261122-b5-perf1"></script>
@@ -1985,10 +1992,10 @@
   <script src="scripts/desktop-canvas-media-import.js?v=20261021-video-upload1"></script>
   <script src="scripts/desktop-canvas-references.js?v=20261122-b5-perf1"></script>
   <script src="scripts/desktop-canvas-comfy-layout.js?v=20261107-comfy-list1"></script>
-  <script src="scripts/desktop-canvas-nodes.js?v=20261123-easycolab-h3-1"></script>
+  <script src="scripts/desktop-canvas-nodes.js?v=20261124-merge-sync1"></script>
   <script src="scripts/desktop-google-web-controls.js?v=20261024-google-web-2k-prompt1"></script>
   <script src="scripts/desktop-canvas-model-nodes.js?v=20261122-b5-perf1"></script>
-  <script src="scripts/desktop-canvas-port-plates.js?v=20261116-yue-shell1"></script>
+  <script src="scripts/desktop-canvas-port-plates.js?v=20261123-video-understand1"></script>
   <script src="scripts/desktop-canvas-link-flow.js?v=20261109-link-flow1"></script>
   <script src="scripts/desktop-canvas-connections.js?v=20261116-text-rewrite1"></script>
   <script src="scripts/desktop-canvas-connection-feedback.js?v=20261109-edge-arc1"></script>
@@ -1997,7 +2004,7 @@
   <script src="scripts/desktop-canvas-generation.js?v=20261116-text-rewrite1"></script>
   <script src="scripts/desktop-canvas-collision.js?v=20260913-canvas-collision1"></script>
   <script src="scripts/desktop-canvas-lora.js?v=20261031-moss-node1"></script>
-  <script src="scripts/desktop-canvas.js?v=20261123-easycolab-h3-1"></script>
+  <script src="scripts/desktop-canvas.js?v=20261124-merge-sync1"></script>
   <script type="module" src="scripts/desktop-pose-editor.js?v=20261122-b3-craft1"></script>
   <script src="scripts/desktop-layout-editor.js?v=20260908-layout-fonts2"></script>
   <script src="scripts/desktop-file-results.js?v=20261122-b5-perf1"></script>
@@ -2015,7 +2022,7 @@
   <script src="scripts/desktop-google-pool.js?v=20261121-quota-row2"></script>
   <script src="scripts/desktop-settings-search.js?v=20261101-secret-mask1"></script>
   <script src="scripts/desktop-settings-drafts.js?v=20261030-settings-drafts1"></script>
-  <script src="scripts/desktop-settings.js?v=20261123-easycolab-h3-1"></script>
+  <script src="scripts/desktop-settings.js?v=20261124-merge-sync1"></script>
   <script src="scripts/desktop-prompt-media.js?v=20260929-prompt-video1"></script>
   <script src="scripts/desktop-prompt-editor.js?v=20260929-prompt-video1"></script>
   <script src="scripts/desktop-prompt-drawer.js?v=20261123-b6-polish1"></script>
