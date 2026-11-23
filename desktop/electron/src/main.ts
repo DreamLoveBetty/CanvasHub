@@ -58,7 +58,7 @@ interface CustomUpdateState {
   error?: string;
 }
 
-const APP_VERSION = '26.6.2';
+const APP_VERSION = '26.6.3';
 const PROJECT_ROOT = path.resolve(__dirname, '../../..');
 const services: ServiceProcess[] = [];
 let mainWindow: BrowserWindow | null = null;
