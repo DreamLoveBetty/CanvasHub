@@ -8,7 +8,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-EXPECTED = "26.6.4"
+EXPECTED = "26.6.5"
 NOTES_DATE = "2026-11-24"
 PREFERENCES_ASSET = "scripts/desktop-preferences.js"
 PREFERENCES_SOURCE = "frontend/scripts/desktop-preferences.js"
@@ -30,7 +30,7 @@ def _first_release_block(source: str) -> str:
 
 
 class ReleaseVersionContractTest(unittest.TestCase):
-    def test_application_version_fields_are_synchronized_to_26_6_4(self):
+    def test_application_version_fields_are_synchronized_to_26_6_5(self):
         package = json.loads(_read("desktop/electron/package.json"))
         lock = json.loads(_read("desktop/electron/package-lock.json"))
         python = _read("backend/version.py")
@@ -45,8 +45,8 @@ class ReleaseVersionContractTest(unittest.TestCase):
         labels = re.findall(r"V\d+(?:\.\d+){2,3}", html)
         self.assertGreaterEqual(len(labels), 4)
         self.assertTrue(all(label == f"V{EXPECTED}" for label in labels), labels)
-        self.assertNotIn("26.6.3", python)
-        self.assertNotIn("V26.6.3", html)
+        self.assertNotIn("26.6.4", python)
+        self.assertNotIn("V26.6.4", html)
 
     def test_bundled_release_notes_keep_existing_id_and_empty_version(self):
         block = _first_release_block(_read(PREFERENCES_SOURCE))
@@ -59,7 +59,7 @@ class ReleaseVersionContractTest(unittest.TestCase):
         bullets = re.findall(r"'([^']*)'", items.group(1))
         self.assertGreaterEqual(len(bullets), 5, bullets)
         joined = "\n".join(bullets)
-        for needle in ("EasyColab", "MiniMax H3", "WeMM-Video", "反推", "Graphite"):
+        for needle in ("EasyColab", "连接器", "生命周期", "syncHeight", "回归测试"):
             self.assertIn(needle, joined, f"missing {needle} in {bullets}")
 
     def test_preferences_cache_key_is_bumped_and_recorded(self):
