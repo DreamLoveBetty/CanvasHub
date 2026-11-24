@@ -399,8 +399,8 @@
     "sha256": "458aed2e112bf3517234e4f63cf9498769af57fdab6996a2101c6587194d320c"
    },
    "scripts/desktop-preferences.js": {
-    "v": "20261123-release2663",
-    "sha256": "17859d4e9249ac190af87dc4332cf8e30427621676c6c0f1a39eda1f07cc1298"
+    "v": "20261124-release2664",
+    "sha256": "e581e18bdd751ae5fc0710510778b9428f321c821c57ed2c37b8eb61a6173543"
    },
    "scripts/desktop-progress-materials.js": {
     "v": "20261007-node-progress4",
