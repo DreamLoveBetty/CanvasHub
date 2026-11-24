@@ -54,12 +54,20 @@
   function policy(from, to) {
     if (!targets[from?.type]?.includes(to?.type)) return null;
     if (from.type === 'audio') {
-      if (modelKind(to) !== 'video') return null;
+      if (modelKind(to) !== 'video') {
+        return { reject: '当前 EasyColab 图像模型不支持声纹音频输入，请切换为视频模型后再连线。' };
+      }
       return { inputRole: 'audio', outputRole: 'audio', single: true, replaceAllInputs: false };
     }
     if (TYPES.includes(from.type)) {
       const outKind = modelKind(from);
-      if (to.type !== outKind) return null;
+      if (to.type !== outKind) {
+        return {
+          reject: outKind === 'video'
+            ? '当前 EasyColab 视频模型仅可输出到视频节点。'
+            : '当前 EasyColab 图像模型仅可输出到图片节点。'
+        };
+      }
       return { inputRole: outKind, outputRole: outKind, single: false, replaceAllInputs: true };
     }
     const role = from.type === 'text' ? 'prompt' : 'image';

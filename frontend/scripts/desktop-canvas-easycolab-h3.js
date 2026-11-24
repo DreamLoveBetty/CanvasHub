@@ -146,6 +146,7 @@
     connectNodes,
     setImageFromResult,
     refreshVideoNode,
+    updateLinkPath,
     saveState,
     reportStatus
   }) {
@@ -424,6 +425,7 @@
           const measured = Math.round(s.el.offsetHeight || 0);
           if (measured > 200 && Math.abs((s.node.height || 0) - measured) > 4) {
             s.node.height = measured;
+            updateLinkPath?.();
           }
         });
       }

@@ -105,16 +105,22 @@
   }
 
     function getConnectableNodeMenuItems(fromNodeId) {
-    const fromType = DesktopState.state.canvas.nodes[fromNodeId]?.type;
-    const targetTypes = targetsFor(fromType);
-    return NODE_MENU_ITEMS.filter(item => targetTypes.includes(item.type));
+    const from = DesktopState.state.canvas.nodes[fromNodeId];
+    const targetTypes = targetsFor(from?.type);
+    return NODE_MENU_ITEMS.filter(item => {
+      if (!targetTypes.includes(item.type)) return false;
+      const domainPolicy = from && domainConnections?.policy(from, { type: item.type }, {}, DesktopState.state.canvas.edges || []);
+      return !domainPolicy?.reject;
+    });
   }
 
     function canConnectNodes(fromNodeId, toNodeId) {
     if (!fromNodeId || !toNodeId || fromNodeId === toNodeId) return false;
     const from = getNodeState(fromNodeId);
     const to = getNodeState(toNodeId);
-    return Boolean(from && to && targetsFor(from.type).includes(to.type));
+    if (!from || !to || !targetsFor(from.type).includes(to.type)) return false;
+    const domainPolicy = domainConnections?.policy(from, to, {}, DesktopState.state.canvas.edges || []);
+    return !domainPolicy?.reject;
   }
 
     function renderContextMenuItems(items, title = '') {
@@ -876,7 +882,7 @@
     const textToComfy = from?.type === 'text' && to?.type === 'comfy';
     const outputToImage = from?.type === 'output' && to?.type === 'image';
     const upscaleToImage = from?.type === 'upscale' && to?.type === 'image';
-    if (!canConnectNodes(fromNodeId, toNodeId)) {
+    if (!from || !to || fromNodeId === toNodeId || !targetsFor(from.type).includes(to.type)) {
       if (!options.quiet) DesktopResults.showTransientMessage('当前节点类型不能这样连接。');
       return '';
     }

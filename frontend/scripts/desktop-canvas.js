@@ -3081,6 +3081,7 @@
     canvasTopazVideo.graphChanged();
     canvasPose.graphChanged();
     canvasCyimg.graphChanged();
+    canvasEasyColabH3.graphChanged();
     canvasKrea2.graphChanged();
     canvasKrea2Control.graphChanged();
     canvasQwen21.graphChanged();
@@ -3494,6 +3495,7 @@
     canvasTopazVideo.disposeAll(true);
     canvasPose.disposeAll();
     canvasCyimg.disposeAll();
+    canvasEasyColabH3.disposeAll();
     canvasKrea2.disposeAll(); canvasKrea2Control.disposeAll(); canvasQwen21.disposeAll(); canvasMoss.disposeAll();
     revokeCurrentWorkflowObjectUrls();
     promptDocumentHistories.clear();
@@ -4928,9 +4930,9 @@
       }
     });
     window.addEventListener('pointermove', moveInteraction);
-    window.addEventListener('pagehide', event => { if (!event.persisted) canvasProgress.destroy(); canvasAudio.disposeAll(); canvasMusic.disposeAll(); canvasVideoControl.disposeAll(); canvasVideoUnderstand.disposeAll(); canvasVideoCompose.disposeAll(); canvasTopazVideo.disposeAll(); canvasPose.disposeAll(); canvasCyimg.disposeAll(); canvasKrea2.disposeAll(); canvasKrea2Control.disposeAll(); canvasQwen21.disposeAll(); canvasMoss.disposeAll(); });
+    window.addEventListener('pagehide', event => { if (!event.persisted) canvasProgress.destroy(); canvasAudio.disposeAll(); canvasMusic.disposeAll(); canvasVideoControl.disposeAll(); canvasVideoUnderstand.disposeAll(); canvasVideoCompose.disposeAll(); canvasTopazVideo.disposeAll(); canvasPose.disposeAll(); canvasCyimg.disposeAll(); canvasEasyColabH3.disposeAll(); canvasKrea2.disposeAll(); canvasKrea2Control.disposeAll(); canvasQwen21.disposeAll(); canvasMoss.disposeAll(); });
     window.addEventListener('desktop:progress-preferences-change', canvasProgress.refreshPreferences);
-    window.addEventListener('pageshow', () => { canvasAudio.reconcile(); canvasMusic.reconcile(); canvasVideoControl.reconcile(); canvasVideoUnderstand.reconcile(); canvasVideoCompose.reconcile(); canvasTopazVideo.reconcile(); canvasPose.reconcile(); canvasCyimg.reconcile(); canvasKrea2.reconcile(); canvasKrea2Control.reconcile(); canvasQwen21.reconcile(); canvasMoss.reconcile(); });
+    window.addEventListener('pageshow', () => { canvasAudio.reconcile(); canvasMusic.reconcile(); canvasVideoControl.reconcile(); canvasVideoUnderstand.reconcile(); canvasVideoCompose.reconcile(); canvasTopazVideo.reconcile(); canvasPose.reconcile(); canvasCyimg.reconcile(); canvasEasyColabH3.reconcile(); canvasKrea2.reconcile(); canvasKrea2Control.reconcile(); canvasQwen21.reconcile(); canvasMoss.reconcile(); });
     window.addEventListener('pointerup', endInteraction);
     window.addEventListener('pointercancel', endInteraction);
     window.addEventListener('blur', () => {
@@ -5236,6 +5238,7 @@
     connectNodes,
     setImageFromResult: setImageNodeFromResult,
     refreshVideoNode,
+    updateLinkPath,
     saveState: () => DesktopState.saveSettings({ criticalCanvas: true }),
     reportStatus: feedback => taskRegistry.report('easycolab_h3', feedback),
   });

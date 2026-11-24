@@ -59,16 +59,16 @@
     "sha256": "0b7d758d27222ffed516ad0b7dbd2e4cabd364a0442e983c999f4f2af5ece09c"
    },
    "scripts/desktop-canvas-connections.js": {
-    "v": "20261116-text-rewrite1",
-    "sha256": "4e8a796a95f75ab23d16473f6309abe71eaa845293120147926a52e9a42b048b"
+    "v": "20261124-easycolab-fix1",
+    "sha256": "e5ca8f5af9ce4516ebfe84f5871b08d34fcd8f00df857424a42ed03c58cfd54c"
    },
    "scripts/desktop-canvas-cyimg.js": {
     "v": "20261119-uxseq1",
     "sha256": "0e9c9029525fd37fd786edea46fe4f31510f998de5e95475a24b8f10cc02c801"
    },
    "scripts/desktop-canvas-easycolab-h3.js": {
-    "v": "20261123-easycolab-h3-2",
-    "sha256": "088c400e2ce89652067b5281120dbef54443c95797f208eb1e3bb03a733d9d62"
+    "v": "20261124-easycolab-fix1",
+    "sha256": "f8e97f71b5c8650fb239a93f2e5e3ed31f8061b7b73c2f06fa638175cf278532"
    },
    "scripts/desktop-canvas-generation-config.js": {
     "v": "20261106-comfy-switches1",
@@ -211,8 +211,8 @@
     "sha256": "854838e629c2239821acdedef8357bfc4b0fedd3e78ab2f833ff68c41b93fe61"
    },
    "scripts/desktop-canvas.js": {
-    "v": "20261124-merge-sync1",
-    "sha256": "241d9d03a3f80597d1f76f6d0fc6768b74eae7582caaad2c3c52718e7f9cfacb"
+    "v": "20261124-easycolab-fix1",
+    "sha256": "d8aa493088a0b1e6c09cc55956c9ac56c37df6a9dcb4a81892ef697b1da2a88c"
    },
    "scripts/desktop-color-bloom.js": {
     "v": "20261019-color-drag1",
@@ -243,8 +243,8 @@
     "sha256": "662b9238ff3a0ae4ed82a5dad7b6337e77ef7cd3a66d3ae5fb9a9297799a81af"
    },
    "scripts/desktop-easycolab-h3-model.js": {
-    "v": "20261123-easycolab-h3-2",
-    "sha256": "4654bca08a993095c00c04048734690829ebfce83decdaa8fea01e405e87f9eb"
+    "v": "20261124-easycolab-fix1",
+    "sha256": "d1dc7a57e241f5904a6f5ea79ab85bc9bfe85964048744b5d66ce8eebf5aa95d"
    },
    "scripts/desktop-file-results.js": {
     "v": "20261122-b5-perf1",
