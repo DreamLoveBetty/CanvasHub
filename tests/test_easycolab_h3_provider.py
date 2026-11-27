@@ -119,6 +119,101 @@ class EasyColabH3ProviderTests(unittest.TestCase):
             self.assertEqual(cfg["effective_base_url"], "https://sess.gradio.live")
             self.assertEqual(cfg["effective_password"], secret)
 
+    def test_config_adopts_fresher_active_session_and_respects_sleeping(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            sess_path = Path(tmp) / "session.json"
+            active_path = Path(tmp) / "active_session.json"
+
+            # 1. Newer active_session.json overrides older session.json
+            sess_path.write_text(
+                json.dumps({
+                    "account": "user@example.com",
+                    "url": "https://older-sess.gradio.live",
+                    "password": "old-password-0123456789012345",
+                    "sleeping": False,
+                    "updated_at": 1000.0,
+                }),
+                encoding="utf-8",
+            )
+            active_path.write_text(
+                json.dumps({
+                    "account": "user@example.com",
+                    "url": "https://fresher-active.gradio.live/",
+                    "password": "new-password-0123456789012345",
+                    "sleeping": False,
+                    "updated_at": 2000.0,
+                }),
+                encoding="utf-8",
+            )
+            env = {
+                "EASYCOLAB_SESSION_FILE": str(sess_path),
+                "EASYCOLAB_ACTIVE_SESSION_PATH": str(active_path),
+            }
+            with mock.patch.object(app_config, "load_app_settings", return_value={"easycolab": {}}), \
+                    mock.patch.dict(os.environ, env, clear=False):
+                os.environ.pop("EASYCOLAB_URL", None)
+                os.environ.pop("EASYCOLAB_PASSWORD", None)
+                cfg = app_config.get_easycolab_config()
+            self.assertTrue(cfg["session_detected"])
+            self.assertEqual(cfg["effective_base_url"], "https://fresher-active.gradio.live")
+            self.assertEqual(cfg["effective_password"], "new-password-0123456789012345")
+
+            # 2. Newer session.json wins when its timestamp is higher (with password inheritance if active lacks one)
+            sess_path.write_text(
+                json.dumps({
+                    "account": "user@example.com",
+                    "url": "https://fresher-sess.gradio.live",
+                    "password": "",
+                    "sleeping": False,
+                    "updated_at": 3000.0,
+                }),
+                encoding="utf-8",
+            )
+            with mock.patch.object(app_config, "load_app_settings", return_value={"easycolab": {}}), \
+                    mock.patch.dict(os.environ, env, clear=False):
+                os.environ.pop("EASYCOLAB_URL", None)
+                os.environ.pop("EASYCOLAB_PASSWORD", None)
+                cfg = app_config.get_easycolab_config()
+            self.assertEqual(cfg["effective_base_url"], "https://fresher-sess.gradio.live")
+            self.assertEqual(cfg["effective_password"], "new-password-0123456789012345")
+
+            # 3. Newer sleeping=True overrides older awake session instead of falling back to stale URL
+            active_path.write_text(
+                json.dumps({
+                    "account": "user@example.com",
+                    "url": "https://fresher-active.gradio.live",
+                    "password": "new-password-0123456789012345",
+                    "sleeping": True,
+                    "updated_at": 4000.0,
+                }),
+                encoding="utf-8",
+            )
+            with mock.patch.object(app_config, "load_app_settings", return_value={"easycolab": {}}), \
+                    mock.patch.dict(os.environ, env, clear=False):
+                os.environ.pop("EASYCOLAB_URL", None)
+                os.environ.pop("EASYCOLAB_PASSWORD", None)
+                cfg = app_config.get_easycolab_config()
+            self.assertFalse(cfg["session_detected"])
+            self.assertEqual(cfg["effective_base_url"], "")
+
+    def test_client_request_json_explains_expired_tunnel_404(self):
+        client = EasyColabH3Client("https://demo.gradio.live", "secret-password-value")
+        resp_404 = mock.Mock(
+            status_code=404,
+            ok=False,
+            text="<!DOCTYPE html><html><head><title>No interface is running</title></head></html>",
+        )
+        resp_404.json.side_effect = ValueError("not json")
+        with mock.patch("backend.provider_easycolab_h3.requests.request", return_value=resp_404):
+            with self.assertRaisesRegex(RuntimeError, "隧道地址已失效或服务未运行（HTTP 404）"):
+                client.status()
+
+        resp_502 = mock.Mock(status_code=502, ok=False, text="<html>Bad Gateway</html>")
+        resp_502.json.side_effect = ValueError("not json")
+        with mock.patch("backend.provider_easycolab_h3.requests.request", return_value=resp_502):
+            with self.assertRaisesRegex(RuntimeError, r"^EasyColab 返回了非 JSON 响应（HTTP 502）$"):
+                client.status()
+
     def test_service_prepare_submit_poll_archive_and_telegram(self):
         with tempfile.TemporaryDirectory() as tmp:
             archive_dir = Path(tmp) / "archive"

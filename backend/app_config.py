@@ -370,23 +370,88 @@ def get_cyimg_config() -> dict[str, Any]:
     }
 
 
-def _load_easycolab_local_session() -> dict[str, Any]:
-    session_path_str = _as_str(os.environ.get("EASYCOLAB_SESSION_FILE"))
-    session_path = Path(session_path_str).expanduser() if session_path_str else (
-        Path.home() / ".config" / "colab-minimax-h3" / "session.json"
-    )
-    if not session_path.is_file():
-        return {}
+def _easycolab_local_session_paths() -> list[Path]:
+    env_session = _as_str(os.environ.get("EASYCOLAB_SESSION_FILE"))
+    env_active = _as_str(os.environ.get("EASYCOLAB_ACTIVE_SESSION_PATH"))
+    if env_session:
+        raw_paths = [Path(env_session).expanduser()]
+        if env_active:
+            raw_paths.append(Path(env_active).expanduser())
+    else:
+        raw_paths = [
+            Path.home() / ".config" / "colab-minimax-h3" / "session.json",
+            Path(env_active).expanduser()
+            if env_active
+            else (Path.home() / "Library" / "Application Support" / "EasyColab" / "active_session.json"),
+        ]
+    unique_paths: list[Path] = []
+    seen: set[str] = set()
+    for path in raw_paths:
+        key = os.path.abspath(os.fspath(path))
+        if key not in seen:
+            seen.add(key)
+            unique_paths.append(path)
+    return unique_paths
+
+
+def _read_easycolab_session_candidate(path: Path) -> dict[str, Any] | None:
+    if not path.is_file():
+        return None
     try:
-        raw = json.loads(session_path.read_text(encoding="utf-8"))
+        raw = json.loads(path.read_text(encoding="utf-8"))
     except Exception:
-        return {}
-    if not isinstance(raw, dict) or raw.get("sleeping") is True:
-        return {}
+        return None
+    if not isinstance(raw, dict):
+        return None
+    sleeping = raw.get("sleeping") is True
     url = _as_str(raw.get("url")).rstrip("/")
-    if not url:
+    if not sleeping and not url.startswith(("http://", "https://")):
+        return None
+    try:
+        ts = float(raw.get("updated_at") or 0.0)
+    except (TypeError, ValueError):
+        ts = 0.0
+    if ts <= 0.0:
+        try:
+            ts = float(path.stat().st_mtime)
+        except OSError:
+            ts = 0.0
+    return {
+        "ts": ts,
+        "sleeping": sleeping,
+        "url": url,
+        "password": _as_str(raw.get("password")),
+        "account": _as_str(raw.get("account")).lower(),
+    }
+
+
+def _load_easycolab_local_session() -> dict[str, Any]:
+    candidates: list[dict[str, Any]] = []
+    for path in _easycolab_local_session_paths():
+        cand = _read_easycolab_session_candidate(path)
+        if cand is not None:
+            candidates.append(cand)
+    if not candidates:
         return {}
-    return {"url": url, "password": _as_str(raw.get("password"))}
+    best: dict[str, Any] | None = None
+    for cand in candidates:
+        if best is None or cand["ts"] >= best["ts"]:
+            best = cand
+    if best is None or best["sleeping"] or not best["url"]:
+        return {}
+    password = best["password"]
+    if not password:
+        freshest_pwd: dict[str, Any] | None = None
+        for cand in candidates:
+            if cand is best or not cand["password"]:
+                continue
+            if best["account"] and cand["account"] and best["account"] != cand["account"]:
+                continue
+            if freshest_pwd is None or cand["ts"] >= freshest_pwd["ts"]:
+                freshest_pwd = cand
+        if freshest_pwd is not None:
+            password = freshest_pwd["password"]
+    return {"url": best["url"], "password": password}
 
 
 def get_easycolab_config() -> dict[str, Any]:

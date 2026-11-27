@@ -245,6 +245,10 @@ class EasyColabH3Client:
         except (ValueError, requests.exceptions.JSONDecodeError) as exc:
             if response.status_code == 401:
                 raise RuntimeError("EasyColab 鉴权失败，请检查管理密码") from exc
+            if response.status_code == 404 and "no interface is running" in (response.text or "").lower():
+                raise RuntimeError(
+                    "EasyColab 隧道地址已失效或服务未运行（HTTP 404），请确认 EasyColab 正在运行，并在设置中清空固定服务地址以自动读取本机会话"
+                ) from exc
             raise RuntimeError(f"EasyColab 返回了非 JSON 响应（HTTP {response.status_code}）") from exc
         if response.status_code == 401:
             raise RuntimeError("EasyColab 鉴权失败，请检查管理密码")
