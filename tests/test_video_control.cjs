@@ -12,8 +12,7 @@ test('video transport accepts generated, nested archive and control-video source
   const calls=[],api=transport({blob:async url=>{calls.push(url);return 'video bytes';}});
   for(const url of ['/video/generated.mp4','/video/archive/2026-09-20/clip.mp4',
     '/video/imported/folder/%E8%A7%86%E9%A2%91%20%E5%8F%82%E8%80%83.mov?download=1',
-    '/api/video_control/source?id=synthetic','/api/video_control/artifact?id=synthetic&name=result%2Fcontrol.mp4',
-    '/api/topaz_video/source?id=synthetic','/api/topaz_video/artifact?id=synthetic&name=result%2Fenhanced.mp4']) {
+    '/api/video_control/source?id=synthetic','/api/video_control/artifact?id=synthetic&name=result%2Fcontrol.mp4']) {
     assert.equal(api.sourceUrl(url),url);
     assert.equal(await api.blob('http://localhost:18463'+url+'#preview'),'video bytes');
     assert.equal(calls.at(-1),url);

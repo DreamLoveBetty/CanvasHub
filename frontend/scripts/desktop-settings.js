@@ -13,6 +13,8 @@
   let mossTools = null;
   let asrTools = null;
   let videoUnderstandTools = null;
+  let kandinskySrTools = null;
+  let extensionModelTools = [];
   let loraSettings = null;
   let modelToolsTab = 'krea2';
   let modelToolsSlide = { from: null, to: null, at: 0 };
@@ -1669,15 +1671,22 @@
     return { sections };
   }
 
+  function renderExtensionModelTools(tabId) {
+    return extensionModelTools
+      .filter(tool => (tool.tab || 'common') === tabId)
+      .map(tool => tool.render?.() || '')
+      .join('');
+  }
+
   function renderModelToolsSubtabContent(tabId) {
     if (tabId === 'krea2') {
-      return krea2Tools?.render?.() || renderCard('Krea 2 模型转换', [
+      return (krea2Tools?.render?.() || renderCard('Krea 2 模型转换', [
         '<div class="desk-settings-empty">模型工具模块未加载。</div>'
-      ], false);
+      ], false)) + renderExtensionModelTools('krea2');
     }
-    if (tabId === 'qwen21') return qwen21Tools?.render?.() || '';
-    if (tabId === 'moss') return mossTools?.render?.() || '';
-    return (loraSettings?.render?.() || '') + (asrTools?.render?.() || '') + (videoUnderstandTools?.render?.() || '');
+    if (tabId === 'qwen21') return (qwen21Tools?.render?.() || '') + renderExtensionModelTools('qwen21');
+    if (tabId === 'moss') return (mossTools?.render?.() || '') + renderExtensionModelTools('moss');
+    return (loraSettings?.render?.() || '') + (asrTools?.render?.() || '') + (videoUnderstandTools?.render?.() || '') + (kandinskySrTools?.render?.() || '') + renderExtensionModelTools('common');
   }
 
   function renderModelToolsSettings() {
@@ -2856,7 +2865,7 @@
       } else {
         renderDiagnostics(lastDiagnostics);
       }
-      if (activeTab === 'model-tools') await Promise.all([krea2Tools?.activate?.(),qwen21Tools?.activate?.(),mossTools?.activate?.(),asrTools?.activate?.(),videoUnderstandTools?.activate?.(),loraSettings?.activate?.()]);
+      if (activeTab === 'model-tools') await Promise.all([krea2Tools?.activate?.(),qwen21Tools?.activate?.(),mossTools?.activate?.(),asrTools?.activate?.(),videoUnderstandTools?.activate?.(),kandinskySrTools?.activate?.(),loraSettings?.activate?.(), ...extensionModelTools.map(tool => tool.activate?.())]);
     } catch (error) {
       if (els.deskSettingsSummary) {
         els.deskSettingsSummary.innerHTML = '<span class="desk-settings__status is-warn">诊断读取失败</span>';
@@ -2891,6 +2900,8 @@
     mossTools?.deactivate?.();
     asrTools?.deactivate?.();
     videoUnderstandTools?.deactivate?.();
+    kandinskySrTools?.deactivate?.();
+    extensionModelTools.forEach(tool => tool.deactivate?.());
     loraSettings?.deactivate?.();
     closeSettingsInfoTip();
     return true;
@@ -2917,7 +2928,7 @@
     }
     updateTabs();
     if (lastDiagnostics) renderDiagnostics(lastDiagnostics);
-    if (previousTab === 'model-tools' && activeTab !== 'model-tools') {krea2Tools?.deactivate?.();qwen21Tools?.deactivate?.();mossTools?.deactivate?.();asrTools?.deactivate?.();videoUnderstandTools?.deactivate?.();loraSettings?.deactivate?.();}
+    if (previousTab === 'model-tools' && activeTab !== 'model-tools') {krea2Tools?.deactivate?.();qwen21Tools?.deactivate?.();mossTools?.deactivate?.();asrTools?.deactivate?.();videoUnderstandTools?.deactivate?.();kandinskySrTools?.deactivate?.();extensionModelTools.forEach(tool => tool.deactivate?.());loraSettings?.deactivate?.();}
     if (activeTab === 'model-tools') {
       loraSettings?.activate?.().catch(error => showSettingsFeedback(error, 'LoRA 连接设置读取失败'));
       krea2Tools?.activate?.().catch(error => showSettingsFeedback(error, '模型工具状态读取失败'));
@@ -2925,6 +2936,10 @@
       mossTools?.activate?.().catch(error => showSettingsFeedback(error, 'MOSS 状态读取失败'));
       asrTools?.activate?.().catch(error => showSettingsFeedback(error, '语音识别状态读取失败'));
       videoUnderstandTools?.activate?.().catch(error => showSettingsFeedback(error, '视频理解状态读取失败'));
+      kandinskySrTools?.activate?.().catch(error => showSettingsFeedback(error, 'Kandinsky SR 状态读取失败'));
+      extensionModelTools.forEach(tool => {
+        tool.activate?.()?.catch?.(error => showSettingsFeedback(error, `${tool.label || '扩展工具'}状态读取失败`));
+      });
     }
     if (activeTab === 'chatgpt-pool' && googlePoolSettings.isGoogle()) {
       void googlePoolSettings.refresh();
@@ -3029,13 +3044,13 @@
     els.deskSettingsBody?.addEventListener('input', event => {
       settingsDrafts.track(event);
       if (updateProgressPreference(event) || updateControlMaterialPreference(event)) return;
-      if (loraSettings?.handleInput?.(event) || mossTools?.handleInput?.(event) || qwen21Tools?.handleInput?.(event) || krea2Tools?.handleInput?.(event)) return;
+      if (loraSettings?.handleInput?.(event) || extensionModelTools.some(tool => tool.handleInput?.(event)) || mossTools?.handleInput?.(event) || qwen21Tools?.handleInput?.(event) || krea2Tools?.handleInput?.(event)) return;
     });
     els.deskSettingsBody?.addEventListener('change', event => {
       settingsDrafts.track(event);
       if (googlePoolSettings.handleChange(event)) return;
       if (updateProgressPreference(event) || updateControlMaterialPreference(event)) return;
-      if (loraSettings?.handleInput?.(event) || mossTools?.handleInput?.(event) || qwen21Tools?.handleInput?.(event) || krea2Tools?.handleInput?.(event)) return;
+      if (loraSettings?.handleInput?.(event) || extensionModelTools.some(tool => tool.handleInput?.(event)) || mossTools?.handleInput?.(event) || qwen21Tools?.handleInput?.(event) || krea2Tools?.handleInput?.(event)) return;
       const systemField = event.target.closest('[data-system-setting-field]');
       if (systemField?.dataset.systemSettingField === 'gpt_provider.image_main_model') {
         syncProviderReasoningField(systemField);
@@ -3082,7 +3097,7 @@
         copyModelToolsDirectoryPath(copyPathButton.dataset.modelToolsPath, copyPathButton.dataset.modelToolsEmpty).catch(error => showSettingsFeedback(error, '复制失败'));
         return;
       }
-      if (loraSettings?.handleClick?.(event) || videoUnderstandTools?.handleClick?.(event) || asrTools?.handleClick?.(event) || mossTools?.handleClick?.(event) || qwen21Tools?.handleClick?.(event) || krea2Tools?.handleClick?.(event)) return;
+      if (loraSettings?.handleClick?.(event) || extensionModelTools.some(tool => tool.handleClick?.(event)) || kandinskySrTools?.handleClick?.(event) || videoUnderstandTools?.handleClick?.(event) || asrTools?.handleClick?.(event) || mossTools?.handleClick?.(event) || qwen21Tools?.handleClick?.(event) || krea2Tools?.handleClick?.(event)) return;
       if (googlePoolSettings.handleClick(event)) return;
       const themeStyleButton = event.target.closest('button[data-theme-style]');
       if (themeStyleButton) {
@@ -3552,11 +3567,21 @@
       rerender: rerenderModelTools,
       notify: (message, tone) => window.DesktopResults?.showTransientMessage?.(message, tone)
     }) || null;
+    kandinskySrTools = window.DesktopKandinskySrTools?.create?.({
+      api: window.DesktopKandinskySrAPI, escapeHtml,
+      rerender: rerenderModelTools,
+      notify: (message, tone) => window.DesktopResults?.showTransientMessage?.(message, tone)
+    }) || null;
     mossTools = window.DesktopMossTools?.create?.({
       api: window.DesktopMossAPI, escapeHtml,
       rerender: rerenderModelTools,
       notify: (message, tone) => window.DesktopResults?.showTransientMessage?.(message, tone)
     }) || null;
+    extensionModelTools = window.DesktopLocalExtensions?.createModelTools?.({
+      escapeHtml,
+      rerender: rerenderModelTools,
+      notify: (message, tone) => window.DesktopResults?.showTransientMessage?.(message, tone)
+    }) || [];
     settingsSearch = window.DesktopSettingsSearch?.create({
       input: els.deskSettingsSearchInput,
       results: els.deskSettingsSearchResults,

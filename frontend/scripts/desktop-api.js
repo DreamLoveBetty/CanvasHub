@@ -193,8 +193,13 @@
       });
     }
 
-    if (provider === 'topaz') {
-      return window.DesktopTopazApi.submit(client,{config,images,lineage,telegramEnabled});
+    const extSubmit = window.DesktopLocalExtensions?.getSubmitProvider?.(provider);
+    if (extSubmit) {
+      return extSubmit(client, { config, images, lineage, telegramEnabled });
+    }
+
+    if (provider === 'kandinsky_sr') {
+      return window.DesktopKandinskySrAPI.submit(client, { config, images, lineage, telegramEnabled });
     }
 
     if (provider === 'upscale') {
@@ -421,10 +426,6 @@
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload || {})
     });
-  }
-
-  function getTopazModels() {
-    return window.DesktopTopazApi.catalog(requireApi());
   }
 
   function getUpscaleModels() {
@@ -1514,7 +1515,6 @@
     deleteAgentRun,
     controlAgentRun,
     submitAgentAction,
-    getTopazModels,
     getUpscaleModels,
     getUpscaleComponentStatus,
     installUpscaleComponent,

@@ -3,7 +3,7 @@
 // its buttons; the field keeps its own attributes, value and handlers.
 //
 // Host contract: nothing to call. Number fields rendered inside canvas nodes, the settings
-// centre, the layout inspector and the Topaz Video workbench panel are wrapped as soon as
+// centre, the layout inspector and registered local extension panels are wrapped as soon as
 // they are inserted (MutationObserver, before paint). A step uses
 // the field's own stepUp()/stepDown(), so min / max / step are honoured, and dispatches
 // bubbling `input` and `change` like the native arrows do. Holding a button repeats until
@@ -15,8 +15,13 @@
 // stay out of the tab order: the keyboard keeps ArrowUp / ArrowDown on the field itself.
 (function () {
   'use strict';
-  const SCOPE = ':is(.desk-node, .desk-settings, .desk-layout-inspector, .desk-topaz-video-workbench__panel)';
+  const SCOPE = ':is(.desk-node, .desk-settings, .desk-layout-inspector)';
   const SELECTOR = `${SCOPE} input[type="number"]:not([data-stepper="off"])`;
+  function currentSelector() {
+    const extra = window.DesktopLocalExtensions?.stepperScopes?.() || [];
+    if (!extra.length) return SELECTOR;
+    return `:is(.desk-node, .desk-settings, .desk-layout-inspector, ${extra.join(', ')}) input[type="number"]:not([data-stepper="off"])`;
+  }
   const REPEAT_DELAY = 400;
   const REPEAT_INTERVAL = 70;
 
@@ -50,8 +55,9 @@
 
   function enhanceIn(root = document) {
     if (root.nodeType !== Node.ELEMENT_NODE && root.nodeType !== Node.DOCUMENT_NODE) return;
-    if (root.matches?.(SELECTOR)) enhance(root);
-    root.querySelectorAll?.(SELECTOR).forEach(enhance);
+    const sel = currentSelector();
+    if (root.matches?.(sel)) enhance(root);
+    root.querySelectorAll?.(sel).forEach(enhance);
   }
 
   // Returns true when the value changed; events follow the native arrow order.

@@ -41,7 +41,7 @@ test('连线只允许正确的素材和结果类型',()=>{
   assert.ok(model.policy({type:'audio'},{type:'cyimg_video'}));
   assert.ok(model.policy({type:'cyimg_image'},{type:'image'}));
   assert.ok(model.policy({type:'cyimg_video'},{type:'video'}));
-  for(const [source,target] of [['video','cyimg_image'],['cyimg_image','video'],['cyimg_video','image'],['topaz','cyimg_video']])
+  for(const [source,target] of [['video','cyimg_image'],['cyimg_image','video'],['cyimg_video','image'],['upscale','cyimg_video']])
     assert.equal(model.policy({type:source},{type:target}),null);
 });
 test('认证 API 适配不携带 Key；桌面资源顺序和缓存版本已更新',async()=>{

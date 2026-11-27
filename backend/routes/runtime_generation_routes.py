@@ -44,9 +44,6 @@ def handle_upscale_run(
         model_name = normalize_upscale_model(data.get('model', incoming_params.get('model')))
         model_status = next((item for item in available_upscale_models(UPSCALE_MODEL_DIR) if item.get('id') == model_name), {})
         if not model_status.get('available'):
-            if model_name.startswith('topaz-'):
-                handler.send_json({'error': model_status.get('error') or 'Topaz 原生模型不可用'}, 409)
-                return
             handler.send_json({
                 "error": "高清放大组件尚未安装，请先完成组件下载。",
                 "component": get_upscale_component_status(),

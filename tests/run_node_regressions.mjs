@@ -3,12 +3,13 @@
 // Mirrors tests/run_regressions.py: stable excludes *_local.* and tests/local|manual.
 
 import { spawnSync } from 'node:child_process';
-import { readdirSync } from 'node:fs';
+import { existsSync, lstatSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const PROJECT_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const TEST_ROOT = path.join(PROJECT_ROOT, 'tests');
+const EXT_ROOT = path.join(PROJECT_ROOT, 'extensions');
 const GENERATED_DIRS = new Set([
   'output', 'artifacts', 'reports', 'test-results', 'playwright-report',
   'coverage', 'tmp', '__pycache__', 'node_modules',
@@ -31,6 +32,22 @@ function testFiles(directory, insideLocal) {
   return result;
 }
 
+function extensionTestFiles() {
+  if (!existsSync(EXT_ROOT) || lstatSync(EXT_ROOT).isSymbolicLink() || !lstatSync(EXT_ROOT).isDirectory()) {
+    return [];
+  }
+  const result = [];
+  for (const entry of readdirSync(EXT_ROOT, { withFileTypes: true })) {
+    if (!entry.isDirectory() || entry.name.startsWith('.')) continue;
+    const extTests = path.join(EXT_ROOT, entry.name, 'tests');
+    if (!existsSync(extTests) || lstatSync(extTests).isSymbolicLink() || !lstatSync(extTests).isDirectory()) {
+      continue;
+    }
+    result.push(...testFiles(extTests, false));
+  }
+  return result;
+}
+
 const args = process.argv.slice(2);
 const scopeIndex = args.indexOf('--scope');
 const scope = scopeIndex >= 0 ? args[scopeIndex + 1] : 'stable';
@@ -39,7 +56,7 @@ if (!['stable', 'local', 'all'].includes(scope)) {
   process.exit(2);
 }
 
-const files = testFiles(TEST_ROOT, false)
+const files = [...testFiles(TEST_ROOT, false), ...extensionTestFiles()]
   .filter(({ local }) => scope === 'all' || (scope === 'local') === local)
   .map(({ file }) => path.relative(PROJECT_ROOT, file))
   .sort();

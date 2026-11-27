@@ -193,19 +193,24 @@
 
 :where(body.desk-app[data-theme]) .desk-selection-bounds__meta {
   position: absolute;
-  top: 50%;
-  left: -10px;
-  display: grid;
+  top: var(--desk-selection-meta-top, -43px);
+  right: calc(100% + 10px);
+  display: inline-flex;
+  align-items: center;
   gap: 6px;
-  min-width: 68px;
+  height: 36px;
+  padding: 4px 0;
+  box-sizing: border-box;
   pointer-events: none;
 }
 
 :where(body.desk-app[data-theme]) .desk-selection-group {
-  width: 100%;
+  width: auto;
   min-width: 68px;
   height: 26px;
   padding: 0 9px;
+  box-sizing: border-box;
+  white-space: nowrap;
   pointer-events: auto;
   font-size: var(--desk-font-size-caption);
   font-weight: var(--desk-font-weight-semibold);

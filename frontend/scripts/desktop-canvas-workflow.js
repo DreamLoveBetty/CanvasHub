@@ -37,7 +37,6 @@
     applyWorkflowSnapshot,
     audioNodeDefinition,
     musicNodeDefinition,
-    topazDefinition,
     cyimgDefinition,
     easycolabH3Definition,
     krea2Definition,
@@ -47,8 +46,8 @@
     videoControlDefinition,
     videoUnderstandDefinition,
     videoComposeDefinition,
-    topazVideoDefinition,
     poseDefinition,
+    kandinskySrDefinition,
     embedAudioAssets,
     clamp,
     dataUrlValue,
@@ -215,7 +214,7 @@
     const id = String(clean.id || nodeId || '').trim();
     if (!id) return null;
     clean.id = id;
-    topazDefinition?.migrate(clean);
+    window.DesktopLocalExtensions?.migrateNode?.(clean);
     // MiniMax H3 left the canvas; without this the unknown type would become an image model node.
     if (clean.type === RETIRED_VIDEO_NODE_TYPE || clean.type === RETIRED_PE_NODE_TYPE) return null;
     clean.type = normalizeNodeMenuType(clean.type || (id === 'input' ? 'input' : 'image'));
@@ -304,7 +303,7 @@
         .filter(imageGroupItemSource);
     }
     if (clean.type === 'audio') audioNodeDefinition.normalizeState(clean);
-    if (clean.type === topazDefinition?.TYPE) topazDefinition.normalize(clean);
+    window.DesktopLocalExtensions?.normalizeNode?.(clean);
     if (cyimgDefinition?.TYPES.includes(clean.type)) cyimgDefinition.normalize(clean);
     if (easycolabH3Definition?.TYPES.includes(clean.type)) easycolabH3Definition.normalize(clean);
     if (clean.type === krea2Definition?.TYPE) krea2Definition.normalize(clean);
@@ -314,8 +313,8 @@
     if (clean.type === videoControlDefinition?.TYPE) videoControlDefinition.normalize(clean);
     if (clean.type === videoUnderstandDefinition?.TYPE) videoUnderstandDefinition.normalize(clean);
     if (clean.type === videoComposeDefinition?.TYPE) videoComposeDefinition.normalize(clean);
-    if (clean.type === topazVideoDefinition?.TYPE) topazVideoDefinition.normalize(clean);
     if (clean.type === poseDefinition?.TYPE) poseDefinition.normalize(clean);
+    if (clean.type === kandinskySrDefinition?.TYPE) kandinskySrDefinition.normalize(clean);
     if (musicNodeDefinition?.TYPES.includes(clean.type)) musicNodeDefinition.normalizeState(clean);
     if (clean.type === 'video') {
       clean.width = clamp(clean.width, MIN_VIDEO_NODE_WIDTH, MAX_VIDEO_NODE_WIDTH);

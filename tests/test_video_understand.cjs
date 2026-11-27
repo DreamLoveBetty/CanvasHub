@@ -124,7 +124,7 @@ test('video_understand transport validates same-origin video URLs and translates
     },
   });
 
-  for (const okUrl of ['/video/demo.mp4', '/api/video_control/artifact?id=1&name=a.mp4', '/api/topaz_video/source?id=2']) {
+  for (const okUrl of ['/video/demo.mp4', '/api/video_control/artifact?id=1&name=a.mp4']) {
     assert.equal(api.sourceUrl(okUrl), okUrl);
   }
   for (const badUrl of ['https://evil.invalid/a.mp4', 'file:///tmp/a.mp4', '/api/settings', '/video/']) {

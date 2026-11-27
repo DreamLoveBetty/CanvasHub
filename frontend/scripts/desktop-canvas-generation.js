@@ -99,10 +99,11 @@
 
     function ensureImageOutputsForConfig(resultNodeId, config) {
     const directType = DesktopState.state.canvas.nodes[resultNodeId]?.type;
-    const modelNodeId = directType === 'input' || directType === 'comfy'
+    const modelNodeId = ['input', 'comfy', 'kandinsky_sr'].includes(directType)
       ? resultNodeId
       : (config?.nodeId || findInputForResult(resultNodeId));
-    if (!modelNodeId || !['input', 'comfy', 'topaz'].includes(DesktopState.state.canvas.nodes[modelNodeId]?.type)) return [];
+    const modelType = DesktopState.state.canvas.nodes[modelNodeId]?.type;
+    if (!modelNodeId || (!['input', 'comfy', 'kandinsky_sr'].includes(modelType) && !window.DesktopLocalExtensions?.isImageOutputSourceType?.(modelType))) return [];
     const expected = expectedImageOutputCount(config);
     config.expectedImageOutputCount = expected;
     if (!expected) return [];
@@ -121,7 +122,6 @@
   }
 
     async function ensureUpscaleComponent(modelName) {
-    if (String(modelName || '').startsWith('topaz-')) throw new Error('Topaz 已迁移为独立节点，请使用 Topaz Gigapixel 节点');
     const catalog = await DesktopApi.getUpscaleModels();
     const model = (catalog.models || []).find(item => item.id === modelName);
     if (model?.available) return catalog;

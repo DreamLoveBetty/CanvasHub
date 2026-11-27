@@ -6,7 +6,7 @@ subprocesses; it imports no media library, model or other video domain.
 | File | Owns |
 |---|---|
 | `contracts.py` | Limits and request validation. Requests carry a served media URL, never a path. |
-| `sources.py` | Maps `/video/…`, `/api/topaz_video/{source,artifact}` and `/api/video_control/{source,artifact}` to files through resolvers injected by `server.py` (the same ones that serve those URLs). |
+| `sources.py` | Maps `/video/…`, `/api/video_control/{source,artifact}` and extension video stores to files through resolvers injected by `server.py` (the same ones that serve those URLs). |
 | `media.py` | `Tools` (FFmpeg lookup), `Runner` (timeouts, cancel), probe with every frame's presentation time, exact frame extraction, `scdet` scene scoring, audio copy/re-encode plan. |
 | `service.py` | Serial in-memory job queue (`frames`, `scenes`, `extract_audio`), probe/digest caches, preview frames and timeline filmstrips (LRU-cached), archive writes. |
 | `plan.py` | Pure compose planning: output size, frame-exact clip windows, the FFmpeg filter graph (fit, fps, speed, clip audio or silence, transitions, music with fades), output and total seconds after speed and transitions, encoder arguments and progress parsing. No files or subprocesses. |

@@ -224,7 +224,7 @@ test('every ordinary node delete control is an icon with a tooltip', () => {
 });
 
 test('node headers speak Chinese and the input node uses h2', () => {
-  for (const file of ['desktop-canvas-audio.js', 'desktop-canvas-topaz.js', 'desktop-pose-view.js', 'desktop-topaz-video-view.js', 'desktop-video-control-view.js', 'desktop-canvas-cyimg.js']) {
+  for (const file of ['desktop-canvas-audio.js', 'desktop-pose-view.js', 'desktop-video-control-view.js', 'desktop-canvas-cyimg.js']) {
     assert.doesNotMatch(read(`frontend/scripts/${file}`), /<(small|em)>[A-Z]{4,}[A-Z ·]*<\/(small|em)>|'VIDEO':'IMAGE'/, file);
   }
   assert.match(read('frontend/scripts/desktop-music-view.js'), /<small>\$\{def\.subtitle\}<\/small>/);

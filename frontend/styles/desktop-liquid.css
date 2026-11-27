@@ -1267,13 +1267,18 @@ body.desk-app[data-theme="dark"]::after {
 
 
 #deskSelectionCount {
-  display: block;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   min-width: 58px;
-  padding: 5px 9px;
+  height: 26px;
+  padding: 0 10px;
+  box-sizing: border-box;
   color: var(--desk-blue);
   font-size: var(--desk-font-size-caption);
   font-weight: var(--desk-font-weight-semibold);
-  text-align: right;
+  line-height: 1;
+  text-align: center;
   white-space: nowrap;
   background: rgba(255, 255, 255, 0.62);
   border: 1px solid rgba(255, 255, 255, 0.58);
@@ -12422,20 +12427,10 @@ body.desk-app .desk-node--edge-handles > .desk-port--floating:is(:hover, :focus-
   display: none;
 }
 
-.desk-node-context-menu__cap strong,
-.desk-node-context-menu__cap span {
+.desk-node-context-menu__cap strong {
   position: relative;
   z-index: 1;
-}
-
-.desk-node-context-menu__cap strong {
   color: inherit;
-  font-size: var(--desk-font-size-micro);
-  font-weight: var(--desk-font-weight-semibold);
-}
-
-.desk-node-context-menu__cap span {
-  color: rgba(255, 255, 255, 0.62);
   font-size: var(--desk-font-size-micro);
   font-weight: var(--desk-font-weight-semibold);
 }

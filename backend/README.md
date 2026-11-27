@@ -50,12 +50,12 @@ flowchart TD
 | 路由容灾、参数和进度 | 经已有生成入口 | `provider_routing`、`provider_errors`、`generation_policy`、`generation_progress` |
 | 放大、H3 提示词编译、ComfyUI | `runtime_generation_routes` | `upscale_generation`、`comfy_workflows`、`comfy_gateway`、`comfy_transport`、`comfy_generation`、`comfy_video`、`comfy_audio`、`comfy_workflow_tags`、`comfy_workflow_switches`、`comfy_object_info` |
 | ComfyUI 视频/音频源上传 | `routes/comfy_video_routes.py`（`POST /api/comfy/upload_video`、`POST /api/comfy/upload_audio`） | `services/comfy_video.py`：文件头识别 MP4/MOV/WebM（≤ 200 MiB）；`services/comfy_audio.py`：文件头识别 MP3/WAV/FLAC/OGG/M4A（≤ 50 MiB）。都转存到 ComfyUI 输入目录（`/upload/image`），只回传输入名；`/api/comfy/run` 的 `videos`/`audios` 只接受这种输入名 |
-| Topaz 独立增强节点 | `topaz/routes.py` / 既有任务查询与取消 | `topaz/` 独立参数、服务适配、版本门禁与子进程；`services/image_enhancement` 仅共享归档/任务生命周期，Spandrel 不依赖 Topaz；见 `topaz/README.md` |
-| 视频剪辑（抽帧、场景候选、分离音频、合成） | `routes/video_edit_routes.py`（`/api/video_edit/{status,probe,preview_frame,filmstrip,submit,job,cancel,compose,compose_check,compose_recipe,subtitle_fonts,music_beats,transcribe}`） | `video_edit/` 只调系统 FFmpeg/ffprobe：按帧号精确抽帧（含 VFR）、`scdet` 场景候选、首条音轨复制或转 FLAC、多段按帧裁切拼接加配乐的合成；来源只接受画布已在播放的 `/video/`、Topaz Video / ReShot 产物 URL，由 `server.py` 注入对应领域的解析器；帧进当日归档（provider `video_frame`），音轨经 `AudioArchive.publish_file` 进音频归档；抽帧等短任务仅存内存，合成任务持久化在 `data/video-edit/jobs.sqlite3`、独立线程渲染，成片带 `.json` 配方；自动字幕（`transcribe`）只渲染片段原声给 ASR 端口，返回可编辑字幕草稿，任务仅存内存；`music_beats` 用 FFmpeg 分频能量检测配乐节拍（纯 Python，按内容摘要缓存）；见 `video_edit/README.md` |
+| 扩展宿主 | `local_extensions.py`（`extensions/<id>/plugin.py` 与 `local_extensions/<id>/plugin.py`、`CANVASHUB_DISABLE_LOCAL_EXTENSIONS`） | 按目录发现并装配受跟踪内置扩展（`/ext/*`）与未跟踪本机可选扩展（`/local-ext/*`，环境变量可关闭）：`register_router`（GET/POST/DELETE/PATCH/PUT）、`register_startup_hook`（启动恢复）、视频来源存储、资产标签与 `desktop.html` 占位符静态资源注入；核心仓不硬编码任何具体扩展 |
+| 视频剪辑（抽帧、场景候选、分离音频、合成） | `routes/video_edit_routes.py`（`/api/video_edit/{status,probe,preview_frame,filmstrip,submit,job,cancel,compose,compose_check,compose_recipe,subtitle_fonts,music_beats,transcribe}`） | `video_edit/` 只调系统 FFmpeg/ffprobe：按帧号精确抽帧（含 VFR）、`scdet` 场景候选、首条音轨复制或转 FLAC、多段按帧裁切拼接加配乐的合成；来源只接受画布已在播放的 `/video/`、ReShot 及已注册扩展视频存储产物 URL，由 `server.py` 注入对应领域的解析器；帧进当日归档（provider `video_frame`），音轨经 `AudioArchive.publish_file` 进音频归档；抽帧等短任务仅存内存，合成任务持久化在 `data/video-edit/jobs.sqlite3`、独立线程渲染，成片带 `.json` 配方；自动字幕（`transcribe`）只渲染片段原声给 ASR 端口，返回可编辑字幕草稿，任务仅存内存；`music_beats` 用 FFmpeg 分频能量检测配乐节拍（纯 Python，按内容摘要缓存）；见 `video_edit/README.md` |
 | 语音识别（自动字幕） | `routes/asr_routes.py`（`GET /api/asr/status`、`POST /api/asr/prepare`） | `asr/` Qwen3-ASR 1.7B + ForcedAligner，独立 Python 3.12 venv（`components/asr/`，哈希锁定、`--no-deps`）；模型优先 ModelScope 直连下载并校验 sha256；每次识别是一次性子进程，持共享 `.local-inference.lock`，结束即释放内存；识别本身只经 video_edit 调用端口；见 `asr/README.md` |
 | 视频理解（WeMM-Video） | `routes/video_understand_routes.py`（`/api/video_understand/{status,prepare,submit,job,cancel,artifact}`） | `video_understand/` WeMM-Video 35B-A3B MLX 6-bit（支持 CLI `--model-dir` 只读绑定 4/6/8-bit），独立 Python 3.12 venv（`components/video-understand/`，哈希锁定、`--no-deps`、无 PyTorch）；复用 `SourceResolver` 解析画布视频；每次分析是一次性子进程，持共享 `.local-inference.lock` 与 `before_load` 卸载，结束即释放内存；输出 Markdown/文本给画布 `text` 节点；见 `video_understand/README.md` |
-| Topaz Video 独立节点 | `routes/topaz_video_routes.py` | `topaz_video/` 独立模型目录、视频素材、串行任务、进度/取消/结果和本地子进程；不依赖 Gigapixel 图片域、ReShot 视频控制或音频域；见 `topaz_video/README.md` |
 | 姿态识别（GEM-X 精简版） | `routes/pose_capture_routes.py` | `pose_capture/` 固定 GEM-X 源码与模型、常驻 CPU worker（照片识别）、场景转换（重力、机位、地面）、视频识别（`video.py`，CoreML 加速在 `accel.py`）、识别体型 GLB（`bodies.py`）、任务队列；HTTP 进程不导入推理依赖；见 `pose_capture/README.md` |
+| Kandinsky SR 2.0 图像超分 | `routes/kandinsky_sr_routes.py`（`/api/kandinsky_sr/{status,prepare,run}`） | `kandinsky_sr/` 2x/4x 单步扩散图像超分，独立 Python 3.12 venv（`components/kandinsky-sr/`，哈希锁定、`--no-deps`）；每次超分是一次性 MPS/CUDA/CPU 子进程，持共享 `.local-inference.lock` 与 `before_load` 卸载，经 `EnhancementEngine` 归档与 Telegram `sendDocument` 投递；见 `kandinsky_sr/README.md` |
 | 姿态参考（SOMA 人偶） | `routes/pose_routes.py` | `pose_scene/` 固定 SOMA 与 Anny 资产、安装时子进程生成中性 / 女性 / 男性人偶 GLB、姿态视频 ffmpeg 编码（`video_export.py`，成品进图片归档）、导出图与场景快照存放；不依赖识别、图像 Provider 或其他本地模型；见 `pose_scene/README.md` |
 | 绘栾图像/视频 | `routes/cyimg_routes.py` | `provider_cyimg.py` 对接官方 API 与动态目录；`services/cyimg_generation.py` 校验、任务恢复、轮询、原件归档和 Telegram 投递 |
 | EasyColab MiniMax H3 图像/视频 | `routes/easycolab_h3_routes.py` | `provider_easycolab_h3.py` 对接 EasyColab `/minimax_api/*` 与 4 款 H3 模型目录（10Eros-Max / Sulphur-3 / MiniMax-H3 / H3-Image 4K）；`services/easycolab_h3_generation.py` 负责参考图/音频暂存、自动加载显存、轮询、归档与 Telegram 原文件投递 |
@@ -196,7 +196,7 @@ the old Mixamo/Blender `pose_service.py`. Installation and limits: `pose_scene/R
 `video_edit/` turns canvas videos into exact frames, scene candidates and a separated audio
 track with the system FFmpeg. `sources` accepts only URLs the canvas already plays and resolves
 them through resolvers `server.py` injects (`routes/media_routes.resolve_video_file` for
-`/video/…`, the Topaz Video and ReShot stores for their artifacts), so path checks stay with
+`/video/…`, the ReShot store and any extension video stores for their artifacts), so path checks stay with
 the owning domain. Frames are written to today's archive folder; audio goes through
 `AudioArchive.publish_file`, the same publish path generated songs use. Frame, scene and audio
 jobs are in memory; outputs are idempotent per source content. Compose renders run on their own
@@ -207,31 +207,6 @@ opening that store takes the audio service's lease, which must not happen at imp
 Automatic subtitles (`video_edit/transcribe.py`) render the clips' own sound and call the
 `asr/` port, which runs Qwen3-ASR one-shot in `components/asr/venv`; see `asr/README.md`.
 See `video_edit/README.md`.
-
-## Independent Topaz Video domain
-
-`topaz_video/` is a separate local-video domain: `catalog` defines model-specific controls,
-`contracts` validates task requests, `features` validates composable filters/encoding and
-inspects offline capabilities, `pipeline` builds ordered commands without owning processes
-or task state, `runtime` selects explicitly staged local engines/weights,
-and `service` owns source assets and durable job state. `routes/topaz_video_routes.py` is a thin
-authenticated adapter for status, upload, submit, job, cancel and byte-range source/artifact reads.
-`server.py` only injects `APP_DATA_DIR/components/topaz-video` and the task-data directory.
-Neither the HTTP adapter nor the canvas node starts the Topaz GUI or downloads a model. Conventional
-exports reference the current machine's activated license metadata in place; they are rejected
-before publication unless the engine reports an owned-license checkout and no watermark fallback.
-Catalog presence and staged assets are not proof of successful inference: model availability and
-verification are reported separately. Precise, Mini and conventional enhancement have distinct
-execution paths and acceptance status; see `topaz_video/README.md`.
-The task contract supports explicit `preview` and `export` kinds plus a bounded
-`start_seconds`/`max_seconds` range. Range conversion, video/audio alignment and
-media metadata remain runtime/service responsibilities; the HTTP adapter does not
-implement timeline policy.
-The same runtime lifecycle executes stabilization, independent Nyx, Themis, enhancement,
-interpolation/slow motion and Hyperion HDR. It checks every AI pass, maps output timing and
-audio, cleans job-local intermediates and validates final HDR colour metadata. Production
-never downloads; optional model import remains an explicit operator action. `status` separates
-enhancement availability from filter capabilities and the editable MP4 encoding contract.
 
 ## Independent Qwen-Image 2.1 MLX domain
 
@@ -251,7 +226,7 @@ authenticated transport to explicit per-domain limits.
 Server assembly owns `runtime_resources.IdleWorkerCoordinator`: every local engine
 calls its explicit memory-release hook only after acquiring the shared accelerator
 lease. Qwen/Krea keep warm workers, but the next local domain unloads their **idle**
-workers before loading; active YuE/ReShot/Topaz work finishes rather than being killed.
+workers before loading; active YuE/ReShot/extension work finishes rather than being killed.
 Conversions inherit the lock FD into their one-off child, including cancellation.
 
 Qwen's independent VAE registry (`qwen21/vae_store.py`) and worker-only component

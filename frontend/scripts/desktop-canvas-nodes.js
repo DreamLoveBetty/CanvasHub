@@ -7,7 +7,7 @@
     { id: 'image', title: '图像节点', types: ['image', 'input', 'krea2', 'krea2_control', 'qwen21', 'moss', 'cyimg_image', 'easycolab_h3_image', 'pose'] },
     { id: 'video', title: '视频节点', types: ['video', 'cyimg_video', 'easycolab_h3_video', 'video_control', 'video_understand', 'video_compose'] },
     { id: 'audio', title: '音频节点', types: ['audio', 'music_generate', 'music_transcribe', 'music_abc', 'music_score', 'music_compare'] },
-    { id: 'enhance', title: '增强放大节点', types: ['upscale', 'topaz', 'topaz_video'] },
+    { id: 'enhance', title: '增强放大节点', types: ['upscale', 'kandinsky_sr'] },
     { id: 'general', title: '通用节点', types: ['text', 'comfy', 'file_output', 'layout'] }
   ];
   // Sidebar palette only: the node types added most recently, newest first.
@@ -54,8 +54,6 @@
     comfyLayout,
     musicNode,
     musicNodeDefinition,
-    topazNode,
-    topazDefinition,
     cyimgNode,
     cyimgDefinition,
     easycolabH3Node,
@@ -74,10 +72,11 @@
     videoUnderstandDefinition,
     videoComposeNode,
     videoComposeDefinition,
-    topazVideoNode,
-    topazVideoDefinition,
     poseNode,
     poseDefinition,
+    kandinskySrNode,
+    kandinskySrDefinition,
+    localExtensions = [],
     clearPromptDocumentHistory,
     comfyNodeHtml,
     comfyWorkflowCatalogRef,
@@ -141,7 +140,7 @@
       nodeState.width = audioNodeDefinition.WIDTH;
       nodeState.height = audioNodeDefinition.HEIGHT;
     }
-    if (nodeState.type === topazDefinition?.TYPE) topazDefinition.normalize(nodeState);
+    window.DesktopLocalExtensions?.normalizeNode?.(nodeState);
     if (cyimgDefinition?.TYPES.includes(nodeState.type)) cyimgDefinition.normalize(nodeState);
     if (easycolabH3Definition?.TYPES.includes(nodeState.type)) easycolabH3Definition.normalize(nodeState);
     if (nodeState.type === krea2Definition?.TYPE) krea2Definition.normalize(nodeState);
@@ -151,8 +150,8 @@
     if (nodeState.type === videoControlDefinition?.TYPE) videoControlDefinition.normalize(nodeState);
     if (nodeState.type === videoUnderstandDefinition?.TYPE) videoUnderstandDefinition.normalize(nodeState);
     if (nodeState.type === videoComposeDefinition?.TYPE) videoComposeDefinition.normalize(nodeState);
-    if (nodeState.type === topazVideoDefinition?.TYPE) topazVideoDefinition.normalize(nodeState);
     if (nodeState.type === poseDefinition?.TYPE) poseDefinition.normalize(nodeState);
+    if (nodeState.type === kandinskySrDefinition?.TYPE) kandinskySrDefinition.normalize(nodeState);
     if (musicNodeDefinition?.TYPES.includes(nodeState.type)) musicNodeDefinition.normalizeState(nodeState);
     if (nodeState.type === 'file_output') {
       nodeState.width = DEFAULT_FILE_OUTPUT_NODE_WIDTH;
@@ -367,6 +366,13 @@
       });
       return { ...group, items };
     });
+    for (const [type, item] of [...remaining.entries()]) {
+      const target = item.paletteGroup && groups.find(group => group.id === item.paletteGroup);
+      if (target) {
+        target.items.push(item);
+        remaining.delete(type);
+      }
+    }
     // New catalog entries must remain reachable before a category is assigned.
     groups.find(group => group.id === 'general').items.push(...remaining.values());
     const recentItems = readRecentNodeTypes().flatMap(type => NODE_MENU_ITEMS.filter(item => item.type === type));
@@ -418,7 +424,8 @@
   }
 
     function nextNodeId(type) {
-    const prefix = type === topazDefinition?.TYPE ? type : type === krea2Definition?.TYPE ? type : type === krea2ControlDefinition?.TYPE ? type : type === qwen21Definition?.TYPE ? type : type === mossDefinition?.TYPE ? type : cyimgDefinition?.TYPES.includes(type) ? type : easycolabH3Definition?.TYPES.includes(type) ? type : type === videoControlDefinition?.TYPE ? type : type === videoUnderstandDefinition?.TYPE ? type : type === videoComposeDefinition?.TYPE ? type : type === topazVideoDefinition?.TYPE ? type : musicNodeDefinition?.TYPES.includes(type) ? type : type === 'audio' ? 'audio' : type === 'file_output'
+    const extTypes = window.DesktopLocalExtensions?.nodeTypes?.() || [];
+    const prefix = extTypes.includes(type) ? type : type === krea2Definition?.TYPE ? type : type === krea2ControlDefinition?.TYPE ? type : type === qwen21Definition?.TYPE ? type : type === mossDefinition?.TYPE ? type : type === kandinskySrDefinition?.TYPE ? type : cyimgDefinition?.TYPES.includes(type) ? type : easycolabH3Definition?.TYPES.includes(type) ? type : type === videoControlDefinition?.TYPE ? type : type === videoUnderstandDefinition?.TYPE ? type : type === videoComposeDefinition?.TYPE ? type : musicNodeDefinition?.TYPES.includes(type) ? type : type === 'audio' ? 'audio' : type === 'file_output'
       ? 'file_output'
       : (type === 'image_group'
         ? 'image_group'
@@ -466,7 +473,7 @@
       width: defaultWidth,
       height: defaultHeight
     };
-    if (type === topazDefinition?.TYPE) topazDefinition.normalize(node);
+    window.DesktopLocalExtensions?.normalizeNode?.(node);
     if (cyimgDefinition?.TYPES.includes(type)) cyimgDefinition.normalize(node);
     if (easycolabH3Definition?.TYPES.includes(type)) easycolabH3Definition.normalize(node);
     if (type === krea2Definition?.TYPE) krea2Definition.normalize(node);
@@ -476,8 +483,8 @@
     if (type === videoControlDefinition?.TYPE) videoControlDefinition.normalize(node);
     if (type === videoUnderstandDefinition?.TYPE) videoUnderstandDefinition.normalize(node);
     if (type === videoComposeDefinition?.TYPE) videoComposeDefinition.normalize(node);
-    if (type === topazVideoDefinition?.TYPE) topazVideoDefinition.normalize(node);
     if (type === poseDefinition?.TYPE) Object.assign(node, poseDefinition.createState());
+    if (type === kandinskySrDefinition?.TYPE) kandinskySrDefinition.normalize(node);
     if (type === 'audio') Object.assign(node, audioNodeDefinition.createState(id, { x: node.x, y: node.y }));
     if (musicNodeDefinition?.TYPES.includes(type)) Object.assign(node, musicNodeDefinition.createState(id, type, { x: node.x, y: node.y }));
     if (type === 'input') {
@@ -548,7 +555,8 @@
       node.output = { archiveEnabled: true, telegramEnabled: false };
     }
     DesktopState.state.canvas.nodes[id] = node;
-    if (type === topazDefinition?.TYPE || type === 'input' || type === 'comfy' || type === 'file_output' || type === 'upscale') {
+    const extOutputType = window.DesktopLocalExtensions?.outputTypeFor?.(type) || '';
+    if (extOutputType || type === 'input' || type === 'comfy' || type === 'file_output' || type === 'upscale' || type === kandinskySrDefinition?.TYPE) {
       DesktopState.state.outputs[id] = {
         status: 'idle',
         stage: '',
@@ -558,7 +566,7 @@
         imagePaths: [],
         primaryFile: '',
         primaryImagePath: '',
-        type: type === topazDefinition?.TYPE ? 'topaz' : type === 'upscale' ? 'upscale' : (type === 'comfy' ? 'comfy' : 'gpt'),
+        type: extOutputType || (type === kandinskySrDefinition?.TYPE ? 'kandinsky_sr' : (type === 'upscale' ? 'upscale' : (type === 'comfy' ? 'comfy' : 'gpt'))),
         error: '',
         taskId: '',
         fileManifest: null,
@@ -647,7 +655,10 @@
   }
 
     function nodeHtmlForState(nodeId, node) {
-    if (node.type === topazDefinition?.TYPE) return topazNode.nodeHtml(node);
+    for (const ext of localExtensions) {
+      const html = ext.nodeHtml?.(node);
+      if (html) return html;
+    }
     if (node.type === krea2Definition?.TYPE) return krea2Node.nodeHtml(node);
     if (node.type === krea2ControlDefinition?.TYPE) return krea2ControlNode.nodeHtml(node);
     if (node.type === qwen21Definition?.TYPE) return qwen21Node.nodeHtml(node);
@@ -657,7 +668,6 @@
     if (node.type === videoControlDefinition?.TYPE) return videoControlNode.nodeHtml(node);
     if (node.type === videoUnderstandDefinition?.TYPE) return videoUnderstandNode.nodeHtml(node);
     if (node.type === videoComposeDefinition?.TYPE) return videoComposeNode.nodeHtml(node);
-    if (node.type === topazVideoDefinition?.TYPE) return topazVideoNode.nodeHtml(node);
     if (musicNodeDefinition?.TYPES.includes(node.type)) return musicNode.nodeHtml(node);
     if (node.type === 'audio') return audioNode.nodeHtml(node);
     if (node.type === 'file_output') return fileOutputNodeHtml(nodeId);
@@ -666,6 +676,7 @@
     if (node.type === 'video') return videoNodeHtml(node);
     if (node.type === 'comfy') return comfyNodeHtml(node);
     if (node.type === 'upscale') return upscaleNodeHtml(node);
+    if (node.type === kandinskySrDefinition?.TYPE) return kandinskySrNode.nodeHtml(node);
     if (node.type === poseDefinition?.TYPE) return poseNode.nodeHtml(poseDefinition.normalize(node));
     if (node.type === 'layout') return layoutNodeHtml(node);
     if (node.type === 'text') return textNodeHtml(node);
@@ -683,7 +694,7 @@
       }
     });
     Object.entries(DesktopState.state.canvas.nodes).forEach(([nodeId, node]) => {
-      topazDefinition?.migrate(node);
+      window.DesktopLocalExtensions?.migrateNode?.(node);
       if (getNodeElement(nodeId)) return;
       if (node.type === 'output') return;
       const html = nodeHtmlForState(nodeId, node);
@@ -695,16 +706,16 @@
     videoControlNode?.reconcile();
     videoUnderstandNode?.reconcile();
     videoComposeNode?.reconcile();
-    topazVideoNode?.reconcile();
     poseNode?.reconcile();
-    topazNode?.reconcile();
     cyimgNode?.reconcile();
     easycolabH3Node?.reconcile();
     krea2Node?.reconcile();
     krea2ControlNode?.reconcile();
     qwen21Node?.reconcile();
     mossNode?.reconcile();
+    kandinskySrNode?.reconcile();
     comfyLayout?.reconcile();
+    localExtensions.forEach(ext => ext.reconcile?.());
   }
 
     function resetNodeLayout() {
@@ -713,7 +724,7 @@
     videoControlNode?.disposeAll(true);
     videoUnderstandNode?.disposeAll(true);
     videoComposeNode?.disposeAll(true);
-    topazVideoNode?.disposeAll(true);
+    localExtensions.forEach(ext => ext.disposeAll?.(true));
     poseNode?.disposeAll();
     cyimgNode?.disposeAll();
     easycolabH3Node?.disposeAll();
@@ -786,7 +797,7 @@
     }
     ensureGraphDom();
     applyNodeLayout(node.id);
-    if (nodeType !== 'upscale' && getNodeElement(node.id)?.querySelector('[data-output-archive], [data-output-telegram]')) {
+    if (nodeType !== 'upscale' && nodeType !== kandinskySrDefinition?.TYPE && getNodeElement(node.id)?.querySelector('[data-output-archive], [data-output-telegram]')) {
       syncOutputControlsToNodes(DesktopState.state.output, { save: false });
     }
     if (nodeType === 'image') triggerImageNodePopIn(node.id, 0);
@@ -796,15 +807,15 @@
   }
 
     function normalizeNodeMenuType(type) {
+    if (window.DesktopLocalExtensions?.nodeTypes?.()?.includes(type)) return type;
     if (type === videoControlDefinition?.TYPE) return type;
     if (type === videoUnderstandDefinition?.TYPE) return type;
     if (type === videoComposeDefinition?.TYPE) return type;
-    if (type === topazVideoDefinition?.TYPE) return type;
-    if (type === topazDefinition?.TYPE) return type;
     if (type === krea2Definition?.TYPE) return type;
     if (type === krea2ControlDefinition?.TYPE) return type;
     if (type === qwen21Definition?.TYPE) return type;
     if (type === mossDefinition?.TYPE) return type;
+    if (type === kandinskySrDefinition?.TYPE) return type;
     if (cyimgDefinition?.TYPES.includes(type)) return type;
     if (easycolabH3Definition?.TYPES.includes(type)) return type;
     if (musicNodeDefinition?.TYPES.includes(type)) return type;
@@ -847,7 +858,7 @@
     if (node.type === videoControlDefinition?.TYPE) videoControlNode.dispose(nodeId, true);
     if (node.type === videoUnderstandDefinition?.TYPE) videoUnderstandNode.dispose(nodeId, true);
     if (node.type === videoComposeDefinition?.TYPE) videoComposeNode.dispose(nodeId, true);
-    if (node.type === topazVideoDefinition?.TYPE) topazVideoNode.dispose(nodeId, true);
+    localExtensions.forEach(ext => ext.dispose?.(nodeId, true));
     if (node.type === poseDefinition?.TYPE) poseNode.dispose(nodeId);
     if (cyimgDefinition?.TYPES.includes(node.type)) cyimgNode.dispose(nodeId);
     if (easycolabH3Definition?.TYPES.includes(node.type)) easycolabH3Node.dispose(nodeId);

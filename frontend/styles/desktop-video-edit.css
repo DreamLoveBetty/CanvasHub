@@ -146,7 +146,7 @@ body.desk-app :is(.desk-video-frames button.desk-video-frames__close, .desk-vide
   color: var(--desk-color-text-primary);
 }
 
-/* Stage and timeline stay dark in every theme, like the Topaz workbench. */
+/* Stage and timeline stay dark in every theme. */
 body.desk-app :is(.desk-video-frames__screen, .desk-video-compose-bench__screen, .desk-video-compose__preview) {
   border: 1px solid var(--desk-video-frames-stage-border);
   border-radius: var(--desk-radius-card);

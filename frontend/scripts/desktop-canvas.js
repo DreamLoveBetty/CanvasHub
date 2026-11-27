@@ -308,7 +308,6 @@
   ];
   let comfyWorkflowCatalog = { workflows: [], items: [], default_workflow: '' };
   const NODE_MENU_ITEMS = [
-    window.DesktopTopazModel.menu,
     window.DesktopKrea2Model.MENU_ITEM,
     window.DesktopKrea2Control.MENU_ITEM,
     window.DesktopQwen21Model.MENU_ITEM,
@@ -349,7 +348,6 @@
     window.DesktopVideoControlModel.menu,
     window.DesktopVideoUnderstandModel.menu,
     window.DesktopVideoComposeModel.menu,
-    window.DesktopTopazVideoModel.menu,
     ...window.DesktopMusicModel.MENU_ITEMS,
     {
       type: 'upscale',
@@ -357,6 +355,7 @@
       subtitle: '本地高清放大',
       icon: '<svg class="desk-node-icon desk-node-icon--upscale" viewBox="0 0 24 24"><g class="desk-node-icon__upscale-arrow"><path d="M16 3h5v5"></path><path d="m21 3-5 5"></path></g><g class="desk-node-icon__upscale-frame"><path d="M17 21h2a2 2 0 0 0 2-2"></path><path d="M21 12v3"></path><path d="M3 7V5a2 2 0 0 1 2-2"></path><path d="m5 21 4.144-4.144a1.21 1.21 0 0 1 1.712 0L13 19"></path><path d="M9 3h3"></path><rect x="3" y="11" width="10" height="10" rx="1"></rect></g></svg>'
     },
+    window.DesktopKandinskySrModel.menu,
     window.DesktopPoseModel.menu,
     {
       type: 'text',
@@ -369,7 +368,8 @@
       title: '排版节点',
       subtitle: '图文版面',
       icon: '<svg class="desk-node-icon desk-node-icon--layout" viewBox="0 0 24 24"><rect class="desk-node-icon__layout-frame" width="18" height="18" x="3" y="3" rx="2"></rect><g class="desk-node-icon__layout-panels"><path d="M3 9h18"></path><path d="M9 21V9"></path></g></svg>'
-    }
+    },
+    ...(window.DesktopLocalExtensions?.menuItems?.() || []),
   ];
   const TEXT_STYLE_PRESETS = [
     { id: 'raw', title: 'Raw', promptTemplate: '主体清晰，构图自然，保留真实质感，光影克制，细节干净。' },
@@ -2442,6 +2442,10 @@
       type: 'node-drag',
       nodeId,
       groupIds,
+      pointerId: event.pointerId,
+      startClientX: event.clientX,
+      startClientY: event.clientY,
+      moved: false,
       nodePositions: Object.fromEntries(groupIds.map(id => {
         const item = getNodeState(id);
         return [id, { x: item.x, y: item.y }];
@@ -2474,6 +2478,10 @@
     activeInteraction = {
       type: 'node-resize',
       nodeId,
+      pointerId: event.pointerId,
+      startClientX: event.clientX,
+      startClientY: event.clientY,
+      moved: false,
       startWorldX: pointer.x,
       startWorldY: pointer.y,
       width: resizeState.width,
@@ -2509,6 +2517,10 @@
     }
 
     if (activeInteraction.type === 'connect') {
+      if (!activeInteraction.moved
+        && Math.hypot(event.clientX - activeInteraction.startClientX, event.clientY - activeInteraction.startClientY) > CANVAS_PAN_DRAG_THRESHOLD_PX) {
+        activeInteraction.moved = true;
+      }
       activeInteraction.pointer = screenToWorld(event.clientX, event.clientY);
       renderConnectionPreview(
         activeInteraction.fromNodeId,
@@ -2544,6 +2556,12 @@
       const snap = resolveSnap(activeInteraction.groupIds || [activeInteraction.nodeId], activeInteraction.nodePositions || {}, rawDx, rawDy, {
         excludeNodeIds: canvasCollision.displacedIds()
       });
+      if (!activeInteraction.moved && (
+        Math.hypot(event.clientX - activeInteraction.startClientX, event.clientY - activeInteraction.startClientY) > CANVAS_PAN_DRAG_THRESHOLD_PX
+        || Math.hypot(snap.dx, snap.dy) > 0.5
+      )) {
+        activeInteraction.moved = true;
+      }
       (activeInteraction.groupIds || [activeInteraction.nodeId]).forEach(nodeId => {
         const item = getNodeState(nodeId);
         const base = activeInteraction.nodePositions?.[nodeId];
@@ -2566,6 +2584,10 @@
     }
 
     if (activeInteraction.type === 'node-resize') {
+      if (!activeInteraction.moved
+        && Math.hypot(event.clientX - activeInteraction.startClientX, event.clientY - activeInteraction.startClientY) > CANVAS_PAN_DRAG_THRESHOLD_PX) {
+        activeInteraction.moved = true;
+      }
       if (nodeState.type === 'image') {
         const dx = pointer.x - activeInteraction.startWorldX;
         const dy = pointer.y - activeInteraction.startWorldY;
@@ -2608,7 +2630,9 @@
   function endInteraction(event) {
     if (!activeInteraction) return;
     if (activeInteraction.type === 'connect') {
+      const moved = Boolean(activeInteraction.moved);
       finishConnectionDrag(event);
+      canvasViewport.suppressClickAfterPan(event, moved);
       activeInteraction = null;
       return;
     }
@@ -2622,6 +2646,7 @@
         setSelectedNodes([]);
       } else {
         selectNodesInRect(rect, true);
+        canvasViewport.suppressClickAfterPan(event, true);
       }
       hideMarquee();
       activeInteraction = null;
@@ -2635,10 +2660,10 @@
     const collisionPending = interaction.type === 'node-drag' && canvasCollision.end({
       cancelled: event?.type === 'pointercancel', immediate: Boolean(shouldAnimateImageGroupDrop)
     });
-    if (interaction.type === 'pan') {
+    if (interaction.type === 'pan' || interaction.type === 'node-drag' || interaction.type === 'node-resize') {
       canvasViewport.suppressClickAfterPan(event, interaction.moved);
-      flushCanvasPanTransform();
     }
+    if (interaction.type === 'pan') flushCanvasPanTransform();
     if (interaction.type === 'node-drag' || interaction.type === 'node-resize') flushCanvasGraphRender();
     getNodeElement(interaction.nodeId)?.classList.remove('is-dragging', 'is-resizing');
     els.deskCanvasViewport?.classList.remove('is-panning', 'is-pan-dragging');
@@ -2997,7 +3022,13 @@
   }
 
   function readConfigForResult(resultNodeId) {
-    if (getNodeState(resultNodeId)?.type === 'topaz') return canvasTopaz.readConfig(resultNodeId);
+    if (DesktopState.state.canvas.nodes[resultNodeId]?.type === window.DesktopKandinskySrModel?.TYPE) {
+      return canvasKandinskySr.readConfig(resultNodeId);
+    }
+    for (const ext of localExtDomains) {
+      const config = ext.readConfig?.(resultNodeId);
+      if (config) return config;
+    }
     return canvasGenerationConfig.readConfigForResult(resultNodeId);
   }
 
@@ -3078,7 +3109,6 @@
     canvasVideoControl.graphChanged();
     canvasVideoUnderstand.graphChanged();
     canvasVideoCompose.graphChanged();
-    canvasTopazVideo.graphChanged();
     canvasPose.graphChanged();
     canvasCyimg.graphChanged();
     canvasEasyColabH3.graphChanged();
@@ -3086,6 +3116,8 @@
     canvasKrea2Control.graphChanged();
     canvasQwen21.graphChanged();
     canvasMoss.graphChanged();
+    canvasKandinskySr.reconcile();
+    localExtDomains.forEach(ext => ext.graphChanged?.());
   }
 
   function removeNode(nodeId, options = {}) {
@@ -3143,7 +3175,12 @@
   }
 
   function runUpscaleChainsForOutput(resultNodeId, output) {
-    return Promise.all([canvasGeneration.runUpscaleChainsForOutput(...arguments), canvasTopaz.runChains(...arguments)]).then(counts => counts.reduce((a,b) => a+b,0));
+    const extChains = localExtDomains.map(ext => ext.runChains?.(...arguments)).filter(Boolean);
+    return Promise.all([
+      canvasGeneration.runUpscaleChainsForOutput(...arguments),
+      canvasKandinskySr.runChains(resultNodeId, output),
+      ...extChains,
+    ]).then(counts => counts.reduce((a, b) => a + b, 0));
   }
 
   function populateResultImageNodes(resultNodeId, output) {
@@ -3492,7 +3529,7 @@
     canvasVideoControl.disposeAll(true);
     canvasVideoUnderstand.disposeAll(true);
     canvasVideoCompose.disposeAll(true);
-    canvasTopazVideo.disposeAll(true);
+    localExtDomains.forEach(ext => ext.disposeAll?.(true));
     canvasPose.disposeAll();
     canvasCyimg.disposeAll();
     canvasEasyColabH3.disposeAll();
@@ -4150,7 +4187,7 @@
       clearSelectedEdge();
       setNodePaletteOpen(false);
       hideContextMenu();
-      if (!event.target.closest('.desk-node--text, #deskPromptDrawer, #deskTextPolishModal, #deskThemeToggle')) {
+      if (!event.target.closest('.desk-node--text, #deskPromptDrawer, #deskTextPolishModal, #deskThemeToggle, #deskSelectionToolbar, #deskSelectionBounds')) {
         const selectedIds = getSelectedNodeIds();
         const pointerNodeId = getCanvasNodeIdForElement(event.target);
         const pointerInsideSelection = pointerNodeId && selectedIds.includes(pointerNodeId);
@@ -4777,7 +4814,7 @@
           els.deskFileInput?.click();
           return;
         }
-        const type = [window.DesktopTopazModel.TYPE, window.DesktopKrea2Model.TYPE, window.DesktopKrea2Control.TYPE, window.DesktopQwen21Model.TYPE, window.DesktopMossModel.TYPE, ...window.DesktopCyimgModel.TYPES, window.DesktopVideoControlModel.TYPE, window.DesktopVideoUnderstandModel.TYPE, window.DesktopVideoComposeModel.TYPE, window.DesktopTopazVideoModel.TYPE, ...window.DesktopMusicModel.TYPES, 'file_output', 'video', 'audio', 'layout', 'text', 'pose', 'upscale'].includes(addNodePayload.type) ? addNodePayload.type : 'input';
+        const type = [window.DesktopKrea2Model.TYPE, window.DesktopKrea2Control.TYPE, window.DesktopQwen21Model.TYPE, window.DesktopMossModel.TYPE, window.DesktopKandinskySrModel.TYPE, ...window.DesktopCyimgModel.TYPES, window.DesktopVideoControlModel.TYPE, window.DesktopVideoUnderstandModel.TYPE, window.DesktopVideoComposeModel.TYPE, ...window.DesktopMusicModel.TYPES, ...(window.DesktopLocalExtensions?.nodeTypes?.() || []), 'file_output', 'video', 'audio', 'layout', 'text', 'pose', 'upscale'].includes(addNodePayload.type) ? addNodePayload.type : 'input';
         const pointer = screenToWorld(event.clientX, event.clientY);
         selectNode(addNode(type, pointer));
         setNodePaletteOpen(false);
@@ -4889,7 +4926,9 @@
       const aliasShell = event.target.closest('.desk-text-node__alias');
       if (aliasShell) {
         const node = aliasShell.closest('.desk-node--text[data-node-id]');
-        if (node) selectNode(node.dataset.nodeId);
+        if (node && (event.target.closest('[data-text-node-alias-edit]') || !getSelectedNodeIds().includes(node.dataset.nodeId))) {
+          selectNode(node.dataset.nodeId);
+        }
         if (event.target.closest('[data-text-node-alias-edit]')) {
           event.preventDefault();
           event.stopPropagation();
@@ -4930,9 +4969,9 @@
       }
     });
     window.addEventListener('pointermove', moveInteraction);
-    window.addEventListener('pagehide', event => { if (!event.persisted) canvasProgress.destroy(); canvasAudio.disposeAll(); canvasMusic.disposeAll(); canvasVideoControl.disposeAll(); canvasVideoUnderstand.disposeAll(); canvasVideoCompose.disposeAll(); canvasTopazVideo.disposeAll(); canvasPose.disposeAll(); canvasCyimg.disposeAll(); canvasEasyColabH3.disposeAll(); canvasKrea2.disposeAll(); canvasKrea2Control.disposeAll(); canvasQwen21.disposeAll(); canvasMoss.disposeAll(); });
+    window.addEventListener('pagehide', event => { if (!event.persisted) canvasProgress.destroy(); canvasAudio.disposeAll(); canvasMusic.disposeAll(); canvasVideoControl.disposeAll(); canvasVideoUnderstand.disposeAll(); canvasVideoCompose.disposeAll(); localExtDomains.forEach(ext => ext.disposeAll?.()); canvasPose.disposeAll(); canvasCyimg.disposeAll(); canvasEasyColabH3.disposeAll(); canvasKrea2.disposeAll(); canvasKrea2Control.disposeAll(); canvasQwen21.disposeAll(); canvasMoss.disposeAll(); });
     window.addEventListener('desktop:progress-preferences-change', canvasProgress.refreshPreferences);
-    window.addEventListener('pageshow', () => { canvasAudio.reconcile(); canvasMusic.reconcile(); canvasVideoControl.reconcile(); canvasVideoUnderstand.reconcile(); canvasVideoCompose.reconcile(); canvasTopazVideo.reconcile(); canvasPose.reconcile(); canvasCyimg.reconcile(); canvasEasyColabH3.reconcile(); canvasKrea2.reconcile(); canvasKrea2Control.reconcile(); canvasQwen21.reconcile(); canvasMoss.reconcile(); });
+    window.addEventListener('pageshow', () => { canvasAudio.reconcile(); canvasMusic.reconcile(); canvasVideoControl.reconcile(); canvasVideoUnderstand.reconcile(); canvasVideoCompose.reconcile(); canvasKandinskySr.reconcile(); localExtDomains.forEach(ext => ext.reconcile?.()); canvasPose.reconcile(); canvasCyimg.reconcile(); canvasEasyColabH3.reconcile(); canvasKrea2.reconcile(); canvasKrea2Control.reconcile(); canvasQwen21.reconcile(); canvasMoss.reconcile(); });
     window.addEventListener('pointerup', endInteraction);
     window.addEventListener('pointercancel', endInteraction);
     window.addEventListener('blur', () => {
@@ -5204,14 +5243,6 @@
     reportStatus: feedback => taskRegistry.report('music', feedback),
     saveState: () => DesktopState.saveSettings({ criticalCanvas: true }), escapeHtml,
   });
-  const canvasTopaz = window.DesktopCanvasTopaz.create({
-    model: window.DesktopTopazModel, stateIcon, loadCatalog: () => DesktopApi.getTopazModels(), getState: () => DesktopState.state, getNodeElement,
-    getReferences: getConnectedImageReferences, outputReference: outputImageReference,
-    save: () => DesktopState.saveSettings(), setImageFromResult: setImageNodeFromResult,
-    ensureOutputs: ensureImageOutputsForConfig,
-    submit: (...args) => DesktopResults.submitConfigToResult(...args),
-    showError: (...args) => DesktopResults.showError(...args)
-  });
   const canvasCyimg = window.DesktopCanvasCyimg.create({
     progressView: canvasProgress,
     model:window.DesktopCyimgModel, api:window.DesktopCyimgAPI,
@@ -5332,19 +5363,20 @@
     openModelTools: () => window.DesktopSettings.openTab('model-tools', 'common'),
     isVideoSource: window.DesktopVideoComposeModel.isVideoSource,
   });
-  const topazVideoWorkbench = window.DesktopTopazVideoWorkbench.create({
-    inspector: window.DesktopTopazVideoInspector.create({pipeline: window.DesktopTopazVideoPipeline, escapeHtml}),
-    model: window.DesktopTopazVideoModel, api: window.DesktopTopazVideoAPI, escapeHtml, stateIcon,
-  });
-  const canvasTopazVideo = window.DesktopCanvasTopazVideo.create({
-    pipeline: window.DesktopTopazVideoPipeline,
-    model: window.DesktopTopazVideoModel, api: window.DesktopTopazVideoAPI,
-    view: window.DesktopTopazVideoView.create({ model: window.DesktopTopazVideoModel, escapeHtml, stateIcon, progressView: canvasProgress }),
-    workbench: topazVideoWorkbench,
-    getCanvas: () => DesktopState.state.canvas, getNodeState, getNodeElement, addNode, connectNodes, refreshVideoNode,
-    saveState: () => DesktopState.saveSettings({ criticalCanvas: true }),
-    reportStatus: feedback => taskRegistry.report('topaz_video', feedback),
-    isVideoSource: window.DesktopVideoComposeModel.isVideoSource,
+  const canvasKandinskySr = window.DesktopCanvasKandinskySr.create({
+    model: window.DesktopKandinskySrModel,
+    stateIcon,
+    loadStatus: () => window.DesktopKandinskySrAPI.status(),
+    getState: () => DesktopState.state,
+    getNodeElement,
+    getReferences: getConnectedImageReferences,
+    outputReference: outputImageReference,
+    save: () => DesktopState.saveSettings(),
+    setImageFromResult: setImageNodeFromResult,
+    ensureOutputs: ensureImageOutputsForConfig,
+    submit: (...args) => DesktopResults.submitConfigToResult(...args),
+    showError: (...args) => DesktopResults.showError(...args),
+    openModelTools: () => window.DesktopSettings.openTab('model-tools', 'common'),
   });
   const canvasVideoEdit = window.DesktopCanvasVideoEdit.create({
     api: window.DesktopVideoEditAPI,
@@ -5429,8 +5461,6 @@
     listCancelable: canvasVideoControl.getCancelableTasks, showStatus: canvasVideoControl.showStatus});
   taskRegistry.register('video_understand', {client: () => window.DesktopVideoUnderstandAPI.tasks,
     listCancelable: canvasVideoUnderstand.getCancelableTasks, showStatus: canvasVideoUnderstand.showStatus});
-  taskRegistry.register('topaz_video', {client: () => window.DesktopTopazVideoAPI.tasks,
-    listCancelable: canvasTopazVideo.getCancelableTasks, showStatus: canvasTopazVideo.showStatus});
   taskRegistry.register('video_edit', {client: () => window.DesktopVideoEditAPI.tasks,
     listCancelable: canvasVideoEdit.getCancelableTasks, showStatus: canvasVideoEdit.showStatus});
   taskRegistry.register('video_compose', {client: () => window.DesktopVideoEditAPI.compose.tasks(),
@@ -5445,6 +5475,28 @@
     listCancelable: canvasQwen21.getCancelableTasks, showStatus: canvasQwen21.showStatus});
   taskRegistry.register('moss', {client: () => window.DesktopMossAPI.tasks,
     listCancelable: canvasMoss.getCancelableTasks, showStatus: canvasMoss.showStatus});
+  const localExtDomains = window.DesktopLocalExtensions?.createCanvasDomains?.({
+    stateIcon,
+    canvasProgress,
+    taskRegistry,
+    escapeHtml,
+    getState: () => DesktopState.state,
+    getCanvas: () => DesktopState.state.canvas,
+    getNodeState,
+    getNodeElement,
+    getConnectedImageReferences,
+    outputImageReference,
+    addNode,
+    connectNodes,
+    refreshVideoNode,
+    setImageNodeFromResult,
+    ensureImageOutputsForConfig,
+    save: () => DesktopState.saveSettings(),
+    saveState: () => DesktopState.saveSettings({ criticalCanvas: true }),
+    submitConfigToResult: (...args) => DesktopResults.submitConfigToResult(...args),
+    showError: (...args) => DesktopResults.showError(...args),
+    isVideoSource: window.DesktopVideoComposeModel.isVideoSource,
+  }) || [];
   const canvasWorkflow = window.DesktopCanvasWorkflow.create({
     DEFAULT_COMFY_NODE_HEIGHT,
     DEFAULT_COMFY_NODE_WIDTH,
@@ -5475,7 +5527,6 @@
     applyWorkflowSnapshot,
     audioNodeDefinition: window.DesktopCanvasAudio,
     musicNodeDefinition: window.DesktopMusicModel,
-    topazDefinition: window.DesktopTopazModel,
     cyimgDefinition: window.DesktopCyimgModel,
     easycolabH3Definition: window.DesktopEasyColabH3Model,
     krea2Definition: window.DesktopKrea2Model,
@@ -5485,8 +5536,8 @@
     videoControlDefinition: window.DesktopVideoControlModel,
     videoUnderstandDefinition: window.DesktopVideoUnderstandModel,
     videoComposeDefinition: window.DesktopVideoComposeModel,
-    topazVideoDefinition: window.DesktopTopazVideoModel,
     poseDefinition: window.DesktopPoseModel,
+    kandinskySrDefinition: window.DesktopKandinskySrModel,
     embedAudioAssets: window.DesktopAudioAssets.embedWorkflowAssets,
     clamp,
     dataUrlValue,
@@ -5823,7 +5874,6 @@
     applyAllNodeLayouts,
     audioNode: canvasAudio,
     musicNode: canvasMusic,
-    topazNode: canvasTopaz,
     cyimgNode: canvasCyimg,
     easycolabH3Node: canvasEasyColabH3,
     krea2Node: canvasKrea2,
@@ -5833,11 +5883,10 @@
     videoControlNode: canvasVideoControl,
     videoUnderstandNode: canvasVideoUnderstand,
     videoComposeNode: canvasVideoCompose,
-    topazVideoNode: canvasTopazVideo,
     poseNode: canvasPose,
+    kandinskySrNode: canvasKandinskySr,
     audioNodeDefinition: window.DesktopCanvasAudio,
     musicNodeDefinition: window.DesktopMusicModel,
-    topazDefinition: window.DesktopTopazModel,
     cyimgDefinition: window.DesktopCyimgModel,
     easycolabH3Definition: window.DesktopEasyColabH3Model,
     krea2Definition: window.DesktopKrea2Model,
@@ -5847,8 +5896,9 @@
     videoControlDefinition: window.DesktopVideoControlModel,
     videoUnderstandDefinition: window.DesktopVideoUnderstandModel,
     videoComposeDefinition: window.DesktopVideoComposeModel,
-    topazVideoDefinition: window.DesktopTopazVideoModel,
     poseDefinition: window.DesktopPoseModel,
+    kandinskySrDefinition: window.DesktopKandinskySrModel,
+    localExtensions: localExtDomains,
     clearPromptDocumentHistory,
     comfyNodeHtml,
     comfyWorkflowCatalogRef: { get current() { return comfyWorkflowCatalog; }, set current(value) { comfyWorkflowCatalog = value; } },
@@ -5950,7 +6000,7 @@
 
   const canvasConnections = window.DesktopCanvasConnections.create({
     imageGroupContentBounds: node => canvasImageGroupModel.imageGroupContentBounds(node),
-    domainConnections: window.DesktopCanvasConnections.combineDomains(canvasMusic.connections, canvasVideoControl.connections, canvasVideoUnderstand.connections, canvasVideoCompose.connections, canvasTopazVideo.connections, canvasVideoEdit.connections, canvasTopaz.connections, canvasCyimg.connections, canvasEasyColabH3.connections, canvasKrea2.connections, canvasKrea2Control.connections, canvasQwen21.connections, canvasMoss.connections, canvasComfyVideo.connections, canvasComfyAudio.connections),
+    domainConnections: window.DesktopCanvasConnections.combineDomains(...localExtDomains.flatMap(ext => Array.isArray(ext.connections) ? ext.connections : (ext.connections ? [ext.connections] : [])), canvasKandinskySr.connections, canvasMusic.connections, canvasVideoControl.connections, canvasVideoUnderstand.connections, canvasVideoCompose.connections, canvasVideoEdit.connections, canvasCyimg.connections, canvasEasyColabH3.connections, canvasKrea2.connections, canvasKrea2Control.connections, canvasQwen21.connections, canvasMoss.connections, canvasComfyVideo.connections, canvasComfyAudio.connections),
     IMAGE_GROUP_LIQUID_VISIBLE_OUTSET_PX,
     LINK_VIEWBOX,
     NODE_MENU_ITEMS,
@@ -6164,13 +6214,12 @@
     createAudioNodeFromAsset,
     runMusicNode: canvasMusic.run,
     getCancelableMusicTasks: canvasMusic.getCancelableTasks,
-    refreshTaskNode: nodeId => { refreshUpscaleNodeMode(nodeId); canvasTopaz.paint(nodeId); },
+    refreshTaskNode: nodeId => { refreshUpscaleNodeMode(nodeId); canvasKandinskySr.paint(nodeId); localExtDomains.forEach(ext => ext.refreshTaskNode?.(nodeId)); },
     getCancelableVideoControlTasks: canvasVideoControl.getCancelableTasks,
     runVideoControlNode: canvasVideoControl.run,
     getCancelableVideoUnderstandTasks: canvasVideoUnderstand.getCancelableTasks,
     runVideoUnderstandNode: canvasVideoUnderstand.run,
-    getCancelableTopazVideoTasks: canvasTopazVideo.getCancelableTasks,
-    runTopazVideoNode: canvasTopazVideo.run,
+    ...Object.assign({}, ...localExtDomains.map(ext => ext.canvasExports || {})),
     setAudioNodeResult: canvasAudio.setResult,
     getAudioNodeInput: canvasAudio.getInput,
     importAudioNodeFile: canvasAudio.importFile,

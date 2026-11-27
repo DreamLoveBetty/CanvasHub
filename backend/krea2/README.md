@@ -128,7 +128,7 @@ shared VAE, encoder, tokenizer, download pin or Python dependency is changed.
 
 Conversion runs in the existing CanvasHub Python environment and pinned source
 tree; no second venv or service is created. It first waits for an active YuE,
-Krea, Topaz or ReShot task to finish, then exclusively holds
+Krea, ReShot or other local task to finish, then exclusively holds
 `components/.local-inference.lock`. New local-inference tasks wait until
 conversion completes or is canceled. A warm Krea worker is unloaded only after
 the lease is acquired to release unified memory. The converter child inherits

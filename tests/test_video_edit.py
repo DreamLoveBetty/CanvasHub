@@ -84,15 +84,15 @@ class ContractTests(unittest.TestCase):
         clip = Path('/clip.mp4')
         seen = []
         resolver = SourceResolver(archive_video=lambda rel: seen.append(rel) or (clip if rel == '2026-01-01/a.mp4' else None),
-                                  stores={'topaz_video': FakeStore(clip), 'video_control': FakeStore(clip)})
+                                  stores={'local_video_ext': FakeStore(clip), 'video_control': FakeStore(clip)})
         self.assertEqual(resolver.resolve('/video/2026-01-01/a.mp4'), clip)
         self.assertEqual(resolver.resolve('http://127.0.0.1:18463/video/2026-01-01/a.mp4'), clip)
-        self.assertEqual(resolver.resolve('/api/topaz_video/source?id=' + 'a' * 32), clip)
+        self.assertEqual(resolver.resolve('/api/local_video_ext/source?id=' + 'a' * 32), clip)
         self.assertEqual(resolver.resolve(f'/api/video_control/artifact?id={"b" * 32}&name=out.mp4'), clip)
         with self.assertRaises(FileNotFoundError):
             resolver.resolve('/video/../../etc/passwd.mp4')
         with self.assertRaises(FileNotFoundError):
-            resolver.resolve('/api/topaz_video/source?id=other')
+            resolver.resolve('/api/local_video_ext/source?id=other')
         for url in ('/etc/passwd', 'file:///tmp/a.mp4', '/api/audio/artifact?id=x', 'blob:http://x/1', '/image/a.png'):
             with self.subTest(url=url), self.assertRaises(UnsupportedSource):
                 resolver.resolve(url)
@@ -307,7 +307,7 @@ class RouteTests(unittest.TestCase):
 
     def test_server_wires_the_domain_with_resolvers_not_paths(self):
         server = (Path(__file__).resolve().parents[1] / 'backend' / 'server.py').read_text(encoding='utf-8')
-        self.assertIn("'topaz_video': _TOPAZ_VIDEO_SERVICE.store, 'video_control': _VIDEO_CONTROL_SERVICE.store", server)
+        self.assertIn("'video_control': _VIDEO_CONTROL_SERVICE.store, **_LOCAL_EXTENSIONS.video_stores()", server)
         self.assertIn("_VIDEO_EDIT_ROUTES.dispatch(self, 'GET', path)", server)
         self.assertIn("_VIDEO_EDIT_ROUTES.dispatch(self, 'POST', path)", server)
         self.assertIn('archive_video=_resolve_public_video_file', server)

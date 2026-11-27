@@ -35,6 +35,11 @@ Before changing code here:
 - 跨模块协作使用明确接口和显式依赖，不绕过模块读取私有状态、不复制共享状态，也不引入反向依赖或隐式全局容器；保留工作流状态替换、异步返回值及原有 API 契约。
 - 新增模块时同步更新模块边界说明和装配/加载顺序，按下方 Test Rules 补充局部及跨模块回归。桌面 JS/CSS 变化继续处理缓存版本，交互变化验证实际服务页面。
 - 保持个人/小团队、自包含、低维护和低运行依赖定位；新增代码模块不等于必须新增服务进程、框架或部署单元。
+- 后续新功能实行「公共底座留核心、业务节点/工具插件化」扩展策略：
+  - 私人/商业授权/本机实验工具（如 Topaz）放入被忽略的 `local_extensions/<id>/`（资源 `/local-ext/*`，受 `CANVASHUB_DISABLE_LOCAL_EXTENSIONS` 控制）；
+  - 计划随仓库发布并纳入主线回归的独立开源模型/工具节点，优先按同一扩展契约放入受跟踪的 `extensions/<id>/`（资源 `/ext/*`，其下 `tests/` 由 `tests/run_regressions.py` 与 `tests/run_node_regressions.mjs` 自动发现）；
+  - 鉴权、选区、连线引擎、主题与跨节点公共设施继续保留在核心模块。
+  - 后端扩展统一通过 `plugin.py` 的 `register(host)` 接入（路由、`register_startup_hook`、视频存储、资产标签、静态资源注入），前端通过 `DesktopLocalExtensions` 接入（菜单项、schema、画布控制器、缺口/Stepper/下拉、提交/历史与设置中心 `createModelTools`），避免每加一个功能就散改核心文件。
 
 ## API and Interface Rules
 

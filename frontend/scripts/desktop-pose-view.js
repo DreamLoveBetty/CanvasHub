@@ -1,5 +1,5 @@
 // Pose reference node markup and paint. Same frame, header, field and footer rhythm as the
-// Topaz Video node; the controller owns state, exports and the editor.
+// shared video nodes; the controller owns state, exports and the editor.
 (function () {
   const icons = {
     idle: '<path d="M13 2 4 14h7l-1 8 10-13h-7z"/>',

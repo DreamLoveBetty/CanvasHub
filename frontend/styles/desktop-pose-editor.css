@@ -1,5 +1,5 @@
-/* Pose editor paint: CanvasHub surface, field, segment, status and action tokens, matching the
-   Topaz Video workbench. Layout lives in desktop-pose-editor-geometry.css; pose-specific values
+/* Pose editor paint: CanvasHub surface, field, segment, status and action tokens.
+   Layout lives in desktop-pose-editor-geometry.css; pose-specific values
    (viewport, joints, frame dim) are tokens in desktop-tokens.css. */
 body.desk-app .desk-pose-editor {
   color:var(--desk-color-text-primary);font:400 var(--desk-font-size-caption)/var(--desk-line-height-normal) var(--desk-font-family-sans);

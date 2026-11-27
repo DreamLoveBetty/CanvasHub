@@ -46,7 +46,7 @@ HEX 框，点开为花瓣色盘 + 弧形明度条）。由配色方案（提示�
 Violet/Amber/Teal + 自定义 HEX）；强调色（悬停/焦点，默认上游 coral）。只作用于画布节点内的
 按键：`.desk-button`、`.desk-node-delete`、`.desk-generation-action`，以及节点模板给自有按键
 打上的 `.desk-key`（无任何自身样式的挂钩类，只有 Ambient 层引用；2026-10-10 覆盖文本节点操作栏、
-图片工具条、排版/姿态、图片组、音频导入/下载、音乐操作、Topaz Video 与 ReShot 导入）。
+图片工具条、排版/姿态、图片组、音频导入/下载、音乐操作与 ReShot 导入）。
 分段选择（2026-10-10 起；2026-10-18 起键随材质）：容器打 `.desk-key-bank` 挂钩（输入节点 GPT/Google、
 音乐节点页签，设置中心的连接端点/连线/碰撞、账号池页签，资产库视图页签与视频来源，提示词库工作区页签）。
 每个按钮就是独立的普通键帽（在键帽目标内），各自坐在面板上的井里，随哑光/微光泽/磨砂玻璃与表面形状变化；容器不再是凹槽
@@ -103,8 +103,8 @@ Threads、Diamond、Grain 与 Classic；新轨道默认 36px，可选 48/56px，
 4. 以上先于 preferences、各领域 controller/view 与 canvas host 加载；CSS 在节点领域样式
    之后加载，只有 `.desk-progress-material` 覆盖轨道外观。画布 host 只装配及转发。
 
-Qwen/Krea/绘栾、Topaz Video、ReShot、YuE 由原领域控制器/视图传入任务快照；
-GPT/Google/Comfy/Topaz 图像/高清放大/文件结果由 DesktopResults 适配；输入节点的新材质
+Qwen/Krea/绘栾、ReShot、YuE 由原领域控制器/视图传入任务快照；
+GPT/Google/Comfy/高清放大/文件结果由 DesktopResults 适配；输入节点的新材质
 按节点挂载，不再共享经典样式的单一浮动层，因此并发图像任务不会互相覆盖。未知时间显示 `—`，收到服务端
 started_at/created_at 后基于真实时戳推进，不随主题、样式或百分比重置。音乐保留原领域
 的“当前阶段百分比”及显示时钟。节点删除、工作流替换、页面离开明确释放资源；不依赖
@@ -241,18 +241,10 @@ ID；下拉显示服务端返回的真实模型名称，而不是把量化方案
 - 支持滚轮定点缩放、按钮、1:1（按 A 图原始像素）、适应画面、拖动平移；分界线拖动独立于平移，原滑杆保留键盘操作。关闭释放捕获与待执行帧；销毁解除监听/尺寸观察。
 - 局部测试：`tests/test_compare_viewport.cjs`；跨模块回归：`tests/test_gallery_phase2_regressions.py`。
 
-## Topaz 独立节点（2026-09-22）
+## 扩展注册（`desktop-local-extensions.js`）
 
-- `desktop-topaz-model.js`：节点 schema、默认值、范围、连线兼容与旧 `upscale + topaz-*` 迁移。
-- `desktop-topaz-api.js`：认证客户端上的 `/api/topaz/models`、`/api/topaz/run` 适配，snake_case 参数，不拥有任务状态。
-- `desktop-canvas-topaz.js`：按模型 profile 的独立表单、安装可用性/依赖联动、状态按钮、节点下挂进度与模型结果串联；显式注入画布/任务依赖。
-- `desktop-topaz.css`：独立 `desk-` 样式，复用系统主题/圆角/生成按钮材质；参数平铺，不另建滚动区。
-- 上述 JS 在 `desktop-api.js` / `desktop-canvas.js` 前加载；画布只装配节点、工作流、连接和共享输出回调。
-- 任务继续使用 `DesktopApi.tasks.generation` / `DesktopTasks` / `DesktopResults`；无 Topaz 专用底部状态或轮询器。
-- 原「本地高清放大」只包含 UltraSharp / AnimeSharp。旧 Topaz 节点自动迁移并保留连线、ID 和输出。
-- PNG/JPEG/TIFF 输出，TIFF 的浏览器预览由通用后端图像适配提供，下载原件不转格式。
-
-后端接口、支持范围和验证边界：`backend/topaz/README.md`。
+- 支持两级同构扩展接入：受跟踪的内置扩展目录 `extensions/<id>/plugin.py`（资源前缀 `/ext/<id>/`）与未跟踪的本机可选扩展目录 `local_extensions/<id>/plugin.py`（资源前缀 `/local-ext/<id>/`，可用 `CANVASHUB_DISABLE_LOCAL_EXTENSIONS=1` 关闭）。后端均通过 `/desktop.html` 占位符动态注入静态资源。
+- 扩展脚本在 `desktop-local-extensions.js` 动态注册菜单项（含 `paletteGroup`）、画布领域控制器（`createCanvasDomain`）、设置中心模型工具卡（`createModelTools`）、端口缺口选择器、Stepper 作用域、下拉变体、提交与历史标签以及视频来源白名单；核心模块（含 `desktop-settings.js`）不静态引用任何扩展。
 
 CanvasHub keeps its Vanilla JS clients and existing JSON APIs. This is a build
 layer, not a React/Vue migration, a new backend, or a runtime dependency.
@@ -704,8 +696,8 @@ Panning/wheel transforms temporarily suppress ordinary/media shadows through
 `desktop-performance.css`; no permanent compositor promotion is added.
 
 `desktop-state-icon.js` loads before all consuming views/controllers. The canvas
-host injects its `stateIcon` interface explicitly into audio, music, Topaz image,
-ReShot, Topaz Video and its workbench. `html(icons, initial)` renders one SVG with
+host injects its `stateIcon` interface explicitly into audio, music and
+ReShot views. `html(icons, initial)` renders one SVG with
 retained, static component-owned glyph layers; `paint(svg, state)` only changes
 the current layer. Never pass user-authored SVG fragments to this interface.
 Labels, disabled/aria-busy state, jobs, playback, requests and storage remain owned
@@ -1121,7 +1113,7 @@ controller. Submitting tasks remember a stop intent and cancel once the backend 
 Playback stop buttons still control only their own players.
 
 Every canvas "开始生成" button (input node incl. the static default one, Qwen, Krea,
-绘栾, Topaz Gigapixel, music, ReShot, Topaz Video) is one component:
+绘栾, music, ReShot, etc.) is one component:
 `desk-generation-action` plus an optional domain class, never `.desk-button` /
 `.desk-button--generate` (2026-10-09). `desktop-controls.css` is its single style
 source — node-radius 72px square, lightning/label layout, theme tokens, hover/pressed,
@@ -1242,31 +1234,10 @@ read as `captured`, and it is left out of the export key. Recognition options li
 shown when the engine reports `modes.evidence`), also outside the export key; `DesktopPoseCapture.run(…, {evidence})` sends it for videos only. Styles: `desktop-pose-node.css`, `desktop-pose-editor-geometry.css`,
 `desktop-pose-editor.css`; tokens `--desk-pose-*` live in `desktop-tokens.css`.
 
-## Topaz Video enhancement node
-
-`desktop-topaz-video-pipeline.js` owns persistent optional filter / encoding state,
-validation and its snake_case adapter; it has no DOM, API or task lifecycle.
-`desktop-topaz-video-inspector.js` renders those controls with the pipeline injected;
-it does not maintain another copy of the workflow state.
-`desktop-topaz-video-model.js` owns the independent `topaz_video` workflow schema,
-video-only edge contract and backend catalog normalization. `desktop-topaz-video-api.js`
-adapts authenticated `/api/topaz_video/*` requests to `DesktopTasks`, accepting only
-canvas-local video sources (archive paths, task artifacts, same-origin Blob URLs and
-video data URLs). `desktop-topaz-video-view.js` renders the compact preset-driven node
-and the common node action/progress material. Detailed model parameters, synchronized
-original/result playback, draggable A/B divider, side-by-side comparison, viewer
-sound/fit/zoom controls, filmstrip timeline, in/out selection, timeline zoom,
-keyboard transport and preview/full-export actions live in the independent
-`desktop-topaz-video-workbench.js`; its playback/draft state is transient and it owns
-no uploads or tasks. `desktop-canvas-topaz-video.js` owns uploads, preview/export jobs,
-polling, cancellation and publication of full exports to the existing `video` result
-node. Preview artifacts remain inside the workbench and never replace a downstream
-result. These modules do not read image Topaz or ReShot private state.
-
 ## Video edit (frames, scenes, audio separation)
 
 `desktop-video-edit-api.js` adapts `/api/video_edit/*` to `DesktopTasks` and sends only served
-same-origin media URLs (`/video/…`, Topaz Video / ReShot source and artifact URLs).
+same-origin media URLs (`/video/…`, ReShot source and artifact URLs, and registered extension video sources).
 `desktop-video-frames.js` is the frame-picker workbench: frame stepping on the backend's real
 frame times (VFR included; the player seeks to frame midpoints, the position the backend decodes),
 marks, scene candidates with backend thumbnails and keyboard transport. Its timeline is time-based
@@ -1280,14 +1251,14 @@ Load order: `desktop-tasks.js` → `desktop-video-edit-api.js` → `desktop-vide
 `desktop-canvas-video-edit.js` → `desktop-canvas.js`, which only wires dependencies, dispatches
 `[data-video-edit]` clicks and passes the dock template to `desktop-canvas-model-nodes.js`.
 Styles: `desktop-video-edit-geometry.css` (layout) then `desktop-video-edit.css` (paint, shared tokens).
-The picker's stage and filmstrip stay dark in every theme, like the Topaz workbench; their colours are
+The picker's stage and filmstrip stay dark in every theme; their colours are
 the `--desk-video-frames-*` roles in `desktop-tokens.css` (light and dark blocks).
 
 ## Video compose (`video_compose` node)
 
 Clips are the `video` nodes connected into the node (one audio node is the music); order, frame
 trims, per-clip audio, levels and output settings live on the node. The rendered MP4 stays on the
-node (`mediaUrl`) and its output port feeds `topaz_video`, `video_control` and `comfy`
+node (`mediaUrl`) and its output port feeds `video_control`, `video_understand` and `comfy`
 (`DesktopVideoComposeModel.isVideoSource` is injected into those controllers). When settings change
 after a render, the result is kept and marked stale (「设定已改，成片仍是上一版」) until re-rendered.
 
@@ -1384,44 +1355,7 @@ Export can explicitly use either the full source or the marked selection. A prev
 whose processing configuration changed stays available but is labelled stale. Slow-motion
 preview seeks and playback map source time to `media.time_scale`, including audio.
 
-The backend status catalog is authoritative for model availability, scales and
-numeric parameter bounds. Until it loads, submission is disabled. Unavailable
-models remain visible with their reason (including Precise 2.5 and Mini on the
-current Mac). Asset-ready models without a confirmed export show “待验证”. The
-backend merges machine-bound staging evidence with completed task records that
-passed the no-watermark provenance gate; once any supported multiplier is proven,
-the model-level badge is verified and `verified_scales` identifies the exact
-multipliers. Only `available: true` permits submission. Compact mode exposes only model, preset, scale
-and scope; selecting “模型默认” resets to backend-declared neutral defaults, while edits in
-the workbench switch the node to “自定义参数”. `max_seconds: 0` means the whole video;
-choosing “前 N 秒” is explicit short-test mode. Workbench previews submit explicit
-`start_seconds` + duration ranges. This is not an implicit 15-second trim. Jobs report
-through the shared bottom status and canvas stop registry—there is no second stop
-button—while the node shows only compact state/progress. Generated MP4s use ordinary
-video nodes and can continue into ReShot through its local artifact URL allow-list.
-
-Catalog step metadata is part of the input contract rather than presentation only.
-The UI resets stale persisted values that do not align to a field's declared step and
-rejects a misaligned edit before submission. In particular, conventional `gsize` is
-`0` (automatic) or an integer `1–5`; the former fractional `0.1` value is normalized
-back to `0`. Conventional preview ranges also need at least four frames, matching the
-backend temporal-filter guard.
-
-Load pipeline → inspector → model → API → view → workbench → controller before workflow/nodes/canvas; CSS
-remains scoped to `.desk-node--topaz-video` and `.desk-topaz-video-workbench`.
-Regression: `tests/test_topaz_video_canvas.cjs`, `tests/test_topaz_video_pipeline.cjs`
-and backend `tests/test_topaz_video_pipeline.py`. Cache: `20261005-topaz-pipeline1`.
-
-Expanded-workbench presentation lives only in `desktop-topaz-video-workbench.css`
-(CSS cache: `20261006-topaz-panel-polish2`). It consumes the shared node surface,
-Settings field/segment, semantic status and primary action tokens; no global token
-or compact-node overrides. At reduced effective viewport widths the modal stacks
-its existing stage and inspector without hiding actions. The retained media/trim
-hit areas, select implementation and all processing state stay in their existing
-modules; this visual refinement changes no JavaScript or backend contracts.
-The compact 40px title bar keeps the filename on the title baseline; inspector
-fields use the existing 24px control scale. Fine range rails keep a 24px native
-input hit area, and select geometry is scoped to the workbench's portal variant.
+At reduced effective viewport widths the layout stacks cleanly without hiding actions.
 
 ## Shared generation task contract
 

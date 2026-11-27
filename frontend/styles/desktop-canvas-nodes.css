@@ -456,10 +456,6 @@ body.desk-app[data-theme] .desk-node-context-menu__cap::before {
   background: var(--desk-canvas-flow-solid);
 }
 
-body.desk-app[data-theme] .desk-node-context-menu__cap span {
-  color: var(--desk-canvas-menu-cap-meta-ink);
-}
-
 body.desk-app[data-theme] .desk-node-context-menu__search {
   background: var(--desk-canvas-menu-search-background);
   border-color: var(--desk-canvas-flow-border-soft);

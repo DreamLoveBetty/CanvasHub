@@ -5,8 +5,7 @@
   const json = (action, body) => api.json(route(action), body === undefined ? {} : {
     method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body),
   });
-  const SOURCE_PATHS = ['/api/topaz_video/source', '/api/topaz_video/artifact',
-    '/api/video_control/source', '/api/video_control/artifact'];
+  const BASE_SOURCE_PATHS = ['/api/video_control/source', '/api/video_control/artifact'];
 
   // The same-origin path + query of a video the backend can open, or '' (local blobs, other hosts).
   function sourceUrl(value) {
@@ -16,7 +15,8 @@
     try { url = new URL(raw, window.location.href); } catch (_error) { return ''; }
     if (url.origin !== window.location.origin || url.username || url.password) return '';
     const archived = /^\/video\/[^/]+(?:\/[^/]+)*$/.test(url.pathname);
-    if (!archived && !SOURCE_PATHS.includes(url.pathname)) return '';
+    const allowed = [...BASE_SOURCE_PATHS, ...(window.DesktopLocalExtensions?.videoSourcePaths?.() || [])];
+    if (!archived && !allowed.includes(url.pathname)) return '';
     url.searchParams.delete('miniappAuth');
     return url.pathname + url.search;
   }

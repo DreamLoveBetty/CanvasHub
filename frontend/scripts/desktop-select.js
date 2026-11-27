@@ -65,7 +65,8 @@
 
   function inferVariant(select) {
     if (select.id === 'deskLanguageSelect' || select.closest('.desk-language-picker')) return 'language';
-    if (select.closest('.desk-topaz-video-workbench')) return 'topaz-video-workbench';
+    const extVariant = window.DesktopLocalExtensions?.matchSelectVariant?.(select);
+    if (extVariant) return extVariant;
     if (select.closest('.desk-lora-library, .desk-lora-dialog')) return 'gallery';
     if (select.classList.contains('desk-gallery-filter')) return 'gallery';
     if (select.closest('.desk-prompt-node-picker')) return 'prompt';

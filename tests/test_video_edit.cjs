@@ -21,7 +21,6 @@ test('the API adapter sends only served same-origin media URLs', () => {
   const { DesktopVideoEditAPI: api } = load('frontend/scripts/desktop-video-edit-api.js');
   assert.equal(api.sourceUrl('/video/2026-11-10/a%20b.mp4'), '/video/2026-11-10/a%20b.mp4');
   assert.equal(api.sourceUrl('http://127.0.0.1:18463/video/a.mp4?miniappAuth=secret'), '/video/a.mp4');
-  assert.equal(api.sourceUrl('/api/topaz_video/artifact?id=1&name=out.mp4'), '/api/topaz_video/artifact?id=1&name=out.mp4');
   assert.equal(api.sourceUrl('/api/video_control/source?id=2'), '/api/video_control/source?id=2');
   for (const value of ['', 'blob:http://127.0.0.1:18463/1', 'data:video/mp4;base64,AA', 'https://evil.test/video/a.mp4',
     '/image/a.png', '/api/audio/artifact?id=1', '/video/']) {
@@ -113,7 +112,7 @@ test('video nodes connect to image and audio nodes only through this domain', ()
   assert.equal(VideoEdit.policy({ type: 'video' }, { type: 'audio' }).replaceAllInputs, true);
   assert.equal(VideoEdit.policy({ type: 'video' }, { type: 'pose' }), null);
   assert.equal(VideoEdit.policy({ type: 'image' }, { type: 'audio' }), null);
-  assert.match(read('frontend/scripts/desktop-canvas.js'), /canvasTopazVideo\.connections, canvasVideoEdit\.connections,/);
+  assert.match(read('frontend/scripts/desktop-canvas.js'), /canvasVideoCompose\.connections, canvasVideoEdit\.connections,/);
 });
 
 test('the dock renders only for editable sources and disables audio once a probe finds none', async () => {

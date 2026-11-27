@@ -74,7 +74,7 @@ test('连线策略仅允许正确的输入素材与输出节点类型', () => {
   for (const [source, target] of [
     ['video', 'easycolab_h3_image'],
     ['video', 'easycolab_h3_video'],
-    ['topaz', 'easycolab_h3_video']
+    ['upscale', 'easycolab_h3_video']
   ]) {
     assert.equal(model.policy({ type: source }, { type: target }), null);
   }

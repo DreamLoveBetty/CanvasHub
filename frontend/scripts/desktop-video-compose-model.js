@@ -20,7 +20,7 @@
   const OUTPUT_DEFAULTS = Object.freeze({aspect: 'source', resolution: 1080, fps: 30, fit: 'crop', encoder: 'quality'});
   const RATIOS = Object.freeze({'16:9': [16, 9], '9:16': [9, 16], '1:1': [1, 1], '4:5': [4, 5]});
   // Downstream nodes that accept a rendered compose result as their video source.
-  const CONSUMERS = Object.freeze(['topaz_video', 'video_control', 'video_understand', 'comfy']);
+  const CONSUMERS = Object.freeze(['video_control', 'video_understand', 'comfy']);
 
   const active = status => ['submitting', 'queued', 'running', 'cancelling'].includes(status);
   const pick = (value, options, fallback) => options.some(([key]) => String(key) === String(value))

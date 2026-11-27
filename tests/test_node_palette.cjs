@@ -23,8 +23,8 @@ function fixture(items) {
   vm.createContext(context);
   // Use actual domain menu declarations and the host's injected catalog, not a
   // second list of labels that can silently drift when new node types are added.
-  for (const name of ['topaz-model', 'krea2-control', 'krea2-model', 'qwen21-model', 'moss-model', 'cyimg-model', 'easycolab-h3-model',
-    'canvas-audio', 'video-control-model', 'video-understand-model', 'video-compose-subtitles', 'video-compose-model', 'topaz-video-pipeline', 'topaz-video-model', 'pose-model', 'music-model', 'canvas-nodes']) {
+  for (const name of ['krea2-control', 'krea2-model', 'qwen21-model', 'moss-model', 'cyimg-model', 'easycolab-h3-model',
+    'canvas-audio', 'video-control-model', 'video-understand-model', 'video-compose-subtitles', 'video-compose-model', 'kandinsky-sr-model', 'pose-model', 'music-model', 'canvas-nodes']) {
     vm.runInContext(read(`scripts/desktop-${name}.js`), context);
   }
   const catalogSource = read('scripts/desktop-canvas.js').match(/const NODE_MENU_ITEMS = (\[[\s\S]+?\n  \]);/)[1];
@@ -74,12 +74,12 @@ test('all registered nodes appear once in five semantic groups', () => {
     image: ['image', 'input', 'krea2', 'krea2_control', 'qwen21', 'moss', 'cyimg_image', 'easycolab_h3_image', 'pose'],
     video: ['video', 'cyimg_video', 'easycolab_h3_video', 'video_control', 'video_understand', 'video_compose'],
     audio: ['audio', 'music_generate', 'music_transcribe', 'music_abc', 'music_score', 'music_compare'],
-    enhance: ['upscale', 'topaz', 'topaz_video'],
+    enhance: ['upscale', 'kandinsky_sr'],
     general: ['text', 'comfy', 'file_output', 'layout']
   };
   assert.deepEqual(Object.fromEntries(h.palette.groups.map(g => [g.dataset.nodeMenuGroup, g.types])), expected);
   const types = h.palette.buttons.map(b => b.type);
-  assert.equal(types.length, 28);
+  assert.equal(types.length, 27);
   assert.equal(new Set(types).size, types.length);
   assert.deepEqual(types.sort(), Array.from(h.catalog, item => item.type).sort());
   assert.equal(JSON.stringify(h.catalog), before, 'catalog/model objects must not be mutated');
@@ -139,15 +139,15 @@ test('palette search swaps the accordion for a flat match list and opening reset
   const h = fixture();
   h.api.renderNodePaletteItems();
   assert.match(h.palette.innerHTML, /data-node-palette-search/);
-  assert.equal(h.api.filterNodePalette('  TOPAZ '), h.catalog.filter(item => /topaz/i.test(`${item.title} ${item.subtitle} ${item.type}`)).length);
+  assert.equal(h.api.filterNodePalette('  UPSCALE '), h.catalog.filter(item => /upscale/i.test(`${item.title} ${item.subtitle} ${item.type}`)).length);
   assert.ok(h.palette.classList.contains('is-searching'));
   assert.ok(!h.palette.results.hidden && h.palette.empty.hidden);
-  assert.match(h.palette.results.innerHTML, /data-add-node="topaz"/);
+  assert.match(h.palette.results.innerHTML, /data-add-node="upscale"/);
   assert.equal(h.api.filterNodePalette('no-such-node'), 0);
   assert.ok(h.palette.results.hidden && !h.palette.empty.hidden);
   assert.equal(h.api.filterNodePalette(''), 0);
   assert.ok(!h.palette.classList.contains('is-searching') && h.palette.empty.hidden);
-  h.api.filterNodePalette('topaz');
+  h.api.filterNodePalette('upscale');
   h.api.setNodePaletteOpen(true);
   assert.ok(!h.palette.classList.contains('is-searching'), 'opening starts from the categories');
   assert.equal(h.palette.search.focused, 1);
@@ -233,4 +233,17 @@ test('both palette themes keep a translucent tint over an independent backdrop b
   const palette = css.match(/\.desk-node-palette:not\(\.desk-node-context-menu\)\s*\{([^}]+)\}/)[1];
   assert.ok(palette.includes('backdrop-filter: var(--desk-canvas-palette-filter)'));
   assert.ok(palette.includes('-webkit-backdrop-filter: var(--desk-canvas-palette-filter)'));
+});
+
+test('connection menu cap shows only title without overflowing 自动连接 subtitle or dead CSS', () => {
+  const connections = read('scripts/desktop-canvas-connections.js');
+  assert.doesNotMatch(connections, /<span>自动连接<\/span>/);
+  assert.match(connections, /<div class="desk-node-context-menu__cap" aria-hidden="true">\s*<strong>\$\{escapeHtml\(title \|\| '添加节点'\)\}<\/strong>\s*<\/div>/);
+  assert.ok(hasCacheKey(read('desktop.html'), 'scripts/desktop-canvas-connections.js'));
+  for (const style of ['styles/desktop-liquid.css', 'styles/desktop-canvas-nodes.css',
+    'styles/desktop-graphite.css', 'styles/desktop-tokens.css']) {
+    const css = read(style);
+    assert.doesNotMatch(css, /\.desk-node-context-menu__cap span\b/, style);
+    assert.doesNotMatch(css, /--desk-canvas-menu-cap-meta-ink\b/, style);
+  }
 });

@@ -1021,7 +1021,7 @@ body.desk-app[data-theme] .desk-pinterest-split-modal__footer button.is-primary:
 }
 
 /* Canvas generate action: the paint and state source for every node's 72px "开始生成"
-   button (图像输入, Qwen, Krea, 绘栾, Topaz Gigapixel, 音乐, ReShot, Topaz Video); its box
+   button (图像输入, Qwen, Krea, 绘栾, 音乐, ReShot 等); its box
    lives in desktop-canvas-nodes-geometry.css. Controllers own state only: `disabled` while
    unavailable and `aria-busy="true"` while a job runs; a busy button keeps the primary
    finish even when disabled. Comfy / upscale runs are a separate compact

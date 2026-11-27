@@ -14,6 +14,9 @@ settings.json.*
 
 # All local Python environments, including versioned and sidecar environments.
 .venv*/
+# Local-only optional extensions (auto-discovered at runtime, never pushed).
+/local_extensions/
+
 # Installed optional runtime, not components source code.
 /components/upscale/
 /components/topaz/
@@ -139,9 +142,6 @@ raglite/chroma-data/
 /components/reshot/
 /components/.local-inference.lock
 
-# Installed Topaz model links, compiled cache and native job scratch files.
-/components/topaz/
-
 # Local knowledge base (vector index, distilled notes, logs)
 raglite/
 
@@ -156,3 +156,6 @@ diagrams/
 
 # Installed WeMM-Video MLX isolated venv, source checkout, model weights and receipt.
 /components/video-understand/
+
+# Installed Kandinsky ImageSR 2.0 isolated venv, pinned inference code, weights and receipt.
+/components/kandinsky-sr/

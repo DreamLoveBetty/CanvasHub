@@ -1295,7 +1295,10 @@
     }
     if (materialRoot) {
       const labels = { gpt: 'GPT · 图像生成', google: '图像生成', comfy: 'ComfyUI',
-        topaz: 'Topaz · 图像增强', upscale: '本地高清放大', file_output: '文件生成' };
+        upscale: '本地高清放大', kandinsky_sr: 'Kandinsky SR 2.0 · 生成式超分', file_output: '文件生成' };
+      const nodeType = resultNode?.dataset.nodeType || state.canvas?.nodes?.[resultNodeId]?.type;
+      const resolvedLabel = labels[nodeType] || window.DesktopLocalExtensions?.resultLabel?.(nodeType)
+        || labels[output.type] || window.DesktopLocalExtensions?.resultLabel?.(output.type) || '图像生成';
       const progressModel = window.DesktopProgressModel;
       const reported = Number(task?.progress ?? task?.progress_percent ?? task?.progressPercent);
       const hasReported = Number.isFinite(reported) && reported > 0;
@@ -1312,7 +1315,7 @@
         valueLabel: staged != null ? `${stageIndex}/${stageCount} · ${Math.round(staged)}%`
           : (estimated == null ? '' : `约 ${Math.round(estimated)}%`),
         title: output.progressText || DesktopState.getStatusLabel(status),
-        detail: labels[resultNode?.dataset.nodeType || state.canvas?.nodes?.[resultNodeId]?.type] || labels[output.type] || '图像生成',
+        detail: resolvedLabel,
         startedAt: output.startedAt || output.createdAt, finishedAt: output.finishedAt,
       }, resultNode);
     }

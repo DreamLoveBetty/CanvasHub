@@ -10,7 +10,7 @@ import threading
 import time
 
 # Task types whose providers report no progress of their own. Local runtimes
-# (Qwen, Krea, Topaz, ...) publish real progress and are deliberately excluded.
+# (Qwen, Krea, MOSS, ...) publish real progress and are deliberately excluded.
 ESTIMATED_TASK_TYPES = frozenset({'gpt', 'gpt-edit', 'google-gen', 'google-edit'})
 IN_FLIGHT_STATUSES = frozenset({'queued', 'preparing', 'processing', 'fallback_running'})
 MIN_SAMPLES = 3

@@ -84,7 +84,7 @@ test('every generate action is one component: no legacy button classes, no per-d
   for(const list of lists)assert.ok(!list.includes('desk-button')&&!list.includes('desk-button--generate'),list.join(' '));
   const controls=read('frontend/styles/desktop-controls.css');
   const block=controls.slice(controls.indexOf('/* Canvas generate action:'),controls.indexOf('/* Settings-only model tools'));
-  assert.doesNotMatch(block,/desk-(music|video-control|topaz-video|cyimg)__/,'shared rules do not name domains');
+  assert.doesNotMatch(block,/desk-(music|video-control|cyimg)__/,'shared rules do not name domains');
   for(const state of [':not(:disabled)','[aria-busy="true"]',':disabled:not([aria-busy="true"])',':hover:not(:disabled)',':active:not(:disabled)'])
     assert.ok(block.includes(`.desk-node .desk-generation-action${state}`),state);
   // Footer placement belongs to each node, not to the component.

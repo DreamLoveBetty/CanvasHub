@@ -15,8 +15,9 @@
     // Generated videos use a basename; gallery videos include root/date/folder segments.
     // Both are served by the same authenticated, archive-root-confined /video/ route.
     const videoPath = /^\/video\/[^/]+(?:\/[^/]+)*$/.test(url.pathname);
+    const sourcePaths = ['/api/video_control/artifact', '/api/video_control/source', ...(window.DesktopLocalExtensions?.videoSourcePaths?.() || [])];
     if (url.origin !== window.location.origin || url.username || url.password || !(videoPath
-      || ['/api/video_control/artifact', '/api/video_control/source', '/api/topaz_video/artifact', '/api/topaz_video/source'].includes(url.pathname))) throw new Error('请导入本地视频，或连接画布生成的视频结果');
+      || sourcePaths.includes(url.pathname))) throw new Error('请导入本地视频，或连接画布生成的视频结果');
     return url.pathname + url.search;
   }
   let client;

@@ -557,6 +557,6 @@ test('editor modules share one module graph and keep the viewport context scoped
   assert.match(editor, /window\.DesktopPoseEditor = Object\.freeze\(\{open, close, exported, isOpen: \(\) => Boolean\(session\), renderNode\}\)/);
   const css = read('styles/desktop-pose-editor.css') + read('styles/desktop-pose-editor-geometry.css') + read('styles/desktop-pose-node.css');
   assert.ok(!/backdrop-filter/.test(css), 'no backdrop blur over WebGL');
-  assert.ok(!/\.desk-topaz-video-workbench/.test(css), 'the editor owns its classes');
+  assert.ok(/\.desk-pose-editor/.test(css), 'the editor owns its classes');
   assert.ok(!/(^|\})\s*\.desk-pose/m.test(css), 'selectors stay scoped under body.desk-app');
 });

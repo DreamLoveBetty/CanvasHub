@@ -97,7 +97,7 @@ test('connections: videos are clips, one audio is the music, a rendered compose 
   const compose = { type: 'video_compose' };
   assert.equal(model.policy({ type: 'video' }, compose).inputRole, 'clip');
   assert.equal(model.policy({ type: 'audio' }, compose).single, true);
-  assert.equal(model.policy(compose, { type: 'topaz_video' }).single, true);
+  assert.equal(model.policy(compose, { type: 'video_control' }).single, true);
   assert.equal(model.policy(compose, { type: 'comfy' }).single, false);
   assert.equal(model.policy(compose, { type: 'image' }), null);
   assert.equal(model.isVideoSource({ type: 'video_compose' }), false);
@@ -217,5 +217,5 @@ test('the page loads the compose modules in dependency order and the canvas wire
   assert.match(canvas, /DesktopCanvasVideoComposeRecipe\.create\(\{[\s\S]*?compose: canvasVideoCompose,/);
   assert.match(canvas, /recipe: \{ isOutput: window\.DesktopCanvasVideoComposeRecipe\.isOutput, reopen: nodeId => canvasVideoComposeRecipe\.reopen\(nodeId\) \}/);
   assert.match(canvas, /taskRegistry\.register\('video_compose'/);
-  assert.match(canvas, /canvasVideoCompose\.connections, canvasTopazVideo\.connections/);
+  assert.match(canvas, /canvasVideoCompose\.connections, canvasVideoEdit\.connections/);
 });

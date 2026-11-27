@@ -2,7 +2,7 @@
 
 An upload is written into today's archive folder (storage_paths.daily_output_dir), so it is served by
 the authenticated /video/ route with byte ranges, listed by the asset library as imported material
-(no generation sidecar), and accepted by every video consumer (Topaz Video, ReShot, pose recognition)
+(no generation sidecar), and accepted by video consumers (ReShot, pose recognition, video edit)
 exactly like a generated clip. The same content uploaded again on the same day reuses its file.
 
 Dependencies are injected by server.py: output_dir() -> today's folder, probe(path) -> ffprobe metadata.

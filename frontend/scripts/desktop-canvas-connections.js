@@ -140,7 +140,6 @@
     menu.innerHTML = `
       <div class="desk-node-context-menu__cap" aria-hidden="true">
         <strong>${escapeHtml(title || '添加节点')}</strong>
-        ${isConnectionMenu ? '<span>自动连接</span>' : ''}
       </div>
       <label class="desk-node-context-menu__search">
         <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="8.5" cy="8.5" r="4.75"></circle><path d="m12 12 4 4"></path></svg>
@@ -1181,6 +1180,10 @@
       fromNodeId: nodeId,
       fromSide,
       fromAnchor,
+      pointerId: event.pointerId,
+      startClientX: event.clientX,
+      startClientY: event.clientY,
+      moved: false,
       pointer: screenToWorld(event.clientX, event.clientY)
     };
     markCompatibleConnectionTargets(nodeId);
@@ -1225,6 +1228,10 @@
       sourcePlate,
       detachedEdge: edge,
       reconnecting: true,
+      pointerId: event.pointerId,
+      startClientX: event.clientX,
+      startClientY: event.clientY,
+      moved: false,
       pointer
     };
     markCompatibleConnectionTargets(edge.from);

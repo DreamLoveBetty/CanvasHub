@@ -48,6 +48,78 @@ class DesktopNodeGroupsTest(unittest.TestCase):
         self.assertIn("normalizeNodeGroups(nodes);", source)
         self.assertIn("const selectedNodeIds = expandNodeIdsToGroups(", source)
 
+    def test_selection_bounds_meta_anchors_outside_top_left_corner(self):
+        shell_geometry = self.read("frontend/styles/desktop-shell-geometry.css")
+        liquid = self.read("frontend/styles/desktop-liquid.css")
+        selection_js = self.read("frontend/scripts/desktop-canvas-selection.js")
+
+        match = re.search(
+            r":where\(body\.desk-app\[data-theme\]\)\s*\.desk-selection-bounds__meta\s*\{([^}]*)\}",
+            shell_geometry,
+            re.S,
+        )
+        self.assertIsNotNone(match)
+        block = match.group(1)
+        self.assertIn("top: var(--desk-selection-meta-top, -43px);", block)
+        self.assertIn("right: calc(100% + 10px);", block)
+        self.assertIn("display: inline-flex;", block)
+        self.assertIn("align-items: center;", block)
+        self.assertIn("height: 36px;", block)
+        self.assertNotIn("left: -10px", block)
+        self.assertNotIn("top: 50%", block)
+
+        group_match = re.search(
+            r":where\(body\.desk-app\[data-theme\]\)\s*\.desk-selection-group\s*\{([^}]*)\}",
+            shell_geometry,
+            re.S,
+        )
+        self.assertIsNotNone(group_match)
+        self.assertIn("width: auto;", group_match.group(1))
+        self.assertIn("height: 26px;", group_match.group(1))
+
+        count_match = re.search(r"#deskSelectionCount\s*\{([^}]*)\}", liquid, re.S)
+        self.assertIsNotNone(count_match)
+        self.assertIn("height: 26px;", count_match.group(1))
+        self.assertIn("display: inline-flex;", count_match.group(1))
+
+        self.assertIn("--desk-selection-meta-top", selection_js)
+
+    def test_node_drag_and_resize_suppress_trailing_click(self):
+        canvas_js = self.read("frontend/scripts/desktop-canvas.js")
+        connections_js = self.read("frontend/scripts/desktop-canvas-connections.js")
+        self.assertRegex(
+            canvas_js,
+            r"type:\s*'node-drag'[\s\S]*?moved:\s*false",
+        )
+        self.assertRegex(
+            canvas_js,
+            r"type:\s*'node-resize'[\s\S]*?moved:\s*false",
+        )
+        self.assertRegex(
+            connections_js,
+            r"type:\s*'connect'[\s\S]*?moved:\s*false",
+        )
+        self.assertIn(
+            "interaction.type === 'pan' || interaction.type === 'node-drag' || interaction.type === 'node-resize'",
+            canvas_js,
+        )
+        self.assertIn(
+            "canvasViewport.suppressClickAfterPan(event, moved)",
+            canvas_js,
+        )
+        self.assertIn(
+            "canvasViewport.suppressClickAfterPan(event, true)",
+            canvas_js,
+        )
+        self.assertRegex(
+            canvas_js,
+            r"closest\('\.desk-text-node__alias'\)[\s\S]*?!getSelectedNodeIds\(\)\.includes\(node\.dataset\.nodeId\)",
+        )
+        self.assertIn(
+            "#deskSelectionToolbar, #deskSelectionBounds",
+            canvas_js,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

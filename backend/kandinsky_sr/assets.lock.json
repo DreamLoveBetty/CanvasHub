@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "source": {
+    "repo": "kandinskylab/kandinsky-image-sr",
+    "revision": "6c2405796cf7576b0cffff27acd103d667b91ca8",
+    "license": "MIT",
+    "files": {
+      "LICENSE": {
+        "size": 1069,
+        "sha256": "a899e75d557c2ac94c999268539fffc736499a19ad4fd89a2bbba4dfee5a8b2b"
+      },
+      "src/kandinsky_image_sr/__init__.py": {
+        "size": 868,
+        "sha256": "5e4e479e1aab951e48156cbc2c332008e9043d3fb1c54a7ba2acb50065d68a3f"
+      },
+      "src/kandinsky_image_sr/attention.py": {
+        "size": 2195,
+        "sha256": "e6d53920d73054cc0a7a1478e20f77982128e5cc9b5871cb12f1f2f5a1f8de7c"
+      },
+      "src/kandinsky_image_sr/baked_transformer.py": {
+        "size": 7690,
+        "sha256": "dfc41eceb26ed1ff2b99d2c12b75fb3367abf01d142dcb27ad5992a0a6ee1032"
+      },
+      "src/kandinsky_image_sr/image_processor.py": {
+        "size": 3153,
+        "sha256": "6a1ea6d61900dcb78eeb6b71ab008ae15d478193a51386d15f5492a7cd1d3308"
+      },
+      "src/kandinsky_image_sr/pipeline.py": {
+        "size": 13511,
+        "sha256": "b7f9dd66a817da057b585ac951868cf86606c426bf4f7e92735abecf5e85b227"
+      },
+      "src/kandinsky_image_sr/tiling.py": {
+        "size": 1347,
+        "sha256": "e98523b79175789b692d70993fd92a501ee55a3cee887540b2e1fd31d54f3e32"
+      }
+    }
+  },
+  "model": {
+    "key": "kandinsky-imagesr-2.0",
+    "repo": "kandinskylab/Kandinsky-ImageSR-2.0",
+    "revision": "7d5b5ed7def0b45b98f398c0b295a6b1658863db",
+    "files": {
+      "SOURCE.json": {
+        "size": 362,
+        "blob_id": "3880f0a23a93bd0d4b31999d9edd1715db5cb2f1"
+      },
+      "model_index.json": {
+        "size": 455,
+        "blob_id": "246c240df138d131bd8eb95246034b6e1eb7770e"
+      },
+      "transformer/config.json": {
+        "size": 628,
+        "blob_id": "9514d5e5edf318680f5522d27512bc5e7eef4945"
+      },
+      "transformer/diffusion_pytorch_model-00001-of-00003.safetensors": {
+        "size": 4988839016,
+        "sha256": "999909010bf61b311b7b1d1f71a1a5e4dd39fe1e5ae8f51bb7164d24a61e383f"
+      },
+      "transformer/diffusion_pytorch_model-00002-of-00003.safetensors": {
+        "size": 4993423840,
+        "sha256": "3976b0d0879011bb6a79940aaf00c9172ee8dae18f4ee24ed7a132e6b1cca6a6"
+      },
+      "transformer/diffusion_pytorch_model-00003-of-00003.safetensors": {
+        "size": 268045424,
+        "sha256": "4b0772dc003f0dd4b5ada3bd0f830cf33cdead44bc2e806096064262bb651e12"
+      },
+      "transformer/diffusion_pytorch_model.safetensors.index.json": {
+        "size": 90362,
+        "blob_id": "34e816f7a7f89b471fcd8c0db05919cf9e392e27"
+      },
+      "vae/config.json": {
+        "size": 824,
+        "blob_id": "3666d1d35f884cdcea30f125f4963a030793ec25"
+      },
+      "vae/diffusion_pytorch_model.safetensors": {
+        "size": 167666902,
+        "sha256": "f5b59a26851551b67ae1fe58d32e76486e1e812def4696a4bea97f16604d40a3"
+      }
+    }
+  }
+}

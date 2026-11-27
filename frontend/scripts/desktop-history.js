@@ -1177,8 +1177,10 @@
     if (type.includes('krea2') || provider.includes('krea2')) return 'krea2';
     if (type.includes('qwen21') || provider.includes('qwen-image-2.1')) return 'qwen21';
     if (type.startsWith('moss') || provider.startsWith('moss')) return 'moss';
+    if (type.includes('kandinsky_sr') || provider.includes('kandinsky_sr')) return 'kandinsky_sr';
     if (type.includes('pinterest') || itemOrType?.provider === 'pinterest') return 'pinterest';
-    if (type === 'topaz' || itemOrType?.provider === 'topaz') return 'topaz';
+    const extGroup = window.DesktopLocalExtensions?.matchHistoryProvider?.(type, provider, itemOrType);
+    if (extGroup) return extGroup;
     if (type.startsWith('video_frame') || provider === 'video_frame') return 'video_frame';
     if (type.startsWith('gpt')) return 'gpt';
     if (type === 'comfy') return 'comfy';
@@ -1187,18 +1189,19 @@
   }
 
   function providerLabel(itemOrType) {
+    const group = providerGroup(itemOrType);
     return {
       krea2: 'Krea2',
       qwen21: 'Qwen 2.1',
       moss: 'MOSS',
-      topaz: 'Topaz',
+      kandinsky_sr: 'Kandinsky SR 2.0',
       gpt: 'GPT',
       google: 'Google',
       comfy: 'Comfy',
       layout: '排版',
       pinterest: 'Pinterest',
       video_frame: '视频抽帧'
-    }[providerGroup(itemOrType)] || '图片';
+    }[group] || window.DesktopLocalExtensions?.historyProviderLabel?.(group) || '图片';
   }
 
   function imagePathForFile(item, file, index) {

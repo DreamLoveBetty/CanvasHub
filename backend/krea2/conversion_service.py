@@ -225,7 +225,7 @@ class ConversionService:
             env=self.runtime.child_environment(), stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT, text=True, bufsize=1, start_new_session=True,
             # Keep the accelerator lease alive in the converter if the server
-            # exits unexpectedly.  New YuE/Krea/Topaz/ReShot work will remain
+            # exits unexpectedly.  New YuE/Krea/Qwen/ReShot work will remain
             # queued until the orphaned conversion process itself terminates.
             pass_fds=(int(lease_fd),))
         with self._lock:

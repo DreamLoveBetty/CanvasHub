@@ -19,6 +19,7 @@ from typing import Any
 
 from PIL import Image
 
+from . import local_extensions
 from .app_config import APP_DATA_DIR
 from .database import DB_PATH as TASKS_DB_PATH
 from .database import get_all_tasks
@@ -532,8 +533,11 @@ def _provider_group(item: dict[str, Any]) -> str:
         return "qwen21"
     if raw.startswith("moss"):
         return "moss"
-    if raw == "topaz":
-        return "topaz"
+    if raw.startswith("kandinsky_sr") or "kandinsky_sr" in provider_hint:
+        return "kandinsky_sr"
+    ext_group = local_extensions.match_asset_provider_group(raw, provider_hint)
+    if ext_group:
+        return ext_group
     if raw.startswith("gpt") or "gpt" in raw:
         return "gpt"
     if raw.startswith("comfy") or "comfy" in raw:
@@ -548,14 +552,14 @@ def _provider_label(provider: str) -> str:
         "krea2": "Krea2",
         "qwen21": "Qwen 2.1",
         "moss": "MOSS",
-        "topaz": "Topaz",
         "gpt": "GPT",
         "google": "Google",
         "comfy": "Comfy",
         "layout": "排版",
         "video_frame": "视频抽帧",
         "video_compose": "视频合成",
-    }.get(provider, provider or "资产")
+        "kandinsky_sr": "Kandinsky SR 2.0",
+    }.get(provider) or local_extensions.asset_provider_label(provider) or provider or "资产"
 
 
 def _main_model_label(params: dict[str, Any], provider: str) -> str:
@@ -688,8 +692,9 @@ def _infer_archive_provider(path: Path, template: dict[str, Any] | None = None) 
     name = path.name.lower()
     if "_layout_drafts" in rel_parts or name.startswith(("layout_", "export")):
         return "layout"
-    if name.startswith("topaz_"):
-        return "topaz"
+    ext_provider = local_extensions.infer_archive_provider(name)
+    if ext_provider:
+        return ext_provider
     if name.startswith("video_frame_"):
         return "video_frame"
     if name.startswith("video_compose_"):
@@ -700,6 +705,8 @@ def _infer_archive_provider(path: Path, template: dict[str, Any] | None = None) 
         return "qwen21"
     if name.startswith("moss_"):
         return "moss"
+    if name.startswith("kandinsky_sr_"):
+        return "kandinsky_sr"
     if name.startswith(("gpt_", "gpt-edit", "gpt_edit", "gpt-image")):
         return "gpt"
     return "google"

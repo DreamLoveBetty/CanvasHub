@@ -27,7 +27,7 @@ test('preference migration defaults to Liquid while preserving existing theme/co
 test('desktop load order, cache busting and boundaries cover every new dependency and changed consumer',()=>{
  const html=file('desktop.html'),order=['desktop-progress-model','desktop-progress-materials','desktop-progress-renderer','desktop-progress','desktop-preferences'];
  for(let i=1;i<order.length;i++)assert.ok(html.indexOf(`scripts/${order[i-1]}.js?`)<html.indexOf(`scripts/${order[i]}.js?`));
- const changed=[...order,'desktop-canvas','desktop-canvas-krea2','desktop-canvas-qwen21','desktop-canvas-cyimg','desktop-canvas-nodes','desktop-canvas-model-nodes','desktop-results','desktop-settings','desktop-music-view','desktop-topaz-video-view','desktop-video-control-view'];
+ const changed=[...order,'desktop-canvas','desktop-canvas-krea2','desktop-canvas-qwen21','desktop-canvas-cyimg','desktop-canvas-nodes','desktop-canvas-model-nodes','desktop-results','desktop-settings','desktop-music-view','desktop-video-control-view'];
  for(const name of changed)assert.ok(hasCacheKey(html,`scripts/${name}.js`),name);
  assert.ok(hasCacheKey(html,'styles/desktop-progress.css'));
  for(const name of ['desktop-progress-model','desktop-progress-materials','desktop-progress-renderer','desktop-progress']) {
@@ -54,14 +54,6 @@ function viewHarness(name, model) {
  const view=namespace.create({model,escapeHtml:String,stateIcon:{html:()=>'',paint(){}},progressView:{update:(...args)=>calls.push(args)}});
  return {view,el,calls};
 }
-test('Topaz Video adapter forwards exact observed counts/timestamps and hides terminal, not prior pending percentages',()=>{
- const h=viewHarness('desktop-topaz-video-view',{active:s=>s==='running',labels:{running:'运行中',succeeded:'已完成'}});
- const node={status:'running',model:'test',scale:2,maxSeconds:0},job={id:'test',progress_percent:34.9,started_at:1790910000,stage:'渲染帧'};
- const catalog=[{id:'test',available:true,verified:true,scales:[2]}];
- h.view.paint(h.el,node,job,false,catalog);assert.equal(h.calls.at(-1)[1].percent,34.9);assert.equal(h.calls.at(-1)[1].startedAt,job.started_at);
- h.view.paint(h.el,node,job,true,catalog);assert.equal(h.calls.at(-1)[1].percent,null);assert.equal(h.calls.at(-1)[1].startedAt,0);
- h.view.paint(h.el,{...node,status:'succeeded'},job,false,catalog);assert.equal(h.calls.at(-1)[1].visible,false);
-});
 test('ReShot retains unknown percent and music retains current-stage label and domain-owned elapsed',()=>{
  const v=viewHarness('desktop-video-control-view',{active:s=>s==='running',stageLabel:s=>s,labels:{running:'处理中'}});
  v.view.paint(v.el,{status:'running',control:'depth'},{id:'r',stage:'深度处理',created_at:1790910000});

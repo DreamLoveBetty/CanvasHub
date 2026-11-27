@@ -48,8 +48,8 @@ CanvasHub 是一个自托管的节点式图像工作台：一个 Python HTTP 服
 | 继续编辑 | 生成结果可直接连到下一个模型节点当参考图；内置图片编辑器（画笔、蒙版、擦除、文字与箭头标注） |
 | 本地模型 | Apple Silicon 上用 MLX 本地生成：Krea 2（含区域控制与 LoRA）、Qwen-Image 2.1（多参考编辑、Turbo）、MOSS-Image（文生图与版面/分镜） |
 | ComfyUI | 接入你自己的 ComfyUI 实例，按工作流运行，支持图片 / 视频 / 音频输入输出 |
-| 视频与音频 | 视频节点、视频控制预处理（Depth / Pose / Canny）、Topaz 视频增强；mlx-Yue 本地音乐生成与转写 |
-| 增强放大 | 本地高清放大（4x-UltraSharp / 4x-AnimeSharp）；可选接入本机已授权的 Topaz Gigapixel |
+| 视频与音频 | 视频节点、视频控制预处理（Depth / Pose / Canny）；mlx-Yue 本地音乐生成与转写 |
+| 增强放大 | 本地高清放大（4x-UltraSharp / 4x-AnimeSharp） |
 | 姿态参考 | SOMA 3D 人偶摆姿，GEM-X 从照片 / 视频识别姿态 |
 | 归档与资产库 | 原图按日期存入归档目录并写入提示词旁注文件；资产库浏览、筛选、收藏 |
 | Telegram | 结果通过 `sendDocument` 发原文件，不走压缩的图片通道；小程序可在手机上提交与查看 |
@@ -149,7 +149,6 @@ docker compose up -d
 | 姿态人偶（SOMA） | [nvidia/soma-x](https://huggingface.co/nvidia/soma-x)（Apache-2.0） | `python -m backend.pose_scene.install` | 下载约 59 MB，生成中性 / 女性 / 男性人偶；见 [backend/pose_scene](backend/pose_scene/README.md) |
 | 姿态识别（GEM-X） | [NVlabs/GEM-X](https://github.com/NVlabs/GEM-X) · 可选 [CoMotion](https://github.com/apple-aiml-research/ml-comotion)、[SAM 3D Body](https://github.com/facebookresearch/sam-3d-body) | `python -m backend.pose_capture.install` | 下载约 4.4 GB；见 [backend/pose_capture](backend/pose_capture/README.md) |
 | 视频控制预处理 | ReShot 流程（Depth / Pose / Canny） | `python -m backend.video_control.install --models-from <目录>` | 见 [backend/video_control](backend/video_control/README.md) |
-| Topaz Gigapixel / Video | 需要本机已安装并授权的 Topaz 应用 | `python -m backend.topaz.provision` | 不随项目分发任何 Topaz 文件；见 [backend/topaz](backend/topaz/README.md) |
 
 完整的第三方代码与资产说明见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
 

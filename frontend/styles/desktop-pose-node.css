@@ -1,4 +1,4 @@
-/* Pose reference node: the Topaz Video node frame, header, field and footer rhythm.
+/* Pose reference node: shared video-node frame, header, field and footer rhythm.
    Consumes node, status and action tokens; pose-specific values live in desktop-tokens.css. */
 body.desk-app .desk-node--pose {display:flex;flex-direction:column;padding:16px;box-sizing:border-box;border:1px solid var(--desk-node-stroke);border-radius:var(--desk-node-radius);background:var(--desk-node-sheen-background),var(--desk-node-glass-background);color:var(--desk-node-ink);box-shadow:var(--desk-node-glass-shadow);overflow:visible;}
 body.desk-app .desk-node--pose::before {display:none;}

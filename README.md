@@ -51,8 +51,8 @@ Results stay on your own machine, archived by date together with their prompts.
 | Keep editing | Connect a result straight into the next model node as a reference; built-in image editor (brush, mask, eraser, text and arrow notes) |
 | Local models | MLX generation on Apple Silicon: Krea 2 (with region control and LoRA), Qwen-Image 2.1 (multi-reference edit, Turbo), MOSS-Image (text-to-image, layout and storyboard grids) |
 | ComfyUI | Run workflows on your own ComfyUI instance with image / video / audio inputs and outputs |
-| Video and audio | Video nodes, video-control preprocessing (Depth / Pose / Canny), Topaz video enhancement; local music generation and transcription with mlx-Yue |
-| Enhance and upscale | Local 4× upscaling (4x-UltraSharp / 4x-AnimeSharp); optional Topaz Gigapixel using your own licensed install |
+| Video and audio | Video nodes, video-control preprocessing (Depth / Pose / Canny); local music generation and transcription with mlx-Yue |
+| Enhance and upscale | Local 4× upscaling (4x-UltraSharp / 4x-AnimeSharp) |
 | Pose reference | Pose a SOMA 3D mannequin; recognise poses from photos / video with GEM-X |
 | Archive and library | Originals are saved by date in the archive directory with prompt sidecar files; browse, filter and favourite them in the asset library |
 | Telegram | Results are sent with `sendDocument` as original files, not through the compressed photo channel; submit and review from the Mini App on your phone |
@@ -175,7 +175,6 @@ distributed with this repository; follow each upstream licence.
 | Pose mannequin (SOMA) | [nvidia/soma-x](https://huggingface.co/nvidia/soma-x) (Apache-2.0) | `python -m backend.pose_scene.install` | About 59 MB; generates neutral / female / male mannequins; see [backend/pose_scene](backend/pose_scene/README.md) |
 | Pose recognition (GEM-X) | [NVlabs/GEM-X](https://github.com/NVlabs/GEM-X) · optional [CoMotion](https://github.com/apple-aiml-research/ml-comotion), [SAM 3D Body](https://github.com/facebookresearch/sam-3d-body) | `python -m backend.pose_capture.install` | About 4.4 GB; see [backend/pose_capture](backend/pose_capture/README.md) |
 | Video-control preprocessing | ReShot pipeline (Depth / Pose / Canny) | `python -m backend.video_control.install --models-from <dir>` | See [backend/video_control](backend/video_control/README.md) |
-| Topaz Gigapixel / Video | Requires your own installed and licensed Topaz app | `python -m backend.topaz.provision` | No Topaz files are distributed with the project; see [backend/topaz](backend/topaz/README.md) |
 
 Full third-party code and asset notices: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 

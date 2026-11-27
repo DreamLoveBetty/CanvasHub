@@ -626,7 +626,6 @@ body.desk-app {
     0 14px 34px rgba(var(--desk-blue-midnight-rgb), 0.13),
     inset 0 1px 0 rgba(255, 255, 255, 0.82);
   --desk-canvas-menu-cap-ink: rgba(255, 255, 255, 0.96);
-  --desk-canvas-menu-cap-meta-ink: rgba(255, 255, 255, 0.62);
   --desk-canvas-menu-search-background: rgba(var(--desk-blue-royal-rgb), 0.055);
   --desk-canvas-menu-search-ink: var(--desk-blue-ink);
   --desk-canvas-menu-item-hover-ink: var(--desk-blue-ink);
@@ -1175,7 +1174,7 @@ body.desk-app {
 
   /* Elevation. */
 
-  /* Video frame picker: the stage and filmstrip stay dark in every theme, like the Topaz workbench. */
+  /* Video frame picker: the stage and filmstrip stay dark in every theme. */
   --desk-video-frames-stage: #080d14;
   --desk-video-frames-stage-border: rgba(96, 116, 139, 0.42);
   --desk-video-frames-strip: #111923;
@@ -1792,7 +1791,7 @@ body.desk-app {
   --desk-video-port-shadow: 0 0 0 4px rgba(249, 90, 28, 0.09), 0 8px 18px rgba(var(--desk-blue-midnight-rgb), 0.16);
   --desk-video-minimap-background: rgba(249, 90, 28, 0.74);
   --desk-pose-minimap-background: rgba(52, 199, 89, 0.7);
-  /* Pose editor viewport stays dark in both themes, like the Topaz Video viewer. */
+  /* Pose editor viewport stays dark in both themes. */
   --desk-pose-viewport-bg: #080d14;
   --desk-pose-viewport-border: rgba(96, 116, 139, 0.42);
   --desk-pose-viewport-ink: #e3eaf2;
@@ -2590,7 +2589,6 @@ body.desk-app[data-theme="dark"] {
     0 16px 38px rgba(0, 0, 0, 0.34),
     inset 0 1px 0 rgba(255, 255, 255, 0.05);
   --desk-canvas-menu-cap-ink: rgba(255, 255, 255, 0.96);
-  --desk-canvas-menu-cap-meta-ink: rgba(255, 255, 255, 0.62);
   --desk-canvas-menu-search-background: rgba(255, 106, 34, 0.07);
   --desk-canvas-menu-search-ink: rgba(242, 245, 246, 0.92);
   --desk-canvas-menu-item-hover-ink: rgba(255, 247, 242, 0.98);

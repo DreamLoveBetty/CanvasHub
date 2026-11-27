@@ -71,7 +71,7 @@ test('the helper owns presentation only and motion respects reduced-motion',()=>
 test('all consumers receive an explicit display-only dependency in loading order',()=>{
   const html=read('frontend/desktop.html'),host=read('frontend/scripts/desktop-canvas.js');
   const helper=html.indexOf('scripts/desktop-state-icon.js?');assert.ok(helper>=0);
-  for(const name of ['desktop-canvas-audio','desktop-music-view','desktop-canvas-topaz','desktop-video-control-view','desktop-topaz-video-view','desktop-topaz-video-workbench']){
+  for(const name of ['desktop-canvas-audio','desktop-music-view','desktop-video-control-view']){
     assert.ok(helper<html.indexOf(`scripts/${name}.js?`),name);
     assert.match(read(`frontend/scripts/${name}.js`),/stateIcon/);
     assert.ok(hasCacheKey(html,`scripts/${name}.js`),name);
@@ -88,41 +88,25 @@ function displayFixture(keys){
   const label={textContent:''},button={dataset:{},attrs:{},setAttribute(k,v){this.attrs[k]=v;},querySelector:s=>s==='svg'?svg:label};
   const fields=new Map();
   const q=selector=>{
-    if(/\[data-(control|topaz-video|result)-run\]/.test(selector))return button;
+    if(/\[data-(control|result)-run\]/.test(selector))return button;
     if(!fields.has(selector))fields.set(selector,{dataset:{},classList:{toggle(){}},style:{setProperty(){}},textContent:''});
     return fields.get(selector);
   };
   return{svg,layers,label,button,root:{querySelector:q,querySelectorAll:()=>[]}};
 }
-for(const [prefix,type] of [['VideoControl','video_control'],['TopazVideo','topaz_video']])test(`${type} painting preserves task state, availability and busy/accessibility contracts`,()=>{
+test('video_control painting preserves task state, availability and busy/accessibility contracts',()=>{
   const context={window:{}};
-  for(const name of ['desktop-topaz-video-pipeline','desktop-state-icon',prefix==='VideoControl'?'desktop-video-control-model':'desktop-topaz-video-model',prefix==='VideoControl'?'desktop-video-control-view':'desktop-topaz-video-view'])vm.runInNewContext(read(`frontend/scripts/${name}.js`),context);
-  const model=context.window[`Desktop${prefix}Model`],view=context.window[`Desktop${prefix}View`].create({model,escapeHtml:String,stateIcon:context.window.DesktopStateIcon});
-  const node=model.normalize({id:'synthetic',type}),f=displayFixture(['idle','busy','succeeded','failed']);
-  const catalog=[{id:node.model,available:true,scales:[node.scale],verified:true}];
+  for(const name of ['desktop-state-icon','desktop-video-control-model','desktop-video-control-view'])vm.runInNewContext(read(`frontend/scripts/${name}.js`),context);
+  const model=context.window.DesktopVideoControlModel,view=context.window.DesktopVideoControlView.create({model,escapeHtml:String,stateIcon:context.window.DesktopStateIcon});
+  const node=model.normalize({id:'synthetic',type:'video_control'}),f=displayFixture(['idle','busy','succeeded','failed']);
   for(const [status,icon,busy] of [['queued','busy',true],['running','busy',true],['succeeded','succeeded',false],['interrupted','failed',false],['cancelled','idle',false]]){
     node.status=status;const before=JSON.stringify(node);
-    if(type==='video_control')view.paint(f.root,node,null,false);
-    else view.paint(f.root,node,null,false,catalog);
+    view.paint(f.root,node,null,false);
     assert.equal(JSON.stringify(node),before);
     assert.equal(f.svg.dataset.stateIcon,icon);
     assert.equal(f.layers.filter(l=>l.current).length,1);
     assert.equal(f.button.attrs['aria-busy'],String(busy));
     assert.equal(f.button.disabled,busy);
     assert.equal(f.button.attrs['aria-label'],f.label.textContent);
-  }
-  if(type==='topaz_video'){
-    node.status='idle';view.paint(f.root,node,null,false,[]);assert.equal(f.button.disabled,true,'unavailable model must remain disabled');
-  }
-});
-test('Topaz image painting never changes generation state while updating retained glyphs',()=>{
-  const context={window:{},DesktopState:{isInFlight:s=>['queued','processing'].includes(s),isSuccess:s=>s==='succeeded',isFailure:s=>s==='failed'}};
-  for(const name of ['desktop-state-icon','desktop-topaz-model','desktop-canvas-topaz'])vm.runInNewContext(read(`frontend/scripts/${name}.js`),context);
-  const model=context.window.DesktopTopazModel,node=model.normalize({id:'t',type:'topaz'}),f=displayFixture(['idle','busy','success','error']);
-  const state={canvas:{nodes:{t:node},edges:[]},outputs:{t:{status:'idle'}}};
-  const controller=context.window.DesktopCanvasTopaz.create({model,stateIcon:context.window.DesktopStateIcon,getState:()=>state,getNodeElement:()=>f.root,getReferences:()=>[]});
-  for(const [status,icon,busy] of [['queued','busy',true],['processing','busy',true],['succeeded','success',false],['failed','error',false],['idle','idle',false]]){
-    state.outputs.t.status=status;const before=JSON.stringify(state);controller.paint('t');
-    assert.equal(JSON.stringify(state),before);assert.equal(f.svg.dataset.stateIcon,icon);assert.equal(f.button.disabled,busy);assert.equal(f.button.attrs['aria-busy'],String(busy));
   }
 });

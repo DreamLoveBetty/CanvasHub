@@ -1,0 +1,193 @@
+/* Paint, layout, and tokens for the Kandinsky ImageSR 2.0 super-resolution node. */
+body.desk-app .desk-node--kandinsky-sr {
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+  box-sizing: border-box;
+  border: 1px solid var(--desk-node-stroke);
+  border-radius: var(--desk-node-radius);
+  background: var(--desk-node-sheen-background), var(--desk-node-glass-background);
+  color: var(--desk-node-ink);
+  box-shadow: var(--desk-node-glass-shadow);
+  overflow: visible;
+}
+
+body.desk-app .desk-node--kandinsky-sr::before {
+  display: none;
+}
+
+body.desk-app .desk-node--kandinsky-sr [hidden] {
+  display: none;
+}
+
+body.desk-app .desk-node--kandinsky-sr.is-selected {
+  border-color: var(--desk-node-selection-stroke);
+}
+
+body.desk-app .desk-ksr__header {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  border-bottom: 1px solid var(--desk-color-border-faint);
+  padding-bottom: 12px;
+  margin-bottom: 12px;
+}
+
+body.desk-app .desk-ksr__header > div {
+  flex: 1;
+  min-width: 0;
+}
+
+body.desk-app .desk-ksr__header strong {
+  font-size: var(--desk-font-size-panel-title);
+}
+
+body.desk-app .desk-ksr__header small {
+  display: block;
+  font-size: var(--desk-font-size-micro);
+  margin-top: 3px;
+  color: var(--desk-node-muted-ink);
+}
+
+body.desk-app .desk-ksr__icon {
+  width: 38px;
+  height: 38px;
+  padding: 7px;
+  box-sizing: border-box;
+  border-radius: 10px;
+  background: var(--desk-color-accent-soft);
+  color: var(--desk-color-accent);
+  flex: none;
+}
+
+body.desk-app .desk-ksr__banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  margin-bottom: 10px;
+  border-radius: 8px;
+  border: 1px solid var(--desk-color-warning-border, var(--desk-color-border-faint));
+  background: var(--desk-color-warning-soft, var(--desk-color-accent-soft));
+  color: var(--desk-node-ink);
+  font-size: var(--desk-font-size-caption);
+}
+
+body.desk-app .desk-ksr__banner span {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body.desk-app .desk-ksr__banner button {
+  flex: none;
+  border: 1px solid var(--desk-color-border-faint);
+  border-radius: 8px;
+  padding: 4px 10px;
+  background: var(--desk-node-sheen-background), var(--desk-node-glass-background);
+  color: var(--desk-node-ink);
+  cursor: pointer;
+}
+
+body.desk-app .desk-ksr__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.25fr) minmax(0, 1.1fr);
+  gap: 10px;
+}
+
+body.desk-app .desk-ksr__grid .desk-select-shell {
+  width: 100%;
+}
+
+body.desk-app .desk-ksr__grid:has(.desk-select-shell.is-open, .desk-select-menu.is-closing) {
+  z-index: 80;
+}
+
+body.desk-app .desk-node--kandinsky-sr:has(.desk-select-shell.is-open, .desk-select-menu.is-closing) {
+  z-index: 30;
+}
+
+body.desk-app .desk-ksr__grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+  color: var(--desk-node-muted-ink);
+  font-size: var(--desk-font-size-caption);
+}
+
+body.desk-app .desk-ksr__grid select {
+  width: 100%;
+  height: 34px;
+  padding: 6px 10px;
+  box-sizing: border-box;
+  border-radius: 8px;
+  background: var(--desk-node-glass-background);
+  border: 1px solid var(--desk-color-border-faint);
+  color: var(--desk-node-ink);
+  font: inherit;
+  font-size: var(--desk-font-size-label);
+}
+
+body.desk-app .desk-ksr__grid select:disabled {
+  opacity: 0.45;
+}
+
+body.desk-app .desk-ksr__footer {
+  margin-top: auto;
+  padding-top: 12px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 14px;
+  color: var(--desk-node-muted-ink);
+  font-size: var(--desk-font-size-caption);
+}
+
+body.desk-app .desk-ksr__meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  min-width: 0;
+  flex: 1;
+}
+
+body.desk-app [data-ksr-source],
+body.desk-app [data-ksr-estimate] {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body.desk-app .desk-ksr__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--desk-font-size-caption);
+  cursor: pointer;
+}
+
+body.desk-app .desk-ksr__toggle input {
+  accent-color: var(--desk-color-accent);
+}
+
+body.desk-app .desk-ksr__progress {
+  position: absolute;
+  top: calc(100% + 2px);
+  left: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+body.desk-app .desk-node--kandinsky-sr .desk-generation-action {
+  margin-left: auto;
+}
+
+body.desk-app .desk-node--kandinsky-sr .desk-generation-action[aria-busy="true"] {
+  opacity: 1;
+}

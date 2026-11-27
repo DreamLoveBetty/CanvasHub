@@ -4,10 +4,8 @@ Only URL shapes the server already serves are accepted. Each one is resolved by 
 that owns it (injected by server.py), so traversal and symlink checks stay in one place:
 
 * `/video/<archive path>`                     -> archive video resolver
-* `/api/topaz_video/source?id=`               -> Topaz Video store asset
-* `/api/topaz_video/artifact?id=&name=`       -> Topaz Video verified result
-* `/api/video_control/source?id=`             -> ReShot store asset
-* `/api/video_control/artifact?id=&name=`     -> ReShot result
+* `/api/<domain>/source?id=`                  -> registered video domain store asset
+* `/api/<domain>/artifact?id=&name=`          -> registered video domain verified result
 """
 from __future__ import annotations
 
@@ -17,7 +15,7 @@ from urllib.parse import parse_qs, urlparse
 
 from .contracts import AUDIO_ASSET_PATTERN
 
-STORE_ROUTES = ('topaz_video', 'video_control')
+_STORE_DOMAIN_PATTERN = re.compile(r'^[a-z0-9_]+$')
 
 
 class UnsupportedSource(ValueError):
@@ -27,7 +25,11 @@ class UnsupportedSource(ValueError):
 class SourceResolver:
     def __init__(self, *, archive_video, stores=None):
         self._archive_video = archive_video
-        self._stores = dict(stores or {})
+        self._stores = {
+            str(domain): store
+            for domain, store in (stores or {}).items()
+            if _STORE_DOMAIN_PATTERN.fullmatch(str(domain or '')) and store is not None
+        }
 
     def resolve(self, url: str) -> Path:
         parsed = urlparse(str(url or '').strip())
@@ -41,10 +43,7 @@ class SourceResolver:
             return Path(resolved)
         query = parse_qs(parsed.query)
         first = lambda key: (query.get(key) or [''])[0]
-        for domain in STORE_ROUTES:
-            store = self._stores.get(domain)
-            if store is None:
-                continue
+        for domain, store in self._stores.items():
             if path == f'/api/{domain}/source':
                 return Path(store.asset(first('id')))
             if path == f'/api/{domain}/artifact':

@@ -27,7 +27,7 @@ const PINNED = {
 
 // Scope: opt-in material on <body id="deskApp">. Key caps (T): buttons inside canvas
 // nodes, settings-centre action rows and the asset/prompt libraries' commands — generic .desk-button, node delete, generate actions that skip .desk-button
-// (music, ReShot, Topaz Video) and .desk-key, a style-free hook node templates put on
+// (music, ReShot, etc.) and .desk-key, a style-free hook node templates put on
 // their own push buttons. Segmented controls: a .desk-key-bank hook on the container in
 // nodes, the settings centre and the asset/prompt libraries' tab rows. Each direct button
 // is a key cap like any other (T), so segments follow the chosen finish; the container only

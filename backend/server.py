@@ -137,9 +137,7 @@ from .lora_library.service import Service as LoRALibraryService
 from .lora_library.civitai import Civitai as CivitaiMetadataProvider
 from .routes.lora_library_routes import create_router as create_lora_library_router
 from .runtime_resources import IdleWorkerCoordinator
-from .topaz_video.service import TopazVideoService
-from .topaz_video.runtime import TopazVideoRuntime
-from .routes.topaz_video_routes import create_router as create_topaz_video_router
+from .local_extensions import load_local_extensions
 from .routes.video_upload_routes import create_router as create_video_upload_router
 from .routes.comfy_video_routes import create_router as create_comfy_video_router
 from .services.video_upload import VideoUploads
@@ -153,6 +151,9 @@ from .asr.service import AsrService
 from .routes.video_understand_routes import create_router as create_video_understand_router
 from .video_understand.runtime import Runtime as VideoUnderstandRuntime
 from .video_understand.service import VideoUnderstandService
+from .routes.kandinsky_sr_routes import create_router as create_kandinsky_sr_router
+from .kandinsky_sr.runtime import Runtime as KandinskySrRuntime
+from .kandinsky_sr.service import Service as KandinskySrService
 from .video_edit.transcribe import TranscribeService as VideoTranscribeService
 from .video_edit.compose import ComposeService as VideoComposeService
 from .video_edit.service import VideoEditService
@@ -255,8 +256,6 @@ from .upscale_runtime import (
     UpscaleRuntimeError,
     default_upscale_model_dir,
 )
-from .topaz.runtime import Runtime as TopazRuntime
-from .topaz import routes as topaz_routes, service as topaz_service
 from .services.upscale_backends import (
     MODELS as UPSCALE_MODELS, normalize_model as normalize_upscale_model,
     available_models as _available_upscale_models, execute as _execute_upscale,
@@ -1208,7 +1207,6 @@ UPSCALE_MODEL_DIR = Path(
     os.environ.get('UPSCALE_MODEL_DIR')
     or (APP_DATA_DIR / 'components' / 'upscale' / 'current' / 'models' if os.environ.get('CANVASHUB_DATA_DIR') else default_upscale_model_dir(PROJECT_ROOT))
 ).expanduser()
-_topaz_runtime = TopazRuntime(APP_DATA_DIR / 'components' / 'topaz')
 available_upscale_models = _available_upscale_models
 upscale_image_file = _execute_upscale
 COMFY_RATIO_SIZES = {
@@ -1730,11 +1728,6 @@ def _process_image_enhancement_task(task_id, prompt, image_data, params, engine=
 
 def process_upscale_task(task_id, prompt, image_data, params):
     return _process_image_enhancement_task(task_id, prompt, image_data, params)
-
-
-def process_topaz_task(task_id, prompt, image_data, params):
-    return _process_image_enhancement_task(task_id, prompt, image_data, params,
-                                          topaz_service.engine(_topaz_runtime, params))
 
 
 H3_VIDEO_TASK_TYPE = 'minimax-h3-video'
@@ -2555,7 +2548,6 @@ _LOCAL_IMAGE_MEMORY = IdleWorkerCoordinator({
 _KREA2_SERVICE.runtime.before_load = lambda: _LOCAL_IMAGE_MEMORY.release_other('krea2')
 _QWEN21_SERVICE.runtime.before_load = lambda: _LOCAL_IMAGE_MEMORY.release_other('qwen21')
 _MOSS_SERVICE.runtime.before_load = lambda: _LOCAL_IMAGE_MEMORY.release_other('moss')
-_topaz_runtime.before_load = _LOCAL_IMAGE_MEMORY.release_all
 _VIDEO_CONTROL_SERVICE = VideoControlService(
     APP_DATA_DIR / 'data' / 'video-control', VideoControlRuntime(
         APP_DATA_DIR / 'components' / 'reshot', before_load=_LOCAL_IMAGE_MEMORY.release_all))
@@ -2567,10 +2559,15 @@ _COMFY_VIDEO_ROUTES = create_comfy_video_router(
     _domain_services_comfy_audio.ComfyAudioUploads(_new_comfy_session, get_comfy_config),
 )
 _POSE_CAPTURE_ROUTES = create_pose_capture_router(_POSE_CAPTURE_SERVICE)
-_TOPAZ_VIDEO_SERVICE = TopazVideoService(
-    APP_DATA_DIR / 'data' / 'topaz-video', TopazVideoRuntime(
-        APP_DATA_DIR / 'components' / 'topaz-video', before_load=_LOCAL_IMAGE_MEMORY.release_all))
-_TOPAZ_VIDEO_ROUTES = create_topaz_video_router(_TOPAZ_VIDEO_SERVICE)
+_LOCAL_EXTENSIONS = load_local_extensions(
+    PROJECT_ROOT,
+    app_data_dir=APP_DATA_DIR,
+    release_local_image_memory=_LOCAL_IMAGE_MEMORY.release_all,
+    create_task=create_task,
+    attach_lineage_params=_attach_lineage_params,
+    process_image_enhancement_task=_process_image_enhancement_task,
+)
+_VIDEO_SOURCE_STORES = {'video_control': _VIDEO_CONTROL_SERVICE.store, **_LOCAL_EXTENSIONS.video_stores()}
 # Finished songs are copied into <archive>/audio/YYYY-MM-DD/; the job store keeps its receipts.
 _AUDIO_ARCHIVE = AudioArchive(
     _storage_paths.audio_archive_dir, write_markdown=write_obsidian_prompt_sidecar,
@@ -2584,8 +2581,7 @@ _ARCHIVE_AUDIO_ROUTES = create_archive_audio_router(_AUDIO_ARCHIVE)
 # Frames go to today's image folder, separated audio to the audio archive; sources are only
 # media URLs the canvas already plays, each resolved by the domain that serves it.
 _VIDEO_EDIT_SERVICE = VideoEditService(
-    resolver=VideoEditSources(archive_video=_resolve_public_video_file, stores={
-        'topaz_video': _TOPAZ_VIDEO_SERVICE.store, 'video_control': _VIDEO_CONTROL_SERVICE.store}),
+    resolver=VideoEditSources(archive_video=_resolve_public_video_file, stores=_VIDEO_SOURCE_STORES),
     frame_dir=daily_output_dir, write_sidecar=write_obsidian_prompt_sidecar, audio_archive=_AUDIO_ARCHIVE)
 # Compose renders land in today's archive folder (served as /video/<name>); receipts and recipes
 # survive restarts in data/video-edit/. Music comes from the audio archive, audio jobs or uploads.
@@ -2602,11 +2598,29 @@ _ASR_ROUTES = create_asr_router(_ASR_SERVICE)
 _VIDEO_UNDERSTAND_SERVICE = VideoUnderstandService(
     APP_DATA_DIR / 'components' / 'video-understand',
     APP_DATA_DIR / 'data' / 'video-understand',
-    resolver=VideoEditSources(archive_video=_resolve_public_video_file, stores={
-        'topaz_video': _TOPAZ_VIDEO_SERVICE.store, 'video_control': _VIDEO_CONTROL_SERVICE.store}),
+    resolver=VideoEditSources(archive_video=_resolve_public_video_file, stores=_VIDEO_SOURCE_STORES),
     runtime=VideoUnderstandRuntime(
         APP_DATA_DIR / 'components' / 'video-understand', before_load=_LOCAL_IMAGE_MEMORY.release_all))
 _VIDEO_UNDERSTAND_ROUTES = create_video_understand_router(_VIDEO_UNDERSTAND_SERVICE)
+_KANDINSKY_SR_SERVICE = KandinskySrService(
+    APP_DATA_DIR / 'components' / 'kandinsky-sr',
+    runtime=KandinskySrRuntime(
+        APP_DATA_DIR / 'components' / 'kandinsky-sr',
+        before_load=_LOCAL_IMAGE_MEMORY.release_all,
+    ),
+)
+_KANDINSKY_SR_ROUTES = create_kandinsky_sr_router(
+    _KANDINSKY_SR_SERVICE,
+    create_task=create_task,
+    process_task=lambda task_id, prompt, image_data, params: _process_image_enhancement_task(
+        task_id,
+        prompt,
+        image_data,
+        params,
+        engine=_KANDINSKY_SR_SERVICE.engine(params),
+    ),
+    attach_lineage=_attach_lineage_params,
+)
 _VIDEO_TRANSCRIBE_SERVICE = VideoTranscribeService(compose=_VIDEO_COMPOSE_SERVICE, asr=_ASR_SERVICE)
 _VIDEO_EDIT_ROUTES = create_video_edit_router(_VIDEO_EDIT_SERVICE, _VIDEO_COMPOSE_SERVICE, _VIDEO_TRANSCRIBE_SERVICE)
 
@@ -2659,7 +2673,7 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
             parsed = urllib.parse.urlparse(getattr(self, 'path', '') or '')
             path = parsed.path
             query = parsed.query
-            no_cache = path in ('', '/') or path.endswith('.html')
+            no_cache = path in ('', '/') or path.endswith('.html') or path.startswith(('/local-ext/', '/ext/'))
             if no_cache:
                 self.send_header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
                 self.send_header('Pragma', 'no-cache')
@@ -2674,6 +2688,36 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
         except Exception:
             pass
         super().end_headers()
+
+    def _serve_desktop_html(self, *, send_body=True):
+        desktop_file = FRONTEND_ROOT / 'desktop.html'
+        if not desktop_file.is_file():
+            self.send_error(404, "Not Found")
+            return
+        html = desktop_file.read_text(encoding='utf-8')
+        body = _LOCAL_EXTENSIONS.inject_desktop_html(html).encode('utf-8')
+        self.send_response(200)
+        self.send_header('Content-Type', 'text/html; charset=utf-8')
+        self.send_header('Content-Length', str(len(body)))
+        self.end_headers()
+        if send_body:
+            self.wfile.write(body)
+
+    def _serve_local_ext_asset(self, path, *, send_body=True):
+        asset_path = _LOCAL_EXTENSIONS.resolve_frontend_asset(path)
+        if asset_path is None:
+            self.send_error(404, "Not Found")
+            return
+        data = asset_path.read_bytes()
+        ctype = mimetypes.guess_type(str(asset_path))[0] or 'application/octet-stream'
+        if ctype in ('text/css', 'text/javascript', 'application/javascript'):
+            ctype += '; charset=utf-8'
+        self.send_response(200)
+        self.send_header('Content-Type', ctype)
+        self.send_header('Content-Length', str(len(data)))
+        self.end_headers()
+        if send_body:
+            self.wfile.write(data)
 
     def _get_cookie_value(self, name):
         return _domain_routes_auth_routes._get_cookie_value(self, name, SimpleCookie=SimpleCookie)
@@ -2708,6 +2752,12 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
 
     def do_HEAD(self):
         path = urllib.parse.urlparse(self.path).path
+        if path.startswith(('/local-ext/', '/ext/')):
+            self._serve_local_ext_asset(path, send_body=False)
+            return
+        if path == '/desktop.html' and _LOCAL_EXTENSIONS.has_frontend_assets():
+            self._serve_desktop_html(send_body=False)
+            return
         if path.startswith('/font/'):
             if not self.require_auth():
                 return
@@ -2723,6 +2773,13 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
         if path == '/v' or path.startswith('/v=') or path.lower().startswith('/%3f'):
             self.path = '/'
             super().do_GET()
+            return
+
+        if path.startswith(('/local-ext/', '/ext/')):
+            self._serve_local_ext_asset(path, send_body=True)
+            return
+        if path == '/desktop.html' and _LOCAL_EXTENSIONS.has_frontend_assets():
+            self._serve_desktop_html(send_body=True)
             return
 
         if _VIDEO_CONTROL_ROUTES.dispatch(self, 'GET', path):
@@ -2743,11 +2800,13 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
             return
         if _LORA_LIBRARY_ROUTES.dispatch(self, 'GET', path):
             return
-        if _TOPAZ_VIDEO_ROUTES.dispatch(self, 'GET', path):
+        if _LOCAL_EXTENSIONS.dispatch_route(self, 'GET', path):
             return
         if _ASR_ROUTES.dispatch(self, 'GET', path):
             return
         if _VIDEO_UNDERSTAND_ROUTES.dispatch(self, 'GET', path):
+            return
+        if _KANDINSKY_SR_ROUTES.dispatch(self, 'GET', path):
             return
         if _AUDIO_ROUTES.dispatch(self, 'GET', path):
             return
@@ -2901,10 +2960,6 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
                 return
             task_id = path.split('/')[-1]
             self.handle_status(task_id)
-        elif path == '/api/topaz/models':
-            if not self.require_auth():
-                return
-            topaz_routes.models(self, _topaz_runtime)
         elif path == '/api/upscale/models':
             if not self.require_auth():
                 return
@@ -3017,6 +3072,8 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
                 return
             asset_id = urllib.parse.unquote(path.split('/')[-1])
             self.handle_asset_delete(asset_id)
+        elif _LOCAL_EXTENSIONS.dispatch_route(self, 'DELETE', path):
+            return
         else:
             self.send_error(404, "Not Found")
     
@@ -3046,11 +3103,13 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
             return
         if _LORA_LIBRARY_ROUTES.dispatch(self, 'POST', path):
             return
-        if _TOPAZ_VIDEO_ROUTES.dispatch(self, 'POST', path):
+        if _LOCAL_EXTENSIONS.dispatch_route(self, 'POST', path):
             return
         if _ASR_ROUTES.dispatch(self, 'POST', path):
             return
         if _VIDEO_UNDERSTAND_ROUTES.dispatch(self, 'POST', path):
+            return
+        if _KANDINSKY_SR_ROUTES.dispatch(self, 'POST', path):
             return
         if _AUDIO_ROUTES.dispatch(self, 'POST', path):
             return
@@ -3093,11 +3152,6 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
             if not self.require_auth():
                 return
             self.handle_gpt_edit()
-        elif path == '/api/topaz/run':
-            if not self.require_auth():
-                return
-            topaz_routes.submit(self, runtime=_topaz_runtime, create_task=create_task,
-                process_task=process_topaz_task, attach_lineage=_attach_lineage_params)
         elif path == '/api/upscale/run':
             if not self.require_auth():
                 return
@@ -3371,6 +3425,8 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
             if not self.require_auth():
                 return
             self.handle_system_settings_save()
+        elif _LOCAL_EXTENSIONS.dispatch_route(self, 'PATCH', path):
+            return
         else:
             self.send_error(404, "Not Found")
 
@@ -3382,6 +3438,8 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
             if not self.require_auth():
                 return
             self.handle_layout_draft_post(parsed)
+        elif _LOCAL_EXTENSIONS.dispatch_route(self, 'PUT', path):
+            return
         else:
             self.send_error(404, "Not Found")
 
@@ -4409,6 +4467,7 @@ def run_server():
         recover_krea2_tasks=_KREA2_SERVICE.recover,
         recover_qwen21_tasks=_QWEN21_SERVICE.recover,
         recover_moss_tasks=_MOSS_SERVICE.recover,
+        run_extension_startup_hooks=_LOCAL_EXTENSIONS.run_startup_hooks,
         init_prompt_source_store=init_prompt_source_store, socketserver=socketserver,
     )
 

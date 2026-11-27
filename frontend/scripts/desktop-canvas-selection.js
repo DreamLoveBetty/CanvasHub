@@ -227,8 +227,13 @@
         const minimumUnits = String(button.dataset.align || '').startsWith('distribute-') ? 3 : 2;
         button.disabled = units.length < minimumUnits;
       });
+      const toolbarTop = Math.max(8, rect.top - 42);
+      els.deskSelectionCount?.parentElement?.style?.setProperty?.(
+        '--desk-selection-meta-top',
+        `${toolbarTop - rect.top - 1}px`
+      );
       els.deskSelectionToolbar.style.left = `${Math.max(8, rect.left)}px`;
-      els.deskSelectionToolbar.style.top = `${Math.max(8, rect.top - 42)}px`;
+      els.deskSelectionToolbar.style.top = `${toolbarTop}px`;
       els.deskSelectionToolbar.classList.add('is-active');
     }
 
