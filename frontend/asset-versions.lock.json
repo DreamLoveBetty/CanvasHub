@@ -411,8 +411,8 @@
     "sha256": "28a9ac080982143a19c5307d031da140edb83ea3a5e631bca73d0b12e783f970"
    },
    "scripts/desktop-preferences.js": {
-    "v": "20261124-release2665",
-    "sha256": "6299e8433ef17895438d3f8763c274d837221d5620965c070060e2c4435ef0ae"
+    "v": "20261127-release2666",
+    "sha256": "26f4dab8b1586cf00a099d54494f59b56c32e739655bcc4e1241f1ad5e2d25f4"
    },
    "scripts/desktop-progress-materials.js": {
     "v": "20261007-node-progress4",
